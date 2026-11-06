@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   routeOfHash,
   routeOfState,
+  sectionOfHash,
   stateForRoute,
   transitionRoute,
 } from "../../src/modules/spark-editor/workspace/routes";
@@ -38,6 +39,20 @@ describe("routeOfHash", () => {
     ["", undefined],
   ])("reads %s as %s", (hash, route) => {
     expect(routeOfHash(hash)).toBe(route);
+  });
+});
+
+describe("sectionOfHash", () => {
+  it.each([
+    ["#project?section=save-settings", "save-settings"],
+    ["#PROJECT?section=file-types", "file-types"],
+    ["#project&section=file-types", "file-types"],
+    ["#project", undefined],
+    ["#project?section=", undefined],
+    ["#write?section=save-settings", undefined],
+    ["", undefined],
+  ])("reads %s as %s", (hash, section) => {
+    expect(sectionOfHash(hash)).toBe(section);
   });
 });
 

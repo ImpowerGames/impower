@@ -91,3 +91,41 @@ test("no tracked script file is ignored by the lint", async () => {
   }
   assert.deepEqual(ignored, []);
 });
+
+const FORM_PROBE = (element) => `export const Probe = () => ${element};\n`;
+
+test("a bare input, select or textarea in impower-dev fails with a message naming the package", async () => {
+  for (const element of [
+    "<input />",
+    '<input type="text" value="a" />',
+    '<input type="checkbox" role="switch" />',
+    "<select><option>a</option></select>",
+    "<textarea />",
+  ]) {
+    await assertRefused("impower-dev/src/modules/spark-editor/components/probe/Probe.tsx", FORM_PROBE(element), "no-restricted-syntax");
+  }
+});
+
+test("a hidden file picker, the package's own controls and components with the same names pass", async () => {
+  for (const element of ['<input type="file" hidden />', "<TextField />", "<Select options={[]} />", "<Switch />"]) {
+    assert.deepEqual(await lint("impower-dev/src/modules/spark-editor/components/probe/Probe.tsx", FORM_PROBE(element)), []);
+  }
+  assert.deepEqual(await lint("packages/impower-ui/src/components/probe/Probe.tsx", FORM_PROBE("<input />")), []);
+});
+
+test("the Radix boundary still holds in impower-dev's TSX files", async () => {
+  await assertRefused(
+    "impower-dev/src/modules/spark-editor/components/probe/Probe.tsx",
+    'export const load = () => import("@radix-ui/react-dialog");\n',
+    "no-restricted-syntax",
+  );
+});
+
+test("every legacy form-control file still holds a bare control, so the list only shrinks", async () => {
+  const { LEGACY_FORM_CONTROL_FILES } = await import("./eslint.config.js");
+  const { readFileSync } = await import("node:fs");
+  for (const file of LEGACY_FORM_CONTROL_FILES) {
+    const source = readFileSync(path.join(ROOT, file), "utf8");
+    assert.match(source, /<(select|textarea)\b|<input\b(?![^>]*type="file")/, `${file} has no bare form control; remove it from LEGACY_FORM_CONTROL_FILES`);
+  }
+});

@@ -107,8 +107,6 @@ describe("the Folio icon set", () => {
       "modules/spark-editor/components/account",
       "modules/spark-editor/components/header-menu-button",
       "modules/spark-editor/components/header-navigation",
-      "modules/spark-editor/components/header-sync-conflict-toolbar",
-      "modules/spark-editor/components/header-sync-toolbar",
       "modules/spark-editor/components/main-window",
     ]);
   });

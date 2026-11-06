@@ -75,57 +75,12 @@ export default function Account(_p: AccountProps) {
 
   const handleSignOut = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    const { WorkspaceConstants } = await import(
-      "../../workspace/WorkspaceConstants"
-    );
-    try {
-      const provider = Workspace.sync.google;
-      Workspace.window.unloadProject();
-      await provider.signOut();
-      Workspace.window.loadNewProject(WorkspaceConstants.LOCAL_PROJECT_ID);
-      Workspace.window.clearAccount();
-    } catch (err) {
-      console.error(err);
-    }
+    await Workspace.window.signOutOfGoogleDrive();
   };
 
-  const handleLoadRemoteProject = async () => {
+  const handleOpenProjectFromDrive = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    try {
-      const provider = Workspace.sync.google;
-      const access = await provider.getAccess();
-      const token = access?.token;
-      if (!token) return;
-      Workspace.window.startPickingRemoteProjectResource();
-      const fileId = await provider.pickRemoteProjectFile(token);
-      if (fileId) {
-        Workspace.window.unloadProject();
-        Workspace.window.loadNewProject(fileId);
-      }
-      Workspace.window.finishPickingRemoteProjectResource();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSaveRemoteProject = async () => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    try {
-      const projectId = Workspace.window.store?.project?.id;
-      if (!projectId) return;
-      const provider = Workspace.sync.google;
-      const access = await provider.getAccess();
-      const token = access?.token;
-      if (!token) return;
-      Workspace.window.startPickingRemoteProjectResource();
-      const folderId = await provider.pickRemoteProjectFolder(token);
-      if (folderId) {
-        await Workspace.window.saveRemoteProject(folderId);
-      }
-      Workspace.window.finishPickingRemoteProjectResource();
-    } catch (err) {
-      console.error(err);
-    }
+    await Workspace.window.openProjectFromDrive();
   };
 
   const offline = account?.offline;
@@ -136,15 +91,9 @@ export default function Account(_p: AccountProps) {
         <>
           <FabRow
             icon={<Download class="size-5" />}
-            onClick={handleLoadRemoteProject}
+            onClick={handleOpenProjectFromDrive}
           >
-            Load Remote Project
-          </FabRow>
-          <FabRow
-            icon={<Upload class="size-5" />}
-            onClick={handleSaveRemoteProject}
-          >
-            Save Remote Project
+            Open a project from Drive
           </FabRow>
           <div class="flex-1" />
           <div ref={accountRowRef} class="relative">

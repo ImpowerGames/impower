@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -961,6 +961,32 @@ await asyncCheck("--step file-menu fails by name when the Scripts page, a row me
   assert.deepEqual(await openFileMenu(noRows, { timeout: 2000 }), { step: "file-menu", ran: false, reason: "no row menu button (Options for …) on the Scripts page within 2 s" });
   const stuck = scriptsPageStub({ menuOpens: false });
   assert.deepEqual(await openFileMenu(stuck, { timeout: 1000 }), { step: "file-menu", ran: false, row: "Definitions", reason: "the menu for Definitions did not open within 1 s of pressing Options for Definitions" });
+});
+
+await asyncCheck("--step settings=<section> goes to #project?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {
+  const page = ({ focuses, sections = [] }) => {
+    const calls = [];
+    return {
+      calls,
+      evaluate: async (fn, arg) => {
+        calls.push(arg ?? null);
+        if (arg !== undefined) return undefined;
+        if (String(fn).includes("data-settings-section")) return sections;
+        return { hash: "#project?section=save-settings", marked: "save-settings" };
+      },
+      waitForFunction: async () => {
+        if (!focuses) throw new Error("timeout");
+      },
+    };
+  };
+  const landed = page({ focuses: true });
+  assert.deepEqual(await openSettings(landed, "save-settings"), { step: "settings", section: "save-settings", ran: true, hash: "#project?section=save-settings", marked: "save-settings" });
+  assert.equal(landed.calls[0], "save-settings");
+  assert.match(
+    (await openSettings(page({ focuses: false, sections: ["theme-preferences", "save-settings"] }), "appearance", { timeout: 2000 })).reason,
+    /no Settings section "appearance" took focus within 2 s; the page has: theme-preferences, save-settings/,
+  );
+  assert.match((await openSettings(page({ focuses: false }), "save-settings", { timeout: 2000 })).reason, /the Settings page did not open within 2 s/);
 });
 
 await asyncCheck("--step focus-script-name clicks the open script's name field, or says Main's name is fixed", async () => {
