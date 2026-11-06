@@ -55,7 +55,7 @@ export default class ScreenplayParser {
     };
 
     const addSeparator = () => {
-      if (tokens.findLast((t) => t.tag !== "function")?.tag !== "separator") {
+      if (tokens.at(-1)?.tag !== "separator") {
         tokens.push({ tag: "separator" });
       }
     };
@@ -334,18 +334,11 @@ export default class ScreenplayParser {
     while (tokens.at(0)?.tag === "separator") {
       tokens.shift();
     }
-    let end = tokens.length;
-    while (
-      tokens[end - 1]?.tag === "separator" ||
-      tokens[end - 1]?.tag === "function"
-    ) {
-      end--;
+    while (tokens.at(-1)?.tag === "separator") {
+      tokens.pop();
     }
 
-    return [
-      ...tokens.slice(0, end),
-      ...tokens.slice(end).filter((t) => t.tag === "function"),
-    ];
+    return tokens;
   }
 
   parseAll(scripts: string[]): ScreenplayToken[] {

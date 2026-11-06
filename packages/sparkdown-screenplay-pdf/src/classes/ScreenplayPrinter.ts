@@ -359,8 +359,7 @@ export default class ScreenplayPrinter {
         if (
           this._config?.screenplay_print_bookmarks &&
           (!invisible ||
-            (span.tag !== "function" &&
-              this._config?.screenplay_print_bookmarks_for_invisible_headings))
+            this._config?.screenplay_print_bookmarks_for_invisible_headings)
         ) {
           if (this._doc.outline) {
             const oc = this.getOutlineChild(

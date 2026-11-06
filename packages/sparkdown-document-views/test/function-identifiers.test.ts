@@ -51,6 +51,35 @@ end`;
 const localize = (script: string) =>
   script.replace(/^function (\w+)\(/gm, "local function $1(");
 
+const HELPER = "function SecretHelper()\n  return 1\nend\n";
+
+const pageOfLines = (count: number) =>
+  "scene Opening:\n" +
+  Array.from({ length: count }, (_, i) => `  Line ${i + 1}.`).join("\n") +
+  "\n" +
+  HELPER;
+
+const DEFAULT_OUTPUT_FIXTURES: [string, string][] = [
+  ["spaced", SCRIPT],
+  ["compact", COMPACT_SCRIPT],
+  ["before the first scene", `${HELPER}\nscene Opening:\n  Hello there.\n`],
+  [
+    "after an empty scene",
+    `scene Empty:\n\n${HELPER}\nscene Opening:\n  Hello there.\n`,
+  ],
+  [
+    "between a branch and a heading",
+    `scene Opening:\n  Hello there.\n\nbranch Side:\n  Inside branch.\n\n${HELPER}\n$: INT. ROOM - DAY\n  After helper.\n`,
+  ],
+  ...Array.from(
+    { length: 11 },
+    (_, i): [string, string] => [
+      `after ${50 + i} lines at a page end`,
+      pageOfLines(50 + i),
+    ],
+  ),
+];
+
 const ON: ScreenplayConfig = { screenplay_print_function_identifiers: true };
 const OFF: ScreenplayConfig = { screenplay_print_function_identifiers: false };
 const EXTENSION_DEFAULTS: ScreenplayConfig = {
@@ -237,13 +266,12 @@ describe("screenplay function identifiers", () => {
     ["spaced", SCRIPT],
     ["compact", COMPACT_SCRIPT],
   ])(
-    "only function tokens are added, so reading copy and CSV are unchanged (%s)",
+    "reading copy and CSV are unchanged by root function definitions (%s)",
     (_, script) => {
       const parser = new ScreenplayParser();
       const tokens = parser.parse(script);
       const localized = parser.parse(localize(script));
       expect(tokens.some((t) => t.tag === "function")).toBe(true);
-      expect(tokens.filter((t) => t.tag !== "function")).toEqual(localized);
       expect(generateScreenplayReadingCopy(tokens)).toBe(
         generateScreenplayReadingCopy(localized),
       );
@@ -253,30 +281,25 @@ describe("screenplay function identifiers", () => {
     },
   );
 
-  it.each([
-    ["spaced", SCRIPT],
-    ["compact", COMPACT_SCRIPT],
-  ])(
+  it.each(DEFAULT_OUTPUT_FIXTURES)(
     "default HTML output is unchanged by root function definitions (%s)",
     (_, script) => {
       expect(localize(script)).not.toBe(script);
-      expect(html(script)).toBe(html(localize(script)));
-      expect(html(script, OFF)).toBe(html(localize(script), OFF));
+      for (const config of [undefined, OFF, EXTENSION_DEFAULTS]) {
+        expect(html(script, config)).toBe(html(localize(script), config));
+      }
     },
   );
 
-  it.each([
-    ["spaced", SCRIPT, undefined],
-    ["compact", COMPACT_SCRIPT, undefined],
-    ["spaced, extension defaults", SCRIPT, EXTENSION_DEFAULTS],
-    ["compact, extension defaults", COMPACT_SCRIPT, EXTENSION_DEFAULTS],
-  ])(
+  it.each(DEFAULT_OUTPUT_FIXTURES)(
     "default PDF output is unchanged by root function definitions (%s)",
-    async (_, script, config) => {
-      const actual = await pdfBytes(script, config);
-      const expected = await pdfBytes(localize(script), config);
-      expect(actual.length).toBeGreaterThan(0);
-      expect(Buffer.from(actual).equals(Buffer.from(expected))).toBe(true);
+    async (_, script) => {
+      for (const config of [undefined, EXTENSION_DEFAULTS]) {
+        const actual = await pdfBytes(script, config);
+        const expected = await pdfBytes(localize(script), config);
+        expect(actual.length).toBeGreaterThan(0);
+        expect(Buffer.from(actual).equals(Buffer.from(expected))).toBe(true);
+      }
     },
   );
 });
