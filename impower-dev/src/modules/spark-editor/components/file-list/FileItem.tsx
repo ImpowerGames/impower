@@ -31,6 +31,7 @@ import {
 } from "../../utils/fileTree";
 import { isScriptExtension } from "../../utils/scriptFiles";
 import workspace from "../../workspace/WorkspaceStore";
+import problems from "../../workspace/problems/ProblemsStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileMenuItems from "./FileMenuItems";
 import { openRowMenu } from "./openRowMenu";
@@ -452,8 +453,7 @@ function FileItem({
     onDownload: !isDirectory ? () => void downloadEntry() : undefined,
   };
 
-  const _ = useComputed(() => workspace.state.value.debug?.diagnosticsSummary)
-    .value;
+  const _ = useComputed(() => problems.summary.value).value;
   void _;
 
   return (

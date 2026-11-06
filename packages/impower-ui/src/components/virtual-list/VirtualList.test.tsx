@@ -83,6 +83,24 @@ describe("VirtualList", () => {
     expect(row.style.top).toBe(`${100 * rowHeight}px`);
   });
 
+  it("places rows of fixed per-item heights by their summed offsets and mounts only those in view", async () => {
+    const itemHeight = (_item: string, index: number) => (index % 2 ? 30 : 90);
+    const scroller = await mount(120, { itemHeight });
+    const list = host!.querySelector('[role="list"]') as HTMLElement;
+    expect(list.style.height).toBe(`${250 * 90 + 250 * 30}px`);
+    expect(shown()).toEqual(["row 0", "row 1", "row 2", "row 3", "row 4", "row 5"]);
+    scroller.scrollTop = 120 * 50 + 90;
+    await act(async () => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    expect(shown()[0]).toBe("row 99");
+    const row = Array.from(host!.querySelectorAll<HTMLElement>('[role="listitem"]')).find(
+      (element) => element.textContent === "row 101",
+    )!;
+    expect(row.style.top).toBe(`${120 * 50 + 90}px`);
+    expect(row.style.height).toBe("30px");
+  });
+
   it("gives a compact slot its row height with no gap, so a 44px row fits it", async () => {
     await mount(VIRTUAL_LIST_ROW_HEIGHT.compact * 4, { size: "compact" });
     const first = host!.querySelector('[role="listitem"]') as HTMLElement;
@@ -116,6 +134,36 @@ describe("VirtualList", () => {
     expect(scroller!.scrollTop).toBe(201 * rowHeight - rowHeight * 4);
     await act(async () => render(list(10), host!));
     expect(scroller!.scrollTop).toBe(10 * rowHeight);
+  });
+
+  it("reveals the same row again on a new reveal request", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? rowHeight * 4 : 0;
+      },
+    });
+    const list = (revealRequest: number) => (
+      <VirtualList
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        revealIndex={0}
+        revealRequest={revealRequest}
+        listRef={(element) => {
+          scroller = element;
+        }}
+      />
+    );
+    await act(async () => render(list(1), host!));
+    scroller!.scrollTop = rowHeight * 50;
+    await act(async () => render(list(1), host!));
+    expect(scroller!.scrollTop).toBe(rowHeight * 50);
+    await act(async () => render(list(2), host!));
+    expect(scroller!.scrollTop).toBe(0);
   });
 
   it("reveals its row once a list mounted hidden gets a viewport", async () => {

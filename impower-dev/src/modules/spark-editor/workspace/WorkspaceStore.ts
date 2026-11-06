@@ -80,7 +80,6 @@ export const cacheableWorkspaceState = (
   const copy = structuredClone(store);
   copy.screen = {};
   copy.sync = {};
-  copy.debug.diagnosticsSummary = {};
   copy.debug.pinpoints = {};
   copy.debug.highlights = {};
   copy.preview.modes.game = {};

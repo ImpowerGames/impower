@@ -279,43 +279,6 @@ describe("ScriptEditorController select", () => {
   });
 });
 
-describe("ScriptEditorController problems", () => {
-  const show = (controller: TestController, uri: string) =>
-    controller["handleExecuteEditorCommand"]({
-      ...ExecuteEditorCommandMessage.type.request({
-        textDocument: { uri },
-        command: "problems",
-      }),
-      id: `problems-${nextId++}`,
-    });
-
-  it("opens the problems panel for its own document", async () => {
-    const { controller, view } = await loadedEditor();
-    controller.reveal();
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
-    const response = show(controller, "file:///main.sd");
-    expect(response).toMatchObject({ result: { ran: true } });
-    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
-  });
-
-  it("waits for a hidden editor to be revealed before opening the panel", async () => {
-    const { controller, view, host } = await loadedEditor();
-    const editor = host.firstElementChild as HTMLElement;
-    editor.style.visibility = "hidden";
-    expect(show(controller, "file:///main.sd")).toMatchObject({ result: { ran: true } });
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
-    controller.reveal();
-    expect(editor.style.visibility).toBe("visible");
-    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
-  });
-
-  it("leaves another document's request unanswered", async () => {
-    const { controller, view } = await loadedEditor();
-    expect(show(controller, "file:///other.sd")).toBeUndefined();
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
-  });
-});
-
 describe("ScriptEditorController initial selection", () => {
   it("puts the caret where the load asked once the editor settles, even with that line on screen", async () => {
     const mounted = mount();
@@ -430,15 +393,13 @@ describe("ScriptEditorController commands", () => {
     expect(view.state.doc.line(1).text).toBe("hello world");
   });
 
-  it("opens Go to line, find and the problems panel inside the editor", async () => {
+  it("opens Go to line and find inside the editor", async () => {
     const { controller, host } = await loadedEditor();
     controller.reveal();
     run(controller, "gotoLine");
     expect(host.querySelector(".cm-gotoLine")).not.toBeNull();
     run(controller, "search");
     expect(host.querySelector(".cm-search")).not.toBeNull();
-    run(controller, "problems");
-    expect(host.querySelector(".cm-panel-lint")).not.toBeNull();
   });
 
   it("leaves a command for another document to that document's editor", async () => {

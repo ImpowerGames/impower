@@ -3,7 +3,6 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const intents = vi.hoisted(() => ({
-  showProblems: vi.fn(),
   revealDocument: vi.fn(),
 }));
 
@@ -22,7 +21,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     window: {
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
-      showProblems: intents.showProblems,
       revealDocument: intents.revealDocument,
     },
   },
@@ -69,6 +67,15 @@ const { PROJECT_SETTINGS_STORAGE_KEY_PREFIX, WorkspaceSettings } = await import(
 const { default: Preview } = await import(
   "../../src/modules/spark-editor/components/preview/Preview"
 );
+const { default: problems } = await import(
+  "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+);
+
+const diagnostic = (severity: number) => ({
+  range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+  severity: severity as 1 | 2 | 3,
+  message: "x",
+});
 
 const initial = structuredClone(workspace.current);
 let host: HTMLDivElement | undefined;
@@ -146,8 +153,8 @@ beforeEach(() => {
   workspaceSettings.setProjectSetting("previewAspectRatio", "auto");
   workspaceSettings.setProjectSetting("previewPanelHeight", 44);
   workspaceSettings.setPreference("previewMode", "game");
-  intents.showProblems.mockClear();
   intents.revealDocument.mockClear();
+  problems.diagnostics.value = {};
 });
 
 afterEach(async () => {
@@ -163,35 +170,34 @@ describe("the bar under the game", () => {
     await mount();
     expect(toggle().textContent).toBe("No problems");
     expect(toggle().hasAttribute("data-problems")).toBe(false);
-    await setState((s) => ({
-      ...s,
-      debug: {
-        ...s.debug,
-        diagnosticsSummary: {
-          "file:///local/main.sd": { errors: 1, warnings: 0, infos: 2 },
-          "file:///local/chapter.sd": { errors: 0, warnings: 1, infos: 0 },
-        },
-      },
-    }));
+    await act(() => {
+      problems.record({ uri: "file:///local/main.sd", diagnostics: [diagnostic(1), diagnostic(3), diagnostic(3)] });
+      problems.record({ uri: "file:///local/chapter.sd", diagnostics: [diagnostic(2)] });
+    });
     expect(toggle().textContent).toBe("2 problems · 2 notes");
     expect(toggle().hasAttribute("data-problems")).toBe(true);
-    await setState((s) => ({
-      ...s,
-      debug: {
-        ...s.debug,
-        diagnosticsSummary: {
-          "file:///local/main.sd": { errors: 0, warnings: 1, infos: 3 },
-        },
-      },
-    }));
+    await act(() => {
+      problems.record({ uri: "file:///local/main.sd", diagnostics: [diagnostic(2), diagnostic(3), diagnostic(3), diagnostic(3)] });
+      problems.record({ uri: "file:///local/chapter.sd", diagnostics: [] });
+    });
     expect(toggle().textContent).toBe("1 problem · 3 notes");
+    expect(document.querySelector('[role="status"]')!.textContent).toBe("1 problem · 3 notes");
   });
 
-  it("opens the editor's problems for the open script from the toggle", async () => {
+  it("opens the Problems panel under the game from the toggle and collapses it again", async () => {
     await mount();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById("problems-panel")).toBeNull();
     await act(async () => toggle().click());
     await settle();
-    expect(intents.showProblems.mock.calls).toEqual([["file:///local/main.sd"]]);
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    expect(toggle().getAttribute("title")).toBe("Collapse the panel");
+    expect(stored().previewPanelHeight).toBe(260);
+    expect(document.getElementById("problems-panel")).not.toBeNull();
+    await act(async () => toggle().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("problems-panel")).toBeNull();
   });
 
   it("shows the caret's line while stopped and the executing line while playing", async () => {

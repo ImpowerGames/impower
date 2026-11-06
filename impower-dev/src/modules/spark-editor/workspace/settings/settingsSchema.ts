@@ -143,6 +143,8 @@ export const PROJECT_SETTINGS_SCHEMA = {
   ),
   previewAspectRatio: choice("auto", ["auto", ...GAME_ASPECT_RATIOS]),
   previewPanelHeight: setting<number>(44),
+  problemsScriptCardOpen: setting(true),
+  problemsPlayedCardOpen: setting(true),
 } as const satisfies Record<string, SettingSpec>;
 
 type ValuesOf<S extends Record<string, SettingSpec>> = {

@@ -1,6 +1,7 @@
 import ConflictDialogHost from "../components/conflict-dialog/ConflictDialogHost";
 import { SyncConflictDialog } from "../components/drive-sync";
 import MainWindow from "../components/main-window/MainWindow";
+import { ProblemsDialog } from "../components/problems";
 import SnackbarHost from "../components/snackbar-host/SnackbarHost";
 import TrashPanel from "../components/trash-panel/TrashPanel";
 
@@ -33,6 +34,7 @@ export default function SparkEditor(_props: SparkEditorProps) {
       <TrashPanel />
       <ConflictDialogHost />
       <SyncConflictDialog />
+      <ProblemsDialog />
       <SnackbarHost />
     </>
   );
