@@ -17,6 +17,15 @@ const at = (line: number, from: number, to: number, newText: string) => ({
   newText,
 });
 
+const recorded = (
+  cache: EditorHistoryCache,
+  ...args: Parameters<EditorHistoryCache["record"]>
+) => {
+  const after = cache.record(...args);
+  expect(after).toBeDefined();
+  return after!;
+};
+
 const reopen = (cache: EditorHistoryCache, uri: string, text: string) => {
   const restored = cache.restore(uri, text);
   if (!restored) {
@@ -50,7 +59,7 @@ describe("the editor's per-script history cache", () => {
 
   it("records a replace in a closed script as one undo step the reopened editor undoes", () => {
     const cache = new EditorHistoryCache();
-    const after = cache.record("file:///chapter.sd", before, [
+    const after = recorded(cache, "file:///chapter.sd", before, [
       at(1, 6, 12, "tale"),
       at(2, 4, 10, "tale"),
     ]);
@@ -65,7 +74,7 @@ describe("the editor's per-script history cache", () => {
     const typed = EditorState.create({ doc: before, extensions: [history()] })
       .update({ changes: { from: 0, insert: "// note" + NEWLINE }, userEvent: "input.type" }).state;
     cache.save("file:///chapter.sd", typed);
-    const after = cache.record("file:///chapter.sd", typed.doc.toString(), [
+    const after = recorded(cache, "file:///chapter.sd", typed.doc.toString(), [
       at(2, 6, 12, "tale"),
     ]);
     const state = reopen(cache, "file:///chapter.sd", after);
@@ -85,7 +94,7 @@ describe("the editor's per-script history cache", () => {
   it("starts a fresh history when the saved one was for other text", () => {
     const cache = new EditorHistoryCache();
     cache.record("file:///chapter.sd", "old text", [at(0, 0, 3, "new")]);
-    const after = cache.record("file:///chapter.sd", before, [at(1, 6, 12, "tale")]);
+    const after = recorded(cache, "file:///chapter.sd", before, [at(1, 6, 12, "tale")]);
     const state = reopen(cache, "file:///chapter.sd", after);
     expect(undoDepth(state)).toBe(1);
     expect(undoOnce(state).doc.toString()).toBe(before);
@@ -94,7 +103,7 @@ describe("the editor's per-script history cache", () => {
   it("matches text whatever its line breaks", () => {
     const cache = new EditorHistoryCache();
     const crlf = before.split(NEWLINE).join(String.fromCharCode(13, 10));
-    const after = cache.record("file:///chapter.sd", crlf, [at(1, 6, 12, "tale")]);
+    const after = recorded(cache, "file:///chapter.sd", crlf, [at(1, 6, 12, "tale")]);
     expect(cache.restore("file:///chapter.sd", after.split(NEWLINE).join(String.fromCharCode(13, 10)))).toBeDefined();
   });
 
@@ -121,7 +130,7 @@ describe("the editor's per-script history cache", () => {
     const cache = new EditorHistoryCache();
     const count = EDITOR_HISTORY_CACHE_LIMIT + 5;
     const afters = Array.from({ length: count }, (_, i) =>
-      cache.record(`file:///s${i}.sd`, before, [at(1, 6, 12, "tale")], "replace-all"),
+      recorded(cache, `file:///s${i}.sd`, before, [at(1, 6, 12, "tale")], "replace-all"),
     );
     for (let i = 0; i < EDITOR_HISTORY_CACHE_LIMIT + 3; i++) {
       cache.save(`file:///visited${i}.sd`, typedIn(before));
@@ -137,7 +146,7 @@ describe("the editor's per-script history cache", () => {
 
   it("lets an opened script's history fall back under the bound once its editor saves it", () => {
     const cache = new EditorHistoryCache(2);
-    const after = cache.record("file:///replaced.sd", before, [at(1, 6, 12, "tale")])!;
+    const after = recorded(cache, "file:///replaced.sd", before, [at(1, 6, 12, "tale")]);
     cache.save("file:///replaced.sd", reopen(cache, "file:///replaced.sd", after));
     cache.save("file:///a.sd", typedIn(before));
     cache.save("file:///b.sd", typedIn(before));

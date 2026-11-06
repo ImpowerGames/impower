@@ -61,6 +61,7 @@ export type ButtonProps = Omit<
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     class?: string;
+    name?: string;
     type?: "button" | "submit" | "reset";
     disabled?: boolean;
     children?: ComponentChildren;
