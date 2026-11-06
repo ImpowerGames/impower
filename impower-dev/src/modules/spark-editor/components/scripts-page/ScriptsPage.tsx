@@ -15,6 +15,7 @@ import {
   PlusIcon,
   RootIcon,
   SearchIcon,
+  TextField,
   VirtualList,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
@@ -267,15 +268,14 @@ export default function ScriptsPage() {
           <div class="flex flex-none items-center gap-2.5 pt-4 pb-2">
             <label class="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-control border border-edge pl-3 focus-within:border-accent">
               <SearchIcon class="size-[18px] flex-none text-muted" />
-              <input
+              <TextField
+                frame="inset"
                 type="search"
                 aria-label="Search scripts"
                 placeholder="Search scripts"
-                autocomplete="off"
-                spellcheck={false}
                 value={query}
-                class="h-full min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-muted [:root[data-layout=desktop]_&]:text-[13px] [&::-webkit-search-cancel-button]:hidden"
-                onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+                class="text-[16px] [:root[data-layout=desktop]_&]:text-[13px] [&::-webkit-search-cancel-button]:hidden"
+                onValueChange={setQuery}
                 onKeyDown={(e) => {
                   if (e.key === "Escape" && query) {
                     e.preventDefault();

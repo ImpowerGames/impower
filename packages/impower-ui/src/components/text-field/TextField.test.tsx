@@ -90,6 +90,17 @@ describe("TextField", () => {
     expect(input.className.split(/\s+/)).toContain("w-32");
     expect(input.className.split(/\s+/)).not.toContain("w-[180px]");
   });
+
+  it("drops its own border, fill and padding when inset in a frame the page draws, and fills that frame", async () => {
+    const own = (await mount(<TextField aria-label="Folder" />)).className.split(/\s+/);
+    expect(own).toEqual(expect.arrayContaining(["border", "border-edge", "bg-bg", "control-wash", "min-h-9", "shrink-0"]));
+    await act(async () => render(<TextField aria-label="Folder" frame="inset" />, host!));
+    const inset = host!.querySelector("input")!.className.split(/\s+/);
+    expect(inset).toEqual(expect.arrayContaining(["border-0", "bg-transparent", "outline-none", "p-0", "min-h-0", "flex-1", "shrink", "w-auto"]));
+    for (const dropped of ["border", "border-edge", "bg-bg", "control-wash", "min-h-9", "px-2.5", "py-1.5", "shrink-0", "w-[180px]"]) {
+      expect(inset).not.toContain(dropped);
+    }
+  });
 });
 
 describe("TextField's controlled contract", () => {

@@ -1,4 +1,4 @@
-import { ListRow } from "@impower/impower-ui/components";
+import { ListRow, TextField } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -58,18 +58,17 @@ export default function NameRow({
       icon={icon}
       label={
         <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
-          <input
+          <TextField
             ref={input}
+            frame="inset"
             aria-label={label}
             aria-invalid={error ? "true" : undefined}
             aria-describedby={error ? "scripts-name-error" : undefined}
-            autocomplete="off"
-            spellcheck={false}
             maxLength={200}
             value={value}
-            class="h-full min-w-0 flex-1 bg-transparent px-2 text-[14px] text-ink outline-none"
-            onInput={(e) => {
-              setValue((e.target as HTMLInputElement).value);
+            class="px-2 text-[14px]"
+            onValueChange={(next) => {
+              setValue(next);
               setError("");
             }}
             onKeyDown={(e) => {
