@@ -11,6 +11,7 @@ import { sectionOfHash } from "../../workspace/routes";
 import Account from "../account/Account";
 import AppearanceSection from "./AppearanceSection";
 import PreviewSection from "./PreviewSection";
+import ScreenplaySection from "./ScreenplaySection";
 import ScriptEditorSection from "./ScriptEditorSection";
 import {
   SETTINGS_INDEX,
@@ -29,6 +30,7 @@ const SECTION_BODIES: Partial<
   "editor-preferences": ScriptEditorSection,
   "shortcut-preferences": ShortcutsSection,
   "preview-preferences": PreviewSection,
+  "screenplay-settings": ScreenplaySection,
 };
 
 const backToStory = async () => {
