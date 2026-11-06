@@ -14,20 +14,27 @@ import workspace from "../../workspace/WorkspaceStore";
 import UsesList from "./UsesList";
 import { withSearch } from "./withSearch";
 
-const OPTIONS: { option: FindOption; label: string; icon: ComponentChildren }[] = [
-  { option: "matchCase", label: "Match case", icon: "Aa" },
-  { option: "wholeWord", label: "Whole words", icon: <u>ab</u> },
-  { option: "regex", label: "Regular expression", icon: ".*" },
+const OPTIONS: {
+  option: FindOption;
+  name: string;
+  label: string;
+  icon: ComponentChildren;
+}[] = [
+  { option: "matchCase", name: "case", label: "Match case", icon: "Aa" },
+  { option: "wholeWord", name: "word", label: "Whole words", icon: <u>ab</u> },
+  { option: "regex", name: "re", label: "Regular expression", icon: ".*" },
 ];
 
 const keepFieldFocus = (event: PointerEvent) => event.preventDefault();
 
 function FormButton({
+  name,
   label,
   title,
   onClick,
   children,
 }: {
+  name: string;
   label: string;
   title?: string;
   onClick: () => void;
@@ -38,6 +45,7 @@ function FormButton({
       variant="quiet"
       size="glyph"
       class="text-muted"
+      name={name}
       aria-label={label}
       title={title ?? label}
       onPointerDown={keepFieldFocus}
@@ -96,11 +104,13 @@ export default function FindView() {
             width="full"
             class="flex-1"
             placeholder="Find"
+            name="search"
             aria-label="Words to find"
             value={term}
             onValueChange={(value) => withSearch((search) => search.setTerm(value))}
           />
           <FormButton
+            name="prev"
             label="Previous match"
             title="Previous match (Shift Enter)"
             onClick={() => withSearch((search) => search.step(true))}
@@ -108,6 +118,7 @@ export default function FindView() {
             <UpIcon />
           </FormButton>
           <FormButton
+            name="next"
             label="Next match"
             title="Next match (Enter)"
             onClick={() => withSearch((search) => search.step())}
@@ -120,6 +131,7 @@ export default function FindView() {
             width="full"
             class="flex-1"
             placeholder="Replace"
+            name="replace"
             aria-label="Replace with"
             value={snapshot.replacement}
             onValueChange={(value) =>
@@ -127,12 +139,14 @@ export default function FindView() {
             }
           />
           <FormButton
+            name="replace"
             label="Replace this match"
             onClick={() => withSearch((search) => search.replaceOne())}
           >
             <ReplaceIcon />
           </FormButton>
           <FormButton
+            name="replaceAll"
             label="Replace all matches"
             onClick={() => withSearch((search) => search.replaceAll())}
           >
@@ -140,9 +154,10 @@ export default function FindView() {
           </FormButton>
         </div>
         <div role="group" aria-label="How to match" class="mt-0.5 flex gap-px">
-          {OPTIONS.map(({ option, label, icon }) => (
+          {OPTIONS.map(({ option, name, label, icon }) => (
             <Button
               key={option}
+              name={name}
               variant="toggle"
               size="glyph"
               aria-label={label}
@@ -167,7 +182,12 @@ export default function FindView() {
       </form>
       <div class="min-h-0 flex-1 overflow-y-auto border-t border-edge px-[14px] pt-1.5 pb-3 in-data-[layout=compact]:px-2.5">
         {summary && (
-          <p class="m-0 mx-2 mb-1.5 text-[12px]/[1.5] text-muted">{summary}</p>
+          <p
+            data-find-summary
+            class="m-0 mx-2 mb-1.5 text-[12px]/[1.5] text-muted"
+          >
+            {summary}
+          </p>
         )}
         <UsesList
           groups={groups}

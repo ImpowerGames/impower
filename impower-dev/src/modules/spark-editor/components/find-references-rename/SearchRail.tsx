@@ -36,6 +36,7 @@ export default function SearchRail() {
           variant="quiet"
           size="icon"
           class="flex-none text-muted"
+          name="close"
           aria-label="Back to outline"
           title="Back to outline"
           onClick={() => withSearch((search) => search.close())}

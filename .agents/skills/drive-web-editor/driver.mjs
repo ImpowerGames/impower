@@ -1950,10 +1950,10 @@ async function verify(args, deps = liveDeps) {
 
 const SURFACES = {
   find: {
-    selector: ".sparkdown-script-editor-root .cm-search",
+    selector: 'section[data-view="find"]',
     open: "Control+f",
-    fields: { search: "[name=search]", replace: "[name=replace]" },
-    buttons: ["next", "prev", "select", "replace", "replaceAll", "close"],
+    fields: { search: "input[name=search]", replace: "input[name=replace]" },
+    buttons: ["next", "prev", "replace", "replaceAll", "close"],
     toggles: ["case", "re", "word"],
   },
   goto: {
@@ -2467,7 +2467,7 @@ async function openSurface(page, name, { settled = false } = {}) {
       surface: name,
       open: false,
       pressed: key.combo,
-      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused; another panel may hold the focus (\`--close\` it), or the run may be off the logic screen's main tab (put \`--screen logic --screen main\` first) — if the editor is up and it still fails, the binding itself changed: check customSearch.ts's keymap`,
+      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused; another panel may hold the focus (\`--close\` it), or the run may be off the logic screen's main tab (put \`--screen logic --screen main\` first) — if the editor is up and it still fails, the binding itself changed: check ${name === "find" ? "find-references-rename/useFindShortcut.ts" : "customSearch.ts's keymap"}`,
     };
   }
   return { surface: name, open: true, pressed: key.combo };
@@ -2503,7 +2503,7 @@ function fieldLocator(page, field) {
 async function readField(page, field) {
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) return null;
-  return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
+  return loc.evaluate((el) => (el instanceof HTMLInputElement ? el.value : el.innerText.replace(/\n$/, "")));
 }
 
 async function typeInto(page, field, text, { settled = false } = {}) {
@@ -2558,13 +2558,14 @@ async function toggleSurfaceOption(page, name) {
   const { owners, open } = await openSurfacesOwning(page, "toggles", name);
   if (open.length === 0) return { toggle: name, toggled: false, reason: `no panel with a "${name}" toggle is open (${owners.join(" or ")})` };
   const surface = open[0];
-  const box = page.locator(`${SURFACES[surface].selector} input[name=${name}]`).first();
-  const before = await box.isChecked();
+  const control = page.locator(`${SURFACES[surface].selector} [name=${name}]`).first();
+  const pressed = () => control.evaluate((el) => (el instanceof HTMLInputElement ? el.checked : el.getAttribute("aria-pressed") === "true"));
+  const before = await pressed();
   const label = page.locator(`${SURFACES[surface].selector} label:has(input[name=${name}])`).first();
   if ((await label.count()) > 0) await label.click();
-  else await box.click({ force: true });
+  else await control.click({ force: true });
   await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-  const after = await box.isChecked();
+  const after = await pressed();
   return {
     toggle: name,
     surface,
@@ -2650,10 +2651,14 @@ async function readSurfaces(page) {
       open: true,
       search: await readField(page, "search"),
       replace: await readField(page, "replace"),
-      matches: await page.locator(".sparkdown-script-editor-root .cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
-      toggles: await page.evaluate(() =>
-        Object.fromEntries([...document.querySelectorAll('.sparkdown-script-editor-root .cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
-      ),
+      matches: await page.evaluate((selector) => {
+        const view = document.querySelector(selector);
+        const count = view?.querySelector("[data-find-summary]") ?? view?.querySelector('[role="status"]');
+        return count?.textContent?.trim() ?? "";
+      }, SURFACES.find.selector),
+      toggles: await page.evaluate((selector) =>
+        Object.fromEntries([...document.querySelectorAll(`${selector} [role="group"] button[name]`)].map((b) => [b.getAttribute("name"), b.getAttribute("aria-pressed") === "true"])),
+      SURFACES.find.selector),
     };
   }
   if (await surfaceOpen(page, "goto")) {
@@ -3703,7 +3708,7 @@ switch (cmd) {
         "  --close <panel>         close it with Escape",
         "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",
         "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
-        "  --click <button>        a panel button: next prev select replace replaceAll close submit",
+        "  --click <button>        a panel button: next prev replace replaceAll close submit",
         "  --toggle <option>       flip a find-panel checkbox: case | re | word",
         "  --shot <out.png>        screenshot the page (with --device android: the whole device screen, keyboard included)",
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page | screen (device only)",
