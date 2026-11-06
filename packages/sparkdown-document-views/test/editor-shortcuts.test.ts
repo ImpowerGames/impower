@@ -2,8 +2,10 @@ import { openSearchPanel, SearchQuery, setSearchQuery } from "@codemirror/search
 import { runScopeHandlers, type EditorView } from "@codemirror/view";
 import {
   assignShortcut,
+  comboKeyName,
   EDITOR_SHORTCUT_ROWS,
   editorShortcutEntries,
+  normalizeCombo,
   resolveShortcuts,
   setEditorShortcuts,
   type LSPClient,
@@ -75,30 +77,31 @@ describe("the shortcuts the editor reports", () => {
   );
 
   it.each(["win", "mac"] as const)(
-    "lists a key under its own command for every keymap table entry the editor binds (%s)",
+    "lists every key of every keymap table entry the editor binds under its own command, Shift variants included (%s)",
     (platform) => {
       const view = liveEditor();
       const returned = editorKeybindings(view.state, platform);
-      const takenByEarlierCommand = new Set([
-        "cursorPageUp",
-        "cursorPageDown",
-        "cursorPageUpByArrow",
-        "cursorPageDownByArrow",
-        "macPageDown",
-        "simplifySelection",
-        "closeReferences",
-      ]);
-      const missing = editorShortcutEntries(view.state, platform)
-        .filter((entry) => entry.combos.length > 0 && !takenByEarlierCommand.has(entry.id))
-        .filter((entry) => {
-          const id = EDITOR_SHORTCUT_COMMANDS.find(
-            (command) =>
-              (entry.run && command.runs?.includes(entry.run)) ||
-              command.entries?.includes(entry.id),
-          )?.id;
-          return !returned.find((command) => command.id === id)?.keys.length;
-        })
-        .map((entry) => entry.id);
+      const claimedByEarlier = new Set(["PageUp", "PageDown", "Mod-g", "Escape"]);
+      const missing: string[] = [];
+      const check = (entryId: string, run: unknown, key: string) => {
+        const id = EDITOR_SHORTCUT_COMMANDS.find(
+          (command) =>
+            command.runs?.includes(run as never) || command.entries?.includes(entryId),
+        )?.id;
+        const listedUnder = returned
+          .filter((command) => command.keys.includes(key))
+          .map((command) => command.id);
+        if (!id || listedUnder.length === 0) missing.push(`${key} (${entryId})`);
+        else if (!claimedByEarlier.has(key) && !listedUnder.includes(id))
+          missing.push(`${key} under ${id}`);
+      };
+      for (const entry of editorShortcutEntries(view.state, platform)) {
+        for (const combo of entry.combos) {
+          if (entry.run) check(entry.id, entry.run, comboKeyName(combo));
+          if (entry.shift)
+            check(entry.id, entry.shift, comboKeyName(normalizeCombo(`Shift+${combo}`, platform)));
+        }
+      }
       expect(missing).toEqual([]);
     },
   );
