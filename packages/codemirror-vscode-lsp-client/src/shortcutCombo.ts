@@ -1,4 +1,4 @@
-import { base as keyCodeBase } from "w3c-keyname";
+import { base as keyCodeBase, shift as keyCodeShift } from "w3c-keyname";
 
 export type ShortcutPlatform = "mac" | "win" | "linux";
 
@@ -158,32 +158,108 @@ interface ShortcutKeyEvent {
   readonly isComposing?: boolean;
 }
 
-const keyOfName = (name: string | undefined) => {
-  if (!name) {
-    return "";
-  }
-  if (/^[a-z]$/i.test(name)) {
-    return name.toUpperCase();
-  }
-  return /^\d$/.test(name) || PUNCTUATION.has(name) ? name : "";
+const LEGACY_NAMES: Readonly<Record<string, string>> = {
+  Esc: "Escape",
+  Del: "Delete",
+  Left: "ArrowLeft",
+  Up: "ArrowUp",
+  Right: "ArrowRight",
+  Down: "ArrowDown",
 };
 
-export function keyOfEvent(event: ShortcutKeyEvent): string {
+const NAMED_KEYS_BY_CODEMIRROR_NAME: Readonly<Record<string, string>> = {
+  " ": "Space",
+  ArrowUp: "Up",
+  ArrowDown: "Down",
+  ArrowLeft: "Left",
+  ArrowRight: "Right",
+};
+
+const withModifiers = (
+  name: string,
+  event: ShortcutKeyEvent,
+  shift: boolean,
+) => {
+  let result = name;
+  if (event.altKey) result = `Alt-${result}`;
+  if (event.ctrlKey) result = `Ctrl-${result}`;
+  if (event.metaKey) result = `Meta-${result}`;
+  if (shift && event.shiftKey) result = `Shift-${result}`;
+  return result;
+};
+
+function codeMirrorNames(
+  event: ShortcutKeyEvent,
+  platform: ShortcutPlatform,
+): string[] {
+  const keyCode = event.keyCode ?? 0;
+  const ignoreKey =
+    (platform === "mac" &&
+      event.metaKey &&
+      event.shiftKey &&
+      !event.ctrlKey &&
+      !event.altKey) ||
+    event.key === "Unidentified";
+  const found =
+    (!ignoreKey && event.key) ||
+    (event.shiftKey ? keyCodeShift : keyCodeBase)[keyCode] ||
+    event.key ||
+    "Unidentified";
+  const name = LEGACY_NAMES[found] ?? found;
+  const isChar = [...name].length === 1 && name !== " ";
+  const names = [withModifiers(name, event, !isChar)];
+  const baseName = keyCodeBase[keyCode];
+  if (
+    isChar &&
+    (event.altKey || event.metaKey || event.ctrlKey) &&
+    !(platform === "win" && event.ctrlKey && event.altKey) &&
+    !(platform === "mac" && event.altKey && !(event.ctrlKey || event.metaKey)) &&
+    baseName &&
+    baseName !== name
+  ) {
+    names.push(withModifiers(baseName, event, true));
+    const shiftName = keyCodeShift[keyCode];
+    if (event.shiftKey && shiftName && shiftName !== name && shiftName !== baseName) {
+      names.push(withModifiers(shiftName, event, false));
+    }
+  } else if (isChar && event.shiftKey) {
+    names.push(withModifiers(name, event, true));
+  }
+  return names;
+}
+
+function comboOfCodeMirrorName(
+  name: string,
+  platform: ShortcutPlatform,
+): string {
+  const parts = name.split(/-(?!$)/);
+  const last = parts.pop() ?? "";
+  const key = /^[a-z]$/.test(last)
+    ? last.toUpperCase()
+    : /^\d$/.test(last) || isFunctionKey(last) || PUNCTUATION.has(last)
+      ? last
+      : (NAMED_KEYS_BY_CODEMIRROR_NAME[last] ??
+        (RECORDABLE_KEYS.has(last) && !PUNCTUATION.has(last) ? last : ""));
+  if (!key) {
+    return "";
+  }
+  const combo = { mod: false, ctrl: false, shift: false, alt: false, key };
+  for (const part of parts) {
+    if (part === "Alt") combo.alt = true;
+    else if (part === "Shift") combo.shift = true;
+    else if (part === "Meta" && platform === "mac") combo.mod = true;
+    else if (part === "Ctrl" && platform === "mac") combo.ctrl = true;
+    else if (part === "Ctrl") combo.mod = true;
+    else return "";
+  }
+  return formatCombo(combo);
+}
+
+const syntheticKey = (event: ShortcutKeyEvent) => {
   const code = event.code || "";
   const key = event.key || "";
-  const typed = keyOfName(key);
-  if (typed) {
-    return typed;
-  }
-  if (isFunctionKey(key)) {
-    return key;
-  }
-  const named = KEYS_BY_CODE[code];
-  if (named && !PUNCTUATION.has(named)) {
-    return named;
-  }
-  if (event.keyCode) {
-    return keyOfName(keyCodeBase[event.keyCode]);
+  if (/^[a-z]$/i.test(key)) {
+    return key.toUpperCase();
   }
   if (/^Key[A-Z]$/.test(code)) {
     return code.slice(3);
@@ -207,30 +283,44 @@ export function keyOfEvent(event: ShortcutKeyEvent): string {
     return "Space";
   }
   return KEYS_BY_CODE[key] ?? "";
-}
+};
 
-const eventModifiers = (
+const syntheticCombo = (
   event: ShortcutKeyEvent,
   platform: ShortcutPlatform,
-) =>
-  platform === "mac"
-    ? { mod: !!event.metaKey, ctrl: !!event.ctrlKey }
-    : { mod: !!event.ctrlKey, ctrl: false };
+) => {
+  const key = syntheticKey(event);
+  return key
+    ? formatCombo({
+        mod: !!(platform === "mac" ? event.metaKey : event.ctrlKey),
+        ctrl: platform === "mac" && !!event.ctrlKey,
+        shift: !!event.shiftKey,
+        alt: !!event.altKey,
+        key,
+      })
+    : "";
+};
+
+function eventCombos(
+  event: ShortcutKeyEvent,
+  platform: ShortcutPlatform,
+): string[] {
+  if (event.isComposing || (platform !== "mac" && event.metaKey)) {
+    return [];
+  }
+  if (!event.keyCode) {
+    return [syntheticCombo(event, platform)].filter(Boolean);
+  }
+  return codeMirrorNames(event, platform)
+    .map((name) => comboOfCodeMirrorName(name, platform))
+    .filter(Boolean);
+}
 
 export function comboFromEvent(
   event: ShortcutKeyEvent,
   platform: ShortcutPlatform,
 ): string {
-  const key = keyOfEvent(event);
-  if (!key || (platform !== "mac" && event.metaKey)) {
-    return "";
-  }
-  return formatCombo({
-    ...eventModifiers(event, platform),
-    shift: !!event.shiftKey,
-    alt: !!event.altKey,
-    key,
-  });
+  return eventCombos(event, platform)[0] ?? "";
 }
 
 export function eventMatchesCombo(
@@ -238,19 +328,8 @@ export function eventMatchesCombo(
   combo: string,
   platform: ShortcutPlatform,
 ): boolean {
-  const parsed = parseCombo(combo);
-  if (!parsed || event.isComposing || (platform !== "mac" && event.metaKey)) {
-    return false;
-  }
-  const wanted = forPlatform(parsed, platform);
-  const held = eventModifiers(event, platform);
-  return (
-    keyOfEvent(event) === wanted.key &&
-    held.mod === wanted.mod &&
-    held.ctrl === wanted.ctrl &&
-    !!event.shiftKey === wanted.shift &&
-    !!event.altKey === wanted.alt
-  );
+  const wanted = normalizeCombo(combo, platform);
+  return !!wanted && eventCombos(event, platform).includes(wanted);
 }
 
 export function codeMirrorKey(

@@ -94,10 +94,16 @@ function ShortcutKeysRow({
     }
     const next = comboFromEvent(event, shortcuts.platform);
     if (!isShortcutCombo(next, shortcuts.platform)) {
+      const typing = !next && (event.altKey || event.ctrlKey || event.metaKey);
+      const macOption =
+        shortcuts.platform === "mac" &&
+        (typesOnMac(next) || (typing && event.altKey && !event.ctrlKey && !event.metaKey));
       announce(
-        shortcuts.platform === "mac" && typesOnMac(next)
+        macOption
           ? "On a Mac, Option with a key types a character; hold Command or Control too."
-          : refusedNote(),
+          : typing
+            ? "Those keys type a character on this keyboard. Choose other keys."
+            : refusedNote(),
       );
       return;
     }

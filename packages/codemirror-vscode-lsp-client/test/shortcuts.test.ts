@@ -115,8 +115,26 @@ describe("recording a combo from a key event", () => {
     expect(comboFromEvent({ key: "ArrowUp", code: "ArrowUp", keyCode: 38, altKey: true }, "win")).toBe("Alt+Up");
   });
 
+  it("records nothing for keys CodeMirror never dispatches: Option printing on a Mac, Ctrl+Alt printing on Windows", () => {
+    expect(comboFromEvent({ key: "å", code: "KeyA", keyCode: 65, altKey: true }, "mac")).toBe("");
+    expect(comboFromEvent({ key: "€", code: "KeyE", keyCode: 69, ctrlKey: true, altKey: true }, "win")).toBe("");
+    expect(comboFromEvent({ key: "e", code: "KeyE", keyCode: 69, ctrlKey: true, altKey: true }, "win")).toBe("Mod+Alt+E");
+    expect(comboFromEvent({ key: "ArrowUp", code: "ArrowUp", keyCode: 38, altKey: true }, "mac")).toBe("Alt+Up");
+  });
+
+  it("names a shifted punctuation key the way CodeMirror tries it first", () => {
+    expect(comboFromEvent({ key: ";", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true }, "linux")).toBe(
+      "Mod+;",
+    );
+    expect(comboFromEvent({ key: "Z", code: "KeyZ", keyCode: 90, ctrlKey: true, shiftKey: true }, "win")).toBe(
+      "Mod+Shift+Z",
+    );
+    expect(comboFromEvent({ key: "z", code: "KeyZ", keyCode: 90, metaKey: true, shiftKey: true }, "mac")).toBe(
+      "Mod+Shift+Z",
+    );
+  });
+
   it("refuses Option with a printing key on a Mac, which types a character there", () => {
-    expect(comboFromEvent({ key: "å", code: "KeyA", keyCode: 65, altKey: true }, "mac")).toBe("Alt+A");
     expect(isShortcutCombo("Alt+A", "mac")).toBe(false);
     expect(isShortcutCombo("Shift+Alt+/", "mac")).toBe(false);
     expect(isShortcutCombo("Alt+Space", "mac")).toBe(false);
@@ -399,6 +417,27 @@ describe("the generated keymaps", () => {
     press(view, qwertzY);
     expect(search).toHaveBeenCalledTimes(1);
     expect(redo).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["German Ctrl+Shift+comma", { key: ";", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true }],
+    ["German Ctrl+Shift+minus", { key: "_", code: "Slash", keyCode: 189, ctrlKey: true, shiftKey: true }],
+    ["US Ctrl+Shift+slash", { key: "?", code: "Slash", keyCode: 191, ctrlKey: true, shiftKey: true }],
+    ["US Ctrl+Shift+bracket", { key: "{", code: "BracketLeft", keyCode: 219, ctrlKey: true, shiftKey: true }],
+    ["QWERTZ Ctrl+Shift+Y", { key: "Y", code: "KeyZ", keyCode: 89, ctrlKey: true, shiftKey: true }],
+    ["Cyrillic Ctrl+Alt+Z", { key: "я", code: "KeyZ", keyCode: 90, ctrlKey: true, altKey: true }],
+    ["Alt+Shift+1", { key: "!", code: "Digit1", keyCode: 49, altKey: true, shiftKey: true }],
+    ["Ctrl+Space", { key: " ", code: "Space", keyCode: 32, ctrlKey: true }],
+    ["Shift+F5", { key: "F5", code: "F5", keyCode: 116, shiftKey: true }],
+    ["Alt+PageDown", { key: "PageDown", code: "PageDown", keyCode: 34, altKey: true }],
+  ])("runs the command recorded from %s when the same keys are pressed in the editor", (_label, keys) => {
+    const toggleComment = vi.fn(() => true);
+    const combo = comboFromEvent(keys, "linux");
+    expect(combo).not.toBe("");
+    const combos = assignShortcut(defaults("linux"), "toggleComment", combo, "linux").combos;
+    const view = mountEditor({ combos, platform: "linux", commands: { toggleComment } });
+    press(view, keys);
+    expect(toggleComment).toHaveBeenCalledTimes(1);
   });
 
   it("runs the command recorded on a German keyboard's minus key, which sits where US keyboards put the slash", () => {

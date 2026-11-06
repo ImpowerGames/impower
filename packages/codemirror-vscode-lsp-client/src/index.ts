@@ -125,7 +125,6 @@ export {
   eventMatchesCombo,
   isFunctionKey,
   isShortcutCombo,
-  keyOfEvent,
   normalizeCombo,
   parseCombo,
   shortcutPlatform,
