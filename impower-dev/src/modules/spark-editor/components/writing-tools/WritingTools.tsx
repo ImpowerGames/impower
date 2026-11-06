@@ -120,6 +120,7 @@ export default function WritingTools({
 
   const [name, setName] = useState<NameAtCaret | null>(null);
   useEffect(() => {
+    setName(null);
     if (!open || view !== "menu") return;
     let current = true;
     void withWindow((win) => win.readNameAtCaret(filename)).then((found) => {
@@ -132,6 +133,7 @@ export default function WritingTools({
 
   const [keys, setKeys] = useState<ReadEditorKeybindingsResult | null>(null);
   useEffect(() => {
+    setKeys(null);
     if (!open || view !== "shortcuts") return;
     let current = true;
     void withWindow((win) => win.readEditorKeybindings(filename)).then(

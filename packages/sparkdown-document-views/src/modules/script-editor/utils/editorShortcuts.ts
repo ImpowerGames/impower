@@ -237,7 +237,7 @@ export function editorKeybindings(
     const slots = (binding.scope ?? "editor")
       .split(" ")
       .map((scope) => `${scope}|${key}`);
-    if (slots.some((slot) => claimed.has(slot))) return;
+    if (slots.every((slot) => claimed.has(slot))) return;
     const command = commandFor(binding, run);
     if (!command) return;
     add(command.id, key);

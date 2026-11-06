@@ -162,6 +162,28 @@ describe("Writing tools menu", () => {
     expect(workspace.current.screen.writingTools).toBeUndefined();
   });
 
+  it("drops the previous name's tools while the next lookup is pending", async () => {
+    calls.name = imani;
+    await mount();
+    await open();
+    await until(() => row("Rename IMANI"));
+    await act(async () =>
+      panel()!.querySelector<HTMLButtonElement>('[aria-label="Close writing tools"]')!.click(),
+    );
+    await until(() => !panel());
+    let resolve!: (value: unknown) => void;
+    calls.name = new Promise((r) => (resolve = r));
+    await open();
+    expect(rows().map((b) => b.textContent)).toEqual([
+      "Sparkdown guideA quick reference while you write.",
+      "Keyboard shortcutsFor a connected keyboard.",
+      "Find and replace",
+    ]);
+    await act(async () => resolve(null));
+    await settle(50);
+    expect(row("Rename IMANI")).toBeUndefined();
+  });
+
   it("disables Rename while the script cannot be edited, and says so on a phone", async () => {
     calls.name = imani;
     layout.value = "phone";

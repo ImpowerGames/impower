@@ -1,4 +1,10 @@
-import { keymap, type EditorView, type KeyBinding } from "@codemirror/view";
+import { openSearchPanel, SearchQuery, setSearchQuery } from "@codemirror/search";
+import {
+  keymap,
+  runScopeHandlers,
+  type EditorView,
+  type KeyBinding,
+} from "@codemirror/view";
 import type { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it } from "vitest";
 import { SparkdownCodemirrorWorkspace } from "../src/modules/script-editor/classes/SparkdownCodemirrorWorkspace";
@@ -8,6 +14,10 @@ import {
   editorKeybindings,
   unlistedKeybindings,
 } from "../src/modules/script-editor/utils/editorShortcuts";
+import {
+  customGotoLinePanelOpen,
+  openCustomGotoLinePanel,
+} from "../src/modules/script-editor/utils/extensions/customSearch";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
 if (!Range.prototype.getClientRects) {
@@ -102,12 +112,31 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
   });
 
-  it("lists Escape only under the handler that receives it in the editor", () => {
+  it("lists Escape only under the handlers that receive it: the editor's Find close and the Go to line panel's own", () => {
     const view = liveEditor();
     const withEscape = editorKeybindings(view.state, "win")
       .filter((command) => command.keys.includes("Escape"))
       .map((command) => command.id);
-    expect(withEscape).toEqual(["escape"]);
+    expect(withEscape.sort()).toEqual(["closeGotoLine", "escape"]);
+  });
+
+  it("delivers the listed panel keys: Mod-g in Find steps to the next match, Escape in Go to line closes it", () => {
+    const view = liveEditor();
+    openSearchPanel(view);
+    view.dispatch({
+      effects: setSearchQuery.of(new SearchQuery({ search: "start" })),
+    });
+    const next = new KeyboardEvent("keydown", { key: "g", ctrlKey: true });
+    expect(runScopeHandlers(view, next, "search-panel")).toBe(true);
+    const { from, to } = view.state.selection.main;
+    expect(view.state.sliceDoc(from, to)).toBe("start");
+    expect(customGotoLinePanelOpen(view.state)).toBe(false);
+
+    openCustomGotoLinePanel(view);
+    expect(customGotoLinePanelOpen(view.state)).toBe(true);
+    const escape = new KeyboardEvent("keydown", { key: "Escape" });
+    expect(runScopeHandlers(view, escape, "gotoline-panel")).toBe(true);
+    expect(customGotoLinePanelOpen(view.state)).toBe(false);
   });
 
   it("reads Find as Mod-f and Go to line as Mod-g from the live keymap", () => {
@@ -115,7 +144,7 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "search", "win")).toEqual(["Mod-f"]);
     expect(keysOf(view, "search", "mac")).toEqual(["Mod-f"]);
     expect(keysOf(view, "gotoLine", "win")).toContain("Mod-g");
-    expect(keysOf(view, "findNext", "win")).not.toContain("Mod-g");
+    expect(keysOf(view, "findNext", "win")).toContain("Mod-g");
   });
 
   it("takes a Mac's own key where a binding has one", () => {
