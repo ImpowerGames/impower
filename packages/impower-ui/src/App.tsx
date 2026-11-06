@@ -1,4 +1,5 @@
 import Button from "./components/button/Button";
+import { actionSheetGallery } from "./components/action-sheet/ActionSheet.gallery";
 import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
@@ -24,6 +25,7 @@ import { toastGallery } from "./components/toast/Toast.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
+  actionSheetGallery,
   buttonGallery,
   choiceGroupGallery,
   dialogGallery,

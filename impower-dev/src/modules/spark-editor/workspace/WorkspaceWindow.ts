@@ -61,7 +61,6 @@ import {
   EditorState,
   PaneType,
   PanelType,
-  PreviewMode,
   Range,
   SyncStatus,
   WorkspaceCache,
@@ -69,13 +68,10 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
-import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
-import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
-import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
-import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -94,6 +90,9 @@ import { showSnackbar } from "../utils/snackbar";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
+
+type WorkspaceLanguageServerAccess = PreviewBeatSkipperDeps["ls"] &
+  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection">>;
 import {
   definitionOf,
   isCue,
@@ -122,6 +121,11 @@ import {
   projectSettingsJson,
 } from "./settings/settingsJson";
 import workspaceSettings from "./settings/WorkspaceSettings";
+import type { PreviewMode } from "./settings/settingsSchema";
+import {
+  createPreviewBeatSkipper,
+  type PreviewBeatSkipperDeps,
+} from "./previewBeatSkipper";
 import {
   hashOfRoute,
   hashNamesRoute,
@@ -143,17 +147,18 @@ export default class WorkspaceWindow {
   protected _workspace: {
     fs: WorkspaceFileSystem;
     sync: WorkspaceSync;
-    ls?: WorkspaceLanguageServer;
+    ls?: WorkspaceLanguageServerAccess;
   };
+
+  protected _skipBeat?: (direction: -1 | 1) => Promise<boolean>;
 
   constructor(workspace: {
     fs: WorkspaceFileSystem;
     sync: WorkspaceSync;
-    ls?: WorkspaceLanguageServer;
+    ls?: WorkspaceLanguageServerAccess;
   }) {
     this._workspace = workspace;
     this.cacheProjectId(loadedProjectId());
-    this.restoreAnimatePortraits();
     this.registerProtocolHandlers();
     this.handleLayoutChange(layoutState.current());
     this._disposers.push(layoutState.subscribe(this.handleLayoutChange));
@@ -1098,7 +1103,7 @@ export default class WorkspaceWindow {
   async readNameAtCaret(filename: string): Promise<NameAtCaret | null> {
     const projectId = this.store.project.id;
     const ls = this._workspace.ls;
-    if (!projectId || !ls) {
+    if (!projectId || !ls?.initialization || !ls.connection) {
       return null;
     }
     const uri = this._workspace.fs.getFileUri(projectId, filename);
@@ -1318,13 +1323,11 @@ export default class WorkspaceWindow {
   }
 
   setPreviewMode(mode: PreviewMode) {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        mode,
-      },
-    });
+    if (workspaceSettings.preferences.peek().previewMode === mode) {
+      return;
+    }
+    this.stopGame();
+    workspaceSettings.setPreference("previewMode", mode);
   }
 
   startEditingProjectName() {
@@ -1602,14 +1605,20 @@ export default class WorkspaceWindow {
     });
   }
 
-  stepGameClock(seconds: number) {
-    if (seconds < 0) {
-      const paused = this.store.preview.modes.game.paused;
-      if (!paused) {
-        this.pauseGame();
-      }
+  stepGame(traversal: "in" | "out") {
+    const game = this.store.preview.modes.game;
+    if (game.running && game.paused) {
+      sendProtocolMessage(StepGameMessage.type.request({ traversal }));
     }
-    sendProtocolMessage(StepGameClockMessage.type.request({ seconds }));
+  }
+
+  async skipBeat(direction: -1 | 1): Promise<boolean> {
+    const ls = this._workspace.ls;
+    if (!ls) {
+      return false;
+    }
+    this._skipBeat ??= createPreviewBeatSkipper({ window: this, ls });
+    return this._skipBeat(direction);
   }
 
   toggleGameRunning() {
@@ -1617,72 +1626,6 @@ export default class WorkspaceWindow {
       this.stopGame();
     } else if (!this.store.preview.modes.game.playRefusal) {
       this.startGame();
-    }
-  }
-
-  toggleGamePaused() {
-    if (this.store.preview.modes.game.paused) {
-      this.unpauseGame();
-    } else {
-      this.pauseGame();
-    }
-  }
-
-  protected restoreAnimatePortraits() {
-    const cached = localStorage.getItem(
-      WorkspaceConstants.ANIMATE_PORTRAITS_STORAGE_KEY,
-    );
-    workspace.animatePortraits.value = cached !== "false";
-  }
-
-  setAnimatePortraits(enabled: boolean) {
-    workspace.animatePortraits.value = enabled;
-    localStorage.setItem(
-      WorkspaceConstants.ANIMATE_PORTRAITS_STORAGE_KEY,
-      String(enabled),
-    );
-    sendProtocolMessage(SetAnimatePortraitsMessage.type.request({ enabled }));
-  }
-
-  toggleAnimatePortraits() {
-    this.setAnimatePortraits(!workspace.animatePortraits.peek());
-  }
-
-  enableDebugging() {
-    if (!this.store.preview.modes.game.debugging) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              debugging: true,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(EnableGameDebugMessage.type.request({}));
-    }
-  }
-
-  disableDebugging() {
-    if (this.store.preview.modes.game.debugging) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              debugging: false,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(DisableGameDebugMessage.type.request({}));
     }
   }
 

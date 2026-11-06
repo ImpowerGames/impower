@@ -26,6 +26,11 @@
       "types": "./src/layout/index.ts",
       "import": "./dist/impower-ui.js"
     },
+    "./action-sheet": {
+      "development": "./src/components/action-sheet/ActionSheet.tsx",
+      "types": "./src/components/action-sheet/ActionSheet.tsx",
+      "import": "./dist/impower-ui.js"
+    },
     "./loading-bar": {
       "development": "./src/components/loading-bar/LoadingBar.tsx",
       "types": "./src/components/loading-bar/LoadingBar.tsx",

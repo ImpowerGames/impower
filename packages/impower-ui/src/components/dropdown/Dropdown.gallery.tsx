@@ -13,6 +13,9 @@ import {
   DropdownContent,
   DropdownItem,
   DropdownLabel,
+  DropdownRadioGroup,
+  DropdownRadioItem,
+  type DropdownRadioItemIndicator,
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
@@ -40,9 +43,45 @@ function MenuItems() {
       <DropdownCheckboxItem checked={minimap} onCheckedChange={setMinimap}>
         Minimap {minimap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
+      <DropdownSeparator />
+      <RadioItems indicator="start" />
     </>
   );
 }
+
+const RATIO_ROWS = [
+  ["auto", "Auto", "fill pane"],
+  ["16:9", "16:9", "Landscape"],
+  ["1:1", "1:1", "Square"],
+  ["9:16", "9:16", "Portrait"],
+] as const;
+
+function RadioItems({
+  indicator,
+}: {
+  indicator: DropdownRadioItemIndicator;
+}) {
+  const [value, setValue] = useState<string>("auto");
+  return (
+    <DropdownRadioGroup
+      label="Game aspect ratio"
+      value={value}
+      onValueChange={setValue}
+    >
+      {RATIO_ROWS.map(([id, name, hint]) => (
+        <DropdownRadioItem key={id} value={id} indicator={indicator}>
+          <span>{name}</span>
+          <small class="text-xs font-normal text-muted">{hint}</small>
+        </DropdownRadioItem>
+      ))}
+    </DropdownRadioGroup>
+  );
+}
+
+const INDICATORS: Record<DropdownRadioItemIndicator, string> = {
+  start: "Radio items with the check at the start (the aspect-ratio menu)",
+  end: "Radio items with the check at the end (the viewing-mode menu)",
+};
 
 function DropdownDemo() {
   const layout = useLayout();
@@ -73,6 +112,20 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
+      {(Object.keys(INDICATORS) as DropdownRadioItemIndicator[]).map(
+        (indicator) => (
+          <GalleryRow key={indicator} label={INDICATORS[indicator]}>
+            <DropdownRoot>
+              <DropdownTrigger asChild>
+                <Button>Choose a ratio</Button>
+              </DropdownTrigger>
+              <DropdownContent align="start">
+                <RadioItems indicator={indicator} />
+              </DropdownContent>
+            </DropdownRoot>
+          </GalleryRow>
+        ),
+      )}
       <GalleryRow label="Open on load in the menu layout: label, item, disabled item, separator, checked and unchecked checkbox items">
         <div class="h-64">
           <DropdownRoot open={pinned} onOpenChange={setPinned} modal={false}>
@@ -99,6 +152,9 @@ export const dropdownGallery: GalleryEntry = {
     "DropdownItem",
     "DropdownCheckboxItem",
     "DropdownLabel",
+    "DropdownRadioGroup",
+    "DropdownRadioItem",
+    "dropdownRadioItemVariants",
   ],
   Demo: DropdownDemo,
 };

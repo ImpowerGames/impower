@@ -16,6 +16,9 @@ import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValue
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import type { Preferences } from "../../workspace/settings/settingsSchema";
+import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 
 const storedRouteToggles = (): RouteTogglesParams => {
   try {
@@ -43,16 +46,22 @@ export const createPlayerPreferenceSync = (
   post: (message: unknown) => void,
   routePins: () => RoutePin[] = () => [],
   theme: ReadonlySignal<string> = workspaceSettings.theme,
+  preferences: ReadonlySignal<Preferences> = workspaceSettings.preferences,
 ) => {
   const sendTheme = (value: string) =>
     post(SetPreviewThemeMessage.type.notification({ theme: value }));
+  const sendIdleAnimations = (enabled: boolean) =>
+    post(SetAnimatePortraitsMessage.type.request({ enabled }));
+  const sendTypingPauses = (enabled: boolean) =>
+    post(
+      enabled
+        ? EnableGameDebugMessage.type.request({})
+        : DisableGameDebugMessage.type.request({}),
+    );
   const send = () => {
     sendTheme(theme.peek());
-    post(
-      SetAnimatePortraitsMessage.type.request({
-        enabled: workspace.animatePortraits.peek(),
-      }),
-    );
+    sendIdleAnimations(preferences.peek().previewIdleAnimations);
+    sendTypingPauses(preferences.peek().previewTypingPauses);
     post(
       SetRouteTogglesMessage.type.request({
         toggles: storedRouteToggles(),
@@ -74,8 +83,24 @@ export const createPlayerPreferenceSync = (
       sendTheme(value);
     }
   });
+  let idleAnimations = preferences.peek().previewIdleAnimations;
+  let typingPauses = preferences.peek().previewTypingPauses;
+  const disposePreferences = effect(() => {
+    const value = preferences.value;
+    if (value.previewIdleAnimations !== idleAnimations) {
+      idleAnimations = value.previewIdleAnimations;
+      sendIdleAnimations(idleAnimations);
+    }
+    if (value.previewTypingPauses !== typingPauses) {
+      typingPauses = value.previewTypingPauses;
+      sendTypingPauses(typingPauses);
+    }
+  });
   return {
-    dispose: () => disposeTheme(),
+    dispose: () => {
+      disposeTheme();
+      disposePreferences();
+    },
     initialized: send,
     received: (message: unknown) => {
       if (
