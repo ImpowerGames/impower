@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import { generateScreenplayCsvData } from "../../sparkdown-screenplay/src/utils/generateScreenplayCsvData";
 import { generateScreenplayHtmlData } from "../../sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
+import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";
 
 const SCRIPT = `scene Opening:
   Hello there.
@@ -230,6 +232,26 @@ describe("screenplay function identifiers", () => {
     expect(after).toBeGreaterThan(second);
     expect(last).toBeGreaterThan(after);
   });
+
+  it.each([
+    ["spaced", SCRIPT],
+    ["compact", COMPACT_SCRIPT],
+  ])(
+    "only function tokens are added, so reading copy and CSV are unchanged (%s)",
+    (_, script) => {
+      const parser = new ScreenplayParser();
+      const tokens = parser.parse(script);
+      const localized = parser.parse(localize(script));
+      expect(tokens.some((t) => t.tag === "function")).toBe(true);
+      expect(tokens.filter((t) => t.tag !== "function")).toEqual(localized);
+      expect(generateScreenplayReadingCopy(tokens)).toBe(
+        generateScreenplayReadingCopy(localized),
+      );
+      expect(generateScreenplayCsvData(tokens)).toEqual(
+        generateScreenplayCsvData(localized),
+      );
+    },
+  );
 
   it.each([
     ["spaced", SCRIPT],
