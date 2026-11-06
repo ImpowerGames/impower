@@ -4,6 +4,7 @@ import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
+import { featureCardGallery } from "./components/feature-card/FeatureCard.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
 import { listRowGallery } from "./components/list-row/ListRow.gallery";
@@ -31,6 +32,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   choiceGroupGallery,
   dialogGallery,
   dropdownGallery,
+  featureCardGallery,
   iconGallery,
   jumpChipsGallery,
   listRowGallery,
