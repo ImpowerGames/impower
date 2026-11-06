@@ -161,6 +161,7 @@ export class WorkspaceSettings {
         lineNumbers: preferences.lineNumbers,
         indentGuides: preferences.indentGuides,
         autoCloseBrackets: preferences.autoCloseBrackets,
+        suggestAutocompletions: preferences.suggestAutocompletions,
       };
     });
     this._disposeProjectEffect = effect(() => {

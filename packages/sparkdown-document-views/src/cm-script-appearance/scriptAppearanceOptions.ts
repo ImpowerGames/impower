@@ -14,4 +14,5 @@ export interface ScriptAppearance {
   readonly lineNumbers: boolean;
   readonly indentGuides: IndentGuides;
   readonly autoCloseBrackets: boolean;
+  readonly suggestAutocompletions: boolean;
 }
