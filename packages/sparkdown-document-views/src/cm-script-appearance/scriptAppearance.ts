@@ -1,3 +1,4 @@
+import { autocompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, Extension, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -56,6 +57,8 @@ const OPTION_EXTENSIONS: {
   lineNumbers: (on) => (on ? editorClass("cm-line-numbers") : []),
   indentGuides: (mode) => (mode === "off" ? [] : indentationGuides({ mode })),
   autoCloseBrackets: (on) => autoCloseBrackets.of(on),
+  suggestAutocompletions: (on) =>
+    on ? [] : autocompletion({ activateOnTyping: false }),
 };
 
 const OPTIONS = Object.keys(OPTION_EXTENSIONS) as ScriptAppearanceOption[];

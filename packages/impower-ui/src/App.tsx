@@ -19,6 +19,7 @@ import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
+import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
 import { toastGallery } from "./components/toast/Toast.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
@@ -43,6 +44,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   switchGallery,
   tabsGallery,
   textFieldGallery,
+  themeSwatchGallery,
   toastGallery,
 ];
 
