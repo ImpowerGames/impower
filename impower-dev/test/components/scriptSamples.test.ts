@@ -29,7 +29,7 @@ describe("the Script editor samples", () => {
   );
 
   it.each(SCRIPT_SAMPLES.map((sample) => [sample.value, sample.text] as const))(
-    "%s compiles with no error diagnostics",
+    "%s compiles with no error diagnostic other than the missing start scene of an excerpt",
     (_value, text) => {
       const compiler = new SparkdownCompiler();
       compiler.configure({
