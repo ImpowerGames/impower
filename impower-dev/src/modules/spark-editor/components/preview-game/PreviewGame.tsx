@@ -4,15 +4,13 @@ import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
 import { createAspectRatioSync } from "./aspectRatioSync";
 import { showSnackbar } from "../../utils/snackbar";
 import { createPlayerPreferenceSync, playerUrl } from "./playerPreferences";
-import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
-import { createPreviewBeatSkipper } from "./previewBeatSkipper";
 
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
 const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
-const PLAYER_CONTROLS = "?skip-buttons&step-buttons&host-display";
+const PLAYER_CONTROLS = "?host-display";
 const PLAYER_SRC = SAME_ORIGIN_PREVIEW
   ? `/__player/${PLAYER_CONTROLS}`
   : `${SPARKDOWN_PLAYER_ORIGIN}/${PLAYER_CONTROLS}`;
@@ -43,7 +41,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [playerSrc] = useState(() => playerUrl(PLAYER_SRC));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const iframeChannelRef = useRef<any>(null);
   const initializedRef = useRef(false);
   const initializingResolveRef = useRef<(() => void) | null>(null);
@@ -81,6 +78,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/DeleteSavesMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/StartGameMessage"),
+      import("@preact/signals"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage"),
@@ -112,6 +112,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { RenameSaveMessage },
         { DeleteSavesMessage },
         { SkipBeatMessage },
+        { DidSelectTextDocumentMessage },
+        { StartGameMessage },
+        { effect },
         { FetchGameAssetMessage },
         { GameExecutedMessage },
         { GameEndedMessage },
@@ -140,9 +143,20 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
-        const skipBeat = createPreviewBeatSkipper({
-          window: Workspace.window,
-          ls: Workspace.ls,
+        const skipBeat = (direction: -1 | 1) =>
+          Workspace.window.skipBeat(direction);
+
+        let heldSelection: unknown = null;
+        const releaseHeldSelection = () => {
+          if (heldSelection) {
+            iframeChannelRef.current?.postMessage(heldSelection);
+            heldSelection = null;
+          }
+        };
+        const disposeFollowsCursor = effect(() => {
+          if (workspaceSettings.preferences.value.previewFollowsCursor) {
+            releaseHeldSelection();
+          }
         });
 
         const preferences = createPlayerPreferenceSync(
@@ -307,7 +321,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
             if (!initializedRef.current) {
               await initializingRef.current;
             }
-            iframeChannelRef.current?.postMessage(message);
+            if (
+              DidSelectTextDocumentMessage.type.isNotification(message) &&
+              !workspaceSettings.preferences.peek().previewFollowsCursor
+            ) {
+              heldSelection = message;
+            } else {
+              if (StartGameMessage.type.isRequest(message)) {
+                releaseHeldSelection();
+              }
+              iframeChannelRef.current?.postMessage(message);
+            }
           }
 
           if (GameStartedMessage.type.is(message)) {
@@ -405,6 +429,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
 
         cleanup = () => {
           preferences.dispose();
+          disposeFollowsCursor();
           aspectRatioSync.dispose();
           window.removeEventListener(MessageProtocol.event, onProtocol);
           window.removeEventListener("keydown", onKeyDown);
@@ -428,7 +453,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
   return (
     <>
       <style>{STYLE}</style>
-      <PreviewGameToolbar />
       <div class="pg-iframe-wrap">
         <iframe
           ref={iframeRef}

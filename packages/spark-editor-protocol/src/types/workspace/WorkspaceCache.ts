@@ -11,8 +11,6 @@ export type PanelType =
 
 export type PaneType = "logic" | "assets" | "share";
 
-export type PreviewMode = "page" | "game" | "screenplay" | "file";
-
 export type SyncStatus =
   | "cached"
   | "unsynced"
@@ -55,7 +53,6 @@ export interface GameState {
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
-  debugging?: boolean;
   compiling?: boolean;
   playRefusal?: string;
 }
@@ -66,7 +63,6 @@ export interface ScreenplayState {
 
 export interface PreviewState {
   revealed?: boolean;
-  mode: PreviewMode;
   modes: {
     page: {};
     game: GameState;

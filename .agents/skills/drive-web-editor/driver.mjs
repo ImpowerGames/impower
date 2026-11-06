@@ -2101,10 +2101,63 @@ export function focusScriptName(page, { timeout = 10000 } = {}) {
   return focusNameField(page, "focus-script-name", SCRIPT_NAME_SELECTOR, "script name (Main's name is fixed, so open another script first)", timeout);
 }
 
+const PREVIEW_SETTINGS_SELECTOR = 'button[aria-label="Preview settings"]';
+
+export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
+  const button = page.locator(PREVIEW_SETTINGS_SELECTOR).first();
+  if (!(await button.isVisible().catch(() => false))) return { step: "preview-settings", ran: false, reason: "the preview's settings button is not on screen; the preview pane may be hidden" };
+  await button.click();
+  try {
+    await page.waitForFunction(() => [...document.querySelectorAll('[role="menu"]')].some((menu) => menu.querySelector('[role="menuitemcheckbox"]') && menu.getBoundingClientRect().height > 0), null, { timeout });
+  } catch {
+    return { step: "preview-settings", ran: false, reason: `the preview's settings menu did not open within ${timeout / 1000} s of pressing Preview settings` };
+  }
+  const toggles = await page.evaluate(async () => {
+    const menus = [...document.querySelectorAll('[role="menu"]')];
+    await Promise.all(menus.flatMap((menu) => menu.closest('[role="dialog"]') ?? menu).flatMap((el) => el.getAnimations({ subtree: true })).map((animation) => animation.finished.catch(() => null)));
+    return [...document.querySelectorAll('[role="menu"] [role="menuitemcheckbox"]')].map((row) => ({ name: row.querySelector("strong")?.textContent ?? row.textContent, checked: row.getAttribute("aria-checked") === "true" }));
+  });
+  return { step: "preview-settings", ran: true, toggles };
+}
+
+export async function openSettings(page, section, { timeout = 10000 } = {}) {
+  await page.evaluate((id) => {
+    window.location.hash = `#project?section=${id}`;
+  }, section);
+  try {
+    await page.waitForFunction(
+      (id) => {
+        const heading = document.getElementById(`${id}-title`);
+        return !!heading && document.activeElement === heading;
+      },
+      section,
+      { timeout },
+    );
+  } catch {
+    const known = await page.evaluate(() => [...document.querySelectorAll("[data-settings-section]")].map((el) => el.id));
+    return {
+      step: "settings",
+      section,
+      ran: false,
+      reason: known.length
+        ? `no Settings section "${section}" took focus within ${timeout / 1000} s; the page has: ${known.join(", ")}`
+        : `the Settings page did not open within ${timeout / 1000} s of going to #project?section=${section}`,
+    };
+  }
+  await page
+    .waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"), null, { timeout: 3000 })
+    .catch(() => {});
+  const state = await page.evaluate(() => ({
+    hash: location.hash,
+    marked: document.querySelector('[data-index-jump][aria-current="true"]')?.getAttribute("data-index-jump") ?? null,
+  }));
+  return { step: "settings", section, ran: true, ...state };
+}
+
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
-  const label = start ? "Play Game" : "Stop Game";
-  const other = start ? "Stop Game" : "Play Game";
+  const label = start ? "Play From Here" : "Stop";
+  const other = start ? "Stop" : "Play From Here";
   const reached = (s) => (start ? running(s) : s?.launchState === "preview");
   const before = await request("preview/gameState");
   const out = { play: action, clicked: false, reached: false, launchStateBefore: before?.launchState ?? null };
@@ -2299,6 +2352,7 @@ export function editorAbsentReason({ screen, panelTab, budgetMs }) {
 }
 
 async function editorExpectedHere(page) {
+  if (await page.evaluate(() => /^#project(?:$|[?&])/i.test(location.hash))) return false;
   await page.waitForSelector(SELECTED_SCREEN_TAB, { state: "attached", timeout: 5_000 }).catch(() => {});
   const screen = await activeScreen(page);
   if (screen == null) return null;
@@ -3331,8 +3385,16 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(await focusProjectName(page));
               continue;
             }
+            if (step.step === "settings") {
+              result.steps.push(await openSettings(page, step.section));
+              continue;
+            }
             if (step.step === "focus-script-name") {
               result.steps.push(await focusScriptName(page));
+              continue;
+            }
+            if (step.step === "preview-settings") {
+              result.steps.push(await openPreviewSettings(page));
               continue;
             }
             const ready = await requireEditor(page, "PLAY", stepNo);

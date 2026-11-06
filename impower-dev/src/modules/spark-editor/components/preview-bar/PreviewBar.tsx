@@ -32,7 +32,7 @@ export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
 }: PreviewBarProps) {
-  const mode = workspace.signals.previewMode.value;
+  const mode = workspaceSettings.preferences.value.previewMode;
   return (
     <div
       role="group"

@@ -7,10 +7,10 @@ export const NAMED_STEPS = {
   "file-menu": { does: "open a file row's menu", builtBy: 1009 },
   "asset-inspector": { does: "open the asset inspector", builtBy: 1028 },
   "add-menu": { does: "open the Add menu", builtBy: 1013 },
-  "preview-settings": { does: "open the preview's settings menu", builtBy: 1020 },
+  "preview-settings": { does: "open the preview's settings menu" },
   play: { does: "press Play" },
   problems: { does: "open the Problems panel", builtBy: 1022 },
-  settings: { does: "open Settings and a named section", builtBy: 1015, argument: "section" },
+  settings: { does: "open Settings and a named section", argument: "section" },
   "focus-project-name": { does: "focus the project name" },
   "focus-script-name": { does: "focus the script name" },
 };

@@ -1,12 +1,12 @@
 import { SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
-import workspace from "../../workspace/WorkspaceStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
 import PreviewBar from "../preview-bar/PreviewBar";
 import PreviewGame from "../preview-game/PreviewGame";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
+import PreviewTopBar from "../preview-top-bar/PreviewTopBar";
 
 export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
@@ -37,18 +37,12 @@ function useFullscreen() {
 }
 
 export default function Preview(_props: PreviewProps) {
-  const mode = workspace.signals.previewMode.value;
+  const mode = workspaceSettings.preferences.value.previewMode;
   const phone = useLayout() === "phone";
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const { ref, fullscreen, toggle } = useFullscreen();
 
-  const stage =
-    mode === "game" ? (
-      <PreviewGame />
-    ) : mode === "screenplay" ? (
-      <PreviewScreenplay />
-    ) : null;
-  if (!stage) return null;
+  const stage = mode === "game" ? <PreviewGame /> : <PreviewScreenplay />;
 
   const bar = (
     <PreviewBar fullscreen={fullscreen} onToggleFullscreen={toggle} />
@@ -61,7 +55,11 @@ export default function Preview(_props: PreviewProps) {
     );
 
   return (
-    <div ref={ref} class="flex h-full w-full min-h-0 flex-col bg-panel">
+    <div
+      ref={ref}
+      class="@container flex h-full w-full min-h-0 flex-1 flex-col bg-panel"
+    >
+      <PreviewTopBar />
       {phone ? (
         <>
           <div class="flex min-h-0 flex-1 flex-col bg-stage">{stage}</div>

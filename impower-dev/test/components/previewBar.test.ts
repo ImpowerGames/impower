@@ -14,6 +14,10 @@ vi.mock(
   "../../src/modules/spark-editor/components/preview-screenplay/PreviewScreenplay",
   () => ({ default: () => h("div", { "data-stage": "screenplay" }) }),
 );
+vi.mock(
+  "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar",
+  () => ({ default: () => h("div", { "data-top-bar": "" }) }),
+);
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     window: {
@@ -141,6 +145,7 @@ beforeEach(() => {
   workspace.current = structuredClone(initial);
   workspaceSettings.setProjectSetting("previewAspectRatio", "auto");
   workspaceSettings.setProjectSetting("previewPanelHeight", 44);
+  workspaceSettings.setPreference("previewMode", "game");
   intents.showProblems.mockClear();
   intents.revealDocument.mockClear();
 });
@@ -259,7 +264,7 @@ describe("the bar under the game", () => {
   });
 
   it("links to the screenplay settings with the paper size in Screenplay mode", async () => {
-    await setState((s) => ({ ...s, preview: { ...s.preview, mode: "screenplay" } }));
+    workspaceSettings.setPreference("previewMode", "screenplay");
     await mount();
     const link = bar().querySelector<HTMLAnchorElement>("a")!;
     expect(link.getAttribute("aria-label")).toBe("Screenplay settings");
