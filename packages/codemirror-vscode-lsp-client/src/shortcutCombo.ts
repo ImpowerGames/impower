@@ -147,7 +147,7 @@ export function isShortcutCombo(
   );
 }
 
-interface ShortcutKeyEvent {
+export interface ShortcutKeyEvent {
   readonly code?: string;
   readonly key?: string;
   readonly keyCode?: number;
@@ -301,7 +301,7 @@ const syntheticCombo = (
     : "";
 };
 
-function eventCombos(
+export function eventCombos(
   event: ShortcutKeyEvent,
   platform: ShortcutPlatform,
 ): string[] {
@@ -321,15 +321,6 @@ export function comboFromEvent(
   platform: ShortcutPlatform,
 ): string {
   return eventCombos(event, platform)[0] ?? "";
-}
-
-export function eventMatchesCombo(
-  event: ShortcutKeyEvent,
-  combo: string,
-  platform: ShortcutPlatform,
-): boolean {
-  const wanted = normalizeCombo(combo, platform);
-  return !!wanted && eventCombos(event, platform).includes(wanted);
 }
 
 export function codeMirrorKey(

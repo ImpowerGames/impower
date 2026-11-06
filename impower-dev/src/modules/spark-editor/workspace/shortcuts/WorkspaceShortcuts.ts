@@ -9,7 +9,7 @@ import {
   fixedHolder,
   resolveShortcuts,
   restoreShortcut,
-  shortcutMatches,
+  shortcutForEvent,
   usualCombo,
   type ShortcutChange,
   type ShortcutCombos,
@@ -28,7 +28,7 @@ import {
   type ShortcutId,
 } from "./shortcutTable";
 
-type KeyEventLike = Parameters<typeof shortcutMatches>[0];
+type KeyEventLike = Parameters<typeof shortcutForEvent>[0];
 
 export class WorkspaceShortcuts {
   readonly combos: ReadonlySignal<ShortcutCombos>;
@@ -94,8 +94,7 @@ export class WorkspaceShortcuts {
   }
 
   matches(event: KeyEventLike, id: ShortcutId): boolean {
-    const row = this.row(id);
-    return !!row && shortcutMatches(event, row, this.combos.peek(), this.platform);
+    return shortcutForEvent(event, this.rows, this.combos.peek(), this.platform) === id;
   }
 
   record(id: ShortcutId, combo: string): ShortcutChange {

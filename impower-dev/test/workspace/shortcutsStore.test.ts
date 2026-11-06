@@ -157,6 +157,18 @@ describe("the app's own shortcuts", () => {
     expect(calls.toggleGameRunning).toBe(1);
   });
 
+  it("runs only the command the event reaches first, as the editor does, when one press names two recorded combos", async () => {
+    workspaceShortcuts.record("format", "Mod+Shift+,");
+    workspaceShortcuts.record("search", "Mod+;");
+    const german = { key: ";", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true };
+    expect(workspaceShortcuts.matches(keydown(german), "search")).toBe(true);
+    expect(workspaceShortcuts.matches(keydown(german), "format")).toBe(false);
+    await fire(german);
+    expect(calls.syncProject).toBe(0);
+    await fire({ key: "<", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true });
+    expect(calls.syncProject).toBe(1);
+  });
+
   it("syncs on Format script's keys, wherever they are recorded", async () => {
     await fire({ key: "s", code: "KeyS", ctrlKey: true });
     expect(calls.syncProject).toBe(1);

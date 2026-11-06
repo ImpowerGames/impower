@@ -1,7 +1,8 @@
 import {
-  eventMatchesCombo,
+  eventCombos,
   isShortcutCombo,
   normalizeCombo,
+  type ShortcutKeyEvent,
   type ShortcutPlatform,
 } from "./shortcutCombo";
 import {
@@ -135,13 +136,23 @@ export function restoreShortcut(
     : { combos };
 }
 
-export function shortcutMatches(
-  event: Parameters<typeof eventMatchesCombo>[0],
-  row: ShortcutRow,
+export function shortcutForEvent(
+  event: ShortcutKeyEvent,
+  rows: readonly ShortcutRow[],
   combos: ShortcutCombos,
   platform: ShortcutPlatform,
-): boolean {
-  return activeCombos(row, combos, platform).some((combo) =>
-    eventMatchesCombo(event, combo, platform),
-  );
+): string | undefined {
+  for (const combo of eventCombos(event, platform)) {
+    const row = rows.find((candidate) =>
+      activeCombos(candidate, combos, platform).includes(combo),
+    );
+    if (row) {
+      return row.id;
+    }
+    const fixed = fixedHolder(combo, platform);
+    if (fixed) {
+      return fixed;
+    }
+  }
+  return undefined;
 }
