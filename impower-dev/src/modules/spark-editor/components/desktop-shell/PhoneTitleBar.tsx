@@ -43,8 +43,8 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       <SparkLogo layout="mark" size="md" class="flex-none" />
       <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
         <ProjectNameField />
-        <div class="pl-1.5">
-          <div class="flex items-center">
+        <div class="w-full min-w-0 pl-1.5">
+          <div class="flex items-center overflow-hidden whitespace-nowrap fade-edge">
             <SyncStatusLine />
             <StoryProblemCount />
           </div>
