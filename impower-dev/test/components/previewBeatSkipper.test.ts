@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPreviewBeatSkipper } from "../../src/modules/spark-editor/components/preview-game/previewBeatSkipper";
+import { createPreviewBeatSkipper } from "../../src/modules/spark-editor/workspace/previewBeatSkipper";
 
 const URI = "file://project/main.sd";
 

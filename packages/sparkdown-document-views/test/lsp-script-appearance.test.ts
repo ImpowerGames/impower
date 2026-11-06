@@ -1,6 +1,7 @@
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  coarsePointer,
   documentHighlights,
   hoverPreviews,
   LSPClient,
@@ -155,12 +156,18 @@ describe("Highlight matching symbols after a failed request", () => {
   });
 });
 
-describe("Hover previews", () => {
+describe("the hover card", () => {
   const previews = new Compartment();
+  const pointer = new Compartment();
 
-  const hover = async (enabled: boolean, value: string) => {
+  const hover = async (
+    enabled: boolean,
+    value: string,
+    options: { coarse?: boolean; range?: lsp.Range } = {},
+  ) => {
     const { server, view } = await mount(DOC, [
       previews.of(hoverPreviews.of(enabled)),
+      pointer.of(coarsePointer.of(!!options.coarse)),
     ]);
     const at = 2;
     view.posAtCoords = (() => at) as EditorView["posAtCoords"];
@@ -173,21 +180,50 @@ describe("Hover previews", () => {
       await settle(25);
     }
     const [request] = server.pending("textDocument/hover");
-    expect(request).toBeTruthy();
-    server.answer(request!, { contents: { kind: "markdown", value } });
+    if (request) {
+      server.answer(request, {
+        contents: { kind: "markdown", value },
+        ...(options.range ? { range: options.range } : {}),
+      });
+    }
     await settle(50);
-    return { view, tooltip: view.dom.querySelector(".cm-tooltip-hover") };
+    return {
+      server,
+      view,
+      asked: !!request,
+      tooltip: view.dom.querySelector(".cm-tooltip-hover"),
+    };
   };
 
   const PICTURE = "![MAYA](data:image/png;base64,iVBORw0KGgo=)";
 
-  it("keeps a picture's popup closed while turned off", async () => {
-    expect((await hover(false, PICTURE)).tooltip).toBeNull();
-    const shown = await hover(true, PICTURE);
-    expect(shown.tooltip?.querySelector("img")).toBeTruthy();
+  it("draws a picture reference as its thumbnail over the reference in code type", async () => {
+    const { tooltip } = await hover(true, PICTURE, { range: range(0, 0, 5) });
+    const card = tooltip?.querySelector(".cm-lsp-hover-card.cm-lsp-hover-picture");
+    expect(card).toBeTruthy();
+    expect(card!.querySelector(".cm-lsp-hover-thumb img")).toBeTruthy();
+    expect(card!.querySelector(".cm-lsp-hover-caption code")?.textContent).toBe(
+      "scene",
+    );
   });
 
-  it("closes an open picture popup when turned off, and leaves a text popup open", async () => {
+  it("names the picture from its alt text when the server gives no range", async () => {
+    const { tooltip } = await hover(true, PICTURE);
+    expect(tooltip?.querySelector(".cm-lsp-hover-caption code")?.textContent).toBe(
+      "MAYA",
+    );
+  });
+
+  it("shows a picture reference without its thumbnail while turned off", async () => {
+    const { tooltip } = await hover(false, PICTURE, { range: range(0, 0, 5) });
+    expect(tooltip).toBeTruthy();
+    expect(tooltip!.querySelector("img")).toBeNull();
+    expect(tooltip!.querySelector(".cm-lsp-hover-caption code")?.textContent).toBe(
+      "scene",
+    );
+  });
+
+  it("closes an open picture card when turned off, and leaves a text card open", async () => {
     const picture = await hover(true, PICTURE);
     expect(picture.tooltip).toBeTruthy();
     picture.view.dispatch({
@@ -202,13 +238,42 @@ describe("Hover previews", () => {
     expect(text.view.dom.querySelector(".cm-tooltip-hover")).toBeTruthy();
   });
 
-  it("shows a popup without a picture either way", async () => {
-    expect((await hover(false, "A scene.")).tooltip?.textContent).toContain(
-      "A scene.",
+  it("draws a symbol as the server's documentation, either way", async () => {
+    for (const enabled of [false, true]) {
+      const { tooltip } = await hover(enabled, "A scene.");
+      const card = tooltip?.querySelector(".cm-lsp-hover-card.cm-lsp-documentation");
+      expect(card?.textContent).toContain("A scene.");
+      expect(card?.classList.contains("cm-lsp-hover-picture")).toBe(false);
+    }
+  });
+
+  it("closes on Escape", async () => {
+    const { view } = await hover(true, "A scene.");
+    expect(view.dom.querySelector(".cm-tooltip-hover")).toBeTruthy();
+    view.contentDOM.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
-    expect((await hover(true, "A scene.")).tooltip?.textContent).toContain(
-      "A scene.",
-    );
+    expect(view.dom.querySelector(".cm-tooltip-hover")).toBeNull();
+  });
+
+  it("closes when the page scrolls, and stays open when the card itself scrolls", async () => {
+    const { view, tooltip } = await hover(true, "A scene.");
+    tooltip!.dispatchEvent(new Event("scroll"));
+    expect(view.dom.querySelector(".cm-tooltip-hover")).toBeTruthy();
+    view.scrollDOM.dispatchEvent(new Event("scroll"));
+    expect(view.dom.querySelector(".cm-tooltip-hover")).toBeNull();
+  });
+
+  it("closes when the editor loses focus", async () => {
+    const { view } = await hover(true, "A scene.");
+    view.contentDOM.dispatchEvent(new FocusEvent("blur"));
+    expect(view.dom.querySelector(".cm-tooltip-hover")).toBeNull();
+  });
+
+  it("asks nothing on a coarse pointer", async () => {
+    const { asked, tooltip } = await hover(true, "A scene.", { coarse: true });
+    expect(asked).toBe(false);
+    expect(tooltip).toBeNull();
   });
 });
 
