@@ -222,10 +222,13 @@ end
 `;
 
 describe("a choice menu after a line with only a picture (#1988)", () => {
-  it("is a choice beat, since it has no line of its own", () => {
+  it("is a choice beat located at the menu, since it has no line of its own", () => {
+    const lines = MENU_AFTER_PICTURE.split("\n");
     const menu = playedBeats(MENU_AFTER_PICTURE).find((beat) => beat.choices);
     expect(menu?.image?.["backdrop"]).toBeDefined();
     expect(menu?.kind).toBe("choice");
+    expect(menu?.speaker).toBeUndefined();
     expect(menu?.options).toEqual(["Stay", "Go"]);
+    expect(menu?.source?.[1]).toBe(lines.indexOf("  choose"));
   });
 });

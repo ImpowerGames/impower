@@ -341,11 +341,10 @@ export class InterpreterModule extends Module<
 
   protected describeBeat(
     beat: Instructions,
-    target: string,
+    kind: BeatKind | undefined,
     cue: Cue | undefined,
     source: ScriptLocation | undefined,
   ): void {
-    const kind = this.beatKind(target);
     if (kind) {
       beat.kind = kind;
     } else {
@@ -499,9 +498,19 @@ export class InterpreterModule extends Module<
           } else {
             delete lastTextbox.extended;
           }
-          this.describeBeat(lastTextbox, textTarget, cue, source);
+          this.describeBeat(
+            lastTextbox,
+            this.beatKind(textTarget),
+            cue,
+            source,
+          );
         } else {
-          this.describeBeat(contentInstructions, textTarget, cue, source);
+          this.describeBeat(
+            contentInstructions,
+            this.beatKind(textTarget),
+            cue,
+            source,
+          );
           this._state.buffer.push(contentInstructions);
         }
       }
@@ -534,10 +543,11 @@ export class InterpreterModule extends Module<
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };
-        if (source) lastTextbox.source = source;
         this._state.buffer.push(lastTextbox);
       }
-      if (!lastTextbox.text) lastTextbox.kind = "choice";
+      if (!lastTextbox.text) {
+        this.describeBeat(lastTextbox, "choice", undefined, source);
+      }
       lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
