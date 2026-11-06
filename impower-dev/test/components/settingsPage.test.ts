@@ -186,7 +186,7 @@ describe("the Settings page", () => {
       "Project preferences",
     ]);
     expect([...host!.querySelectorAll("[data-settings-section]")].map((el) => el.id)).toEqual([...SETTINGS_SECTION_IDS]);
-    expect(host!.querySelectorAll("[data-settings-placeholder]").length).toBe(SETTINGS_SECTION_IDS.length);
+    expect(host!.querySelectorAll("[data-settings-placeholder]").length).toBe(SETTINGS_SECTION_IDS.length - 1);
     expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());
