@@ -39,17 +39,7 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.4500000000000001,
+      "extended": "[undefined]",
       "image": {
         "backdrop": [
           {
@@ -57,99 +47,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
               "BG",
             ],
             "control": "show",
-          },
-        ],
-      },
-      "text": {
-        "action": [
-          {
-            "control": "show",
-            "text": "T",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "a",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "q",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "u",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.37500000000000006,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.4000000000000001,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.4250000000000001,
-            "control": "show",
-            "text": ".",
           },
         ],
       },
@@ -344,110 +241,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.37500000000000006,
-      "text": {
-        "character_name": [
-          {
-            "control": "show",
-            "text": "Hero",
-          },
-        ],
-        "character_parenthetical": [
-          {
-            "control": "show",
-            "style": {
-              "text_align": "center",
-            },
-            "text": "(softly)",
-          },
-        ],
-        "dialogue": [
-          {
-            "control": "show",
-            "text": "W",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "g",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "r",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "?",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -629,110 +424,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.37500000000000006,
-      "text": {
-        "character_name": [
-          {
-            "control": "show",
-            "text": "Hero",
-          },
-        ],
-        "character_parenthetical": [
-          {
-            "control": "show",
-            "style": {
-              "text_align": "center",
-            },
-            "text": "(softly)",
-          },
-        ],
-        "dialogue": [
-          {
-            "control": "show",
-            "text": "W",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "g",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "r",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "?",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -927,48 +620,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "choices": [
-        "choice 0",
-        "choice 1",
-        "choice 2",
-      ],
-      "end": 0,
-      "text": {
-        "choice 0": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "friend",
-          },
-        ],
-        "choice 1": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "stranger",
-          },
-        ],
-        "choice 2": [
-          {
-            "control": "show",
-            "text": "Nobody",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -1162,17 +815,7 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.4500000000000001,
+      "extended": "[undefined]",
       "image": {
         "backdrop": [
           {
@@ -1180,99 +823,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
               "BG",
             ],
             "control": "show",
-          },
-        ],
-      },
-      "text": {
-        "action": [
-          {
-            "control": "show",
-            "text": "T",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "a",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "q",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "u",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.37500000000000006,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.4000000000000001,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.4250000000000001,
-            "control": "show",
-            "text": ".",
           },
         ],
       },
@@ -1461,110 +1011,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.37500000000000006,
-      "text": {
-        "character_name": [
-          {
-            "control": "show",
-            "text": "Hero",
-          },
-        ],
-        "character_parenthetical": [
-          {
-            "control": "show",
-            "style": {
-              "text_align": "center",
-            },
-            "text": "(softly)",
-          },
-        ],
-        "dialogue": [
-          {
-            "control": "show",
-            "text": "W",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "g",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "r",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "?",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -1740,110 +1188,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.37500000000000006,
-      "text": {
-        "character_name": [
-          {
-            "control": "show",
-            "text": "Hero",
-          },
-        ],
-        "character_parenthetical": [
-          {
-            "control": "show",
-            "style": {
-              "text_align": "center",
-            },
-            "text": "(softly)",
-          },
-        ],
-        "dialogue": [
-          {
-            "control": "show",
-            "text": "W",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "g",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "r",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "?",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -2034,48 +1380,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
   [
     "ui.image.restoreCleared",
     {
-      "choices": [
-        "choice 0",
-        "choice 1",
-        "choice 2",
-      ],
-      "end": 0,
-      "text": {
-        "choice 0": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "friend",
-          },
-        ],
-        "choice 1": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "stranger",
-          },
-        ],
-        "choice 2": [
-          {
-            "control": "show",
-            "text": "Nobody",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -2263,17 +1569,7 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.4500000000000001,
+      "extended": "[undefined]",
       "image": {
         "backdrop": [
           {
@@ -2281,99 +1577,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
               "BG",
             ],
             "control": "show",
-          },
-        ],
-      },
-      "text": {
-        "action": [
-          {
-            "control": "show",
-            "text": "T",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "a",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "l",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "q",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "u",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "i",
-          },
-          {
-            "after": 0.37500000000000006,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.4000000000000001,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.4250000000000001,
-            "control": "show",
-            "text": ".",
           },
         ],
       },
@@ -2562,110 +1765,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
   [
     "ui.image.restoreCleared",
     {
-      "audio": {
-        "typewriter": [
-          {
-            "assets": [
-              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
-            ],
-            "control": "play",
-          },
-        ],
-      },
-      "end": 0.37500000000000006,
-      "text": {
-        "character_name": [
-          {
-            "control": "show",
-            "text": "Hero",
-          },
-        ],
-        "character_parenthetical": [
-          {
-            "control": "show",
-            "style": {
-              "text_align": "center",
-            },
-            "text": "(softly)",
-          },
-        ],
-        "dialogue": [
-          {
-            "control": "show",
-            "text": "W",
-          },
-          {
-            "after": 0.025,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.05,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.07500000000000001,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.1,
-            "control": "show",
-            "text": "g",
-          },
-          {
-            "after": 0.125,
-            "control": "show",
-            "text": "o",
-          },
-          {
-            "after": 0.15,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.175,
-            "control": "show",
-            "text": "s",
-          },
-          {
-            "after": 0.19999999999999998,
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "after": 0.22499999999999998,
-            "control": "show",
-            "text": "t",
-          },
-          {
-            "after": 0.24999999999999997,
-            "control": "show",
-            "text": "h",
-          },
-          {
-            "after": 0.27499999999999997,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.3,
-            "control": "show",
-            "text": "r",
-          },
-          {
-            "after": 0.325,
-            "control": "show",
-            "text": "e",
-          },
-          {
-            "after": 0.35000000000000003,
-            "control": "show",
-            "text": "?",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [
@@ -2851,48 +1952,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
   [
     "ui.image.restoreCleared",
     {
-      "choices": [
-        "choice 0",
-        "choice 1",
-        "choice 2",
-      ],
-      "end": 0,
-      "text": {
-        "choice 0": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "friend",
-          },
-        ],
-        "choice 1": [
-          {
-            "control": "show",
-            "text": "A",
-          },
-          {
-            "control": "show",
-            "text": " ",
-          },
-          {
-            "control": "show",
-            "text": "stranger",
-          },
-        ],
-        "choice 2": [
-          {
-            "control": "show",
-            "text": "Nobody",
-          },
-        ],
-      },
+      "extended": "[undefined]",
+      "image": "[undefined]",
     },
   ],
   [

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { type Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { type Game } from "../../game/core/classes/Game";
+import type { Instructions } from "../../game/core/types/Instructions";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const STORY = `define HERO as character with
@@ -104,14 +105,20 @@ const recordCalls = (
   owner: Record<string, any>,
   prefix: string,
   names: readonly string[],
+  read: (args: unknown[]) => unknown[] = (args) => args,
 ) => {
   for (const name of names) {
     const original = owner[name].bind(owner);
     owner[name] = (...args: unknown[]) => {
-      log.push([`${prefix}${name}`, ...args.map(serialize)]);
+      log.push([`${prefix}${name}`, ...read(args).map(serialize)]);
       return original(...args);
     };
   }
+};
+
+const restoreClearedReads = ([beat]: unknown[]): unknown[] => {
+  const { image, extended } = beat as Pick<Instructions, "image" | "extended">;
+  return [{ image, extended }];
 };
 
 const recordUiWrites = (game: Game): unknown[] => {
@@ -119,11 +126,14 @@ const recordUiWrites = (game: Game): unknown[] => {
   const ui = game.module.ui as unknown as Record<string, any>;
   recordCalls(log, ui, "ui.", UI_WRITES);
   recordCalls(log, ui["text"], "ui.text.", ["clearAll", "write"]);
-  recordCalls(log, ui["image"], "ui.image.", [
-    "clearAll",
-    "write",
-    "restoreCleared",
-  ]);
+  recordCalls(log, ui["image"], "ui.image.", ["clearAll", "write"]);
+  recordCalls(
+    log,
+    ui["image"],
+    "ui.image.",
+    ["restoreCleared"],
+    restoreClearedReads,
+  );
   recordCalls(log, ui["style"], "ui.style.", ["update"]);
   const choose = game.chosePathToContinue.bind(game);
   game.chosePathToContinue = (index: number) => {
