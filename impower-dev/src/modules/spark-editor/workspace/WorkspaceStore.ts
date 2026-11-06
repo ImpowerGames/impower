@@ -52,7 +52,6 @@ const defaults: WorkspaceCache = {
     },
   },
   preview: {
-    mode: "game",
     modes: {
       page: {},
       game: {},
@@ -107,8 +106,6 @@ class WorkspaceStore {
 
   readonly trashOpen = signal<boolean>(false);
 
-  readonly animatePortraits = signal<boolean>(true);
-
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
@@ -117,7 +114,6 @@ class WorkspaceStore {
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),
-    previewMode: computed(() => this.state.value.preview?.mode ?? "game"),
     projectId: computed(() => this.state.value.project?.id ?? ""),
     syncStatus: computed(() => this.state.value.sync?.status),
     account: computed<AccountInfo | null>(() => {

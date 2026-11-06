@@ -1,7 +1,6 @@
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview";
 import { useEffect, useRef } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
-import PreviewScreenplayToolbar from "../preview-screenplay-toolbar/PreviewScreenplayToolbar";
 
 export const propDefaults = {};
 export type PreviewScreenplayProps = Partial<typeof propDefaults>;
@@ -166,7 +165,6 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
 
   return (
     <>
-      <PreviewScreenplayToolbar />
       <div class="relative flex flex-1 min-h-0">
         <div class="absolute inset-0 flex flex-col overflow-y-auto">
           <SparkdownScreenplayPreview scrollMargin="auto auto 60px auto" />

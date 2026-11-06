@@ -1,8 +1,7 @@
 import { redo, selectAll, undo } from "@codemirror/commands";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState, Extension, Facet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
-import { formatDocument, formatKeymap } from "./formatting";
 import { coarsePointer } from "./pointer";
 import { findReferences, findReferencesKeymap } from "./references";
 import { renameKeymap, renameSymbol } from "./rename";
@@ -13,6 +12,7 @@ export type ContextMenuItem =
       icon?: string;
       shortcut?: string;
       command: (view: EditorView) => void;
+      when?: (state: EditorState, pos: number) => boolean;
       needsSelection?: boolean;
       keepsMenuOpen?: boolean;
       disabled?: () => boolean;
@@ -98,19 +98,79 @@ export function copy(view: EditorView) {
   }
 }
 
+const pasteRefusedHandler = Facet.define<
+  (view: EditorView) => void,
+  ((view: EditorView) => void) | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
+export function onPasteRefused(handler: (view: EditorView) => void): Extension {
+  return pasteRefusedHandler.of(handler);
+}
+
+const systemClipboard = () =>
+  typeof navigator.clipboard?.readText === "function"
+    ? navigator.clipboard
+    : null;
+
+export function pasteAvailable() {
+  return systemClipboard() != null || menuClipboard !== null;
+}
+
+function bufferText(state: EditorState) {
+  return menuClipboard ? menuClipboard.pieces.join(state.lineBreak) : null;
+}
+
 export function paste(view: EditorView) {
+  const clipboard = systemClipboard();
+  if (!clipboard) {
+    pasteBuffer(view);
+    return;
+  }
+  clipboard.readText().then(
+    (text) => {
+      const buffered = bufferText(view.state);
+      if (
+        buffered !== null &&
+        (text === buffered || text === buffered + view.state.lineBreak)
+      ) {
+        pasteBuffer(view);
+      } else if (text) {
+        pastePieces(view, view.state.toText(text).toJSON(), false, true);
+      }
+    },
+    () => {
+      view.state.facet(pasteRefusedHandler)?.(view);
+      pasteBuffer(view);
+    },
+  );
+}
+
+function pasteBuffer(view: EditorView) {
   if (!menuClipboard) {
     return;
   }
+  pastePieces(view, menuClipboard.pieces, menuClipboard.linewise, false);
+}
+
+function pastePieces(
+  view: EditorView,
+  copied: readonly string[],
+  copiedLinewise: boolean,
+  fromSystem: boolean,
+) {
   const { state } = view;
   const pieces = filterPieces(
     state,
     state.facet(EditorView.clipboardInputFilter),
-    menuClipboard.pieces,
+    [...copied],
   );
-  const linewise = menuClipboard.linewise && pieces === menuClipboard.pieces;
+  const linewise = copiedLinewise && pieces.length === copied.length && pieces.every((p, i) => p === copied[i]);
   const joined = pieces.join(state.lineBreak);
-  const perRange = pieces.length === state.selection.ranges.length;
+  const perRange =
+    pieces.length === state.selection.ranges.length &&
+    (!fromSystem || pieces.length > 1);
   let i = 0;
   const pieceFor = () => (perRange ? pieces[i++]! : joined);
   let spec;
@@ -172,37 +232,36 @@ export const textContextMenuItems: ContextMenuItem[] = [
     label: "Paste",
     command: paste,
     shortcut: getShortcutLabel("Mod-v"),
-    disabled: () => menuClipboard === null,
+    disabled: () => !pasteAvailable(),
   },
   {
-    label: "Select All",
+    label: "Select all",
     command: selectAll,
     shortcut: getShortcutLabel("Mod-a"),
     keepsMenuOpen: true,
   },
 ];
 
+const onName = (state: EditorState, pos: number) => state.wordAt(pos) != null;
+
 export const lspContextMenuItems: ContextMenuItem[] = [
   {
-    label: "Rename Symbol",
+    label: "Rename",
     command: renameSymbol,
     shortcut: getShortcutLabel(renameKeymap[0]?.key!),
+    when: onName,
   },
   {
-    label: "Format Document",
-    command: formatDocument,
-    shortcut: getShortcutLabel(formatKeymap[0]?.key!),
-  },
-  { type: "separator" },
-  {
-    label: "Find References",
+    label: "Find references",
     command: findReferences,
     shortcut: getShortcutLabel(findReferencesKeymap[0]?.key!),
+    when: onName,
   },
   {
-    label: "Go to Definition",
+    label: "Go to definition",
     command: jumpToDefinition,
     shortcut: getShortcutLabel(jumpToDefinitionKeymap[0]?.key!),
+    when: onName,
   },
 ];
 

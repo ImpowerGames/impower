@@ -3,7 +3,6 @@ export class WorkspaceConstants {
   static readonly DEFAULT_PROJECT_NAME = "Untitled story";
   static readonly LOADED_PROJECT_STORAGE_KEY = "project";
   static readonly WORKSPACE_STATE_STORAGE_KEY_PREFIX = "workspace/";
-  static readonly ANIMATE_PORTRAITS_STORAGE_KEY = "preferences/animatePortraits";
   static readonly ROUTE_TOGGLES_STORAGE_KEY = "preferences/routeToggles";
   static readonly ROUTE_TAB_STORAGE_KEY = "preferences/routeTab";
 }
