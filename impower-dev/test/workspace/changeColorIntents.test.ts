@@ -13,8 +13,19 @@ const RANGE = {
 };
 const ORANGE = { red: 1, green: 136 / 255, blue: 0, alpha: 1 };
 
-const rgb = (red: number, green: number, blue: number, alpha = 1) => ({
+const rgb = (
+  red: number,
+  green: number,
+  blue: number,
+  alpha = 1,
+  line = 0,
+  character = 0,
+) => ({
   color: { red, green, blue, alpha },
+  range: {
+    start: { line, character },
+    end: { line, character: character + 7 },
+  },
 });
 
 let win: WorkspaceWindow | undefined;
@@ -114,9 +125,9 @@ describe("the story's colors", () => {
       connection: { sendRequest },
       getProgram: async () => ({
         scripts: {
-          "file:///p/later.sd": 2,
-          "file:///p/main.sd": 0,
+          "file:///p/main.sd": 7,
           "file:///p/chapter.sd": 1,
+          "file:///p/later.sd": 3,
         },
       }),
     });
@@ -126,6 +137,19 @@ describe("the story's colors", () => {
       "#ffffff",
       "#00ff00",
     ]);
+  });
+
+  it("orders a script's colors by where the script uses them, whatever order the server lists them in", async () => {
+    const sendRequest = vi.fn(async () => [
+      rgb(0, 0, 1, 1, 4, 2),
+      rgb(1, 0, 0, 1, 1, 9),
+      rgb(0, 1, 0, 1, 1, 2),
+    ]);
+    const w = mount({
+      connection: { sendRequest },
+      getProgram: async () => ({ scripts: { "file:///p/main.sd": 1 } }),
+    });
+    expect(await w.readStoryColors()).toEqual(["#00ff00", "#ff0000", "#0000ff"]);
   });
 
   it("is empty before the language server starts", async () => {

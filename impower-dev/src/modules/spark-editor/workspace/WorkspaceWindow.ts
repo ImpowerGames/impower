@@ -64,6 +64,7 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   Color,
+  ColorInformation,
   EditorState,
   PaneType,
   PanelType,
@@ -286,17 +287,22 @@ export default class WorkspaceWindow {
       return [];
     }
     const program = await ls.getProgram().catch(() => null);
-    const uris = Object.entries(program?.scripts ?? {})
-      .sort(([, a], [, b]) => a - b)
-      .map(([uri]) => uri);
+    const uris = Object.keys(program?.scripts ?? {});
     const documents = await Promise.all(
       uris.map(async (uri) => {
         const infos = await connection
-          .sendRequest<{ color: Color }[] | null>("textDocument/documentColor", {
-            textDocument: { uri },
-          })
+          .sendRequest<ColorInformation[] | null>(
+            "textDocument/documentColor",
+            { textDocument: { uri } },
+          )
           .catch(() => null);
-        return (infos ?? []).map((info) => info.color);
+        return [...(infos ?? [])]
+          .sort(
+            (a, b) =>
+              a.range.start.line - b.range.start.line ||
+              a.range.start.character - b.range.start.character,
+          )
+          .map((info) => info.color);
       }),
     );
     return storyColors(documents);
