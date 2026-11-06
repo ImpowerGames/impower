@@ -1791,6 +1791,21 @@ describe("The Screenplay viewing mode", () => {
     expect(requests.filter((m) => m === "game/continue")).toHaveLength(2);
   });
 
+  it("takes keyboard focus from a click on the page while playing, so the next Enter continues there", async () => {
+    setGame({ running: true });
+    page();
+    const elsewhere = document.body.appendChild(document.createElement("textarea"));
+    elsewhere.focus();
+    const inner = container.querySelector("[data-screenplay-page]")!;
+    const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    inner.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(region());
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(1));
+    elsewhere.remove();
+  });
+
   it("keeps the game's player mounted, out of sight, while the page is on screen", () => {
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(Preview, {}), container);

@@ -185,6 +185,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
         if (playing) {
           e.preventDefault();
           e.stopPropagation();
+          e.currentTarget.focus({ preventScroll: true });
         }
       }}
       onClick={() => {
