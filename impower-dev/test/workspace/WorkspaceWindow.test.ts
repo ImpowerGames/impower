@@ -1390,6 +1390,18 @@ describe("the story's front matter", () => {
     expect(workspace.storyFrontMatter.value).toEqual({});
   });
 
+  it("opens a file of a script ending added under File types in the script editor", () => {
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+    workspaceSettings.setProjectSetting("scriptFiles", "*.{sd,luau,story}");
+    try {
+      expect(win.getPaneType("scripts/chapter.story")).toBe("logic");
+      expect(win.getPanelType("scripts/chapter.story")).toBe("scripts");
+    } finally {
+      workspaceSettings.resetProjectSettings(["scriptFiles"]);
+    }
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+  });
+
   it("opens main at a line for Edit in Main", async () => {
     workspace.current = {
       ...workspace.current,

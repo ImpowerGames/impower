@@ -16,8 +16,8 @@ export function useProjectFiles(): readonly ProjectFile[] {
   const [files, setFiles] = useState<readonly ProjectFile[]>([]);
 
   useEffect(() => {
+    setFiles([]);
     if (!projectId) {
-      setFiles([]);
       return;
     }
     let cancelled = false;
@@ -34,9 +34,9 @@ export function useProjectFiles(): readonly ProjectFile[] {
             })),
           );
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setFiles([]);
+          console.error(`[Settings] the files of project ${projectId} could not be read:`, error);
         }
       }
     };
