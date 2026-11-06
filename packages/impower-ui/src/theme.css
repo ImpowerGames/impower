@@ -6,6 +6,7 @@
   --script-leading: 1.5;
   --script-margin: 20px;
   --script-gutter: 36px;
+  --swatch-edge: rgb(128 128 128 / 0.4);
 }
 
 :root[data-layout="desktop"] {

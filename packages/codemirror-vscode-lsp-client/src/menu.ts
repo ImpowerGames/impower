@@ -175,13 +175,17 @@ function shownItems(view: EditorView, pos: number): ContextMenuItem[] {
       ((!item.when || item.when(state, pos)) &&
         !(coarse && empty && item.needsSelection)),
   );
-  return kept.filter(
-    (item, index) =>
-      !("type" in item) ||
-      (index > 0 &&
-        index < kept.length - 1 &&
-        !("type" in kept[index - 1]!)),
-  );
+  const shown: ContextMenuItem[] = [];
+  for (const item of kept) {
+    const last = shown.at(-1);
+    if (!("type" in item) || (last && !("type" in last))) {
+      shown.push(item);
+    }
+  }
+  if (shown.length > 0 && "type" in shown.at(-1)!) {
+    shown.pop();
+  }
+  return shown;
 }
 
 function isDisabled(view: EditorView, item: ContextMenuItem) {
