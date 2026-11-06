@@ -719,6 +719,9 @@ export default class WorkspaceWindow {
     const story =
       !!projectId &&
       program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
+    if (story) {
+      this.setStoryFrontMatter(program.frontMatter ?? {});
+    }
     this.update({
       ...this.store,
       preview: {
@@ -1122,6 +1125,24 @@ export default class WorkspaceWindow {
       );
     }
     return { success: true };
+  }
+
+  protected setStoryFrontMatter(frontMatter: Record<string, string[]>) {
+    workspace.storyFrontMatter.value = frontMatter;
+  }
+
+  async editMainAt(line: number) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const position = { line, character: 0 };
+    await this.showDocument(
+      this._workspace.fs.getFileUri(projectId, "main.sd"),
+      { start: position, end: position },
+      true,
+    );
+    this.navigateTo("write");
   }
 
   protected requestEditor<M extends string, P, R>(
@@ -1763,6 +1784,7 @@ export default class WorkspaceWindow {
 
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;
+    this.setStoryFrontMatter({});
     this.update({
       ...this.store,
       project: {

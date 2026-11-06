@@ -135,6 +135,8 @@ class WorkspaceStore {
 
   readonly syncedAt = signal<number | null>(null);
 
+  readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
+
   readonly debugSession = signal<DebugSessionState>(IDLE_DEBUG_SESSION);
 
   readonly signals = {

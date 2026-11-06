@@ -15,8 +15,10 @@ import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
 import { popoverGallery } from "./components/popover/Popover.gallery";
 import { railIndexGallery } from "./components/rail-index/RailIndex.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
+import { portraitThumbnailGallery } from "./components/portrait-thumbnail/PortraitThumbnail.gallery";
 import { selectGallery } from "./components/select/Select.gallery";
 import { settingsGallery } from "./components/settings/Settings.gallery";
+import { sliderGallery } from "./components/slider/Slider.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
@@ -44,9 +46,11 @@ export const galleryEntries: readonly GalleryEntry[] = [
   popoverGallery,
   railIndexGallery,
   routerGallery,
+  portraitThumbnailGallery,
   selectGallery,
   settingsGallery,
   sidebarLayoutGallery,
+  sliderGallery,
   splitPaneGallery,
   switchGallery,
   tabsGallery,

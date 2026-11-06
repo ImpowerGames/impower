@@ -16,6 +16,8 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { programSummary } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const current = vi.hoisted(() => ({ window: undefined as unknown }));
@@ -1425,6 +1427,80 @@ describe("The game preview's player bar", () => {
       expect(workspace.current.preview.modes.game.paused).toBe(false),
     );
   }, 30000);
+});
+
+describe("the story's front matter", () => {
+  let win: WorkspaceWindow;
+  const STORY = "file://proj/main.sd";
+
+  const publish = (uri: string, text: string) => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    });
+    const { program } = compiler.compile({ textDocument: { uri } });
+    sendProtocolMessage(
+      CompiledProgramMessage.type.notification({
+        textDocument: { uri, version: 1 },
+        program: programSummary(program, true),
+      }),
+    );
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "proj" },
+    };
+    workspace.storyFrontMatter.value = {};
+  });
+
+  afterEach(() => {
+    current.window = undefined;
+    win.dispose();
+  });
+
+  it("follows main's front matter as each compile of the story arrives, and ignores other scripts", () => {
+    publish(STORY, ["---", "title: The Long Road", "author: Ada", "---", "", "Hello."].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["The Long Road"], author: ["Ada"] });
+
+    publish("file://proj/scripts/other.sd", ["---", "title: Not the story", "---", ""].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["The Long Road"], author: ["Ada"] });
+
+    publish(STORY, ["---", "title: A New Name", "---", "", "Hello."].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["A New Name"] });
+
+    publish(STORY, "Hello.\n");
+    expect(workspace.storyFrontMatter.value).toEqual({});
+  });
+
+  it("opens a file of a script ending added under File types in the script editor", () => {
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+    workspaceSettings.setProjectSetting("scriptFiles", "*.{sd,luau,story}");
+    try {
+      expect(win.getPaneType("scripts/chapter.story")).toBe("logic");
+      expect(win.getPanelType("scripts/chapter.story")).toBe("scripts");
+    } finally {
+      workspaceSettings.resetProjectSettings(["scriptFiles"]);
+    }
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+  });
+
+  it("opens main at a line for Edit in Main", async () => {
+    workspace.current = {
+      ...workspace.current,
+      screen: { ...workspace.current.screen, settingsOpen: true },
+    };
+    await win.editMainAt(0);
+    await vi.waitFor(() => expect(workspace.current.screen.settingsOpen).toBe(false));
+    const main = workspace.current.panes.logic.panels.main!.activeEditor!;
+    expect(workspace.current.pane).toBe("logic");
+    expect(main.filename).toBe("main.sd");
+    expect(main.selectedRange).toEqual({ start: { line: 0, character: 0 }, end: { line: 0, character: 0 } });
+  });
 });
 
 describe("Revealing a script from the bar under the game", () => {
