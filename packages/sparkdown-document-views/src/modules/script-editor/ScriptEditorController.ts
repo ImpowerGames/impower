@@ -1,4 +1,4 @@
-import { indentLess, indentMore } from "@codemirror/commands";
+import { indentLess, indentMore, isolateHistory } from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
@@ -14,6 +14,9 @@ import {
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
+import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
+import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
@@ -110,7 +113,9 @@ import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
 import { getVisibleRange } from "../../utils/getVisibleRange";
 import { scrollY } from "../../utils/scrollY";
+import { sharedEditorHistory } from "./classes/EditorHistoryCache";
 import { SparkdownCodemirrorWorkspace } from "./classes/SparkdownCodemirrorWorkspace";
+import { setFindMatchesEffect } from "./utils/extensions/findMatches";
 import createEditorView, {
   editableConfig,
   readOnlyConfig,
@@ -185,6 +190,7 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
   protected _protocols = new ProtocolObserver();
+  protected _historyCache = sharedEditorHistory;
 
   constructor(
     host: HTMLElement,
@@ -231,6 +237,10 @@ export class ScriptEditorController {
       this.handlePointerLeaveScroller,
     );
     this._protocols.dispose();
+    if (this._view && this._textDocument) {
+      this._historyCache.save(this._textDocument.uri, this._view.state);
+    }
+    this._historyCache.holdOpen(this, undefined);
     if (this._textDocument) {
       if (this._editing) {
         sendProtocolMessage(
@@ -355,6 +365,16 @@ export class ScriptEditorController {
     p.onRequest(
       SetEditorRoutePinsMessage.type,
       (m) => this.handleSetEditorRoutePins(m),
+      this.host,
+    );
+    p.onRequest(
+      SetEditorFindMatchesMessage.type,
+      (m) => this.handleSetEditorFindMatches(m),
+      this.host,
+    );
+    p.onRequest(
+      ApplyEditorEditMessage.type,
+      (m) => this.handleApplyEditorEdit(m),
       this.host,
     );
   }
@@ -582,6 +602,96 @@ export class ScriptEditorController {
     return SetEditorRoutePinsMessage.type.response(message.id, {});
   };
 
+  protected handleSetEditorFindMatches = (
+    message: SetEditorFindMatchesMessage.Request,
+  ) => {
+    const { textDocument, ranges } = message.params;
+    const view = this._view;
+    if (view && textDocument.uri === this._textDocument?.uri) {
+      const doc = view.state.doc;
+      view.dispatch({
+        effects: setFindMatchesEffect.of(
+          ranges.map((range) => ({
+            from: convertFromPosition(doc, range.start),
+            to: convertFromPosition(doc, range.end),
+          })),
+        ),
+      });
+    }
+    return SetEditorFindMatchesMessage.type.response(message.id, {});
+  };
+
+  protected handleApplyEditorEdit = async (
+    message: ApplyEditorEditMessage.Request,
+  ) => {
+    const { edit, closedTexts } = message.params;
+    const view = this._view;
+    const uri = this._textDocument?.uri;
+    const applied: string[] = [];
+    const textEdits = edit.documentChanges
+      ? edit.documentChanges.flatMap((change) =>
+          "textDocument" in change
+            ? [{ uri: change.textDocument.uri, edits: change.edits }]
+            : [],
+        )
+      : Object.entries(edit.changes ?? {}).map(([uri, edits]) => ({
+          uri,
+          edits,
+        }));
+    if (view && uri && textEdits.some((change) => change.uri === uri)) {
+      sendProtocolMessage(
+        ClaimedEditorEditMessage.type.notification({
+          request: message.id,
+          uri,
+        }),
+        this.host,
+      );
+    }
+    for (const change of textEdits) {
+      const edits = change.edits.filter((e) => "newText" in e);
+      if (!edits.length) {
+        continue;
+      }
+      if (view && change.uri === uri) {
+        const dispatch = (
+          offsetOf: (position: Range["start"]) => number,
+        ) =>
+          view.dispatch({
+            changes: edits.map((e) => ({
+              from: offsetOf(e.range.start),
+              to: offsetOf(e.range.end),
+              insert: e.newText,
+            })),
+            userEvent: "input.replace.all",
+            annotations: isolateHistory.of("full"),
+          });
+        const plugin = LSPPlugin.get(view);
+        if (plugin) {
+          await plugin.client.withMapping(async (mapping) =>
+            dispatch((position) => mapping.mapPosition(change.uri, position)),
+          );
+        } else {
+          dispatch((position) => convertFromPosition(view.state.doc, position));
+        }
+        applied.push(change.uri);
+        continue;
+      }
+      const before = closedTexts?.[change.uri];
+      if (before != null) {
+        this._historyCache.record(change.uri, before, edits, message.id);
+      }
+    }
+    return ApplyEditorEditMessage.type.response(message.id, { applied });
+  };
+
+  protected cachedEditorState(textDocument: TextDocumentItem) {
+    const restored = this._historyCache.restore(
+      textDocument.uri,
+      textDocument.text,
+    );
+    return restored ? { ...restored, folded: [] } : undefined;
+  }
+
   protected handleFocusFindInput = () => {
     this._searchInputFocused = true;
   };
@@ -623,6 +733,7 @@ export class ScriptEditorController {
     } = params;
     if (preserveEditor && this._view) {
       this._textDocument = textDocument;
+      this._historyCache.holdOpen(this, textDocument.uri);
       const uri = textDocument.uri;
       const plugin = LSPPlugin.get(this._view);
       if (plugin) {
@@ -660,6 +771,13 @@ export class ScriptEditorController {
         this.revealEditor,
         LOAD_REVEAL_TIMEOUT_MS,
       );
+      if (this._view && this._textDocument) {
+        this._historyCache.save(this._textDocument.uri, this._view.state);
+      }
+      this._historyCache.useRoot(
+        languageServerInitializeParams?.rootUri ?? undefined,
+      );
+      this._historyCache.holdOpen(this, textDocument.uri);
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();
@@ -743,6 +861,7 @@ export class ScriptEditorController {
               },
             }),
           textDocument: this._textDocument,
+          defaultState: this.cachedEditorState(textDocument),
           scrollMargin: this._scrollMargin,
           top: this._top,
           bottom: this._bottom,

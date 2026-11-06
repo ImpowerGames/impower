@@ -4,6 +4,12 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { AccountInfo } from "./types/AccountInfo";
+import {
+  INITIAL_SEARCH,
+  INITIAL_SEARCH_POSITION,
+  type SearchPosition,
+  type SearchSnapshot,
+} from "./searchState";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 const defaults: WorkspaceCache = {
@@ -104,6 +110,10 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
+
+  readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

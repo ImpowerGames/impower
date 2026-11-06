@@ -159,6 +159,18 @@ it("commits a workspace edit before the editor's autosave that follows it", asyn
   expect(didWrites(h.messages.slice(before)).some(write => write.origin === "editor" && write.bytes[0] !== 3)).toBe(false);
 });
 
+it("applies every edit of a script against the text the edit was made for", async () => {
+  const h = await worker();
+  void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: { scriptFiles: "*.sd" } } } });
+  const text = "A rumour, another rumour.";
+  await h.send("create", Array.from(new TextEncoder().encode(text)));
+  const at = (character: number) => ({ start: { line: 0, character }, end: { line: 0, character: character + 6 } });
+  await h.request("edit", "workspace/applyWorkspaceEdit", { edit: { documentChanges: [{ textDocument: { uri: "file://local/main.sd", version: null }, edits: [{ range: at(2), newText: "tale" }, { range: at(18), newText: "tale" }] }] } });
+  await vi.advanceTimersByTimeAsync(101);
+  expect(h.messages.find(message => message.id === "edit")).toMatchObject({ result: { applied: true } });
+  expect(new TextDecoder().decode(h.bytes())).toBe("A tale, another tale.");
+});
+
 const gatedWorker = async () => {
   let blockAt = 0;
   let calls = 0;

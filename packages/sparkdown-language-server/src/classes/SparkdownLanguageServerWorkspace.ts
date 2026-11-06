@@ -152,6 +152,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._documents.keys();
   }
 
+  scriptTexts(): { uri: string; text: string }[] {
+    const scripts = new Map<string, string>();
+    for (const uri of this._documents.keys()) {
+      scripts.set(uri, this._documents.get(uri)?.getText() ?? "");
+    }
+    for (const [uri, file] of this._watchedFiles) {
+      if (!scripts.has(uri) && hasLuauExtension(uri)) {
+        scripts.set(uri, this._documentTexts.get(uri)?.getText() ?? file.text ?? "");
+      }
+    }
+    return Array.from(scripts, ([uri, text]) => ({ uri, text }));
+  }
+
   document(uri: string) {
     return this._documents.get(uri);
   }

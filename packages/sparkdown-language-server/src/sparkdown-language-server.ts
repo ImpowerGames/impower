@@ -15,6 +15,10 @@ import type {
   AddressQuery,
   ProgramAddress,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import {
+  FindTextMessage,
+  type FindTextParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { createImageCompositeOptions } from "./utils/providers/imagePreviewOptions";
 import { profiled } from "./utils/logging/profiled";
@@ -33,6 +37,7 @@ import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormatt
 import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
+import { findWorkspaceText } from "./utils/providers/findWorkspaceText";
 import { getFileReferences } from "./utils/providers/getFileReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
@@ -391,6 +396,11 @@ try {
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
     },
+  );
+  connection.onRequest(FindTextMessage.method, (params: FindTextParams) =>
+    profiled("lsp: onFindText", params.query, () =>
+      findWorkspaceText(workspace.scriptTexts(), params),
+    ),
   );
   connection.onRequest(
     "sparkdown/offsetSourceLocation",

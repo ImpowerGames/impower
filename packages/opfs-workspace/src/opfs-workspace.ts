@@ -43,10 +43,7 @@ import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams"
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { unzipSync, zipSync } from "fflate";
-import {
-  TextDocument,
-  TextDocumentContentChangeEvent,
-} from "vscode-languageserver-textdocument";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
 import {
   allocateCommit,
@@ -1441,25 +1438,17 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         );
         State.documents.set(td.uri, syncedDocument);
       }
-      const beforeVersion = syncedDocument.version;
-      const normalizedChanges: TextDocumentContentChangeEvent[] = [];
-      for (const c of changes) {
-        const normalizedText = c.newText.replace(NEWLINE_REGEX, "\n");
-        if ("range" in c) {
-          normalizedChanges.push({
-            range: c.range,
-            text: normalizedText,
-          });
-        } else {
-          normalizedChanges.push({
-            text: normalizedText,
-          });
-        }
-      }
       const afterVersion = syncedDocument.version + 1;
+      const edited = TextDocument.applyEdits(
+        syncedDocument,
+        changes.map((c) => ({
+          range: c.range,
+          newText: c.newText.replace(NEWLINE_REGEX, "\n"),
+        })),
+      );
       syncedDocument = TextDocument.update(
         syncedDocument,
-        normalizedChanges,
+        [{ text: edited }],
         afterVersion,
       );
       const content = syncedDocument.getText();
