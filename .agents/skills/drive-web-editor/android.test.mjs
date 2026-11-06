@@ -258,7 +258,6 @@ await check("every step not built yet runs through ui as a failure naming the ti
     "file-menu": ["open a file row's menu", 1009],
     "asset-inspector": ["open the asset inspector", 1028],
     "add-menu": ["open the Add menu", 1013],
-    "preview-settings": ["open the preview's settings menu", 1020],
     problems: ["open the Problems panel", 1022],
   };
   for (const [spec, [does, ticket]] of Object.entries(expected)) {
@@ -273,8 +272,8 @@ await check("every step not built yet runs through ui as a failure naming the ti
     assert.equal(process.exitCode, 1, spec);
     process.exitCode = 0;
   }
-  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["app-menu", "drawer", "play", "settings", "focus-project-name", "focus-script-name"]);
-  for (const name of ["app-menu", "drawer", "play", "settings=appearance", "focus-project-name", "focus-script-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["app-menu", "drawer", "preview-settings", "play", "settings", "focus-project-name", "focus-script-name"]);
+  for (const name of ["app-menu", "drawer", "preview-settings", "play", "settings=appearance", "focus-project-name", "focus-script-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
 });
 
 await check("on a device, ui reports the device, sends gestures through it and takes --shot as the whole screen", async () => {

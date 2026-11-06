@@ -16,6 +16,7 @@ import {
   convertToPosition,
   formatDocument,
   getDocumentVersion,
+  type ContextMenuPresenter,
   LSPClient,
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -141,6 +142,8 @@ export interface ScriptEditorOptions {
   readonly?: boolean;
   coarsePointer?: boolean;
   appearance: ScriptAppearance;
+  onContextMenu?: ContextMenuPresenter;
+  onPasteRefused?: () => void;
   scrollMargin?: string;
   top?: string;
   bottom?: string;
@@ -717,6 +720,8 @@ export class ScriptEditorController {
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
           appearance: this.options.appearance,
+          onContextMenu: this.options.onContextMenu,
+          onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,
           serverInitializeParams: languageServerInitializeParams,

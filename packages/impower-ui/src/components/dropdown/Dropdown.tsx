@@ -1,5 +1,5 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import {
   cloneElement,
   type ComponentChildren,
@@ -13,7 +13,9 @@ import { useCallback, useContext, useRef, useState } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
+import { CheckIcon } from "../icon/icons.generated";
 
 type Mode = "menu" | "sheet";
 type MenuCtx = {
@@ -223,7 +225,7 @@ export function DropdownContent({
     );
   }
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
         sideOffset={sideOffset}
@@ -326,5 +328,122 @@ export function DropdownCheckboxItem({
     >
       {children}
     </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
+type RadioCtx = {
+  value?: string;
+  onValueChange?: (value: string) => void;
+};
+const RadioContext = createContext<RadioCtx>({});
+
+export function DropdownRadioGroup({
+  value,
+  onValueChange,
+  label,
+  class: className,
+  children,
+}: {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  label?: string;
+  class?: string;
+  children?: ComponentChildren;
+}) {
+  const ctx = useMenuCtx();
+  return (
+    <RadioContext.Provider value={{ value, onValueChange }}>
+      {ctx.mode === "sheet" ? (
+        <div role="group" aria-label={label} class={className}>
+          {children}
+        </div>
+      ) : (
+        <DropdownMenuPrimitive.RadioGroup
+          value={value}
+          onValueChange={onValueChange}
+          aria-label={label}
+          class={className}
+        >
+          {children}
+        </DropdownMenuPrimitive.RadioGroup>
+      )}
+    </RadioContext.Provider>
+  );
+}
+
+export const dropdownRadioItemVariants = cva(
+  [
+    "group data-[state=checked]:font-semibold",
+    "[&>[data-radio-indicator]]:size-4 [&>[data-radio-indicator]]:shrink-0",
+    "[&>[data-radio-indicator]]:text-accent [&>[data-radio-indicator]]:invisible",
+    "data-[state=checked]:[&>[data-radio-indicator]]:visible",
+  ],
+  {
+    variants: {
+      indicator: {
+        start: "",
+        end: "[&>[data-radio-indicator]]:order-last [&>[data-radio-indicator]]:ml-auto",
+      },
+    },
+    defaultVariants: { indicator: "start" },
+  },
+);
+
+export type DropdownRadioItemIndicator = NonNullable<
+  VariantProps<typeof dropdownRadioItemVariants>["indicator"]
+>;
+
+function RadioIndicator() {
+  return <CheckIcon data-radio-indicator="" />;
+}
+
+export function DropdownRadioItem({
+  value,
+  indicator,
+  class: className,
+  children,
+  ...rest
+}: {
+  value: string;
+  indicator?: DropdownRadioItemIndicator;
+  class?: string;
+  // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared (seen with preact 10.29.2)
+  onSelect?: (event: Event) => void;
+  children?: ComponentChildren;
+} & Omit<
+  JSX.HTMLAttributes<HTMLDivElement>,
+  "class" | "value" | "onChange" | "onSelect"
+>) {
+  const ctx = useMenuCtx();
+  const radio = useContext(RadioContext);
+  const classes = cn(
+    dropdownItem(),
+    dropdownRadioItemVariants({ indicator }),
+    className,
+  );
+  if (ctx.mode === "sheet") {
+    const checked = radio.value === value;
+    return (
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked={checked}
+        data-state={checked ? "checked" : "unchecked"}
+        class={classes}
+        onClick={() => {
+          radio.onValueChange?.(value);
+          ctx.setOpen(false);
+        }}
+      >
+        <RadioIndicator />
+        {children}
+      </button>
+    );
+  }
+  return (
+    <DropdownMenuPrimitive.RadioItem value={value} class={classes} {...rest}>
+      <RadioIndicator />
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
   );
 }

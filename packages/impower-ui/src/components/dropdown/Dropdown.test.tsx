@@ -5,6 +5,8 @@ import {
   DropdownContent,
   DropdownItem,
   DropdownLabel,
+  DropdownRadioGroup,
+  DropdownRadioItem,
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
@@ -148,5 +150,154 @@ describe("Dropdown under preact/compat", () => {
     expect(menu()!.textContent).toContain(
       "No account needed to start writing.",
     );
+  });
+});
+
+const RATIOS = ["auto", "16:9", "9:16"];
+
+const mountRadio = async (value = "auto") => {
+  const onValueChange = vi.fn();
+  host = document.body.appendChild(document.createElement("div"));
+  await act(async () =>
+    render(
+      <DropdownRoot>
+        <DropdownTrigger asChild>
+          <button type="button">Game aspect ratio</button>
+        </DropdownTrigger>
+        <DropdownContent side="top">
+          <DropdownRadioGroup
+            label="Game aspect ratio"
+            value={value}
+            onValueChange={onValueChange}
+          >
+            {RATIOS.map((ratio) => (
+              <DropdownRadioItem key={ratio} value={ratio}>
+                {ratio}
+              </DropdownRadioItem>
+            ))}
+          </DropdownRadioGroup>
+        </DropdownContent>
+      </DropdownRoot>,
+      host!,
+    ),
+  );
+  const trigger = host.querySelector("button")!;
+  trigger.focus();
+  return { trigger, onValueChange };
+};
+
+const radios = () =>
+  Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+
+const checked = () =>
+  radios().map((item) => [item.textContent, item.getAttribute("aria-checked")]);
+
+describe("Dropdown radio items under preact/compat", () => {
+  it("lists menuitemradio rows in a labelled group with the value checked", async () => {
+    const { trigger } = await mountRadio("16:9");
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const group = menu()!.querySelector('[role="group"]')!;
+    expect(group.getAttribute("aria-label")).toBe("Game aspect ratio");
+    expect(checked()).toEqual([
+      ["auto", "false"],
+      ["16:9", "true"],
+      ["9:16", "false"],
+    ]);
+    const indicator = radios()[1]!.querySelector("[data-radio-indicator]");
+    expect(indicator?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("reports the chosen value, closes and returns focus to the trigger", async () => {
+    const { trigger, onValueChange } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const item = radios().find((element) => element.textContent === "9:16")!;
+    item.focus();
+    await act(async () => item.click());
+    await settle(250);
+    expect(onValueChange.mock.calls).toEqual([["9:16"]]);
+    expect(menu()).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("chooses from the keyboard with Enter", async () => {
+    const { trigger, onValueChange } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    const item = radios().find((element) => element.textContent === "16:9")!;
+    item.focus();
+    await key(item, "Enter");
+    await settle(250);
+    expect(onValueChange.mock.calls).toEqual([["16:9"]]);
+  });
+
+  it("closes on Escape without choosing", async () => {
+    const { trigger, onValueChange } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    await key(document.activeElement!, "Escape");
+    await settle(250);
+    expect(menu()).toBeNull();
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("offers the same rows in the phone layout's sheet", async () => {
+    await setPhone(true);
+    const { trigger, onValueChange } = await mountRadio("9:16");
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(checked()).toEqual([
+      ["auto", "false"],
+      ["16:9", "false"],
+      ["9:16", "true"],
+    ]);
+    await act(async () => radios()[1]!.click());
+    await settle(300);
+    expect(onValueChange.mock.calls).toEqual([["16:9"]]);
+    expect(menu()).toBeNull();
+  });
+});
+
+describe("Dropdown in fullscreen", () => {
+  const enterFullscreen = () => {
+    const stage = document.body.appendChild(document.createElement("div"));
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => stage,
+    });
+    return stage;
+  };
+
+  afterEach(() => {
+    delete (document as { fullscreenElement?: Element }).fullscreenElement;
+  });
+
+  it("opens its menu inside the fullscreen element so it stays on screen", async () => {
+    const stage = enterFullscreen();
+    const { trigger } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(stage.contains(menu())).toBe(true);
+  });
+
+  it("opens the phone layout's sheet inside the fullscreen element", async () => {
+    await setPhone(true);
+    const stage = enterFullscreen();
+    const { trigger } = await mountRadio();
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(menu()).not.toBeNull();
+    expect(stage.contains(menu())).toBe(true);
+  });
+
+  it("opens in the document body outside fullscreen", async () => {
+    const { trigger } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(menu()!.closest("body")).toBe(document.body);
+    expect(host!.contains(menu())).toBe(false);
   });
 });
