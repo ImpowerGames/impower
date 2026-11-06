@@ -63,6 +63,14 @@ if (!Range.prototype.getClientRects) {
 class TestController extends ScriptEditorController {
   loaded: string[] = [];
   scrolls: unknown[] = [];
+  settles = 0;
+
+  protected override settleSelection(
+    ...args: Parameters<InstanceType<typeof ScriptEditorController>["settleSelection"]>
+  ) {
+    this.settles += 1;
+    super.settleSelection(...args);
+  }
 
   protected override scrollToRange(
     ...args: Parameters<InstanceType<typeof ScriptEditorController>["scrollToRange"]>
@@ -571,6 +579,70 @@ describe("ScriptEditorController load handover", () => {
     );
     controller["handleIdle"]();
     expect(controller.scrolls).toEqual([at(3)]);
+  });
+
+  const retriesAfter = async (
+    act: (controller: TestController) => void,
+  ) => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const mounted = mount();
+    const at1 = at(1);
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: at1,
+        visibleRange: "center",
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    const { controller } = mounted;
+    try {
+      controller["handleIdle"]();
+      await vi.waitFor(() => expect(controller.settles).toBeGreaterThan(1), {
+        timeout: 5_000,
+        interval: 20,
+      });
+      act(controller);
+      const settled = controller.settles;
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      return controller.settles - settled;
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+    }
+  };
+
+  it("stops the caret retry once the screenplay preview scrolls the settled editor", async () => {
+    const retries = await retriesAfter((controller) =>
+      controller["handleScrolledPreview"](
+        ScrolledPreviewMessage.type.notification({
+          type: "screenplay",
+          textDocument: { uri: "file:///main.sd" },
+          visibleRange: at(3),
+          target: "element",
+        }),
+      ),
+    );
+    expect(retries).toBe(0);
+  });
+
+  it("stops the caret retry once collapsing the preview restores the editor's scroll", async () => {
+    const retries = await retriesAfter((controller) => {
+      controller["_visibleRange"] = at(3);
+      controller["handleDidCollapsePreviewPane"]({} as never);
+    });
+    expect(retries).toBe(0);
+  });
+
+  it("keeps retrying the caret while nothing newer arrives", async () => {
+    const retries = await retriesAfter(() => {});
+    expect(retries).toBeGreaterThan(0);
   });
 
   it("still takes focus at the caret it loaded with when focus stayed put", async () => {

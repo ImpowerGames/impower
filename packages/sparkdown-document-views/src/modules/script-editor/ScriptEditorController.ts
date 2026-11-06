@@ -466,6 +466,9 @@ export class ScriptEditorController {
       DidCollapsePreviewPaneParams
     >,
   ) => {
+    if (this._loaded && this._visibleRange) {
+      this._viewScrolled = true;
+    }
     this.scrollToRange(this._visibleRange);
   };
 
@@ -501,6 +504,7 @@ export class ScriptEditorController {
     this._userInitiatedScroll = false;
     this.cacheVisibleRange(range);
     if (target === "element") {
+      this._viewScrolled = true;
       this.scrollToRange(range);
     }
   };
