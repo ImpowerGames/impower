@@ -119,6 +119,13 @@ function play(source = FIXTURE) {
     }
   };
   const tap = () => game.clickedToContinue();
+  const loadAudioAtOnce = () => {
+    (game.module.audio as any).loadAllAudio = async () => {};
+  };
+  const hear = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    (game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+  };
   return {
     game,
     emitted,
@@ -129,6 +136,8 @@ function play(source = FIXTURE) {
     looping,
     continueToBreakpoint,
     tap,
+    loadAudioAtOnce,
+    hear,
   };
 }
 
@@ -394,7 +403,14 @@ describe("rolling a run back and forward", () => {
 describe("the audio of a restored beat", () => {
   test("a looping track started after the restored beat is absent and one started before it is present", async () => {
     const h = play();
-    playTo(h, "The third beat.");
+    h.loadAudioAtOnce();
+    h.game.start();
+    await h.hear();
+    h.tap();
+    await h.hear();
+    h.tap();
+    await h.hear();
+    expect(h.text()).toBe("The third beat.");
     expect(h.looping("music")).toEqual(["audio.theme"]);
     expect(h.looping("ambient")).toEqual(["audio.rain"]);
     const back = await h.game.rollBack("beat");
@@ -571,12 +587,14 @@ const musicUpdates = (emitted: Recorded[], from: number) =>
 describe("the loops of a restored beat, as the player hears them", () => {
   test("a loop faded since the restored beat returns to its default level", async () => {
     const h = play(MUSIC);
+    h.loadAudioAtOnce();
     h.game.start();
+    await h.hear();
     expect(h.text()).toBe("First.");
     h.game.module.audio.fadeChannel("music", 0.2);
     h.tap();
+    await h.hear();
     expect(h.game.module.audio.state.channels?.["music"]?.looping?.[0]?.to).toBe(0.2);
-    await settle();
     const from = h.emitted.length;
     const back = await h.game.rollBack("beat");
     expect(back.moved && back.restored.loops).toEqual([
@@ -691,5 +709,56 @@ describe("the menu a roll leaves", () => {
     await flushMicrotasks(30);
     expect(h.game.story.currentText?.trim()).toBe("Before the menu.");
     expect(clicks()).toBe(0);
+  });
+});
+
+describe("music still loading when its beat is left", () => {
+  test("starts once a roll restores a beat that holds it", async () => {
+    const h = createHarness(
+      [
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "scene start",
+        "  ((play music theme))",
+        "  First.",
+        "  Second.",
+        "  Third.",
+        "end",
+      ].join("\n"),
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    const audio = h.game.module.audio as any;
+    const releases: (() => void)[] = [];
+    audio.loadAllAudio = async (data: unknown[]) => {
+      if (data.length > 0) {
+        await new Promise<void>((resolve) => releases.push(resolve));
+      }
+    };
+    const musicStarts = (from: number) =>
+      h.messages
+        .slice(from)
+        .filter((m) => m.method === "audio/update" && m.params.channel === "music")
+        .flatMap((m) => m.params.updates)
+        .filter((u: any) => u.control === "start" && u.key === "audio.theme");
+    h.game.start();
+    h.game.continue();
+    h.game.continue();
+    expect(h.game.story.currentText?.trim()).toBe("Third.");
+    expect(releases.length).toBeGreaterThan(0);
+    expect(musicStarts(0)).toEqual([]);
+    const from = h.messages.length;
+    const rolled = await h.game.rollBack("beat");
+    expect(rolled.moved && rolled.restored.loops).toEqual([
+      { channel: "music", key: "audio.theme", play: "start" },
+    ]);
+    for (const release of releases) {
+      release();
+    }
+    await flushMicrotasks(40);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(40);
+    expect(musicStarts(from)).toHaveLength(1);
   });
 });

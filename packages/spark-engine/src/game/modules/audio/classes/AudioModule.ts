@@ -638,8 +638,27 @@ export class AudioModule extends Module<
       this.enableTrigger(id);
       return id;
     }
+    const starts: string[] = [];
+    for (const update of updates) {
+      if (update.control === "stop") {
+        if (update.key) {
+          this._starting.get(channel)?.delete(update.key);
+        } else {
+          this._starting.delete(channel);
+        }
+      } else if (update.control === "start" && update.loop && update.key) {
+        starts.push(update.key);
+      }
+    }
+    if (starts.length > 0) {
+      const starting = this._starting.get(channel) ?? new Set<string>();
+      this._starting.set(channel, starting);
+      starts.forEach((key) => starting.add(key));
+    }
     const trigger = (time?: number) => {
       this.update(channel, updates, time);
+      const starting = this._starting.get(channel);
+      starts.forEach((key) => starting?.delete(key));
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);

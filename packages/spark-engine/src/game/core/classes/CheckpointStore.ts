@@ -18,7 +18,7 @@ export interface CheckpointHost {
 
 export interface ImageParts {
   bytes: number;
-  shared: ReadonlyMap<object, number>;
+  shared: ReadonlyMap<unknown, number>;
   refs: readonly unknown[];
 }
 
@@ -38,7 +38,7 @@ interface ImageEntry {
   folded: boolean;
   pins: number[];
   pinnedBy: number;
-  shared: ReadonlyMap<object, number> | null;
+  shared: ReadonlyMap<unknown, number> | null;
 }
 
 interface RuntimeChain {
@@ -81,7 +81,7 @@ export class CheckpointStore {
 
   protected _holders = new Map<unknown, number>();
 
-  protected _sharedHeld = new Map<object, number>();
+  protected _sharedHeld = new Map<unknown, number>();
 
   protected _foldExhaustedAt = -1;
 
@@ -142,7 +142,7 @@ export class CheckpointStore {
     const holder = this._holders.get(image);
     const pins = new Set<number>();
     let bytes = ENTRY_BYTES + body.length * 2 + runtimeBytes(rt);
-    let shared: ReadonlyMap<object, number> | null = null;
+    let shared: ReadonlyMap<unknown, number> | null = null;
     if (holder !== undefined) {
       pins.add(holder);
     } else {

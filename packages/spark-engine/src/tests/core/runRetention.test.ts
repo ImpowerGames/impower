@@ -7,7 +7,7 @@ const MAIN = "file:///local/main.sd";
 
 const BEATS = 2000;
 
-const BYTES_PER_1000_BEATS = 2_200_000;
+const BYTES_PER_1000_BEATS = 2_300_000;
 
 function longRun(beats: number): SparkProgram {
   const lines = ["store count = 0", "", "scene start"];
@@ -299,5 +299,92 @@ describe("the count of tables a checkpoint holds", () => {
       `the store counts ${game.checkpoints.bytes} bytes while its checkpoints hold ${characters} characters of table keys`,
     ).toBeGreaterThanOrEqual(characters * 2);
     expect(game.checkpoints.bytes).toBeLessThanOrEqual(budget);
+  });
+});
+
+describe("the count of what checkpoints hold beyond the globals", () => {
+  const tightGame = (source: string) =>
+    startGame(compileSource(source), {
+      checkpointByteBudget: 2_000_000,
+      checkpointBaseInterval: 5,
+    });
+
+  test("covers the keys a table's copies keep after the table is cleared", () => {
+    const size = 50_000;
+    const source = [
+      "store payload = {}",
+      "scene start",
+      "  Begin.",
+      ...Array.from({ length: 30 }, (_, i) => [
+        "  table.clear(payload)",
+        `  payload[string.reverse(string.rep(tostring(${i}), ${size}))] = ${i}`,
+        `  Beat ${i}.`,
+      ]).flat(),
+      "end",
+    ].join("\n");
+    const game = tightGame(source);
+    for (let i = 0; i < 100 && (game.story.currentText ?? "").trim() !== "Beat 29."; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe("Beat 29.");
+    const keys = new Set<string>();
+    for (const image of reachableImages(liveImages(game))) {
+      for (const copy of image.tables.values()) {
+        for (const key of copy.entries?.keys() ?? []) {
+          if (key.length >= size) {
+            keys.add(key);
+          }
+        }
+      }
+    }
+    const bytes = [...keys].reduce((sum, key) => sum + key.length * 2, 0);
+    expect(bytes).toBeGreaterThan(2 * size);
+    expect(
+      game.checkpoints.bytes,
+      `the store counts ${game.checkpoints.bytes} bytes while the table copies it holds keep ${bytes} bytes of keys`,
+    ).toBeGreaterThanOrEqual(bytes);
+  });
+
+  test("covers the locals of the frames a checkpoint holds", () => {
+    const size = 50_000;
+    const source = [
+      "scene start",
+      "  -> visit ->",
+      "  Done.",
+      "end",
+      "scene visit",
+      '  local payload = ""',
+      ...Array.from({ length: 30 }, (_, i) => [
+        `  payload = string.reverse(string.rep(tostring(${i}), ${size}))`,
+        `  Beat ${i}.`,
+      ]).flat(),
+      "  ->->",
+      "end",
+    ].join("\n");
+    const game = tightGame(source);
+    for (let i = 1; i < 30; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe("Beat 29.");
+    const strings = new Set<string>();
+    for (const image of reachableImages(liveImages(game))) {
+      for (const thread of image.positional.threads) {
+        for (const frame of thread.elements) {
+          for (const scope of frame.scopes) {
+            for (const value of scope.values()) {
+              if (typeof value?.value === "string" && value.value.length >= size) {
+                strings.add(value.value);
+              }
+            }
+          }
+        }
+      }
+    }
+    const bytes = [...strings].reduce((sum, value) => sum + value.length * 2, 0);
+    expect(bytes).toBeGreaterThan(2 * size);
+    expect(
+      game.checkpoints.bytes,
+      `the store counts ${game.checkpoints.bytes} bytes while the frames it holds keep ${bytes} bytes of locals`,
+    ).toBeGreaterThanOrEqual(bytes);
   });
 });
