@@ -152,6 +152,7 @@ export const PROJECT_SETTINGS_SCHEMA = {
     configured("screenplay.pdf.bookmarks.printBookmarksForInvisibleHeadings"),
   ),
   previewAspectRatio: choice("auto", ["auto", ...GAME_ASPECT_RATIOS]),
+  previewPanelHeight: setting(44),
 } as const satisfies Record<string, SettingSpec>;
 
 type ValuesOf<S extends Record<string, SettingSpec>> = {

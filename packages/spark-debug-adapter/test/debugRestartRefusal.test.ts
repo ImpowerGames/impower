@@ -1,12 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("vscode", () => ({}));
-
-vi.mock("../src/managers/SparkdownDebugManager", () => ({
-  SparkdownDebugManager: { activate() {}, instance: {} },
-}));
-
-import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const NO_START = "no scene named start; the story starts in a scene named start";
 
@@ -23,7 +17,9 @@ const restart = async (answer: () => Promise<unknown>) => {
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
   };
-  const session = new SparkDebugSession(fileAccessor as any, connection as any);
+  const session = new SparkDebugSession(fileAccessor as any, connection as any, {
+    syncCursorToExecution: false,
+  });
   (session as any).sendResponse = (response: any) => responses.push(response);
   await (session as any).restartRequest(
     { seq: 0, type: "response", request_seq: 0, command: "restart", success: true },

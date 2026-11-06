@@ -674,7 +674,7 @@ function FileItem({
           onJump={(uri, range) => {
             void (async () => {
               const { Workspace } = await import("../../workspace/Workspace");
-              await Workspace.window.showDocument(uri, range, true);
+              await Workspace.window.revealDocument(uri, range);
             })();
           }}
           onClose={() => setUsages(null)}

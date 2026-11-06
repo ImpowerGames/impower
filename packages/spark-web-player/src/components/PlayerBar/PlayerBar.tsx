@@ -16,6 +16,7 @@ export interface PlayerBarControls {
   skip?: boolean;
   step?: boolean;
   fullscreen?: boolean;
+  resize?: boolean;
 }
 
 export interface PlayerBarProps {
@@ -141,7 +142,7 @@ export default function PlayerBar({
       ref={toolbarRef}
       class={snapping ? "snapping" : undefined}
     >
-      <div id="resize-handle" />
+      {controls.resize ? <div id="resize-handle" /> : null}
       {controls.skip || debugging ? (
         <div id="transport-items">
           {debugging ? (
@@ -223,12 +224,16 @@ export default function PlayerBar({
       </div>
       <div id="right-items">
         <div id="saves-button" ref={savesButtonRef} />
-        <div id="aspect-ratio-label">
-          {size?.aspectRatio ? `(${size.aspectRatio})` : ""}
-        </div>
-        <div id="size-label">
-          {size ? `${Math.round(size.width)} × ${Math.round(size.height)}` : ""}
-        </div>
+        {controls.resize ? (
+          <div id="aspect-ratio-label">
+            {size?.aspectRatio ? `(${size.aspectRatio})` : ""}
+          </div>
+        ) : null}
+        {controls.resize ? (
+          <div id="size-label">
+            {size ? `${Math.round(size.width)} × ${Math.round(size.height)}` : ""}
+          </div>
+        ) : null}
         {controls.fullscreen ? (
           <div
             id="fullscreen-button"
