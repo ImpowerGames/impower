@@ -9,6 +9,9 @@ import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
 import Account from "../account/Account";
+import AppearanceSection from "./AppearanceSection";
+import PreviewSection from "./PreviewSection";
+import ScriptEditorSection from "./ScriptEditorSection";
 import {
   SETTINGS_INDEX,
   SETTINGS_SCOPES,
@@ -22,9 +25,11 @@ import ShortcutsSection from "./ShortcutsSection";
 const SECTION_BODIES: Partial<
   Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
 > = {
+  "theme-preferences": AppearanceSection,
+  "editor-preferences": ScriptEditorSection,
   "shortcut-preferences": ShortcutsSection,
+  "preview-preferences": PreviewSection,
 };
-
 
 const backToStory = async () => {
   const { Workspace } = await import("../../workspace/Workspace");

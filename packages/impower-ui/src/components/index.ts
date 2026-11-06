@@ -122,6 +122,7 @@ export {
   type ChoiceGroupProps,
   type ChoiceOption,
   type ChoiceGroupSize,
+  type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
 export {
   default as KeysChip,
@@ -129,6 +130,12 @@ export {
   type KeysChipProps,
   type KeysChipState,
 } from "./keys-chip/KeysChip";
+export {
+  default as ThemeSwatch,
+  themeSwatchVariants,
+  type ThemeSwatchProps,
+  type ThemeSwatchSize,
+} from "./theme-swatch/ThemeSwatch";
 export {
   SettingsSection,
   SettingsGroup,

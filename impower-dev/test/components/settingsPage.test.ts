@@ -178,7 +178,7 @@ describe("the Settings page", () => {
     expect(document.activeElement?.id).toBe("screenplay-settings-title");
   });
 
-  it("draws the frame: intro, both scopes in order and every section not yet built as a placeholder", async () => {
+  it("draws the frame: intro, both scopes in order and every section whose slice has not landed as a placeholder", async () => {
     await mount(h(SettingsPage, null));
     expect(host!.querySelector("h1")!.textContent).toBe("Settings");
     expect([...host!.querySelectorAll("#settings-page h2")].map((el) => el.textContent)).toEqual([
@@ -186,8 +186,9 @@ describe("the Settings page", () => {
       "Project preferences",
     ]);
     expect([...host!.querySelectorAll("[data-settings-section]")].map((el) => el.id)).toEqual([...SETTINGS_SECTION_IDS]);
-    const placeholders = [...host!.querySelectorAll("[data-settings-placeholder]")].map((el) => el.closest("[data-settings-section]")!.id);
-    expect(placeholders).toEqual(SETTINGS_SECTION_IDS.filter((id) => id !== "shortcut-preferences"));
+    expect([...host!.querySelectorAll("[data-settings-placeholder]")].map((el) => el.closest("[data-settings-section]")!.id)).toEqual(
+      SETTINGS_SECTION_IDS.filter((id) => !["theme-preferences", "editor-preferences", "shortcut-preferences", "preview-preferences"].includes(id)),
+    );
     expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());

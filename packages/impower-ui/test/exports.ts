@@ -15,6 +15,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "settingsRowVariants",
   "switchVariants",
   "textFieldVariants",
+  "themeSwatchVariants",
   "useAnnouncer",
   "componentRegistry",
   "dialogVariants",

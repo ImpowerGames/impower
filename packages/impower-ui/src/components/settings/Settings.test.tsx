@@ -203,6 +203,26 @@ describe("Settings row kit", () => {
     expect(host!.querySelector("#wrap-detail")!.textContent).toBe("Long lines wrap.");
   });
 
+  it("describes a switch with rich detail, keeping its markup", async () => {
+    await mount(
+      <SwitchRow
+        id="markup"
+        name="Emphasize markup"
+        detail={
+          <>
+            Show <i>italic</i> text.
+          </>
+        }
+        checked
+        onCheckedChange={() => {}}
+      />,
+    );
+    const detail = host!.querySelector("#markup-detail")!;
+    expect(detail.textContent).toBe("Show italic text.");
+    expect(detail.querySelector("i")!.textContent).toBe("italic");
+    expect(host!.querySelector('input[role="switch"]')!.getAttribute("aria-describedby")).toBe("markup-detail");
+  });
+
   it("announces a select's chosen label", async () => {
     function Owner() {
       const [side, setSide] = useState("none");
