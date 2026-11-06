@@ -125,7 +125,14 @@ export {
   type ChoiceGroupProps,
   type ChoiceOption,
   type ChoiceGroupSize,
+  type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
+export {
+  default as ThemeSwatch,
+  themeSwatchVariants,
+  type ThemeSwatchProps,
+  type ThemeSwatchSize,
+} from "./theme-swatch/ThemeSwatch";
 export {
   SettingsSection,
   SettingsGroup,
