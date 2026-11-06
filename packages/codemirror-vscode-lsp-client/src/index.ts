@@ -26,7 +26,9 @@ export {
   getShortcutLabel,
   historyContextMenuItems,
   lspContextMenuItems,
+  onPasteRefused,
   paste,
+  pasteAvailable,
   textContextMenuItems,
   type ContextMenuItem,
 } from "./context";
@@ -75,8 +77,13 @@ export {
   contextMenu,
   hideContextMenu,
   isContextMenuOpen,
+  presentContextMenu,
   showContextMenu,
   type ContextMenuConfig,
+  type ContextMenuEntry,
+  type ContextMenuModel,
+  type ContextMenuModelItem,
+  type ContextMenuPresenter,
   type ContextMenuSpec,
 } from "./menu";
 export { coarsePointer } from "./pointer";
