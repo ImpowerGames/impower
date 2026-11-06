@@ -2,7 +2,19 @@ import { options, type VNode } from "preact";
 import * as kit from "../src/components";
 
 export const NOT_COMPONENTS: readonly string[] = [
+  "announce",
   "buttonVariants",
+  "choiceGroupVariants",
+  "choiceOptionVariants",
+  "jumpChipVariants",
+  "liveRegionVariants",
+  "railIndexJumpVariants",
+  "railIndexRowVariants",
+  "selectVariants",
+  "settingsRowVariants",
+  "switchVariants",
+  "textFieldVariants",
+  "useAnnouncer",
   "componentRegistry",
   "dialogVariants",
   "layoutState",
@@ -15,7 +27,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "railState",
   "sheetVariants",
   "sidebarLayoutVariants",
-  "textFieldVariants",
   "toastVariants",
   "useCoarsePointer",
   "useLayout",

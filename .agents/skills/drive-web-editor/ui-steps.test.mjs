@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openDrawerOrRail, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -906,6 +906,32 @@ await asyncCheck("--step focus-project-name clicks the name field and reports it
   assert.match((await focusProjectName(page({ focused: false, selected: false, value: "x" }))).reason, /did not take focus/);
   const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
   assert.match((await focusProjectName(missing, { timeout: 2000 })).reason, /no project name field on the page within 2 s/);
+});
+
+await asyncCheck("--step settings=<section> goes to #project?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {
+  const page = ({ focuses, sections = [] }) => {
+    const calls = [];
+    return {
+      calls,
+      evaluate: async (fn, arg) => {
+        calls.push(arg ?? null);
+        if (arg !== undefined) return undefined;
+        if (String(fn).includes("data-settings-section")) return sections;
+        return { hash: "#project?section=save-settings", marked: "save-settings" };
+      },
+      waitForFunction: async () => {
+        if (!focuses) throw new Error("timeout");
+      },
+    };
+  };
+  const landed = page({ focuses: true });
+  assert.deepEqual(await openSettings(landed, "save-settings"), { step: "settings", section: "save-settings", ran: true, hash: "#project?section=save-settings", marked: "save-settings" });
+  assert.equal(landed.calls[0], "save-settings");
+  assert.match(
+    (await openSettings(page({ focuses: false, sections: ["theme-preferences", "save-settings"] }), "appearance", { timeout: 2000 })).reason,
+    /no Settings section "appearance" took focus within 2 s; the page has: theme-preferences, save-settings/,
+  );
+  assert.match((await openSettings(page({ focuses: false }), "save-settings", { timeout: 2000 })).reason, /the Settings page did not open within 2 s/);
 });
 
 await asyncCheck("--step focus-script-name clicks the open script's name field, or says Main's name is fixed", async () => {

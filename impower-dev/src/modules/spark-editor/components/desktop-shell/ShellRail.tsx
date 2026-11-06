@@ -9,10 +9,12 @@ import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { SearchRail } from "../find-references-rename";
+import { SettingsIndex } from "../settings";
 import AppMenu from "./AppMenu";
 
 export default function ShellRail() {
   const pane = workspace.signals.pane.value;
+  const settings = !!workspace.state.value.screen?.settingsOpen;
 
   const onChange = async (next: string) => {
     const { Workspace } = await import("../../workspace/Workspace");
@@ -29,7 +31,7 @@ export default function ShellRail() {
         class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 in-data-[layout=compact]:px-[10px] in-data-[layout=compact]:pt-4 group-data-[sidebar=collapsed]/sidebar:px-1.5 group-data-[sidebar=collapsed]/sidebar:pt-3.5"
       >
         <Tabs
-          value={pane}
+          value={settings ? "" : pane}
           onChange={onChange}
           variant="rail"
           vertical
@@ -47,7 +49,9 @@ export default function ShellRail() {
           </Tab>
         </Tabs>
       </nav>
-      <div data-outline class="min-h-0 flex-1"><SearchRail /></div>
+      <div data-outline class="flex min-h-0 flex-1 flex-col">
+        {settings ? <SettingsIndex /> : <SearchRail />}
+      </div>
       <div class="flex h-[62px] flex-none items-center border-t border-edge px-[14px] group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0">
         <AppMenu />
       </div>
