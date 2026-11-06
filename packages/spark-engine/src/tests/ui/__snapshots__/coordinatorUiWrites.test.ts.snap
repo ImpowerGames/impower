@@ -1,0 +1,3005 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story, composed into one page beat: an image cue with narration, dialogue revealed mid-type, a choice menu and a pick 1`] = `
+[
+  [
+    "beat",
+    0,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.4500000000000001,
+      "image": {
+        "backdrop": [
+          {
+            "assets": [
+              "BG",
+            ],
+            "control": "show",
+          },
+        ],
+      },
+      "text": {
+        "action": [
+          {
+            "control": "show",
+            "text": "T",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "a",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "q",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "u",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.37500000000000006,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.4000000000000001,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.4250000000000001,
+            "control": "show",
+            "text": ".",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "action",
+    [
+      {
+        "control": "show",
+        "text": "T",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "a",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "q",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "u",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.37500000000000006,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.4000000000000001,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.4250000000000001,
+        "control": "show",
+        "text": ".",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.image.write",
+    "backdrop",
+    [
+      {
+        "assets": [
+          "BG",
+        ],
+        "control": "show",
+      },
+    ],
+    "[undefined]",
+    20,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.endCompose",
+    {
+      "time": 20,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "beat",
+    1,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.37500000000000006,
+      "text": {
+        "character_name": [
+          {
+            "control": "show",
+            "text": "Hero",
+          },
+        ],
+        "character_parenthetical": [
+          {
+            "control": "show",
+            "style": {
+              "text_align": "center",
+            },
+            "text": "(softly)",
+          },
+        ],
+        "dialogue": [
+          {
+            "control": "show",
+            "text": "W",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "g",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "r",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "?",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "dialogue",
+    [
+      {
+        "control": "show",
+        "text": "W",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "g",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "r",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "?",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_parenthetical",
+    [
+      {
+        "control": "show",
+        "style": {
+          "text_align": "center",
+        },
+        "text": "(softly)",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_name",
+    [
+      {
+        "control": "show",
+        "text": "Hero",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.endCompose",
+    {
+      "time": 20,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "interact",
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.37500000000000006,
+      "text": {
+        "character_name": [
+          {
+            "control": "show",
+            "text": "Hero",
+          },
+        ],
+        "character_parenthetical": [
+          {
+            "control": "show",
+            "style": {
+              "text_align": "center",
+            },
+            "text": "(softly)",
+          },
+        ],
+        "dialogue": [
+          {
+            "control": "show",
+            "text": "W",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "g",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "r",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "?",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "1",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "dialogue",
+    [
+      {
+        "control": "show",
+        "text": "W",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "g",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "r",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "?",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_parenthetical",
+    [
+      {
+        "control": "show",
+        "style": {
+          "text_align": "center",
+        },
+        "text": "(softly)",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_name",
+    [
+      {
+        "control": "show",
+        "text": "Hero",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.endCompose",
+    {},
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "beat",
+    2,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "choices": [
+        "choice 0",
+        "choice 1",
+        "choice 2",
+      ],
+      "end": 0,
+      "text": {
+        "choice 0": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "friend",
+          },
+        ],
+        "choice 1": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "stranger",
+          },
+        ],
+        "choice 2": [
+          {
+            "control": "show",
+            "text": "Nobody",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 0",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 1",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 2",
+    "[function]",
+  ],
+  [
+    "ui.text.write",
+    "choice 0",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "friend",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 1",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "stranger",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 2",
+    [
+      {
+        "control": "show",
+        "text": "Nobody",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.endCompose",
+    {
+      "time": 20,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "pick",
+    1,
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.unobserve",
+    "click",
+    "choice 1",
+  ],
+  [
+    "ui.hideAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "game.chosePathToContinue",
+    1,
+  ],
+]
+`;
+
+exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story, one write at a time: an image cue with narration, dialogue revealed mid-type, a choice menu and a pick 1`] = `
+[
+  [
+    "beat",
+    0,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.4500000000000001,
+      "image": {
+        "backdrop": [
+          {
+            "assets": [
+              "BG",
+            ],
+            "control": "show",
+          },
+        ],
+      },
+      "text": {
+        "action": [
+          {
+            "control": "show",
+            "text": "T",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "a",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "q",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "u",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.37500000000000006,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.4000000000000001,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.4250000000000001,
+            "control": "show",
+            "text": ".",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "action",
+    [
+      {
+        "control": "show",
+        "text": "T",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "a",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "q",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "u",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.37500000000000006,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.4000000000000001,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.4250000000000001,
+        "control": "show",
+        "text": ".",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.image.write",
+    "backdrop",
+    [
+      {
+        "assets": [
+          "BG",
+        ],
+        "control": "show",
+      },
+    ],
+    "[undefined]",
+    20,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "beat",
+    1,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.37500000000000006,
+      "text": {
+        "character_name": [
+          {
+            "control": "show",
+            "text": "Hero",
+          },
+        ],
+        "character_parenthetical": [
+          {
+            "control": "show",
+            "style": {
+              "text_align": "center",
+            },
+            "text": "(softly)",
+          },
+        ],
+        "dialogue": [
+          {
+            "control": "show",
+            "text": "W",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "g",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "r",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "?",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "dialogue",
+    [
+      {
+        "control": "show",
+        "text": "W",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "g",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "r",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "?",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_parenthetical",
+    [
+      {
+        "control": "show",
+        "style": {
+          "text_align": "center",
+        },
+        "text": "(softly)",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_name",
+    [
+      {
+        "control": "show",
+        "text": "Hero",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "interact",
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.37500000000000006,
+      "text": {
+        "character_name": [
+          {
+            "control": "show",
+            "text": "Hero",
+          },
+        ],
+        "character_parenthetical": [
+          {
+            "control": "show",
+            "style": {
+              "text_align": "center",
+            },
+            "text": "(softly)",
+          },
+        ],
+        "dialogue": [
+          {
+            "control": "show",
+            "text": "W",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "g",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "r",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "?",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "1",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "dialogue",
+    [
+      {
+        "control": "show",
+        "text": "W",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "g",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "r",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "?",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_parenthetical",
+    [
+      {
+        "control": "show",
+        "style": {
+          "text_align": "center",
+        },
+        "text": "(softly)",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_name",
+    [
+      {
+        "control": "show",
+        "text": "Hero",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "beat",
+    2,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "choices": [
+        "choice 0",
+        "choice 1",
+        "choice 2",
+      ],
+      "end": 0,
+      "text": {
+        "choice 0": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "friend",
+          },
+        ],
+        "choice 1": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "stranger",
+          },
+        ],
+        "choice 2": [
+          {
+            "control": "show",
+            "text": "Nobody",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "0",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 0",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 1",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 2",
+    "[function]",
+  ],
+  [
+    "ui.text.write",
+    "choice 0",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "friend",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 1",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "stranger",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 2",
+    [
+      {
+        "control": "show",
+        "text": "Nobody",
+      },
+    ],
+    false,
+    20,
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "running",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "pick",
+    1,
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.unobserve",
+    "click",
+    "choice 1",
+  ],
+  [
+    "ui.hideAll",
+    [
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "game.chosePathToContinue",
+    1,
+  ],
+]
+`;
+
+exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed story: every beat shown at once 1`] = `
+[
+  [
+    "beat",
+    0,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "action~t0s1b0~t0.07500000000000001s1b0~t0.15s1b0~t0.22499999999999998s1b0~t0.3s1b0~t0.37500000000000006s1b0",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.4500000000000001,
+      "image": {
+        "backdrop": [
+          {
+            "assets": [
+              "BG",
+            ],
+            "control": "show",
+          },
+        ],
+      },
+      "text": {
+        "action": [
+          {
+            "control": "show",
+            "text": "T",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "a",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "l",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "q",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "u",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "i",
+          },
+          {
+            "after": 0.37500000000000006,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.4000000000000001,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.4250000000000001,
+            "control": "show",
+            "text": ".",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "1",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "action",
+    [
+      {
+        "control": "show",
+        "text": "T",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "a",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "l",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "q",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "u",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "i",
+      },
+      {
+        "after": 0.37500000000000006,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.4000000000000001,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.4250000000000001,
+        "control": "show",
+        "text": ".",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.image.write",
+    "backdrop",
+    [
+      {
+        "assets": [
+          "BG",
+        ],
+        "control": "show",
+      },
+    ],
+    true,
+    "[undefined]",
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "beat",
+    1,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "audio": {
+        "typewriter": [
+          {
+            "assets": [
+              "character~t0s1b0.5~t0.07500000000000001s1b0.5~t0.15s1b0.5~t0.22499999999999998s1b0.5~t0.3s1b0.5",
+            ],
+            "control": "play",
+          },
+        ],
+      },
+      "end": 0.37500000000000006,
+      "text": {
+        "character_name": [
+          {
+            "control": "show",
+            "text": "Hero",
+          },
+        ],
+        "character_parenthetical": [
+          {
+            "control": "show",
+            "style": {
+              "text_align": "center",
+            },
+            "text": "(softly)",
+          },
+        ],
+        "dialogue": [
+          {
+            "control": "show",
+            "text": "W",
+          },
+          {
+            "after": 0.025,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.05,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.07500000000000001,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.1,
+            "control": "show",
+            "text": "g",
+          },
+          {
+            "after": 0.125,
+            "control": "show",
+            "text": "o",
+          },
+          {
+            "after": 0.15,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.175,
+            "control": "show",
+            "text": "s",
+          },
+          {
+            "after": 0.19999999999999998,
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "after": 0.22499999999999998,
+            "control": "show",
+            "text": "t",
+          },
+          {
+            "after": 0.24999999999999997,
+            "control": "show",
+            "text": "h",
+          },
+          {
+            "after": 0.27499999999999997,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.3,
+            "control": "show",
+            "text": "r",
+          },
+          {
+            "after": 0.325,
+            "control": "show",
+            "text": "e",
+          },
+          {
+            "after": 0.35000000000000003,
+            "control": "show",
+            "text": "?",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "1",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.text.write",
+    "dialogue",
+    [
+      {
+        "control": "show",
+        "text": "W",
+      },
+      {
+        "after": 0.025,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.05,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.07500000000000001,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.1,
+        "control": "show",
+        "text": "g",
+      },
+      {
+        "after": 0.125,
+        "control": "show",
+        "text": "o",
+      },
+      {
+        "after": 0.15,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.175,
+        "control": "show",
+        "text": "s",
+      },
+      {
+        "after": 0.19999999999999998,
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "after": 0.22499999999999998,
+        "control": "show",
+        "text": "t",
+      },
+      {
+        "after": 0.24999999999999997,
+        "control": "show",
+        "text": "h",
+      },
+      {
+        "after": 0.27499999999999997,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.3,
+        "control": "show",
+        "text": "r",
+      },
+      {
+        "after": 0.325,
+        "control": "show",
+        "text": "e",
+      },
+      {
+        "after": 0.35000000000000003,
+        "control": "show",
+        "text": "?",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_parenthetical",
+    [
+      {
+        "control": "show",
+        "style": {
+          "text_align": "center",
+        },
+        "text": "(softly)",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "character_name",
+    [
+      {
+        "control": "show",
+        "text": "Hero",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
+    "beat",
+    2,
+  ],
+  [
+    "ui.beginCompose",
+  ],
+  [
+    "ui.text.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.clearAll",
+    [
+      "backdrop",
+      "character_name",
+      "character_parenthetical",
+      "dialogue",
+      "action",
+      "continue_indicator",
+      "choice 0",
+      "choice 1",
+      "choice 2",
+    ],
+  ],
+  [
+    "ui.image.restoreCleared",
+    {
+      "choices": [
+        "choice 0",
+        "choice 1",
+        "choice 2",
+      ],
+      "end": 0,
+      "text": {
+        "choice 0": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "friend",
+          },
+        ],
+        "choice 1": [
+          {
+            "control": "show",
+            "text": "A",
+          },
+          {
+            "control": "show",
+            "text": " ",
+          },
+          {
+            "control": "show",
+            "text": "stranger",
+          },
+        ],
+        "choice 2": [
+          {
+            "control": "show",
+            "text": "Nobody",
+          },
+        ],
+      },
+    },
+  ],
+  [
+    "ui.showLayout",
+    "main",
+  ],
+  [
+    "ui.reveal",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "display": null,
+      "opacity": "1",
+      "transition": "none",
+    },
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 0",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 1",
+    "[function]",
+  ],
+  [
+    "ui.observe",
+    "click",
+    "choice 2",
+    "[function]",
+  ],
+  [
+    "ui.text.write",
+    "choice 0",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "friend",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 1",
+    [
+      {
+        "control": "show",
+        "text": "A",
+      },
+      {
+        "control": "show",
+        "text": " ",
+      },
+      {
+        "control": "show",
+        "text": "stranger",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.text.write",
+    "choice 2",
+    [
+      {
+        "control": "show",
+        "text": "Nobody",
+      },
+    ],
+    true,
+    "[undefined]",
+    0,
+  ],
+  [
+    "ui.refreshLayouts",
+  ],
+  [
+    "ui.style.update",
+    "continue_indicator",
+    {
+      "animation-play-state": "paused",
+      "opacity": "1",
+      "transition": null,
+    },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
+  ],
+]
+`;
