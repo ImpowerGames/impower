@@ -2566,15 +2566,12 @@ export class Game<T extends M = {}> {
     const checkpoint = this._checkpoints.length - 1;
     this._run.record({ checkpoint, shown, menus: this._playedMenus.length });
     this._checkpoints.charge(checkpoint, JSON.stringify(shown).length * 2);
-    const budget = this._checkpointByteBudget;
-    if (this._checkpoints.bytes > budget) {
-      const folded = this._checkpoints.fold(
-        budget,
-        this._run.first!.checkpoint,
-      );
-      if (folded.length > 0) {
-        this._run.drop(new Set(folded));
-      }
+    const folded = this._checkpoints.fold(
+      this._checkpointByteBudget,
+      this._run.first!.checkpoint,
+    );
+    if (folded.length > 0) {
+      this._run.drop(new Set(folded));
     }
   }
 

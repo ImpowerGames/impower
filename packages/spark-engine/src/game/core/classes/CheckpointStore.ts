@@ -83,19 +83,9 @@ export class CheckpointStore {
 
   protected _bytes = 0;
   get bytes(): number {
-    if (this._valuesStale || this._sinceRemark >= this._baseInterval) {
-      this.remark();
-    }
-    return this._bytes + this._valueBytes;
+    return this._bytes + this.valueBytes();
   }
 
-  protected _valuesStale = false;
-
-  protected _sinceRemark = 0;
-
-  protected _valueBytes = 0;
-
-  protected _marked = new Set<unknown>();
 
   protected _holders = new Map<unknown, number>();
 
@@ -190,40 +180,32 @@ export class CheckpointStore {
       pinnedBy: 0,
       roots,
     });
-    if (!this._valuesStale) {
-      this.mark(roots);
-    }
-    this._sinceRemark += 1;
   }
 
-  protected mark(roots: readonly unknown[]): void {
-    const pending = [...roots];
+  protected valueBytes(): number {
+    const seen = new Set<unknown>();
+    const pending: unknown[] = [];
+    for (const entry of this._entries) {
+      if (!entry.folded) {
+        pending.push(...entry.roots);
+      }
+    }
+    let bytes = 0;
     while (pending.length > 0) {
       const value = pending.pop();
-      if (this._marked.has(value)) {
+      if (seen.has(value)) {
         continue;
       }
-      this._marked.add(value);
+      seen.add(value);
       const parts = this._host.valueParts(value);
-      this._valueBytes += parts.bytes;
+      bytes += parts.bytes;
       for (const child of parts.children) {
-        if (!this._marked.has(child)) {
+        if (!seen.has(child)) {
           pending.push(child);
         }
       }
     }
-  }
-
-  protected remark(): void {
-    this._marked = new Set();
-    this._valueBytes = 0;
-    this._valuesStale = false;
-    this._sinceRemark = 0;
-    for (const entry of this._entries) {
-      if (!entry.folded) {
-        this.mark(entry.roots);
-      }
-    }
+    return bytes;
   }
 
   charge(index: number, bytes: number): void {
@@ -240,7 +222,8 @@ export class CheckpointStore {
 
   fold(budget: number, keep: number): number[] {
     const folded: number[] = [];
-    if (this.bytes <= budget) {
+    let total = this.bytes;
+    if (total <= budget) {
       return folded;
     }
     let newest = this._entries.length - 1;
@@ -267,10 +250,10 @@ export class CheckpointStore {
       return true;
     };
     let progress = true;
-    while (progress && this.bytes > budget) {
+    while (progress && total > budget) {
       progress = false;
       let from = first;
-      while (from < newest && this.bytes > budget) {
+      while (from < newest && total > budget) {
         let next = from;
         while (next < newest && !this._entries[next]!.keyframe) {
           next++;
@@ -280,19 +263,19 @@ export class CheckpointStore {
           segment = foldAt(i) || segment;
         }
         if (segment) {
-          this.remark();
           progress = true;
+          total = this.bytes;
         }
         from = next + 1;
       }
-      for (let i = first; i < newest && this.bytes > budget; i++) {
+      for (let i = first; i < newest && total > budget; i++) {
         if (this._entries[i]!.keyframe && foldAt(i)) {
-          this.remark();
           progress = true;
+          total = this.bytes;
         }
       }
     }
-    if (this.bytes > budget) {
+    if (total > budget) {
       this._foldExhaustedAt = newest;
     }
     return folded;
@@ -417,7 +400,6 @@ export class CheckpointStore {
     if (kept < this._entries.length) {
       this._chainEnd = null;
       this._foldExhaustedAt = -1;
-      this._valuesStale = true;
     }
     for (let i = this._entries.length - 1; i >= kept; i--) {
       this.release(i);

@@ -830,3 +830,57 @@ describe("a replacement track still loading when its beat is left", () => {
     });
   }
 });
+
+describe("a track a queue left to end", () => {
+  test("loops again when a roll restores the beat it looped on", async () => {
+    const h = createHarness(
+      [
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "define other as audio with",
+        '  src = "https://example.com/other.wav"',
+        "end",
+        "scene start",
+        "  ((play music theme))",
+        "  First.",
+        "  ((queue music other))",
+        "  Second.",
+        "  Third.",
+        "end",
+      ].join("\n"),
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    const tick = async () => {
+      await flushMicrotasks(40);
+      (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+      await flushMicrotasks(40);
+    };
+    const updates = () =>
+      h.messages
+        .filter((m) => m.method === "audio/update" && m.params.channel === "music")
+        .flatMap((m) => m.params.updates);
+    h.game.start();
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("First.");
+    h.game.continue();
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("Second.");
+    expect(updates().some((u: any) => u.control === "await" && u.loop === false)).toBe(true);
+    const from = updates().length;
+    const rolled = await h.game.rollBack("beat");
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("First.");
+    expect(rolled.moved && rolled.restored.loops).toEqual([
+      { channel: "music", key: "audio.theme", play: "continue" },
+    ]);
+    const after = updates().slice(from);
+    expect(
+      after.filter((u: any) => u.key === "audio.theme" && u.loop === true),
+    ).toHaveLength(1);
+    expect(
+      after.filter((u: any) => u.control === "stop" && u.key === "audio.other"),
+    ).toHaveLength(1);
+  });
+});

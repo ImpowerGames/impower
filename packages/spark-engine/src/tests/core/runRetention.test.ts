@@ -473,3 +473,46 @@ describe("the count of values that change after their checkpoint", () => {
     expect(game.checkpoints.bytes).toBe(0);
   });
 });
+
+describe("the count of a table changed between measurements", () => {
+  for (const interval of [5, 50]) {
+    test(`covers what the table gained when it changed on the capture that ends a ${interval}-beat segment`, () => {
+      const size = 1_500_000;
+      const source = [
+        "store payload = {}",
+        "scene start",
+        "  Begin.",
+        ...Array.from({ length: interval - 1 }, (_, i) => `  Before ${i}.`),
+        `  payload.extra = string.reverse(string.rep("x", ${size}))`,
+        "  payload = {}",
+        "  After.",
+        "end",
+      ].join("\n");
+      const game = startGame(compileSource(source), {
+        checkpointBaseInterval: interval,
+        checkpointByteBudget: 2_000_000,
+      });
+      for (let i = 0; i < interval; i += 1) {
+        game.clickedToContinue();
+      }
+      expect((game.story.currentText ?? "").trim()).toBe("After.");
+      const held = new Set<string>();
+      for (const image of liveImages(game) as any[]) {
+        for (const value of image.globals.values()) {
+          for (const entry of value?.value?.values?.() ?? []) {
+            const text = entry?.value;
+            if (typeof text === "string" && text.length >= size) {
+              held.add(text);
+            }
+          }
+        }
+      }
+      const bytes = [...held].reduce((sum, text) => sum + text.length * 2, 0);
+      expect(bytes).toBe(size * 2);
+      expect(
+        game.checkpoints.bytes,
+        `the store counts ${game.checkpoints.bytes} bytes while a table its checkpoints hold keeps ${bytes}`,
+      ).toBeGreaterThanOrEqual(bytes);
+    });
+  }
+});

@@ -30,6 +30,11 @@ const isSynth = (asset: object, type: string): boolean =>
 
 export interface AudioConfig {}
 
+export interface AudibleLoop {
+  to: number | undefined;
+  looping: boolean;
+}
+
 export interface AudioState {
   channels?: Record<string, ChannelState>;
 }
@@ -62,7 +67,7 @@ export class AudioModule extends Module<
     return [];
   }
 
-  protected _audible = new Map<string, Map<string, number | undefined>>();
+  protected _audible = new Map<string, Map<string, AudibleLoop>>();
 
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
@@ -144,14 +149,17 @@ export class AudioModule extends Module<
     return held;
   }
 
-  loopsPlaying(): Map<string, Map<string, number | undefined>> {
+  loopsPlaying(): Map<string, Map<string, AudibleLoop>> {
     return new Map(
-      [...this._audible].map(([channel, keys]) => [channel, new Map(keys)]),
+      [...this._audible].map(([channel, keys]) => [
+        channel,
+        new Map([...keys].map(([key, loop]) => [key, { ...loop }])),
+      ]),
     );
   }
 
   settleLoops(
-    before: ReadonlyMap<string, ReadonlyMap<string, number | undefined>>,
+    before: ReadonlyMap<string, ReadonlyMap<string, AudibleLoop>>,
   ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
     const held = this.loopsHeld();
     this._channelsCurrentlyPlaying = this.playingFromState();
@@ -174,11 +182,15 @@ export class AudioModule extends Module<
       const starts = new Set<string>();
       const fades: AudioPlayerUpdate[] = [];
       for (const [key, to] of keys) {
-        if (was?.has(key)) {
+        const audible = was?.get(key);
+        if (audible?.looping) {
           loops.push({ channel, key, play: "continue" });
-          if ((to ?? 1) !== (was.get(key) ?? 1)) {
+          if ((to ?? 1) !== (audible.to ?? 1)) {
             fades.push({ control: "fade", key, to: to ?? 1, now: true });
           }
+        } else if (audible) {
+          loops.push({ channel, key, play: "continue" });
+          starts.add(key);
         } else {
           loops.push({ channel, key, play: "start" });
           starts.add(key);
@@ -197,7 +209,9 @@ export class AudioModule extends Module<
   restartPending(): void {
     for (const [channel, keys] of this.loopsHeld()) {
       const audible = this._audible.get(channel);
-      const silent = new Set([...keys.keys()].filter((key) => !audible?.has(key)));
+      const silent = new Set(
+        [...keys.keys()].filter((key) => !audible?.get(key)?.looping),
+      );
       if (silent.size > 0) {
         void this.restoreChannel(channel, silent);
       }
@@ -268,12 +282,17 @@ export class AudioModule extends Module<
           audible = new Map();
           this._audible.set(channel, audible);
         }
-        audible.set(update.key, update.to);
+        audible.set(update.key, { to: update.to, looping: true });
       } else if (update.control === "fade") {
         for (const key of update.key ? [update.key] : [...(audible?.keys() ?? [])]) {
-          if (audible?.has(key)) {
-            audible.set(key, update.to);
+          const loop = audible?.get(key);
+          if (loop) {
+            loop.to = update.to;
           }
+        }
+      } else if (update.control === "await") {
+        for (const loop of audible?.values() ?? []) {
+          loop.looping = false;
         }
       }
     }
