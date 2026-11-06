@@ -19,6 +19,9 @@ const { INITIAL_SEARCH } = await import(
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
+const { railReveal, RAIL_COMPACT_WIDTH, RAIL_WIDTH } = await import(
+  "../../src/modules/spark-editor/workspace/railWidths"
+);
 const { buildConfiguration, PREFERENCES_SCHEMA, PROJECT_SETTINGS_SCHEMA } =
   await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 
@@ -119,6 +122,7 @@ const setup = (opened: string | undefined = MAIN) => {
       selection.value = r;
     }),
     setMatches: vi.fn(),
+    revealRail: vi.fn(),
     autoRenameFiles: () => autoRenameFiles.value,
     onTextChanged: (listener: () => void) => {
       textListeners.push(listener);
@@ -332,6 +336,27 @@ describe("References", () => {
       CHAPTER,
     ]);
   });
+
+  it("marks where the name is defined when the list comes from an asset row", async () => {
+    const { search, sources } = make(MAIN);
+    sources.fileReferences.mockImplementation(async (uri: string) =>
+      uri === PORTRAIT
+        ? [
+            { uri: EPILOGUE, range: range(0, 7, 12) },
+            { uri: MAIN, range: range(1, 6, 11) },
+          ]
+        : [],
+    );
+    await search.openReferences({ name: "imani", character: false });
+    expect(sources.definitions).toHaveBeenCalledWith(EPILOGUE, range(0, 7, 12).start);
+    const flagged = workspace.search.value.references.flatMap((g) =>
+      g.uses.map((u) => [u.uri, !!u.declaration]),
+    );
+    expect(flagged).toEqual([
+      [MAIN, false],
+      [EPILOGUE, true],
+    ]);
+  });
 });
 
 describe("Rename", () => {
@@ -459,6 +484,26 @@ describe("edits and steps never act on stale results", () => {
     expect(workspace.search.value.status).toBe(
       "The script changed and imani is no longer there. Open Rename again.",
     );
+  });
+});
+
+describe("a collapsed rail", () => {
+  it("is revealed whenever Search, References or Rename opens", async () => {
+    const { search, sources } = make(MAIN);
+    search.open("find");
+    await search.openReferences({ name: "imani", character: false });
+    await search.openRename();
+    expect(sources.revealRail).toHaveBeenCalledTimes(3);
+  });
+
+  it("widens to the full rail from its icons on desktop and tablet, and stays as it is otherwise", () => {
+    expect(railReveal({ railWidth: RAIL_WIDTH.collapsed }, "desktop", "full")).toEqual({ railWidth: undefined });
+    expect(railReveal({ railWidth: 300 }, "desktop", "full")).toBeNull();
+    expect(railReveal(undefined, "desktop", "icons")).toBeNull();
+    expect(railReveal(undefined, "compact", "icons")).toEqual({ railCompactWidth: RAIL_COMPACT_WIDTH.full });
+    expect(railReveal({ railCompactWidth: RAIL_COMPACT_WIDTH.collapsed }, "compact", "full")).toEqual({ railCompactWidth: RAIL_COMPACT_WIDTH.full });
+    expect(railReveal(undefined, "compact", "full")).toBeNull();
+    expect(railReveal({ railWidth: RAIL_WIDTH.collapsed }, "phone", "icons")).toBeNull();
   });
 });
 

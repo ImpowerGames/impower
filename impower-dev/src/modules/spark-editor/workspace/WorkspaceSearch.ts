@@ -48,6 +48,7 @@ export interface SearchSources {
   openLocation: (uri: string, range: Range) => Promise<void>;
   openAsset: (uri: string) => Promise<void>;
   setMatches: (uri: string, ranges: Range[]) => void;
+  revealRail: () => void;
   autoRenameFiles: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
@@ -259,6 +260,7 @@ export default class WorkspaceSearch {
   }
 
   open(view: SearchView = "find") {
+    this._sources.revealRail();
     this.update({ open: true, view, status: "", statusTone: "info" });
     if (view === "find") {
       void this.refresh();
@@ -589,17 +591,26 @@ export default class WorkspaceSearch {
 
   protected async gather(subject: NameSubject) {
     const files = assetFilesNamed(await this._sources.files(), subject.name);
-    const [uses, definitions, fileUses] = await Promise.all([
+    const [uses, fileUses] = await Promise.all([
       subject.uri && subject.position
         ? this._sources.references(subject.uri, subject.position)
         : Promise.resolve([]),
-      subject.uri && subject.position
-        ? this._sources.definitions(subject.uri, subject.position).catch(() => [])
-        : Promise.resolve([]),
       Promise.all(files.map((f) => this._sources.fileReferences(f))),
     ]);
+    const located = [...uses, ...fileUses.flat()];
+    const anchor =
+      subject.uri && subject.position
+        ? { uri: subject.uri, position: subject.position }
+        : located[0]
+          ? { uri: located[0].uri, position: located[0].range.start }
+          : undefined;
+    const definitions = anchor
+      ? await this._sources
+          .definitions(anchor.uri, anchor.position)
+          .catch(() => [])
+      : [];
     const references = await groupLocations(
-      [...uses, ...fileUses.flat()],
+      located,
       this._sources.fileText,
       definitions,
     );
@@ -608,6 +619,7 @@ export default class WorkspaceSearch {
 
   async openReferences(subject?: NameSubject) {
     const found = subject ?? (await this.subjectAtCaret());
+    this._sources.revealRail();
     this.update({
       open: true,
       view: "references",
@@ -628,6 +640,7 @@ export default class WorkspaceSearch {
 
   async openRename() {
     const found = await this.subjectAtCaret();
+    this._sources.revealRail();
     this.update({
       open: true,
       view: "rename",
