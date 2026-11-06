@@ -1,7 +1,7 @@
 import {
   ArrowIcon,
   BackIcon,
-  BrandVscode,
+  BracketsIcon,
   Button,
   DownloadIcon,
   FeatureCard,
@@ -132,7 +132,7 @@ export default function SharePage() {
           >
             <Button asChild variant="quiet" class="mt-3 -ml-3">
               <a href={MARKETPLACE_URL} target="_blank" rel="noopener noreferrer">
-                <BrandVscode />
+                <BracketsIcon />
                 Open your project in VS Code
               </a>
             </Button>
