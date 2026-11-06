@@ -92,6 +92,16 @@ const focus = async (input: HTMLInputElement) => {
 };
 
 describe("the desktop project name field", () => {
+  it("draws the name's box around a hit area the shared inline-hit rule centres", async () => {
+    const input = await mount(ProjectNameField);
+    const box = input.parentElement!;
+    expect(box.classList.contains("inline-hit")).toBe(true);
+    expect(box.classList.contains("h-6")).toBe(true);
+    expect(input.className).not.toMatch(
+      /\babsolute\b|\btop-1\/2\b|-translate-y-1\/2/,
+    );
+  });
+
   it("selects the whole name on focus", async () => {
     const input = await mount(ProjectNameField);
     expect(input.getAttribute("aria-label")).toBe("Project name");

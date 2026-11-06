@@ -34,7 +34,7 @@ export default function ProjectNameField() {
   }
 
   return (
-    <div class="relative h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge in-data-[layout=phone]:h-5 in-data-[layout=phone]:w-full">
+    <div class="inline-hit h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge in-data-[layout=phone]:h-5 in-data-[layout=phone]:w-full">
       <input
         {...props}
         type="text"
@@ -42,7 +42,7 @@ export default function ProjectNameField() {
         spellcheck={false}
         autocomplete="off"
         maxLength={120}
-        class="absolute inset-x-0 top-1/2 h-full w-full -translate-y-1/2 rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none in-data-[layout=phone]:text-[12px]/[1.4] placeholder:text-placeholder not-focus:fade-edge"
+        class="h-full w-full rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none in-data-[layout=phone]:text-[12px]/[1.4] placeholder:text-placeholder not-focus:fade-edge"
       />
     </div>
   );
