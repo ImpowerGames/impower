@@ -1,6 +1,7 @@
 import {
   Bolt,
   BoltFill,
+  LiveRegion,
   Photo,
   PhotoFill,
   Share,
@@ -22,27 +23,43 @@ import FileDropzone from "../file-dropzone/FileDropzone";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
-import SettingsDialog from "../settings-dialog/SettingsDialog";
+import { SettingsPage } from "../settings";
 import SharePanel from "../share/Share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
 
 export const propDefaults = {};
 export type MainWindowProps = Partial<typeof propDefaults>;
 
-function PaneContent({ pane }: { pane: PaneType }) {
+function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) {
+  if (settings) return <SettingsPage key="settings" />;
   if (pane === "assets") return <Assets key="assets" />;
   if (pane === "share") return <SharePanel key="share" />;
   return <Logic key="logic" />;
 }
+
+const STRIP_HEIGHT = {
+  default: 280,
+  min: 200,
+  collapsed: 48,
+  reserve: 240,
+} as const;
 
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
+  const shell = !isSSR && layout !== "phone";
+  const strip = shell && !desktop;
   const pane = workspace.signals.pane.value as PaneType;
+  const settings = useComputed(
+    () => !!workspace.state.value.screen?.settingsOpen,
+  ).value;
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
+  ).value;
+  const stripHeight = useComputed(
+    () => workspace.state.value.shell?.stripHeight,
   ).value;
 
   const onPaneChange = async (next: string) => {
@@ -50,17 +67,38 @@ export default function MainWindow(_props: MainWindowProps) {
     Workspace.window.navigateTo(routeOfPane(next as PaneType));
   };
 
+  const onStripHeightChange = async (height: number | undefined) => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.setStripHeight(height);
+  };
+
   const panes = (
     <div class="relative flex h-full min-h-0 flex-1">
       {!isSSR && (
         <>
           <SplitPane
+            orientation={strip ? "vertical" : "horizontal"}
+            reverse={strip}
+            label={strip ? "Resize preview" : undefined}
+            pinned={
+              strip
+                ? {
+                    panel: "end",
+                    size: stripHeight,
+                    defaultSize: STRIP_HEIGHT.default,
+                    minSize: STRIP_HEIGHT.min,
+                    collapsedSize: STRIP_HEIGHT.collapsed,
+                    reserve: STRIP_HEIGHT.reserve,
+                    onSizeChange: onStripHeightChange,
+                  }
+                : undefined
+            }
             activePanel={previewActive}
-            defaultSizes={desktop ? [53, 47] : undefined}
+            defaultSizes={[53, 47]}
             minSize={desktop ? ["280px", "336px"] : "320px"}
             start={
               <div class="relative flex h-full w-full flex-col">
-                <PaneContent pane={pane} />
+                <PaneContent pane={pane} settings={settings} />
               </div>
             }
             end={
@@ -76,13 +114,13 @@ export default function MainWindow(_props: MainWindowProps) {
           />
 
           <FileDropzone />
-          <SettingsDialog />
+          <LiveRegion />
         </>
       )}
     </div>
   );
 
-  if (desktop) {
+  if (shell) {
     return (
       <div class="flex h-full w-full min-h-0 flex-col">
         <DesktopShell>{panes}</DesktopShell>
@@ -99,7 +137,7 @@ export default function MainWindow(_props: MainWindowProps) {
 
         <div class="absolute inset-x-0 top-0 !h-px bg-edge z-10" />
         {!isSSR && (
-          <Tabs value={pane} onChange={onPaneChange} indicator="none">
+          <Tabs value={settings ? "" : pane} onChange={onPaneChange} indicator="none">
             <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
               Logic
             </Tab>

@@ -35,6 +35,7 @@ import {
   SETTINGS_JSON_PATH,
 } from "../../src/modules/spark-editor/workspace/settings/settingsJson";
 import {
+  PREFERENCES_SCHEMA,
   PROJECT_SETTINGS_SCHEMA,
   type ProjectSettings,
   type SettingSpec,
@@ -114,6 +115,32 @@ describe("the settings store", () => {
     expect(store.projectSettings.value.screenplayPaperSize).toBe("usletter");
     projectId.value = "p1";
     expect(store.projectSettings.value.screenplayPaperSize).toBe("a4");
+  });
+
+  it("resets named preferences to their defaults by forgetting them, keeping the rest and notifying once", () => {
+    const store = open("p1");
+    const usual = PREFERENCES_SCHEMA.lineNumbers.default;
+    store.setPreference("lineNumbers", !usual);
+    store.setPreference("theme", "chalk");
+    const listener = vi.fn();
+    store.onDidChangeConfiguration(listener);
+    store.resetPreferences(["lineNumbers"]);
+    expect(store.preferences.value.lineNumbers).toBe(usual);
+    expect(store.preferences.value.theme).toBe("chalk");
+    expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual({ theme: "chalk" });
+    expect(listener).toHaveBeenCalledTimes(1);
+    store.resetPreferences(["lineNumbers"]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets named project settings for the open project only", () => {
+    const store = open("p1");
+    store.setProjectSetting("screenplayPaperSize", "a4");
+    store.setProjectSetting("screenplayTitlePage", false);
+    store.resetProjectSettings(["screenplayPaperSize"]);
+    expect(store.projectSettings.value.screenplayPaperSize).toBe("usletter");
+    expect(store.projectSettings.value.screenplayTitlePage).toBe(false);
+    expect(open("p1").projectSettings.value.screenplayPaperSize).toBe("usletter");
   });
 
   it("reads the default for a stored value of the wrong type or choice", () => {
@@ -384,13 +411,16 @@ const zipEntries = (zip: ArrayBuffer) =>
 describe(".vscode/settings.json", () => {
   const defaults = extensionDefaults(extensionManifest);
 
-  it("writes every project setting but branch names, under a key the extension declares with the same default", () => {
+  it("writes every project setting but branch names and the preview's layout, under a key the extension declares with the same default", () => {
     expect(projectSettingsJson(defaultsOf(), defaults)).toBeUndefined();
     expect(
       Object.entries(PROJECT_SETTINGS_SCHEMA)
         .filter(([, spec]) => (spec.configurationKeys ?? []).length === 0)
         .map(([key]) => key),
-    ).toEqual(["screenplayBranchNames"]);
+    ).toEqual([
+      "screenplayBranchNames",
+      "previewAspectRatio",
+    ]);
     for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
       for (const path of spec.configurationKeys ?? []) {
         expect(Object.hasOwn(defaults, `sparkdown.${path}`), path).toBe(true);

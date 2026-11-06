@@ -1,5 +1,8 @@
-import { computed, signal, type ReadonlySignal } from "@preact/signals";
-import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
+import { computed, effect, signal, type ReadonlySignal } from "@preact/signals";
+import type {
+  SyncStatus,
+  WorkspaceCache,
+} from "@impower/spark-editor-protocol/src/types";
 import type {
   Diagnostic,
   DocumentSymbol,
@@ -118,6 +121,10 @@ class WorkspaceStore {
 
   readonly outline = signal<OutlineSnapshot | null>(null);
 
+  readonly syncConflictOpen = signal<boolean>(false);
+
+  readonly syncedAt = signal<number | null>(null);
+
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),
     previewMode: computed(() => this.state.value.preview?.mode ?? "game"),
@@ -134,6 +141,21 @@ class WorkspaceStore {
         : "Sync with Google Drive";
     }),
   } as const satisfies Record<string, ReadonlySignal<unknown>>;
+
+  constructor() {
+    let previous: SyncStatus | undefined;
+    effect(() => {
+      const status = this.signals.syncStatus.value;
+      if (status === previous) {
+        return;
+      }
+      previous = status;
+      if (status === "synced") {
+        this.syncedAt.value = Date.now();
+      }
+      this.syncConflictOpen.value = status === "sync_conflict";
+    });
+  }
 
   get current(): WorkspaceCache {
     return this.state.peek();

@@ -50,6 +50,44 @@ function SplitPaneExample({
   );
 }
 
+function PinnedSplitPaneExample({ reverse = false }: { reverse?: boolean }) {
+  const [size, setSize] = useState<number | undefined>(undefined);
+  return (
+    <div class="space-y-2">
+      <span class="text-xs text-foreground/60">
+        Saved size: {size === undefined ? "none (default)" : `${size}px`}
+      </span>
+      <div class="h-72 w-full overflow-hidden rounded border border-surface-border">
+        <SplitPane
+          orientation="vertical"
+          reverse={reverse}
+          label="Resize panel"
+          pinned={{
+            panel: "end",
+            size,
+            defaultSize: 44,
+            minSize: 144,
+            collapsedSize: 44,
+            reserve: 120,
+            onSizeChange: setSize,
+          }}
+          start={
+            <div class="flex h-full items-center justify-center bg-surface">
+              Content
+            </div>
+          }
+          end={
+            <div class="flex h-full flex-col bg-popup">
+              <div class="flex h-11 shrink-0 items-center px-3">Bar</div>
+              <div class="flex flex-1 items-center justify-center">Panel</div>
+            </div>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 function SplitPaneDemo() {
   return (
     <div class="space-y-6">
@@ -67,6 +105,12 @@ function SplitPaneDemo() {
       </GalleryRow>
       <GalleryRow label="Vertical">
         <SplitPaneExample orientation="vertical" />
+      </GalleryRow>
+      <GalleryRow label="Vertical with a pinned end panel: drag it up past 144px to open it, below that it snaps to the 44px bar; Up and Down step it, Home collapses, End keeps 120px for the stage, Enter or double-click resets">
+        <PinnedSplitPaneExample />
+      </GalleryRow>
+      <GalleryRow label="Vertical, reversed, with the pinned end panel shown first: drag and the arrow keys follow what is on screen">
+        <PinnedSplitPaneExample reverse />
       </GalleryRow>
     </div>
   );

@@ -71,6 +71,7 @@ export {
 export {
   default as SplitPane,
   type SplitPaneProps,
+  type SplitPanePinned,
 } from "./split-pane/SplitPane";
 export {
   default as Toast,
@@ -84,6 +85,83 @@ export {
   type TabProps,
   type TabsVariant,
 } from "./tabs/Tabs";
+export {
+  default as Switch,
+  switchVariants,
+  type SwitchProps,
+  type SwitchSize,
+} from "./switch/Switch";
+export {
+  default as Select,
+  selectVariants,
+  type SelectProps,
+  type SelectOption,
+  type SelectSize,
+} from "./select/Select";
+export {
+  default as TextField,
+  textFieldVariants,
+  type TextFieldProps,
+  type TextFieldSize,
+  type TextFieldWidth,
+  type TextFieldFont,
+} from "./text-field/TextField";
+export {
+  default as ChoiceGroup,
+  choiceGroupVariants,
+  choiceOptionVariants,
+  type ChoiceGroupProps,
+  type ChoiceOption,
+  type ChoiceGroupSize,
+} from "./choice-group/ChoiceGroup";
+export {
+  SettingsSection,
+  SettingsGroup,
+  SettingsList,
+  SettingsRow,
+  SwitchRow,
+  SelectRow,
+  TextRow,
+  ChoiceRow,
+  SettingsFoot,
+  SettingsPlaceholder,
+  settingsRowVariants,
+  type SettingsSectionProps,
+  type SettingsGroupProps,
+  type SettingsListProps,
+  type SettingsRowProps,
+  type SettingsRowVariantProps,
+  type SettingsRowIndent,
+  type SwitchRowProps,
+  type SelectRowProps,
+  type TextRowProps,
+  type ChoiceRowProps,
+  type ChoiceRowOption,
+  type SettingsFootProps,
+  type SettingsPlaceholderProps,
+} from "./settings/Settings";
+export {
+  default as RailIndex,
+  railIndexRowVariants,
+  railIndexJumpVariants,
+  type RailIndexProps,
+  type RailIndexGroup,
+  type RailIndexItem,
+  type RailIndexDepth,
+} from "./rail-index/RailIndex";
+export {
+  default as JumpChips,
+  jumpChipVariants,
+  type JumpChipsProps,
+  type JumpChipSize,
+} from "./jump-chips/JumpChips";
+export {
+  default as LiveRegion,
+  liveRegionVariants,
+  type LiveRegionProps,
+  type LiveRegionVisibility,
+} from "./live-region/LiveRegion";
+export { announce, useAnnouncer } from "../hooks/useAnnouncer";
 export { useMountTransition } from "../hooks/useMountTransition";
 export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";

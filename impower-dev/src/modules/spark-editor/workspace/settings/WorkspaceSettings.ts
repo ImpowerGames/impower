@@ -221,6 +221,32 @@ export class WorkspaceSettings {
     this.notifyConfigurationChanged();
   };
 
+  resetPreferences = (keys: readonly PreferenceKey[]) => {
+    const current = this._storedPreferences.peek();
+    if (!keys.some((key) => Object.hasOwn(current, key))) {
+      return;
+    }
+    const stored = Object.fromEntries(
+      Object.entries(current).filter(([key]) => !keys.includes(key as PreferenceKey)),
+    );
+    this.save(PREFERENCES_STORAGE_KEY, stored);
+    this._storedPreferences.value = stored;
+    this.notifyConfigurationChanged();
+  };
+
+  resetProjectSettings = (keys: readonly ProjectSettingKey[]) => {
+    const current = this._storedProject.peek();
+    if (!keys.some((key) => Object.hasOwn(current.stored, key))) {
+      return;
+    }
+    const stored = Object.fromEntries(
+      Object.entries(current.stored).filter(([key]) => !keys.includes(key as ProjectSettingKey)),
+    );
+    this.save(projectStorageKey(current.id), stored);
+    this._storedProject.value = { id: current.id, stored };
+    this.notifyConfigurationChanged();
+  };
+
   replaceProjectSettings(projectId: string, values: Partial<ProjectSettings>) {
     for (const [key, value] of Object.entries(values)) {
       assertValid(PROJECT_SETTINGS_SCHEMA, key, value);

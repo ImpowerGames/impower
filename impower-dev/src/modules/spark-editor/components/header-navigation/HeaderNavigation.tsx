@@ -5,7 +5,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
-import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
+import { SyncButton } from "../drive-sync";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
@@ -46,7 +46,7 @@ export default function HeaderNavigation() {
             <HeaderTitleButton />
             <HeaderTitleCaption />
           </div>
-          <HeaderSyncToolbar />
+          <SyncButton />
 
           {layout !== "desktop" && (
             <div class="flex flex-row items-center">
