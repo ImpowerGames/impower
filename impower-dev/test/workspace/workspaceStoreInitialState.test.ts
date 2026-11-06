@@ -14,7 +14,7 @@ const savedLayout = (id: string, pane: string) => ({
     assets: { panel: "urls", panels: {} },
     share: { panel: "screenplay", panels: {} },
   },
-  preview: { mode: "screenplay", modes: { game: { running: true } } },
+  preview: { modes: { game: { running: true } } },
   screen: { editingName: true },
   sync: { status: "syncing" },
   debug: { diagnosticsSummary: { "main.sd": {} }, pinpoints: {}, highlights: {} },
@@ -37,7 +37,6 @@ describe("the workspace store's first state", () => {
     expect(workspace.signals.pane.value).toBe("assets");
     expect(workspace.signals.projectId.value).toBe("drive-123");
     expect(workspace.current.panes.assets.panel).toBe("urls");
-    expect(workspace.signals.previewMode.value).toBe("screenplay");
     expect(workspace.current.preview.modes.game).toEqual({});
     expect(workspace.current.screen).toEqual({});
     expect(workspace.current.sync).toEqual({});
@@ -61,7 +60,6 @@ describe("the workspace store's first state", () => {
 
     expect(workspace.signals.pane.value).toBe("logic");
     expect(workspace.signals.projectId.value).toBe("local");
-    expect(workspace.signals.previewMode.value).toBe("game");
     expect(workspace.current.panes.logic.panels.main.activeEditor.filename).toBe(
       "main.sd",
     );

@@ -32,6 +32,10 @@ export {
   DropdownItem,
   DropdownCheckboxItem,
   DropdownLabel,
+  DropdownRadioGroup,
+  DropdownRadioItem,
+  dropdownRadioItemVariants,
+  type DropdownRadioItemIndicator,
 } from "./dropdown/Dropdown";
 export {
   default as SparkLogo,
@@ -148,6 +152,12 @@ export {
 } from "./live-region/LiveRegion";
 export { announce, useAnnouncer } from "../hooks/useAnnouncer";
 export { useMountTransition } from "../hooks/useMountTransition";
+export {
+  useHoldRepeat,
+  HOLD_REPEAT_DELAY_MS,
+  HOLD_REPEAT_INTERVAL_MS,
+  type HoldRepeatHandlers,
+} from "../hooks/useHoldRepeat";
 export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";

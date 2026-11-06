@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openDrawerOrRail, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openPreviewSettings, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -624,7 +624,7 @@ function playPage(visible) {
 
 await asyncCheck("play reports the launch state it reached, and a click whose state never comes is a failure", async () => {
   let launchState = "preview";
-  const { page, clicks } = playPage((sel) => sel.includes(launchState === "play" ? "Stop Game" : "Play Game"));
+  const { page, clicks } = playPage((sel) => sel.includes(launchState === "play" ? "Stop" : "Play From Here"));
   let clock = 0, calls = 0;
   const request = async () => { if (clicks.length && ++calls > 2) launchState = "play"; return { launchState }; };
   const opts = { request, now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
@@ -632,17 +632,17 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   assert.equal(started.clicked, true);
   assert.equal(started.reached, true);
   assert.equal(started.running, true);
-  assert.equal(started.control, "Stop Game");
+  assert.equal(started.control, "Stop");
   assert.equal(started.reason, undefined);
   clock = 0;
-  const stuck = playPage((sel) => sel.includes("Play Game"));
+  const stuck = playPage((sel) => sel.includes("Play From Here"));
   const failed = await playPreview(stuck.page, "start", { ...opts, request: async () => ({ launchState: "preview" }) });
   assert.equal(failed.clicked, true);
   assert.equal(failed.reached, false);
   assert.match(failed.reason, /did not start/);
   const none = await playPreview(playPage(() => false).page, "stop", opts);
   assert.equal(none.clicked, false);
-  assert.match(none.reason, /Stop Game control is not on screen/);
+  assert.match(none.reason, /Stop control is not on screen/);
 });
 
 check("advance takes an optional positive click count", () => {
@@ -714,7 +714,7 @@ await asyncCheck("an ended PLAY counts as running: advance clicks it, and play s
   assert.deepEqual(out.clicks[0].notifications.map((n) => n.method), ["game/finished", "game/ended"]);
   assert.deepEqual(out.clicks[1].notifications, []);
   let launchState = "ended";
-  const { page, clicks } = playPage((sel) => sel.includes(launchState === "preview" ? "Play Game" : "Stop Game"));
+  const { page, clicks } = playPage((sel) => sel.includes(launchState === "preview" ? "Play From Here" : "Stop"));
   let clock = 0;
   const opts = { now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
   const stopped = await playPreview(page, "stop", { ...opts, request: async () => { if (clicks.length) launchState = "preview"; return { launchState }; } });
@@ -942,6 +942,22 @@ await asyncCheck("--step focus-script-name clicks the open script's name field, 
   assert.deepEqual(selectors, ["input[data-script-name]"]);
   const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
   assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
+});
+
+await asyncCheck("--step preview-settings presses the gear and reports the quick toggles, or fails by name", async () => {
+  const clicks = [];
+  const toggles = [{ name: "Show idle animations", checked: true }];
+  const opened = {
+    locator: (selector) => ({ first: () => ({ isVisible: async () => true, click: async () => clicks.push(selector) }) }),
+    waitForFunction: async () => true,
+    evaluate: async () => toggles,
+  };
+  assert.deepEqual(await openPreviewSettings(opened), { step: "preview-settings", ran: true, toggles });
+  assert.deepEqual(clicks, ['button[aria-label="Preview settings"]']);
+  const stuck = { ...opened, waitForFunction: async () => { throw new Error("timeout"); } };
+  assert.match((await openPreviewSettings(stuck, { timeout: 1000 })).reason, /settings menu did not open within 1 s/);
+  const hidden = { locator: () => ({ first: () => ({ isVisible: async () => false }) }) };
+  assert.match((await openPreviewSettings(hidden)).reason, /settings button is not on screen/);
 });
 
 if (failures > 0) {
