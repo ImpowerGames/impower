@@ -1,6 +1,7 @@
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { EditorSelection, EditorState, Extension, Facet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { changeColor, documentColorAt } from "./color";
 import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
 import { coarsePointer } from "./pointer";
 import { findReferences, findReferencesKeymap } from "./references";
@@ -265,8 +266,18 @@ export const lspContextMenuItems: ContextMenuItem[] = [
   },
 ];
 
+export const colorContextMenuItems: ContextMenuItem[] = [
+  {
+    label: "Change color",
+    command: changeColor,
+    when: (state, pos) => documentColorAt(state, pos) != null,
+  },
+];
+
 export const defaultContextMenuItems: ContextMenuItem[] = [
   ...textContextMenuItems,
   { type: "separator" },
   ...lspContextMenuItems,
+  { type: "separator" },
+  ...colorContextMenuItems,
 ];

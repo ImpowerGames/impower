@@ -4,6 +4,7 @@ import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  applyDocumentColor,
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
@@ -14,6 +15,11 @@ import {
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
+import {
+  ApplyEditorColorMessage,
+  ApplyEditorColorMethod,
+  ApplyEditorColorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
@@ -94,6 +100,7 @@ import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocol
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
+  Color,
   MessageConnection,
   Range,
   TextDocumentItem,
@@ -135,6 +142,7 @@ export interface ScriptEditorOptions {
   coarsePointer?: boolean;
   appearance: ScriptAppearance;
   onContextMenu?: ContextMenuPresenter;
+  onChangeColor?: (range: Range, value: string, color: Color) => void;
   onPasteRefused?: () => void;
   scrollMargin?: string;
   top?: string;
@@ -328,6 +336,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      ApplyEditorColorMessage.type,
+      (m) => this.handleApplyEditorColor(m),
+      this.host,
+    );
+    p.onRequest(
       ShowEditorStatusBarMessage.type,
       (m) => this.handleShowEditorStatusBar(m),
       this.host,
@@ -458,6 +471,23 @@ export class ScriptEditorController {
     }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
+  };
+
+  protected handleApplyEditorColor = async (
+    message: RequestMessage<ApplyEditorColorMethod, ApplyEditorColorParams>,
+  ) => {
+    const { textDocument, range, text, color } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const { doc } = view.state;
+    const from = convertFromPosition(doc, range.start);
+    const to = convertFromPosition(doc, range.end);
+    const applied =
+      doc.sliceString(from, to) === text &&
+      (await applyDocumentColor(view, { from, to }, color));
+    return ApplyEditorColorMessage.type.response(message.id, { applied });
   };
 
   protected executeCommand(view: EditorView, command: EditorCommand) {
@@ -682,6 +712,20 @@ export class ScriptEditorController {
           coarsePointer: !!this.options.coarsePointer,
           appearance: this.options.appearance,
           onContextMenu: this.options.onContextMenu,
+          onChangeColor: this.options.onChangeColor
+            ? ({ from, to, text, color }) => {
+                const doc = this._view?.state.doc;
+                if (!doc) return;
+                this.options.onChangeColor?.(
+                  {
+                    start: convertToPosition(doc, from),
+                    end: convertToPosition(doc, to),
+                  },
+                  text,
+                  color,
+                );
+              }
+            : undefined,
           onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,

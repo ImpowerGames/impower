@@ -1,4 +1,4 @@
-import { type Range } from "vscode-languageserver-protocol";
+import { type Color, type Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
@@ -128,6 +128,14 @@ export interface ScreenState {
   pickingResource?: boolean;
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
+  changeColor?: ChangeColorState;
+}
+
+export interface ChangeColorState {
+  filename: string;
+  range: Range;
+  value: string;
+  color: Color;
 }
 
 export interface ShellState {

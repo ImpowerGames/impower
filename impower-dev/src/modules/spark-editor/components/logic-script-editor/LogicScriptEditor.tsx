@@ -8,6 +8,7 @@ import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
+import { ChangeColorPanel } from "../writing-tools";
 
 export const propDefaults = {
   filename: "",
@@ -235,9 +236,14 @@ export default function LogicScriptEditor({
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}
+          onChangeColor={(range, value, color) =>
+            void import("../../workspace/Workspace").then(({ Workspace }) =>
+              Workspace.window.openChangeColor(filename || "main.sd", range, value, color),
+            )
+          }
         />
       </div>
-      <WriterBar filename={filename || "main.sd"} />
+      <ChangeColorPanel><WriterBar filename={filename || "main.sd"} /></ChangeColorPanel>
     </div>
   );
 }

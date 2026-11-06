@@ -1,6 +1,8 @@
 import {
   ChangeDesc,
   EditorState,
+  Extension,
+  Facet,
   StateEffect,
   StateField,
   TransactionSpec,
@@ -9,6 +11,7 @@ import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
+import { colorValueOf, formatColorValue } from "./colorValue";
 import { LSPPlugin } from "./plugin";
 
 const COLOR_SWATCH_CLASS_NAME = "cm-color-swatch";
@@ -31,6 +34,23 @@ export interface DocumentColor {
   from: number;
   to: number;
   color: lsp.Color;
+}
+
+export interface ColorPick extends DocumentColor {
+  text: string;
+}
+
+export type ColorPickerPresenter = (pick: ColorPick) => void;
+
+const colorPickerPresenter = Facet.define<
+  ColorPickerPresenter,
+  ColorPickerPresenter | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
+export function presentColorPicker(presenter: ColorPickerPresenter): Extension {
+  return colorPickerPresenter.of(presenter);
 }
 
 function numberToHex(c: number) {
@@ -126,24 +146,28 @@ export function getBestPresentationMatch(
   return looseMatch ?? presentations[0] ?? null;
 }
 
-async function changeDocumentColor(
+export function colorPresentationFor(
+  presentations: lsp.ColorPresentation[],
+  text: string,
+): string | null {
+  if (presentations.length === 0) return null;
+  const best = getBestPresentationMatch(presentations, text.toLowerCase());
+  if (!best) return null;
+  const chosen = colorValueOf(best.label);
+  return chosen && text.trim().startsWith("#") && best.label.startsWith("#")
+    ? formatColorValue(chosen, text)
+    : best.label;
+}
+
+export async function applyDocumentColor(
   view: EditorView,
-  info: DocumentColor,
-  hex: string,
-) {
+  range: { from: number; to: number },
+  color: lsp.Color,
+): Promise<boolean> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin) return;
+  if (!plugin) return false;
 
-  const rgb = hexToRGB(hex);
-
-  const color: lsp.Color = {
-    red: rgb.r / 255,
-    green: rgb.g / 255,
-    blue: rgb.b / 255,
-    alpha: info.color.alpha,
-  };
-
-  const text = view.state.doc.sliceString(info.from, info.to).toLowerCase();
+  const text = view.state.doc.sliceString(range.from, range.to);
 
   try {
     const presentations = await plugin.client.request<
@@ -154,36 +178,44 @@ async function changeDocumentColor(
       textDocument: { uri: plugin.uri },
       color,
       range: {
-        start: plugin.toPosition(info.from),
-        end: plugin.toPosition(info.to),
+        start: plugin.toPosition(range.from),
+        end: plugin.toPosition(range.to),
       },
     });
-
-    if (presentations && presentations.length > 0) {
-      const bestMatch = getBestPresentationMatch(presentations, text);
-
-      view.dispatch({
-        changes: {
-          from: info.from,
-          to: info.to,
-          insert: bestMatch!.label,
-        },
-      });
+    const insert = colorPresentationFor(presentations ?? [], text);
+    if (insert == null) return false;
+    if (view.state.doc.sliceString(range.from, range.to) !== text) {
+      return false;
     }
+    view.dispatch({
+      changes: { from: range.from, to: range.to, insert },
+      userEvent: "input.color",
+    });
+    return true;
   } catch (err) {
     console.error("LSP Color Presentation Error:", err);
+    return false;
   }
+}
+
+function changeDocumentColor(view: EditorView, info: DocumentColor, hex: string) {
+  const rgb = hexToRGB(hex);
+  void applyDocumentColor(view, info, {
+    red: rgb.r / 255,
+    green: rgb.g / 255,
+    blue: rgb.b / 255,
+    alpha: info.color.alpha,
+  });
 }
 
 function openColorPicker(
   view: EditorView,
   info: DocumentColor,
-  anchor: HTMLElement,
+  rect: { left: number; bottom: number },
 ): HTMLInputElement {
   view.dom
     .querySelectorAll(`.${COLOR_PICKER_INPUT_CLASS_NAME}`)
     .forEach((el) => el.remove());
-  const rect = anchor.getBoundingClientRect();
   const picker = document.createElement("input");
   picker.type = "color";
   picker.className = COLOR_PICKER_INPUT_CLASS_NAME;
@@ -296,6 +328,43 @@ const documentColorField = StateField.define<DocumentColorSet>({
   provide: (f) => EditorView.decorations.from(f, (v) => v.decorations),
 });
 
+export function documentColorAt(
+  state: EditorState,
+  pos: number,
+): DocumentColor | null {
+  return (
+    state
+      .field(documentColorField, false)
+      ?.colors.find((c) => c.from <= pos && pos <= c.to) ?? null
+  );
+}
+
+function pickColor(
+  view: EditorView,
+  info: DocumentColor,
+  rect: () => { left: number; bottom: number },
+) {
+  const present = view.state.facet(colorPickerPresenter);
+  if (present) {
+    present({ ...info, text: view.state.doc.sliceString(info.from, info.to) });
+  } else {
+    openColorPicker(view, info, rect());
+  }
+}
+
+export function changeColorAt(view: EditorView, pos: number): boolean {
+  const info = documentColorAt(view.state, pos);
+  if (!info) return false;
+  pickColor(view, info, () => {
+    const coords = view.coordsAtPos(info.from);
+    return { left: coords?.left ?? 0, bottom: coords?.bottom ?? 0 };
+  });
+  return true;
+}
+
+export const changeColor = (view: EditorView) =>
+  changeColorAt(view, view.state.selection.main.head);
+
 const colorSwatchPress = EditorView.domEventHandlers({
   click(event, view) {
     if (!(event.target instanceof Element)) return false;
@@ -308,7 +377,7 @@ const colorSwatchPress = EditorView.domEventHandlers({
       .field(documentColorField)
       .colors.find((c) => c.from <= pos && pos < c.to);
     if (!info) return false;
-    openColorPicker(view, info, swatch);
+    pickColor(view, info, () => swatch.getBoundingClientRect());
     return false;
   },
 });

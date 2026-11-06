@@ -4,6 +4,7 @@ import TextField, { type TextFieldFont, type TextFieldSize, type TextFieldWidth 
 
 const SIZES: Record<TextFieldSize, string> = {
   default: "Default",
+  tall: "Tall",
 };
 
 const WIDTHS: Record<TextFieldWidth, string> = {

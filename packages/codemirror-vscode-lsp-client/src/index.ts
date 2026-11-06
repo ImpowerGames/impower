@@ -6,12 +6,32 @@ export {
   type LSPClientExtension,
 } from "./client";
 export {
+  applyDocumentColor,
+  changeColor,
+  changeColorAt,
+  colorPresentationFor,
   convertFromServerColors,
+  documentColorAt,
+  presentColorPicker,
   serverColorDecorations,
   setDocumentColors,
   updateDocumentColors,
+  type ColorPick,
+  type ColorPickerPresenter,
   type DocumentColor,
 } from "./color";
+export {
+  colorValueOf,
+  colorValueOfLspColor,
+  formatColorValue,
+  lspColorOf,
+  opacityOf,
+  rgbOfLspColor,
+  storyColors,
+  withColorOf,
+  withOpacity,
+  type ColorValue,
+} from "./colorValue";
 export {
   completionChanges,
   completionPreview,
@@ -20,6 +40,7 @@ export {
   type CompletionPreviewEvent,
 } from "./completion";
 export {
+  colorContextMenuItems,
   copy,
   cut,
   defaultContextMenuItems,

@@ -1,0 +1,134 @@
+import { onProtocolRequest } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  ApplyEditorColorMessage,
+  type ApplyEditorColorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
+
+const RANGE = {
+  start: { line: 0, character: 14 },
+  end: { line: 0, character: 21 },
+};
+const ORANGE = { red: 1, green: 136 / 255, blue: 0, alpha: 1 };
+
+const rgb = (red: number, green: number, blue: number, alpha = 1) => ({
+  color: { red, green, blue, alpha },
+});
+
+let win: WorkspaceWindow | undefined;
+let stopEditor: (() => void) | undefined;
+
+afterEach(() => {
+  stopEditor?.();
+  stopEditor = undefined;
+  win?.closeChangeColor();
+  win?.dispose();
+  win = undefined;
+});
+
+const mount = (ls: unknown = undefined) => {
+  win = new WorkspaceWindow({
+    fs: {
+      getLoadedProjectId: () => "project",
+      getFileUri: (projectId: string, filename: string) =>
+        `file:///${projectId}/${filename}`,
+    },
+    ls,
+  } as unknown as ConstructorParameters<typeof WorkspaceWindow>[0]);
+  return win;
+};
+
+const editorAnswering = (applied: boolean) => {
+  const requests: ApplyEditorColorParams[] = [];
+  stopEditor = onProtocolRequest(ApplyEditorColorMessage.type, (message) => {
+    requests.push(message.params);
+    return ApplyEditorColorMessage.type.response(message.id, { applied });
+  });
+  return requests;
+};
+
+describe("the Change color intents", () => {
+  it("opens over the value under the caret and closes again", () => {
+    const w = mount();
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(workspace.state.value.screen.changeColor).toEqual({
+      filename: "main.sd",
+      range: RANGE,
+      value: "#ff8800",
+      color: ORANGE,
+    });
+    w.closeChangeColor();
+    expect(workspace.state.value.screen.changeColor).toBeUndefined();
+  });
+
+  it("applies a color through the editor at the value's range, then closes", async () => {
+    const w = mount();
+    const requests = editorAnswering(true);
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(await w.applyChangeColor("#ff880080")).toBe("applied");
+    expect(requests).toEqual([
+      {
+        textDocument: { uri: `file:///${workspace.state.value.project.id}/main.sd` },
+        range: RANGE,
+        text: "#ff8800",
+        color: { red: 1, green: 136 / 255, blue: 0, alpha: 128 / 255 },
+      },
+    ]);
+    expect(workspace.state.value.screen.changeColor).toBeUndefined();
+  });
+
+  it("refuses a value that is not a color and leaves the view open", async () => {
+    const w = mount();
+    const requests = editorAnswering(true);
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(await w.applyChangeColor("blue")).toBe("invalid");
+    expect(requests).toEqual([]);
+    expect(workspace.state.value.screen.changeColor).toBeDefined();
+  });
+
+  it("reports a value the editor no longer holds and leaves the view open", async () => {
+    const w = mount();
+    editorAnswering(false);
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(await w.applyChangeColor("#00aaff")).toBe("moved");
+    expect(workspace.state.value.screen.changeColor).toBeDefined();
+  });
+});
+
+describe("the story's colors", () => {
+  it("lists each color the scripts use once, in story order", async () => {
+    const colorsOf: Record<string, unknown[]> = {
+      "file:///p/main.sd": [rgb(1, 0, 0), rgb(0, 0, 1, 0.5)],
+      "file:///p/chapter.sd": [rgb(0, 0, 1), rgb(1, 1, 1)],
+      "file:///p/later.sd": [rgb(1, 0, 0, 0.2), rgb(0, 1, 0)],
+    };
+    const sendRequest = vi.fn(
+      async (method: string, params: { textDocument: { uri: string } }) =>
+        method === "textDocument/documentColor"
+          ? colorsOf[params.textDocument.uri]
+          : null,
+    );
+    const w = mount({
+      connection: { sendRequest },
+      getProgram: async () => ({
+        scripts: {
+          "file:///p/later.sd": 2,
+          "file:///p/main.sd": 0,
+          "file:///p/chapter.sd": 1,
+        },
+      }),
+    });
+    expect(await w.readStoryColors()).toEqual([
+      "#ff0000",
+      "#0000ff",
+      "#ffffff",
+      "#00ff00",
+    ]);
+  });
+
+  it("is empty before the language server starts", async () => {
+    expect(await mount().readStoryColors()).toEqual([]);
+  });
+});
