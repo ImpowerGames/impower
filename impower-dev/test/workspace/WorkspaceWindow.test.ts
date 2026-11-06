@@ -543,6 +543,14 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.pane).toBe("assets");
       expect(window.location.hash).toBe("#collection");
     });
+
+    it("keeps a settings deep link's section in the hash while it opens the page", () => {
+      win.dispose();
+      window.history.replaceState(null, "", "#project?section=save-settings");
+      win = new WorkspaceWindow(Workspace);
+      expect(workspace.current.screen.settingsOpen).toBe(true);
+      expect(window.location.hash).toBe("#project?section=save-settings");
+    });
   });
 });
 

@@ -35,6 +35,24 @@ literal `import()`, `require()` or `typeof import()` (`no-restricted-syntax`), C
 `eslint-disable` comments cannot lift it. A primitive the editor needs and this
 package lacks is a new component here, not a direct import.
 
+### Form controls are native first
+
+Radix wraps overlay and composite primitives (dialog, dropdown, tabs, popover), where native
+elements cannot give the behaviour. Form controls wrap the native element instead, so the
+browser keeps its own keyboard handling, form participation and, on phones, its own picker:
+`Switch` is an `<input type="checkbox" role="switch">`, `Select` a `<select>`, `TextField` an
+`<input>`, and `ChoiceGroup` native radios sharing one `name` inside a `role="radiogroup"`.
+Each takes `value` (controlled) or `defaultValue`/`defaultChecked` (uncontrolled) and reports
+through `onValueChange` or `onCheckedChange`; `TextField` reports each edit through
+`onValueChange` and the committed value through `onCommit`, on the native `change` event,
+because `preact/compat` turns an `onChange` on a text input into `onInput`. A controlled control shows only its owner's value: an edit the owner refuses or normalizes is put back one zero-delay task after the edit, and `onCommit` reports the owner's value. An owner that persists slowly keeps its draft in local state, updated synchronously, and debounces only the persistence; an owner that accepts late sees the field return to its old value until it does. The settings rows announce the value their owner settled on, after it has answered, and nothing for a change it refused. Each control also sets its native default (`defaultValue`, `defaultChecked`, `defaultSelected`) to its default or its owner's value, so a native form reset returns to it.
+
+These components are the only way to render a form control in `impower-dev`: the root
+`eslint.config.js` refuses a bare `<input>`, `<select>` or `<textarea>` in its TSX
+(`no-restricted-syntax`), except a hidden `<input type="file">` picker. The files that held one
+before the rule are listed in `LEGACY_FORM_CONTROL_FILES`; `eslint.config.test.mjs` fails when a
+listed file no longer holds one, so the list only shrinks.
+
 ### One folder per component
 
 `src/components/<name>/` holds the component, its test and its gallery entry:

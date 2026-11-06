@@ -13,6 +13,7 @@ import {
   DropdownTrigger,
   HelpIcon,
   SettingsIcon,
+  SignOutIcon,
   UploadIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
@@ -23,6 +24,7 @@ import { showSnackbar } from "../../utils/snackbar";
 import { localSaveLabel } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
+import { useSaveStatus } from "../drive-sync";
 
 export const REPORT_BUG_URL =
   "https://github.com/ImpowerGames/impower/issues/new";
@@ -52,6 +54,10 @@ export default function AppMenu() {
     () => !!workspace.state.value.screen?.pickingResource,
   ).value;
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const projectId = workspace.signals.projectId.value;
+  const onDrive =
+    !!projectId && projectId !== WorkspaceConstants.LOCAL_PROJECT_ID;
+  const driveStatus = useSaveStatus();
 
   const setOpen = (next: boolean) =>
     void withWindow((win) => win.setAppMenuOpen(next));
@@ -103,16 +109,52 @@ export default function AppMenu() {
               <CloseIcon />
             </Button>
           </DropdownLabel>
-          <DropdownItem
-            onSelect={() =>
-              void withWindow((win) =>
-                account ? win.navigateTo("project") : win.signInToGoogleDrive(),
-              )
-            }
-          >
-            <AccountIcon />
-            {signinLabel}
-          </DropdownItem>
+          {account ? (
+            <>
+              <DropdownLabel class="flex flex-row items-center gap-3">
+                <span class="flex size-8 flex-none items-center justify-center overflow-hidden rounded-full border border-edge [&_svg]:size-4">
+                  {account.photoUrl ? (
+                    <img
+                      src={account.photoUrl}
+                      alt=""
+                      referrerpolicy="no-referrer"
+                      class="size-full object-cover"
+                    />
+                  ) : (
+                    <AccountIcon />
+                  )}
+                </span>
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="truncate text-[13px]/[1.4] font-semibold">
+                    {account.displayName || account.email}
+                  </span>
+                  <span class="truncate text-[12px]/[1.5] text-muted">
+                    {onDrive && driveStatus ? driveStatus.text : account.email}
+                  </span>
+                </span>
+              </DropdownLabel>
+              <DropdownItem
+                disabled={offline}
+                onSelect={() => void withWindow((win) => win.openProjectFromDrive())}
+              >
+                <DownloadIcon />
+                Open a project from Drive
+              </DropdownItem>
+              <DropdownItem
+                onSelect={() => void withWindow((win) => win.signOutOfGoogleDrive())}
+              >
+                <SignOutIcon />
+                Sign out
+              </DropdownItem>
+            </>
+          ) : (
+            <DropdownItem
+              onSelect={() => void withWindow((win) => win.signInToGoogleDrive())}
+            >
+              <AccountIcon />
+              {signinLabel}
+            </DropdownItem>
+          )}
           <DropdownItem
             onSelect={() => void withWindow((win) => win.navigateTo("project"))}
           >
