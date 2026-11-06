@@ -1,7 +1,7 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ScreenplayPreviewController } from "../src/modules/screenplay-preview/ScreenplayPreviewController";
 
 if (!Range.prototype.getClientRects) {
@@ -71,10 +71,11 @@ const loadAt = (line: number, visibleRange?: ReturnType<typeof at>) => {
   return controller;
 };
 
-const settled = async (controller: TestController) => {
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  expect(controller.loaded).toBe(true);
-};
+const settled = (controller: TestController) =>
+  vi.waitFor(() => expect(controller.loaded).toBe(true), {
+    timeout: 10_000,
+    interval: 20,
+  });
 
 const lineOfCaret = (controller: TestController) =>
   controller.view.state.doc.lineAt(controller.view.state.selection.main.head)

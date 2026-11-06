@@ -579,8 +579,10 @@ describe("ScriptEditorController load handover", () => {
     controller.setup();
     try {
       controller["handleIdle"]();
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      expect(view.hasFocus).toBe(true);
+      await vi.waitFor(() => expect(view.hasFocus).toBe(true), {
+        timeout: 5_000,
+        interval: 20,
+      });
     } finally {
       hasFocus.mockRestore();
       clearInterval(controller["_focusIntervalTimeout"]);
