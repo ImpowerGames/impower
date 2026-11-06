@@ -6,7 +6,6 @@ import type {
   ScreenplayPreviewController as ScreenplayPreviewControllerType,
   ScreenplayPreviewOptions,
 } from "./ScreenplayPreviewController";
-import type { ScreenplayPick } from "./utils/screenplaySettings";
 import cssText from "./sparkdown-screenplay-preview.css?raw";
 
 export const propDefaults = {
@@ -19,7 +18,7 @@ export type SparkdownScreenplayPreviewProps = Partial<typeof propDefaults> & {
   texture?: boolean;
   syncScroll?: boolean;
   playing?: boolean;
-  picks?: Record<string, readonly ScreenplayPick[]>;
+  picks?: Record<string, readonly number[]>;
 };
 
 export default function SparkdownScreenplayPreview({

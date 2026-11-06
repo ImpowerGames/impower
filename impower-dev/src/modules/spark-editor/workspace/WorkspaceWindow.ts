@@ -159,8 +159,6 @@ export default class WorkspaceWindow {
   };
 
   protected _skipBeat?: (direction: -1 | 1) => Promise<boolean>;
-  protected _choiceAt?: { uri: string; line: number };
-  protected _pendingPick?: { uri: string; line: number };
 
   constructor(workspace: {
     fs: WorkspaceFileSystem;
@@ -1523,14 +1521,8 @@ export default class WorkspaceWindow {
     });
   }
 
-  protected forgetPicks() {
-    this._choiceAt = undefined;
-    this._pendingPick = undefined;
-  }
-
   startGame() {
     if (!this.store.preview.modes.game.running) {
-      this.forgetPicks();
       this.update({
         ...this.store,
         preview: {
@@ -1557,7 +1549,6 @@ export default class WorkspaceWindow {
 
   endGame() {
     if (this.store.preview.modes.game.running) {
-      this.forgetPicks();
       this.update({
         ...this.store,
         preview: {
@@ -1600,7 +1591,6 @@ export default class WorkspaceWindow {
     if (!game.running || !game.ended || game.loading) {
       return;
     }
-    this.forgetPicks();
     this.update({
       ...this.store,
       preview: {
@@ -1692,37 +1682,25 @@ export default class WorkspaceWindow {
     });
   }
 
-  syncGameChose() {
-    this._pendingPick = this._choiceAt;
-    this._choiceAt = undefined;
-    this.syncGameChoosing(false);
-  }
-
-  recordGamePick(executedLines: Record<string, number[]>) {
-    const pending = this._pendingPick;
-    this._pendingPick = undefined;
+  syncGameChose(option?: { uri: string; line: number }) {
     const game = this.store.preview.modes.game;
-    if (!pending || !game.running) {
+    if (!game.running) {
       return;
     }
     const picks = game.picks ?? {};
+    const picked = option ? (picks[option.uri] ?? []) : [];
     this.updateGame({
       ...game,
-      picks: {
-        ...picks,
-        [pending.uri]: [
-          ...(picks[pending.uri] ?? []),
-          { choose: pending.line, lines: executedLines[pending.uri] ?? [] },
-        ],
-      },
+      choosing: false,
+      picks:
+        option && !picked.includes(option.line)
+          ? { ...picks, [option.uri]: [...picked, option.line] }
+          : picks,
     });
   }
 
-  syncGameChoosing(choosing: boolean, at?: { uri: string; line: number }) {
+  syncGameChoosing(choosing: boolean) {
     const game = this.store.preview.modes.game;
-    if (choosing && game.running) {
-      this._choiceAt = at;
-    }
     if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
       return;
     }

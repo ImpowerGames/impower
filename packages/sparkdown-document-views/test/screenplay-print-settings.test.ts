@@ -166,28 +166,23 @@ describe("screenplay preview follows the print settings", () => {
     expect(options().map((o) => o.textContent?.replace(/[+[\]\s]/g, ""))).toEqual(["Run", "Hide"]);
     expect(options().some((o) => o.classList.contains("sp-chosen"))).toBe(false);
     const chosen = () => options().map((o) => o.classList.contains("sp-chosen"));
-    const choose = lineIndexOf("  choose");
-    view.dispatch({
-      effects: setScreenplayPicks.of([{ choose, lines: [choose, lineIndexOf("+ [Hide]"), lineIndexOf("Bunny hides.")] }]),
-    });
+    view.dispatch({ effects: setScreenplayPicks.of([lineIndexOf("+ [Hide]")]) });
     expect(chosen()).toEqual([false, true]);
-    view.dispatch({
-      effects: setScreenplayPicks.of([
-        { choose, lines: [lineIndexOf("+ [Hide]")] },
-        { choose, lines: [lineIndexOf("+ [Run]")] },
-      ]),
-    });
+    view.dispatch({ effects: setScreenplayPicks.of([lineIndexOf("+ [Hide]"), lineIndexOf("+ [Run]")]) });
     expect(chosen()).toEqual([true, true]);
-    view.dispatch({ effects: setScreenplayPicks.of([{ choose: choose + 100, lines: [lineIndexOf("+ [Run]")] }]) });
+    view.dispatch({ effects: setScreenplayPicks.of([lineIndexOf("Bunny runs.")]) });
     expect(chosen()).toEqual([false, false]);
   });
 
-  it("marks a picked option that has no body", () => {
+  it.each([
+    ["first", 2, [true, false]],
+    ["second", 3, [false, true]],
+  ] as const)("marks only the %s option of a bodyless choice when it is picked", (_which, line, expected) => {
     const view = render({}, BODYLESS);
     const chosen = () =>
       Array.from(view.dom.querySelectorAll<HTMLElement>(".sp-option")).map((o) => o.classList.contains("sp-chosen"));
     expect(chosen()).toEqual([false, false]);
-    view.dispatch({ effects: setScreenplayPicks.of([{ choose: 1, lines: [1, 2, 5] }]) });
-    expect(chosen()).toEqual([true, false]);
+    view.dispatch({ effects: setScreenplayPicks.of([line]) });
+    expect(chosen()).toEqual(expected);
   });
 });

@@ -3404,10 +3404,14 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return;
     }
+    const picked = Number(this._story.currentChoices[index]?.sourcePath);
+    const option = Number.isInteger(picked)
+      ? this.documentLocationOf(picked)
+      : null;
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.notifyChosePathToContinue();
+    this.notifyChosePathToContinue(option);
     this.continue();
   }
 
@@ -3495,10 +3499,11 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyChosePathToContinue() {
+  protected notifyChosePathToContinue(option: DocumentLocation | null) {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        ...(option ? { option } : {}),
       }),
     );
   }

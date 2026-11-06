@@ -256,7 +256,6 @@ export const decorate = (
   const config = state.field(screenplayConfigField, false);
   const picks = state.field(screenplayPicksField, false);
   let sceneNumber = 0;
-  const chooseOptions: number[][] = [];
 
   const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
     const cursor = nodeRef.node.cursor();
@@ -456,9 +455,6 @@ export const decorate = (
       const to = nodeRef.to;
       if (name === "Newline") {
         processNewline(nodeRef.from, nodeRef.to);
-      }
-      if (name === "LuauSparkdownChooseBlock_content") {
-        chooseOptions.push([]);
       }
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
@@ -703,31 +699,14 @@ export const decorate = (
             to,
           }),
         );
-        const options = chooseOptions[chooseOptions.length - 1];
-        if (options) {
-          options.push(doc.lineAt(from).number);
-        } else {
-          decorations.push(
-            Decoration.line({ class: "sp-option" }).range(doc.lineAt(from).from),
-          );
-        }
-      } else if (name === "LuauSparkdownChooseBlock_content") {
-        const options = chooseOptions.pop() ?? [];
-        const chooseLine =
-          doc.lineAt(nodeRef.node.parent?.from ?? from).number - 1;
-        const picked = new Set(
-          (picks ?? [])
-            .filter((pick) => pick.choose === chooseLine)
-            .flatMap((pick) => pick.lines),
+        const optionLine = doc.lineAt(from);
+        decorations.push(
+          Decoration.line({
+            class: picks?.has(optionLine.number - 1)
+              ? "sp-option sp-chosen"
+              : "sp-option",
+          }).range(optionLine.from),
         );
-        options.forEach((optionLine) => {
-          const chosen = picked.has(optionLine - 1);
-          decorations.push(
-            Decoration.line({
-              class: chosen ? "sp-option sp-chosen" : "sp-option",
-            }).range(doc.line(optionLine).from),
-          );
-        });
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;

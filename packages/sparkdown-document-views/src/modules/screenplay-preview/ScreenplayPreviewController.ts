@@ -70,7 +70,6 @@ import createEditorView from "./utils/createEditorView";
 import {
   setScreenplayConfig,
   setScreenplayPicks,
-  type ScreenplayPick,
 } from "./utils/screenplaySettings";
 
 const CONTENT_PADDING_TOP = 68;
@@ -85,7 +84,7 @@ export interface ScreenplayPreviewOptions {
   config?: ScreenplayConfig;
   syncScroll?: boolean;
   playing?: boolean;
-  picks?: Record<string, readonly ScreenplayPick[]>;
+  picks?: Record<string, readonly number[]>;
 }
 
 export class ScreenplayPreviewController {
@@ -151,7 +150,7 @@ export class ScreenplayPreviewController {
   }
 
   setPicks(
-    picks: Record<string, readonly ScreenplayPick[]> | undefined,
+    picks: Record<string, readonly number[]> | undefined,
   ): void {
     this.options.picks = picks;
     this._view?.dispatch({
@@ -167,7 +166,7 @@ export class ScreenplayPreviewController {
     this.options.playing = playing;
   }
 
-  protected picksFor(): readonly ScreenplayPick[] {
+  protected picksFor(): readonly number[] {
     const uri = this._textDocument?.uri;
     return (uri && this.options.picks?.[uri]) || [];
   }
