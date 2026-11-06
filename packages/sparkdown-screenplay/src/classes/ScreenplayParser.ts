@@ -55,9 +55,24 @@ export default class ScreenplayParser {
     };
 
     const addSeparator = () => {
-      if (tokens.at(-1)?.tag !== "separator") {
+      if (tokens.findLast((t) => t.tag !== "function")?.tag !== "separator") {
         tokens.push({ tag: "separator" });
       }
+    };
+
+    const isRootFunctionName = (node: SyntaxNode): boolean => {
+      const definition = node.parent?.parent;
+      if (
+        node.parent?.name !== "LuauFunctionDefinition_content" ||
+        definition?.name !== "LuauFunctionDefinition" ||
+        definition.parent?.name !== "sparkdown"
+      ) {
+        return false;
+      }
+      const modifier = definition.firstChild?.getChild(
+        "LuauFunctionDefinition_begin_c2",
+      );
+      return !modifier || read(modifier.from, modifier.to) !== "local";
     };
 
     const isWhitespaceOnly = (start: number, end: number): boolean => {
@@ -131,6 +146,14 @@ export default class ScreenplayParser {
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
           tokens.push({ tag: "branch", text });
+        }
+
+        if (
+          name === "LuauFunctionDeclarationName" &&
+          isRootFunctionName(nodeRef.node)
+        ) {
+          const text = read(from, to);
+          tokens.push({ tag: "function", text });
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
@@ -311,11 +334,18 @@ export default class ScreenplayParser {
     while (tokens.at(0)?.tag === "separator") {
       tokens.shift();
     }
-    while (tokens.at(-1)?.tag === "separator") {
-      tokens.pop();
+    let end = tokens.length;
+    while (
+      tokens[end - 1]?.tag === "separator" ||
+      tokens[end - 1]?.tag === "function"
+    ) {
+      end--;
     }
 
-    return tokens;
+    return [
+      ...tokens.slice(0, end),
+      ...tokens.slice(end).filter((t) => t.tag === "function"),
+    ];
   }
 
   parseAll(scripts: string[]): ScreenplayToken[] {
