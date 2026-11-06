@@ -151,6 +151,22 @@ describe("workspace/findText over three documents", () => {
     ).toEqual({ total: 0, scripts: [] });
   });
 
+  test("a pattern that matches nothing steps over a character outside the basic plane", () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    const documents = [
+      { uri: MAIN, text: lines("scene start", `  ${emoji} Mara waits.`, "end") },
+    ];
+    expect(findWorkspaceText(documents, { query: "x*", regex: true })).toEqual({
+      total: 0,
+      scripts: [],
+    });
+    const result = findWorkspaceText(documents, { query: "Mara|x*", regex: true });
+    expect(summary(result)).toEqual({
+      total: 1,
+      scripts: [{ uri: MAIN, at: ["1:5-9"] }],
+    });
+  });
+
   test("a replacement is given per match, expanding groups only for patterns", () => {
     const literal = findWorkspaceText(registry(), {
       query: "rumour",

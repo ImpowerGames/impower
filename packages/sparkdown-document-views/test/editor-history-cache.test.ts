@@ -98,17 +98,50 @@ describe("the editor's per-script history cache", () => {
     expect(cache.restore("file:///chapter.sd", after.split(NEWLINE).join(String.fromCharCode(13, 10)))).toBeDefined();
   });
 
-  it(`holds at most ${EDITOR_HISTORY_CACHE_LIMIT} scripts, dropping the one used longest ago`, () => {
+  const typedIn = (text: string) =>
+    EditorState.create({ doc: text, extensions: [history()] }).update({
+      changes: { from: 0, insert: "x" },
+      userEvent: "input.type",
+    }).state;
+
+  it(`keeps the histories of at most ${EDITOR_HISTORY_CACHE_LIMIT} scripts an editor saved, dropping the one used longest ago`, () => {
     const cache = new EditorHistoryCache();
     for (let i = 0; i < EDITOR_HISTORY_CACHE_LIMIT; i++) {
-      cache.record(`file:///s${i}.sd`, before, [at(1, 6, 12, "tale")]);
+      cache.save(`file:///s${i}.sd`, typedIn(before));
     }
-    const kept = cache.record("file:///s0.sd", lines("scene start", "  The tale spread.", "  A rumour more.", "end"), [at(2, 4, 10, "tale")]);
-    cache.record("file:///extra.sd", before, [at(1, 6, 12, "tale")]);
+    cache.save("file:///s0.sd", typedIn(before));
+    cache.save("file:///extra.sd", typedIn(before));
     expect(cache.size).toBe(EDITOR_HISTORY_CACHE_LIMIT);
     expect(cache.uris()).not.toContain("file:///s1.sd");
-    expect(cache.restore("file:///s0.sd", kept)).toBeDefined();
+    expect(cache.uris()).toContain("file:///s0.sd");
     expect(cache.uris()).toContain("file:///extra.sd");
+  });
+
+  it("keeps a Replace all's step in every closed script it changed, however many, until the script is opened", () => {
+    const cache = new EditorHistoryCache();
+    const count = EDITOR_HISTORY_CACHE_LIMIT + 5;
+    const afters = Array.from({ length: count }, (_, i) =>
+      cache.record(`file:///s${i}.sd`, before, [at(1, 6, 12, "tale")], "replace-all"),
+    );
+    for (let i = 0; i < EDITOR_HISTORY_CACHE_LIMIT + 3; i++) {
+      cache.save(`file:///visited${i}.sd`, typedIn(before));
+    }
+    for (let i = 0; i < count; i++) {
+      const state = reopen(cache, `file:///s${i}.sd`, afters[i]!);
+      expect(undoDepth(state)).toBe(1);
+      expect(undoOnce(state).doc.toString()).toBe(before);
+    }
+    const saved = cache.uris().filter((uri) => uri.includes("visited"));
+    expect(saved.length).toBe(EDITOR_HISTORY_CACHE_LIMIT);
+  });
+
+  it("lets an opened script's history fall back under the bound once its editor saves it", () => {
+    const cache = new EditorHistoryCache(2);
+    const after = cache.record("file:///replaced.sd", before, [at(1, 6, 12, "tale")])!;
+    cache.save("file:///replaced.sd", reopen(cache, "file:///replaced.sd", after));
+    cache.save("file:///a.sd", typedIn(before));
+    cache.save("file:///b.sd", typedIn(before));
+    expect(cache.uris()).toEqual(["file:///a.sd", "file:///b.sd"]);
   });
 
   it("records nothing for a script an editor holds open, and each edit once", () => {

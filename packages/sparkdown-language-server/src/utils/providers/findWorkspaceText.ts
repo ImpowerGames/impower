@@ -70,7 +70,8 @@ export const findWorkspaceText = (
       let match: RegExpExecArray | null;
       while ((match = pattern.exec(lineText))) {
         if (!match[0]) {
-          pattern.lastIndex += 1;
+          const codePoint = lineText.codePointAt(pattern.lastIndex) ?? 0;
+          pattern.lastIndex += codePoint > 0xffff ? 2 : 1;
           continue;
         }
         const start = match.index;

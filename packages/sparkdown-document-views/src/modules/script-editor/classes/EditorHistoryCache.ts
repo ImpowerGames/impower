@@ -13,6 +13,7 @@ export interface CachedEditorHistory {
 
 interface Entry extends CachedEditorHistory {
   text: string;
+  pending: boolean;
 }
 
 export interface CachedTextEdit {
@@ -68,6 +69,10 @@ export class EditorHistoryCache {
   }
 
   save(uri: string, state: EditorState) {
+    this.put(uri, state, false);
+  }
+
+  protected put(uri: string, state: EditorState, pending: boolean) {
     const json = state.toJSON({ history: historyField }) as {
       selection: SerializableEditorSelection;
       history?: SerializableHistoryState;
@@ -80,12 +85,10 @@ export class EditorHistoryCache {
       text: state.doc.toString(),
       selection: json.selection,
       history: json.history,
+      pending,
     });
-    while (this._entries.size > this.limit) {
-      const oldest = this._entries.keys().next().value;
-      if (oldest === undefined) {
-        break;
-      }
+    const settled = [...this._entries].filter(([, entry]) => !entry.pending);
+    for (const [oldest] of settled.slice(0, Math.max(0, settled.length - this.limit))) {
       this._entries.delete(oldest);
     }
   }
@@ -134,7 +137,7 @@ export class EditorHistoryCache {
       userEvent: "input.replace.all",
       annotations: isolateHistory.of("full"),
     });
-    this.save(uri, transaction.state);
+    this.put(uri, transaction.state, true);
     return transaction.state.doc.toString();
   }
 
