@@ -141,6 +141,19 @@ describe("ScriptHeader name field", () => {
     expect(host!.querySelector("[data-script-name]")!.textContent).toBe("Main");
   });
 
+  it.each(["phone", "tablet", "desktop"])(
+    "on %s, draws the name's box around a hit area the shared inline-hit rule centres",
+    async (value) => {
+      layout.value = value;
+      await mount({ filename: "scripts/act1/intro.sd" });
+      const box = field().parentElement!;
+      expect(box.hasAttribute("data-script-name-box")).toBe(true);
+      expect(box.classList.contains("inline-hit")).toBe(true);
+      expect(box.classList.contains("h-[calc(1lh+4px)]")).toBe(true);
+      expect(field().className).not.toMatch(/\bborder(?!-0)\b|\bh-/);
+    },
+  );
+
   it("names the script's folder beneath it", async () => {
     await mount({ filename: "scripts/act1/intro.sd" });
     expect(host!.querySelector("[data-script-folder]")!.textContent).toBe("scripts/act1");

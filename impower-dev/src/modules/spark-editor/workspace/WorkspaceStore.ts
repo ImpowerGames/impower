@@ -3,9 +3,20 @@ import type {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import type {
+  Diagnostic,
+  DocumentSymbol,
+} from "vscode-languageserver-protocol";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import { WorkspaceConstants } from "./WorkspaceConstants";
+
+export interface OutlineSnapshot {
+  uri: string;
+  symbols: readonly DocumentSymbol[];
+  diagnostics: readonly Diagnostic[];
+  firstContentLine: number | undefined;
+}
 
 const defaults: WorkspaceCache = {
   project: { id: "" },
@@ -105,6 +116,8 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 

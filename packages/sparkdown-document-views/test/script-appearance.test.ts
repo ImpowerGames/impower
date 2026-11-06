@@ -1,4 +1,10 @@
 import {
+  autocompletion,
+  closeCompletion,
+  completionStatus,
+  type CompletionContext,
+} from "@codemirror/autocomplete";
+import {
   ensureSyntaxTree,
   foldEffect,
   foldedRanges,
@@ -305,6 +311,33 @@ describe("each appearance option toggles its rendering", () => {
     });
     type("(");
     expect(view!.state.doc.line(2).text).toBe("  ()");
+  });
+
+  it("Suggest autocompletions opens suggestions as the writer types only while turned on", async () => {
+    const source = (context: CompletionContext) => ({
+      from: context.pos - 1,
+      options: [{ label: "scene" }],
+    });
+    const typeAtEnd = () => {
+      const at = view!.state.doc.length;
+      view!.dispatch({
+        changes: { from: at, insert: "s" },
+        selection: { anchor: at + 1 },
+        userEvent: "input.type",
+      });
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+    mount(ALL_ON_APPEARANCE, "", [autocompletion({ override: [source] })]);
+    typeAtEnd();
+    await settle();
+    expect(completionStatus(view!.state)).toBe("active");
+
+    closeCompletion(view!);
+    toggle(ALL_ON_APPEARANCE, { suggestAutocompletions: false });
+    typeAtEnd();
+    await settle();
+    expect(completionStatus(view!.state)).toBeNull();
   });
 
   it("reconfigures only the options that changed", () => {

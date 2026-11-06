@@ -5,21 +5,28 @@ import {
   SettingsPlaceholder,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
+import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
-import type { ComponentType } from "preact";
+import AppearanceSection from "./AppearanceSection";
+import PreviewSection from "./PreviewSection";
 import SaveSyncSection from "./SaveSyncSection";
+import ScriptEditorSection from "./ScriptEditorSection";
 import {
   SETTINGS_INDEX,
   SETTINGS_SCOPES,
   SETTINGS_SECTION_IDS,
   type SettingsSectionId,
+  type SettingsSectionInfo,
 } from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
 
-const SECTION_VIEWS: Partial<
-  Record<SettingsSectionId, ComponentType<{ id: string; title: string }>>
+const SECTION_BODIES: Partial<
+  Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
 > = {
+  "theme-preferences": AppearanceSection,
+  "editor-preferences": ScriptEditorSection,
+  "preview-preferences": PreviewSection,
   "save-settings": SaveSyncSection,
 };
 
@@ -114,10 +121,11 @@ export default function SettingsPage() {
               </h2>
             </header>,
             ...scope.sections.map((section) => {
-              const Section = SECTION_VIEWS[section.id];
-              return Section ? (
-                <Section key={section.id} id={section.id} title={section.title} />
-              ) : (
+              const Body = SECTION_BODIES[section.id];
+              if (Body) {
+                return <Body key={section.id} section={section} />;
+              }
+              return (
                 <SettingsPlaceholder
                   key={section.id}
                   id={section.id}

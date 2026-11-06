@@ -83,7 +83,10 @@ const mount = async (...nodes: ReturnType<typeof h>[]) => {
 };
 
 const mountSection = () =>
-  mount(h(SaveSyncSection, { id: "save-settings", title: "Save & sync" }), h(ReplaceProjectDialog, null));
+  mount(
+    h(SaveSyncSection, { section: { id: "save-settings", label: "Save & sync", title: "Save & sync" } }),
+    h(ReplaceProjectDialog, null),
+  );
 
 beforeEach(async () => {
   Object.values(actions).forEach((fn) => typeof fn === "function" && fn.mockReset());

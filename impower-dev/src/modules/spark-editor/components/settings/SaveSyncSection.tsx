@@ -19,6 +19,7 @@ import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { useLocalSaveLabel, useSaveStatus } from "../drive-sync";
+import type { SettingsSectionInfo } from "./sections";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -45,12 +46,7 @@ const VSCODE_EXTENSION_URL =
 const CLOUD_DETAIL =
   "Keep a copy on Google Drive for online backup, revision history and working on other devices. Optional; nothing here needs an account.";
 
-export type SaveSyncSectionProps = {
-  id: string;
-  title: string;
-};
-
-export default function SaveSyncSection({ id, title }: SaveSyncSectionProps) {
+export default function SaveSyncSection({ section }: { section: SettingsSectionInfo }) {
   const localLabel = useLocalSaveLabel();
   const syncStatus = useComputed(() => workspace.signals.syncStatus.value).value;
   const account = workspace.signals.account.value;
@@ -84,7 +80,7 @@ export default function SaveSyncSection({ id, title }: SaveSyncSectionProps) {
     );
 
   return (
-    <SettingsSection id={id} title={title}>
+    <SettingsSection id={section.id} title={section.title}>
       <SettingsList>
         <SettingsRow
           id="save-device"
