@@ -1,10 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("../src/managers/SparkdownDebugManager", () => ({
-  SparkdownDebugManager: { instance: {} },
-}));
-
-import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const location = (line: number) => ({
   uri: "file:///main.sd",
@@ -52,7 +48,9 @@ const session = () => {
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
   };
-  const s = new SparkDebugSession(fileAccessor as any, connection as any);
+  const s = new SparkDebugSession(fileAccessor as any, connection as any, {
+    syncCursorToExecution: false,
+  });
   (s as any).sendResponse = (response: any) => responses.push(response);
   const call = async (name: string, args: object) => {
     await (s as any)[name]({ body: {} }, args);
