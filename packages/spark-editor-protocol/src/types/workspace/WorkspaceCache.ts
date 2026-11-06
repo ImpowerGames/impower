@@ -129,7 +129,15 @@ export interface ScreenState {
   pickingResource?: boolean;
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
+  writingTools?: WritingToolsState;
   outlineSearch?: boolean;
+}
+
+export type WritingToolsView = "menu" | "guide" | "shortcuts";
+
+export interface WritingToolsState {
+  view: WritingToolsView;
+  fromMenu: boolean;
 }
 
 export interface ShellState {
