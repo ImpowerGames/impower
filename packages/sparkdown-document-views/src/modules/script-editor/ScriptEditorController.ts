@@ -488,21 +488,25 @@ export class ScriptEditorController {
     }
   }
 
-  protected _history = { canUndo: false, canRedo: false };
+  protected _history: { uri?: string; canUndo: boolean; canRedo: boolean } =
+    { canUndo: false, canRedo: false };
 
   protected publishHistory(state: EditorState) {
+    const uri = this._textDocument?.uri;
     const canUndo = undoDepth(state) > 0;
     const canRedo = redoDepth(state) > 0;
     if (
-      !this._textDocument ||
-      (canUndo === this._history.canUndo && canRedo === this._history.canRedo)
+      !uri ||
+      (uri === this._history.uri &&
+        canUndo === this._history.canUndo &&
+        canRedo === this._history.canRedo)
     ) {
       return;
     }
-    this._history = { canUndo, canRedo };
+    this._history = { uri, canUndo, canRedo };
     sendProtocolMessage(
       ChangedEditorHistoryMessage.type.notification({
-        textDocument: { uri: this._textDocument.uri },
+        textDocument: { uri },
         canUndo,
         canRedo,
       }),
@@ -681,6 +685,7 @@ export class ScriptEditorController {
         SelectedEditorMessage.type.notification(params),
         this.host,
       );
+      this.publishHistory(state);
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";

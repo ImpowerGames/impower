@@ -244,6 +244,42 @@ describe("the phone shell", () => {
     }
   });
 
+  it("follows the edit history and commands of whichever script the Story route shows", async () => {
+    await mount();
+    await act(async () => {
+      workspace.editorHistory.value = {
+        "main.sd": { canUndo: false, canRedo: false },
+        "scripts/intro.sd": { canUndo: true, canRedo: false },
+      };
+    });
+    expect(button("Undo edit")!.disabled).toBe(true);
+    await act(async () => {
+      const logic = workspace.current.panes.logic;
+      workspace.current = {
+        ...workspace.current,
+        panes: {
+          ...workspace.current.panes,
+          logic: {
+            ...logic,
+            panel: "scripts",
+            panels: {
+              ...logic.panels,
+              scripts: {
+                ...logic.panels.scripts,
+                activeEditor: { open: true, filename: "scripts/intro.sd" },
+              },
+            },
+          },
+        },
+      };
+    });
+    await settle();
+    expect(button("Undo edit")!.disabled).toBe(false);
+    await act(async () => button("Undo edit")!.click());
+    await settle();
+    expect(calls.commands).toEqual([["scripts/intro.sd", "undo"]]);
+  });
+
   it("shows Search and the edit history only on the Story route, disabled until the script can undo or redo", async () => {
     await mount();
     expect(button("Search")).not.toBeNull();
