@@ -20,6 +20,13 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "define_variable_name",
 ]);
 
+const BINDS_IN_SCOPE = new Set<Reference["declaration"]>(["var", "const", "param"]);
+
+const scopeChain = (scopePath: string): string[] => {
+  const parts = scopePath ? scopePath.split(".") : [];
+  return parts.map((_, i) => parts.slice(0, parts.length - i).join(".")).concat("");
+};
+
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
   "document" | "annotations" | "uris" | "compilerConfig"
@@ -64,24 +71,29 @@ export const getScriptReferences = (
 
   const declaredIn = new Map<string, string[]>();
   const ownIn = new Map<string, Set<string>>();
+  const boundIn = new Map<string, Set<string>>();
   for (const uri of uris) {
     const own = new Set<string>();
+    const bound = new Set<string>();
     ownIn.set(uri, own);
-    walkReferences(workspace, uri, (r, scopePath) => {
+    boundIn.set(uri, bound);
+    walkReferences(workspace, uri, (r, scopePath, text) => {
       const reference = r.value!.type;
-      const declares =
-        DECLARED_BY_SCRIPT.has(reference.declaration) &&
-        !isTypeUse(uri, reference, r.from);
-      if (!declares && reference.declaration !== "param") {
+      if (BINDS_IN_SCOPE.has(reference.declaration)) {
+        bound.add(`${scopePath}\n${text.trim()}`);
+        return;
+      }
+      if (
+        !DECLARED_BY_SCRIPT.has(reference.declaration) ||
+        isTypeUse(uri, reference, r.from)
+      ) {
         return;
       }
       for (const id of resolvedIds(reference, scopePath)) {
         own.add(id);
-        if (declares) {
-          const declarers = declaredIn.get(id) ?? [];
-          if (!declarers.includes(uri)) {
-            declaredIn.set(id, [...declarers, uri]);
-          }
+        const declarers = declaredIn.get(id) ?? [];
+        if (!declarers.includes(uri)) {
+          declaredIn.set(id, [...declarers, uri]);
         }
       }
     });
@@ -91,9 +103,17 @@ export const getScriptReferences = (
   const seen = new Set<string>();
   for (const uri of uris) {
     const own = ownIn.get(uri)!;
-    walkReferences(workspace, uri, (r, scopePath) => {
+    const bound = boundIn.get(uri)!;
+    walkReferences(workspace, uri, (r, scopePath, text) => {
       const reference = r.value!.type;
       if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
+        return;
+      }
+      const name = text.trim();
+      if (
+        reference.usage !== "divert" &&
+        scopeChain(scopePath).some((scope) => bound.has(`${scope}\n${name}`))
+      ) {
         return;
       }
       const ids = resolvedIds(reference, scopePath);

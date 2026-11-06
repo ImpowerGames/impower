@@ -104,6 +104,26 @@ describe("provider · script references counted from whole references (#1009)", 
     ).toBe(0);
   });
 
+  test.each([
+    ["a local", "function show()\n  local settings = {score = 2}\n  return settings.score\nend\n"],
+    ["a local an alias then reads", "function show()\n  local settings = {score = 2}\n  local alias = settings\n  return alias.score\nend\n"],
+  ])("%s named like a define is the function's own, not a use of the define", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
+  });
+
+  test.each([
+    ["a parameter", "function show(settings)\n  return settings.score\nend\n"],
+    ["a local", "function show()\n  local settings = {score = 2}\n  return settings.score\nend\n"],
+    ["an anonymous function's parameter", "function show()\n  local f = function(settings)\n    return settings.score\n  end\n  return f\nend\n"],
+  ])("%s named like a define binds the name in its own function only, so another function's use still counts", (_, shadowing) => {
+    expect(
+      referencedBy(
+        { [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: `${shadowing}function other()\n  return settings.score\nend\n` },
+        SETTINGS,
+      ),
+    ).toBe(1);
+  });
+
   test("adding a divert to a script's scene in another script raises its count by one", () => {
     expect(referencedBy(SOURCES, CHAPTER)).toBe(1);
     expect(
@@ -155,6 +175,19 @@ describe("provider · script references not counted until #1969 (#1009)", () => 
           [HELPERS]: "function cast_name()\n  local cast = character\n  return cast.raffles.name\nend\n",
         },
         CAST,
+      ),
+    ).toBe(0);
+  });
+
+  test("a use in the same function as an anonymous function's parameter of that name does not count", () => {
+    expect(
+      referencedBy(
+        {
+          [SETTINGS]: SETTINGS_SOURCE,
+          [HELPERS]:
+            "function show()\n  local f = function(settings)\n    return settings.score\n  end\n  return settings.score\nend\n",
+        },
+        SETTINGS,
       ),
     ).toBe(0);
   });
