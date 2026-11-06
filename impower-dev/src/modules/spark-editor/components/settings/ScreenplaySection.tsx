@@ -125,7 +125,7 @@ export default function ScreenplaySection({
           {on(
             "screenplayPageNumbers",
             "Page numbers",
-            "Print the current page number in the bottom corner of each page.",
+            "Print the current page number in the top right corner of each page.",
           )}
           {on(
             "screenplaySplitDialogue",

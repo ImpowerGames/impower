@@ -97,6 +97,9 @@ describe("the Screenplay section", () => {
     expect((control("screenplayMore") as HTMLInputElement).value).toBe("(MORE)");
     expect((control("screenplayMore") as HTMLInputElement).placeholder).toBe("(MORE)");
     expect((control("screenplayContd") as HTMLInputElement).maxLength).toBe(40);
+    expect(host!.querySelector("#screenplay-settings-screenplayPageNumbers-detail")!.textContent).toBe(
+      "Print the current page number in the top right corner of each page.",
+    );
     expect(host!.querySelector("[data-reset-all]")).toBeNull();
   });
 
