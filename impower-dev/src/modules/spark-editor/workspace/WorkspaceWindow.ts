@@ -286,7 +286,10 @@ export default class WorkspaceWindow {
     if (!connection || !ls.getProgram) {
       return [];
     }
-    const program = await ls.getProgram().catch(() => null);
+    const program = await ls.getProgram().catch((error: unknown) => {
+      console.error("Story colors: no program to read scripts from", error);
+      return null;
+    });
     const uris = Object.keys(program?.scripts ?? {});
     const documents = await Promise.all(
       uris.map(async (uri) => {
@@ -295,7 +298,10 @@ export default class WorkspaceWindow {
             "textDocument/documentColor",
             { textDocument: { uri } },
           )
-          .catch(() => null);
+          .catch((error: unknown) => {
+            console.error(`Story colors: documentColor failed for ${uri}`, error);
+            return null;
+          });
         return [...(infos ?? [])]
           .sort(
             (a, b) =>

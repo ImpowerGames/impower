@@ -152,6 +152,29 @@ describe("the story's colors", () => {
     expect(await w.readStoryColors()).toEqual(["#00ff00", "#ff0000", "#0000ff"]);
   });
 
+  it("keeps the colors of the scripts it could read and reports the script it could not", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error("server stopped");
+    const sendRequest = vi.fn(
+      async (_method: string, params: { textDocument: { uri: string } }) => {
+        if (params.textDocument.uri === "file:///p/chapter.sd") throw failure;
+        return [rgb(1, 0, 0)];
+      },
+    );
+    const w = mount({
+      connection: { sendRequest },
+      getProgram: async () => ({
+        scripts: { "file:///p/main.sd": 1, "file:///p/chapter.sd": 1 },
+      }),
+    });
+    expect(await w.readStoryColors()).toEqual(["#ff0000"]);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("file:///p/chapter.sd"),
+      failure,
+    );
+    error.mockRestore();
+  });
+
   it("is empty before the language server starts", async () => {
     expect(await mount().readStoryColors()).toEqual([]);
   });
