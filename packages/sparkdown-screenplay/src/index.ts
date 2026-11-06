@@ -17,3 +17,4 @@ export * from "./utils/generateScreenplayMainHtml";
 export * from "./utils/generateScreenplayPrintData";
 export * from "./utils/generateScreenplayReadingCopy";
 export * from "./utils/generateScreenplayTitleHtml";
+export * from "./utils/isHiddenIdentifier";

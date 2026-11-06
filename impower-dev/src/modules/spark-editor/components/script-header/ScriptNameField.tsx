@@ -22,17 +22,19 @@ export default function ScriptNameField({
   });
 
   return (
-    <input
-      {...props}
-      type="text"
-      data-script-name
-      aria-label="Script name"
-      title="Rename this script"
-      spellcheck={false}
-      autocomplete="off"
-      maxLength={120}
-      size={Math.max(4, Math.min(40, draft.length + 1))}
-      class={className}
-    />
+    <span data-script-name-box class={className}>
+      <input
+        {...props}
+        type="text"
+        data-script-name
+        aria-label="Script name"
+        title="Rename this script"
+        spellcheck={false}
+        autocomplete="off"
+        maxLength={120}
+        size={Math.max(4, Math.min(40, draft.length + 1))}
+        class="truncate border-0 bg-transparent px-1.5 text-inherit outline-none"
+      />
+    </span>
   );
 }

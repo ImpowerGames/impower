@@ -784,11 +784,6 @@
             "default": "none",
             "description": "Print scene numbers in screenplay"
           },
-          "sparkdown.screenplay.numbering.printSectionNumbers": {
-            "type": "boolean",
-            "default": false,
-            "description": "Print section numbers in screenplay"
-          },
           "sparkdown.screenplay.pages.printTitlePage": {
             "type": "boolean",
             "default": true,
