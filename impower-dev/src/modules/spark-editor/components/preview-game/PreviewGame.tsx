@@ -91,6 +91,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -127,6 +129,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameToggledFullscreenModeMessage },
         { GameWorkerRestartedMessage },
         { ResizeGameMessage },
+        { GameAwaitingInteractionMessage },
+        { GameChosePathToContinueMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -372,6 +376,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 }
               }
             }
+          }
+          if (GameAwaitingInteractionMessage.type.isNotification(message)) {
+            Workspace.window.syncGameChoosing(!!message.params.choices);
+          }
+          if (GameChosePathToContinueMessage.type.isNotification(message)) {
+            Workspace.window.syncGameChoosing(false);
           }
           if (GameEndedMessage.type.is(message)) {
             Workspace.window.syncGameEnded(true);

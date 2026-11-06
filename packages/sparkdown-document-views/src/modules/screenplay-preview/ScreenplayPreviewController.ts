@@ -65,7 +65,12 @@ import { getScrollClientHeight } from "../../utils/getScrollClientHeight.js";
 import { getScrollTop } from "../../utils/getScrollTop.js";
 import { getVisibleRange } from "../../utils/getVisibleRange.js";
 import { scrollY } from "../../utils/scrollY";
+import type { ScreenplayConfig } from "../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import createEditorView from "./utils/createEditorView";
+import {
+  setScreenplayConfig,
+  setScreenplayExecutedLines,
+} from "./utils/screenplaySettings";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -76,6 +81,10 @@ export interface ScreenplayPreviewRefs {
 
 export interface ScreenplayPreviewOptions {
   scrollMargin?: string;
+  config?: ScreenplayConfig;
+  syncScroll?: boolean;
+  playing?: boolean;
+  executedLines?: Record<string, readonly number[]>;
 }
 
 export class ScreenplayPreviewController {
@@ -133,6 +142,37 @@ export class ScreenplayPreviewController {
       ConnectedPreviewMessage.type.notification({ type: "screenplay" }),
       this.host,
     );
+  }
+
+  setConfig(config: ScreenplayConfig | undefined): void {
+    this.options.config = config;
+    this._view?.dispatch({ effects: setScreenplayConfig.of(config) });
+  }
+
+  setExecutedLines(
+    executedLines: Record<string, readonly number[]> | undefined,
+  ): void {
+    this.options.executedLines = executedLines;
+    this._view?.dispatch({
+      effects: setScreenplayExecutedLines.of(this.executedLinesFor()),
+    });
+  }
+
+  setSyncScroll(syncScroll: boolean): void {
+    this.options.syncScroll = syncScroll;
+  }
+
+  setPlaying(playing: boolean): void {
+    this.options.playing = playing;
+  }
+
+  protected executedLinesFor(): readonly number[] {
+    const uri = this._textDocument?.uri;
+    return (uri && this.options.executedLines?.[uri]) || [];
+  }
+
+  protected get syncScroll(): boolean {
+    return this.options.syncScroll !== false;
   }
 
   dispose(): void {
@@ -277,7 +317,7 @@ export class ScreenplayPreviewController {
   protected handleScrolledEditor = (
     message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
-    if (this._loaded) {
+    if (this._loaded && this.syncScroll) {
       this._userInitiatedScroll = false;
       const params = message.params;
       const textDocument = params.textDocument;
@@ -299,10 +339,12 @@ export class ScreenplayPreviewController {
     const textDocument = params.textDocument;
     const selectedRange = params.selectedRange;
     const docChanged = params.docChanged;
-    const userEvent = params.userEvent;
     if (textDocument.uri === this._textDocument?.uri) {
-      if (!docChanged && userEvent) {
-        this.selectRange(selectedRange, false);
+      if (!docChanged) {
+        this.selectRange(
+          selectedRange,
+          this.options.playing ? "nearest" : false,
+        );
       }
     }
   };
@@ -337,6 +379,8 @@ export class ScreenplayPreviewController {
           visibleRange && typeof visibleRange !== "string"
             ? (visibleRange?.start.line ?? 0) + 1
             : undefined,
+        config: this.options.config,
+        executedLines: this.executedLinesFor(),
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();
@@ -506,7 +550,7 @@ export class ScreenplayPreviewController {
         visibleRange.end.line !== this._visibleRange?.end?.line
       ) {
         if (this._textDocument) {
-          if (this._userInitiatedScroll) {
+          if (this._userInitiatedScroll && this.syncScroll) {
             this.cacheVisibleRange(visibleRange);
             this._scrollTarget = undefined;
             sendProtocolMessage(

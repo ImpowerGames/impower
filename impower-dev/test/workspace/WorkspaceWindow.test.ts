@@ -27,6 +27,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
       writeProjectMetadata: vi.fn(),
+      getFiles: async () => ({}),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
       getFilename: (uri: string) => uri.split("/").slice(-1).join(""),
@@ -42,6 +43,20 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     },
   },
 }));
+
+const screenplayProps = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock(
+  "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview",
+  async () => {
+    const { h } = await import("preact");
+    return {
+      default: (props: Record<string, unknown>) => {
+        screenplayProps.push(props);
+        return h("div", { "data-screenplay-page": "" });
+      },
+    };
+  },
+);
 
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
@@ -158,6 +173,10 @@ import {
   playerUrl,
 } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewTopBar from "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar";
+import Preview from "../../src/modules/spark-editor/components/preview/Preview";
+import PreviewScreenplay from "../../src/modules/spark-editor/components/preview-screenplay/PreviewScreenplay";
+import WorkspacePrint from "../../src/modules/spark-editor/workspace/WorkspacePrint";
+import { SCREENPLAY_SETTING_KEYS } from "../../src/modules/spark-editor/workspace/settings/screenplaySettings";
 import workspaceSettings, {
   WorkspaceSettings,
 } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
@@ -586,6 +605,8 @@ const PREVIEW_DEFAULTS = {
   previewIdleAnimations: true,
   previewTypingPauses: false,
   previewScreenplaySync: true,
+  screenplayPaper: "paper",
+  screenplayPaperTexture: false,
 } as const;
 
 const resetPreviewPreferences = () => {
@@ -1209,6 +1230,73 @@ describe("PLAY for a story with no start scene", () => {
   });
 });
 
+describe("Choosing during a Screenplay play-through", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  const stopped: unknown[] = [];
+  const hearStop = (e: Event) => {
+    if (e instanceof CustomEvent && e.detail?.method === "game/stop") stopped.push(e.detail);
+  };
+
+  const stage = () => container.querySelector("iframe#iframe")!.parentElement!.parentElement!;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
+    workspace.current = savedWorkspaceState();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    Object.assign(Workspace.fs, {
+      getFiles: async () => ({}),
+      getDirectoryUri: async () => "file://a",
+    });
+    (Workspace as unknown as { configuration: unknown }).configuration = { settings: {} };
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    container = document.createElement("div");
+    document.body.append(container);
+    channels.all = [];
+    stopped.length = 0;
+    window.addEventListener(MessageProtocol.event, hearStop);
+  });
+
+  afterEach(() => {
+    window.removeEventListener(MessageProtocol.event, hearStop);
+    render(null, container);
+    container.remove();
+    win.dispose();
+    current.window = undefined;
+    resetPreviewPreferences();
+  });
+
+  it("shows the game's stage over the page while the story waits on a choice, and hides it after the pick without stopping the run", async () => {
+    render(h(Preview, {}), container);
+    container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
+    const channel = channels.all[0]!;
+    win.startGame();
+    const location = { uri: "file://a/main.sd", range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } } };
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: false } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    render(h(Preview, {}), container);
+    expect(stage().className).toBe("hidden");
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: true } });
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.choosing).toBe(true));
+    render(h(Preview, {}), container);
+    expect(stage().className).not.toContain("hidden");
+    expect(stage().hasAttribute("data-choosing")).toBe(true);
+    expect(container.querySelector('[role="region"][aria-label="Screenplay"]')).not.toBeNull();
+
+    channel.receive({ jsonrpc: "2.0", method: "game/chosePathToContinue", params: { location } });
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.choosing).toBe(false));
+    render(h(Preview, {}), container);
+    expect(stage().className).toBe("hidden");
+    expect(workspace.current.preview.modes.game.running).toBe(true);
+    expect(stopped).toEqual([]);
+  }, 30000);
+});
+
 describe("The game preview's player bar", () => {
   const MAIN = "file://a/main.sd";
   let win: WorkspaceWindow;
@@ -1504,7 +1592,23 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Skip back",
+      "Play From Here",
       "Skip forward",
+      "Preview settings",
+    ]);
+  });
+
+  it("keeps the whole transport in Screenplay mode, playing the story through the page", () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    show({ running: true });
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Pause",
+      "Step Into",
+      "Skip back",
+      "Stop",
+      "Skip forward",
+      "Step Out",
       "Preview settings",
     ]);
   });
@@ -1539,11 +1643,140 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([
       ["Sync screenplay and editor scroll position", "true"],
+      ["Screenplay paper matches my theme", "false"],
+      ["Screenplay paper texture", "false"],
     ]);
     rows("menuitemcheckbox")[0]!.click();
-    expect(workspaceSettings.preferences.value.previewScreenplaySync).toBe(
-      false,
-    );
+    rows("menuitemcheckbox")[1]!.click();
+    rows("menuitemcheckbox")[2]!.click();
+    expect(workspaceSettings.preferences.value).toMatchObject({
+      previewScreenplaySync: false,
+      screenplayPaper: "theme",
+      screenplayPaperTexture: true,
+    });
+    render(h(PreviewTopBar, {}), container);
+    expect(names()).toEqual([
+      ["Sync screenplay and editor scroll position", "false"],
+      ["Screenplay paper matches my theme", "true"],
+      ["Screenplay paper texture", "true"],
+    ]);
+    rows("menuitemcheckbox")[1]!.click();
+    expect(workspaceSettings.preferences.value.screenplayPaper).toBe("paper");
+  });
+});
+
+describe("The Screenplay viewing mode", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let requests: string[] = [];
+
+  const hear = (e: Event) => {
+    const message = (e as CustomEvent).detail;
+    if (typeof message?.method === "string" && "id" in message && !("result" in message)) {
+      requests.push(message.method);
+    }
+  };
+
+  const setGame = (game: Record<string, unknown>) => {
+    workspace.current = {
+      ...workspace.current,
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game },
+      },
+    };
+  };
+
+  const page = () => {
+    render(h(PreviewScreenplay, {}), container);
+    return screenplayProps.at(-1)!;
+  };
+
+  const exportConfig = () =>
+    Object.getOwnPropertyDescriptor(WorkspacePrint.prototype, "config")!.get!.call(undefined);
+
+  const region = () => container.querySelector<HTMLElement>('[role="region"][aria-label="Screenplay"]')!;
+
+  beforeEach(() => {
+    resetPreviewPreferences();
+    screenplayProps.length = 0;
+    requests = [];
+    window.addEventListener(MessageProtocol.event, hear);
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    window.removeEventListener(MessageProtocol.event, hear);
+    current.window = undefined;
+    win.dispose();
+    setGame({});
+    workspaceSettings.resetProjectSettings(SCREENPLAY_SETTING_KEYS);
+    resetPreviewPreferences();
+  });
+
+  it("draws the page from the very config object the PDF and HTML exports send", () => {
+    workspaceSettings.setProjectSetting("screenplaySceneNumbers", "left");
+    workspaceSettings.setProjectSetting("screenplayHeadingsBold", true);
+    workspaceSettings.setProjectSetting("screenplayPaperSize", "a4");
+    const config = page()["config"];
+    expect(config).toBe(exportConfig());
+    expect(config).toMatchObject({
+      screenplay_print_scene_numbers: "left",
+      screenplay_print_headings_bold: true,
+      screenplay_print_paper_size: "a4",
+    });
+    workspaceSettings.setProjectSetting("screenplayPaperSize", "usletter");
+    const changed = page()["config"];
+    expect(changed).toBe(exportConfig());
+    expect(changed).toMatchObject({ screenplay_print_paper_size: "usletter" });
+  });
+
+  it("passes the paper colour, texture and sync preferences to the page", () => {
+    expect(page()).toMatchObject({ paper: "paper", texture: false, syncScroll: true });
+    workspaceSettings.setPreference("screenplayPaper", "theme");
+    workspaceSettings.setPreference("screenplayPaperTexture", true);
+    workspaceSettings.setPreference("previewScreenplaySync", false);
+    expect(page()).toMatchObject({ paper: "theme", texture: true, syncScroll: false });
+  });
+
+  it("plays through the page: a click or Enter continues the story, and the played lines mark the chosen options", async () => {
+    expect(page()["playing"]).toBe(false);
+    region().click();
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(requests).not.toContain("game/continue");
+
+    setGame({ running: true });
+    win.setHighlights({ "file:///main.sd": [3, 7] });
+    expect(page()).toMatchObject({ playing: true, executedLines: { "file:///main.sd": [3, 7] } });
+    region().click();
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(1));
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(2));
+
+    setGame({ running: true, paused: true });
+    page();
+    region().click();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(requests.filter((m) => m === "game/continue")).toHaveLength(2);
+  });
+
+  it("keeps the game's player mounted, out of sight, while the page is on screen", () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    render(h(Preview, {}), container);
+    const iframe = container.querySelector("iframe#iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe!.closest(".hidden")).not.toBeNull();
+    expect(region()).not.toBeNull();
+    workspaceSettings.setPreference("previewMode", "game");
+    render(h(Preview, {}), container);
+    expect(container.querySelector("iframe#iframe")!.closest(".hidden")).toBeNull();
+    expect(region()).toBeNull();
   });
 });
 

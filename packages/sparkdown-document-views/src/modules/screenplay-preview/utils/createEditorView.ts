@@ -1,7 +1,10 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, ViewUpdate } from "@codemirror/view";
+import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
+import { litBlockWidgets } from "./litBlockWidgets";
+import { screenplaySettings } from "./screenplaySettings";
 
 interface EditorConfig {
   textDocument: { uri: string; version: number; text: string };
@@ -12,6 +15,8 @@ interface EditorConfig {
     right?: number;
   };
   scrollToLineNumber?: number;
+  config?: ScreenplayConfig;
+  executedLines?: readonly number[];
   onUpdate?: (update: ViewUpdate) => void;
 }
 
@@ -35,8 +40,10 @@ const createEditorView = (
       EditorView.updateListener.of((u) => {
         onUpdate?.(u);
       }),
+      screenplaySettings(config?.config, config?.executedLines),
       screenplayFormatting(),
       highlightActiveLine(),
+      litBlockWidgets,
     ],
   });
   const scrollToLine =

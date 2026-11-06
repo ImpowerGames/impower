@@ -40,6 +40,7 @@ export interface GameState {
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
+  choosing?: boolean;
   compiling?: boolean;
   playRefusal?: string;
 }

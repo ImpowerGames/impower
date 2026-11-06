@@ -63,6 +63,7 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
@@ -1385,6 +1386,7 @@ export default class WorkspaceWindow {
               loading: false,
               running: false,
               ended: false,
+              choosing: false,
             },
           },
         },
@@ -1472,6 +1474,23 @@ export default class WorkspaceWindow {
     }
   }
 
+  syncGameChoosing(choosing: boolean) {
+    const game = this.store.preview.modes.game;
+    if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, choosing },
+        },
+      },
+    });
+  }
+
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
     if (!game.running || Boolean(game.paused) === paused) {
@@ -1493,6 +1512,13 @@ export default class WorkspaceWindow {
     const game = this.store.preview.modes.game;
     if (game.running && game.paused) {
       sendProtocolMessage(StepGameMessage.type.request({ traversal }));
+    }
+  }
+
+  continueGame() {
+    const game = this.store.preview.modes.game;
+    if (game.running && !game.ended && !game.paused) {
+      sendProtocolMessage(ContinueGameMessage.type.request({}));
     }
   }
 

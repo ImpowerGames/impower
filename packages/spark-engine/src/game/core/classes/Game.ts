@@ -3214,7 +3214,9 @@ export class Game<T extends M = {}> {
             (!(instructions.load || instructions.cutscene) ||
               (instructions.choices?.length ?? 0) > 0)
           ) {
-            this.notifyAwaitingInteraction();
+            this.notifyAwaitingInteraction(
+              (instructions.choices?.length ?? 0) > 0,
+            );
           }
         }
         if (instructions || this._simulation !== "simulating") {
@@ -3465,13 +3467,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyAwaitingInteraction() {
+  protected notifyAwaitingInteraction(choices: boolean) {
     const location =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
     this._awaiting = location;
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(location),
+        choices,
       }),
     );
   }
@@ -4518,7 +4521,9 @@ export class Game<T extends M = {}> {
         (!(instructions.load || instructions.cutscene) ||
           (instructions.choices?.length ?? 0) > 0)
       ) {
-        this.notifyAwaitingInteraction();
+        this.notifyAwaitingInteraction(
+          (instructions.choices?.length ?? 0) > 0,
+        );
       }
     }
     this.checkpoint();
