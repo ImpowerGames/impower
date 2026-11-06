@@ -138,7 +138,7 @@ import type {
   SettledBeat,
 } from "../types/RunHistory";
 import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
-import { imageBytes } from "../utils/imageBytes";
+import { imageParts } from "../utils/imageParts";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -667,6 +667,8 @@ export class Game<T extends M = {}> {
 
   protected _rolls = 0;
 
+  protected _rollsDrawing = 0;
+
   protected _version = "";
   protected _saveHistory = 16;
   protected _rewindBeats = 128;
@@ -726,7 +728,7 @@ export class Game<T extends M = {}> {
         durableExecuted: (executed) => this.durableExecuted(executed),
         snapshotRuntime: () => this._runtimeState.snapshotFull(),
         drainRuntime: () => this._runtimeState.drainDeltas(),
-        imageBytes: (image) => imageBytes(image as ProgramImage),
+        imageParts: (image) => imageParts(image as ProgramImage),
       },
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );
@@ -2606,6 +2608,7 @@ export class Game<T extends M = {}> {
       this._story.ContinueMaximally();
       this._runtimeState = runtime;
     }
+    this._connection.beginEpoch();
     const roll = ++this._rolls;
     this._ending = null;
     this._errorEnding = null;
@@ -2631,20 +2634,33 @@ export class Game<T extends M = {}> {
       loops,
       stoppedLoops,
     };
-    await Promise.all([
-      this.module.ui.onRestore(),
-      this.module.assets.onRestore(),
-    ]);
-    if (roll === this._rolls) {
-      this.noteShownChoices(beat.shown);
-      this._shownBeatOnScreen = beat.shown;
-      this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    this._rollsDrawing += 1;
+    try {
+      await Promise.all([
+        this.module.ui.onRestore(),
+        this.module.assets.onRestore(),
+      ]);
+    } finally {
+      this._rollsDrawing -= 1;
     }
     const history = this.history;
+    if (roll !== this._rolls) {
+      return { moved: false, superseded: true, history };
+    }
+    this.noteShownChoices(beat.shown);
+    this._shownBeatOnScreen = beat.shown;
+    this._coordinator = new Coordinator(this, beat.shown, { settled: true });
     this.connection.emit(
       GameRolledMessage.type.notification({ restored, history }),
     );
     return { moved: true, restored, history };
+  }
+
+  protected supersedeRolls(): void {
+    if (this._rollsDrawing > 0) {
+      this._connection.beginEpoch();
+    }
+    this._rolls += 1;
   }
 
   save(): string {
@@ -3205,7 +3221,7 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
-    this._rolls += 1;
+    this.supersedeRolls();
     if (this._run.behindLatest) {
       this.forkRun();
     }
@@ -3277,7 +3293,7 @@ export class Game<T extends M = {}> {
     if (this._run.behindLatest) {
       return false;
     }
-    this._rolls += 1;
+    this.supersedeRolls();
     this.cancelPreview();
     this._awaiting = null;
     this.resetExecutionBudget();

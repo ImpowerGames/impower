@@ -13,7 +13,13 @@ export interface CheckpointHost {
   saveWithoutStory(): string;
   storyOfImage(image: unknown): string | null;
   durableExecuted(executed: RecencyEntry[]): RecencyEntry[];
-  imageBytes(image: unknown): number;
+  imageParts(image: unknown): ImageParts;
+}
+
+export interface ImageParts {
+  bytes: number;
+  shared: ReadonlyMap<object, number>;
+  refs: readonly unknown[];
 }
 
 export interface StoredCheckpoint {
@@ -30,6 +36,9 @@ interface ImageEntry {
   chainStart: boolean;
   bytes: number;
   folded: boolean;
+  pins: number[];
+  pinnedBy: number;
+  shared: ReadonlyMap<object, number> | null;
 }
 
 interface RuntimeChain {
@@ -44,6 +53,19 @@ const RECORD_BYTES = 32;
 
 const NO_RUNTIME: RuntimeCollections = { pe: [], ce: [], cde: [] };
 
+const FOLDED: ImageEntry = {
+  keyframe: false,
+  image: null,
+  body: "",
+  rt: NO_RUNTIME,
+  chainStart: false,
+  bytes: 0,
+  folded: true,
+  pins: [],
+  pinnedBy: 0,
+  shared: null,
+};
+
 export class CheckpointStore {
   protected _entries: ImageEntry[] = [];
 
@@ -56,6 +78,12 @@ export class CheckpointStore {
   get bytes(): number {
     return this._bytes;
   }
+
+  protected _holders = new Map<unknown, number>();
+
+  protected _sharedHeld = new Map<object, number>();
+
+  protected _foldExhaustedAt = -1;
 
   get stats(): {
     total: number;
@@ -111,11 +139,34 @@ export class CheckpointStore {
       rt = changes;
     }
     this._chainEnd = chain;
-    const bytes =
-      ENTRY_BYTES +
-      body.length * 2 +
-      runtimeBytes(rt) +
-      this._host.imageBytes(image);
+    const holder = this._holders.get(image);
+    const pins = new Set<number>();
+    let bytes = ENTRY_BYTES + body.length * 2 + runtimeBytes(rt);
+    let shared: ReadonlyMap<object, number> | null = null;
+    if (holder !== undefined) {
+      pins.add(holder);
+    } else {
+      const parts = this._host.imageParts(image);
+      bytes += parts.bytes;
+      shared = parts.shared;
+      for (const [value, size] of parts.shared) {
+        const held = this._sharedHeld.get(value) ?? 0;
+        if (held === 0) {
+          this._bytes += size;
+        }
+        this._sharedHeld.set(value, held + 1);
+      }
+      for (const ref of parts.refs) {
+        const at = this._holders.get(ref);
+        if (at !== undefined) {
+          pins.add(at);
+        }
+      }
+      this._holders.set(image, index);
+    }
+    for (const at of pins) {
+      this._entries[at]!.pinnedBy += 1;
+    }
     this._bytes += bytes;
     this._entries.push({
       keyframe,
@@ -125,6 +176,9 @@ export class CheckpointStore {
       chainStart,
       bytes,
       folded: false,
+      pins: [...pins],
+      pinnedBy: 0,
+      shared,
     });
   }
 
@@ -134,45 +188,79 @@ export class CheckpointStore {
 
   fold(budget: number, keep: number): number[] {
     const folded: number[] = [];
+    if (this._bytes <= budget) {
+      return folded;
+    }
     let newest = this._entries.length - 1;
     while (newest > 0 && !this._entries[newest]!.keyframe) {
       newest--;
     }
-    let from = Math.max(0, keep + 1);
-    while (this._bytes > budget && from < newest) {
-      let next = from;
-      while (next < newest && !this._entries[next]!.keyframe) {
+    if (newest === this._foldExhaustedAt) {
+      return folded;
+    }
+    const first = Math.max(0, keep + 1);
+    const foldAt = (i: number): boolean => {
+      const entry = this._entries[i]!;
+      if (entry.folded || entry.pinnedBy > 0) {
+        return false;
+      }
+      let next = i + 1;
+      while (this._entries[next]!.folded) {
         next++;
       }
-      let live = false;
-      for (let i = from; i < next; i++) {
-        if (!this._entries[i]!.folded) {
-          live = true;
-          break;
+      this.startChainAt(next);
+      this.release(i);
+      this._entries[i] = { ...FOLDED };
+      folded.push(i);
+      return true;
+    };
+    let progress = true;
+    while (progress && this._bytes > budget) {
+      progress = false;
+      let from = first;
+      while (from < newest && this._bytes > budget) {
+        let next = from;
+        while (next < newest && !this._entries[next]!.keyframe) {
+          next++;
+        }
+        for (let i = next - 1; i >= from; i--) {
+          progress = foldAt(i) || progress;
+        }
+        from = next + 1;
+      }
+      for (let i = first; i < newest && this._bytes > budget; i++) {
+        if (this._entries[i]!.keyframe) {
+          progress = foldAt(i) || progress;
         }
       }
-      if (live) {
-        this.startChainAt(next);
-        for (let i = from; i < next; i++) {
-          const entry = this._entries[i]!;
-          if (!entry.folded) {
-            this._bytes -= entry.bytes;
-            this._entries[i] = {
-              keyframe: false,
-              image: null,
-              body: "",
-              rt: NO_RUNTIME,
-              chainStart: false,
-              bytes: 0,
-              folded: true,
-            };
-            folded.push(i);
-          }
-        }
-      }
-      from = next + 1;
+    }
+    if (this._bytes > budget) {
+      this._foldExhaustedAt = newest;
     }
     return folded;
+  }
+
+  protected release(index: number): void {
+    const entry = this._entries[index]!;
+    this._bytes -= entry.bytes;
+    for (const at of entry.pins) {
+      const pinned = this._entries[at];
+      if (pinned) {
+        pinned.pinnedBy -= 1;
+      }
+    }
+    for (const [value, size] of entry.shared ?? []) {
+      const held = (this._sharedHeld.get(value) ?? 1) - 1;
+      if (held === 0) {
+        this._sharedHeld.delete(value);
+        this._bytes -= size;
+      } else {
+        this._sharedHeld.set(value, held);
+      }
+    }
+    if (this._holders.get(entry.image) === index) {
+      this._holders.delete(entry.image);
+    }
   }
 
   protected startChainAt(index: number): void {
@@ -279,9 +367,10 @@ export class CheckpointStore {
     const kept = Math.max(0, Math.min(keepCount, this._entries.length));
     if (kept < this._entries.length) {
       this._chainEnd = null;
+      this._foldExhaustedAt = -1;
     }
-    for (let i = kept; i < this._entries.length; i++) {
-      this._bytes -= this._entries[i]!.bytes;
+    for (let i = this._entries.length - 1; i >= kept; i--) {
+      this.release(i);
     }
     this._entries.length = kept;
   }

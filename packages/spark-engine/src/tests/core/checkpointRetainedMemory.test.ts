@@ -82,7 +82,7 @@ function imageStore() {
       durableExecuted: (executed) => executed,
       snapshotRuntime: () => live.state.snapshotFull(),
       drainRuntime: () => live.state.drainDeltas(),
-      imageBytes: () => 0,
+      imageParts: () => ({ bytes: 0, shared: new Map(), refs: [] }),
     },
     { baseInterval: 10 },
   );

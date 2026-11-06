@@ -7,7 +7,7 @@ const MAIN = "file:///local/main.sd";
 
 const BEATS = 2000;
 
-const BYTES_PER_1000_BEATS = 1_500_000;
+const BYTES_PER_1000_BEATS = 1_750_000;
 
 function longRun(beats: number): SparkProgram {
   const lines = ["store count = 0", "", "scene start"];
@@ -98,4 +98,155 @@ describe("a run keeps its checkpoints within a budget", () => {
     expect(text()).toBe(`Beat number ${BEATS - 1} of the long run.`);
     expect(count()).toBe(String(BEATS));
   }, 600_000);
+});
+
+function compileSource(text: string): SparkProgram {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: MAIN,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ] as never,
+    seedBuiltinsIntoStory: true,
+  });
+  const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+  expect(program.chunks).toBeDefined();
+  return program as SparkProgram;
+}
+
+function startGame(program: SparkProgram, options: Record<string, unknown>) {
+  const game = new Game({
+    now: () => 0,
+    setTimeout: (() => 0) as never,
+    resolve: (path: string) => path,
+    fetch: async () => "",
+    log: () => {},
+    program,
+    ...options,
+  } as never);
+  game.start();
+  return game;
+}
+
+const liveImages = (game: Game): unknown[] =>
+  ((game.checkpoints as any)._entries as any[])
+    .filter((entry) => !entry.folded)
+    .map((entry) => entry.image);
+
+const reachableImages = (roots: unknown[]): Set<any> => {
+  const seen = new Set<any>();
+  const pending = [...roots] as any[];
+  while (pending.length > 0) {
+    const image = pending.pop();
+    if (!image || seen.has(image)) {
+      continue;
+    }
+    seen.add(image);
+    pending.push(image.parent, image.keyframe, image.afterChoice?.menu);
+  }
+  return seen;
+};
+
+const menus = (n: number) =>
+  [
+    "store count = 0",
+    "scene start",
+    "  Begin.",
+    ...Array.from({ length: n }, (_, i) => [
+      "  count = count + 1",
+      "  choose",
+      `    * [A${i}]`,
+      `      A result ${i}.`,
+      `    * [B${i}]`,
+      `      B result ${i}.`,
+      "  end",
+      `  After ${i}.`,
+    ]).flat(),
+    "  Final.",
+    "end",
+  ].join("\n");
+
+describe("the store's count and its folding", () => {
+  test("past the budget the oldest keyframes fold too, keeping the run's start", async () => {
+    const budget = 150_000;
+    const { game, text, count } = playAll(longRun(BEATS), budget);
+    expect(
+      game.checkpoints.bytes,
+      `the store holds ${game.checkpoints.bytes} bytes with a budget of ${budget}`,
+    ).toBeLessThanOrEqual(budget);
+    expect(game.checkpoints.stats.keyframes).toBeLessThan(BEATS / 50);
+    expect((await game.rollBack("choice")).moved).toBe(true);
+    expect(text()).toBe("Beat number 0 of the long run.");
+    expect(count()).toBe("1");
+    expect((await game.rollForward("choice")).moved).toBe(true);
+    expect(text()).toBe(`Beat number ${BEATS - 1} of the long run.`);
+  }, 600_000);
+
+  test("the count covers the story values every live checkpoint holds, and folding brings it within the budget", () => {
+    const size = 50_000;
+    const beats = 30;
+    const budget = 2_000_000;
+    const source = [
+      'store payload = ""',
+      "scene start",
+      ...Array.from({ length: beats }, (_, i) => [
+        `  payload = string.reverse(string.rep(tostring(${i}), ${size}))`,
+        `  Beat ${i}.`,
+      ]).flat(),
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {
+      checkpointByteBudget: budget,
+      checkpointBaseInterval: 5,
+    });
+    for (let i = 1; i < beats; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe(`Beat ${beats - 1}.`);
+    const strings = new Set<string>();
+    for (const image of reachableImages(liveImages(game))) {
+      for (const value of image.globals.values()) {
+        if (typeof value?.value === "string" && value.value.length >= size) {
+          strings.add(value.value);
+        }
+      }
+    }
+    const characters = [...strings].reduce((sum, s) => sum + s.length, 0);
+    expect(characters).toBeGreaterThan(size);
+    expect(
+      game.checkpoints.bytes,
+      `the store counts ${game.checkpoints.bytes} bytes while its checkpoints hold ${characters} characters of strings`,
+    ).toBeGreaterThanOrEqual(characters * 2);
+    expect(game.checkpoints.bytes).toBeLessThanOrEqual(budget);
+    expect(game.checkpoints.stats.folded).toBeGreaterThan(0);
+  });
+
+  test("no folded checkpoint's image stays held by a live one", () => {
+    const game = startGame(compileSource(menus(80)), {});
+    for (let i = 0; i < 80; i += 1) {
+      game.clickedToContinue();
+      game.chosePathToContinue(0);
+      game.clickedToContinue();
+    }
+    const entries = (game.checkpoints as any)._entries as any[];
+    const images = entries.map((entry) => entry.image);
+    const budget = Math.floor(game.checkpoints.bytes * 0.75);
+    const folded = game.checkpoints.fold(
+      budget,
+      (game as any)._run.first.checkpoint,
+    );
+    expect(folded.length).toBeGreaterThan(0);
+    const live = new Set(liveImages(game));
+    const held = reachableImages([...live]);
+    expect(
+      folded.filter((i) => held.has(images[i]) && !live.has(images[i])),
+    ).toEqual([]);
+  });
 });

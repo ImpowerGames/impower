@@ -40,4 +40,5 @@ export interface SettledBeat {
 
 export type RollResult =
   | { moved: true; restored: SettledBeat; history: GameHistory }
-  | { moved: false; reason: HistoryReason; history: GameHistory };
+  | { moved: false; reason: HistoryReason; history: GameHistory }
+  | { moved: false; superseded: true; history: GameHistory };

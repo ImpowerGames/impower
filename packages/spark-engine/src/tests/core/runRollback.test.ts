@@ -520,3 +520,29 @@ describe("the worker game", () => {
     }
   });
 });
+
+describe("a roll superseded while it draws", () => {
+  test("publishes nothing and leaves the newer roll's beat on screen", async () => {
+    const h = play();
+    playTo(h, "The third beat.");
+    const ui = h.game.module.ui;
+    const restore = ui.onRestore.bind(ui);
+    const releases: (() => void)[] = [];
+    ui.onRestore = async () => {
+      await new Promise<void>((resolve) => releases.push(resolve));
+      await restore();
+    };
+    const first = h.game.rollBack("beat");
+    const second = h.game.rollBack("beat");
+    releases[1]!();
+    const newer = await second;
+    releases[0]!();
+    const older = await first;
+    expect(newer).toMatchObject({ moved: true, restored: { beat: 0 } });
+    expect(older).toMatchObject({ moved: false, superseded: true });
+    const rolled = h.of("game/rolled").map((m) => m.params.restored.beat);
+    expect(rolled).toEqual([0]);
+    expect(h.text()).toBe("The first beat.");
+    expect(history(h).canRollBack).toBe(false);
+  });
+});
