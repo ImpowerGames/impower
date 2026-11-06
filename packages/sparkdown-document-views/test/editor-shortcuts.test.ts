@@ -69,7 +69,7 @@ describe("the shortcuts the editor reports", () => {
     (platform) => {
       const view = liveEditor();
       const returned = editorKeybindings(view.state, platform);
-      const claimedByEarlier = new Set(["PageUp", "PageDown", "Mod-g"]);
+      const claimedByEarlier = new Set(["PageUp", "PageDown", "Mod-g", "Escape"]);
       const missing: string[] = [];
       const check = (binding: KeyBinding, run: unknown, key: string) => {
         const id = EDITOR_SHORTCUT_COMMANDS.find(
@@ -100,6 +100,14 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "movePage", "win")).not.toContain("PageUp");
     expect(keysOf(view, "movePage", "win")).not.toContain("PageDown");
     expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
+  });
+
+  it("lists Escape only under the handler that receives it in the editor", () => {
+    const view = liveEditor();
+    const withEscape = editorKeybindings(view.state, "win")
+      .filter((command) => command.keys.includes("Escape"))
+      .map((command) => command.id);
+    expect(withEscape).toEqual(["escape"]);
   });
 
   it("reads Find as Mod-f and Go to line as Mod-g from the live keymap", () => {
