@@ -25,6 +25,7 @@ export default function NameRow({
   const [value, setValue] = useState(initial);
   const [error, setError] = useState("");
   const busy = useRef(false);
+  const cancelled = useRef(false);
   const refocus = useRef(refocusOnce);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function NameRow({
   }, []);
 
   const commit = async (submitted: boolean) => {
-    if (busy.current) {
+    if (busy.current || cancelled.current) {
       return;
     }
     const name = input.current?.value ?? value;
@@ -78,10 +79,14 @@ export default function NameRow({
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
+                cancelled.current = true;
                 onCancel();
               }
             }}
             onBlur={() => {
+              if (cancelled.current) {
+                return;
+              }
               if (refocus.current) {
                 refocus.current = false;
                 setTimeout(() => {

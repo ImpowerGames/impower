@@ -93,6 +93,24 @@ describe("the Scripts page's inline name field", () => {
     expect(escaped.onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["a new name", undefined],
+    ["a rename", "intro"],
+  ])("keeps %s cancelled by Escape when removing the field takes its focus", async (_case, initial) => {
+    let field: HTMLInputElement | undefined;
+    const onCancel = vi.fn(() => {
+      field!.dispatchEvent(new FocusEvent("blur"));
+      field!.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    const mounted = await mount({ initial, onCancel });
+    field = mounted.input;
+    await type(field, "Abandon");
+    await press(field, "Escape");
+    await settle();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(mounted.onCommit).not.toHaveBeenCalled();
+  });
+
   it("commits a valid name", async () => {
     const { input, onCommit } = await mount({});
     await type(input, "chapter two");
