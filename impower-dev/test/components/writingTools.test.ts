@@ -320,6 +320,24 @@ describe("Writing tools focus", () => {
     expect(document.activeElement).not.toBe(input);
   });
 
+  it("keeps the field's focus when the trigger is tapped, and gives it back on Close", async () => {
+    layout.value = "phone";
+    layout.coarse = true;
+    await mount();
+    const input = field();
+    const tap = new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch" });
+    trigger().dispatchEvent(tap);
+    if (!tap.defaultPrevented) trigger().focus();
+    expect(tap.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(input);
+    await open();
+    const close = panel()!.querySelector<HTMLButtonElement>('[aria-label="Close writing tools"]')!;
+    await act(async () => close.click());
+    await until(() => !panel());
+    await settle(50);
+    expect(document.activeElement).toBe(input);
+  });
+
   it("on a phone, gives focus back on Escape but not when the backdrop closes the sheet", async () => {
     layout.value = "phone";
     layout.coarse = true;

@@ -1,9 +1,10 @@
-import type { EditorView } from "@codemirror/view";
+import { keymap, type EditorView, type KeyBinding } from "@codemirror/view";
 import type { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it } from "vitest";
 import { SparkdownCodemirrorWorkspace } from "../src/modules/script-editor/classes/SparkdownCodemirrorWorkspace";
 import createEditorView from "../src/modules/script-editor/utils/createEditorView";
 import {
+  EDITOR_SHORTCUT_COMMANDS,
   editorKeybindings,
   unlistedKeybindings,
 } from "../src/modules/script-editor/utils/editorShortcuts";
@@ -62,6 +63,44 @@ describe("the shortcuts the editor reports", () => {
       expect(unlisted).toEqual([]);
     },
   );
+
+  it.each(["win", "mac"] as const)(
+    "lists every live binding's key under its own command in the returned sheet (%s)",
+    (platform) => {
+      const view = liveEditor();
+      const returned = editorKeybindings(view.state, platform);
+      const claimedByEarlier = new Set(["PageUp", "PageDown", "Mod-g"]);
+      const missing: string[] = [];
+      const check = (binding: KeyBinding, run: unknown, key: string) => {
+        const id = EDITOR_SHORTCUT_COMMANDS.find(
+          (command) =>
+            command.runs?.includes(run as never) ||
+            command.bindings?.includes(binding),
+        )?.id;
+        const listedUnder = returned
+          .filter((command) => command.keys.includes(key))
+          .map((command) => command.id);
+        if (!id || listedUnder.length === 0) missing.push(`${key} (${id})`);
+        else if (!claimedByEarlier.has(key) && !listedUnder.includes(id))
+          missing.push(`${key} under ${id}`);
+      };
+      for (const binding of view.state.facet(keymap).flat()) {
+        const key = binding[platform] ?? binding.key;
+        if (!key) continue;
+        if (binding.run) check(binding, binding.run, key);
+        if (binding.shift) check(binding, binding.shift, `Shift-${key}`);
+      }
+      expect(missing).toEqual([]);
+    },
+  );
+
+  it("gives Page Up and Down to the preview, whose binding always takes them", () => {
+    const view = liveEditor();
+    expect(keysOf(view, "previewBeat", "win")).toEqual(["PageUp", "PageDown"]);
+    expect(keysOf(view, "movePage", "win")).not.toContain("PageUp");
+    expect(keysOf(view, "movePage", "win")).not.toContain("PageDown");
+    expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
+  });
 
   it("reads Find as Mod-f and Go to line as Mod-g from the live keymap", () => {
     const view = liveEditor();

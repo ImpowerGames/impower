@@ -49,9 +49,7 @@ const deepActiveElement = (): HTMLElement | null => {
     : null;
 };
 
-const keepFocus = (event: PointerEvent) => {
-  if (event.pointerType === "mouse") event.preventDefault();
-};
+const keepFocus = (event: PointerEvent) => event.preventDefault();
 
 export function WritingToolsTrigger() {
   const open = useComputed(() => !!workspace.state.value.screen?.writingTools)

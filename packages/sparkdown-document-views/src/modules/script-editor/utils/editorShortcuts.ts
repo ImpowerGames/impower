@@ -196,7 +196,7 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "rename", label: "Rename", group: "story", runs: [renameSymbol] },
   { id: "problems", label: "Show problems", group: "story", runs: [openLintPanel] },
   { id: "nextProblem", label: "Next problem", group: "story", runs: [nextDiagnostic] },
-  { id: "previewBeat", label: "Previous or next beat in the preview", group: "story", runs: [leavePageKeysToPreview] },
+  { id: "previewBeat", label: "Previous or next beat in the preview", group: "story", runs: [leavePageKeysToPreview], claims: true },
 ];
 
 export type ShortcutPlatform = "mac" | "win" | "linux";
@@ -232,18 +232,21 @@ export function editorKeybindings(
     if (!list.includes(key)) list.push(key);
     keys.set(id, list);
   };
-  for (const binding of liveBindings(state)) {
-    const key = platformKey(binding, platform);
-    if (!key) continue;
+  const take = (binding: KeyBinding, run: Command, key: string) => {
     const slots = (binding.scope ?? "editor")
       .split(" ")
       .map((scope) => `${scope}|${key}`);
-    if (slots.some((slot) => claimed.has(slot))) continue;
-    const command = commandFor(binding, binding.run);
-    if (command) add(command.id, key);
-    if (command?.claims) slots.forEach((slot) => claimed.add(slot));
-    const shifted = binding.shift && commandFor(binding, binding.shift);
-    if (shifted) add(shifted.id, `Shift-${key}`);
+    if (slots.some((slot) => claimed.has(slot))) return;
+    const command = commandFor(binding, run);
+    if (!command) return;
+    add(command.id, key);
+    if (command.claims) slots.forEach((slot) => claimed.add(slot));
+  };
+  for (const binding of liveBindings(state)) {
+    const key = platformKey(binding, platform);
+    if (!key) continue;
+    if (binding.run) take(binding, binding.run, key);
+    if (binding.shift) take(binding, binding.shift, `Shift-${key}`);
   }
   return EDITOR_SHORTCUT_COMMANDS.map(({ id, label, group }) => ({
     id,
