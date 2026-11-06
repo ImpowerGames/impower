@@ -1,6 +1,11 @@
 import "../style.css";
 
 export {
+  default as ActionSheet,
+  type ActionSheetItem,
+  type ActionSheetProps,
+} from "./action-sheet/ActionSheet";
+export {
   default as Button,
   buttonVariants,
   type ButtonProps,

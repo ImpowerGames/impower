@@ -3,6 +3,7 @@ import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
+import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
@@ -16,6 +17,11 @@ export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 const AUTOSAVE_DELAY = 200;
 
 let editorCount = 0;
+
+const showPasteRefused = () =>
+  showSnackbar({
+    message: "Allow clipboard access to paste text copied outside the editor.",
+  });
 
 export default function LogicScriptEditor({
   filename = "",
@@ -228,6 +234,7 @@ export default function LogicScriptEditor({
           appearance={appearance}
           top="0px"
           bottom="60px"
+          onPasteRefused={showPasteRefused}
         />
       </div>
       <WriterBar filename={filename || "main.sd"} />

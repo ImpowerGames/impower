@@ -14,6 +14,7 @@ let lsp: typeof import("@impower/codemirror-vscode-lsp-client/src");
 let view: EditorViewType | undefined;
 let writeText: ReturnType<typeof vi.fn>;
 let readText: ReturnType<typeof vi.fn>;
+let clipboardText: string;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -22,8 +23,11 @@ beforeEach(async () => {
   lsp = await import("@impower/codemirror-vscode-lsp-client/src");
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
-  writeText = vi.fn(async () => {});
-  readText = vi.fn(async () => "system clipboard text");
+  clipboardText = "system clipboard text";
+  writeText = vi.fn(async (text: string) => {
+    clipboardText = text;
+  });
+  readText = vi.fn(async () => clipboardText);
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText, readText },
     configurable: true,
@@ -85,6 +89,13 @@ async function pick(v: EditorViewType, label: string) {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function withoutClipboardRead() {
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText },
+    configurable: true,
+  });
+}
+
 function select(v: EditorViewType, ...ranges: [number, number][]) {
   v.dispatch({
     selection: EditorSelection.create(
@@ -94,7 +105,7 @@ function select(v: EditorViewType, ...ranges: [number, number][]) {
 }
 
 describe("menu Copy and Paste", () => {
-  it("Copy then Paste inserts the copied text without reading the system clipboard", async () => {
+  it("Copy then Paste inserts the copied text, read back from the system clipboard", async () => {
     const v = mount("hello world");
     select(v, [0, 5]);
     await pick(v, "Copy");
@@ -102,7 +113,51 @@ describe("menu Copy and Paste", () => {
     select(v, [11, 11]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("hello worldhello");
-    expect(readText).not.toHaveBeenCalled();
+    expect(readText).toHaveBeenCalled();
+  });
+
+  it("Paste inserts text copied outside the editor from the system clipboard", async () => {
+    const v = mount("hello world");
+    select(v, [0, 5]);
+    await pick(v, "Copy");
+    clipboardText = "from elsewhere";
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("hello worldfrom elsewhere");
+  });
+
+  it("Paste gives each line of system text to its own cursor when the counts match, as keyboard paste does", async () => {
+    clipboardText = "A\nB";
+    const v = mount("1\n2");
+    select(v, [1, 1], [3, 3]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("1A\n2B");
+  });
+
+  it("a refused read goes to the host and still pastes the editor's own copy", async () => {
+    const refused = vi.fn();
+    const v = mount("hello world", undefined, [lsp.onPasteRefused(refused)]);
+    select(v, [0, 5]);
+    await pick(v, "Copy");
+    readText.mockImplementation(async () => {
+      throw new DOMException("Denied", "NotAllowedError");
+    });
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(refused).toHaveBeenCalledWith(v);
+    expect(v.state.doc.toString()).toBe("hello worldhello");
+  });
+
+  it("a refused read with nothing copied in the editor goes to the host and inserts nothing", async () => {
+    const refused = vi.fn();
+    const v = mount("hello world", undefined, [lsp.onPasteRefused(refused)]);
+    readText.mockImplementation(async () => {
+      throw new DOMException("Denied", "NotAllowedError");
+    });
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(v.state.doc.toString()).toBe("hello world");
   });
 
   it("Cut removes the selection and Paste puts it back", async () => {
@@ -114,7 +169,6 @@ describe("menu Copy and Paste", () => {
     select(v, [5, 5]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("hello world");
-    expect(readText).not.toHaveBeenCalled();
   });
 
   it("pastes each copied piece to its own cursor when the counts match", async () => {
@@ -137,6 +191,9 @@ describe("menu Copy and Paste", () => {
 
   it("Copy still fills the buffer when the system clipboard refuses the write", async () => {
     writeText.mockImplementation(async () => {
+      throw new DOMException("Denied", "NotAllowedError");
+    });
+    readText.mockImplementation(async () => {
       throw new DOMException("Denied", "NotAllowedError");
     });
     const v = mount("hello world");
@@ -173,28 +230,30 @@ describe("menu Copy and Paste", () => {
 });
 
 describe("native copy and cut", () => {
-  function fire(v: EditorViewType, type: "copy" | "cut") {
+  function fire(v: EditorViewType, type: "copy" | "cut", copied: string) {
     v.focus();
     v.contentDOM.dispatchEvent(
       new Event(type, { bubbles: true, cancelable: true }),
     );
+    clipboardText = copied;
   }
 
   it("a native copy fills the buffer that menu Paste reads", async () => {
     const v = mount("hello world");
     select(v, [6, 11]);
-    fire(v, "copy");
+    fire(v, "copy", "world");
     select(v, [0, 0]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("worldhello world");
-    expect(readText).not.toHaveBeenCalled();
   });
 
   it("a native copy carrying clipboardData fills the buffer and still reaches the system clipboard", async () => {
     const v = mount("hello world");
     select(v, [6, 11]);
     v.focus();
-    const setData = vi.fn();
+    const setData = vi.fn((_type: string, text: string) => {
+      clipboardText = text;
+    });
     const event = new Event("copy", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", {
       value: { clearData() {}, setData },
@@ -206,12 +265,13 @@ describe("native copy and cut", () => {
     expect(v.state.doc.toString()).toBe("worldhello world");
   });
 
-  it("enables Paste in a menu that is already open", async () => {
+  it("enables Paste in a menu that is already open, where the system clipboard cannot be read", async () => {
+    withoutClipboardRead();
     const v = mount("one\ntwo");
     select(v, [1, 1]);
     openMenu(v);
     expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(true);
-    fire(v, "copy");
+    fire(v, "copy", "one\n");
     expect(lsp.isContextMenuOpen(v)).toBe(true);
     expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(
       false,
@@ -221,6 +281,7 @@ describe("native copy and cut", () => {
   });
 
   it("a copy event from outside the focused editor leaves the buffer alone", async () => {
+    withoutClipboardRead();
     const v = mount("hello world");
     select(v, [6, 11]);
     v.contentDOM.dispatchEvent(
@@ -233,7 +294,7 @@ describe("native copy and cut", () => {
   it("a native cut fills the buffer and still deletes the selection", async () => {
     const v = mount("hello world");
     select(v, [5, 11]);
-    fire(v, "cut");
+    fire(v, "cut", " world");
     expect(v.state.doc.toString()).toBe("hello");
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("hello world");
@@ -242,7 +303,7 @@ describe("native copy and cut", () => {
   it("a native copy of a bare caret pastes its whole line above the cursor's line, as the keyboard does", async () => {
     const v = mount("one\ntwo");
     select(v, [1, 1]);
-    fire(v, "copy");
+    fire(v, "copy", "one\n");
     select(v, [5, 5]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("one\none\ntwo");
@@ -258,7 +319,9 @@ describe("clipboard filters", () => {
     ]);
     select(v, [0, 5]);
     v.focus();
-    const setData = vi.fn();
+    const setData = vi.fn((_type: string, text: string) => {
+      clipboardText = text;
+    });
     const event = new Event("copy", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", {
       value: { clearData() {}, setData },
@@ -303,6 +366,7 @@ describe("clipboard filters", () => {
     v.contentDOM.dispatchEvent(
       new Event("copy", { bubbles: true, cancelable: true }),
     );
+    clipboardText = "one\n";
     select(v, [4, 4]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("one\nONEtwo");
@@ -321,7 +385,15 @@ describe("clipboard filters", () => {
 });
 
 describe("the Paste item", () => {
-  it("is disabled until something is copied, and clicking it then does nothing", async () => {
+  it("is enabled where the system clipboard can be read, before anything is copied", async () => {
+    const v = mount("hello world");
+    select(v, [11, 11]);
+    openMenu(v);
+    expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(false);
+  });
+
+  it("is disabled until something is copied where the system clipboard cannot be read, and clicking it then does nothing", async () => {
+    withoutClipboardRead();
     const v = mount("hello world");
     select(v, [11, 11]);
     openMenu(v);
@@ -329,7 +401,6 @@ describe("the Paste item", () => {
     menuItem("Paste").click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(v.state.doc.toString()).toBe("hello world");
-    expect(readText).not.toHaveBeenCalled();
     expect(lsp.isContextMenuOpen(v)).toBe(true);
 
     select(v, [0, 5]);
@@ -341,7 +412,8 @@ describe("the Paste item", () => {
     );
   });
 
-  it("is greyed out on the touch toolbar until something is copied", async () => {
+  it("is greyed out in the menu a coarse pointer opens until something is copied, where the system clipboard cannot be read", async () => {
+    withoutClipboardRead();
     const v = mount("hello world", EditorSelection.single(11), [
       lsp.coarsePointer.of(true),
     ]);
