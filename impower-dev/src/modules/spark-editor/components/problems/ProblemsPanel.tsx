@@ -277,6 +277,7 @@ export default function ProblemsPanel() {
         getKey={rowKey}
         itemHeight={rowHeight}
         revealIndex={revealIndex}
+        revealRequest={reveal?.serial}
         renderItem={(row) => <Row row={row} all={all} played={played} />}
       />
     </section>

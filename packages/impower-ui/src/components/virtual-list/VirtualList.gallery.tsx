@@ -14,17 +14,26 @@ const SIZES: Record<VirtualListSize, string> = {
 
 function VirtualListDemo() {
   const [reveal, setReveal] = useState<number | undefined>(undefined);
+  const [request, setRequest] = useState(0);
   return (
     <div class="max-w-xl space-y-6">
-      <GalleryRow label="revealIndex scrolls a row into view: press to reveal row 500">
+      <GalleryRow label="revealIndex scrolls a row into view, and each new revealRequest scrolls to it again: press to reveal row 500, scroll away and press again">
         <div class="space-y-2">
-          <Button onClick={() => setReveal(499)}>Reveal script_500.sd</Button>
+          <Button
+            onClick={() => {
+              setReveal(499);
+              setRequest((current) => current + 1);
+            }}
+          >
+            Reveal script_500.sd
+          </Button>
           <VirtualList
             size="compact"
             label="Reveal demo"
             class="h-40 rounded-card border border-edge"
             items={ITEMS}
             revealIndex={reveal}
+            revealRequest={request}
             getKey={(item) => item}
             renderItem={(item, index) => (
               <ListRow size="compact" current={index === reveal ? "location" : false} icon={<FileIcon />} label={item} onClick={() => {}} />

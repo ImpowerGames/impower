@@ -19,7 +19,7 @@ The player package exports two host-agnostic components: `PlayerBar` and `Player
 | `game/resize` | host → player | `{height}` or `{aspectRatio}` → `{}` |
 | `preview/skipBeat` | player → host | `{direction: -1 \| 1}` → `{moved}` |
 | `game/runtimeError` | player → host | The game's `{message, type, location, state}` for each runtime error, warning or note it raises outside a scrubbed preview; the web editor logs those with `state: "running"` under the Problems panel's While playing and opens the panel on an error |
-| `game/toggledConsole` | player → host | `{open}` from a script that opens or closes the console; the web editor opens or collapses its Problems panel |
+| `game/toggledConsole` | player → host | `{open}`: the player forwards it when the game sends it, and the web editor opens or collapses its Problems panel. The engine does not send it; the script functions that will (`debug.console.open()` and `debug.console.close()`) belong to ImpowerGames/impower-internal#549 |
 | `game/pause`, `game/unpause`, `game/step` | host or bar → player | The debugger's requests; the bar's Pause, Resume, Step Into and Step Out run the same handlers |
 
 ### Game state

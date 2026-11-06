@@ -136,6 +136,36 @@ describe("VirtualList", () => {
     expect(scroller!.scrollTop).toBe(10 * rowHeight);
   });
 
+  it("reveals the same row again on a new reveal request", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? rowHeight * 4 : 0;
+      },
+    });
+    const list = (revealRequest: number) => (
+      <VirtualList
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        revealIndex={0}
+        revealRequest={revealRequest}
+        listRef={(element) => {
+          scroller = element;
+        }}
+      />
+    );
+    await act(async () => render(list(1), host!));
+    scroller!.scrollTop = rowHeight * 50;
+    await act(async () => render(list(1), host!));
+    expect(scroller!.scrollTop).toBe(rowHeight * 50);
+    await act(async () => render(list(2), host!));
+    expect(scroller!.scrollTop).toBe(0);
+  });
+
   it("reveals its row once a list mounted hidden gets a viewport", async () => {
     const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
     host = document.body.appendChild(document.createElement("div"));

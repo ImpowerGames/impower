@@ -33,6 +33,7 @@ export type VirtualListProps<T> = {
   size?: VirtualListSize;
   overscan?: number;
   revealIndex?: number;
+  revealRequest?: number;
   itemHeight?: (item: T, index: number) => number;
   label?: string;
   class?: string;
@@ -46,6 +47,7 @@ export default function VirtualList<T>({
   size = "default",
   overscan = 6,
   revealIndex,
+  revealRequest,
   itemHeight,
   label,
   class: className,
@@ -120,7 +122,7 @@ export default function VirtualList<T>({
     } else if (bottom > element.scrollTop + element.clientHeight) {
       element.scrollTop = bottom - element.clientHeight;
     }
-  }, [revealIndex, rowHeight, hasViewport]);
+  }, [revealIndex, revealRequest, rowHeight, hasViewport]);
 
   const first = indexAt(view.top);
   const last = view.height

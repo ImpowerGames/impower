@@ -68,6 +68,9 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
+const { ProblemsPanel } = await import(
+  "../../src/modules/spark-editor/components/problems"
+);
 const { consoleToggleSource, runtimeErrorSource } = await import(
   "../../src/modules/spark-editor/workspace/problems/gameSources"
 );
@@ -185,6 +188,7 @@ beforeEach(() => {
   problems.played.value = [];
   problems.shown.value = { error: true, warning: true, info: true };
   problems.dialog.value = null;
+  problems.reveal.value = null;
   snackbar.value = null;
   Object.values(intents).forEach((fn) => fn.mockClear());
 });
@@ -413,6 +417,59 @@ describe("the Problems panel", () => {
     await act(async () => problems.showProblems());
     expect(stored().problemsScriptCardOpen).toBe(true);
     expect(entries()).toEqual(["Error · Broken"]);
+  });
+
+  describe("reveal requests", () => {
+    const viewport = () =>
+      panel()!.querySelector('[role="list"]')!.parentElement as HTMLElement;
+    const scrollTo = (top: number) =>
+      act(async () => {
+        viewport().scrollTop = top;
+        viewport().dispatchEvent(new Event("scroll"));
+      });
+    const mountShort = async () => {
+      workspaceSettings.setProjectSetting("previewPanelHeight", 260);
+      vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(200);
+      host = document.body.appendChild(document.createElement("div"));
+      await act(async () => render(h(ProblemsPanel, {}), host!));
+    };
+
+    it("scrolls back to In the script on a second request after the writer scrolled away", async () => {
+      problems.record({
+        uri: MAIN,
+        diagnostics: Array.from({ length: 40 }, (_, line) =>
+          diagnostic(line, 1, `problem ${line}`),
+        ),
+      });
+      await mountShort();
+      await act(async () => problems.showProblems());
+      await settle();
+      expect(viewport().scrollTop).toBe(0);
+      await scrollTo(2200);
+      await act(async () => problems.showProblems());
+      await settle();
+      expect(viewport().scrollTop).toBe(0);
+    });
+
+    it("brings a new played error into view after the full log rolls over", async () => {
+      for (let index = 0; index < 100; index += 1) {
+        problems.recordPlayed({ severity: "warning", message: `old ${index}` });
+      }
+      await mountShort();
+      await act(async () =>
+        problems.recordPlayed({ severity: "error", message: "first error" }),
+      );
+      await settle();
+      const bottom = viewport().scrollTop;
+      expect(bottom).toBeGreaterThan(7000);
+      await scrollTo(0);
+      await act(async () =>
+        problems.recordPlayed({ severity: "error", message: "second error" }),
+      );
+      await settle();
+      expect(problems.played.value).toHaveLength(100);
+      expect(viewport().scrollTop).toBe(bottom);
+    });
   });
 
   it("opens the whole story's Problems to fix dialog from the toggle on a phone", async () => {
