@@ -43,10 +43,16 @@ export class Coordinator<G extends Game> {
 
   protected _onTick?: (deltaMS: number) => void;
 
-  constructor(game: G, instructions: Instructions) {
+  constructor(
+    game: G,
+    instructions: Instructions,
+    options?: { settled?: boolean },
+  ) {
     this._game = game;
     this._instructions = instructions;
-    if (game.context.system.previewing) {
+    if (options?.settled) {
+      this.onSettle();
+    } else if (game.context.system.previewing) {
       this.onPreview();
     } else {
       this.onExecute();
@@ -55,6 +61,12 @@ export class Coordinator<G extends Game> {
 
   onPreview() {
     this.display({ instant: true, preview: true });
+  }
+
+  onSettle() {
+    this.display({ instant: true });
+    this._startedExecution = true;
+    this._onTick = () => {};
   }
 
   onExecute() {

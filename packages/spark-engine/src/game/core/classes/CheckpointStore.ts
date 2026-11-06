@@ -13,6 +13,7 @@ export interface CheckpointHost {
   saveWithoutStory(): string;
   storyOfImage(image: unknown): string | null;
   durableExecuted(executed: RecencyEntry[]): RecencyEntry[];
+  imageBytes(image: unknown): number;
 }
 
 export interface StoredCheckpoint {
@@ -27,6 +28,8 @@ interface ImageEntry {
   body: string;
   rt: RuntimeCollections;
   chainStart: boolean;
+  bytes: number;
+  folded: boolean;
 }
 
 interface RuntimeChain {
@@ -34,6 +37,12 @@ interface RuntimeChain {
   ce: RuntimeCollections["ce"];
   cde: RuntimeCollections["cde"];
 }
+
+const ENTRY_BYTES = 96;
+const SLOT_BYTES = 8;
+const RECORD_BYTES = 32;
+
+const NO_RUNTIME: RuntimeCollections = { pe: [], ce: [], cde: [] };
 
 export class CheckpointStore {
   protected _entries: ImageEntry[] = [];
@@ -43,19 +52,28 @@ export class CheckpointStore {
 
   protected _chainEnd: RuntimeChain | null = null;
 
+  protected _bytes = 0;
+  get bytes(): number {
+    return this._bytes;
+  }
+
   get stats(): {
     total: number;
     keyframes: number;
     deltas: number;
+    folded: number;
   } {
     let keyframes = 0;
+    let folded = 0;
     for (const e of this._entries) {
-      if (e.keyframe) {
+      if (e.folded) {
+        folded++;
+      } else if (e.keyframe) {
         keyframes++;
       }
     }
     const total = this._entries.length;
-    return { total, keyframes, deltas: total - keyframes };
+    return { total, keyframes, deltas: total - keyframes - folded, folded };
   }
 
   constructor(host: CheckpointHost, options?: { baseInterval?: number }) {
@@ -93,11 +111,91 @@ export class CheckpointStore {
       rt = changes;
     }
     this._chainEnd = chain;
-    this._entries.push({ keyframe, image, body, rt, chainStart });
+    const bytes =
+      ENTRY_BYTES +
+      body.length * 2 +
+      runtimeBytes(rt) +
+      this._host.imageBytes(image);
+    this._bytes += bytes;
+    this._entries.push({
+      keyframe,
+      image,
+      body,
+      rt,
+      chainStart,
+      bytes,
+      folded: false,
+    });
+  }
+
+  isFolded(index: number): boolean {
+    return this._entries[index]?.folded ?? false;
+  }
+
+  fold(budget: number, keep: number): number[] {
+    const folded: number[] = [];
+    let newest = this._entries.length - 1;
+    while (newest > 0 && !this._entries[newest]!.keyframe) {
+      newest--;
+    }
+    let from = Math.max(0, keep + 1);
+    while (this._bytes > budget && from < newest) {
+      let next = from;
+      while (next < newest && !this._entries[next]!.keyframe) {
+        next++;
+      }
+      let live = false;
+      for (let i = from; i < next; i++) {
+        if (!this._entries[i]!.folded) {
+          live = true;
+          break;
+        }
+      }
+      if (live) {
+        this.startChainAt(next);
+        for (let i = from; i < next; i++) {
+          const entry = this._entries[i]!;
+          if (!entry.folded) {
+            this._bytes -= entry.bytes;
+            this._entries[i] = {
+              keyframe: false,
+              image: null,
+              body: "",
+              rt: NO_RUNTIME,
+              chainStart: false,
+              bytes: 0,
+              folded: true,
+            };
+            folded.push(i);
+          }
+        }
+      }
+      from = next + 1;
+    }
+    return folded;
+  }
+
+  protected startChainAt(index: number): void {
+    const entry = this._entries[index]!;
+    if (entry.chainStart) {
+      return;
+    }
+    const rt = this.runtimeAt(index);
+    const was = runtimeBytes(entry.rt);
+    entry.rt = { pe: rt.pe, ce: rt.ce.slice(), cde: rt.cde.slice() };
+    entry.chainStart = true;
+    const now = runtimeBytes(entry.rt);
+    entry.bytes += now - was;
+    this._bytes += now - was;
   }
 
   getJson(index: number): string | null {
-    if (!Number.isInteger(index) || index < 0 || index >= this._entries.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this._entries.length ||
+      this._entries[index]!.folded
+    ) {
       return null;
     }
     return this.reconstruct(index);
@@ -106,7 +204,7 @@ export class CheckpointStore {
   at(index: number): string | null {
     const n = this._entries.length;
     const i = index < 0 ? n + index : index;
-    if (i < 0 || i >= n) {
+    if (i < 0 || i >= n || this._entries[i]!.folded) {
       return null;
     }
     return this.reconstruct(i);
@@ -119,11 +217,15 @@ export class CheckpointStore {
       return null;
     }
     const entry = this._entries[i]!;
+    if (entry.folded) {
+      return null;
+    }
     return { image: entry.image, body: entry.body, runtime: this.runtimeAt(i) };
   }
 
   imageOf(index: number): unknown {
-    return this._entries[index]?.image;
+    const entry = this._entries[index];
+    return entry && !entry.folded ? entry.image : undefined;
   }
 
   jsonOf(checkpoint: StoredCheckpoint): string | null {
@@ -143,7 +245,7 @@ export class CheckpointStore {
 
   imageAt(index: number): { image: unknown; save: Record<string, any> } | null {
     const entry = this._entries[index];
-    if (!entry) {
+    if (!entry || entry.folded) {
       return null;
     }
     const save = JSON.parse(entry.body);
@@ -178,6 +280,9 @@ export class CheckpointStore {
     if (kept < this._entries.length) {
       this._chainEnd = null;
     }
+    for (let i = kept; i < this._entries.length; i++) {
+      this._bytes -= this._entries[i]!.bytes;
+    }
     this._entries.length = kept;
   }
 
@@ -193,6 +298,14 @@ export class CheckpointStore {
     });
   }
 }
+
+const runtimeBytes = (rt: RuntimeCollections): number => {
+  let bytes = SLOT_BYTES * rt.pe.length + SLOT_BYTES * 2 * rt.cde.length;
+  for (const c of rt.ce) {
+    bytes += RECORD_BYTES + SLOT_BYTES * c.options.length;
+  }
+  return bytes;
+};
 
 const applyChanges = (chain: RuntimeChain, changes: RuntimeCollections): void => {
   for (const p of changes.pe) {

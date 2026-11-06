@@ -131,6 +131,14 @@ import type { GameState } from "../types/GameState";
 import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
 import type { RouteResumption } from "../types/RouteResumption";
+import type {
+  GameHistory,
+  RollResult,
+  RollTarget,
+  SettledBeat,
+} from "../types/RunHistory";
+import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
+import { imageBytes } from "../utils/imageBytes";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -171,13 +179,17 @@ import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "./messages/GamePreviewedMessage";
+import { GameRolledMessage } from "./messages/GameRolledMessage";
 import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
 import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
+import { RunRecord } from "./RunRecord";
 import { RuntimeState } from "./RuntimeState";
+
+const CHECKPOINT_BYTE_BUDGET = 64 * 1024 * 1024;
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -649,6 +661,12 @@ export class Game<T extends M = {}> {
     return this._checkpoints;
   }
 
+  protected _checkpointByteBudget = CHECKPOINT_BYTE_BUDGET;
+
+  protected _run = new RunRecord();
+
+  protected _rolls = 0;
+
   protected _version = "";
   protected _saveHistory = 16;
   protected _rewindBeats = 128;
@@ -708,9 +726,12 @@ export class Game<T extends M = {}> {
         durableExecuted: (executed) => this.durableExecuted(executed),
         snapshotRuntime: () => this._runtimeState.snapshotFull(),
         drainRuntime: () => this._runtimeState.drainDeltas(),
+        imageBytes: (image) => imageBytes(image as ProgramImage),
       },
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );
+    this._checkpointByteBudget =
+      options?.checkpointByteBudget ?? CHECKPOINT_BYTE_BUDGET;
 
     this._context = {
       system: {
@@ -2370,6 +2391,7 @@ export class Game<T extends M = {}> {
 
   start(save: string = ""): void {
     this.cancelPreview();
+    this._run.clear();
     this._state = "running";
     this._ending = null;
     this._errorEnding = null;
@@ -2489,6 +2511,140 @@ export class Game<T extends M = {}> {
         ? this._routeSimulator?.decisionsTaken()
         : undefined;
     }
+  }
+
+  protected recordsRun(): boolean {
+    return (
+      this._state === "running" &&
+      this._simulation !== "simulating" &&
+      !this._replaying
+    );
+  }
+
+  protected recordBeat(shown: Instructions): void {
+    this._run.record({
+      checkpoint: this._checkpoints.length - 1,
+      shown,
+      menus: this._playedMenus.length,
+    });
+    const budget = this._checkpointByteBudget;
+    if (this._checkpoints.bytes > budget) {
+      const folded = this._checkpoints.fold(
+        budget,
+        this._run.first!.checkpoint,
+      );
+      if (folded.length > 0) {
+        this._run.drop(new Set(folded));
+      }
+    }
+  }
+
+  protected forkRun(): void {
+    const beat = this._run.current;
+    if (!beat) {
+      return;
+    }
+    this._run.truncateAfterCurrent();
+    const kept = beat.checkpoint + 1;
+    this._checkpoints.truncate(kept);
+    this._checkpointStepCursors.length = kept;
+    this._checkpointShownBeats.length = kept;
+    this._checkpointDecisionsTaken.length = kept;
+    this._playedMenus.length = beat.menus;
+  }
+
+  get history(): GameHistory {
+    const run = this._run;
+    const canRollBack = run.canRollBack;
+    const canRollForward = run.canRollForward;
+    const behindLatest = run.behindLatest;
+    const canStepOut = this.stoppedDepth() > 1;
+    return {
+      canRollBack,
+      canRollForward,
+      behindLatest,
+      canStepOut,
+      rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+      rollForwardRefusal: canRollForward ? null : HISTORY_REASONS.rollForward,
+      stepRefusal: behindLatest ? HISTORY_REASONS.step : null,
+      stepOutRefusal: canStepOut ? null : HISTORY_REASONS.stepOut,
+    };
+  }
+
+  async rollBack(to: RollTarget): Promise<RollResult> {
+    const target = this._run.backFrom(to);
+    return target === null
+      ? { moved: false, reason: HISTORY_REASONS.rollBack, history: this.history }
+      : this.rollTo(target);
+  }
+
+  async rollForward(to: RollTarget): Promise<RollResult> {
+    const target = this._run.forwardFrom(to);
+    return target === null
+      ? {
+          moved: false,
+          reason: HISTORY_REASONS.rollForward,
+          history: this.history,
+        }
+      : this.rollTo(target);
+  }
+
+  protected rollForwardOnTap(): void {
+    this.rollForward("beat").catch((e) => this.log(e, "error"));
+  }
+
+  protected async rollTo(target: number): Promise<RollResult> {
+    const beat = this._run.beats[target]!;
+    const audio = this.module.audio;
+    const before = audio.loopsHeld();
+    if (!this.restoreCheckpoint(beat.checkpoint)) {
+      throw new Error("This beat can no longer be restored.");
+    }
+    if (beat.shown.choices?.length) {
+      const runtime = this._runtimeState;
+      this._runtimeState = new RuntimeState();
+      this._story.ContinueMaximally();
+      this._runtimeState = runtime;
+    }
+    const roll = ++this._rolls;
+    this._ending = null;
+    this._errorEnding = null;
+    this._coordinator = null;
+    this._run.moveTo(target);
+    this._executingLocation =
+      this.lastExecutedScriptLocation() ?? this._executingLocation;
+    this._awaiting = this._executingLocation;
+    audio.stopChannel("sound");
+    audio.stopChannel("voice");
+    const { loops, stoppedLoops } = audio.settleLoops(before);
+    const restored: SettledBeat = {
+      beat: target,
+      location: this._executingLocation
+        ? this.getDocumentLocation(this._executingLocation)
+        : null,
+      choices: this._story.currentChoices.map((c) => c.text),
+      chosen: beat.chosen ?? null,
+      textRevealed: true,
+      transitionsEnded: true,
+      oneShotsSilent: true,
+      timersRestarted: true,
+      loops,
+      stoppedLoops,
+    };
+    await Promise.all([
+      this.module.ui.onRestore(),
+      this.module.assets.onRestore(),
+    ]);
+    if (roll === this._rolls) {
+      this.noteShownChoices(beat.shown);
+      this._shownBeatOnScreen = beat.shown;
+      this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    }
+    const history = this.history;
+    this.connection.emit(
+      GameRolledMessage.type.notification({ restored, history }),
+    );
+    return { moved: true, restored, history };
   }
 
   save(): string {
@@ -3049,6 +3205,10 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
+    this._rolls += 1;
+    if (this._run.behindLatest) {
+      this.forkRun();
+    }
     if (!preserveExecutionInfo) {
       this._runtimeState = new RuntimeState();
     }
@@ -3086,6 +3246,25 @@ export class Game<T extends M = {}> {
     return done;
   }
 
+  protected stoppedDepth(): number {
+    const state = this._story.state;
+    const depth = state.callstackDepth;
+    const frames = this._story.debugFrames(
+      state.callStack.currentThread.threadIndex,
+      this.lastExecutedAddress() ?? -1,
+    );
+    const top = frames?.at(-1);
+    const caller = frames?.at(-2);
+    return top &&
+      caller &&
+      sameLocation(
+        this.scriptLocationOf(top.address),
+        this.scriptLocationOf(caller.address),
+      )
+      ? depth - 1
+      : depth;
+  }
+
   protected resetExecutionBudget() {
     this._executionBudgetExhausted = false;
     this._executionStepsRemaining = this._executionStepLimit;
@@ -3095,12 +3274,16 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
+    if (this._run.behindLatest) {
+      return false;
+    }
+    this._rolls += 1;
     this.cancelPreview();
     this._awaiting = null;
     this.resetExecutionBudget();
     this.refreshDataWatches();
     const origin = {
-      depth: this._story.state.callstackDepth,
+      depth: this.stoppedDepth(),
       location: this._executingLocation,
     };
     this._announcedStop = false;
@@ -3219,6 +3402,9 @@ export class Game<T extends M = {}> {
         }
         if (instructions || this._simulation !== "simulating") {
           this.checkpoint();
+        }
+        if (instructions && this.recordsRun()) {
+          this.recordBeat(instructions);
         }
         if (
           instructions &&
@@ -3383,7 +3569,7 @@ export class Game<T extends M = {}> {
   }
 
   autoAdvancedToContinue() {
-    if (this._ending) {
+    if (this._ending || this._run.behindLatest) {
       return;
     }
     this.notifyAutoAdvancedToContinue();
@@ -3394,6 +3580,10 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return;
     }
+    if (this._run.behindLatest) {
+      this.rollForwardOnTap();
+      return;
+    }
     this.notifyClickedToContinue();
     this.continue();
   }
@@ -3401,6 +3591,17 @@ export class Game<T extends M = {}> {
   chosePathToContinue(index: number) {
     if (this._ending) {
       return;
+    }
+    const beat = this._run.current;
+    if (beat?.shown.choices?.length) {
+      if (this._run.behindLatest) {
+        if (beat.chosen === index) {
+          this.rollForwardOnTap();
+          return;
+        }
+        this.forkRun();
+      }
+      beat.chosen = index;
     }
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
@@ -3637,6 +3838,7 @@ export class Game<T extends M = {}> {
       simulationFailure:
         this._simulation === "fail" ? this._simulationFailure : undefined,
       route: this._previewRoute,
+      history: this.history,
     };
   }
 
@@ -3842,6 +4044,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        history: this.history,
       }),
     );
   }
