@@ -19,6 +19,7 @@ import {
   type ProjectSettings,
 } from "../../workspace/settings/settingsSchema";
 import { useSettings } from "../../workspace/settings/useSettings";
+import type { SettingsSectionInfo } from "./sections";
 import { useSectionReset } from "./useSectionReset";
 
 type BooleanKey = {
@@ -35,15 +36,8 @@ const showPreview = async (desktop: boolean) => {
   }
 };
 
-export default function ScreenplaySection({
-  id,
-  title,
-  detail,
-}: {
-  id: string;
-  title: string;
-  detail?: string;
-}) {
+export default function ScreenplaySection({ section }: { section: SettingsSectionInfo }) {
+  const { id, title, detail } = section;
   const layout = useLayout();
   const { projectSettings: settings, setProjectSetting } = useSettings();
   const { changed, onReset } = useSectionReset({ project: SCREENPLAY_SETTING_KEYS });

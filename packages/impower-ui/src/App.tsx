@@ -6,6 +6,7 @@ import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
+import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
@@ -19,7 +20,9 @@ import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
+import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
 import { toastGallery } from "./components/toast/Toast.gallery";
+import { virtualListGallery } from "./components/virtual-list/VirtualList.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
@@ -30,6 +33,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   dropdownGallery,
   iconGallery,
   jumpChipsGallery,
+  listRowGallery,
   liveRegionGallery,
   loadingBarGallery,
   madeWithSparkSplashGallery,
@@ -43,7 +47,9 @@ export const galleryEntries: readonly GalleryEntry[] = [
   switchGallery,
   tabsGallery,
   textFieldGallery,
+  themeSwatchGallery,
   toastGallery,
+  virtualListGallery,
 ];
 
 export function App() {

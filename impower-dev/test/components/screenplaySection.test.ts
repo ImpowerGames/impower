@@ -30,9 +30,12 @@ const mount = async () => {
   await act(async () =>
     render(
       h(ScreenplaySection, {
-        id: "screenplay-settings",
-        title: "Screenplay",
-        detail: "How your story looks when previewing or exporting it as a screenplay.",
+        section: {
+          id: "screenplay-settings",
+          label: "Screenplay",
+          title: "Screenplay",
+          detail: "How your story looks when previewing or exporting it as a screenplay.",
+        },
       }),
       host!,
     ),

@@ -5,17 +5,29 @@ import {
   SettingsPlaceholder,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import type { ComponentType } from "preact";
+import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
 import Account from "../account/Account";
+import AppearanceSection from "./AppearanceSection";
+import PreviewSection from "./PreviewSection";
 import ScreenplaySection from "./ScreenplaySection";
-import { SETTINGS_INDEX, SETTINGS_SCOPES, SETTINGS_SECTION_IDS, type SettingsSectionId } from "./sections";
+import ScriptEditorSection from "./ScriptEditorSection";
+import {
+  SETTINGS_INDEX,
+  SETTINGS_SCOPES,
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+  type SettingsSectionInfo,
+} from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
 
-type SectionCard = ComponentType<{ id: string; title: string; detail?: string }>;
-
-const SECTION_CARDS: Partial<Record<SettingsSectionId, SectionCard>> = {
+const SECTION_BODIES: Partial<
+  Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
+> = {
+  "theme-preferences": AppearanceSection,
+  "editor-preferences": ScriptEditorSection,
+  "preview-preferences": PreviewSection,
   "screenplay-settings": ScreenplaySection,
 };
 
@@ -110,15 +122,11 @@ export default function SettingsPage() {
               </h2>
             </header>,
             ...scope.sections.map((section) => {
-              const Card = SECTION_CARDS[section.id];
-              return Card ? (
-                <Card
-                  key={section.id}
-                  id={section.id}
-                  title={section.title}
-                  detail={"detail" in section ? section.detail : undefined}
-                />
-              ) : (
+              const Body = SECTION_BODIES[section.id];
+              if (Body) {
+                return <Body key={section.id} section={section} />;
+              }
+              return (
                 <SettingsPlaceholder
                   key={section.id}
                   id={section.id}
