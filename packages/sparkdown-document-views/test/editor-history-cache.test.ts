@@ -111,6 +111,19 @@ describe("the editor's per-script history cache", () => {
     expect(cache.uris()).toContain("file:///extra.sd");
   });
 
+  it("records nothing for a script an editor holds open, and each edit once", () => {
+    const cache = new EditorHistoryCache();
+    const editor = {};
+    cache.holdOpen(editor, "file:///main.sd");
+    expect(cache.record("file:///main.sd", before, [at(1, 6, 12, "tale")])).toBeUndefined();
+    expect(cache.size).toBe(0);
+    cache.holdOpen(editor, undefined);
+    cache.record("file:///main.sd", before, [at(1, 6, 12, "tale")], 7);
+    cache.record("file:///main.sd", before, [at(1, 6, 12, "tale")], 7);
+    const state = reopen(cache, "file:///main.sd", lines("scene start", "  The tale spread.", "  A rumour more.", "end"));
+    expect(undoDepth(state)).toBe(1);
+  });
+
   it("forgets every script when the project's root changes", () => {
     const cache = new EditorHistoryCache();
     cache.useRoot("file:///project-a");

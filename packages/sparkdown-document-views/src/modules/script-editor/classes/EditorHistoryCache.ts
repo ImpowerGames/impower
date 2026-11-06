@@ -34,6 +34,10 @@ export class EditorHistoryCache {
 
   protected _root: string | undefined;
 
+  protected readonly _open = new Map<object, string>();
+
+  protected readonly _recorded = new Map<string, number | string>();
+
   constructor(readonly limit = EDITOR_HISTORY_CACHE_LIMIT) {}
 
   get size() {
@@ -49,6 +53,18 @@ export class EditorHistoryCache {
       this._root = root;
       this.clear();
     }
+  }
+
+  holdOpen(editor: object, uri: string | undefined) {
+    if (uri) {
+      this._open.set(editor, uri);
+    } else {
+      this._open.delete(editor);
+    }
+  }
+
+  isOpen(uri: string) {
+    return [...this._open.values()].includes(uri);
   }
 
   save(uri: string, state: EditorState) {
@@ -86,7 +102,18 @@ export class EditorHistoryCache {
     return { selection: entry.selection, history: entry.history };
   }
 
-  record(uri: string, before: string, edits: readonly CachedTextEdit[]) {
+  record(
+    uri: string,
+    before: string,
+    edits: readonly CachedTextEdit[],
+    request?: number | string,
+  ) {
+    if (this.isOpen(uri) || (request != null && this._recorded.get(uri) === request)) {
+      return undefined;
+    }
+    if (request != null) {
+      this._recorded.set(uri, request);
+    }
     const doc = normalize(before);
     const entry = this._entries.get(uri);
     const state =
@@ -111,11 +138,10 @@ export class EditorHistoryCache {
     return transaction.state.doc.toString();
   }
 
-  delete(uri: string) {
-    this._entries.delete(uri);
-  }
-
   clear() {
     this._entries.clear();
+    this._recorded.clear();
   }
 }
+
+export const sharedEditorHistory = new EditorHistoryCache();

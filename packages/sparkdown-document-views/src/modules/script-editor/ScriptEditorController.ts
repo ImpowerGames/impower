@@ -112,7 +112,7 @@ import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
 import { getVisibleRange } from "../../utils/getVisibleRange";
 import { scrollY } from "../../utils/scrollY";
-import { EditorHistoryCache } from "./classes/EditorHistoryCache";
+import { sharedEditorHistory } from "./classes/EditorHistoryCache";
 import { SparkdownCodemirrorWorkspace } from "./classes/SparkdownCodemirrorWorkspace";
 import { setFindMatchesEffect } from "./utils/extensions/findMatches";
 import createEditorView, {
@@ -187,7 +187,7 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
   protected _protocols = new ProtocolObserver();
-  protected _historyCache = new EditorHistoryCache();
+  protected _historyCache = sharedEditorHistory;
 
   constructor(
     host: HTMLElement,
@@ -234,6 +234,10 @@ export class ScriptEditorController {
       this.handlePointerLeaveScroller,
     );
     this._protocols.dispose();
+    if (this._view && this._textDocument) {
+      this._historyCache.save(this._textDocument.uri, this._view.state);
+    }
+    this._historyCache.holdOpen(this, undefined);
     if (this._textDocument) {
       if (this._editing) {
         sendProtocolMessage(
@@ -671,7 +675,7 @@ export class ScriptEditorController {
       }
       const before = closedTexts?.[change.uri];
       if (before != null) {
-        this._historyCache.record(change.uri, before, edits);
+        this._historyCache.record(change.uri, before, edits, message.id);
       }
     }
     return ApplyEditorEditMessage.type.response(message.id, { applied });
@@ -726,6 +730,7 @@ export class ScriptEditorController {
     } = params;
     if (preserveEditor && this._view) {
       this._textDocument = textDocument;
+      this._historyCache.holdOpen(this, textDocument.uri);
       const uri = textDocument.uri;
       const plugin = LSPPlugin.get(this._view);
       if (plugin) {
@@ -769,6 +774,7 @@ export class ScriptEditorController {
       this._historyCache.useRoot(
         languageServerInitializeParams?.rootUri ?? undefined,
       );
+      this._historyCache.holdOpen(this, textDocument.uri);
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();

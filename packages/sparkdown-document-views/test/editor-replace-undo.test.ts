@@ -57,6 +57,9 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
 const { ScriptEditorController } = await import(
   "../src/modules/script-editor/ScriptEditorController"
 );
+const { sharedEditorHistory } = await import(
+  "../src/modules/script-editor/classes/EditorHistoryCache"
+);
 
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () =>
@@ -70,6 +73,7 @@ const MAIN_TEXT = lines("scene start", "  The rumour spread.", "end");
 const CHAPTER_TEXT = lines("scene chapter", "  A rumour, another rumour.", "end");
 
 const hosts: HTMLElement[] = [];
+const controllers: { dispose: () => void }[] = [];
 
 const mount = () => {
   const host = document.body.appendChild(document.createElement("div"));
@@ -80,11 +84,13 @@ const mount = () => {
     placeholder: host.appendChild(document.createElement("div")),
     main: host.appendChild(document.createElement("div")),
   };
-  return new ScriptEditorController(host, refs, {
+  const controller = new ScriptEditorController(host, refs, {
     appearance: ALL_ON_APPEARANCE,
     languageServerWorker: {} as Worker,
     languageServerConnection: {} as never,
   });
+  controllers.push(controller);
+  return controller;
 };
 
 let nextId = 0;
@@ -117,7 +123,10 @@ const replaceRumour = (line: number, characters: number[]) => ({
   })),
 });
 
-const applyEdit = (controller: InstanceType<typeof ScriptEditorController>) =>
+const applyEdit = (
+  controller: InstanceType<typeof ScriptEditorController>,
+  id = `edit-${nextId++}`,
+) =>
   controller["handleApplyEditorEdit"]({
     ...ApplyEditorEditMessage.type.request({
       label: "Replace all",
@@ -129,14 +138,16 @@ const applyEdit = (controller: InstanceType<typeof ScriptEditorController>) =>
       },
       closedTexts: { [CHAPTER]: CHAPTER_TEXT },
     }),
-    id: `edit-${nextId++}`,
+    id,
   } as ApplyEditorEditMessage.Request);
 
 const undoIn = (view: EditorView) => undo(view);
 
 afterEach(() => {
+  controllers.splice(0).forEach((controller) => controller.dispose());
   created.splice(0).forEach(({ view }) => view.destroy());
   hosts.splice(0).forEach((host) => host.remove());
+  sharedEditorHistory.clear();
 });
 
 describe("Replace all through the editor's own history", () => {
@@ -199,6 +210,35 @@ describe("Replace all through the editor's own history", () => {
     expect(undoDepth(chapter.state)).toBe(1);
     undoIn(chapter);
     expect(chapter.state.doc.toString()).toBe(CHAPTER_TEXT);
+  });
+
+  it("shares one history between two editors and records a closed script once per edit", async () => {
+    const mainEditor = mount();
+    const scriptsEditor = mount();
+    load(mainEditor, MAIN, MAIN_TEXT);
+    load(scriptsEditor, "file:///project/epilogue.sd", "scene epilogue");
+    await applyEdit(mainEditor, "shared");
+    await applyEdit(scriptsEditor, "shared");
+    const replaced = lines("scene chapter", "  A tale, another tale.", "end");
+    const chapter = load(scriptsEditor, CHAPTER, replaced);
+    expect(undoDepth(chapter.state)).toBe(1);
+    undoIn(chapter);
+    expect(chapter.state.doc.toString()).toBe(CHAPTER_TEXT);
+  });
+
+  it("leaves a script another editor holds open to that editor's own history", async () => {
+    const mainEditor = mount();
+    const scriptsEditor = mount();
+    const main = load(mainEditor, MAIN, MAIN_TEXT);
+    load(scriptsEditor, "file:///project/epilogue.sd", "scene epilogue");
+    await applyEdit(mainEditor, "held");
+    await applyEdit(scriptsEditor, "held");
+    expect(undoDepth(main.state)).toBe(1);
+    mainEditor.dispose();
+    const reopened = load(scriptsEditor, MAIN, main.state.doc.toString());
+    expect(undoDepth(reopened.state)).toBe(1);
+    undoIn(reopened);
+    expect(reopened.state.doc.toString()).toBe(MAIN_TEXT);
   });
 
   it("keeps the open script's history when the writer switches away and back", async () => {
