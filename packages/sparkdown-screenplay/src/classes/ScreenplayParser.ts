@@ -7,6 +7,13 @@ import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
 
+const ROOT_FUNCTION_WRAPPERS = new Set([
+  "LuauFunctionAttributes",
+  "LuauFunctionAttributes_content",
+  "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitStatement_content",
+]);
+
 export default class ScreenplayParser {
   protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
 
@@ -62,10 +69,14 @@ export default class ScreenplayParser {
 
     const isRootFunctionName = (node: SyntaxNode): boolean => {
       const definition = node.parent?.parent;
+      let container = definition?.parent;
+      while (container && ROOT_FUNCTION_WRAPPERS.has(container.name)) {
+        container = container.parent;
+      }
       if (
         node.parent?.name !== "LuauFunctionDefinition_content" ||
         definition?.name !== "LuauFunctionDefinition" ||
-        definition.parent?.name !== "sparkdown"
+        container?.name !== "sparkdown"
       ) {
         return false;
       }

@@ -48,8 +48,29 @@ function LastHelper()
   return 3
 end`;
 
+const ATTRIBUTED_SCRIPT = `scene Opening:
+  Hello there.
+
+@native function NativeHelper() return 1 end
+
+@native --[[c]] @checked
+function CheckedHelper()
+  return 2
+end
+
+@native local function LocalNative() return 3 end
+
+& function MarkedHelper()
+  return 4
+end
+
+& local function MarkedLocal() return 5 end
+
+Goodbye.
+`;
+
 const localize = (script: string) =>
-  script.replace(/^function (\w+)\(/gm, "local function $1(");
+  script.replace(/(?<!local )\bfunction (\w+)\(/g, "local function $1(");
 
 const HELPER = "function SecretHelper()\n  return 1\nend\n";
 
@@ -62,6 +83,7 @@ const pageOfLines = (count: number) =>
 const DEFAULT_OUTPUT_FIXTURES: [string, string][] = [
   ["spaced", SCRIPT],
   ["compact", COMPACT_SCRIPT],
+  ["attributed", ATTRIBUTED_SCRIPT],
   ["before the first scene", `${HELPER}\nscene Opening:\n  Hello there.\n`],
   [
     "after an empty scene",
@@ -203,6 +225,22 @@ describe("screenplay function identifiers", () => {
     expect(off).not.toContain("TrailingHelper");
   });
 
+  it("prints attributed and marked root function names but not local ones", async () => {
+    const on = html(ATTRIBUTED_SCRIPT, ON);
+    const off = html(ATTRIBUTED_SCRIPT, OFF);
+    const pdfOn = await printedPdfText(ATTRIBUTED_SCRIPT, ON);
+    for (const output of [on, pdfOn]) {
+      expect(output).toContain("NativeHelper");
+      expect(output).toContain("CheckedHelper");
+      expect(output).toContain("MarkedHelper");
+      expect(output).not.toContain("LocalNative");
+      expect(output).not.toContain("MarkedLocal");
+    }
+    for (const name of ["NativeHelper", "CheckedHelper", "MarkedHelper"]) {
+      expect(off).not.toContain(name);
+    }
+  });
+
   it("HTML export never prints nested, local or method function names", () => {
     const on = html(SCRIPT, ON);
     expect(on).not.toContain("NestedHelper");
@@ -262,16 +300,14 @@ describe("screenplay function identifiers", () => {
     expect(last).toBeGreaterThan(after);
   });
 
-  it.each([
-    ["spaced", SCRIPT],
-    ["compact", COMPACT_SCRIPT],
-  ])(
+  it.each(DEFAULT_OUTPUT_FIXTURES)(
     "reading copy and CSV are unchanged by root function definitions (%s)",
     (_, script) => {
       const parser = new ScreenplayParser();
       const tokens = parser.parse(script);
       const localized = parser.parse(localize(script));
       expect(tokens.some((t) => t.tag === "function")).toBe(true);
+      expect(localized.some((t) => t.tag === "function")).toBe(false);
       expect(generateScreenplayReadingCopy(tokens)).toBe(
         generateScreenplayReadingCopy(localized),
       );
