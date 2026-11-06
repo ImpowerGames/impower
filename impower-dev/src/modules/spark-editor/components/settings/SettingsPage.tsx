@@ -7,10 +7,21 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
-import Account from "../account/Account";
-import { SETTINGS_INDEX, SETTINGS_SCOPES, SETTINGS_SECTION_IDS } from "./sections";
+import type { ComponentType } from "preact";
+import SaveSyncSection from "./SaveSyncSection";
+import {
+  SETTINGS_INDEX,
+  SETTINGS_SCOPES,
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+} from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
 
+const SECTION_VIEWS: Partial<
+  Record<SettingsSectionId, ComponentType<{ id: string; title: string }>>
+> = {
+  "save-settings": SaveSyncSection,
+};
 
 const backToStory = async () => {
   const { Workspace } = await import("../../workspace/Workspace");
@@ -102,20 +113,19 @@ export default function SettingsPage() {
                 {scope.label}
               </h2>
             </header>,
-            ...scope.sections.map((section) => (
-              <SettingsPlaceholder
-                key={section.id}
-                id={section.id}
-                title={section.title}
-                detail={"detail" in section ? section.detail : undefined}
-              >
-                {section.id === "save-settings" && (
-                  <div class="mt-3 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
-                    <Account />
-                  </div>
-                )}
-              </SettingsPlaceholder>
-            )),
+            ...scope.sections.map((section) => {
+              const Section = SECTION_VIEWS[section.id];
+              return Section ? (
+                <Section key={section.id} id={section.id} title={section.title} />
+              ) : (
+                <SettingsPlaceholder
+                  key={section.id}
+                  id={section.id}
+                  title={section.title}
+                  detail={"detail" in section ? section.detail : undefined}
+                />
+              );
+            }),
           ])}
         </div>
       </div>

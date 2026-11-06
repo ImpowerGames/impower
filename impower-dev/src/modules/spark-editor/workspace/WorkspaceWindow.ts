@@ -99,6 +99,7 @@ import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
+import { countProjectFiles } from "./replaceProject";
 import {
   loadExtensionDefaults,
   projectSettingsFromJson,
@@ -188,14 +189,17 @@ export default class WorkspaceWindow {
     this.update(stateForRoute(this.store, route));
   }
 
-  navigateTo(route: Route) {
+  navigateTo(route: Route, section?: string) {
     if (typeof window === "undefined") {
       this.openRoute(route);
       return;
     }
-    const hash = hashOfRoute(route);
+    const hash = hashOfRoute(route, section);
     if (window.location.hash !== hash) {
       window.history.pushState(window.history.state, "", hash);
+      if (section && routeOfState(this.store) === route) {
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      }
     }
     transitionRoute(() => this.openRoute(route));
   }
@@ -324,6 +328,38 @@ export default class WorkspaceWindow {
       await this.resolveConflictWithPush();
     } else {
       await this.resolveConflictWithPull();
+    }
+  }
+
+  protected _replacementFile?: File;
+
+  async requestProjectReplace(file: File) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const fs = this._workspace.fs;
+    const files = await fs.getFiles(projectId);
+    this._replacementFile = file;
+    workspace.replaceProject.value = {
+      fileName: file.name,
+      projectName: this.store.project.name || "this project",
+      ...countProjectFiles(
+        Object.keys(files).map((uri) => fs.getRelativePath(projectId, uri)),
+      ),
+    };
+  }
+
+  cancelProjectReplace() {
+    this._replacementFile = undefined;
+    workspace.replaceProject.value = null;
+  }
+
+  async confirmProjectReplace() {
+    const file = this._replacementFile;
+    this.cancelProjectReplace();
+    if (file) {
+      await this.importLocalProject(file.name, await file.arrayBuffer());
     }
   }
 

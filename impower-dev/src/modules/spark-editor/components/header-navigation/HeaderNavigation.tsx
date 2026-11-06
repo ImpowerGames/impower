@@ -2,9 +2,9 @@ import {
   ArrowBackUp,
   ArrowForwardUp,
   Button,
+  Menu,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import { SyncButton } from "../drive-sync";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
@@ -41,7 +41,17 @@ export default function HeaderNavigation() {
     <div class="relative z-10">
       <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">
         <div class="flex w-full flex-row items-center">
-          <HeaderMenuButton />
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="App menu"
+            onClick={async () => {
+              const { Workspace } = await import("../../workspace/Workspace");
+              Workspace.window.navigateTo("project", "save-settings");
+            }}
+          >
+            <Menu class="size-5" />
+          </Button>
           <div class="flex flex-1 flex-col items-start">
             <HeaderTitleButton />
             <HeaderTitleCaption />

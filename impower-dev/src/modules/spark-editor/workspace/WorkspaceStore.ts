@@ -3,6 +3,7 @@ import type {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
@@ -111,6 +112,8 @@ class WorkspaceStore {
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
+
+  readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

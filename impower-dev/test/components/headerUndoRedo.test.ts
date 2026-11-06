@@ -62,6 +62,26 @@ const press = (button: HTMLElement) =>
     );
   });
 
+describe("the phone header's App menu button", () => {
+  it("opens Settings at Save & sync, where sign-in, import and export live", async () => {
+    const navigateTo = vi.fn();
+    vi.doMock("../../src/modules/spark-editor/workspace/Workspace", () => ({
+      Workspace: { window: { navigateTo } },
+    }));
+    try {
+      const button = await mountHeader();
+      expect(host!.querySelector('[role="dialog"]')).toBeNull();
+      await act(async () => button("App menu").click());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      });
+      expect(navigateTo).toHaveBeenCalledWith("project", "save-settings");
+    } finally {
+      vi.doUnmock("../../src/modules/spark-editor/workspace/Workspace");
+    }
+  });
+});
+
 describe("the header's Undo and Redo below the desktop width", () => {
   it("shows both buttons in the compact layout", async () => {
     platform.value = "Win32";
