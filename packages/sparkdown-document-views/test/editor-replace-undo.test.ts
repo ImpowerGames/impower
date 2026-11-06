@@ -2,7 +2,9 @@ import { history, historyField, undo, undoDepth } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findMatches } from "../src/modules/script-editor/utils/extensions/findMatches";
@@ -147,6 +149,45 @@ describe("Replace all through the editor's own history", () => {
     expect(undoDepth(view.state)).toBe(1);
     undoIn(view);
     expect(view.state.doc.toString()).toBe(MAIN_TEXT);
+  });
+
+  it("claims the open script while the request is dispatched, before it applies anything", () => {
+    const controller = mount();
+    load(controller, MAIN, MAIN_TEXT);
+    const claims: unknown[] = [];
+    const listener = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (ClaimedEditorEditMessage.type.is(detail)) {
+        claims.push(detail.params);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    try {
+      const pending = applyEdit(controller);
+      expect(claims).toEqual([{ request: expect.anything(), uri: MAIN }]);
+      return pending;
+    } finally {
+      window.removeEventListener(MessageProtocol.event, listener);
+    }
+  });
+
+  it("claims nothing when none of the edit is in the open script", async () => {
+    const controller = mount();
+    load(controller, "file:///project/epilogue.sd", "scene epilogue");
+    const claims: unknown[] = [];
+    const listener = (e: Event) => {
+      if (ClaimedEditorEditMessage.type.is((e as CustomEvent).detail)) {
+        claims.push(e);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    try {
+      const response = await applyEdit(controller);
+      expect(claims).toEqual([]);
+      expect(response.result).toEqual({ applied: [] });
+    } finally {
+      window.removeEventListener(MessageProtocol.event, listener);
+    }
   });
 
   it("gives a closed script one undo step that it keeps when it is opened", async () => {

@@ -1,6 +1,7 @@
 import { computed, signal, type ReadonlySignal } from "@preact/signals";
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import type { AccountInfo } from "./types/AccountInfo";
+import { INITIAL_SEARCH, type SearchSnapshot } from "./searchState";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 const defaults: WorkspaceCache = {
@@ -104,6 +105,8 @@ class WorkspaceStore {
   readonly trashOpen = signal<boolean>(false);
 
   readonly animatePortraits = signal<boolean>(true);
+
+  readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

@@ -41,7 +41,7 @@ export const PREFERENCES_SCHEMA = {
   lineNumbers: setting(false),
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
-  autoRenameFiles: setting(true),
+  autoRenameFiles: setting(true, configured("editor.autoRenameFiles")),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {

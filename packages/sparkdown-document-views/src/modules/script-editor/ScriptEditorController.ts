@@ -14,6 +14,7 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
@@ -630,6 +631,15 @@ export class ScriptEditorController {
           uri,
           edits,
         }));
+    if (view && uri && textEdits.some((change) => change.uri === uri)) {
+      sendProtocolMessage(
+        ClaimedEditorEditMessage.type.notification({
+          request: message.id,
+          uri,
+        }),
+        this.host,
+      );
+    }
     for (const change of textEdits) {
       const edits = change.edits.filter((e) => "newText" in e);
       if (!edits.length) {
