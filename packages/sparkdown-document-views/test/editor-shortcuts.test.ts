@@ -153,6 +153,11 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "redo", "mac")).toContain("Mod-Shift-z");
     expect(keysOf(view, "selectLine", "win")).toEqual(["Alt-l"]);
     expect(keysOf(view, "selectLine", "mac")).toEqual(["Ctrl-l"]);
+    expect(keysOf(view, "toggleBlockComment", "win")).toEqual(["Alt-A"]);
+    const shifted = new KeyboardEvent("keydown", { key: "A", altKey: true, shiftKey: true });
+    const unshifted = new KeyboardEvent("keydown", { key: "a", altKey: true });
+    expect(runScopeHandlers(view, unshifted, "editor")).toBe(false);
+    expect(runScopeHandlers(view, shifted, "editor")).toBe(true);
   });
 
   it("lists a command with no binding with no keys", () => {

@@ -290,6 +290,9 @@ describe("Writing tools views", () => {
     expect(comboLabel("Shift-Alt-ArrowUp", false)).toBe("Shift+Alt+Up");
     expect(comboLabel("Shift-Mod-k", true)).toBe("Cmd+Shift+K");
     expect(comboLabel("Alt-l", true)).toBe("Option+L");
+    expect(comboLabel("Alt-A", false)).toBe("Shift+Alt+A");
+    expect(comboLabel("Shift-Alt-A", false)).toBe("Shift+Alt+A");
+    expect(comboLabel("Mod-Z", true)).toBe("Cmd+Shift+Z");
   });
 });
 

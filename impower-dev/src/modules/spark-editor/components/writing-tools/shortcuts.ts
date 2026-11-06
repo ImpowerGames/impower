@@ -51,6 +51,7 @@ const KEY_NAMES: Record<string, string> = {
 export function comboLabel(combo: string, mac: boolean): string {
   const parts = combo.split(/-(?!$)/);
   const key = parts.pop() ?? "";
+  if (/^[A-Z]$/.test(key) && !parts.includes("Shift")) parts.push("Shift");
   const modifiers = [...parts].sort(
     (a, b) => MODIFIER_ORDER.indexOf(a) - MODIFIER_ORDER.indexOf(b),
   );
