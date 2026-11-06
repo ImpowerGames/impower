@@ -206,15 +206,34 @@ describe("the app's own shortcuts", () => {
       return event;
     };
 
-    it("does not play from here when the editor ran Format on the same press, and syncs for Format", async () => {
+    it("plays from here on the keys recorded for it in the editor, before the editor reaches Format's later name for the same press", async () => {
       workspaceShortcuts.record("playFromHere", "Mod+;");
       workspaceShortcuts.record("format", "Mod+Shift+,");
       const format = vi.fn(() => true);
       const editor = mountEditor({ format });
       await pressIn(editor.contentDOM, germanCommaShifted);
-      expect(format).toHaveBeenCalledTimes(1);
-      expect(calls.toggleGameRunning).toBe(0);
-      expect(calls.syncProject).toBe(1);
+      expect(calls.toggleGameRunning).toBe(1);
+      expect(format).not.toHaveBeenCalled();
+      expect(calls.syncProject).toBe(0);
+    });
+
+    it("plays from here instead of indenting the script when Indent holds the press's later name", async () => {
+      workspaceShortcuts.record("playFromHere", "Mod+;");
+      workspaceShortcuts.record("indent", "Mod+Shift+,");
+      const editor = mountEditor({});
+      editor.dispatch({ selection: { anchor: 0 } });
+      await pressIn(editor.contentDOM, germanCommaShifted);
+      expect(editor.state.doc.toString()).toBe("line one");
+      expect(calls.toggleGameRunning).toBe(1);
+    });
+
+    it("plays from here on its recorded keys pressed while the search field has focus", async () => {
+      workspaceShortcuts.record("playFromHere", "Mod+Alt+P");
+      const editor = mountEditor({}, true);
+      openSearchPanel(editor);
+      const field = editor.dom.querySelector(".cm-search input[name=search]")!;
+      await pressIn(field, { key: "p", code: "KeyP", keyCode: 80, ctrlKey: true, altKey: true });
+      expect(calls.toggleGameRunning).toBe(1);
     });
 
     it("syncs when Fold declined and the editor went on to run Format", async () => {

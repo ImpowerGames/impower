@@ -325,7 +325,27 @@ export function shortcutKeyBindings(
       });
     }
   }
+  if (precedence === "high") {
+    bindings.push(...appClaimBindings(state));
+  }
   return bindings;
+}
+
+const EDITOR_SHORTCUT_IDS: ReadonlySet<string> = new Set(
+  (EDITOR_SHORTCUTS as readonly ShortcutEntry[]).map((entry) => entry.id),
+);
+
+const claimForApp: Command = () => true;
+
+function appClaimBindings(state: EditorShortcutsState): KeyBinding[] {
+  return Object.entries(state.combos)
+    .filter(([id, combo]) => combo && !EDITOR_SHORTCUT_IDS.has(id))
+    .map(([id, combo]) => ({
+      key: codeMirrorKey(combo, state.platform),
+      run: reportsHandling(id, claimForApp),
+      scope: "editor search-panel",
+      preventDefault: true,
+    }));
 }
 
 const PREC_WRAPPERS: Readonly<

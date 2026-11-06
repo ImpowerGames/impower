@@ -498,6 +498,16 @@ describe("the generated keymaps", () => {
       expect(editorShortcutDispatch(event)).toEqual({ handled: "nextSuggestionPage" });
     });
 
+    it("claims a press for an app command the table lists outside the editor before a later editor name runs", () => {
+      const format = vi.fn(() => true);
+      const combos = { ...bindTwo("search", "format"), search: "", playFromHere: "Mod+;" };
+      const view = mountEditor({ combos, platform: "linux", commands: { format } });
+      const event = press(view, germanCommaShifted);
+      expect(format).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
+      expect(editorShortcutDispatch(event)).toEqual({ handled: "playFromHere" });
+    });
+
     it("records that the editor saw a press no command handled", () => {
       const view = mountEditor({ platform: "linux", commands: {} });
       const event = press(view, { key: "q", code: "KeyQ", keyCode: 81, ctrlKey: true, altKey: true });
