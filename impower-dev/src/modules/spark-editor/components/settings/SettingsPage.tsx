@@ -5,12 +5,31 @@ import {
   SettingsPlaceholder,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
+import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
 import Account from "../account/Account";
-import { SETTINGS_INDEX, SETTINGS_SCOPES, SETTINGS_SECTION_IDS } from "./sections";
+import AppearanceSection from "./AppearanceSection";
+import PreviewSection from "./PreviewSection";
+import ScreenplaySection from "./ScreenplaySection";
+import ScriptEditorSection from "./ScriptEditorSection";
+import {
+  SETTINGS_INDEX,
+  SETTINGS_SCOPES,
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+  type SettingsSectionInfo,
+} from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
 
+const SECTION_BODIES: Partial<
+  Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
+> = {
+  "theme-preferences": AppearanceSection,
+  "editor-preferences": ScriptEditorSection,
+  "preview-preferences": PreviewSection,
+  "screenplay-settings": ScreenplaySection,
+};
 
 const backToStory = async () => {
   const { Workspace } = await import("../../workspace/Workspace");
@@ -102,20 +121,26 @@ export default function SettingsPage() {
                 {scope.label}
               </h2>
             </header>,
-            ...scope.sections.map((section) => (
-              <SettingsPlaceholder
-                key={section.id}
-                id={section.id}
-                title={section.title}
-                detail={"detail" in section ? section.detail : undefined}
-              >
-                {section.id === "save-settings" && (
-                  <div class="mt-3 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
-                    <Account />
-                  </div>
-                )}
-              </SettingsPlaceholder>
-            )),
+            ...scope.sections.map((section) => {
+              const Body = SECTION_BODIES[section.id];
+              if (Body) {
+                return <Body key={section.id} section={section} />;
+              }
+              return (
+                <SettingsPlaceholder
+                  key={section.id}
+                  id={section.id}
+                  title={section.title}
+                  detail={"detail" in section ? section.detail : undefined}
+                >
+                  {section.id === "save-settings" && (
+                    <div class="mt-3 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
+                      <Account />
+                    </div>
+                  )}
+                </SettingsPlaceholder>
+              );
+            }),
           ])}
         </div>
       </div>

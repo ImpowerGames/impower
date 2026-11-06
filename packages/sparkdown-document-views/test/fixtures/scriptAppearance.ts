@@ -12,6 +12,7 @@ export const ALL_OFF_APPEARANCE: ScriptAppearance = {
   lineNumbers: false,
   indentGuides: "off",
   autoCloseBrackets: false,
+  suggestAutocompletions: false,
 };
 
 export const ALL_ON_APPEARANCE: ScriptAppearance = {
@@ -26,4 +27,5 @@ export const ALL_ON_APPEARANCE: ScriptAppearance = {
   lineNumbers: true,
   indentGuides: "all",
   autoCloseBrackets: true,
+  suggestAutocompletions: true,
 };

@@ -8,8 +8,11 @@ export type SettingValue = boolean | number | string;
 export interface SettingSpec<T extends SettingValue = SettingValue> {
   readonly default: T;
   readonly choices?: readonly T[];
+  readonly maxLength?: number;
   readonly configurationKeys?: readonly string[];
 }
+
+export const SETTING_TEXT_MAX_LENGTH = 40;
 
 const setting = <T extends SettingValue>(
   defaultValue: T,
@@ -20,7 +23,11 @@ const choice = <const C extends readonly string[]>(
   defaultValue: C[number],
   choices: C,
   options: Omit<SettingSpec<C[number]>, "default" | "choices"> = {},
-): SettingSpec<C[number]> => ({ default: defaultValue, choices, ...options });
+): SettingSpec<C[number]> & { readonly choices: C } => ({
+  default: defaultValue,
+  choices,
+  ...options,
+});
 
 const configured = (...configurationKeys: string[]) => ({
   configurationKeys,
@@ -29,6 +36,8 @@ const configured = (...configurationKeys: string[]) => ({
 export const PREVIEW_MODES = ["game", "screenplay"] as const;
 
 export type PreviewMode = (typeof PREVIEW_MODES)[number];
+
+export const SCREENPLAY_PAPERS = ["paper", "theme"] as const;
 
 export const PREFERENCES_SCHEMA = {
   theme: choice("automatic", THEME_PREFERENCES),
@@ -45,12 +54,15 @@ export const PREFERENCES_SCHEMA = {
   lineNumbers: setting(false),
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
-  autoRenameFiles: setting(true),
+  autoRenameFiles: setting(true, configured("editor.autoRenameFiles")),
+  suggestAutocompletions: setting(true),
   previewMode: choice("game", PREVIEW_MODES),
   previewFollowsCursor: setting(true),
   previewIdleAnimations: setting(true),
   previewTypingPauses: setting(false),
   previewScreenplaySync: setting(true),
+  screenplayPaper: choice("paper", SCREENPLAY_PAPERS),
+  screenplayPaperTexture: setting(false),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {
@@ -86,19 +98,11 @@ export const PROJECT_SETTINGS_SCHEMA = {
     ["none", "left", "right", "both"],
     configured("screenplay.numbering.printSceneNumbers"),
   ),
-  screenplaySectionNumbers: setting(
-    false,
-    configured("screenplay.numbering.printSectionNumbers"),
-  ),
   screenplaySceneNames: setting(
     false,
     configured("screenplay.markup.printSceneIdentifiers"),
   ),
   screenplayBranchNames: setting(false),
-  screenplayFunctionNames: setting(
-    false,
-    configured("screenplay.markup.printFunctionIdentifiers"),
-  ),
   screenplayKnotNames: setting(
     false,
     configured(
@@ -121,14 +125,14 @@ export const PROJECT_SETTINGS_SCHEMA = {
       "screenplay.pdf.composition.pageBreaks.printDialogueSplitAcrossPages",
     ),
   ),
-  screenplayMore: setting(
-    "(MORE)",
-    configured("screenplay.pdf.composition.printDialogueMORE"),
-  ),
-  screenplayContd: setting(
-    "(CONT'D)",
-    configured("screenplay.pdf.composition.printDialogueCONTD"),
-  ),
+  screenplayMore: setting("(MORE)", {
+    maxLength: SETTING_TEXT_MAX_LENGTH,
+    ...configured("screenplay.pdf.composition.printDialogueMORE"),
+  }),
+  screenplayContd: setting("(CONT'D)", {
+    maxLength: SETTING_TEXT_MAX_LENGTH,
+    ...configured("screenplay.pdf.composition.printDialogueCONTD"),
+  }),
   screenplayBookmarks: setting(
     true,
     configured("screenplay.pdf.bookmarks.printBookmarks"),
@@ -144,7 +148,11 @@ type ValuesOf<S extends Record<string, SettingSpec>> = {
   -readonly [K in keyof S]: S[K] extends SettingSpec<infer T>
     ? T extends boolean
       ? boolean
-      : T
+      : S[K] extends { readonly choices: readonly unknown[] }
+        ? T
+        : T extends string
+          ? string
+          : T
     : never;
 };
 
@@ -164,9 +172,13 @@ export const resolveSettings = <S extends Record<string, SettingSpec>>(
   const resolved: Record<string, SettingValue> = {};
   for (const [key, spec] of Object.entries(schema)) {
     const value = Object.hasOwn(stored, key) ? stored[key] : undefined;
-    resolved[key] = isValidSetting(spec, value)
+    const valid = isValidSetting(spec, value)
       ? (value as SettingValue)
       : spec.default;
+    resolved[key] =
+      typeof valid === "string" && spec.maxLength !== undefined
+        ? valid.slice(0, spec.maxLength)
+        : valid;
   }
   return resolved as ValuesOf<S>;
 };
