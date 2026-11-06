@@ -128,12 +128,17 @@ export interface ScreenState {
   pickingResource?: boolean;
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
+  outlineSearch?: boolean;
 }
 
 export interface ShellState {
   railWidth?: number;
   railCompactWidth?: number;
   stripHeight?: number;
+}
+
+export interface OutlineState {
+  collapsed?: Record<string, string[]>;
 }
 
 export interface DebugState {
@@ -151,6 +156,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;
   debug: DebugState;

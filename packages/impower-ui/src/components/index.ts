@@ -38,6 +38,26 @@ export {
   type DropdownRadioItemIndicator,
 } from "./dropdown/Dropdown";
 export {
+  default as ListRow,
+  listRowVariants,
+  listRowBodyVariants,
+  listRowLabelVariants,
+  LIST_ROW_INDENT,
+  type ListRowProps,
+  type ListRowSize,
+  type ListRowState,
+  type ListRowTone,
+  type ListRowLabelOverflow,
+} from "./list-row/ListRow";
+export {
+  default as VirtualList,
+  virtualListVariants,
+  virtualListSlotVariants,
+  VIRTUAL_LIST_ROW_HEIGHT,
+  type VirtualListProps,
+  type VirtualListSize,
+} from "./virtual-list/VirtualList";
+export {
   default as SparkLogo,
   sparkLogoVariants,
   type SparkLogoProps,
