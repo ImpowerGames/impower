@@ -6,6 +6,7 @@ import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import { focusReturnTarget } from "../../utils/focusReturn";
+import { portalContainer } from "../../utils/portalContainer";
 
 export const DIALOG_TRANSITION_MS = 180;
 
@@ -139,7 +140,7 @@ function Modal({
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal forceMount>
+      <DialogPrimitive.Portal forceMount container={portalContainer()}>
         <DialogPrimitive.Overlay
           forceMount
           class={backdropVariants({ placement, visible })}
