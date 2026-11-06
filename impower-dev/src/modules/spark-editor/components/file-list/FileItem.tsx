@@ -281,10 +281,13 @@ function FileItem({
     } catch {
       refs = [];
     }
-    const followReferences =
-      isScriptExtension(ext) ||
-      Workspace.settings.preferences.peek().autoRenameFiles;
-    if (refs.length === 0 || !followReferences) {
+    if (
+      refs.length === 0 ||
+      !(
+        isScriptExtension(ext) ||
+        Workspace.settings.preferences.peek().autoRenameFiles
+      )
+    ) {
       await plainMove(oldPath, newPath);
       return;
     }
