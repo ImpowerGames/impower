@@ -371,6 +371,34 @@ describe("ScriptEditorController initial selection after newer moves", () => {
     expect(view.state.selection.main.head).toBe(moved);
   });
 
+  it("keeps a navigation to the starting position that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+      }),
+    );
+    expect(view.state.selection.main.head).toBe(0);
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  it("keeps a selection moved away and back to the start before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from }, userEvent: "select.pointer" });
+    view.dispatch({ selection: { anchor: 0 }, userEvent: "select.pointer" });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  it("still settles when only the text changed before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "fifth\n" } });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+  });
+
   it("keeps a selection the author made before the editor settled", async () => {
     const { controller, view } = await loadAt(1);
     const clicked = view.state.doc.line(3).from + 1;

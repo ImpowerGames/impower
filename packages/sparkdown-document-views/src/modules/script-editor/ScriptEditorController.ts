@@ -157,7 +157,8 @@ export class ScriptEditorController {
     | "end"
     | "center";
   protected _initialSelectedRange?: Range;
-  protected _loadSelection?: EditorSelection;
+  protected _selectionMoved = false;
+  protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
   protected _textDocument?: TextDocumentItem;
@@ -975,6 +976,9 @@ export class ScriptEditorController {
             );
           },
           onViewUpdate: (update) => {
+            if (update.selectionSet && !this._settling) {
+              this._selectionMoved = true;
+            }
             if (
               searchPanelOpen(update.state) ||
               customGotoLinePanelOpen(update.state)
@@ -997,7 +1001,7 @@ export class ScriptEditorController {
             }
           },
         });
-        this._loadSelection = this._view.state.selection;
+        this._selectionMoved = false;
       }
     }
     sendProtocolMessage(
@@ -1054,6 +1058,19 @@ export class ScriptEditorController {
           });
         }
       }
+    }
+  }
+
+  protected settleSelection(
+    range: Range,
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false,
+    takeFocus?: boolean,
+  ) {
+    this._settling = true;
+    try {
+      this.selectRange(range, scrollIntoView, takeFocus);
+    } finally {
+      this._settling = false;
     }
   }
 
@@ -1148,13 +1165,9 @@ export class ScriptEditorController {
   protected handleIdle = () => {
     if (!this._loaded) {
       const initialFocused = this._initialFocused;
-      const untouched =
-        !!this._view &&
-        !!this._loadSelection &&
-        this._view.state.selection.eq(this._loadSelection);
-      const initialSelectedRange = untouched
-        ? this._initialSelectedRange
-        : undefined;
+      const initialSelectedRange = this._selectionMoved
+        ? undefined
+        : this._initialSelectedRange;
       const initialVisibleRange =
         this._initialVisibleRange == null ||
         typeof this._initialVisibleRange === "string"
@@ -1166,10 +1179,10 @@ export class ScriptEditorController {
           : undefined;
       this.scrollToRange(initialVisibleRange, scrollStrategy);
       if (initialSelectedRange) {
-        this.selectRange(initialSelectedRange, false);
+        this.settleSelection(initialSelectedRange, false);
       }
+      this._selectionMoved = false;
       const view = this._view;
-      const settled = view?.state.selection;
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
         this._focusIntervalTimeout = window.setInterval(() => {
@@ -1178,15 +1191,14 @@ export class ScriptEditorController {
             !this._view ||
             this._view.hasFocus ||
             !initialSelectedRange ||
-            !settled ||
-            !this._view.state.selection.eq(settled) ||
+            this._selectionMoved ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
           if (initialSelectedRange) {
-            this.selectRange(
+            this.settleSelection(
               initialSelectedRange,
               scrollStrategy ?? false,
               initialFocused,

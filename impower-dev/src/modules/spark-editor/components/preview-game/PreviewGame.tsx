@@ -373,10 +373,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 ? {
                     actionLabel: "Show line",
                     onAction: () => {
-                      Workspace.window.showDocument(
+                      void Workspace.window.revealDocument(
                         location.uri,
                         location.range,
-                        true,
                       );
                     },
                   }

@@ -274,6 +274,26 @@ describe("WorkspaceWindow store transitions", () => {
     }
   });
 
+  it("brings the script on screen for a window/showDocument request made from another route", async () => {
+    const projectId = workspace.current.project.id;
+    win.navigateTo("collection");
+    expect(workspace.current.pane).toBe("assets");
+    const at = { line: 4, character: 0 };
+    const request = ShowDocumentMessage.type.request({
+      uri: `file://${projectId}/scripts/chapter.sd`,
+      selection: { start: at, end: at },
+    });
+    sendProtocolMessage(request);
+    await vi.waitFor(() => expect(window.location.hash).toBe("#write"));
+    expect(workspace.current.pane).toBe("logic");
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe(
+      "scripts/chapter.sd",
+    );
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.selectedRange,
+    ).toEqual({ start: at, end: at });
+  });
+
   it("closeFileEditor by nested path closes that editor", () => {
     win.openFileEditor("chapters/intro.sd");
     win.closeFileEditor("chapters/intro.sd");

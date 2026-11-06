@@ -359,7 +359,7 @@ export default class WorkspaceWindow {
     message: ShowDocumentMessage.Request,
   ) => {
     const { uri, selection, takeFocus } = message.params;
-    const result = await this.showDocument(uri, selection, takeFocus);
+    const result = await this.revealDocument(uri, selection, takeFocus ?? true);
     return ShowDocumentMessage.type.response(message.id, result);
   };
 
