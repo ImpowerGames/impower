@@ -296,7 +296,7 @@ describe("File types", () => {
     });
   });
 
-  it("makes the editor list and open files of an added ending as their type", async () => {
+  it("makes the editor classify files of an added ending as their type, until Reset", async () => {
     await mount(h(FileTypesSection, { id: "file-types", title: "File types" }));
     expect(fileCategory("assets/lighthouse.avif")).toBe("other");
     expect(isScriptPath("scripts/chapter.story")).toBe(false);
