@@ -142,7 +142,9 @@ describe("the desktop shell's docked preview", () => {
       };
     });
     await settle();
-    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(host.querySelector("#settings-page")).not.toBeNull();
+    expect(host.querySelector('aside [data-index-jump="save-settings"]')).not.toBeNull();
+    expect(host.querySelector('aside [role="tab"][aria-selected="true"]')).toBeNull();
     expect(host.querySelector("[data-player]")).toBe(player);
 
     expect(players.mounted).toBe(1);

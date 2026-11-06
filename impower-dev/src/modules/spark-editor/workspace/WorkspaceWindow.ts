@@ -124,6 +124,7 @@ import {
 import workspaceSettings from "./settings/WorkspaceSettings";
 import {
   hashOfRoute,
+  hashNamesRoute,
   routeOfHash,
   routeOfState,
   stateForRoute,
@@ -203,7 +204,7 @@ export default class WorkspaceWindow {
       return;
     }
     this._route = route;
-    if (window.location.hash !== hash) {
+    if (!hashNamesRoute(window.location.hash, route)) {
       window.history.replaceState(window.history.state, "", hash);
     }
   }
@@ -313,6 +314,82 @@ export default class WorkspaceWindow {
     } catch (err) {
       console.error(err);
       this.clearAccount();
+    }
+  }
+
+  async signOutOfGoogleDrive() {
+    try {
+      this.unloadProject();
+      await this._workspace.sync.google.signOut();
+      this.loadNewProject(WorkspaceConstants.LOCAL_PROJECT_ID);
+      this.clearAccount();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async openProjectFromDrive() {
+    try {
+      const provider = this._workspace.sync.google;
+      const token = (await provider.getAccess())?.token;
+      if (!token) {
+        return;
+      }
+      this.startPickingRemoteProjectResource();
+      try {
+        const fileId = await provider.pickRemoteProjectFile(token);
+        if (fileId) {
+          this.unloadProject();
+          this.loadNewProject(fileId);
+        }
+      } finally {
+        this.finishPickingRemoteProjectResource();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async saveProjectToDrive() {
+    try {
+      if (!this.store.project.id) {
+        return;
+      }
+      const provider = this._workspace.sync.google;
+      const token = (await provider.getAccess())?.token;
+      if (!token) {
+        return;
+      }
+      this.startPickingRemoteProjectResource();
+      try {
+        const folderId = await provider.pickRemoteProjectFolder(token);
+        if (folderId) {
+          await this.saveRemoteProject(folderId);
+        }
+      } finally {
+        this.finishPickingRemoteProjectResource();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  openSyncConflict() {
+    if (this.store.sync.status === "sync_conflict") {
+      workspace.syncConflictOpen.value = true;
+    }
+  }
+
+  closeSyncConflict() {
+    workspace.syncConflictOpen.value = false;
+  }
+
+  async resolveSyncConflict(keep: "device" | "drive") {
+    this.closeSyncConflict();
+    if (keep === "device") {
+      await this.resolveConflictWithPush();
+    } else {
+      await this.resolveConflictWithPull();
     }
   }
 

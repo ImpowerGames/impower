@@ -107,7 +107,7 @@ const getAccountInfo = async (auth: OAuthClient) => {
   const peopleService = google.people({ version: "v1", auth });
   const peopleResult = await peopleService.people.get({
     resourceName: "people/me",
-    personFields: "names,emailAddresses",
+    personFields: "names,emailAddresses,photos",
   });
   const displayName =
     peopleResult.data.names?.filter((n) => n.metadata?.primary)?.[0]
@@ -115,6 +115,9 @@ const getAccountInfo = async (auth: OAuthClient) => {
   const email =
     peopleResult.data.emailAddresses?.filter((n) => n.metadata?.primary)?.[0]
       ?.value || "";
+  const photoUrl =
+    peopleResult.data.photos?.filter((p) => p.metadata?.primary)?.[0]?.url ||
+    "";
   const res = await auth.refreshAccessToken();
   const token = res.credentials.access_token!;
   const expires = res.credentials.expiry_date ?? 0;
@@ -126,6 +129,7 @@ const getAccountInfo = async (auth: OAuthClient) => {
     uid,
     displayName,
     email,
+    photoUrl,
     token,
     expires,
     scope,
@@ -196,6 +200,7 @@ const googleDriveSyncProvider: FastifyPluginAsync<
           uid: sessionCookieData.uid,
           displayName: sessionCookieData.displayName,
           email: sessionCookieData.email,
+          photoUrl: sessionCookieData.photoUrl,
           scope: sessionCookieData.scope,
           consented: sessionCookieData.consented,
           expires: sessionCookieData.expires,

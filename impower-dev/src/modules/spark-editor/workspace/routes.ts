@@ -21,12 +21,26 @@ const LEGACY_ROUTES: Record<string, Route> = {
 
 export const hashOfRoute = (route: Route): string => `#${route}`;
 
+const nameOfHash = (hash: string): string =>
+  hash.replace(/^#/, "").split(/[?&]/)[0]!.toLowerCase();
+
 export const routeOfHash = (hash: string): Route | undefined => {
-  const name = hash.replace(/^#/, "").split(/[?&]/)[0]!.toLowerCase();
+  const name = nameOfHash(hash);
   if ((ROUTES as readonly string[]).includes(name)) {
     return name as Route;
   }
   return LEGACY_ROUTES[name];
+};
+
+export const hashNamesRoute = (hash: string, route: Route): boolean =>
+  nameOfHash(hash) === route;
+
+export const sectionOfHash = (hash: string): string | undefined => {
+  if (routeOfHash(hash) !== "project") {
+    return undefined;
+  }
+  const query = hash.replace(/^#[^?&]*[?&]?/, "");
+  return new URLSearchParams(query).get("section") || undefined;
 };
 
 export const routeOfPane = (pane: PaneType): Route =>
