@@ -15,6 +15,7 @@ import {
   fileCategory,
   iconForPath,
   isImagePath,
+  setAssetFiles,
 } from "../../src/modules/spark-editor/utils/fileIcon";
 
 describe("iconForPath", () => {
@@ -128,5 +129,24 @@ describe("fileCategory (Type filter)", () => {
     expect(fileCategory("bundle.zip")).toBe("other");
     expect(fileCategory("manual.pdf")).toBe("other");
     expect(fileCategory("LICENSE")).toBe("other");
+  });
+});
+
+describe("the endings configured under File types", () => {
+  it("add an image or audio ending to the glyph, the thumbnail and the type filter, leaving the built-in endings", () => {
+    expect(isImagePath("assets/lighthouse.avif")).toBe(false);
+    try {
+      setAssetFiles({ imageFiles: "*.{png,avif}", audioFiles: "*.{ogg,weba}" });
+      expect(isImagePath("assets/lighthouse.avif")).toBe(true);
+      expect(iconForPath("assets/lighthouse.AVIF", false)).toBe(ImageIcon);
+      expect(fileCategory("assets/lighthouse.avif")).toBe("image");
+      expect(iconForPath("assets/rain.weba", false)).toBe(MusicIcon);
+      expect(fileCategory("assets/rain.weba")).toBe("audio");
+      expect(fileCategory("assets/hero.jpg")).toBe("image");
+      expect(fileCategory("assets/theme.m4a")).toBe("audio");
+    } finally {
+      setAssetFiles({ imageFiles: "", audioFiles: "" });
+    }
+    expect(fileCategory("assets/lighthouse.avif")).toBe("other");
   });
 });
