@@ -999,25 +999,66 @@ await asyncCheck("--step focus-script-name clicks the open script's name field, 
   assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
 });
 
-await asyncCheck("a screenshot waits for a running view transition to finish, and a page that cannot answer is not waited on", async () => {
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+async function inFakeDocument(fakeDocument, run) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, "document");
+  const previous = globalThis.document;
+  globalThis.document = fakeDocument;
+  try {
+    return await run({ evaluate: (fn, arg) => fn(arg) });
+  } finally {
+    if (had) globalThis.document = previous;
+    else delete globalThis.document;
+  }
+}
+
+await asyncCheck("a screenshot is not taken until the page's running view transition has finished", async () => {
+  const transition = deferred();
   const order = [];
-  const page = {
-    evaluate: async () => {
-      order.push("settle");
-      return 2;
-    },
-    screenshot: async () => {
-      order.push("shot");
-    },
-  };
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-1009-transition-"));
   try {
-    await shotOf(page, "page", path.join(scratch, "page.png"));
+    await inFakeDocument({ activeViewTransition: { finished: transition.promise }, getAnimations: () => [] }, async (page) => {
+      page.screenshot = async () => {
+        order.push("shot");
+      };
+      const shot = shotOf(page, "page", path.join(scratch, "page.png"));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.deepEqual(order, [], "the screenshot waits while the transition runs");
+      order.push("finished");
+      transition.resolve();
+      await shot;
+    });
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
-  assert.deepEqual(order, ["settle", "shot"]);
-  assert.equal(await settleViewTransitions({ evaluate: async () => 1 }), 1);
+  assert.deepEqual(order, ["finished", "shot"]);
+});
+
+await asyncCheck("the wait covers ::view-transition animations only, gives up at its cap, and skips a page that cannot answer", async () => {
+  const crossfade = deferred();
+  const unrelated = deferred();
+  const animations = [
+    { effect: { pseudoElement: "::view-transition-old(root)" }, finished: crossfade.promise },
+    { effect: { pseudoElement: null }, finished: unrelated.promise },
+  ];
+  const waited = inFakeDocument({ getAnimations: () => animations }, (page) => settleViewTransitions(page, { timeout: 2000 }));
+  setTimeout(() => crossfade.resolve(), 20);
+  assert.equal(await waited, 1, "the unrelated animation that never finishes is not awaited");
+  const stuck = deferred();
+  const started = Date.now();
+  assert.equal(
+    await inFakeDocument({ activeViewTransition: { finished: stuck.promise }, getAnimations: () => [] }, (page) => settleViewTransitions(page, { timeout: 50 })),
+    -1,
+  );
+  assert.ok(Date.now() - started < 1000, "a transition that never finishes is given up on at the cap");
+  assert.equal(await inFakeDocument({ getAnimations: () => [] }, (page) => settleViewTransitions(page)), 0);
   assert.equal(await settleViewTransitions({ evaluate: () => { throw new Error("no document"); } }), 0);
   assert.equal(await settleViewTransitions({ evaluate: async () => { throw new Error("closed"); } }), 0);
 });
