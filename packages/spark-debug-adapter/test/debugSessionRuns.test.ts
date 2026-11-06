@@ -1,8 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("../src/managers/SparkdownDebugManager", () => ({
-  SparkdownDebugManager: { instance: { syncCursorToExecution: true } },
-}));
+import { describe, expect, it } from "vitest";
 
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
@@ -10,7 +6,7 @@ import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/cor
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
-import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const location = (line: number) => ({
   uri: "file:///main.sd",
@@ -100,7 +96,9 @@ const session = () => {
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
   };
-  const s = new SparkDebugSession(fileAccessor as any, connection as any);
+  const s = new SparkDebugSession(fileAccessor as any, connection as any, {
+    syncCursorToExecution: true,
+  });
   (s as any).sendEvent = (event: any) =>
     events.push([event.event, event.body?.reason ?? null]);
   (s as any).sendResponse = () => events.push(["response", null]);
