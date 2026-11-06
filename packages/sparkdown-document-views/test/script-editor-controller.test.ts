@@ -14,6 +14,7 @@ import {
   customSearchPanel,
   openCustomGotoLinePanel,
 } from "../src/modules/script-editor/utils/extensions/customSearch";
+import { getScrollableParent } from "../src/utils/getScrollableParent";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
 type Callbacks = {
@@ -422,13 +423,18 @@ describe("ScriptEditorController load handover", () => {
     end: { line, character: 0 },
   });
 
-  const loadAt = async (line: number, visibleRange?: ReturnType<typeof at>) => {
+  const loadAt = async (
+    line: number,
+    visibleRange?: ReturnType<typeof at>,
+    focused?: boolean,
+  ) => {
     const mounted = mount();
     await mounted.controller["handleLoadEditor"]({
       ...LoadEditorMessage.type.request({
         textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
         selectedRange: at(line),
         visibleRange,
+        focused,
         languageServerInitializeParams: {} as never,
         languageServerInitializeResult: {} as never,
       }),
@@ -478,6 +484,72 @@ describe("ScriptEditorController load handover", () => {
     controller["handleIdle"]();
     expect(controller.scrolls).toEqual([]);
     expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+  });
+
+  it("keeps a wheel scroll the author made before the editor settled", async () => {
+    const { controller, host, view } = await loadAt(1, at(1));
+    controller.setup();
+    try {
+      view.contentDOM.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+      controller["handleIdle"]();
+      expect(controller.scrolls).toEqual([]);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+    } finally {
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("keeps a scrollbar drag the author made before the editor settled", async () => {
+    const { controller, host, view } = await loadAt(1, at(1));
+    host.style.overflowY = "auto";
+    controller.setup();
+    try {
+      getScrollableParent(view.scrollDOM).dispatchEvent(
+        new Event("pointerdown", { bubbles: true }),
+      );
+      controller["handleIdle"]();
+      expect(controller.scrolls).toEqual([]);
+    } finally {
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("leaves focus where the author moved it while the editor was loading", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    const input = document.body.appendChild(document.createElement("input"));
+    try {
+      input.focus();
+      controller["handleIdle"]();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(document.activeElement).toBe(input);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      input.remove();
+      host.remove();
+    }
+  });
+
+  it("still takes focus at the caret it loaded with when focus stayed put", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    try {
+      controller["handleIdle"]();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(view.hasFocus).toBe(true);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      host.remove();
+    }
   });
 
   it("still scrolls to the visible range it loaded with when nothing moved", async () => {

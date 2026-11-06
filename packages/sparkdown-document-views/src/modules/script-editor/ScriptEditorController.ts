@@ -177,6 +177,8 @@ export class ScriptEditorController {
     | "center";
   protected _initialSelectedRange?: Range;
   protected _selectionMoved = false;
+  protected _viewScrolled = false;
+  protected _focusLeft = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -226,6 +228,16 @@ export class ScriptEditorController {
     this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
+    this.host.addEventListener("wheel", this.handleAuthorScroll, {
+      passive: true,
+    });
+    this.host.addEventListener("touchmove", this.handleAuthorScroll, {
+      passive: true,
+    });
+    document.addEventListener("pointerdown", this.handleScrollbarPointerDown, {
+      passive: true,
+    });
+    document.addEventListener("focusin", this.handleDocumentFocusIn);
     this.registerProtocolHandlers();
     sendProtocolMessage(
       ConnectedEditorMessage.type.notification({}),
@@ -250,6 +262,13 @@ export class ScriptEditorController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
+    this.host.removeEventListener("wheel", this.handleAuthorScroll);
+    this.host.removeEventListener("touchmove", this.handleAuthorScroll);
+    document.removeEventListener(
+      "pointerdown",
+      this.handleScrollbarPointerDown,
+    );
+    document.removeEventListener("focusin", this.handleDocumentFocusIn);
     this._protocols.dispose();
     if (this._textDocument) {
       if (this._editing) {
@@ -394,6 +413,28 @@ export class ScriptEditorController {
     this._scroller = getScrollableParent(view.scrollDOM);
     this._scroller?.addEventListener("scroll", this.handlePointerScroll);
   }
+
+  protected handleAuthorScroll = () => {
+    this._viewScrolled = true;
+  };
+
+  protected handleScrollbarPointerDown = (e: PointerEvent) => {
+    const view = this._view;
+    if (view && e.target === getScrollableParent(view.scrollDOM)) {
+      this._viewScrolled = true;
+    }
+  };
+
+  protected handleDocumentFocusIn = (e: FocusEvent) => {
+    const target = e.target;
+    if (
+      target instanceof Node &&
+      target !== this.host &&
+      !this._view?.dom.contains(target)
+    ) {
+      this._focusLeft = true;
+    }
+  };
 
   protected unbindView(view: EditorView) {
     this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
@@ -1058,6 +1099,8 @@ export class ScriptEditorController {
           },
         });
         this._selectionMoved = false;
+        this._viewScrolled = false;
+        this._focusLeft = false;
       }
     }
     sendProtocolMessage(
@@ -1233,7 +1276,7 @@ export class ScriptEditorController {
         typeof this._initialVisibleRange === "string"
           ? this._initialVisibleRange
           : undefined;
-      if (!this._selectionMoved) {
+      if (!this._selectionMoved && !this._viewScrolled) {
         this.scrollToRange(initialVisibleRange, scrollStrategy);
       }
       if (initialSelectedRange) {
@@ -1250,18 +1293,17 @@ export class ScriptEditorController {
             this._view.hasFocus ||
             !initialSelectedRange ||
             this._selectionMoved ||
+            this._viewScrolled ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
-          if (initialSelectedRange) {
-            this.settleSelection(
-              initialSelectedRange,
-              scrollStrategy ?? false,
-              initialFocused,
-            );
-          }
+          this.settleSelection(
+            initialSelectedRange,
+            scrollStrategy ?? false,
+            initialFocused && !this._focusLeft,
+          );
         }, 100);
       }
       if (this._textDocument) {
