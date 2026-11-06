@@ -194,6 +194,7 @@ describe("the Settings page", () => {
             "editor-preferences",
             "preview-preferences",
             "story-details",
+            "screenplay-settings",
             "add-folder-preferences",
             "file-types",
           ].includes(id),

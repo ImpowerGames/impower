@@ -14,6 +14,7 @@ import AppearanceSection from "./AppearanceSection";
 import FileTypesSection from "./FileTypesSection";
 import MetadataSection from "./MetadataSection";
 import PreviewSection from "./PreviewSection";
+import ScreenplaySection from "./ScreenplaySection";
 import ScriptEditorSection from "./ScriptEditorSection";
 import {
   SETTINGS_INDEX,
@@ -31,6 +32,7 @@ const SECTION_BODIES: Partial<
   "editor-preferences": ScriptEditorSection,
   "preview-preferences": PreviewSection,
   "story-details": MetadataSection,
+  "screenplay-settings": ScreenplaySection,
   "add-folder-preferences": AddMenuSection,
   "file-types": FileTypesSection,
 };
