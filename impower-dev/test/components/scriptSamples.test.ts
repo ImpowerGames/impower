@@ -6,8 +6,6 @@ const { SCRIPT_SAMPLES } =
   await import("../../src/modules/spark-editor/components/settings/scriptSamples");
 
 const MAIN_URI = "file://sample/main.sd";
-const NO_START_SCENE = "no scene named start";
-
 const lineOf = (text: string, offset: number) =>
   text.slice(0, offset).split("\n").length;
 
@@ -29,7 +27,7 @@ describe("the Script editor samples", () => {
   );
 
   it.each(SCRIPT_SAMPLES.map((sample) => [sample.value, sample.text] as const))(
-    "%s compiles with no error diagnostic other than the missing start scene of an excerpt",
+    "%s compiles with no error diagnostics",
     (_value, text) => {
       const compiler = new SparkdownCompiler();
       compiler.configure({
@@ -58,8 +56,7 @@ describe("the Script editor samples", () => {
         .map(
           (diagnostic) =>
             `${(diagnostic.range?.start.line ?? -1) + 1}: ${JSON.stringify(diagnostic.message)}`,
-        )
-        .filter((error) => !error.includes(NO_START_SCENE));
+        );
       expect(errors).toEqual([]);
     },
   );
