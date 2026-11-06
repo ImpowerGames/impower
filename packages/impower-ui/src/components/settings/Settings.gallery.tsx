@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { DownloadIcon } from "../icon/icons.generated";
+import KeysChip from "../keys-chip/KeysChip";
 import {
   ChoiceRow,
   SelectRow,
@@ -34,6 +35,7 @@ const DEFAULTS = {
 
 function RowKit({ theme }: { theme: (typeof THEMES)[number] }) {
   const [values, setValues] = useState({ ...DEFAULTS, titlePage: false });
+  const [undoKeys, setUndoKeys] = useState<readonly string[]>(["Ctrl", "U"]);
   const set = <K extends keyof typeof DEFAULTS>(key: K, value: (typeof DEFAULTS)[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
   const changed = (Object.keys(DEFAULTS) as (keyof typeof DEFAULTS)[]).some(
@@ -127,6 +129,15 @@ function RowKit({ theme }: { theme: (typeof THEMES)[number] }) {
               onCheckedChange={(next) => set("bookmarks", next)}
             />
             <SettingsRow id={`${theme}-plain`} name="A row with only copy" detail="Its control is a button." control={<Button>Open</Button>} />
+            <SettingsRow
+              id={`${theme}-undo`}
+              name="Undo"
+              detail="A row with its own Reset, shown while it differs from its usual value."
+              setting="undo"
+              changed={undoKeys.join() !== "Ctrl,Z"}
+              onReset={() => setUndoKeys(["Ctrl", "Z"])}
+              control={<KeysChip keys={undoKeys} aria-label="Undo shortcut" onClick={() => setUndoKeys(["Ctrl", "U"])} />}
+            />
           </SettingsList>
         </SettingsGroup>
         <SettingsFoot>

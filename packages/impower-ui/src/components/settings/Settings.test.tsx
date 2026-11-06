@@ -10,6 +10,7 @@ import {
   SettingsGroup,
   SettingsList,
   SettingsPlaceholder,
+  SettingsRow,
   SettingsSection,
   SwitchRow,
   TextRow,
@@ -370,5 +371,57 @@ describe("Settings layout variants", () => {
     expect(css).toContain("@container page not (min-width: 560px)");
     expect(settingsRowVariants({ indent: "sub" })).toContain("phone:pl-[30px]");
     expect(settingsRowVariants({ wrap: true })).toContain("@max-[560px]/page:flex-wrap");
+  });
+});
+
+describe("a row's own Reset", () => {
+  function Owner() {
+    const [keys, setKeys] = useState("Ctrl+U");
+    return (
+      <SettingsList>
+        <SettingsRow
+          id="undo"
+          name="Undo"
+          setting="undo"
+          changed={keys !== "Ctrl+Z"}
+          onReset={() => setKeys("Ctrl+Z")}
+          control={
+            <button type="button" id="undo-control" onClick={() => setKeys("Ctrl+U")}>
+              {keys}
+            </button>
+          }
+        />
+        <SettingsRow id="locked" name="Locked" changed disabled onReset={() => {}} />
+      </SettingsList>
+    );
+  }
+
+  it("shows Reset beside the control only while the row differs, and its click restores the row and keeps focus in it", async () => {
+    await mount(<Owner />);
+    const reset = () => host!.querySelector<HTMLButtonElement>("#undo-control")!.parentElement!.querySelector<HTMLButtonElement>("[data-reset-row]");
+    const control = () => host!.querySelector<HTMLButtonElement>("#undo-control")!;
+    expect(reset()!.textContent).toBe("Reset");
+    expect(reset()!.getAttribute("aria-label")).toBe("Reset Undo");
+    expect(reset()!.nextElementSibling).toBe(control());
+    expect(host!.querySelectorAll("[data-reset-row]").length).toBe(1);
+    await act(async () => {
+      reset()!.focus();
+      reset()!.click();
+    });
+    await settle();
+    expect(control().textContent).toBe("Ctrl+Z");
+    expect(reset()).toBeNull();
+    expect(document.activeElement).toBe(control());
+    await act(async () => control().click());
+    expect(reset()).not.toBeNull();
+  });
+
+  it("draws no Reset without an owner's restore", async () => {
+    await mount(
+      <SettingsList>
+        <SettingsRow id="plain" name="Plain" changed control={<button type="button">Open</button>} />
+      </SettingsList>,
+    );
+    expect(host!.querySelector("[data-reset-row]")).toBeNull();
   });
 });

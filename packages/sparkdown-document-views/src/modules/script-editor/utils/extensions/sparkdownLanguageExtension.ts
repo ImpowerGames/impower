@@ -1,15 +1,9 @@
 import { syntaxHighlighting } from "@codemirror/language";
-import { Extension, Prec } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { Extension } from "@codemirror/state";
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
 import {
-  findReferencesKeymap,
-  formatDocument,
-  formatKeymap,
-  jumpToDefinitionKeymap,
   languageServerExtensions,
   LSPClient,
-  renameKeymap,
   serverAutoSync,
   WorkerTransport,
   Workspace,
@@ -23,20 +17,6 @@ import {
 } from "vscode-languageserver-protocol";
 import EDITOR_HIGHLIGHTS from "../../constants/EDITOR_HIGHLIGHTS";
 import EDITOR_LSP_ICONS from "../../constants/EDITOR_LSP_ICONS";
-
-export const leavePageKeysToPreview = () => true;
-
-const sparkdownKeymap = [
-  {
-    key: "PageUp",
-    run: leavePageKeysToPreview,
-  },
-  {
-    key: "PageDown",
-    run: leavePageKeysToPreview,
-  },
-  { key: "Mod-s", run: formatDocument, preventDefault: true },
-] as const;
 
 export const sparkdownLanguageExtension = (config: {
   textDocument: { uri: string; version: number };
@@ -73,12 +53,5 @@ export const sparkdownLanguageExtension = (config: {
     languageSupport,
     syntaxHighlighting(EDITOR_HIGHLIGHTS),
     client.plugin(textDocument, languageSupport.language.name),
-    Prec.highest(keymap.of(sparkdownKeymap)),
-    keymap.of([
-      ...formatKeymap,
-      ...renameKeymap,
-      ...jumpToDefinitionKeymap,
-      ...findReferencesKeymap,
-    ]),
   ];
 };

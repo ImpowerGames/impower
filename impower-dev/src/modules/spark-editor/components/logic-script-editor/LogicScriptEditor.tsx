@@ -6,6 +6,7 @@ import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { useScriptReadonly } from "../../workspace/useActiveEditor";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
@@ -42,6 +43,8 @@ export default function LogicScriptEditor({
   const coarsePointer = useCoarsePointer();
 
   const appearance = workspaceSettings.scriptAppearance.value;
+
+  const shortcuts = workspaceShortcuts.combos.value;
 
   const readonly = useScriptReadonly();
 
@@ -227,6 +230,7 @@ export default function LogicScriptEditor({
           readonly={readonly}
           coarsePointer={coarsePointer}
           appearance={appearance}
+          shortcuts={shortcuts}
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}

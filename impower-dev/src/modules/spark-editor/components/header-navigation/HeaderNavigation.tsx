@@ -1,3 +1,5 @@
+import { redo as redoScript, undo as undoScript } from "@codemirror/commands";
+import { EditorView } from "@codemirror/view";
 import {
   ArrowBackUp,
   ArrowForwardUp,
@@ -10,28 +12,20 @@ import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
+import { focusedElement, isEditableFocus } from "../../utils/focusedElement";
+import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 
-const IS_MAC =
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
-
-function replayUndoShortcut(isRedo: boolean): void {
-  let el: Element | null = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
+function undoOrRedo(isRedo: boolean): void {
+  const editor = focusedElement()?.closest(".cm-editor");
+  const view = editor instanceof HTMLElement ? EditorView.findFromDOM(editor) : null;
+  if (view) {
+    (isRedo ? redoScript : undoScript)(view);
+    return;
   }
-  const redoByY = isRedo && !IS_MAC;
-  const init: KeyboardEventInit = {
-    key: redoByY ? "y" : "z",
-    code: redoByY ? "KeyY" : "KeyZ",
-    shiftKey: isRedo && IS_MAC,
-    metaKey: IS_MAC,
-    ctrlKey: !IS_MAC,
-    bubbles: true,
-    composed: true,
-    cancelable: true,
-  };
-  (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
+  if (isEditableFocus() || !(isRedo ? canRedo.peek() : canUndo.peek())) {
+    return;
+  }
+  void (isRedo ? redo() : undo());
 }
 
 export default function HeaderNavigation() {
@@ -56,7 +50,7 @@ export default function HeaderNavigation() {
                 aria-label="Undo"
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  replayUndoShortcut(false);
+                  undoOrRedo(false);
                 }}
                 class="text-muted"
               >
@@ -68,7 +62,7 @@ export default function HeaderNavigation() {
                 aria-label="Redo"
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  replayUndoShortcut(true);
+                  undoOrRedo(true);
                 }}
                 class="text-muted"
               >

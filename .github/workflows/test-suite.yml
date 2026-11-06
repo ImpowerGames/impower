@@ -36,6 +36,7 @@ jobs:
       matrix:
         include:
           - { package: impower-dev, shard: 1, shards: 1 }
+          - { package: packages/codemirror-vscode-lsp-client, shard: 1, shards: 1 }
           - { package: packages/impower-ui, shard: 1, shards: 1 }
           - { package: packages/jsonrpc, shard: 1, shards: 1 }
           - { package: packages/opfs-workspace, shard: 1, shards: 1 }
