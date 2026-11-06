@@ -386,7 +386,7 @@ async function checkTap({ frame, sampleRate }) {
 async function startPlay(page, frame, line, settle, deps) {
   const scrub = await deps.clickLine(page, line);
   if (!scrub.clicked || scrub.position?.line !== line - 1) throw new Error(`the preview did not move to line ${line} to start PLAY there: ${JSON.stringify(scrub)}`);
-  await page.locator('[aria-label="Play Game"]').click();
+  await page.locator('[aria-label="Play From Here"]').click();
   await frame.waitForFunction(() => window.__timing.playApp() != null, null, { timeout: 60_000, polling: 50 });
   await frame.evaluate(() => window.__timing.attach(window.__timing.playApp()));
   await page.waitForTimeout(settle);

@@ -10,6 +10,9 @@ import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/pr
 import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
+import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
@@ -41,33 +44,68 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 }));
 
 vi.mock("@impower/impower-ui/components", async () => {
-  const { h } = await import("preact");
+  const { h, createContext } = await import("preact");
+  const { useContext } = await import("preact/hooks");
   const element =
     (tag: string) =>
-    ({ asChild: _asChild, variant: _v, size: _s, onCheckedChange: _c, checked: _k, ...props }: Record<string, unknown>) =>
+    ({ asChild: _asChild, variant: _v, size: _s, align: _a, ...props }: Record<string, unknown>) =>
       h(tag, props);
+  const Radio = createContext<{ value?: string; onValueChange?: (value: string) => void }>({});
   const icons = [
-    "BugIcon",
     "CheckIcon",
+    "ChevronDownIcon",
     "CogIcon",
-    "FastForwardIcon",
-    "FollowIcon",
-    "FollowOffIcon",
     "NextIcon",
-    "PauseFillIcon",
+    "PauseIcon",
     "PlayIcon",
     "PreviousIcon",
+    "RestartIcon",
     "ResumeIcon",
-    "RewindIcon",
     "ScreenplayIcon",
+    "StepIntoIcon",
+    "StepOutIcon",
     "StopIcon",
+    "VisualIcon",
   ];
   return {
     Button: element("button"),
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
-    DropdownCheckboxItem: element("div"),
+    DropdownCheckboxItem: ({ checked, onCheckedChange, onSelect: _s, children, ...props }: any) =>
+      h(
+        "button",
+        {
+          ...props,
+          role: "menuitemcheckbox",
+          "aria-checked": String(!!checked),
+          onClick: () => onCheckedChange?.(!checked),
+        },
+        children,
+      ),
+    DropdownRadioGroup: ({ value, onValueChange, children }: any) =>
+      h(Radio.Provider, { value: { value, onValueChange } }, h("div", { role: "group" }, children)),
+    DropdownRadioItem: function RadioItem({ value, children, ...props }: any) {
+      const group = useContext(Radio);
+      return h(
+        "button",
+        {
+          ...props,
+          role: "menuitemradio",
+          "aria-checked": String(group.value === value),
+          onClick: () => group.onValueChange?.(value),
+        },
+        children,
+      );
+    },
+    useHoldRepeat: (action: () => void) => ({
+      pressed: false,
+      onPointerDown: () => {},
+      onPointerUp: () => {},
+      onPointerCancel: () => {},
+      onPointerLeave: () => {},
+      onClick: () => action(),
+    }),
     ...Object.fromEntries(icons.map((name) => [name, element("svg")])),
   };
 });
@@ -119,7 +157,10 @@ import {
   createPlayerPreferenceSync,
   playerUrl,
 } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
-import PreviewGameToolbar from "../../src/modules/spark-editor/components/preview-game-toolbar/PreviewGameToolbar";
+import PreviewTopBar from "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar";
+import workspaceSettings, {
+  WorkspaceSettings,
+} from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
 import workspace, {
   savedWorkspaceState,
@@ -316,11 +357,6 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.preview.revealed).toBe(true);
     win.collapsePreviewPane();
     expect(workspace.current.preview.revealed).toBe(false);
-  });
-
-  it("setPreviewMode sets preview.mode", () => {
-    win.setPreviewMode("screenplay");
-    expect(workspace.current.preview.mode).toBe("screenplay");
   });
 
   it("openPane updates the store without broadcasting a (dead) protocol event", () => {
@@ -596,19 +632,37 @@ describe("WorkspaceWindow store transitions", () => {
   });
 });
 
-describe("Animate portraits preference", () => {
-  let windows: WorkspaceWindow[] = [];
-  let sent: SetAnimatePortraitsMessage.Request[] = [];
+const PREVIEW_DEFAULTS = {
+  previewMode: "game",
+  previewFollowsCursor: true,
+  previewIdleAnimations: true,
+  previewTypingPauses: false,
+  previewScreenplaySync: true,
+} as const;
 
-  const listener = (e: Event) => {
-    if (
-      e instanceof CustomEvent &&
-      SetAnimatePortraitsMessage.type.is(e.detail) &&
-      "id" in e.detail
-    ) {
-      sent.push(e.detail as SetAnimatePortraitsMessage.Request);
-    }
-  };
+const resetPreviewPreferences = () => {
+  for (const [key, value] of Object.entries(PREVIEW_DEFAULTS)) {
+    workspaceSettings.setPreference(key as keyof typeof PREVIEW_DEFAULTS, value);
+  }
+  localStorage.clear();
+};
+
+const isPlayerPreference = (message: unknown) =>
+  SetAnimatePortraitsMessage.type.is(message) ||
+  EnableGameDebugMessage.type.is(message) ||
+  DisableGameDebugMessage.type.is(message);
+
+const describePlayerPreference = (message: unknown) => {
+  if (SetAnimatePortraitsMessage.type.is(message)) {
+    return `idle animations ${(message as SetAnimatePortraitsMessage.Request).params.enabled ? "on" : "off"}`;
+  }
+  return EnableGameDebugMessage.type.is(message)
+    ? "typing pauses on"
+    : "typing pauses off";
+};
+
+describe("Preview preferences", () => {
+  let windows: WorkspaceWindow[] = [];
 
   const load = () => {
     const win = new WorkspaceWindow(Workspace);
@@ -617,117 +671,39 @@ describe("Animate portraits preference", () => {
   };
 
   beforeEach(() => {
-    localStorage.clear();
-    workspace.animatePortraits.value = true;
-    sent = [];
-    window.addEventListener(MessageProtocol.event, listener);
+    resetPreviewPreferences();
   });
 
   afterEach(() => {
-    window.removeEventListener(MessageProtocol.event, listener);
     windows.forEach((win) => win.dispose());
     windows = [];
+    resetPreviewPreferences();
   });
 
-  it("is on by default", () => {
-    load();
-    expect(workspace.animatePortraits.value).toBe(true);
-  });
-
-  it("sends each change to the player through game/setAnimatePortraits", () => {
-    const win = load();
-    win.toggleAnimatePortraits();
-    win.toggleAnimatePortraits();
-    expect(sent.map((m) => m.method)).toEqual([
-      "game/setAnimatePortraits",
-      "game/setAnimatePortraits",
-    ]);
-    expect(sent.map((m) => m.params.enabled)).toEqual([false, true]);
-  });
-
-  it("survives an editor reload", () => {
-    load().setAnimatePortraits(false);
-    workspace.animatePortraits.value = true;
-    load();
-    expect(workspace.animatePortraits.value).toBe(false);
-  });
-
-  it("is shared by every project rather than stored per project", () => {
+  it("keeps the viewing mode as a per-user preference that survives a reload in another project", () => {
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
-    load().setAnimatePortraits(false);
-    workspace.animatePortraits.value = true;
-    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "b");
-    load();
-    expect(workspace.current.project.id).toBe("b");
-    expect(workspace.animatePortraits.value).toBe(false);
+    load().setPreviewMode("screenplay");
+    expect(workspaceSettings.preferences.value.previewMode).toBe("screenplay");
+    const reloaded = new WorkspaceSettings(signal("b"));
+    expect(reloaded.preferences.value.previewMode).toBe("screenplay");
+    reloaded.dispose();
   });
 
-  it("is independent of story pause", () => {
+  it("stops a running game when the viewing mode changes", () => {
     const win = load();
-    win.setAnimatePortraits(false);
-    win.pauseGame();
-    win.unpauseGame();
-    expect(workspace.animatePortraits.value).toBe(false);
-    expect(sent.map((m) => m.params.enabled)).toEqual([false]);
+    win.startGame();
+    expect(workspace.current.preview.modes.game.running).toBe(true);
+    win.setPreviewMode("screenplay");
+    expect(workspace.current.preview.modes.game.running).toBe(false);
   });
 
-  describe("the preview toolbar control", () => {
-    let container: HTMLElement;
-
-    const control = () =>
-      container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Animate portraits"]',
-      );
-
-    const show = (running: boolean) => {
-      workspace.current = {
-        ...workspace.current,
-        preview: {
-          ...workspace.current.preview,
-          modes: {
-            ...workspace.current.preview.modes,
-            game: { running },
-          },
-        },
-      };
-      render(h(PreviewGameToolbar, {}), container);
-    };
-
-    beforeEach(() => {
-      current.window = load();
-      container = document.createElement("div");
-      document.body.append(container);
-    });
-
-    afterEach(() => {
-      render(null, container);
-      container.remove();
-      current.window = undefined;
-    });
-
-    for (const running of [false, true]) {
-      it(`turns portraits off and on while the game is ${running ? "playing" : "stopped"}`, async () => {
-        show(running);
-        expect(control()?.getAttribute("aria-pressed")).toBe("true");
-        control()!.click();
-        await vi.waitFor(() =>
-          expect(control()?.getAttribute("aria-pressed")).toBe("false"),
-        );
-        control()!.click();
-        await vi.waitFor(() =>
-          expect(control()?.getAttribute("aria-pressed")).toBe("true"),
-        );
-        expect(sent.map((m) => m.params.enabled)).toEqual([false, true]);
-      });
-    }
-
-    it("shows a saved off preference after a reload", () => {
-      load().setAnimatePortraits(false);
-      workspace.animatePortraits.value = true;
-      load();
-      show(false);
-      expect(control()?.getAttribute("aria-pressed")).toBe("false");
-    });
+  it("keeps the quick toggles across a reload", () => {
+    workspaceSettings.setPreference("previewIdleAnimations", false);
+    workspaceSettings.setPreference("previewTypingPauses", true);
+    const reloaded = new WorkspaceSettings(signal("local"));
+    expect(reloaded.preferences.value.previewIdleAnimations).toBe(false);
+    expect(reloaded.preferences.value.previewTypingPauses).toBe(true);
+    reloaded.dispose();
   });
 
   describe("a connecting player", () => {
@@ -737,21 +713,24 @@ describe("Animate portraits preference", () => {
       params: { type },
     });
 
-    it("hears the current preference when it connects and when it has initialized", () => {
-      load().setAnimatePortraits(false);
-      const posted: SetAnimatePortraitsMessage.Request[] = [];
-      const sync = createPlayerPreferenceSync((m) =>
-        posted.push(m as SetAnimatePortraitsMessage.Request),
-      );
+    it("hears idle animations and typing pauses when it connects, and every later change", () => {
+      workspaceSettings.setPreference("previewIdleAnimations", false);
+      const posted: unknown[] = [];
+      const sync = createPlayerPreferenceSync((m) => posted.push(m));
       sync.received(connected("game"));
-      sync.initialized();
+      workspaceSettings.setPreference("previewIdleAnimations", true);
+      workspaceSettings.setPreference("previewTypingPauses", true);
+      workspaceSettings.setPreference("previewTypingPauses", false);
+      sync.dispose();
+      workspaceSettings.setPreference("previewIdleAnimations", false);
       expect(
-        posted
-          .filter((m) => m.method === "game/setAnimatePortraits")
-          .map((m) => [m.method, m.params.enabled]),
+        posted.filter(isPlayerPreference).map(describePlayerPreference),
       ).toEqual([
-        ["game/setAnimatePortraits", false],
-        ["game/setAnimatePortraits", false],
+        "idle animations off",
+        "typing pauses off",
+        "idle animations on",
+        "typing pauses on",
+        "typing pauses off",
       ]);
     });
 
@@ -808,7 +787,7 @@ describe("Animate portraits preference", () => {
 
     it("is what the game preview sends each player it connects to", async () => {
       const win = load();
-      win.setAnimatePortraits(false);
+      workspaceSettings.setPreference("previewIdleAnimations", false);
       current.window = win;
       Object.assign(Workspace.fs, {
         getFiles: async () => ({}),
@@ -1200,9 +1179,9 @@ describe("PLAY for a story with no start scene", () => {
     );
 
   const play = () => {
-    render(h(PreviewGameToolbar, {}), container);
+    render(h(PreviewTopBar, {}), container);
     return container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Play Game"]',
+      'button[aria-label="Play From Here"]',
     );
   };
 
@@ -1246,7 +1225,7 @@ describe("PLAY for a story with no start scene", () => {
 
     compiled(STORY);
     expect(play()?.getAttribute("aria-disabled")).toBeNull();
-    expect(play()?.getAttribute("title")).toBeFalsy();
+    expect(play()?.getAttribute("title")).toBe("Play From Here");
   });
 
   it("keeps the story's refusal when a script the story does not include compiles on its own", () => {
@@ -1320,12 +1299,56 @@ describe("The game preview's player bar", () => {
     delete (Workspace as unknown as { ls?: unknown }).ls;
   });
 
-  it("asks the player for its skip and step buttons", async () => {
+  it("leaves the player's transport to the editor's top bar", async () => {
     const { iframe } = await mount();
     const src = new URL(iframe.getAttribute("src")!, "http://editor.test/");
-    expect(src.searchParams.has("skip-buttons")).toBe(true);
-    expect(src.searchParams.has("step-buttons")).toBe(true);
+    expect(src.searchParams.has("skip-buttons")).toBe(false);
+    expect(src.searchParams.has("step-buttons")).toBe(false);
     expect(src.hash).toMatch(/^#theme=/);
+  }, 30000);
+
+  it("holds the caret back from the player while the preview does not follow it, and hands it over for Play", async () => {
+    const { channel } = await mount();
+    await vi.waitFor(() => expect(channel.posted.length).toBeGreaterThan(0));
+    const select = (line: number) =>
+      sendProtocolMessage(
+        DidSelectTextDocumentMessage.type.notification({
+          textDocument: { uri: MAIN },
+          selectedRange: {
+            start: { line, character: 0 },
+            end: { line, character: 0 },
+          },
+          docChanged: false,
+          userEvent: true,
+        }),
+      );
+    const heard = () =>
+      channel.posted
+        .map((m) => m as { method?: string; params?: any })
+        .filter(
+          (m) =>
+            m.method === "textDocument/didSelect" || m.method === "game/start",
+        )
+        .map((m) =>
+          m.method === "game/start"
+            ? "start"
+            : `select ${m.params.selectedRange.start.line}`,
+        );
+    select(1);
+    await vi.waitFor(() => expect(heard()).toEqual(["select 1"]));
+    workspaceSettings.setPreference("previewFollowsCursor", false);
+    select(2);
+    select(3);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(heard()).toEqual(["select 1"]);
+    win.startGame();
+    await vi.waitFor(() =>
+      expect(heard()).toEqual(["select 1", "select 3", "start"]),
+    );
+    select(4);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    workspaceSettings.setPreference("previewFollowsCursor", true);
+    expect(heard()).toEqual(["select 1", "select 3", "start", "select 4"]);
   }, 30000);
 
   it("answers the bar's skip by moving the caret to the language server's next beat", async () => {
@@ -1393,4 +1416,271 @@ describe("The game preview's player bar", () => {
       expect(workspace.current.preview.modes.game.paused).toBe(false),
     );
   }, 30000);
+});
+
+describe("The preview's top bar", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let requests: string[] = [];
+
+  const hear = (e: Event) => {
+    const message = (e as CustomEvent).detail;
+    if (typeof message?.method === "string" && "id" in message && !("result" in message)) {
+      requests.push(message.method);
+    }
+  };
+
+  const show = (game: Record<string, unknown> = {}) => {
+    workspace.current = {
+      ...workspace.current,
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game },
+      },
+    };
+    render(h(PreviewTopBar, {}), container);
+  };
+
+  const control = (label: string) =>
+    container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+
+  const labels = () =>
+    Array.from(container.querySelectorAll("button[aria-label]")).map((b) =>
+      b.getAttribute("aria-label"),
+    );
+
+  const rows = (role: string) =>
+    Array.from(container.querySelectorAll<HTMLElement>(`[role="${role}"]`));
+
+  beforeEach(() => {
+    resetPreviewPreferences();
+    requests = [];
+    window.addEventListener(MessageProtocol.event, hear);
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    window.removeEventListener(MessageProtocol.event, hear);
+    current.window = undefined;
+    win.dispose();
+    resetPreviewPreferences();
+  });
+
+  it("shows only the skips and Play while stopped", () => {
+    show();
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Skip back",
+      "Play From Here",
+      "Skip forward",
+      "Preview settings",
+    ]);
+  });
+
+  it("adds Pause and the Step buttons while playing, the Steps usable only while paused", async () => {
+    show({ running: true });
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Pause",
+      "Step Into",
+      "Skip back",
+      "Stop",
+      "Skip forward",
+      "Step Out",
+      "Preview settings",
+    ]);
+    expect(control("Step Into")?.disabled).toBe(true);
+    control("Pause")!.click();
+    await vi.waitFor(() =>
+      expect(workspace.current.preview.modes.game.paused).toBe(true),
+    );
+    expect(requests).toContain("game/pause");
+    show(workspace.current.preview.modes.game);
+    expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
+    expect(control("Step Into")?.disabled).toBe(false);
+    control("Step Out")!.click();
+    await vi.waitFor(() => expect(requests).toContain("game/step"));
+    control("Resume")!.click();
+    await vi.waitFor(() =>
+      expect(workspace.current.preview.modes.game.paused).toBe(false),
+    );
+    expect(requests).toContain("game/unpause");
+  });
+
+  it("offers Play Again instead of Pause and the Steps once the story has ended", () => {
+    show({ running: true, ended: true });
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Play Again",
+      "Skip back",
+      "Stop",
+      "Skip forward",
+      "Preview settings",
+    ]);
+  });
+
+  it("skips by beat from both skip buttons", async () => {
+    const skipBeat = vi.spyOn(win, "skipBeat").mockResolvedValue(true);
+    show();
+    control("Skip forward")!.click();
+    await vi.waitFor(() => expect(skipBeat.mock.calls).toEqual([[1]]));
+    control("Skip back")!.click();
+    await vi.waitFor(() =>
+      expect(skipBeat.mock.calls).toEqual([[1], [-1]]),
+    );
+  });
+
+  it("lists the viewing modes with the current one checked, and choosing one writes the preference", async () => {
+    show();
+    expect(
+      rows("menuitemradio").map((row) => [
+        row.querySelector("strong")?.textContent,
+        row.getAttribute("aria-checked"),
+      ]),
+    ).toEqual([
+      ["Visual Novel", "true"],
+      ["Screenplay", "false"],
+    ]);
+    rows("menuitemradio")[1]!.click();
+    await vi.waitFor(() =>
+      expect(workspaceSettings.preferences.value.previewMode).toBe(
+        "screenplay",
+      ),
+    );
+    render(h(PreviewTopBar, {}), container);
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Skip back",
+      "Skip forward",
+      "Preview settings",
+    ]);
+  });
+
+  it("lists the quick toggles of the mode on screen, and each writes its preference", () => {
+    show();
+    const names = () =>
+      rows("menuitemcheckbox").map((row) => [
+        row.querySelector("strong")?.textContent,
+        row.getAttribute("aria-checked"),
+      ]);
+    expect(names()).toEqual([
+      ["Game preview follows cursor", "true"],
+      ["Show idle animations", "true"],
+      ["Color typing pauses", "false"],
+    ]);
+    rows("menuitemcheckbox")[1]!.click();
+    rows("menuitemcheckbox")[2]!.click();
+    rows("menuitemcheckbox")[0]!.click();
+    expect(workspaceSettings.preferences.value).toMatchObject({
+      previewFollowsCursor: false,
+      previewIdleAnimations: false,
+      previewTypingPauses: true,
+    });
+    render(h(PreviewTopBar, {}), container);
+    expect(names()).toEqual([
+      ["Game preview follows cursor", "false"],
+      ["Show idle animations", "false"],
+      ["Color typing pauses", "true"],
+    ]);
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    render(h(PreviewTopBar, {}), container);
+    expect(names()).toEqual([
+      ["Sync screenplay and editor scroll position", "true"],
+    ]);
+    rows("menuitemcheckbox")[0]!.click();
+    expect(workspaceSettings.preferences.value.previewScreenplaySync).toBe(
+      false,
+    );
+  });
+});
+
+describe("The preview's top bar in a narrow pane", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+
+  const show = (game: Record<string, unknown>) => {
+    workspace.current = {
+      ...workspace.current,
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game },
+      },
+    };
+    render(h(PreviewTopBar, {}), container);
+  };
+
+  const bar = () =>
+    container.querySelector<HTMLElement>('[aria-label="Playback controls"]')!;
+
+  const modeTrigger = () =>
+    container.querySelector<HTMLElement>('button[aria-label="Viewing mode"]')!;
+
+  beforeEach(() => {
+    resetPreviewPreferences();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    current.window = undefined;
+    win.dispose();
+    resetPreviewPreferences();
+  });
+
+  it("marks the bar as running only while a run exists, playing, paused or ended", () => {
+    show({});
+    expect(bar().hasAttribute("data-running")).toBe(false);
+    for (const game of [
+      { running: true },
+      { running: true, paused: true },
+      { running: true, ended: true },
+    ]) {
+      show(game);
+      expect(bar().hasAttribute("data-running")).toBe(true);
+    }
+  });
+
+  it("carries the running bar's narrow-pane rules: content-sized columns under 480px and the mode trigger hidden under 360px", () => {
+    show({ running: true });
+    expect(bar().className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "group/bar",
+        "data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]",
+        "data-[running]:@max-[480px]:gap-0",
+        "data-[running]:@max-[480px]:px-1",
+      ]),
+    );
+    expect(modeTrigger().className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "group-data-[running]/bar:@max-[480px]:w-11",
+        "group-data-[running]/bar:@max-[360px]:hidden",
+      ]),
+    );
+  });
+
+  it("keeps Button's 44px minimum width on the mode trigger", async () => {
+    show({});
+    const { default: RealButton } = await vi.importActual<
+      typeof import("../../../packages/impower-ui/src/components/button/Button")
+    >("../../../packages/impower-ui/src/components/button/Button");
+    const probe = document.createElement("div");
+    render(
+      h(RealButton, { variant: "quiet", class: modeTrigger().className }),
+      probe,
+    );
+    const classes = probe.querySelector("button")!.className.split(/\s+/);
+    expect(classes).toContain("min-w-11");
+    expect(classes).toContain("min-h-11");
+    expect(classes).not.toContain("min-w-0");
+    render(null, probe);
+  });
 });

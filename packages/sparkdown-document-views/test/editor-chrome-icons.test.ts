@@ -80,8 +80,6 @@ const CHROME = [
   ["the problems toggle", ".cm-problemsToggleIcon", "chevron-down"],
   ["the previous problem", ".cm-navLeftIcon", "chevron-down"],
   ["the next problem", ".cm-navRightIcon", "chevron-down"],
-  ["the context menu's back", ".cm-menu-back-icon", "chevron-left"],
-  ["the context menu's more", ".cm-menu-more-icon", "more-vertical"],
   ["the fold arrows", ".cm-fold-arrow", "chevron-down"],
   ["the references' collapse", ".cm-lsp-collapse-icon", "chevron-down"],
 ] as const;

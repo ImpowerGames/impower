@@ -1,6 +1,11 @@
 import "../style.css";
 
 export {
+  default as ActionSheet,
+  type ActionSheetItem,
+  type ActionSheetProps,
+} from "./action-sheet/ActionSheet";
+export {
   default as Button,
   buttonVariants,
   type ButtonProps,
@@ -170,6 +175,12 @@ export {
 } from "./live-region/LiveRegion";
 export { announce, useAnnouncer } from "../hooks/useAnnouncer";
 export { useMountTransition } from "../hooks/useMountTransition";
+export {
+  useHoldRepeat,
+  HOLD_REPEAT_DELAY_MS,
+  HOLD_REPEAT_INTERVAL_MS,
+  type HoldRepeatHandlers,
+} from "../hooks/useHoldRepeat";
 export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";
