@@ -1,4 +1,11 @@
 import type { Range } from "@impower/spark-editor-protocol/src/types";
+import { editorAtSend } from "./editorAtSend";
+
+const sameRange = (a?: Range, b?: Range) =>
+  a?.start.line === b?.start.line &&
+  a?.start.character === b?.start.character &&
+  a?.end.line === b?.end.line &&
+  a?.end.character === b?.end.character;
 
 export interface PreviewBeatSkipperDeps {
   window: {
@@ -40,6 +47,12 @@ export const createPreviewBeatSkipper = ({
         direction,
       );
       if (!target || target.file !== uri) {
+        return false;
+      }
+      const current = editorAtSend(uri, () =>
+        window.getActiveEditorForPane("logic"),
+      );
+      if (!current || !sameRange(current.selectedRange, selectedRange)) {
         return false;
       }
       await window.showDocument(
