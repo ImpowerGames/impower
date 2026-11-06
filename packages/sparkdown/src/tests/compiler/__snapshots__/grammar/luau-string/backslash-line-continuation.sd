@@ -1,0 +1,5 @@
+store a = `Welcome to \
+the end`
+store b = "Line one \
+line two"
+store c = 1

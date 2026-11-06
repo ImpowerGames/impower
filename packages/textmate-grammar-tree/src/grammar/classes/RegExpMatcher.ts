@@ -48,7 +48,37 @@ const resolveAnchor = (pattern: string, replacement: string) => {
   return from === 0 ? null : resolved + pattern.slice(from);
 };
 
-const codePointsBefore = (str: string, pos: number) => {
+const LINE_START = "(?:(?<![\\s\\S])|(?<=\\n)(?=[\\s\\S]))";
+
+const resolveLineStart = (pattern: string) => {
+  let resolved = "";
+  let from = 0;
+  let inClass = false;
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern.charCodeAt(i);
+    if (c === 92) {
+      i++;
+    } else if (c === 91) {
+      inClass = true;
+    } else if (c === 93) {
+      inClass = false;
+    } else if (c === 94 && !inClass) {
+      resolved += pattern.slice(from, i) + LINE_START;
+      from = i + 1;
+    }
+  }
+  return from === 0 ? null : resolved + pattern.slice(from);
+};
+
+const isExhaustedLineEnd = (str: string, pos: number) => {
+  if (pos === 0 || pos !== str.length) {
+    return false;
+  }
+  const c = str.charCodeAt(pos - 1);
+  return c === 10 || c === 13;
+};
+
+const codePointsBefore =(str: string, pos: number) => {
   let count = pos;
   for (let i = 1; i < pos; i++) {
     const c = str.charCodeAt(i);
@@ -78,6 +108,10 @@ export class RegExpMatcher implements Matcher {
   private anchoredByPosition = new Map<number, RegExp>();
 
   private indicesRegexps = new WeakMap<RegExp, RegExp>();
+
+  declare private lineEndMatcher: RegExpMatcher;
+
+  private lineEndSource: string | undefined;
 
   declare private hasCapturingGroups: boolean;
 
@@ -169,7 +203,21 @@ export class RegExpMatcher implements Matcher {
     return regexp;
   }
 
-  test(str: string, pos: number, anchored = false) {
+  private atLineEnd(): RegExpMatcher {
+    if (this.lineEndSource !== this._source) {
+      this.lineEndSource = this._source;
+      const pattern = resolveLineStart(this._source);
+      this.lineEndMatcher =
+        pattern == null ? this : new RegExpMatcher(pattern, this._flags);
+    }
+    return this.lineEndMatcher;
+  }
+
+  test(str: string, pos: number, anchored = false): boolean {
+    const matcher = isExhaustedLineEnd(str, pos) ? this.atLineEnd() : this;
+    if (matcher !== this) {
+      return matcher.test(str, pos, anchored);
+    }
     return this.testWith(this.select(str, pos, anchored), str, pos);
   }
 
@@ -203,6 +251,10 @@ export class RegExpMatcher implements Matcher {
     pos: number,
     anchored = false,
   ): RegExpMatchResult | null {
+    const matcher = isExhaustedLineEnd(str, pos) ? this.atLineEnd() : this;
+    if (matcher !== this) {
+      return matcher.match(str, pos, anchored);
+    }
     const regexp = this.select(str, pos, anchored);
     if (!this.hasCapturingGroups) {
       if (this.testWith(regexp, str, pos)) {

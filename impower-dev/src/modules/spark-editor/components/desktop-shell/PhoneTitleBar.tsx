@@ -14,12 +14,12 @@ import {
   storyScriptOf,
   useEditorHistory,
 } from "../../workspace/useActiveEditor";
-import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
+import { SyncButton, SyncStatusLine } from "../drive-sync";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
 import ProjectNameField from "./ProjectNameField";
-import SaveStatusLine from "./SaveStatusLine";
+import StoryProblemCount from "./StoryProblemCount";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -51,7 +51,10 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
         <ProjectNameField />
         <div class="pl-1.5">
-          <SaveStatusLine problems />
+          <div class="flex items-center">
+            <SyncStatusLine />
+            <StoryProblemCount />
+          </div>
         </div>
       </div>
       {naming ? (
@@ -66,7 +69,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
         </Button>
       ) : (
         <div class="flex flex-none items-center">
-          <HeaderSyncToolbar />
+          <SyncButton />
           {story && (
             <Button
               variant="quiet"

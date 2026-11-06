@@ -15,6 +15,8 @@ export class Packet {
 
   protected pendingSplits: { at: number; resume: TokenizerResume }[] = [];
 
+  protected heldPureSplitAt = -1;
+
   constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
@@ -100,13 +102,17 @@ export class Packet {
 
     current.add(token);
 
-    if (current.endsPure) {
+    if (current.endsPure && current.to !== this.heldPureSplitAt) {
       const splitAt = current.to;
       current = new Chunk(splitAt, true);
       this.chunks.push(current);
     }
 
     return newChunk;
+  }
+
+  holdPureSplitAt(at: number) {
+    this.heldPureSplitAt = at;
   }
 
   private searchCmp = ({ from: pos }: Chunk, target: number) =>

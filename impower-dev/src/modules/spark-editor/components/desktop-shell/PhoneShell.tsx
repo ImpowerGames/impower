@@ -5,7 +5,6 @@ import { useEffect, useState } from "preact/hooks";
 import { routeOfState } from "../../workspace/routes";
 import { storyScriptOf } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
-import Account from "../account/Account";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
@@ -31,26 +30,6 @@ function BackToStory({ onBack }: { onBack: () => void }) {
         Back to story
       </a>
     </Button>
-  );
-}
-
-function PhoneSettings() {
-  return (
-    <section
-      aria-label="Settings"
-      data-phone-route="project"
-      class="absolute inset-0 z-10 flex flex-col overflow-y-auto bg-bg"
-    >
-      <div class="flex flex-none flex-col gap-1 px-4 pt-3 pb-2">
-        <BackToStory
-          onBack={() =>
-            void withWindow().then((win) => win.navigateTo("write"))
-          }
-        />
-        <h1 class="text-[22px]/[1.3] font-semibold text-ink">Settings</h1>
-      </div>
-      <Account />
-    </section>
   );
 }
 
@@ -93,7 +72,6 @@ export default function PhoneShell({
         }}
       >
         {children}
-        {route === "project" && <PhoneSettings />}
       </div>
       <BottomNavigation />
     </div>

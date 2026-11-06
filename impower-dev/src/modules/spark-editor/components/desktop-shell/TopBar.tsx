@@ -1,9 +1,9 @@
 import { SparkLogo } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
+import { SyncButton, SyncStatusLine } from "../drive-sync";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
+import StoryProblemCount from "./StoryProblemCount";
 import ProjectNameField from "./ProjectNameField";
-import SaveStatusLine from "./SaveStatusLine";
 
 export default function TopBar() {
   const compact = useLayout() === "compact";
@@ -24,12 +24,13 @@ export default function TopBar() {
       </div>
       <div class="flex min-w-0 flex-col items-start gap-[1px] pl-[1px] -ml-[7px]">
         <ProjectNameField />
-        <div class="pl-[7px]">
-          <SaveStatusLine problems={compact} />
+        <div class="flex items-center pl-[7px]">
+          <SyncStatusLine />
+          {compact && <StoryProblemCount />}
         </div>
       </div>
       <div class="flex items-center">
-        <HeaderSyncToolbar />
+        <SyncButton />
       </div>
       <ImportProgressBar />
     </header>

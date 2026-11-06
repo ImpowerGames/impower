@@ -33,8 +33,8 @@ vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
 vi.mock("../../src/modules/spark-editor/components/share/Share", () => ({
   default: () => h("div", { "data-route": "share" }),
 }));
-vi.mock("../../src/modules/spark-editor/components/account/Account", () => ({
-  default: () => h("div", { "data-account": "" }),
+vi.mock("../../src/modules/spark-editor/components/settings", () => ({
+  SettingsPage: () => h("section", { "data-settings-page": "" }),
 }));
 vi.mock(
   "../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPane",
@@ -269,19 +269,26 @@ describe("the phone shell", () => {
     expect(button("App menu")).not.toBeNull();
   });
 
-  it("opens Settings full screen with Back to story, and the preview with a Back control", async () => {
+  it("opens Settings in place of the route with no tab current, returns to Story from its tab, and gives the preview a Back control", async () => {
     await mount();
     await go("project");
-    const settings = host!.querySelector('[data-phone-route="project"]')!;
-    expect(settings.querySelector("h1")!.textContent).toBe("Settings");
-    expect(settings.querySelector("[data-account]")).not.toBeNull();
+    expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
+    expect(host!.querySelector('[data-route="logic"]')).toBeNull();
+    expect(navigation().hidden).toBe(false);
     expect(navigation().querySelector('[data-state="active"]')).toBeNull();
-    const back = settings.querySelector<HTMLAnchorElement>('a[href="#write"]')!;
-    expect(back.textContent).toContain("Back to story");
-    await act(async () => back.click());
+    const story = navigation().querySelector('[role="tab"]')!;
+    await act(async () => {
+      story.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        }),
+      );
+    });
     await settle();
     expect(calls.routes).toEqual(["write"]);
-    expect(host!.querySelector('[data-phone-route="project"]')).toBeNull();
+    expect(host!.querySelector("[data-settings-page]")).toBeNull();
 
     await act(async () => button("Show the preview")!.click());
     await settle();
@@ -374,7 +381,7 @@ describe("the app menu on a phone", () => {
     await act(async () => settings.click());
     await settle(250);
     expect(calls.routes).toEqual(["project"]);
-    expect(host!.querySelector('[data-phone-route="project"]')).not.toBeNull();
+    expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(navigation().hidden).toBe(false);
   });
 });
