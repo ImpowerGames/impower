@@ -424,8 +424,6 @@ export function DropdownRadioItem({
   value: string;
   indicator?: DropdownRadioItemIndicator;
   class?: string;
-  // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared (seen with preact 10.29.2)
-  onSelect?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<
   JSX.HTMLAttributes<HTMLDivElement>,
