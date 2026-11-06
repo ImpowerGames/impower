@@ -20,12 +20,7 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "define_variable_name",
 ]);
 
-const BINDS_IN_SCOPE = new Set<Reference["declaration"]>(["var", "const", "param"]);
-
-const scopeChain = (scopePath: string): string[] => {
-  const parts = scopePath ? scopePath.split(".") : [];
-  return parts.map((_, i) => parts.slice(0, parts.length - i).join(".")).concat("");
-};
+const BINDS_LOCALLY = new Set<Reference["declaration"]>(["var", "const", "param"]);
 
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
@@ -79,8 +74,8 @@ export const getScriptReferences = (
     boundIn.set(uri, bound);
     walkReferences(workspace, uri, (r, scopePath, text) => {
       const reference = r.value!.type;
-      if (BINDS_IN_SCOPE.has(reference.declaration)) {
-        bound.add(`${scopePath}\n${text.trim()}`);
+      if (BINDS_LOCALLY.has(reference.declaration)) {
+        bound.add(text.trim());
         return;
       }
       if (
@@ -109,11 +104,7 @@ export const getScriptReferences = (
       if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
         return;
       }
-      const name = text.trim();
-      if (
-        reference.usage !== "divert" &&
-        scopeChain(scopePath).some((scope) => bound.has(`${scope}\n${name}`))
-      ) {
+      if (reference.usage !== "divert" && bound.has(text.trim())) {
         return;
       }
       const ids = resolvedIds(reference, scopePath);
