@@ -1,6 +1,7 @@
 import {
   Bolt,
   BoltFill,
+  LiveRegion,
   Photo,
   PhotoFill,
   Share,
@@ -22,14 +23,15 @@ import FileDropzone from "../file-dropzone/FileDropzone";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
-import SettingsDialog from "../settings-dialog/SettingsDialog";
+import { SettingsPage } from "../settings";
 import SharePanel from "../share/Share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
 
 export const propDefaults = {};
 export type MainWindowProps = Partial<typeof propDefaults>;
 
-function PaneContent({ pane }: { pane: PaneType }) {
+function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) {
+  if (settings) return <SettingsPage key="settings" />;
   if (pane === "assets") return <Assets key="assets" />;
   if (pane === "share") return <SharePanel key="share" />;
   return <Logic key="logic" />;
@@ -50,6 +52,9 @@ export default function MainWindow(_props: MainWindowProps) {
   const shell = !isSSR && layout !== "phone";
   const strip = shell && !desktop;
   const pane = workspace.signals.pane.value as PaneType;
+  const settings = useComputed(
+    () => !!workspace.state.value.screen?.settingsOpen,
+  ).value;
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
   ).value;
@@ -93,7 +98,7 @@ export default function MainWindow(_props: MainWindowProps) {
             minSize={desktop ? ["280px", "336px"] : "320px"}
             start={
               <div class="relative flex h-full w-full flex-col">
-                <PaneContent pane={pane} />
+                <PaneContent pane={pane} settings={settings} />
               </div>
             }
             end={
@@ -109,7 +114,7 @@ export default function MainWindow(_props: MainWindowProps) {
           />
 
           <FileDropzone />
-          <SettingsDialog />
+          <LiveRegion />
         </>
       )}
     </div>
@@ -132,7 +137,7 @@ export default function MainWindow(_props: MainWindowProps) {
 
         <div class="absolute inset-x-0 top-0 !h-px bg-edge z-10" />
         {!isSSR && (
-          <Tabs value={pane} onChange={onPaneChange} indicator="none">
+          <Tabs value={settings ? "" : pane} onChange={onPaneChange} indicator="none">
             <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
               Logic
             </Tab>

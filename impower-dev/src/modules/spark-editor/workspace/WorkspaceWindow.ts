@@ -107,6 +107,7 @@ import {
 import workspaceSettings from "./settings/WorkspaceSettings";
 import {
   hashOfRoute,
+  hashNamesRoute,
   routeOfHash,
   routeOfState,
   stateForRoute,
@@ -178,7 +179,7 @@ export default class WorkspaceWindow {
       return;
     }
     this._route = route;
-    if (window.location.hash !== hash) {
+    if (!hashNamesRoute(window.location.hash, route)) {
       window.history.replaceState(window.history.state, "", hash);
     }
   }

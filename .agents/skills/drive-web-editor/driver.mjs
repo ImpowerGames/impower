@@ -2101,6 +2101,40 @@ export function focusScriptName(page, { timeout = 10000 } = {}) {
   return focusNameField(page, "focus-script-name", SCRIPT_NAME_SELECTOR, "script name (Main's name is fixed, so open another script first)", timeout);
 }
 
+export async function openSettings(page, section, { timeout = 10000 } = {}) {
+  await page.evaluate((id) => {
+    window.location.hash = `#project?section=${id}`;
+  }, section);
+  try {
+    await page.waitForFunction(
+      (id) => {
+        const heading = document.getElementById(`${id}-title`);
+        return !!heading && document.activeElement === heading;
+      },
+      section,
+      { timeout },
+    );
+  } catch {
+    const known = await page.evaluate(() => [...document.querySelectorAll("[data-settings-section]")].map((el) => el.id));
+    return {
+      step: "settings",
+      section,
+      ran: false,
+      reason: known.length
+        ? `no Settings section "${section}" took focus within ${timeout / 1000} s; the page has: ${known.join(", ")}`
+        : `the Settings page did not open within ${timeout / 1000} s of going to #project?section=${section}`,
+    };
+  }
+  await page
+    .waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"), null, { timeout: 3000 })
+    .catch(() => {});
+  const state = await page.evaluate(() => ({
+    hash: location.hash,
+    marked: document.querySelector('[data-index-jump][aria-current="true"]')?.getAttribute("data-index-jump") ?? null,
+  }));
+  return { step: "settings", section, ran: true, ...state };
+}
+
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
   const label = start ? "Play Game" : "Stop Game";
@@ -2299,6 +2333,7 @@ export function editorAbsentReason({ screen, panelTab, budgetMs }) {
 }
 
 async function editorExpectedHere(page) {
+  if (await page.evaluate(() => /^#project(?:$|[?&])/i.test(location.hash))) return false;
   await page.waitForSelector(SELECTED_SCREEN_TAB, { state: "attached", timeout: 5_000 }).catch(() => {});
   const screen = await activeScreen(page);
   if (screen == null) return null;
@@ -3329,6 +3364,10 @@ async function ui(args, deps = liveDeps) {
             }
             if (step.step === "focus-project-name") {
               result.steps.push(await focusProjectName(page));
+              continue;
+            }
+            if (step.step === "settings") {
+              result.steps.push(await openSettings(page, step.section));
               continue;
             }
             if (step.step === "focus-script-name") {

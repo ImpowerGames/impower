@@ -3,6 +3,9 @@
 @import "./theme.css";
 @source ".";
 
+@custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
+@custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));
+
 @theme {
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -160,6 +163,19 @@
     &:active::after {
       transition: none;
     }
+  }
+}
+
+@utility control-wash {
+  @media (hover: hover) {
+    &:hover:not(:disabled, [data-disabled], [aria-disabled="true"]) {
+      background-image: linear-gradient(var(--control-hover), var(--control-hover));
+    }
+  }
+  &:active:not(:disabled, [data-disabled], [aria-disabled="true"]) {
+    background-image:
+      linear-gradient(var(--control-hover), var(--control-hover)),
+      linear-gradient(var(--control-hover), var(--control-hover));
   }
 }
 
