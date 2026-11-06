@@ -7,7 +7,7 @@ const MAIN = "file:///local/main.sd";
 
 const BEATS = 2000;
 
-const BYTES_PER_1000_BEATS = 2_300_000;
+const BYTES_PER_1000_BEATS = 7_200_000;
 
 function longRun(beats: number): SparkProgram {
   const lines = ["store count = 0", "", "scene start"];
@@ -175,7 +175,7 @@ const menus = (n: number) =>
 
 describe("the store's count and its folding", () => {
   test("past the budget the oldest keyframes fold too, keeping the run's start", async () => {
-    const budget = 600_000;
+    const budget = 800_000;
     const { game, text, count } = playAll(longRun(BEATS), budget);
     expect(
       game.checkpoints.bytes,
@@ -386,5 +386,22 @@ describe("the count of what checkpoints hold beyond the globals", () => {
       game.checkpoints.bytes,
       `the store counts ${game.checkpoints.bytes} bytes while the frames it holds keep ${bytes} bytes of locals`,
     ).toBeGreaterThanOrEqual(bytes);
+  });
+});
+
+describe("the count of the run record", () => {
+  test("charges each recorded beat's instructions to its checkpoint", () => {
+    const line = "word ".repeat(4000).trim();
+    const source = ["scene start", `  ${line} One.`, `  ${line} Two.`, "end"].join("\n");
+    const game = startGame(compileSource(source), {});
+    game.clickedToContinue();
+    const beats = (game as any)._run.beats as { checkpoint: number; shown: unknown }[];
+    expect(beats).toHaveLength(2);
+    const entries = (game.checkpoints as any)._entries as { bytes: number }[];
+    for (const beat of beats) {
+      const shown = JSON.stringify(beat.shown).length * 2;
+      expect(shown).toBeGreaterThan(line.length * 2);
+      expect(entries[beat.checkpoint]!.bytes).toBeGreaterThanOrEqual(shown);
+    }
   });
 });

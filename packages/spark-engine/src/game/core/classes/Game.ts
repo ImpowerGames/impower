@@ -2562,11 +2562,9 @@ export class Game<T extends M = {}> {
   }
 
   protected recordBeat(shown: Instructions): void {
-    this._run.record({
-      checkpoint: this._checkpoints.length - 1,
-      shown,
-      menus: this._playedMenus.length,
-    });
+    const checkpoint = this._checkpoints.length - 1;
+    this._run.record({ checkpoint, shown, menus: this._playedMenus.length });
+    this._checkpoints.charge(checkpoint, JSON.stringify(shown).length * 2);
     const budget = this._checkpointByteBudget;
     if (this._checkpoints.bytes > budget) {
       const folded = this._checkpoints.fold(

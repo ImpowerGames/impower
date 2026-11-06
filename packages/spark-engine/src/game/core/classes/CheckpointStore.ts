@@ -182,6 +182,14 @@ export class CheckpointStore {
     });
   }
 
+  charge(index: number, bytes: number): void {
+    const entry = this._entries[index];
+    if (entry && !entry.folded) {
+      entry.bytes += bytes;
+      this._bytes += bytes;
+    }
+  }
+
   isFolded(index: number): boolean {
     return this._entries[index]?.folded ?? false;
   }
