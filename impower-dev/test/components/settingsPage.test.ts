@@ -187,9 +187,11 @@ describe("the Settings page", () => {
     ]);
     expect([...host!.querySelectorAll("[data-settings-section]")].map((el) => el.id)).toEqual([...SETTINGS_SECTION_IDS]);
     expect([...host!.querySelectorAll("[data-settings-placeholder]")].map((el) => el.closest("[data-settings-section]")!.id)).toEqual(
-      SETTINGS_SECTION_IDS.filter((id) => !["theme-preferences", "editor-preferences", "preview-preferences"].includes(id)),
+      SETTINGS_SECTION_IDS.filter(
+        (id) => !["theme-preferences", "editor-preferences", "preview-preferences", "save-settings"].includes(id),
+      ),
     );
-    expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
+    expect(document.getElementById("save-settings")!.querySelector("[data-settings-placeholder]")).toBeNull();
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());
     await pause(0);
