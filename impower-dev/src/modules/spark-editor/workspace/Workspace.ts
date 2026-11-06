@@ -37,7 +37,6 @@ export namespace Workspace {
 }
 
 registerWorkspaceProtocol(Workspace);
-Workspace.ls.onPublishedDiagnostics((params) => problems.record(params));
 problems.addPlayedSource(runtimeErrorSource);
 problems.addPanelSource(consoleToggleSource);
 if (typeof window !== "undefined") {

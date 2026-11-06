@@ -396,6 +396,23 @@ describe("the Problems panel", () => {
     expect(stored().problemsScriptCardOpen).toBe(false);
     expect(head("In the script").getAttribute("aria-expanded")).toBe("false");
     expect(entries()).toEqual([]);
+    await act(async () => toggle().click());
+    await settle();
+    expect(panel()).toBeNull();
+    await act(async () => toggle().click());
+    await settle();
+    expect(stored().problemsScriptCardOpen).toBe(false);
+    expect(head("In the script").getAttribute("aria-expanded")).toBe("false");
+    expect(entries()).toEqual([]);
+  });
+
+  it("opens the In the script card when the script header asks for the problems", async () => {
+    problems.record({ uri: MAIN, diagnostics: [diagnostic(1, 1, "Broken")] });
+    await openPanel();
+    await act(async () => head("In the script").click());
+    await act(async () => problems.showProblems());
+    expect(stored().problemsScriptCardOpen).toBe(true);
+    expect(entries()).toEqual(["Error · Broken"]);
   });
 
   it("opens the whole story's Problems to fix dialog from the toggle on a phone", async () => {

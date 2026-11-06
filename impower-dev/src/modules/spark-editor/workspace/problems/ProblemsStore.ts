@@ -186,7 +186,7 @@ export class ProblemsStore {
     }
   }
 
-  openPanel(card: PanelCard = "script") {
+  openPanel(card?: PanelCard) {
     const layout = layoutState.current();
     if (layout === "phone") {
       return false;
@@ -197,10 +197,12 @@ export class ProblemsStore {
     if (layout === "compact") {
       this.makeRoomInStrip();
     }
-    if (!this.cards.value[card]) {
-      this.setCardOpen(card, true);
+    if (card) {
+      if (!this.cards.value[card]) {
+        this.setCardOpen(card, true);
+      }
+      this.revealCard(card);
     }
-    this.revealCard(card);
     return true;
   }
 
@@ -233,7 +235,12 @@ export class ProblemsStore {
     } else if (this.panelOpen.value) {
       this.collapsePanel();
     } else {
-      this.openPanel(this.counts.value.problems || !this.played.value.length ? "script" : "played");
+      this.openPanel();
+      this.revealCard(
+        this.counts.value.problems || !this.played.value.length
+          ? "script"
+          : "played",
+      );
     }
   }
 

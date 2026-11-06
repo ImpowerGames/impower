@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 describe("MessageEntry", () => {
-  it("draws the glyph, the prefixed title in bold, the message beneath and a jump link", async () => {
+  it("draws the glyph, the prefixed title in bold, the message beneath and a jump link, with no tooltip when it wraps", async () => {
     const onJump = vi.fn();
     const entry = await mount(
       <MessageEntry
@@ -41,6 +41,7 @@ describe("MessageEntry", () => {
     expect(entry.querySelector("svg")!.getAttribute("class")).toContain("text-error");
     expect(entry.querySelector("strong")!.textContent).toBe("Error · Unexpected two dots");
     expect(entry.querySelector("strong + span")!.textContent).toBe("Remove the two dots.");
+    expect(entry.querySelector("strong")!.hasAttribute("title")).toBe(false);
     const link = entry.querySelector("button")!;
     expect(link.textContent).toBe("Line 17");
     expect(link.getAttribute("aria-label")).toBe("Open chapter_2 at line 17");
@@ -73,6 +74,8 @@ describe("MessageEntry", () => {
     );
     expect(entry.className).toContain("h-full");
     expect(entry.querySelector("strong")!.className).toContain("fade-edge");
+    expect(entry.querySelector("strong")!.getAttribute("title")).toBe("Sound not found");
     expect(entry.querySelector("strong + span")!.className).toContain("line-clamp-2");
+    expect(entry.querySelector("strong + span")!.getAttribute("title")).toBe("Long");
   });
 });

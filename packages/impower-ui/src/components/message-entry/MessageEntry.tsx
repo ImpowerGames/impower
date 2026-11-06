@@ -111,11 +111,21 @@ export default function MessageEntry({
       <div class="flex min-w-0 cursor-text items-start gap-2.5 px-2 pt-3 pb-0.5 select-text">
         <Glyph class={messageEntryGlyphVariants({ severity })} aria-hidden="true" />
         <span class="grid min-w-0 flex-1 gap-1">
-          <strong class={titleVariants({ fit })}>
+          <strong
+            class={titleVariants({ fit })}
+            title={fit === "row" ? `${prefix ?? ""}${title}` : undefined}
+          >
             {prefix}
             {title}
           </strong>
-          {message ? <span class={textVariants({ fit })}>{message}</span> : null}
+          {message ? (
+            <span
+              class={textVariants({ fit })}
+              title={fit === "row" ? message : undefined}
+            >
+              {message}
+            </span>
+          ) : null}
         </span>
       </div>
       <div class="flex min-h-9 items-center justify-between gap-2 pr-2 pb-2 pl-[35px]">

@@ -10,19 +10,26 @@ let width = 1440;
 const lists: (() => void)[] = [];
 
 vi.stubGlobal("matchMedia", (query: string) => {
-  const listeners = new Set<() => void>();
-  lists.push(() => listeners.forEach((listener) => listener()));
-  return {
+  const listeners = new Set<(event: { matches: boolean }) => void>();
+  const list = {
     media: query,
     get matches() {
       const minWidth = /^\(min-width: (\d+)px\)$/.exec(query);
       return minWidth ? width >= Number(minWidth[1]) : false;
     },
-    addEventListener: (_: string, listener: () => void) =>
-      listeners.add(listener),
-    removeEventListener: (_: string, listener: () => void) =>
-      listeners.delete(listener),
-  } as unknown as MediaQueryList;
+    addEventListener: (
+      _: string,
+      listener: (event: { matches: boolean }) => void,
+    ) => listeners.add(listener),
+    removeEventListener: (
+      _: string,
+      listener: (event: { matches: boolean }) => void,
+    ) => listeners.delete(listener),
+  };
+  lists.push(() =>
+    listeners.forEach((listener) => listener({ matches: list.matches })),
+  );
+  return list as unknown as MediaQueryList;
 });
 
 const { default: workspace } =
