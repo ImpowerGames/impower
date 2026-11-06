@@ -59,7 +59,7 @@ export const pageFrameTitleVariants = cva("mt-2.5 mb-3 font-serif font-normal tr
   },
 });
 
-export const pageFrameBackVariants = cva("", {
+export const pageFrameBackVariants = cva("flex-none", {
   variants: {
     size: {
       auto: "compact:hidden phone:hidden",
@@ -106,10 +106,12 @@ export default function PageFrame({
             <p class="m-0 max-w-[550px] text-body text-muted">{line}</p>
           </div>
           {onBack && (
-            <Button variant="quiet" class={pageFrameBackVariants({ size })} onClick={onBack}>
-              <BackIcon />
-              {backLabel}
-            </Button>
+            <div class={pageFrameBackVariants({ size })}>
+              <Button variant="quiet" onClick={onBack}>
+                <BackIcon />
+                {backLabel}
+              </Button>
+            </div>
           )}
         </div>
         {children}
