@@ -8,7 +8,6 @@ import {
   ExportHTMLParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportHTMLMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import { screenplayConfig } from "./settings/screenplaySettings";
 import workspaceSettings from "./settings/WorkspaceSettings";
 
 export default class WorkspacePrint {
@@ -22,7 +21,7 @@ export default class WorkspacePrint {
   protected _progressQueue: Record<string, (value: ProgressValue) => void> = {};
 
   get config() {
-    return screenplayConfig(workspaceSettings.projectSettings.peek());
+    return workspaceSettings.screenplayConfig.peek();
   }
 
   constructor() {

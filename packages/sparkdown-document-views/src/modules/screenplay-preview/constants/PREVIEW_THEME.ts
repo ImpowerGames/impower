@@ -8,32 +8,60 @@ const PREVIEW_THEME: {
   },
   "&": {
     flex: 1,
+    overflowX: "clip",
+    backgroundColor: "var(--sp-paper)",
+    backgroundImage: "var(--sp-texture)",
     backgroundRepeat: "repeat",
-    color: "#333",
+    color: "var(--sp-ink)",
   },
   "& .cm-scroller": {
     fontFamily:
       '"Courier Prime", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
-    fontSize: "1rem",
+    fontSize: "clamp(10.5px, 2.3cqi, 14.7px)",
     overflow: "visible",
     position: "relative",
   },
   "& .cm-content": {
-    padding: "68px 24px 68px 24px",
-    margin: "auto",
-    width: "100%",
-    maxWidth: "640px",
+    padding: "68px 0",
+    flexGrow: 0,
+    width: "min(100% - 3em, var(--sp-text-width))",
+    marginLeft:
+      "max(1.5em, (100% - var(--sp-text-width) - var(--sp-margin-left) - var(--sp-margin-right)) / 2 + var(--sp-margin-left))",
     position: "relative",
     cursor: "default",
     caretColor: "transparent",
-    "&:before": {
-      content: "''",
+  },
+  "& .sp-heading": {
+    position: "relative",
+  },
+  "&[data-headings-bold=on] .sp-heading": {
+    fontWeight: "bold",
+  },
+  "&[data-scene-numbers=left] .sp-heading::before, &[data-scene-numbers=both] .sp-heading::before":
+    {
+      content: "attr(data-scene-number)",
       position: "absolute",
-      inset: "0 -96px",
-      backgroundColor: "rgb(235, 234, 232)",
-      backgroundImage: "var(--screenplay-preview-texture)",
-      zIndex: "-1",
+      top: 0,
+      right: "calc(100% + 1.2em)",
     },
+  "&[data-scene-numbers=right] .sp-heading::after, &[data-scene-numbers=both] .sp-heading::after":
+    {
+      content: "attr(data-scene-number)",
+      position: "absolute",
+      top: 0,
+      left: "calc(100% + 1.2em)",
+    },
+  "& .sp-name": {
+    margin: "2em 0 1em",
+    fontWeight: "bold",
+    textDecoration: "underline",
+  },
+  "& .sp-option": {
+    color: "var(--sp-muted)",
+  },
+  "& .sp-option.sp-chosen": {
+    color: "var(--sp-accent)",
+    fontWeight: "bold",
   },
   "& .cm-lineWrapping": {
     overflowWrap: "break-word",
@@ -43,9 +71,14 @@ const PREVIEW_THEME: {
     opacity: 0,
     padding: 0,
   },
-  "& .cm-line.cm-activeLine": {
+  "& .cm-line.cm-activeLine, & .cm-content > .sp-lit": {
+    borderRadius: "3px",
+    backgroundColor: "var(--sp-lit)",
+    boxShadow: "0 0 0 4px var(--sp-lit)",
+  },
+  "& .cm-line.cm-activeLine:has(.sp-title-page)": {
     backgroundColor: "transparent",
-    outline: "2px solid #00000012",
+    boxShadow: "none",
   },
   "& .collapse + .collapse": {
     display: "block",

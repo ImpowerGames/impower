@@ -23,6 +23,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     const language = this.spec.language;
     const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
+    container.classList.add("sp-title-page");
     container.style.pointerEvents = "none";
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
