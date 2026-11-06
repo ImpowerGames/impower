@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
+import { createAspectRatioSync } from "./aspectRatioSync";
 import { showSnackbar } from "../../utils/snackbar";
 import { createPlayerPreferenceSync, playerUrl } from "./playerPreferences";
 import { installPreviewInspector } from "./previewInspect";
-import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
@@ -88,6 +90,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -123,6 +126,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
         { GameWorkerRestartedMessage },
+        { ResizeGameMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -162,6 +166,14 @@ export default function PreviewGame(_props: PreviewGameProps) {
         const preferences = createPlayerPreferenceSync(
           (message) => iframeChannelRef.current?.postMessage(message),
           () => Workspace.window.getRoutePins(),
+        );
+
+        const aspectRatioSync = createAspectRatioSync(
+          previewAspectRatioFor(workspaceSettings.projectSettings),
+          (ratio) =>
+            void iframeChannelRef.current?.sendRequest(ResizeGameMessage.type, {
+              aspectRatio: ratio,
+            }),
         );
 
         const onChannelMessage = async (e: MessageEvent) => {
@@ -291,6 +303,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           });
           preferences.initialized();
           initializedRef.current = true;
+          aspectRatioSync.initialized();
           initializingResolveRef.current?.();
           setupInFlight = false;
         };
@@ -434,6 +447,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         cleanup = () => {
           preferences.dispose();
           disposeFollowsCursor();
+          aspectRatioSync.dispose();
           window.removeEventListener(MessageProtocol.event, onProtocol);
           window.removeEventListener("keydown", onKeyDown);
           document.removeEventListener("fullscreenchange", onFullscreenChange);

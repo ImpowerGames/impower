@@ -166,6 +166,8 @@ import { renderSavesViews } from "./saves/renderSavesViews";
 
 const MIN_HEIGHT = 100;
 
+const RATIO_REFERENCE_HEIGHT = 720;
+
 const profileMessageHandling =
   (handler: (message: any) => any) => async (message: { method: string }) => {
     profile("start", message.method);
@@ -1155,7 +1157,7 @@ export class GamePlayerController {
 
   protected setGameSize(
     fit: GameFit,
-    size?: { width?: number; height: number; minHeight?: boolean },
+    size?: { width?: number; height: number; minHeight?: boolean; scale?: number },
   ) {
     this._fit = fit;
     if (fit !== "ratio") {
@@ -1166,6 +1168,12 @@ export class GamePlayerController {
     style.height = size ? `${size.height}px` : "";
     style.minHeight = size?.minHeight ? `${size.height}px` : "";
     style.alignSelf = size?.width != null ? "center" : "";
+    const scale = size?.scale ?? 1;
+    const scaled = scale < 1 && size?.width != null;
+    style.transform = scaled ? `scale(${scale})` : "";
+    style.transformOrigin = scaled ? "0 0" : "";
+    style.marginRight = scaled ? `${size!.width! * (scale - 1)}px` : "";
+    style.marginBottom = scaled ? `${size!.height * (scale - 1)}px` : "";
   }
 
   protected fitToRatio() {
@@ -1179,15 +1187,26 @@ export class GamePlayerController {
       this.refs.viewport.clientHeight - (this.refs.toolbar?.offsetHeight ?? 0);
     const width = Math.max(0, Math.min(availableWidth, (availableHeight * w) / h));
     const height = (width * h) / w;
+    const scale =
+      height > 0 ? Math.min(1, height / RATIO_REFERENCE_HEIGHT) : 1;
+    const layoutWidth = width / scale;
+    const layoutHeight = height / scale;
+    const transform = scale < 1 ? `scale(${scale})` : "";
     const style = this.refs.game.style;
     if (
-      style.width === `${width}px` &&
-      style.height === `${height}px` &&
+      style.width === `${layoutWidth}px` &&
+      style.height === `${layoutHeight}px` &&
+      style.transform === transform &&
       style.alignSelf === "center"
     ) {
       return;
     }
-    this.setGameSize("ratio", { width, height, minHeight: true });
+    this.setGameSize("ratio", {
+      width: layoutWidth,
+      height: layoutHeight,
+      minHeight: true,
+      scale,
+    });
   }
 
   protected dragWidth() {
@@ -1211,7 +1230,7 @@ export class GamePlayerController {
   protected handlePointerDownToolbar = (e: PointerEvent) => {
     this._isResizing = true;
     this._resizeStartY = e.clientY;
-    this._resizeStartHeight = this.refs.game.offsetHeight;
+    this._resizeStartHeight = this.refs.game.getBoundingClientRect().height;
 
     document.body.style.cursor = "ns-resize";
 

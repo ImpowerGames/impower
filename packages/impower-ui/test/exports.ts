@@ -11,12 +11,14 @@ export const NOT_COMPONENTS: readonly string[] = [
   "layoutState",
   "sparkLogoVariants",
   "pointerState",
+  "railState",
   "sheetVariants",
   "sidebarLayoutVariants",
   "toastVariants",
   "useCoarsePointer",
   "useHoldRepeat",
   "useLayout",
+  "useRailDefault",
   "useMountTransition",
 ];
 

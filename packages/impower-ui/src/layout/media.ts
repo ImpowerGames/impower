@@ -1,8 +1,10 @@
 import {
   coarsePointerQuery,
   layoutQueries,
+  railFullQuery,
   type Layout,
   type Pointer,
+  type RailDefault,
 } from "./breakpoints";
 
 export type MediaState<T extends string> = {
@@ -11,7 +13,7 @@ export type MediaState<T extends string> = {
 };
 
 function mediaState<T extends string>(
-  attribute: "layout" | "pointer",
+  attribute: "layout" | "pointer" | "rail",
   queries: readonly string[],
   read: (matches: readonly boolean[]) => T,
   fallback: T,
@@ -69,4 +71,11 @@ export const pointerState: MediaState<Pointer> = mediaState(
   [coarsePointerQuery],
   ([coarse]) => (coarse ? "coarse" : "fine"),
   "fine",
+);
+
+export const railState: MediaState<RailDefault> = mediaState(
+  "rail",
+  [railFullQuery],
+  ([full]) => (full ? "full" : "icons"),
+  "full",
 );
