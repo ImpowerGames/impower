@@ -16,6 +16,7 @@ export const propDefaults = {
   fullscreenButton: false,
   skipButtons: false,
   stepButtons: false,
+  hostDisplay: false,
 };
 
 export type SparkWebPlayerProps = Partial<typeof propDefaults>;
@@ -30,6 +31,7 @@ export default function SparkWebPlayer({
   fullscreenButton,
   skipButtons,
   stepButtons,
+  hostDisplay,
 }: SparkWebPlayerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
@@ -72,20 +74,24 @@ export default function SparkWebPlayer({
       ) as HTMLElement | null;
       if (!realHost) return;
 
-      const controller = new GamePlayerController(realHost, {
-        viewport,
-        game,
-        gameBackground,
-        gameView,
-        gameUI,
-        playButton: playButtonRef.current,
-        toolbar: toolbarRef.current,
-        routeButton: routeButtonRef.current,
-        routeList: routeListRef.current,
-        savesButton: savesButtonRef.current,
-        savesMenu: savesMenuRef.current,
-        saveNote: saveNoteRef.current,
-      });
+      const controller = new GamePlayerController(
+        realHost,
+        {
+          viewport,
+          game,
+          gameBackground,
+          gameView,
+          gameUI,
+          playButton: playButtonRef.current,
+          toolbar: toolbarRef.current,
+          routeButton: routeButtonRef.current,
+          routeList: routeListRef.current,
+          savesButton: savesButtonRef.current,
+          savesMenu: savesMenuRef.current,
+          saveNote: saveNoteRef.current,
+        },
+        { resizable: !flag(hostDisplay) },
+      );
       unsubscribe = controller.subscribeBar((state, view) =>
         setBar({ state, view }),
       );
@@ -99,7 +105,12 @@ export default function SparkWebPlayer({
       controllerRef.current?.dispose();
       controllerRef.current = null;
     };
-  }, [flag(playButton), flag(toolbar), flag(fullscreenButton)]);
+  }, [
+    flag(playButton),
+    flag(toolbar),
+    flag(fullscreenButton),
+    flag(hostDisplay),
+  ]);
 
   return (
     <div id="viewport" ref={viewportRef}>
@@ -133,7 +144,8 @@ export default function SparkWebPlayer({
           controls={{
             skip: flag(skipButtons),
             step: flag(stepButtons),
-            fullscreen: flag(fullscreenButton),
+            fullscreen: flag(fullscreenButton) && !flag(hostDisplay),
+            resize: !flag(hostDisplay),
           }}
           workspace={bar.view.workspace}
           routeShown={bar.view.routeShown}

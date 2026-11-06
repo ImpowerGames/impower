@@ -1,4 +1,5 @@
 import {
+  Disclosure,
   Select,
   SelectRow,
   SettingsGroup,
@@ -7,14 +8,19 @@ import {
   SwitchRow,
   type SelectOption,
 } from "@impower/impower-ui/components";
-import SparkdownScriptSample from "@impower/sparkdown-document-views/src/modules/script-sample/SparkdownScriptSample";
+import type { ScriptAppearance } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
+import { scriptSampleSyntaxVariables } from "@impower/sparkdown-document-views/src/modules/script-sample/scriptSampleSyntaxVariables";
+import SparkdownScriptSample, {
+  createScriptSampleState,
+} from "@impower/sparkdown-document-views/src/modules/script-sample/SparkdownScriptSample";
 import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import type { PreferenceKey, Preferences } from "../../workspace/settings/settingsSchema";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import type { SettingsSectionInfo } from "./sections";
 import { SCRIPT_SAMPLES, type ScriptSampleId } from "./scriptSamples";
+import { syntaxKeyRows } from "./syntaxColorKey";
 import { useSectionReset } from "./useSectionReset";
 
 type SwitchKey = {
@@ -125,6 +131,7 @@ function Switches({ specs }: { specs: readonly SwitchSpec[] }) {
 function ScriptSample() {
   const [sampleId, setSampleId] = useState<ScriptSampleId>("dialogue");
   const sample = SCRIPT_SAMPLES.find((candidate) => candidate.value === sampleId) ?? SCRIPT_SAMPLES[0];
+  const appearance = workspaceSettings.scriptAppearance.value;
   const caret = "caret" in sample ? sample.text.indexOf(sample.caret) : undefined;
   return (
     <div class="overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
@@ -142,14 +149,42 @@ function ScriptSample() {
       <SparkdownScriptSample
         text={sample.text}
         caret={caret}
-        appearance={workspaceSettings.scriptAppearance.value}
+        appearance={appearance}
         label="Read-only syntax sample"
         class="max-h-[540px] overflow-auto bg-workspace phone:max-h-[440px]"
       />
       <p class="m-0 border-t border-solid border-edge px-4 py-3 text-[13px]/[1.5] text-muted">
         Highlight matching symbols and Hover previews need your open script, so this sample does not show them.
       </p>
+      <SyntaxColorKey text={sample.text} appearance={appearance} />
     </div>
+  );
+}
+
+function SyntaxColorKey({ text, appearance }: { text: string; appearance: ScriptAppearance }) {
+  const rows = useMemo(
+    () => syntaxKeyRows(scriptSampleSyntaxVariables(createScriptSampleState(text, appearance), appearance)),
+    [text, appearance],
+  );
+  return (
+    <Disclosure edge="top" summary="Syntax color key">
+      <div
+        aria-label="Syntax color key"
+        data-syntax-key
+        class="flex flex-wrap gap-x-4 gap-y-2 pb-3.5 font-sans text-xs/[1.5]"
+      >
+        {rows.map(({ variable, label }) => (
+          <span
+            key={variable}
+            data-syntax-variable={variable}
+            style={{ color: `var(${variable})` }}
+            class="flex items-center gap-1.5 before:size-1.5 before:rounded-full before:bg-current before:content-['']"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </Disclosure>
   );
 }
 

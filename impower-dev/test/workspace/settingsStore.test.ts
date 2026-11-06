@@ -420,6 +420,7 @@ describe(".vscode/settings.json", () => {
     ).toEqual([
       "screenplayBranchNames",
       "previewAspectRatio",
+      "previewPanelHeight",
     ]);
     for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
       for (const path of spec.configurationKeys ?? []) {
