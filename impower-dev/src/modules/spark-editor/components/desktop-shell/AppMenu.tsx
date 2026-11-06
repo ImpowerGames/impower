@@ -25,22 +25,12 @@ import { showSnackbar } from "../../utils/snackbar";
 import { localSaveLabel } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
+import { withWindow } from "./workspaceWindow";
 import { useSaveStatus } from "../drive-sync";
 
 export const REPORT_BUG_URL =
   "https://github.com/ImpowerGames/impower/issues/new";
 
-type WorkspaceWindow =
-  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
-
-let workspaceWindow: Promise<WorkspaceWindow> | undefined;
-
-const withWindow = async (act: (win: WorkspaceWindow) => unknown) => {
-  workspaceWindow ??= import("../../workspace/Workspace").then(
-    ({ Workspace }) => Workspace.window,
-  );
-  await act(await workspaceWindow);
-};
 
 export type AppMenuProps = {
   trigger?: "rail" | "bar";

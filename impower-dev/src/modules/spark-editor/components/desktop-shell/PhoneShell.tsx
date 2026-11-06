@@ -8,9 +8,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
-
-const withWindow = async () =>
-  (await import("../../workspace/Workspace")).Workspace.window;
+import { workspaceWindow } from "./workspaceWindow";
 
 function BackToStory({ onBack }: { onBack: () => void }) {
   return (
@@ -38,7 +36,7 @@ export function PhonePreviewBack() {
     <div class="flex h-12 flex-none items-center border-b border-edge bg-bg px-4">
       <BackToStory
         onBack={() =>
-          void withWindow().then((win) => win.collapsePreviewPane())
+          void workspaceWindow().then((win) => win.collapsePreviewPane())
         }
       />
     </div>
@@ -53,9 +51,18 @@ export default function PhoneShell({
   const route = useComputed(() => routeOfState(workspace.state.value)).value;
   const naming = useNaming();
   const writing = useComputed(() => storyScriptOf() !== undefined).value;
+  const previewRevealed = useComputed(
+    () => !!workspace.state.value.preview?.revealed,
+  ).value;
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => setScrolled(false), [route]);
+
+  useEffect(() => {
+    if (previewRevealed && !writing) {
+      void workspaceWindow().then((win) => win.collapsePreviewPane());
+    }
+  }, [previewRevealed, writing]);
 
   return (
     <div

@@ -35,7 +35,10 @@ export const storyScriptOf = (
   }
   const logic = state.panes?.logic;
   const scripts = logic?.panels?.scripts?.activeEditor;
-  if (logic?.view === "logic-editor" || logic?.panel === "scripts") {
+  if (logic?.view === "logic-editor") {
+    return scripts?.filename || undefined;
+  }
+  if (logic?.panel === "scripts") {
     return scripts?.open && scripts.filename ? scripts.filename : undefined;
   }
   return "main.sd";

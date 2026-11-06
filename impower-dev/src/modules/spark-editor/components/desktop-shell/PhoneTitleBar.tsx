@@ -20,14 +20,7 @@ import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
 import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
-
-type WorkspaceWindow =
-  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
-
-const withWindow = async (act: (win: WorkspaceWindow) => unknown) => {
-  const { Workspace } = await import("../../workspace/Workspace");
-  await act(Workspace.window);
-};
+import { withWindow } from "./workspaceWindow";
 
 export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const naming = useNaming() === "project";

@@ -156,6 +156,18 @@ beforeEach(() => {
       sync: { status: "cached" },
       screen: {},
       preview: { ...workspace.current.preview, revealed: false },
+      panes: {
+        ...workspace.current.panes,
+        logic: {
+          ...workspace.current.panes.logic,
+          view: "list",
+          panel: "main",
+          panels: {
+            ...workspace.current.panes.logic.panels,
+            scripts: { activeEditor: undefined },
+          },
+        },
+      },
     },
     "write",
   );
@@ -242,6 +254,67 @@ describe("the phone shell", () => {
           .toLowerCase(),
       ).toContain(pane === "logic" ? "story" : pane);
     }
+  });
+
+  it("leaves the preview for the route the navigation or the app menu opens", async () => {
+    await mount();
+    await act(async () => button("Show the preview")!.click());
+    await settle();
+    expect(workspace.current.preview.revealed).toBe(true);
+    const assets = Array.from(
+      navigation().querySelectorAll<HTMLElement>('[role="tab"]'),
+    ).find((tab) => tab.textContent?.includes("Assets"))!;
+    await act(async () => {
+      assets.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        }),
+      );
+    });
+    await settle();
+    expect(calls.routes).toEqual(["collection"]);
+    expect(workspace.current.preview.revealed).toBe(false);
+
+    await go("write");
+    await act(async () => button("Show the preview")!.click());
+    await settle();
+    expect(workspace.current.preview.revealed).toBe(true);
+    await go("project");
+    expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
+    expect(workspace.current.preview.revealed).toBe(false);
+  });
+
+  it("keeps the Story controls for a script another script's link opened in the editor view", async () => {
+    await mount();
+    await act(async () => {
+      const logic = workspace.current.panes.logic;
+      workspace.current = {
+        ...workspace.current,
+        panes: {
+          ...workspace.current.panes,
+          logic: {
+            ...logic,
+            view: "logic-editor",
+            panel: "scripts",
+            panels: {
+              ...logic.panels,
+              scripts: {
+                ...logic.panels.scripts,
+                activeEditor: { filename: "scripts/intro.sd" },
+              },
+            },
+          },
+        },
+      };
+    });
+    await settle();
+    expect(button("Search")).not.toBeNull();
+    expect(button("Show the preview")).not.toBeNull();
+    await act(async () => button("Search")!.click());
+    await settle();
+    expect(calls.commands).toEqual([["scripts/intro.sd", "search"]]);
   });
 
   it("follows the edit history and commands of whichever script the Story route shows", async () => {

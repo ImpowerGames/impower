@@ -14,9 +14,6 @@ vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
 vi.mock("../../src/modules/spark-editor/components/share/Share", () => ({
   default: () => h("div", { "data-route": "share" }),
 }));
-vi.mock("../../src/modules/spark-editor/components/header-navigation/HeaderNavigation", () => ({
-  default: () => h("header", null),
-}));
 vi.mock("../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPane", () => ({
   default: () => null,
 }));
@@ -87,9 +84,9 @@ const settle = () =>
 const bottomTab = (label: string) =>
   [...host!.querySelectorAll<HTMLElement>('[role="tab"]')].find((tab) => tab.textContent?.includes(label))!;
 
-describe("the compact and phone bottom tabs on the Settings page", () => {
+describe("the phone bottom navigation on the Settings page", () => {
   it.each([
-    ["logic", "Logic", "logic"],
+    ["logic", "Story", "logic"],
     ["assets", "Assets", "assets"],
   ] as const)("selects no tab over %s and returns to it when its own tab is pressed", async (pane, label, route) => {
     workspace.current = stateForRoute({ ...workspace.current, pane }, "project");

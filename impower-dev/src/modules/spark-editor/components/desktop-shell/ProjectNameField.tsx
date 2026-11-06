@@ -1,9 +1,7 @@
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
 import { useNameField } from "./naming";
-
-const withWindow = async () =>
-  (await import("../../workspace/Workspace")).Workspace.window;
+import { workspaceWindow } from "./workspaceWindow";
 
 export default function ProjectNameField() {
   const name = useComputed(
@@ -19,10 +17,10 @@ export default function ProjectNameField() {
     field: "project",
     name,
     onFocus: () => {
-      void withWindow().then((win) => win.startEditingProjectName());
+      void workspaceWindow().then((win) => win.startEditingProjectName());
     },
     onCommit: async (value) => {
-      await (await withWindow()).finishEditingProjectName(value);
+      await (await workspaceWindow()).finishEditingProjectName(value);
       return workspace.state.peek().project?.name || "";
     },
   });

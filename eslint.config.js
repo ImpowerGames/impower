@@ -36,7 +36,6 @@ export const LEGACY_FORM_CONTROL_FILES = [
   "impower-dev/src/modules/spark-editor/components/file-list/FileItem.tsx",
   "impower-dev/src/modules/spark-editor/components/file-list/FileListHeader.tsx",
   "impower-dev/src/modules/spark-editor/components/file-preview/FilePreviewOverlay.tsx",
-  "impower-dev/src/modules/spark-editor/components/header-title-button/HeaderTitleButton.tsx",
   "impower-dev/src/modules/spark-editor/components/script-header/ScriptNameField.tsx",
 ];
 

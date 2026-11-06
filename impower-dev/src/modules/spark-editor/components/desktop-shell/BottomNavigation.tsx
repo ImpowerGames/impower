@@ -12,6 +12,7 @@ import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
 import { routeOfPane, routeOfState } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { useNaming } from "./naming";
+import { withWindow } from "./workspaceWindow";
 
 export default function BottomNavigation() {
   const naming = useNaming() !== null;
@@ -22,10 +23,8 @@ export default function BottomNavigation() {
       : workspace.signals.pane.value,
   ).value;
 
-  const onChange = async (next: string) => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.navigateTo(routeOfPane(next as PaneType));
-  };
+  const onChange = (next: string) =>
+    void withWindow((win) => win.navigateTo(routeOfPane(next as PaneType)));
 
   return (
     <nav
