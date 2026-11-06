@@ -28,7 +28,7 @@ export default function SearchRail() {
       data-view={snapshot.view}
       class="flex h-full min-h-0 flex-col pt-3 group-data-[sidebar=collapsed]/sidebar:hidden"
     >
-      <div class="flex h-11 flex-none items-center justify-between gap-1 pr-1 pl-[14px] in-data-[layout=compact]:pl-2.5 in-data-[view=references]:pl-6 in-data-[view=rename]:pl-6">
+      <div class="flex h-11 flex-none items-center justify-between gap-1 pr-1 pl-[14px] in-data-[layout=compact]:pl-2.5 in-data-[view=references]:pl-6">
         <h2 class="m-0 min-w-0 truncate text-[14px]/[1.4] font-semibold text-ink">
           {title}
         </h2>
