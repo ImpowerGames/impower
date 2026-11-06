@@ -2,6 +2,10 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { Module } from "../../../core/classes/Module";
 import type { AudioInstruction } from "../../../core/types/Instruction";
+import type {
+  SettledLoop,
+  StoppedLoop,
+} from "../../../core/types/RunHistory";
 import type { AudioBuiltins } from "../types/AudioBuiltins";
 import type { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import type { ChannelState } from "../types/ChannelState";
@@ -25,6 +29,11 @@ const isSynth = (asset: object, type: string): boolean =>
   "shape" in asset;
 
 export interface AudioConfig {}
+
+export interface AudibleLoop {
+  to: number | undefined;
+  looping: boolean;
+}
 
 export interface AudioState {
   channels?: Record<string, ChannelState>;
@@ -58,8 +67,11 @@ export class AudioModule extends Module<
     return [];
   }
 
+  protected _audible = new Map<string, Map<string, AudibleLoop>>();
+
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
+    this._audible = new Map();
   }
 
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
@@ -121,7 +133,92 @@ export class AudioModule extends Module<
     }
   }
 
-  protected async restoreChannel(channel: string) {
+  loopsHeld(): Map<string, Map<string, number | undefined>> {
+    const held = new Map<string, Map<string, number | undefined>>();
+    for (const [channel, channelState] of Object.entries(
+      this._state.channels ?? {},
+    )) {
+      const keys = new Map<string, number | undefined>();
+      for (const { key, to } of channelState?.looping ?? []) {
+        if (key) {
+          keys.set(key, to);
+        }
+      }
+      held.set(channel, keys);
+    }
+    return held;
+  }
+
+  loopsPlaying(): Map<string, Map<string, AudibleLoop>> {
+    return new Map(
+      [...this._audible].map(([channel, keys]) => [
+        channel,
+        new Map([...keys].map(([key, loop]) => [key, { ...loop }])),
+      ]),
+    );
+  }
+
+  settleLoops(
+    before: ReadonlyMap<string, ReadonlyMap<string, AudibleLoop>>,
+  ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
+    const held = this.loopsHeld();
+    this._channelsCurrentlyPlaying = this.playingFromState();
+    const loops: SettledLoop[] = [];
+    const stoppedLoops: StoppedLoop[] = [];
+    for (const [channel, keys] of before) {
+      const stops: AudioPlayerUpdate[] = [];
+      for (const key of keys.keys()) {
+        if (!held.get(channel)?.has(key)) {
+          stoppedLoops.push({ channel, key });
+          stops.push({ control: "stop", key, now: true });
+        }
+      }
+      if (stops.length > 0) {
+        this.update(channel, stops);
+      }
+    }
+    for (const [channel, keys] of held) {
+      const was = before.get(channel);
+      const starts = new Set<string>();
+      const fades: AudioPlayerUpdate[] = [];
+      for (const [key, to] of keys) {
+        const audible = was?.get(key);
+        if (audible?.looping) {
+          loops.push({ channel, key, play: "continue" });
+          if ((to ?? 1) !== (audible.to ?? 1)) {
+            fades.push({ control: "fade", key, to: to ?? 1, now: true });
+          }
+        } else if (audible) {
+          loops.push({ channel, key, play: "continue" });
+          starts.add(key);
+        } else {
+          loops.push({ channel, key, play: "start" });
+          starts.add(key);
+        }
+      }
+      if (fades.length > 0) {
+        this.update(channel, fades);
+      }
+      if (starts.size > 0) {
+        void this.restoreChannel(channel, starts);
+      }
+    }
+    return { loops, stoppedLoops };
+  }
+
+  restartPending(): void {
+    for (const [channel, keys] of this.loopsHeld()) {
+      const audible = this._audible.get(channel);
+      const silent = new Set(
+        [...keys.keys()].filter((key) => !audible?.get(key)?.looping),
+      );
+      if (silent.size > 0) {
+        void this.restoreChannel(channel, silent);
+      }
+    }
+  }
+
+  protected async restoreChannel(channel: string, only?: ReadonlySet<string>) {
     const epoch = this._game.connection.epoch;
     const restored: {
       update: AudioPlayerUpdate;
@@ -131,10 +228,13 @@ export class AudioModule extends Module<
     const channelState = this._state.channels?.[channel];
     if (channelState?.looping) {
       for (const state of channelState.looping) {
+        if (only && !(state.key && only.has(state.key))) {
+          continue;
+        }
         const update: AudioPlayerUpdate = {
           control: "start",
           key: state.key,
-          to: state.to,
+          to: state.to ?? 1,
           loop: true,
           now: true,
         };
@@ -168,11 +268,42 @@ export class AudioModule extends Module<
     );
   }
 
+  protected hear(channel: string, updates: AudioPlayerUpdate[]): void {
+    let audible = this._audible.get(channel);
+    for (const update of updates) {
+      if (update.control === "stop") {
+        if (update.key) {
+          audible?.delete(update.key);
+        } else {
+          audible?.clear();
+        }
+      } else if (update.control === "start" && update.loop && update.key) {
+        if (!audible) {
+          audible = new Map();
+          this._audible.set(channel, audible);
+        }
+        audible.set(update.key, { to: update.to, looping: true });
+      } else if (update.control === "fade") {
+        for (const key of update.key ? [update.key] : [...(audible?.keys() ?? [])]) {
+          const loop = audible?.get(key);
+          if (loop) {
+            loop.to = update.to;
+          }
+        }
+      } else if (update.control === "await") {
+        for (const loop of audible?.values() ?? []) {
+          loop.looping = false;
+        }
+      }
+    }
+  }
+
   protected update(
     channel: string,
     updates: AudioPlayerUpdate[],
     time?: number,
   ) {
+    this.hear(channel, updates);
     this.emitSettled(
       UpdateAudioPlayersMessage.type.request({
         channel,
