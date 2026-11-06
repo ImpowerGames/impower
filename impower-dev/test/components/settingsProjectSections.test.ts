@@ -131,6 +131,15 @@ describe("Project metadata", () => {
     ]);
   });
 
+  it("reads Title and Author in any case, as the screenplay title page does", async () => {
+    workspace.storyFrontMatter.value = frontMatterOf(["---", "Title: River Story", "AUTHOR: Ada", "---", ""].join("\n") + "\n");
+    await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));
+    expect(facts()).toEqual([
+      ["Title", "River Story"],
+      ["Author", "Ada"],
+    ]);
+  });
+
   it("shows Untitled story and Not set without a front matter block, and follows the next compile", async () => {
     workspace.storyFrontMatter.value = frontMatterOf("Hello.\n");
     await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));

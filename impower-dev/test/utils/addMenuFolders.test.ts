@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addMenuFiles,
   addMenuFolderProblem,
-  addMenuKindOf,
+  addMenuKindsOf,
   type AddMenuFolders,
 } from "../../src/modules/spark-editor/utils/addMenuFolders";
 
@@ -39,7 +39,19 @@ describe("the Add menu's folders", () => {
 
   it("let the nearest folder with one of the names decide", () => {
     expect(paths("portrait")).toEqual(["assets/Backdrops/Portraits/imani.png"]);
-    expect(addMenuKindOf({ path: "assets/Portraits/Backdrops/x.png", type: "image" }, FOLDERS)).toBe("backdrop");
+    expect(addMenuKindsOf({ path: "assets/Portraits/Backdrops/x.png", type: "image" }, FOLDERS)).toEqual(["backdrop"]);
+  });
+
+  it("let two pickers of one kind of file share a folder, in any case", () => {
+    const shared = { ...FOLDERS, portrait: "backdrops", sound: "Music" };
+    expect(paths("portrait", shared)).toEqual(paths("backdrop", shared));
+    expect(paths("portrait", shared)).toEqual([
+      "assets/Backdrops/beach.png",
+      "Assets/Images/backdrops/city/night.jpg",
+      "assets/Backdrops/Portraits/imani.png",
+    ]);
+    expect(paths("sound", shared)).toEqual(["assets/Music/theme.ogg"]);
+    expect(paths("music", shared)).toEqual(["assets/Music/theme.ogg"]);
   });
 
   it("follow a renamed folder", () => {

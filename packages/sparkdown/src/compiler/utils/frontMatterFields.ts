@@ -29,7 +29,7 @@ export const frontMatterFields = (tree: Tree, read: Read): Record<string, string
       for (const part of collect(field, PARTS)) {
         const text = read(part.from, part.to).trim();
         if (part.name === "FrontMatterFieldKeyword") {
-          keyword ??= text;
+          keyword ??= text.toLowerCase();
         } else if (text) {
           lines.push(text);
         }

@@ -37,30 +37,30 @@ export interface AddMenuCandidate {
   readonly type: string;
 }
 
-export const addMenuKindOf = (
+export const addMenuKindsOf = (
   { path, type }: AddMenuCandidate,
   folders: AddMenuFolders,
-): AddMenuKind | undefined => {
+): AddMenuKind[] => {
   const parts = path.split("/");
   if (parts.length < 3 || parts[0]!.toLowerCase() !== ASSETS_ROOT) {
-    return undefined;
+    return [];
   }
   const kinds = ADD_MENU_KINDS.filter((kind) => ADD_MENU_FILE_TYPES[kind] === type);
   for (let at = parts.length - 2; at >= 1; at -= 1) {
     const name = parts[at]!.toLowerCase();
-    const kind = kinds.find((k) => folders[k].toLowerCase() === name);
-    if (kind) {
-      return kind;
+    const named = kinds.filter((kind) => folders[kind].trim().toLowerCase() === name);
+    if (named.length > 0) {
+      return named;
     }
   }
-  return undefined;
+  return [];
 };
 
 export const addMenuFiles = <T extends AddMenuCandidate>(
   candidates: Iterable<T>,
   kind: AddMenuKind,
   folders: AddMenuFolders,
-): T[] => [...candidates].filter((candidate) => addMenuKindOf(candidate, folders) === kind);
+): T[] => [...candidates].filter((candidate) => addMenuKindsOf(candidate, folders).includes(kind));
 
 export const addMenuFolderProblem = (name: string): string | undefined => {
   const trimmed = name.trim();

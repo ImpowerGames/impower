@@ -24,6 +24,11 @@ describe("the program's front matter", () => {
     });
   });
 
+  test("names each field by its keyword in lower case, as the screenplay reads them", () => {
+    const program = compile(["---", "Title: River Story", "AUTHOR: Ada", "---", "", "Hello."].join("\n") + "\n");
+    expect(program.frontMatter).toEqual({ title: ["River Story"], author: ["Ada"] });
+  });
+
   test("is absent for a script without a front matter block", () => {
     expect(compile("Hello.\n").frontMatter).toBeUndefined();
   });
