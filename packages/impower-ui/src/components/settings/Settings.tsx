@@ -231,8 +231,13 @@ const labelledBy = (id: string, detail: unknown) => ({
   ...(detail ? { "aria-describedby": `${id}-detail` } : {}),
 });
 
+type ToggledDetail = { readonly on: string; readonly off: string };
+
+const isToggledDetail = (detail: unknown): detail is ToggledDetail =>
+  typeof detail === "object" && detail !== null && !Array.isArray(detail) && "on" in detail && "off" in detail;
+
 export type SwitchRowProps = RowBase & {
-  detail?: string | { readonly on: string; readonly off: string };
+  detail?: ComponentChildren | ToggledDetail;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 };
@@ -248,7 +253,7 @@ export function SwitchRow({
   disabled,
   class: className,
 }: SwitchRowProps) {
-  const text = typeof detail === "object" ? (checked ? detail.on : detail.off) : detail;
+  const text = isToggledDetail(detail) ? (checked ? detail.on : detail.off) : detail;
   const announceAccepted = useAcceptedAnnouncement(checked, (on) => `${name} ${on ? "on" : "off"}.`);
   return (
     <SettingsRow

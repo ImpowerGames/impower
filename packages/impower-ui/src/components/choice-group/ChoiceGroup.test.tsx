@@ -89,6 +89,38 @@ describe("ChoiceGroup", () => {
   });
 });
 
+describe("ChoiceGroup tiles", () => {
+  const TILES: readonly ChoiceOption[] = [
+    { value: "charcoal", label: "Charcoal", detail: "Neutral grey", media: <span data-media="charcoal" /> },
+    { value: "chalk", label: "Chalk", detail: "Neutral white", media: <span data-media="chalk" /> },
+  ];
+
+  it("draws each option as a tile of its media, its name with a check and its detail, over native radios", async () => {
+    const radios = await mount(<ChoiceGroup variant="tiles" name="theme" aria-label="Theme" options={TILES} value="chalk" onValueChange={() => {}} />);
+    expect(radios.map((radio) => radio.name)).toEqual(["theme", "theme"]);
+    const tiles = radios.map((radio) => radio.closest("label")!);
+    expect(tiles.map((tile) => tile.querySelector("[data-media]")!.getAttribute("data-media"))).toEqual(["charcoal", "chalk"]);
+    expect(tiles.map((tile) => tile.querySelector("small")!.textContent)).toEqual(["Neutral grey", "Neutral white"]);
+    expect(tiles.every((tile) => tile.querySelector("svg")!.getAttribute("class")!.includes("group-has-[:checked]/choice:visible"))).toBe(true);
+    expect(checked()).toEqual(["chalk"]);
+  });
+
+  it("chooses a tile with a click and reports it", async () => {
+    const onValueChange = vi.fn();
+    const radios = await mount(<ChoiceGroup variant="tiles" name="theme" aria-label="Theme" options={TILES} defaultValue="charcoal" onValueChange={onValueChange} />);
+    await act(async () => radios[1]!.closest("label")!.querySelector("small")!.click());
+    expect(onValueChange).toHaveBeenCalledWith("chalk");
+    expect(checked()).toEqual(["chalk"]);
+  });
+
+  it("marks the chosen tile with the accent edge and keeps the segmented size off it", () => {
+    const tile = choiceOptionVariants({ variant: "tiles" });
+    expect(tile).toContain("peer-checked:border-accent");
+    expect(tile).not.toContain("min-h-[30px]");
+    expect(choiceOptionVariants({ variant: "segmented" })).toContain("min-h-[30px]");
+  });
+});
+
 describe("ChoiceGroup and native form reset", () => {
   it("returns to its default, controlled at the owner's value", async () => {
     host = document.body.appendChild(document.createElement("div"));
