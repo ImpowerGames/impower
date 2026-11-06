@@ -43,11 +43,11 @@ const imageFile = (uri: string) => ({
   version: 1,
 });
 
-const compile = (images: string[]): SparkProgram => {
+const compile = (images: string[], mainText: string): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
-      scriptFile(MAIN, MAIN_TEXT),
+      scriptFile(MAIN, mainText),
       scriptFile(CHAPTER, CHAPTER_TEXT),
       ...images.map(imageFile),
     ] as never,
@@ -63,14 +63,14 @@ const compile = (images: string[]): SparkProgram => {
   }
 };
 
-const setup = (images: string[] = [IMAGE]) => {
+const setup = (images: string[] = [IMAGE], mainText = MAIN_TEXT) => {
   const documents = new SparkdownDocumentRegistry([
     "links",
     "references",
     "declarations",
   ]);
   for (const [uri, text] of [
-    [MAIN, MAIN_TEXT],
+    [MAIN, mainText],
     [CHAPTER, CHAPTER_TEXT],
   ] as const) {
     documents.add({
@@ -89,7 +89,7 @@ const setup = (images: string[] = [IMAGE]) => {
     _documentVersions: new Map(),
     _imageFilePattern: /[.]png$/,
   });
-  const program = compile(images);
+  const program = compile(images, mainText);
   const rename = (
     newName: string,
     at: string,
@@ -120,6 +120,26 @@ describe("rename across scripts and asset files", () => {
   test("renaming a picture's name renames its file when Auto-rename files is on", () => {
     const { rename } = setup();
     const edit = rename("zadie", "imani", true);
+    expect(editedUris(edit)).toEqual([CHAPTER, MAIN].sort());
+    expect(fileRenames(edit)).toEqual([
+      { kind: "rename", oldUri: IMAGE, newUri: OTHER_IMAGE },
+    ]);
+  });
+
+  test("renaming a character from its cue renames its portrait file and every line that shows it", () => {
+    const { rename } = setup(
+      [IMAGE],
+      lines(
+        "define imani as character with",
+        "end",
+        "scene start",
+        "  [[show backdrop imani]]",
+        "  imani: Have you heard?",
+        "end",
+        "",
+      ),
+    );
+    const edit = rename("zadie", "imani:", true);
     expect(editedUris(edit)).toEqual([CHAPTER, MAIN].sort());
     expect(fileRenames(edit)).toEqual([
       { kind: "rename", oldUri: IMAGE, newUri: OTHER_IMAGE },

@@ -173,6 +173,7 @@ export const collectReferencesForTarget = (
                             for (const linkedType of recursivelyGetKeys(link)) {
                               const linkedId = linkedType + "." + name;
                               if (fullyResolvedRefId === linkedId) {
+                                resolvedSymbolIds.push(linkedId);
                                 addSymbol(uri, r);
                               }
                             }
