@@ -1,6 +1,9 @@
 import { useComputed } from "@preact/signals";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import { useNameField } from "./naming";
+
+const withWindow = async () =>
+  (await import("../../workspace/Workspace")).Workspace.window;
 
 export default function ProjectNameField() {
   const name = useComputed(
@@ -12,62 +15,36 @@ export default function ProjectNameField() {
       !!workspace.state.value.sync?.status,
   ).value;
 
-  const [draft, setDraft] = useState(name);
-  const cancelled = useRef(false);
-
-  useLayoutEffect(() => {
-    setDraft(name);
-  }, [name]);
-
-  const commit = async (value: string) => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    await Workspace.window.finishEditingProjectName(value);
-    setDraft(workspace.state.peek().project?.name || "");
-  };
+  const { props } = useNameField({
+    field: "project",
+    name,
+    onFocus: () => {
+      void withWindow().then((win) => win.startEditingProjectName());
+    },
+    onCommit: async (value) => {
+      await (await withWindow()).finishEditingProjectName(value);
+      return workspace.state.peek().project?.name || "";
+    },
+  });
 
   if (!ready) {
     return (
-      <span class="skeleton-sheen block h-6 w-40 rounded-full text-transparent">
+      <span class="skeleton-sheen block h-6 w-40 rounded-full text-transparent in-data-[layout=phone]:h-[18px] in-data-[layout=phone]:w-28">
         Untitled story
       </span>
     );
   }
 
   return (
-    <div class="relative h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge">
+    <div class="relative h-6 w-[400px] max-w-full rounded-control control-overlay focus-within-edge in-data-[layout=phone]:h-5 in-data-[layout=phone]:w-full">
       <input
+        {...props}
         type="text"
         aria-label="Project name"
+        spellcheck={false}
+        autocomplete="off"
         maxLength={120}
-        value={draft}
-        class="h-full w-full rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none placeholder:text-placeholder not-focus:fade-edge"
-        onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
-        onFocus={(e) => {
-          cancelled.current = false;
-          (e.target as HTMLInputElement).select();
-          void import("../../workspace/Workspace").then(({ Workspace }) => {
-            Workspace.window.startEditingProjectName();
-          });
-        }}
-        onBlur={(e) => {
-          const value = cancelled.current
-            ? name
-            : (e.target as HTMLInputElement).value;
-          cancelled.current = false;
-          void commit(value);
-        }}
-        onKeyDown={(e) => {
-          const input = e.target as HTMLInputElement;
-          if (e.key === "Enter") {
-            e.preventDefault();
-            input.blur();
-          } else if (e.key === "Escape") {
-            e.preventDefault();
-            cancelled.current = true;
-            setDraft(name);
-            input.blur();
-          }
-        }}
+        class="absolute inset-x-0 top-1/2 h-full w-full -translate-y-1/2 rounded-control border border-transparent bg-transparent px-1.5 py-0.5 text-[14px]/[18px] font-semibold text-ink outline-none in-data-[layout=phone]:text-[12px]/[1.4] placeholder:text-placeholder not-focus:fade-edge"
       />
     </div>
   );

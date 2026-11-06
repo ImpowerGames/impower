@@ -105,11 +105,8 @@ describe("the Folio icon set", () => {
     const aliases = values.filter(({ name }) => generated.has(kit[name as keyof typeof kit]) && !(name in icons));
     expect([...new Set(aliases.map(({ file }) => file.split("/").slice(0, -1).join("/")))].sort()).toEqual([
       "modules/spark-editor/components/account",
-      "modules/spark-editor/components/header-menu-button",
-      "modules/spark-editor/components/header-navigation",
       "modules/spark-editor/components/header-sync-conflict-toolbar",
       "modules/spark-editor/components/header-sync-toolbar",
-      "modules/spark-editor/components/main-window",
     ]);
   });
 

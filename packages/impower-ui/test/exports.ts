@@ -15,6 +15,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useCoarsePointer",
   "useLayout",
   "useRailDefault",
+  "useSheetOpen",
   "useMountTransition",
 ];
 

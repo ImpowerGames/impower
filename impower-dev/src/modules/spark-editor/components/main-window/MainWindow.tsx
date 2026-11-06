@@ -1,25 +1,18 @@
-import {
-  Bolt,
-  BoltFill,
-  Photo,
-  PhotoFill,
-  Share,
-  ShareFill,
-  SplitPane,
-  Tab,
-  Tabs,
-} from "@impower/impower-ui/components";
+import { SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
-import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { inspectedAsset } from "../../utils/assetInspector";
 import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
 import Assets from "../assets/Assets";
-import DesktopShell from "../desktop-shell/DesktopShell";
+import {
+  DesktopShell,
+  PhonePreviewBack,
+  PhoneShell,
+  useFocusRule,
+} from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
-import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
 import SettingsDialog from "../settings-dialog/SettingsDialog";
@@ -44,11 +37,12 @@ const STRIP_HEIGHT = {
 
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
+  useFocusRule();
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
-  const shell = !isSSR && layout !== "phone";
-  const strip = shell && !desktop;
+  const phone = isSSR || layout === "phone";
+  const strip = !isSSR && layout === "compact";
   const pane = workspace.signals.pane.value as PaneType;
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
@@ -56,11 +50,6 @@ export default function MainWindow(_props: MainWindowProps) {
   const stripHeight = useComputed(
     () => workspace.state.value.shell?.stripHeight,
   ).value;
-
-  const onPaneChange = async (next: string) => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.navigateTo(routeOfPane(next as PaneType));
-  };
 
   const onStripHeightChange = async (height: number | undefined) => {
     const { Workspace } = await import("../../workspace/Workspace");
@@ -98,6 +87,7 @@ export default function MainWindow(_props: MainWindowProps) {
             }
             end={
               <div class="relative flex h-full w-full flex-col bg-stage">
+                {phone && <PhonePreviewBack />}
                 <Preview />
                 {pane === "assets" && inspectedAsset.value && (
                   <div class="absolute inset-0 z-10">
@@ -109,42 +99,19 @@ export default function MainWindow(_props: MainWindowProps) {
           />
 
           <FileDropzone />
-          <SettingsDialog />
+          {!phone && <SettingsDialog />}
         </>
       )}
     </div>
   );
 
-  if (shell) {
-    return (
-      <div class="flex h-full w-full min-h-0 flex-col">
-        <DesktopShell>{panes}</DesktopShell>
-      </div>
-    );
+  if (phone) {
+    return <PhoneShell>{panes}</PhoneShell>;
   }
 
   return (
-    <div class="flex flex-col w-full h-full min-h-0">
-      <HeaderNavigation />
-      <div class="relative flex flex-1 min-h-0">{panes}</div>
-
-      <div class="relative flex-none h-[60px] bg-bg text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
-
-        <div class="absolute inset-x-0 top-0 !h-px bg-edge z-10" />
-        {!isSSR && (
-          <Tabs value={pane} onChange={onPaneChange} indicator="none">
-            <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
-              Logic
-            </Tab>
-            <Tab value="assets" icon={Photo} activeIcon={PhotoFill}>
-              Assets
-            </Tab>
-            <Tab value="share" icon={Share} activeIcon={ShareFill}>
-              Share
-            </Tab>
-          </Tabs>
-        )}
-      </div>
+    <div class="flex h-full w-full min-h-0 flex-col">
+      <DesktopShell>{panes}</DesktopShell>
     </div>
   );
 }

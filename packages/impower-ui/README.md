@@ -109,7 +109,9 @@ imports it rather than writing its own. Layout and pointer are decided by `useLa
 and `useCoarsePointer` (exported from `@impower/impower-ui/layout`), which also set the
 `data-layout` and `data-pointer` attributes on the root, never by user agent. `Dropdown`
 reads `useLayout()` and opens as a bottom sheet in the `phone` layout and as a menu
-otherwise.
+otherwise. `useSheetOpen` reports whether any `Sheet`, a responsive `Dialog` shown as one or
+a phone `Dropdown`, is open, so a surface that must give way to a sheet reads that state
+rather than measuring the page.
 
 ### Motion belongs to the component
 

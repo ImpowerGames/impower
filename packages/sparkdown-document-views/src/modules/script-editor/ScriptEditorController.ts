@@ -1,4 +1,11 @@
-import { indentLess, indentMore } from "@codemirror/commands";
+import {
+  indentLess,
+  indentMore,
+  redo,
+  redoDepth,
+  undo,
+  undoDepth,
+} from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
@@ -15,6 +22,7 @@ import {
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import {
@@ -473,7 +481,33 @@ export class ScriptEditorController {
         return openLintPanel(view);
       case "search":
         return openSearchPanel(view);
+      case "undo":
+        return undo(view);
+      case "redo":
+        return redo(view);
     }
+  }
+
+  protected _history = { canUndo: false, canRedo: false };
+
+  protected publishHistory(state: EditorState) {
+    const canUndo = undoDepth(state) > 0;
+    const canRedo = redoDepth(state) > 0;
+    if (
+      !this._textDocument ||
+      (canUndo === this._history.canUndo && canRedo === this._history.canRedo)
+    ) {
+      return;
+    }
+    this._history = { canUndo, canRedo };
+    sendProtocolMessage(
+      ChangedEditorHistoryMessage.type.notification({
+        textDocument: { uri: this._textDocument.uri },
+        canUndo,
+        canRedo,
+      }),
+      this.host,
+    );
   }
 
   protected handleShowEditorStatusBar = (
@@ -968,6 +1002,7 @@ export class ScriptEditorController {
             );
           },
           onViewUpdate: (update) => {
+            this.publishHistory(update.state);
             if (
               searchPanelOpen(update.state) ||
               customGotoLinePanelOpen(update.state)

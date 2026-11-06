@@ -13,6 +13,8 @@ export const EDITOR_COMMANDS = [
   "gotoLine",
   "problems",
   "search",
+  "undo",
+  "redo",
 ] as const;
 
 export type EditorCommand = (typeof EDITOR_COMMANDS)[number];

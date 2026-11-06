@@ -12,6 +12,7 @@ import {
   DropdownSeparator,
   DropdownTrigger,
   HelpIcon,
+  MenuIcon,
   SettingsIcon,
   UploadIcon,
 } from "@impower/impower-ui/components";
@@ -30,12 +31,20 @@ export const REPORT_BUG_URL =
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
 
+let workspaceWindow: Promise<WorkspaceWindow> | undefined;
+
 const withWindow = async (act: (win: WorkspaceWindow) => unknown) => {
-  const { Workspace } = await import("../../workspace/Workspace");
-  await act(Workspace.window);
+  workspaceWindow ??= import("../../workspace/Workspace").then(
+    ({ Workspace }) => Workspace.window,
+  );
+  await act(await workspaceWindow);
 };
 
-export default function AppMenu() {
+export type AppMenuProps = {
+  trigger?: "rail" | "bar";
+};
+
+export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
   const open = useComputed(
     () => !!workspace.state.value.screen?.appMenuOpen,
   ).value;
@@ -69,31 +78,41 @@ export default function AppMenu() {
       />
       <DropdownRoot open={open && !pickingResource} onOpenChange={setOpen}>
         <DropdownTrigger asChild>
-          <Button
-            variant="quiet"
-            disabled={pickingResource}
-            class="w-full justify-start gap-2.5 px-2 text-[13px] font-normal text-muted group-data-[sidebar=collapsed]/sidebar:w-11 group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0"
-          >
-            <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge [&_svg]:size-4">
-              <ComputerIcon />
-            </span>
-            <span class="truncate group-data-[sidebar=collapsed]/sidebar:sr-only">
-              {label}
-            </span>
-          </Button>
+          {trigger === "bar" ? (
+            <Button
+              variant="quiet"
+              size="icon"
+              aria-label="App menu"
+              title="App menu"
+              disabled={pickingResource}
+              class="text-muted"
+            >
+              <MenuIcon />
+            </Button>
+          ) : (
+            <Button
+              variant="quiet"
+              disabled={pickingResource}
+              class="w-full justify-start gap-2.5 px-2 text-[13px] font-normal text-muted group-data-[sidebar=collapsed]/sidebar:w-11 group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0"
+            >
+              <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge [&_svg]:size-4">
+                <ComputerIcon />
+              </span>
+              <span class="truncate group-data-[sidebar=collapsed]/sidebar:sr-only">
+                {label}
+              </span>
+            </Button>
+          )}
         </DropdownTrigger>
         <DropdownContent
           side="top"
           align="start"
           sideOffset={20}
-          class="w-[280px]"
+          class="w-[280px] in-data-[layout=phone]:w-auto"
         >
-          <DropdownLabel class="flex flex-row items-start gap-1 pr-0">
-            <span class="flex min-w-0 flex-1 flex-col pt-1">
-              <span class="text-[15px]/[1.3] font-semibold">{label}</span>
-              <span class="whitespace-nowrap text-[12px]/[1.5] text-muted">
-                No account needed to start writing.
-              </span>
+          <DropdownLabel class="flex flex-row items-center gap-1 py-0 pr-0">
+            <span class="min-w-0 flex-1 truncate text-[15px]/[1.3] font-semibold">
+              {label}
             </span>
             <Button
               size="icon"

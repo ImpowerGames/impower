@@ -1,3 +1,4 @@
+import { history } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
@@ -5,6 +6,7 @@ import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -33,6 +35,7 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
         state: EditorState.create({
           doc: "hello world\n",
           extensions: [
+            history(),
             customSearchPanel(),
             customGotoLinePanel(),
             EditorView.updateListener.of((update) =>
@@ -309,6 +312,30 @@ describe("ScriptEditorController commands", () => {
     expect(host.querySelector(".cm-search")).not.toBeNull();
     run(controller, "problems");
     expect(host.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("undoes and redoes the script's edits and reports what it can undo and redo", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported: [string, boolean, boolean][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorHistoryMessage.type.is(message)) {
+        const { textDocument, canUndo, canRedo } = message.params;
+        reported.push([textDocument.uri, canUndo, canRedo]);
+      }
+    });
+    view.dispatch({
+      changes: { from: 0, insert: "> " },
+      userEvent: "input.type",
+    });
+    expect(reported).toEqual([["file:///main.sd", true, false]]);
+    expect(run(controller, "undo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", false, true]);
+    expect(run(controller, "redo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("> hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", true, false]);
+    expect(reported).toHaveLength(3);
   });
 
   it("leaves a command for another document to that document's editor", async () => {

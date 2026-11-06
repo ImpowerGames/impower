@@ -103,6 +103,10 @@ class WorkspaceStore {
 
   readonly trashOpen = signal<boolean>(false);
 
+  readonly editorHistory = signal<
+    Record<string, { canUndo: boolean; canRedo: boolean }>
+  >({});
+
   readonly animatePortraits = signal<boolean>(true);
 
   readonly signals = {
