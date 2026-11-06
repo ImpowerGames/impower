@@ -30,6 +30,7 @@ import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/c
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
+import { GameToggledConsoleMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledConsoleMessage";
 import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { RuntimeDiagnosticsRun } from "./utils/RuntimeDiagnosticsRun";
@@ -3176,6 +3177,12 @@ export class GamePlayerController {
           const message = msg.params.message;
           const location = msg.params.location;
           this.recordRuntimeError(owner, { message, type, location });
+          if (!this.displayingSpeculative) {
+            sendProtocolMessage(
+              GameEncounteredRuntimeErrorMessage.type.notification(msg.params),
+              this.host,
+            );
+          }
           if (type === ErrorType.Error) {
             console.error(message, location);
           } else if (type === ErrorType.Warning) {
@@ -3183,6 +3190,20 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
+        }
+      },
+    );
+    game.connection.outgoing.addListener(
+      GameToggledConsoleMessage.method,
+      (msg) => {
+        if (
+          GameToggledConsoleMessage.type.isNotification(msg) &&
+          !this.displayingSpeculative
+        ) {
+          sendProtocolMessage(
+            GameToggledConsoleMessage.type.notification(msg.params),
+            this.host,
+          );
         }
       },
     );

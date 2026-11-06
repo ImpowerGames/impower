@@ -11,7 +11,6 @@ export const EDITOR_COMMANDS = [
   "dedent",
   "format",
   "gotoLine",
-  "problems",
   "search",
   "undo",
   "redo",

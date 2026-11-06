@@ -6,7 +6,7 @@ import PlayerConsole, {
   CONSOLE_SAVE_FILENAME,
   type PlayerConsoleProps,
 } from "./PlayerConsole";
-import { formatConsoleTime, type ConsoleEntry } from "./consoleEntries";
+import { formatConsoleStamp, type ConsoleEntry } from "./consoleEntries";
 
 const TIME = new Date(2026, 10, 5, 9, 4, 7).getTime();
 
@@ -93,10 +93,10 @@ it("copies the shown entries as text, and says so when the clipboard is unavaila
   await act(async () => {
     action("Copy").click();
   });
-  const time = formatConsoleTime(TIME);
+  const time = formatConsoleStamp(TIME);
   expect(writeText).toHaveBeenCalledWith(
-    `[${time}] ERROR main.sd:42 Runtime error: x is nil\n` +
-      `[${time}] WARNING scenes/intro.sd:3 Unused variable`,
+    `[${time}] ERROR · Runtime error\nx is nil\nmain.sd:42\n\n` +
+      `[${time}] WARNING · Unused variable\nscenes/intro.sd:3\n`,
   );
   expect(container.querySelector(".swp-console-note")!.textContent).toBe("Copied");
 
@@ -131,9 +131,9 @@ it("saves the shown entries as a text file", async () => {
   expect(blobs[0]!.type).toBe("text/plain");
   expect(await readText(blobs[0]!)).toBe(
     [
-      `[${formatConsoleTime(TIME)}] ERROR main.sd:42 Runtime error: x is nil`,
-      `[${formatConsoleTime(TIME)}] WARNING scenes/intro.sd:3 Unused variable`,
-      `[${formatConsoleTime(TIME)}] INFO Story started`,
-    ].join("\n"),
+      `[${formatConsoleStamp(TIME)}] ERROR · Runtime error\nx is nil\nmain.sd:42`,
+      `[${formatConsoleStamp(TIME)}] WARNING · Unused variable\nscenes/intro.sd:3`,
+      `[${formatConsoleStamp(TIME)}] INFO · Story started\n`,
+    ].join("\n\n"),
   );
 });

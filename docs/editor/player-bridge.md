@@ -4,11 +4,11 @@ The game player (`packages/spark-web-player`) runs inside a host: the web editor
 
 ## Composition
 
-The player package exports three host-agnostic components: `PlayerBar`, `PlayerConsole` and `ProblemsList` (`packages/spark-web-player/src/index.ts`). Each renders from props and reports what the user does through callbacks; none reads the DOM of the player or the host.
+The player package exports two host-agnostic components: `PlayerBar` and `PlayerConsole` (`packages/spark-web-player/src/index.ts`). Each renders from props and reports what the user does through callbacks; none reads the DOM of the player or the host.
 
 `PlayerBar` renders a `PlayerBarState` that `reducePlayerBar` folds from `preview/didChangeGameState`, `game/executed` and `game/resized`. The `<spark-web-player toolbar>` element composes it with the state its controller publishes. A host enables the bar's transport with attributes on that element: `skip-buttons` adds Skip back and Skip forward, and `step-buttons` adds Pause or Resume, Step Into and Step Out while a game is playing. `fullscreen-button` adds the fullscreen toggle. `host-display` hands the game's shape to the host: the bar drops its resize handle, its ratio and size readout and the fullscreen toggle, and dragging the bar no longer resizes the game, so the host sets the ratio with `game/resize` and reads `game/resized`. The player app turns query parameters of the same names into those attributes. The web editor draws the transport in its own preview top bar and its display controls in the bar under the game, so it asks only for `host-display` in its iframe's address (`/?host-display`). The standalone player and VS Code pass none of these, and their bars show no transport.
 
-`PlayerConsole` renders log entries (severity, title, message, path, line, time) with severity filters and Clear, Copy and Save. `ProblemsList` renders problems grouped by script. Both report a jump to `path:line` through `onJump`. Their colours are the `--swp-console-*` custom properties declared at zero specificity in `spark-web-player.css`; the player app maps them to the theme's semantic variables in `sparkdown-player-app/src/style.css`.
+`PlayerConsole` renders log entries (severity, title, message, path, line, time) with severity filters and Clear, Copy and Save, and reports a jump to `path:line` through `onJump`. Its entry model and text format (`consoleEntries.ts`: `[time] SEVERITY · title`, the message, then `path:line`, one blank line between entries) are also what the web editor's Problems panel lists under While playing and copies or saves. Their colours are the `--swp-console-*` custom properties declared at zero specificity in `spark-web-player.css`; the player app maps them to the theme's semantic variables in `sparkdown-player-app/src/style.css`.
 
 ## Messages
 
@@ -18,6 +18,8 @@ The player package exports three host-agnostic components: `PlayerBar`, `PlayerC
 | `game/resized` | player → host | `{width, height, aspectRatio, fit}` after every change to the game's rendered size |
 | `game/resize` | host → player | `{height}` or `{aspectRatio}` → `{}` |
 | `preview/skipBeat` | player → host | `{direction: -1 \| 1}` → `{moved}` |
+| `game/runtimeError` | player → host | The game's `{message, type, location, state}` for each runtime error, warning or note it raises outside a scrubbed preview; the web editor logs those with `state: "running"` under the Problems panel's While playing and opens the panel on an error |
+| `game/toggledConsole` | player → host | `{open}` from a script that opens or closes the console; the web editor opens or collapses its Problems panel |
 | `game/pause`, `game/unpause`, `game/step` | host or bar → player | The debugger's requests; the bar's Pause, Resume, Step Into and Step Out run the same handlers |
 
 ### Game state

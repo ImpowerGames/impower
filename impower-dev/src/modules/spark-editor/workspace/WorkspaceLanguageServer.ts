@@ -249,7 +249,6 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       PublishDiagnosticsMessage.method,
       (params: PublishDiagnosticsParams) => {
-        this._workspace.window.recordPublishedDiagnostics(params);
         for (const listener of this._publishedDiagnosticsListeners) {
           listener(params);
         }
