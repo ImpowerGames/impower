@@ -18,6 +18,8 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useAnnouncer",
   "componentRegistry",
   "dialogVariants",
+  "disclosureSummaryVariants",
+  "disclosureVariants",
   "dropdownLabelVariants",
   "dropdownRadioItemVariants",
   "HOLD_REPEAT_DELAY_MS",
