@@ -1,5 +1,7 @@
 import { signal } from "@preact/signals";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import ScreenplayParser from "../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
+import { generateScreenplayHtmlData } from "../../../packages/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
 import extensionManifest from "../../../vscode-sparkdown/package.json";
 import {
   screenplayConfig,
@@ -202,6 +204,54 @@ describe("the print configuration", () => {
     void print.exportPDF(["Hello"]);
     await vi.waitFor(() => expect(posted).toHaveLength(4));
     expect(posted[3]!.params.config).toEqual(screenplayConfig(defaults()));
+  });
+});
+
+describe("the HTML export", () => {
+  const SCRIPT = [
+    "scene PrivateScene",
+    "",
+    "  The room is quiet.",
+    "",
+    "  branch PrivateBranch",
+    "",
+    "    Someone waits by the window.",
+    "",
+    "  end",
+    "end",
+    "",
+  ].join("\n");
+
+  const html = (changes: Partial<ProjectSettings>) =>
+    generateScreenplayHtmlData(
+      new ScreenplayParser().parseAll([SCRIPT]),
+      screenplayConfig({ ...defaults(), ...changes }),
+    );
+
+  it("prints scene and branch names only when their settings are on", () => {
+    const hidden = html({});
+    expect(hidden).toContain("The room is quiet.");
+    expect(hidden).not.toContain("PrivateScene");
+    expect(hidden).not.toContain("PrivateBranch");
+
+    const scenes = html({ screenplaySceneNames: true });
+    expect(scenes).toContain(">PrivateScene<");
+    expect(scenes).not.toContain("PrivateBranch");
+
+    const branches = html({ screenplayBranchNames: true });
+    expect(branches).not.toContain("PrivateScene");
+    expect(branches).toContain(">PrivateBranch<");
+  });
+
+  it("prints headings bold only when Bold headings is on", () => {
+    const script = ["scene start", "", "  $: INT. HOUSE - DAY", "", "  It is quiet.", "", "end", ""].join("\n");
+    const render = (bold: boolean) =>
+      generateScreenplayHtmlData(
+        new ScreenplayParser().parseAll([script]),
+        screenplayConfig({ ...defaults(), screenplayHeadingsBold: bold }),
+      );
+    expect(render(true)).toContain('<p class="heading"><b>INT. HOUSE - DAY</b></p>');
+    expect(render(false)).toContain('<p class="heading">INT. HOUSE - DAY</p>');
   });
 });
 
