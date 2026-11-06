@@ -5,6 +5,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { useScriptReadonly } from "../../workspace/useActiveEditor";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
@@ -45,15 +46,7 @@ export default function LogicScriptEditor({
 
   const shortcuts = workspaceShortcuts.combos.value;
 
-  const readonly = useComputed(() => {
-    const status = workspace.state.value.sync?.status;
-    return (
-      status === "syncing" ||
-      status === "loading" ||
-      status === "importing" ||
-      status === "exporting"
-    );
-  }).value;
+  const readonly = useScriptReadonly();
 
   useEffect(() => {
     let disposed = false;
@@ -123,11 +116,13 @@ export default function LogicScriptEditor({
         versionRef.current = version;
         textRef.current = text;
 
+        const latest = Workspace.window.getActiveEditorForFile(fn);
+        const current = latest?.uri === uri ? latest : editor;
         const detail = LoadEditorMessage.type.request({
           textDocument: { uri, languageId, version, text },
-          focused: editor.focused,
-          visibleRange: editor.visibleRange,
-          selectedRange: editor.selectedRange,
+          focused: current.focused,
+          visibleRange: current.visibleRange,
+          selectedRange: current.selectedRange,
           breakpointLines: editor.breakpointLines,
           pinpointLines: editor.pinpointLines,
           highlightLines: editor.highlightLines,
@@ -241,7 +236,7 @@ export default function LogicScriptEditor({
           onPasteRefused={showPasteRefused}
         />
       </div>
-      <WriterBar filename={filename || "main.sd"} />
+      <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />
     </div>
   );
 }

@@ -343,6 +343,23 @@ export function codeMirrorKey(
     .join("-");
 }
 
+export function comboKeyName(combo: string): string {
+  const parsed = parseCombo(combo);
+  if (!parsed) {
+    return "";
+  }
+  const { mod, ctrl, shift, alt, key } = parsed;
+  return [
+    mod && "Mod",
+    ctrl && "Ctrl",
+    shift && "Shift",
+    alt && "Alt",
+    /^[A-Z]$/.test(key) ? key.toLowerCase() : (CODEMIRROR_KEYS[key] ?? key),
+  ]
+    .filter(Boolean)
+    .join("-");
+}
+
 const MAC_MODIFIERS: Readonly<Record<string, string>> = {
   Mod: "⌘",
   Ctrl: "⌃",

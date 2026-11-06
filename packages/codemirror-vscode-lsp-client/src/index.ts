@@ -119,6 +119,7 @@ export {
 export {
   KEYS_BY_CODE,
   codeMirrorKey,
+  comboKeyName,
   comboFromEvent,
   comboLabel,
   comboParts,
@@ -148,11 +149,13 @@ export {
 } from "./shortcutDispatch";
 export {
   EDITOR_SHORTCUT_COMMANDS,
+  editorShortcutEntries,
   editorShortcuts,
   setEditorShortcuts,
   shortcutCombosFor,
   shortcutKeyBindings,
   shortcutLabelFor,
+  type EditorShortcutEntryState,
   type EditorShortcutsConfig,
   type EditorShortcutsState,
   type ShortcutCommand,

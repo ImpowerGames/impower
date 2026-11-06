@@ -166,6 +166,7 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
 
 beforeEach(() => {
@@ -312,6 +313,26 @@ describe("WorkspaceWindow store transitions", () => {
     } finally {
       window.removeEventListener(MessageProtocol.event, listener);
     }
+  });
+
+  it("brings the script on screen for a window/showDocument request made from another route", async () => {
+    const projectId = workspace.current.project.id;
+    win.navigateTo("collection");
+    expect(workspace.current.pane).toBe("assets");
+    const at = { line: 4, character: 0 };
+    const request = ShowDocumentMessage.type.request({
+      uri: `file://${projectId}/scripts/chapter.sd`,
+      selection: { start: at, end: at },
+    });
+    sendProtocolMessage(request);
+    await vi.waitFor(() => expect(window.location.hash).toBe("#write"));
+    expect(workspace.current.pane).toBe("logic");
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe(
+      "scripts/chapter.sd",
+    );
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.selectedRange,
+    ).toEqual({ start: at, end: at });
   });
 
   it("closeFileEditor by nested path closes that editor", () => {
@@ -560,6 +581,31 @@ describe("WorkspaceWindow store transitions", () => {
       win.setAppMenuOpen(true);
       win.setAppMenuOpen(false);
       expect(window.location.hash).toBe("#project");
+    });
+
+    it("opens the writing tools, moves between their views and closes them", () => {
+      win.setAppMenuOpen(true);
+      win.openWritingTools();
+      expect(workspace.current.screen.appMenuOpen).toBe(false);
+      expect(workspace.current.screen.writingTools).toEqual({ view: "menu", fromMenu: false });
+      win.showWritingToolsView("shortcuts");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "shortcuts", fromMenu: true });
+      win.showWritingToolsView("menu");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "menu", fromMenu: false });
+      win.closeWritingTools();
+      expect(workspace.current.screen.writingTools).toBeUndefined();
+      win.showWritingToolsView("guide");
+      expect(workspace.current.screen.writingTools).toBeUndefined();
+    });
+
+    it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
+      win.navigateTo("collection");
+      win.openSparkdownGuide();
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.pane).toBe("logic");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "guide", fromMenu: false });
+      win.navigateTo("share");
+      expect(workspace.current.screen.writingTools).toBeUndefined();
     });
 
     it("opens the route a deep link names, and maps a legacy name onto its route", () => {
@@ -1364,6 +1410,156 @@ describe("The game preview's player bar", () => {
       expect(workspace.current.preview.modes.game.paused).toBe(false),
     );
   }, 30000);
+});
+
+describe("Revealing a script from the bar under the game", () => {
+  let win: WorkspaceWindow;
+  let sent: { method?: string; id?: unknown; params?: any }[];
+  let stopListening: () => void;
+
+  const SHOW_PROBLEMS = "editor/executeCommand";
+
+  beforeEach(() => {
+    localStorage.clear();
+    win = new WorkspaceWindow(Workspace);
+    sent = [];
+    const listener = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (
+        message?.method === SHOW_PROBLEMS &&
+        message.params?.command === "problems"
+      ) {
+        sent.push(message);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    stopListening = () =>
+      window.removeEventListener(MessageProtocol.event, listener);
+  });
+
+  afterEach(() => {
+    stopListening();
+    win.dispose();
+    delete (document as { fullscreenElement?: Element }).fullscreenElement;
+  });
+
+  const uriOf = (path: string) => `file://${workspace.current.project.id}/${path}`;
+
+  it("opens the script on the write route from another route", async () => {
+    win.navigateTo("collection");
+    expect(workspace.current.pane).toBe("assets");
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/intro.sd"), { start: at, end: at });
+    expect(workspace.current.pane).toBe("logic");
+    expect(workspace.current.panes.logic.view).toBe("logic-editor");
+    expect(workspace.current.panes.logic.panel).toBe("scripts");
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.filename).toBe("scripts/intro.sd");
+    expect(editor?.selectedRange).toEqual({ start: at, end: at });
+    expect(window.location.hash).toBe("#write");
+  });
+
+  it("makes an unopened script the active editor, so the stopped readout and the toggle follow it", async () => {
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe("scripts/chapter.sd");
+    expect(barPosition(workspace.current)?.label).toBe("chapter : 12");
+  });
+
+  it("does not carry another script's selection onto the one it shows", async () => {
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    await win.revealDocument(uriOf("scripts/epilogue.sd"));
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.filename).toBe("scripts/epilogue.sd");
+    expect(editor?.selectedRange).toBeUndefined();
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    await win.revealDocument(uriOf("scripts/chapter.sd"));
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.selectedRange,
+    ).toEqual({ start: at, end: at });
+  });
+
+  it("closes an open script's editor when it reveals Main, so Main is the one on screen", async () => {
+    const at = { line: 2, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(true);
+    win.navigateTo("collection");
+    await win.revealDocument(uriOf("main.sd"), { start: at, end: at });
+    expect(workspace.current.panes.logic.panel).toBe("main");
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(false);
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.filename).toBe(
+      "scripts/chapter.sd",
+    );
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe("main.sd");
+    expect(window.location.hash).toBe("#write");
+  });
+
+  it("collapses the phone's revealed preview so the script shows", async () => {
+    win.expandPreviewPane();
+    await win.revealDocument(uriOf("main.sd"));
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
+      "main.sd",
+    );
+  });
+
+  it("leaves fullscreen first, since the script is outside the fullscreen preview", async () => {
+    const exitFullscreen = vi.fn(async () => {
+      delete (document as { fullscreenElement?: Element }).fullscreenElement;
+    });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    document.exitFullscreen = exitFullscreen;
+    await win.revealDocument(uriOf("main.sd"));
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the script's editor for its problems once it is on screen", async () => {
+    win.navigateTo("collection");
+    const uri = uriOf("main.sd");
+    await win.showProblems(uri);
+    expect(workspace.current.pane).toBe("logic");
+    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri]);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri: uriOf("other.sd"), version: 1 } },
+    });
+    expect(sent).toHaveLength(1);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 1 } },
+    });
+    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri, uri]);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 2 } },
+    });
+    expect(sent).toHaveLength(2);
+  });
+
+  it("asks only once when the editor on screen answers", async () => {
+    const uri = uriOf("main.sd");
+    await win.showProblems(uri);
+    expect(sent).toHaveLength(1);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: SHOW_PROBLEMS,
+      id: sent[0]!.id,
+      result: {},
+    } as never);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 1 } },
+    });
+    expect(sent).toHaveLength(1);
+  });
 });
 
 describe("The preview's top bar", () => {

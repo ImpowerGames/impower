@@ -273,6 +273,18 @@ describe("the app's own shortcuts", () => {
     });
   });
 
+  it("lists the app's own keys in the Writing tools sheet from the recorded combos", async () => {
+    const { appShortcuts } = await import("../../src/modules/spark-editor/components/writing-tools/shortcuts");
+    const keysOf = (id: string) => appShortcuts().find((row) => row.id === id)?.keys;
+    expect(keysOf("sync")).toEqual(["Mod-s", "Shift-Alt-f"]);
+    expect(keysOf("redoFileChange")).toEqual(["Mod-y", "Mod-Shift-z"]);
+    expect(keysOf("playFromHere")).toEqual([]);
+    workspaceShortcuts.record("format", "Mod+Shift+X");
+    workspaceShortcuts.record("playFromHere", "Mod+Alt+P");
+    expect(keysOf("sync")).toEqual(["Mod-Shift-x", "Shift-Alt-f"]);
+    expect(keysOf("playFromHere")).toEqual(["Mod-Alt-p"]);
+  });
+
   it("syncs on Format script's keys, wherever they are recorded", async () => {
     await fire({ key: "s", code: "KeyS", ctrlKey: true });
     expect(calls.syncProject).toBe(1);

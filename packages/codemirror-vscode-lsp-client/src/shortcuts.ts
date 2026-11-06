@@ -408,6 +408,54 @@ export function setEditorShortcuts(
   });
 }
 
+export interface EditorShortcutEntryState {
+  readonly id: EditorShortcutId;
+  readonly combos: readonly string[];
+  readonly run?: Command;
+  readonly shift?: Command;
+  readonly scope?: string;
+  readonly precedence: ShortcutPrecedence;
+  readonly fixed: boolean;
+}
+
+export function editorShortcutEntries(
+  state: EditorState,
+  platform?: ShortcutPlatform,
+): EditorShortcutEntryState[] {
+  const current = state.facet(editorShortcutsState);
+  const shortcuts =
+    !platform || platform === current.platform
+      ? current
+      : {
+          ...current,
+          platform,
+          combos: resolveShortcuts(EDITOR_SHORTCUT_ROWS, {}, platform),
+        };
+  return PRECEDENCES.flatMap((precedence) =>
+    (EDITOR_SHORTCUTS as readonly ShortcutEntry[])
+      .filter((entry) => entryPrecedence(entry) === precedence)
+      .flatMap((entry) => {
+        const command = shortcuts.commands[entry.id as EditorShortcutId];
+        if (!command) {
+          return [];
+        }
+        const { run, shift } =
+          typeof command === "function" ? { run: command, shift: undefined } : command;
+        return [
+          {
+            id: entry.id as EditorShortcutId,
+            combos: entryCombos(entry, shortcuts),
+            run,
+            shift,
+            scope: entry.scope,
+            precedence,
+            fixed: !isShortcutRow(entry),
+          },
+        ];
+      }),
+  );
+}
+
 export function shortcutCombosFor(
   state: EditorState,
   id: EditorShortcutId,
