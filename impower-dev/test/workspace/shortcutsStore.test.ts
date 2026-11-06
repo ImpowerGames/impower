@@ -62,6 +62,9 @@ describe("the shortcuts store", () => {
     expect(shortcuts.matches(keydown({ key: " ", code: "Space", ctrlKey: true }), "suggestions")).toBe(true);
     expect(shortcuts.label(shortcuts.combo("suggestions"))).toBe("⌃Space");
     expect(shortcuts.title("format", "Format script")).toBe("Format script (⌘S)");
+    shortcuts.clear("redo");
+    expect(shortcuts.matches(keydown({ key: "z", code: "KeyZ", metaKey: true, shiftKey: true }), "redo")).toBe(false);
+    expect(shortcuts.matches(keydown({ key: "y", code: "KeyY", metaKey: true }), "redo")).toBe(false);
   });
 
   it("saves only the commands that differ from their usual keys, and reads them back", () => {

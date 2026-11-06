@@ -1,3 +1,5 @@
+import { redo as redoScript, undo as undoScript } from "@codemirror/commands";
+import { EditorView } from "@codemirror/view";
 import {
   ArrowBackUp,
   ArrowForwardUp,
@@ -10,17 +12,20 @@ import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
-import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import { focusedElement, isEditableFocus } from "../../utils/focusedElement";
+import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 
-function replayUndoShortcut(isRedo: boolean): void {
-  let el: Element | null = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
+function undoOrRedo(isRedo: boolean): void {
+  const editor = focusedElement()?.closest(".cm-editor");
+  const view = editor instanceof HTMLElement ? EditorView.findFromDOM(editor) : null;
+  if (view) {
+    (isRedo ? redoScript : undoScript)(view);
+    return;
   }
-  const init = workspaceShortcuts.eventInit(isRedo ? "redo" : "undo");
-  if (init) {
-    (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
+  if (isEditableFocus() || !(isRedo ? canRedo.peek() : canUndo.peek())) {
+    return;
   }
+  void (isRedo ? redo() : undo());
 }
 
 export default function HeaderNavigation() {
@@ -45,7 +50,7 @@ export default function HeaderNavigation() {
                 aria-label="Undo"
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  replayUndoShortcut(false);
+                  undoOrRedo(false);
                 }}
                 class="text-muted"
               >
@@ -57,7 +62,7 @@ export default function HeaderNavigation() {
                 aria-label="Redo"
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  replayUndoShortcut(true);
+                  undoOrRedo(true);
                 }}
                 class="text-muted"
               >

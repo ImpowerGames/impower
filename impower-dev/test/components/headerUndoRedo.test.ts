@@ -1,6 +1,6 @@
-import { history, historyKeymap } from "@codemirror/commands";
+import { history } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -70,7 +70,7 @@ describe("the header's Undo and Redo below the desktop width", () => {
     expect(button("Redo")).not.toBeNull();
   });
 
-  it("undoes and redoes a script edit on Windows, where the editor binds redo to Ctrl+Y", async () => {
+  it("undoes and redoes a focused script edit without a key binding for either", async () => {
     platform.value = "Win32";
     const button = await mountHeader();
     editorHost = document.body.appendChild(document.createElement("div"));
@@ -78,7 +78,7 @@ describe("the header's Undo and Redo below the desktop width", () => {
       parent: editorHost,
       state: EditorState.create({
         doc: "Before.",
-        extensions: [history(), keymap.of(historyKeymap)],
+        extensions: [history()],
       }),
     });
     view.dispatch({ changes: { from: 7, insert: " Probe" } });
@@ -92,20 +92,23 @@ describe("the header's Undo and Redo below the desktop width", () => {
     expect(view.state.doc.toString()).toBe("Before. Probe");
   });
 
-  it("replays Cmd+Z and Cmd+Shift+Z on a Mac", async () => {
+  it("undoes and redoes a change to the project's files when no script has focus, and leaves a focused field alone", async () => {
     platform.value = "MacIntel";
     const button = await mountHeader();
-    const target = document.body.appendChild(document.createElement("input"));
-    const seen: string[] = [];
-    target.addEventListener("keydown", (e) =>
-      seen.push(
-        `${e.metaKey ? "Meta+" : ""}${e.ctrlKey ? "Ctrl+" : ""}${e.shiftKey ? "Shift+" : ""}${e.key}`,
-      ),
-    );
-    target.focus();
+    const { pushUndo } = await import("../../src/modules/spark-editor/utils/undoManager");
+    const steps: string[] = [];
+    pushUndo({
+      label: "Rename file",
+      undo: async () => void steps.push("undo"),
+      redo: async () => void steps.push("redo"),
+    });
+    const field = document.body.appendChild(document.createElement("input"));
+    field.focus();
+    await press(button("Undo"));
+    expect(steps).toEqual([]);
+    field.remove();
     await press(button("Undo"));
     await press(button("Redo"));
-    target.remove();
-    expect(seen).toEqual(["Meta+z", "Meta+Shift+z"]);
+    expect(steps).toEqual(["undo", "redo"]);
   });
 });

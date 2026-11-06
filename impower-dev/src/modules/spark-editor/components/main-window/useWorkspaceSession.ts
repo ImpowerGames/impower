@@ -1,26 +1,9 @@
 import { useEffect } from "preact/hooks";
+import { isEditableFocus } from "../../utils/focusedElement";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
-
-function isEditableFocus(): boolean {
-  let el: Element | null = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  if (!el) {
-    return false;
-  }
-  const tag = el.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA") {
-    return true;
-  }
-  if ((el as HTMLElement).isContentEditable) {
-    return true;
-  }
-  return !!el.closest?.(".cm-editor");
-}
 
 export function useWorkspaceSession(): void {
   useEffect(() => {

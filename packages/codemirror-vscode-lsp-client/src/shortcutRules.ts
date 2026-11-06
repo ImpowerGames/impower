@@ -57,10 +57,13 @@ export function activeCombos(
   platform: ShortcutPlatform,
 ): string[] {
   const own = combos[row.id] ?? "";
+  if (!own) {
+    return [];
+  }
   const live = aliasCombos(row, platform).filter(
     (alias) => alias !== own && !shortcutHolder(combos, alias),
   );
-  return [...new Set([own, ...live].filter(Boolean))];
+  return [...new Set([own, ...live])];
 }
 
 export interface ShortcutChange {

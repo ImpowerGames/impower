@@ -236,50 +236,6 @@ export function codeMirrorKey(
     .join("-");
 }
 
-const CODES_BY_KEY: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(KEYS_BY_CODE)
-    .filter(([code]) => code !== "NumpadEnter")
-    .map(([code, key]) => [key, code]),
-);
-
-const KEY_VALUES: Readonly<Record<string, string>> = {
-  Space: " ",
-  Up: "ArrowUp",
-  Down: "ArrowDown",
-  Left: "ArrowLeft",
-  Right: "ArrowRight",
-};
-
-export function keyEventInit(
-  combo: string,
-  platform: ShortcutPlatform,
-): KeyboardEventInit | null {
-  const parsed = parseCombo(combo);
-  if (!parsed) {
-    return null;
-  }
-  const { mod, ctrl, shift, alt, key } = forPlatform(parsed, platform);
-  const letter = /^[A-Z]$/.test(key);
-  const digit = /^\d$/.test(key);
-  const upper = shift && !(platform === "mac" && mod);
-  return {
-    key: letter ? (upper ? key : key.toLowerCase()) : (KEY_VALUES[key] ?? key),
-    code: letter
-      ? `Key${key}`
-      : digit
-        ? `Digit${key}`
-        : (CODES_BY_KEY[key] ?? key),
-    keyCode: letter || digit ? key.charCodeAt(0) : undefined,
-    metaKey: platform === "mac" && mod,
-    ctrlKey: platform === "mac" ? ctrl : mod,
-    shiftKey: shift,
-    altKey: alt,
-    bubbles: true,
-    composed: true,
-    cancelable: true,
-  };
-}
-
 const MAC_MODIFIERS: Readonly<Record<string, string>> = {
   Mod: "⌘",
   Ctrl: "⌃",

@@ -1,7 +1,6 @@
 import {
   comboLabel,
   comboParts,
-  keyEventInit,
   type ShortcutPlatform,
 } from "@impower/codemirror-vscode-lsp-client/src/shortcutCombo";
 import {
@@ -91,11 +90,6 @@ export class WorkspaceShortcuts {
   title(id: ShortcutId, name: string): string {
     const combo = this.active(id)[0];
     return combo ? `${name} (${this.label(combo)})` : name;
-  }
-
-  eventInit(id: ShortcutId): KeyboardEventInit | null {
-    const combo = this.active(id)[0];
-    return combo ? keyEventInit(combo, this.platform) : null;
   }
 
   matches(event: KeyEventLike, id: ShortcutId): boolean {

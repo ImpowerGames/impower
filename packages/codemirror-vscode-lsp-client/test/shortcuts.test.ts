@@ -12,7 +12,6 @@ import {
   comboLabel,
   comboParts,
   isShortcutCombo,
-  keyEventInit,
   type ShortcutPlatform,
 } from "../src/shortcutCombo";
 import {
@@ -182,6 +181,13 @@ describe("one combo, one action", () => {
     expect(combos["search"]).toBe("Mod+F");
   });
 
+  it("leaves a command with no keys at all once it has none of its own, aliases included", () => {
+    const displaced = assignShortcut(defaults("win"), "rename", "Mod+S", "win").combos;
+    expect(activeCombos(rowOf("format"), displaced, "win")).toEqual([]);
+    const cleared = assignShortcut(defaults("mac"), "redo", "", "mac").combos;
+    expect(activeCombos(rowOf("redo"), cleared, "mac")).toEqual([]);
+  });
+
   it("stops an alias working once another command takes it", () => {
     const taken = assignShortcut(defaults("win"), "deleteLine", "Mod+Shift+Z", "win").combos;
     expect(activeCombos(rowOf("redo"), taken, "win")).toEqual(["Mod+Y"]);
@@ -319,17 +325,22 @@ describe("the generated keymaps", () => {
       combos: assignShortcut(defaults("win"), "rename", "Mod+S", "win").combos,
     });
     expect(shortcutLabelFor(view.state, "rename")).toBe("Ctrl+S");
-    expect(shortcutLabelFor(view.state, "format")).toBe("Shift+Alt+F");
+    expect(shortcutLabelFor(view.state, "format")).toBeUndefined();
     expect(shortcutLabelFor(view.state, "references")).toBe("Shift+F12");
     expect(shortcutLabelFor(view.state, "copy")).toBe("Ctrl+C");
   });
 
-  it("builds a key event that runs the command the combo is bound to", () => {
+  it("binds no key, aliases included, for a command left without a shortcut", () => {
+    const format = vi.fn(() => true);
     const redo = vi.fn(() => true);
-    const view = mountEditor({ platform: "linux", commands: { redo } });
-    press(view, keyEventInit("Mod+Shift+Z", "linux")!);
-    expect(redo).toHaveBeenCalledTimes(1);
-    press(view, keyEventInit("Mod+Y", "linux")!);
-    expect(redo).toHaveBeenCalledTimes(2);
+    const displaced = assignShortcut(defaults("linux"), "rename", "Mod+S", "linux").combos;
+    const combos = assignShortcut(displaced, "redo", "", "linux").combos;
+    const view = mountEditor({ combos, platform: "linux", commands: { format, redo } });
+    press(view, { key: "F", code: "KeyF", keyCode: 70, shiftKey: true, altKey: true });
+    press(view, { key: "s", code: "KeyS", keyCode: 83, ctrlKey: true });
+    press(view, { key: "y", code: "KeyY", keyCode: 89, ctrlKey: true });
+    press(view, { key: "Z", code: "KeyZ", keyCode: 90, ctrlKey: true, shiftKey: true });
+    expect(format).not.toHaveBeenCalled();
+    expect(redo).not.toHaveBeenCalled();
   });
 });
