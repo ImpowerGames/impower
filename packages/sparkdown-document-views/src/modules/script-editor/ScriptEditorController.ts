@@ -430,7 +430,7 @@ export class ScriptEditorController {
     if (
       target instanceof Node &&
       target !== this.host &&
-      !this._view?.dom.contains(target)
+      !this._view?.contentDOM.contains(target)
     ) {
       this._focusLeft = true;
     }
@@ -485,18 +485,23 @@ export class ScriptEditorController {
   protected handleScrolledPreview = (
     message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>,
   ) => {
-    if (this._loaded) {
-      this._userInitiatedScroll = false;
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.visibleRange;
-      const target = params.target;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.cacheVisibleRange(range);
-        if (target === "element") {
-          this.scrollToRange(range);
-        }
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.visibleRange;
+    const target = params.target;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      return;
+    }
+    if (!this._loaded) {
+      if (target === "element") {
+        this._initialVisibleRange = range;
       }
+      return;
+    }
+    this._userInitiatedScroll = false;
+    this.cacheVisibleRange(range);
+    if (target === "element") {
+      this.scrollToRange(range);
     }
   };
 

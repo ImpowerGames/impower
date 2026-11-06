@@ -8,6 +8,7 @@ import {
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   customGotoLinePanel,
@@ -534,6 +535,42 @@ describe("ScriptEditorController load handover", () => {
       input.remove();
       host.remove();
     }
+  });
+
+  it("leaves focus in Find when the author opened it while the editor was loading", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    try {
+      openSearchPanel(view);
+      const find = host.querySelector<HTMLElement>(
+        ".cm-search [contenteditable][name='search']",
+      )!;
+      find.focus();
+      expect(document.activeElement).toBe(find);
+      controller["handleIdle"]();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(document.activeElement).toBe(find);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("scrolls to where the screenplay preview scrolled while the editor was loading", async () => {
+    const { controller } = await loadAt(1, at(1));
+    controller["handleScrolledPreview"](
+      ScrolledPreviewMessage.type.notification({
+        type: "screenplay",
+        textDocument: { uri: "file:///main.sd" },
+        visibleRange: at(3),
+        target: "element",
+      }),
+    );
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([at(3)]);
   });
 
   it("still takes focus at the caret it loaded with when focus stayed put", async () => {
