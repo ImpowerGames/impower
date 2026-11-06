@@ -359,6 +359,10 @@ export class TextmateGrammarParse implements PartialParse {
 
       this.parsedPos = this.region.compensate(pos, matchLength);
 
+      if (this.tokenizer.emittedAtThisLineStart) {
+        this.compiler.packet.holdPureSplitAt(this.parsedPos);
+      }
+
       let addedChunk = false;
 
       for (let idx = 0; idx < step.tokens.length; idx++) {
