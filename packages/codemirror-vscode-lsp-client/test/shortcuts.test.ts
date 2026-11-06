@@ -2,7 +2,7 @@ import { closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete"
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { foldKeymap } from "@codemirror/language";
 import { lintKeymap } from "@codemirror/lint";
-import { searchKeymap } from "@codemirror/search";
+import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import { EditorView, type KeyBinding } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import {
   isShortcutCombo,
   type ShortcutPlatform,
 } from "../src/shortcutCombo";
+import { editorShortcutDispatch } from "../src/shortcutDispatch";
 import {
   activeCombos,
   assignShortcut,
@@ -438,6 +439,71 @@ describe("the generated keymaps", () => {
     const view = mountEditor({ combos, platform: "linux", commands: { toggleComment } });
     press(view, keys);
     expect(toggleComment).toHaveBeenCalledTimes(1);
+  });
+
+  describe("reporting the command the editor ran on a key press", () => {
+    const germanCommaShifted = { key: ";", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true };
+    const bindTwo = (first: string, second: string) =>
+      assignShortcut(
+        assignShortcut(defaults("linux"), first, "Mod+;", "linux").combos,
+        second,
+        "Mod+Shift+,",
+        "linux",
+      ).combos;
+
+    it("names the later command when the first one declines", () => {
+      const format = vi.fn(() => true);
+      const view = mountEditor({
+        combos: bindTwo("fold", "format"),
+        platform: "linux",
+        commands: { fold: () => false, format },
+      });
+      const event = press(view, germanCommaShifted);
+      expect(format).toHaveBeenCalledTimes(1);
+      expect(editorShortcutDispatch(event)).toEqual({ handled: "format" });
+    });
+
+    it("names the command the search panel's scope reaches, not a command bound only in the editor", () => {
+      const format = vi.fn(() => true);
+      const searchCommand = vi.fn(() => true);
+      const view = new EditorView({
+        parent: document.body.appendChild(document.createElement("div")),
+        state: EditorState.create({
+          doc: "line one",
+          extensions: [
+            search(),
+            editorShortcuts({
+              combos: bindTwo("format", "search"),
+              platform: "linux",
+              commands: { format, search: searchCommand },
+            }),
+          ],
+        }),
+      });
+      views.push(view);
+      openSearchPanel(view);
+      const field = view.dom.querySelector<HTMLInputElement>(".cm-search input[name=search]")!;
+      const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...germanCommaShifted });
+      field.dispatchEvent(event);
+      expect(searchCommand).toHaveBeenCalledTimes(1);
+      expect(format).not.toHaveBeenCalled();
+      expect(editorShortcutDispatch(event)).toEqual({ handled: "search" });
+    });
+
+    it("names a highest-precedence fixed key over a row bound to the same key", () => {
+      const nextBeat = vi.fn(() => true);
+      const view = mountEditor({ platform: "linux", commands: { nextSuggestionPage: () => true, nextBeat } });
+      const event = press(view, { key: "PageDown", code: "PageDown", keyCode: 34 });
+      expect(nextBeat).not.toHaveBeenCalled();
+      expect(editorShortcutDispatch(event)).toEqual({ handled: "nextSuggestionPage" });
+    });
+
+    it("records that the editor saw a press no command handled", () => {
+      const view = mountEditor({ platform: "linux", commands: {} });
+      const event = press(view, { key: "q", code: "KeyQ", keyCode: 81, ctrlKey: true, altKey: true });
+      expect(editorShortcutDispatch(event)).toEqual({});
+      expect(editorShortcutDispatch(new KeyboardEvent("keydown"))).toBeUndefined();
+    });
   });
 
   it("runs the command recorded on a German keyboard's minus key, which sits where US keyboards put the slash", () => {

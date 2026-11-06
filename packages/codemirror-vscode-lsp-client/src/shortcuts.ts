@@ -96,6 +96,7 @@ import {
 } from "@codemirror/state";
 import {
   keymap,
+  ViewPlugin,
   type Command,
   type EditorView,
   type KeyBinding,
@@ -104,6 +105,7 @@ import { jumpToDefinition } from "./definition";
 import { formatDocument } from "./formatting";
 import { closeReferencePanel, findReferences } from "./references";
 import { renameSymbol } from "./rename";
+import { noteEditorKeydown, noteShortcutHandled } from "./shortcutDispatch";
 import {
   codeMirrorKey,
   comboLabel,
@@ -268,6 +270,36 @@ const entryCombos = (entry: ShortcutEntry, state: EditorShortcutsState) =>
         Boolean,
       );
 
+let dispatchingEvent: KeyboardEvent | null = null;
+
+const reportsHandling =
+  (id: string, command: Command | undefined): Command | undefined =>
+    command &&
+    ((view) => {
+      const handled = command(view);
+      if (handled && dispatchingEvent) {
+        noteShortcutHandled(dispatchingEvent, id);
+      }
+      return handled;
+    });
+
+const dispatchTracking = ViewPlugin.fromClass(
+  class {
+    readonly listener = (event: KeyboardEvent) => {
+      dispatchingEvent = event;
+      noteEditorKeydown(event);
+    };
+
+    constructor(readonly view: EditorView) {
+      view.dom.addEventListener("keydown", this.listener, true);
+    }
+
+    destroy() {
+      this.view.dom.removeEventListener("keydown", this.listener, true);
+    }
+  },
+);
+
 export function shortcutKeyBindings(
   state: EditorShortcutsState,
   precedence: ShortcutPrecedence,
@@ -286,8 +318,8 @@ export function shortcutKeyBindings(
     for (const combo of entryCombos(entry, state)) {
       bindings.push({
         key: codeMirrorKey(combo, state.platform),
-        run,
-        shift,
+        run: reportsHandling(entry.id, run),
+        shift: reportsHandling(entry.id, shift),
         scope: entry.scope,
         preventDefault: entry.preventDefault ?? isShortcutRow(entry),
       });
@@ -330,7 +362,11 @@ const shortcutsStateOf = (config: EditorShortcutsConfig) => {
 };
 
 export function editorShortcuts(config: EditorShortcutsConfig = {}): Extension {
-  return [shortcutsCompartment.of(shortcutsStateOf(config)), generatedKeymaps];
+  return [
+    shortcutsCompartment.of(shortcutsStateOf(config)),
+    dispatchTracking,
+    generatedKeymaps,
+  ];
 }
 
 export function setEditorShortcuts(

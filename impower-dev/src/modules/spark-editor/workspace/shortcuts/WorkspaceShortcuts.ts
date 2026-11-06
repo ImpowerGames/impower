@@ -14,6 +14,7 @@ import {
   type ShortcutChange,
   type ShortcutCombos,
 } from "@impower/codemirror-vscode-lsp-client/src/shortcutRules";
+import { editorShortcutDispatch } from "@impower/codemirror-vscode-lsp-client/src/shortcutDispatch";
 import type { ShortcutRow } from "@impower/codemirror-vscode-lsp-client/src/shortcutTable";
 import { batch, computed, type ReadonlySignal } from "@preact/signals";
 import workspaceSettings, {
@@ -94,7 +95,10 @@ export class WorkspaceShortcuts {
   }
 
   matches(event: KeyEventLike, id: ShortcutId): boolean {
-    return shortcutForEvent(event, this.rows, this.combos.peek(), this.platform) === id;
+    const winner =
+      editorShortcutDispatch(event)?.handled ??
+      shortcutForEvent(event, this.rows, this.combos.peek(), this.platform);
+    return winner === id;
   }
 
   record(id: ShortcutId, combo: string): ShortcutChange {

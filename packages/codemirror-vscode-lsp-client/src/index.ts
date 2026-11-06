@@ -143,6 +143,10 @@ export {
   type ShortcutCombos,
 } from "./shortcutRules";
 export {
+  editorShortcutDispatch,
+  type EditorShortcutDispatch,
+} from "./shortcutDispatch";
+export {
   EDITOR_SHORTCUT_COMMANDS,
   editorShortcuts,
   setEditorShortcuts,

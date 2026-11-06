@@ -1,3 +1,7 @@
+import { openSearchPanel, search } from "@codemirror/search";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { editorShortcuts, type ShortcutCommands } from "@impower/codemirror-vscode-lsp-client/src";
 import { signal } from "@preact/signals";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
@@ -167,6 +171,87 @@ describe("the app's own shortcuts", () => {
     expect(calls.syncProject).toBe(0);
     await fire({ key: "<", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true });
     expect(calls.syncProject).toBe(1);
+  });
+
+  describe("with a script editor that handles the press first", () => {
+    const germanCommaShifted = { key: ";", code: "Comma", keyCode: 188, ctrlKey: true, shiftKey: true };
+    let view: EditorView | undefined;
+
+    afterEach(() => {
+      view?.destroy();
+      view?.dom.parentElement?.remove();
+      view = undefined;
+    });
+
+    const mountEditor = (commands: ShortcutCommands, withSearch = false) => {
+      view = new EditorView({
+        parent: document.body.appendChild(document.createElement("div")),
+        state: EditorState.create({
+          doc: "line one",
+          extensions: [
+            ...(withSearch ? [search()] : []),
+            editorShortcuts({ combos: workspaceShortcuts.combos.peek(), platform: "linux", commands }),
+          ],
+        }),
+      });
+      return view;
+    };
+
+    const pressIn = async (target: Element, init: KeyboardEventInit) => {
+      const event = keydown(init);
+      await act(async () => {
+        target.dispatchEvent(event);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      return event;
+    };
+
+    it("does not play from here when the editor ran Format on the same press, and syncs for Format", async () => {
+      workspaceShortcuts.record("playFromHere", "Mod+;");
+      workspaceShortcuts.record("format", "Mod+Shift+,");
+      const format = vi.fn(() => true);
+      const editor = mountEditor({ format });
+      await pressIn(editor.contentDOM, germanCommaShifted);
+      expect(format).toHaveBeenCalledTimes(1);
+      expect(calls.toggleGameRunning).toBe(0);
+      expect(calls.syncProject).toBe(1);
+    });
+
+    it("syncs when Fold declined and the editor went on to run Format", async () => {
+      workspaceShortcuts.record("fold", "Mod+;");
+      workspaceShortcuts.record("format", "Mod+Shift+,");
+      const format = vi.fn(() => true);
+      const editor = mountEditor({ fold: () => false, format });
+      await pressIn(editor.contentDOM, germanCommaShifted);
+      expect(format).toHaveBeenCalledTimes(1);
+      expect(calls.syncProject).toBe(1);
+    });
+
+    it("does not sync when the search panel's scope ran Search", async () => {
+      workspaceShortcuts.record("format", "Mod+;");
+      workspaceShortcuts.record("search", "Mod+Shift+,");
+      const searchCommand = vi.fn(() => true);
+      const format = vi.fn(() => true);
+      const editor = mountEditor({ format, search: searchCommand }, true);
+      openSearchPanel(editor);
+      const field = editor.dom.querySelector(".cm-search input[name=search]")!;
+      await pressIn(field, germanCommaShifted);
+      expect(searchCommand).toHaveBeenCalledTimes(1);
+      expect(format).not.toHaveBeenCalled();
+      expect(calls.syncProject).toBe(0);
+    });
+
+    it("does not move the preview a beat when the suggestion list took PageDown", async () => {
+      const editor = mountEditor({ nextSuggestionPage: () => true, nextBeat: () => true });
+      const event = await pressIn(editor.contentDOM, { key: "PageDown", code: "PageDown", keyCode: 34 });
+      expect(workspaceShortcuts.matches(event, "nextBeat")).toBe(false);
+    });
+
+    it("moves the preview a beat when the editor's own beat key ran", async () => {
+      const editor = mountEditor({ nextSuggestionPage: () => false, nextBeat: () => true });
+      const event = await pressIn(editor.contentDOM, { key: "PageDown", code: "PageDown", keyCode: 34 });
+      expect(workspaceShortcuts.matches(event, "nextBeat")).toBe(true);
+    });
   });
 
   it("syncs on Format script's keys, wherever they are recorded", async () => {
