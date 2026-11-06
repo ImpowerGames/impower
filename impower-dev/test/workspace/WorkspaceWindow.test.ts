@@ -562,6 +562,31 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#project");
     });
 
+    it("opens the writing tools, moves between their views and closes them", () => {
+      win.setAppMenuOpen(true);
+      win.openWritingTools();
+      expect(workspace.current.screen.appMenuOpen).toBe(false);
+      expect(workspace.current.screen.writingTools).toEqual({ view: "menu", fromMenu: false });
+      win.showWritingToolsView("shortcuts");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "shortcuts", fromMenu: true });
+      win.showWritingToolsView("menu");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "menu", fromMenu: false });
+      win.closeWritingTools();
+      expect(workspace.current.screen.writingTools).toBeUndefined();
+      win.showWritingToolsView("guide");
+      expect(workspace.current.screen.writingTools).toBeUndefined();
+    });
+
+    it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
+      win.navigateTo("collection");
+      win.openSparkdownGuide();
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.pane).toBe("logic");
+      expect(workspace.current.screen.writingTools).toEqual({ view: "guide", fromMenu: false });
+      win.navigateTo("share");
+      expect(workspace.current.screen.writingTools).toBeUndefined();
+    });
+
     it("opens the route a deep link names, and maps a legacy name onto its route", () => {
       win.dispose();
       window.history.replaceState(null, "", "#assets");

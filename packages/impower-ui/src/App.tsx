@@ -11,6 +11,7 @@ import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
+import { popoverGallery } from "./components/popover/Popover.gallery";
 import { railIndexGallery } from "./components/rail-index/RailIndex.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
 import { selectGallery } from "./components/select/Select.gallery";
@@ -38,6 +39,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   loadingBarGallery,
   madeWithSparkSplashGallery,
   sparkLogoGallery,
+  popoverGallery,
   railIndexGallery,
   routerGallery,
   selectGallery,

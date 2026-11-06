@@ -70,6 +70,16 @@ export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverAnchor,
+  PopoverContent,
+  popoverVariants,
+  type PopoverProps,
+  type PopoverContentProps,
+  type PopoverVariantProps,
+} from "./popover/Popover";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
   default as SidebarLayout,
