@@ -43,12 +43,16 @@ const imageFile = (uri: string) => ({
   version: 1,
 });
 
-const compile = (images: string[], mainText: string): SparkProgram => {
+const compile = (
+  images: string[],
+  mainText: string,
+  chapterText: string,
+): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       scriptFile(MAIN, mainText),
-      scriptFile(CHAPTER, CHAPTER_TEXT),
+      scriptFile(CHAPTER, chapterText),
       ...images.map(imageFile),
     ] as never,
   });
@@ -63,7 +67,11 @@ const compile = (images: string[], mainText: string): SparkProgram => {
   }
 };
 
-const setup = (images: string[] = [IMAGE], mainText = MAIN_TEXT) => {
+const setup = (
+  images: string[] = [IMAGE],
+  mainText = MAIN_TEXT,
+  chapterText = CHAPTER_TEXT,
+) => {
   const documents = new SparkdownDocumentRegistry([
     "links",
     "references",
@@ -71,7 +79,7 @@ const setup = (images: string[] = [IMAGE], mainText = MAIN_TEXT) => {
   ]);
   for (const [uri, text] of [
     [MAIN, mainText],
-    [CHAPTER, CHAPTER_TEXT],
+    [CHAPTER, chapterText],
   ] as const) {
     documents.add({
       textDocument: { uri, languageId: "sparkdown", version: 1, text },
@@ -89,7 +97,7 @@ const setup = (images: string[] = [IMAGE], mainText = MAIN_TEXT) => {
     _documentVersions: new Map(),
     _imageFilePattern: /[.]png$/,
   });
-  const program = compile(images, mainText);
+  const program = compile(images, mainText, chapterText);
   const rename = (
     newName: string,
     at: string,
@@ -144,6 +152,34 @@ describe("rename across scripts and asset files", () => {
     expect(fileRenames(edit)).toEqual([
       { kind: "rename", oldUri: IMAGE, newUri: OTHER_IMAGE },
     ]);
+  });
+
+  const NO_PICTURE = lines("scene chapter_one", "  A quiet page.", "end", "");
+
+  const CHARACTER_ONLY = lines(
+    "define imani as character with",
+    "end",
+    "scene start",
+    "  imani: Have you heard?",
+    "end",
+    "",
+  );
+
+  test("renaming a character from its cue renames its portrait file even when no line shows the picture", () => {
+    const { rename } = setup([IMAGE], CHARACTER_ONLY, NO_PICTURE);
+    const edit = rename("zadie", "imani:", true);
+    expect(fileRenames(edit)).toEqual([
+      { kind: "rename", oldUri: IMAGE, newUri: OTHER_IMAGE },
+    ]);
+    expect(rename("zadie", "imani:", false)).toBeDefined();
+    expect(fileRenames(rename("zadie", "imani:", false))).toEqual([]);
+  });
+
+  test("a character renamed onto a name another picture has is refused", () => {
+    const { rename } = setup([IMAGE, OTHER_IMAGE], CHARACTER_ONLY, NO_PICTURE);
+    expect(() => rename("zadie", "imani:", true)).toThrow(
+      "zadie is already a name in this story.",
+    );
   });
 
   test("with Auto-rename files off the scripts change and the file keeps its name", () => {

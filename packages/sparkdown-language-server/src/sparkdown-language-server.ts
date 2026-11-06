@@ -399,13 +399,7 @@ try {
   );
   connection.onRequest(FindTextMessage.method, (params: FindTextParams) =>
     profiled("lsp: onFindText", params.query, () =>
-      findWorkspaceText(
-        Array.from(workspace.uris(), (uri) => ({
-          uri,
-          text: workspace.document(uri)?.getText() ?? "",
-        })),
-        params,
-      ),
+      findWorkspaceText(workspace.scriptTexts(), params),
     ),
   );
   connection.onRequest(

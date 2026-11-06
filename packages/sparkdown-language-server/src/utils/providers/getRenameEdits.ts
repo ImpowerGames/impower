@@ -20,7 +20,7 @@ import {
 } from "vscode-languageserver-textdocument";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
-import { getReferences } from "./getReferences";
+import { getReferences, linkedTypes } from "./getReferences";
 import { getRenameRefusal } from "./getRenameRefusal";
 import { getSymbol } from "./getSymbol";
 
@@ -120,17 +120,19 @@ export const getRenameEdits = (
   }
 
   if (settings?.editor?.autoRenameFiles) {
-    if (resolvedSymbolIds?.includes(`image.${currentName}`)) {
-      renameFileByType("image");
+    const types = new Set<string>();
+    for (const id of resolvedSymbolIds ?? []) {
+      const dot = id.indexOf(".");
+      if (dot > 0 && id.slice(dot + 1) === currentName) {
+        const type = id.slice(0, dot);
+        types.add(type);
+        linkedTypes(program, type).forEach((linked) => types.add(linked));
+      }
     }
-    if (resolvedSymbolIds?.includes(`audio.${currentName}`)) {
-      renameFileByType("audio");
-    }
-    if (resolvedSymbolIds?.includes(`video.${currentName}`)) {
-      renameFileByType("video");
-    }
-    if (resolvedSymbolIds?.includes(`font.${currentName}`)) {
-      renameFileByType("font");
+    for (const type of ["image", "audio", "video", "font"]) {
+      if (types.has(type)) {
+        renameFileByType(type);
+      }
     }
   }
 

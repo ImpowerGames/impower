@@ -1,5 +1,6 @@
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import { linkedTypes } from "./getReferences";
 
 const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*$/u;
 
@@ -30,11 +31,13 @@ export const getRenameRefusal = (
       continue;
     }
     const type = id.slice(0, dot);
-    if (program?.context?.[type]?.[newName] !== undefined) {
-      return taken;
-    }
-    if (ASSET_TYPES.has(type) && workspace.findFiles(newName, type).length) {
-      return taken;
+    for (const each of [type, ...linkedTypes(program, type)]) {
+      if (program?.context?.[each]?.[newName] !== undefined) {
+        return taken;
+      }
+      if (ASSET_TYPES.has(each) && workspace.findFiles(newName, each).length) {
+        return taken;
+      }
     }
   }
   for (const uri of workspace.uris()) {

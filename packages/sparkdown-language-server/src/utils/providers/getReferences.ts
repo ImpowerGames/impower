@@ -30,6 +30,11 @@ const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
   return keys;
 };
 
+export const linkedTypes = (
+  program: SparkProgram | undefined,
+  type: string,
+): string[] => recursivelyGetKeys(program?.context?.[type]?.["$default"]?.["$link"]);
+
 export interface ReferenceTarget {
   symbolName: string | undefined;
   symbolIds: string[] | undefined;
@@ -166,16 +171,10 @@ export const collectReferencesForTarget = (
                       if (resolvedSymbolId.includes(".")) {
                         const [type, name] = resolvedSymbolId.split(".");
                         if (type) {
-                          const link =
-                            program?.context?.[type]?.["$default"]?.["$link"];
-                          if (link) {
-                            const keys = [];
-                            for (const linkedType of recursivelyGetKeys(link)) {
-                              const linkedId = linkedType + "." + name;
-                              if (fullyResolvedRefId === linkedId) {
-                                resolvedSymbolIds.push(linkedId);
-                                addSymbol(uri, r);
-                              }
+                          for (const linkedType of linkedTypes(program, type)) {
+                            const linkedId = linkedType + "." + name;
+                            if (fullyResolvedRefId === linkedId) {
+                              addSymbol(uri, r);
                             }
                           }
                         }

@@ -1,5 +1,7 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
+import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { findWorkspaceText } from "../../utils/providers/findWorkspaceText";
 
 const NEWLINE = String.fromCharCode(10);
@@ -164,6 +166,27 @@ describe("workspace/findText over three documents", () => {
     expect(summary(result)).toEqual({
       total: 1,
       scripts: [{ uri: MAIN, at: ["1:5-9"] }],
+    });
+  });
+
+  test("searches a Luau script the server holds as a file, unopened, beside the Sparkdown documents", () => {
+    const documents = new SparkdownDocumentRegistry(["references"]);
+    documents.add({
+      textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text: "scene start\nend" },
+    });
+    const helpers = "file:///proj/lib/helpers.luau";
+    const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
+    Object.assign(workspace, {
+      _documents: documents,
+      _documentTexts: new Map(),
+      _watchedFiles: new Map([
+        [MAIN, { uri: MAIN }],
+        [helpers, { uri: helpers, text: 'local label = "rumour"' }],
+      ]),
+    });
+    expect(summary(findWorkspaceText(workspace.scriptTexts(), { query: "rumour" }))).toEqual({
+      total: 1,
+      scripts: [{ uri: helpers, at: ["0:15-21"] }],
     });
   });
 
