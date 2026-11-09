@@ -20,6 +20,8 @@ import { batch, computed, type ReadonlySignal } from "@preact/signals";
 import workspaceSettings, {
   type WorkspaceSettings,
 } from "../settings/WorkspaceSettings";
+import { STEP_SHORTCUTS } from "../stepStates";
+import workspace from "../WorkspaceStore";
 import {
   SHORTCUT_PLATFORM,
   SHORTCUT_PREFERENCE_KEYS,
@@ -31,8 +33,14 @@ import {
 
 type KeyEventLike = Parameters<typeof shortcutForEvent>[0];
 
+const STEP_SHORTCUT_IDS: ReadonlySet<string> = new Set(
+  Object.values(STEP_SHORTCUTS),
+);
+
 export class WorkspaceShortcuts {
   readonly combos: ReadonlySignal<ShortcutCombos>;
+
+  readonly editorCombos: ReadonlySignal<ShortcutCombos>;
 
   constructor(
     protected readonly settings: WorkspaceSettings,
@@ -56,6 +64,19 @@ export class WorkspaceShortcuts {
         previous = next;
       }
       return previous;
+    });
+    const running = computed(
+      () => !!workspace.state.value.preview?.modes?.game?.running,
+    );
+    this.editorCombos = computed(() => {
+      const combos = this.combos.value;
+      return running.value
+        ? combos
+        : Object.fromEntries(
+            Object.entries(combos).filter(
+              ([id]) => !STEP_SHORTCUT_IDS.has(id),
+            ),
+          );
     });
   }
 

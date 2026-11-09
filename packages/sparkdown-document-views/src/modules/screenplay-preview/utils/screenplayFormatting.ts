@@ -106,7 +106,6 @@ const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
     { tag: tags.strong, fontWeight: "bold" },
     { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
     { tag: tags.strikethrough, textDecoration: "line-through" },
-    { tag: tags.regexp, fontWeight: "bold" },
     { tag: tags.labelName, display: "block", textAlign: "right" },
 
     {

@@ -3,10 +3,12 @@ import type {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import type { DebugProtocol } from "@vscode/debugprotocol";
 import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
+import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
@@ -16,6 +18,18 @@ export interface OutlineSnapshot {
   diagnostics: readonly Diagnostic[];
   firstContentLine: number | undefined;
 }
+
+export interface DebugSessionState {
+  stopped: DebugProtocol.StoppedEvent["body"] | null;
+  stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
+  canStepOut: boolean;
+}
+
+export const IDLE_DEBUG_SESSION: DebugSessionState = {
+  stopped: null,
+  stackTrace: null,
+  canStepOut: false,
+};
 
 const defaults: WorkspaceCache = {
   project: { id: "" },
@@ -126,7 +140,11 @@ class WorkspaceStore {
 
   readonly syncedAt = signal<number | null>(null);
 
+  readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
+
   readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
+
+  readonly debugSession = signal<DebugSessionState>(IDLE_DEBUG_SESSION);
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

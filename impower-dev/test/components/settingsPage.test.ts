@@ -198,10 +198,11 @@ describe("the Settings page", () => {
             "screenplay-settings",
             "add-folder-preferences",
             "file-types",
+            "save-settings",
           ].includes(id),
       ),
     );
-    expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
+    expect(document.getElementById("save-settings")!.querySelector("[data-settings-placeholder]")).toBeNull();
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());
     await pause(0);

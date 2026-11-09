@@ -24,6 +24,8 @@ import { InitializeMessage } from "../game/core/classes/messages/InitializeMessa
 import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { PauseGameMessage } from "../game/core/classes/messages/PauseGameMessage";
 import { PreviewGameMessage } from "../game/core/classes/messages/PreviewGameMessage";
+import { RollBackGameMessage } from "../game/core/classes/messages/RollBackGameMessage";
+import { RollForwardGameMessage } from "../game/core/classes/messages/RollForwardGameMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameStartingValuesMessage } from "../game/core/classes/messages/SetGameStartingValuesMessage";
 import { GetGameStartingValueListingMessage } from "../game/core/classes/messages/GetGameStartingValueListingMessage";
@@ -37,6 +39,7 @@ import { StepGameClockMessage } from "../game/core/classes/messages/StepGameCloc
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
+import { HISTORY_REASONS } from "../game/core/constants/HISTORY_REASONS";
 import type { GameConfiguration } from "../game/core/types/GameConfiguration";
 import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 import { sharedNow } from "../game/core/utils/sharedClock";
@@ -44,6 +47,11 @@ import { sharedNow } from "../game/core/utils/sharedClock";
 export class NoGameError extends Error implements ResponseError {
   override message = "no game loaded";
   code = -32900;
+}
+
+export class RefusedStepError extends Error implements ResponseError {
+  override message = HISTORY_REASONS.step;
+  code = -32901;
 }
 
 export const PAGE_FRAME_TIMEOUT_MS = 100;
@@ -312,7 +320,32 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
+        if (game.history.behindLatest) {
+          throw new RefusedStepError();
+        }
         return { done: game.step(traversal) };
+      });
+      return;
+    }
+    if (RollBackGameMessage.type.isRequest(message)) {
+      const { to } = message.params;
+      connection.sendResponse(message, () => {
+        const game = target();
+        if (!game) {
+          throw new NoGameError();
+        }
+        return game.rollBack(to);
+      });
+      return;
+    }
+    if (RollForwardGameMessage.type.isRequest(message)) {
+      const { to } = message.params;
+      connection.sendResponse(message, () => {
+        const game = target();
+        if (!game) {
+          throw new NoGameError();
+        }
+        return game.rollForward(to);
       });
       return;
     }

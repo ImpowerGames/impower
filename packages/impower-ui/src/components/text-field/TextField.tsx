@@ -16,6 +16,7 @@ export const textFieldVariants = cva(
     variants: {
       size: {
         default: "min-h-9 px-2.5 py-1.5 text-[13px]/[1.4]",
+        tall: "h-14 px-3 py-2 text-[16px]/[1.5] compact:h-11 phone:h-11",
       },
       width: {
         default: "w-[180px]",

@@ -21,12 +21,14 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import {
+  type ColorPickerPresenter,
   completionPreview,
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
   type ShortcutCombos,
   LSPClient,
   onPasteRefused,
+  presentColorPicker,
   presentContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -120,6 +122,7 @@ interface EditorConfig {
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
+  onChangeColor?: ColorPickerPresenter;
   onPasteRefused?: () => void;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
@@ -499,6 +502,7 @@ const createEditorView = (
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
+        config.onChangeColor ? presentColorPicker(config.onChangeColor) : [],
         config.onPasteRefused ? onPasteRefused(config.onPasteRefused) : [],
         EditorView.theme(EDITOR_THEME, { dark: true }),
       ],

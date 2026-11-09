@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import Slider, { type SliderSize, type SliderWidth } from "./Slider";
+import type { JSX } from "preact";
+import Slider, { type SliderSize, type SliderTrack, type SliderWidth } from "./Slider";
 
 const SIZES: Record<SliderSize, string> = {
   default: "Default",
@@ -9,6 +10,11 @@ const SIZES: Record<SliderSize, string> = {
 const WIDTHS: Record<SliderWidth, string> = {
   full: "Full width",
   default: "Default width",
+};
+
+const TRACKS: Record<SliderTrack, string> = {
+  default: "Default track",
+  opacity: "Opacity track",
 };
 
 function SliderDemo() {
@@ -25,6 +31,20 @@ function SliderDemo() {
           </div>
         </GalleryRow>
       ))}
+      <GalleryRow label="Every track">
+        <div class="grid max-w-md gap-2">
+          {(Object.keys(TRACKS) as SliderTrack[]).map((track) => (
+            <Slider
+              key={track}
+              track={track}
+              aria-label={TRACKS[track]}
+              defaultValue={50}
+              style={{ "--swatch": "#ff8800" } as JSX.CSSProperties}
+              data-gallery-control
+            />
+          ))}
+        </div>
+      </GalleryRow>
       <GalleryRow label={`Controlled, 25 to 100 in steps of 5: ${value}`}>
         <div class="max-w-md">
           <Slider
