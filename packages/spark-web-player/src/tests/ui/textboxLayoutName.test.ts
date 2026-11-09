@@ -45,7 +45,7 @@ describe("a layout and an element with the same name", () => {
     const roots = rootsOf(h);
     expect(roots.map((el) => el.className)).toEqual([
       "main",
-      "layout-textbox",
+      "layout_textbox",
     ]);
     const named = [...h.overlay.querySelectorAll<HTMLElement>(".textbox")];
     expect(named).toHaveLength(1);
@@ -58,19 +58,19 @@ describe("a layout and an element with the same name", () => {
 
   test("an author's self-named layout opens and closes by its name", async () => {
     const h = await opened(HUD, "hud");
-    expect(h.overlay.querySelector(".layout-hud"), h.overlay.innerHTML).not.toBeNull();
+    expect(h.overlay.querySelector(".layout_hud"), h.overlay.innerHTML).not.toBeNull();
     await h.game.module.ui.applyLayoutInstructions(
       [{ control: "close", name: "hud" }],
       true,
     );
     await flushMicrotasks(10);
-    expect(h.overlay.querySelector(".layout-hud")).toBeNull();
+    expect(h.overlay.querySelector(".layout_hud")).toBeNull();
     expect(h.overlay.querySelector(".hud")).toBeNull();
   });
 
   test("an author's self-named layout gives its name to the element, not the root", async () => {
     const h = await opened(HUD, "hud");
-    const root = h.overlay.querySelector<HTMLElement>(".layout-hud");
+    const root = h.overlay.querySelector<HTMLElement>(".layout_hud");
     expect(root, h.overlay.innerHTML).not.toBeNull();
     expect(root!.matches(".hud")).toBe(false);
     const element = root!.querySelector<HTMLElement>(":scope > .hud");
@@ -90,7 +90,7 @@ describe("a layout and an element with the same name", () => {
     );
     const root = h.overlay.querySelector<HTMLElement>(".layouts > .panel");
     expect(root, h.overlay.innerHTML).not.toBeNull();
-    expect(h.overlay.querySelector(".layout-panel")).toBeNull();
+    expect(h.overlay.querySelector(".layout_panel")).toBeNull();
     expect(h.game.module.ui.findIds("panel")).toEqual([root!.id]);
   });
 });

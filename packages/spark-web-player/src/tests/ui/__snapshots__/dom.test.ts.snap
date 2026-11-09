@@ -491,6 +491,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -743,8 +744,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -2833,6 +2838,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -3085,8 +3091,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -5141,6 +5151,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -5393,8 +5404,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -7567,6 +7582,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -7819,8 +7835,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -9856,6 +9876,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -10108,8 +10129,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -12129,6 +12154,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -12381,8 +12407,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -14446,6 +14476,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -14698,8 +14729,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -16481,7 +16516,7 @@ spark-web-player #game .end_mark {
                   "tag": "div",
                 },
               ],
-              "class": "layout-textbox",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -16993,6 +17028,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -17245,8 +17281,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -19028,7 +19068,7 @@ spark-web-player #game .end_mark {
                   "tag": "div",
                 },
               ],
-              "class": "layout-textbox",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -19540,6 +19580,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -19792,8 +19833,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -21575,7 +21620,7 @@ spark-web-player #game .end_mark {
                   "tag": "div",
                 },
               ],
-              "class": "layout-textbox",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -22087,6 +22132,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -22339,8 +22385,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -24122,7 +24172,7 @@ spark-web-player #game .end_mark {
                   "tag": "div",
                 },
               ],
-              "class": "layout-textbox",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -24634,6 +24684,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -24886,8 +24937,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -26669,7 +26724,7 @@ spark-web-player #game .end_mark {
                   "tag": "div",
                 },
               ],
-              "class": "layout-textbox",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

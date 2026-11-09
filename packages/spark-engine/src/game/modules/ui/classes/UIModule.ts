@@ -1876,7 +1876,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected layoutRootName(layoutName: string): string {
     return this.layoutHolds(layoutName, [layoutName])
-      ? `layout-${layoutName}`
+      ? `layout_${layoutName}`
       : layoutName;
   }
 

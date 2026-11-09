@@ -46,6 +46,8 @@ Image cues and layout directives still apply while no open layout holds a beat's
 
 A layout's name styles its root unless the layout holds an element of that name, in which case the name reaches the element.
 
+The `textbox` layout stacks above `main`'s `stage` and below `main`'s `screen`, so a `screen` animation such as a fade or flash covers the dialogue box. A layout opened later stacks above them both.
+
 ---
 
 ## 6.2 Overlays: `open` and `close`
