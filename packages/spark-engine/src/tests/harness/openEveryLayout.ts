@@ -1,5 +1,5 @@
 import type { Game } from "../../game/core/classes/Game";
-import { holdsPresentedText } from "../../game/core/classes/presenters/textLayouts";
+import { skippedInitialLayouts } from "../../game/core/classes/presenters/textLayouts";
 
 export function openEveryLayout(game: Game): void {
   const ui = game.module.ui as any;
@@ -8,12 +8,10 @@ export function openEveryLayout(game: Game): void {
     if (names.length > 0) {
       return construct(...names);
     }
-    const layouts = Object.keys(game.program?.sparkle?.layouts ?? {});
-    const mainHoldsText = holdsPresentedText(game, "main");
+    const skipped = skippedInitialLayouts(game);
     return construct(
-      ...layouts.filter(
-        (name) =>
-          name === "main" || !mainHoldsText || !holdsPresentedText(game, name),
+      ...Object.keys(game.program?.sparkle?.layouts ?? {}).filter(
+        (name) => !skipped.includes(name),
       ),
     );
   };

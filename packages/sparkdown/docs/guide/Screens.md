@@ -31,7 +31,7 @@ define ui as config with
 end
 ```
 
-An initial layout that holds dialogue elements is skipped when `main` already holds them, so a project whose own `layout main` contains a `textbox` or `dialogue` keeps one dialogue box. An explicit `[[open textbox]]` still opens the built-in layout.
+An initial layout with a dialogue box (a `textbox` or `dialogue` element) is skipped when `main` already holds text elements, so a project whose own `layout main` shows dialogue keeps one dialogue box. Any other layout in the list always opens. An explicit `[[open textbox]]` still opens the built-in layout.
 
 To hide the dialogue box, use the ordinary directives, and checkpoints and saves remember the result:
 

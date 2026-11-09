@@ -15,6 +15,8 @@ export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
   "choice",
 ];
 
+const DIALOGUE_BOX_ELEMENTS: readonly string[] = ["textbox", "dialogue"];
+
 export const UNSHOWN_TEXT_MESSAGE =
   "No open layout shows this text. Open textbox or textstream.";
 
@@ -58,8 +60,8 @@ export function initialLayouts(
       continue;
     }
     if (
-      holdsPresentedText(game, name, ui) &&
-      opened.some((open) => holdsPresentedText(game, open, ui))
+      ui.layoutHolds(name, DIALOGUE_BOX_ELEMENTS) &&
+      holdsPresentedText(game, "main", ui)
     ) {
       continue;
     }

@@ -134,6 +134,48 @@ end
     expect(initialLayouts(h.game)).toEqual(["main", "textbox"]);
   });
 
+  test("an overlay in layouts_initial opens beside textbox even when it holds a text element", async () => {
+    const source = `define ui as config with
+  layouts_initial = { "textbox", "inventory" }
+end
+
+layout inventory {
+  title {
+    text "Inventory"
+  }
+}
+
+scene start
+  Hello.
+end
+`;
+    const { h } = await previewAt(source, lineOf(source, "Hello."));
+    expect(initialLayouts(h.game)).toEqual(["main", "textbox", "inventory"]);
+    expect(mounted(h)).toEqual(["main", "textbox", "inventory"]);
+  });
+
+  test("an overlay in layouts_initial opens beside a project's own main while the built-in textbox is skipped", async () => {
+    const source = `define ui as config with
+  layouts_initial = { "textbox", "inventory" }
+end
+
+${OWN_MAIN}
+layout inventory {
+  title {
+    text "Inventory"
+  }
+}
+
+scene start
+  HERO: Hello.
+end
+`;
+    const { h } = await previewAt(source, lineOf(source, "HERO: Hello."));
+    expect(initialLayouts(h.game)).toEqual(["main", "inventory"]);
+    expect(mounted(h)).toEqual(["main", "inventory"]);
+    expect(shown(h, "dialogue")).toBe("Hello.");
+  });
+
   test("an explicit [[open textbox]] still opens the built-in layout beside a project's own main", async () => {
     const source = `${OWN_MAIN}\nscene start\n  HERO: Hi.\n  [[open textbox]]\n  HERO: Again.\nend\n`;
     const { h } = await previewAt(source, lineOf(source, "Again."));
