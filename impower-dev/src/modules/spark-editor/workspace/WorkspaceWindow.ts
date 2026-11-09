@@ -73,6 +73,7 @@ import {
 import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
@@ -1558,6 +1559,7 @@ export default class WorkspaceWindow {
               loading: false,
               running: true,
               paused: false,
+              picks: {},
             },
           },
         },
@@ -1582,6 +1584,8 @@ export default class WorkspaceWindow {
               loading: false,
               running: false,
               ended: false,
+              choosing: false,
+              picks: {},
             },
           },
         },
@@ -1618,7 +1622,7 @@ export default class WorkspaceWindow {
         ...this.store.preview,
         modes: {
           ...this.store.preview.modes,
-          game: { ...game, loading: true },
+          game: { ...game, loading: true, picks: {} },
         },
       },
     });
@@ -1676,6 +1680,31 @@ export default class WorkspaceWindow {
         modes: { ...this.store.preview.modes, game },
       },
     });
+  }
+
+  syncGameChose(option?: { uri: string; line: number }) {
+    const game = this.store.preview.modes.game;
+    if (!game.running) {
+      return;
+    }
+    const picks = game.picks ?? {};
+    const picked = option ? (picks[option.uri] ?? []) : [];
+    this.updateGame({
+      ...game,
+      choosing: false,
+      picks:
+        option && !picked.includes(option.line)
+          ? { ...picks, [option.uri]: [...picked, option.line] }
+          : picks,
+    });
+  }
+
+  syncGameChoosing(choosing: boolean) {
+    const game = this.store.preview.modes.game;
+    if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
+      return;
+    }
+    this.updateGame({ ...game, choosing });
   }
 
   async revealDocument(uri: string, range?: Range, takeFocus = true) {
@@ -1763,6 +1792,13 @@ export default class WorkspaceWindow {
     }
     const at = { line: position.line, character: 0 };
     void this.showDocument(position.uri, { start: at, end: at }, false);
+  }
+
+  continueGame() {
+    const game = this.store.preview.modes.game;
+    if (game.running && !game.ended && !game.paused) {
+      sendProtocolMessage(ContinueGameMessage.type.request({}));
+    }
   }
 
   async skipBeat(direction: -1 | 1): Promise<boolean> {

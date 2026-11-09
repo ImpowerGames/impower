@@ -30,6 +30,7 @@ import { useSettings } from "../../workspace/settings/useSettings";
 import {
   PREVIEW_MODES,
   type PreferenceKey,
+  type Preferences,
   type PreviewMode,
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
@@ -45,6 +46,8 @@ type PreviewToggleKey = Extract<
   | "previewIdleAnimations"
   | "previewTypingPauses"
   | "previewScreenplaySync"
+  | "screenplayPaper"
+  | "screenplayPaperTexture"
 >;
 
 export const VIEWING_MODES: Record<
@@ -86,11 +89,23 @@ export const PREVIEW_TOGGLES: Record<
     detail:
       "The screenplay preview scrolls to show the same line visible in the script editor.",
   },
+  screenplayPaper: {
+    name: "Screenplay paper matches my theme",
+    detail: "The colors of your writing page.",
+  },
+  screenplayPaperTexture: {
+    name: "Screenplay paper texture",
+    detail: "Display a faint paper grain.",
+  },
 };
 
 export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   game: ["previewFollowsCursor", "previewIdleAnimations", "previewTypingPauses"],
-  screenplay: ["previewScreenplaySync"],
+  screenplay: [
+    "previewScreenplaySync",
+    "screenplayPaper",
+    "screenplayPaperTexture",
+  ],
 };
 
 const STEPS: readonly {
@@ -102,6 +117,11 @@ const STEPS: readonly {
   { traversal: "in", label: "Step Into", icon: StepIntoIcon },
   { traversal: "out", label: "Step Out", icon: StepOutIcon },
 ];
+
+const isToggleOn = (preferences: Preferences, key: PreviewToggleKey) =>
+  key === "screenplayPaper"
+    ? preferences.screenplayPaper === "theme"
+    : preferences[key];
 
 const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
   const { Workspace } = await import("../../workspace/Workspace");
@@ -298,12 +318,16 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
       >
         {QUICK_TOGGLES[mode].map((key) => {
           const { name, detail } = PREVIEW_TOGGLES[key];
-          const checked = preferences[key];
+          const checked = isToggleOn(preferences, key);
           return (
             <DropdownCheckboxItem
               key={key}
               checked={checked}
-              onCheckedChange={(next) => setPreference(key, next)}
+              onCheckedChange={(next) =>
+                key === "screenplayPaper"
+                  ? setPreference(key, next ? "theme" : "paper")
+                  : setPreference(key, next)
+              }
               onSelect={(e) => e.preventDefault()}
               class="group min-h-14 items-center gap-3 py-2"
             >
@@ -333,9 +357,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
-  const playable = mode === "game";
   const refusals = stepRefusals({ ended, paused }, workspace.debugSession.value);
-  const steps = playable && running;
+  const steps = running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
     return (
@@ -352,12 +375,12 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
     <div
       role="group"
       aria-label="Playback controls"
-      data-running={playable && running ? "" : undefined}
+      data-running={running ? "" : undefined}
       class="group/bar relative z-[1] grid h-[52px] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 data-[running]:@max-[480px]:px-1"
     >
       <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start group-data-[running]/bar:@max-[480px]:gap-0">
         <ModeMenu mode={mode} />
-        {playable && playing ? (
+        {playing ? (
           <ControlButton
             label={paused ? "Resume" : "Pause"}
             icon={paused ? ResumeIcon : PauseIcon}
@@ -369,7 +392,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
             }
           />
         ) : null}
-        {playable && ended ? (
+        {ended ? (
           <ControlButton
             label="Play Again"
             icon={RestartIcon}
@@ -383,23 +406,21 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {steps && !phone ? stepButton("over") : null}
         {steps && !phone ? stepButton("in") : null}
         <SkipButton direction={-1} />
-        {playable ? (
-          <Button
-            variant="primary"
-            size="icon"
-            aria-label={running ? "Stop" : "Play From Here"}
-            title={refusal ?? (running ? "Stop" : "Play From Here")}
-            aria-disabled={refusal || loading ? true : undefined}
-            onClick={
-              refusal || loading
-                ? undefined
-                : () => void withWindow((window) => window.toggleGameRunning())
-            }
-            class="rounded-full border-0 aria-disabled:cursor-default aria-disabled:opacity-40 [&_svg]:size-6"
-          >
-            {running ? <StopIcon /> : <PlayIcon />}
-          </Button>
-        ) : null}
+        <Button
+          variant="primary"
+          size="icon"
+          aria-label={running ? "Stop" : "Play From Here"}
+          title={refusal ?? (running ? "Stop" : "Play From Here")}
+          aria-disabled={refusal || loading ? true : undefined}
+          onClick={
+            refusal || loading
+              ? undefined
+              : () => void withWindow((window) => window.toggleGameRunning())
+          }
+          class="rounded-full border-0 aria-disabled:cursor-default aria-disabled:opacity-40 [&_svg]:size-6"
+        >
+          {running ? <StopIcon /> : <PlayIcon />}
+        </Button>
         <SkipButton direction={1} />
         {steps && !phone ? stepButton("out") : null}
       </div>

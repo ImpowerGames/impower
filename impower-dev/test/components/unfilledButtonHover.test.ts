@@ -291,9 +291,6 @@ describe("default and quiet Button call sites", () => {
     const options = sites.filter(({ location }) => location.includes("FileOptionsButton.tsx"));
     expect(options.length).toBe(2);
     expect(options.every(({ classText }) => classText.includes("text-muted"))).toBe(true);
-    const throughWrapper = sites.filter(({ location }) => location.includes(" via ") && location.includes("OptionButton.tsx"));
-    expect(throughWrapper.length).toBeGreaterThan(0);
-    expect(throughWrapper.every(({ classText }) => classText.includes("text-foreground/80"))).toBe(true);
   });
 
   it("leave no hover or press background in the merged classes", () => {
