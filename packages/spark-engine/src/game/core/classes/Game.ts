@@ -3594,6 +3594,7 @@ export class Game<T extends M = {}> {
             this._story.currentDisplayInstructions,
             this._story.currentChoices.map((c) => c.text),
             this._story.currentText || "",
+            location,
           );
         }
 

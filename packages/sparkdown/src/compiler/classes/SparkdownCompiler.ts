@@ -240,6 +240,7 @@ import {
   runWrapperFunctionName,
   runWrapperUri,
 } from "../utils/runWrapper";
+import { frontMatterFields } from "../utils/frontMatterFields";
 import {
   programFlows,
   type StatementRecord,
@@ -1248,6 +1249,14 @@ export class SparkdownCompiler {
       files: {},
       filesEpoch: this._filesEpoch,
     };
+    const mainDocument = this.documents.get(uri);
+    const mainTree = mainDocument ? this.documents.tree(uri) : undefined;
+    if (mainDocument && mainTree) {
+      const frontMatter = frontMatterFields(mainTree, (from, to) => mainDocument.read(from, to));
+      if (Object.keys(frontMatter).length > 0) {
+        program.frontMatter = frontMatter;
+      }
+    }
 
     const state: SparkdownCompilerState = {
       projectScripts: this.projectScriptsOf(uri),
