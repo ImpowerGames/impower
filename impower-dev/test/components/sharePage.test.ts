@@ -7,6 +7,7 @@ const calls = vi.hoisted(() => ({
   downloads: [] as { name: string; type: string; parts: unknown[] }[],
   progress: [] as ((value?: { percentage?: number }) => void)[],
   release: [] as (() => void)[],
+  routes: [] as string[],
 }));
 
 const BUNDLE = { files: ["main.sd"] };
@@ -21,7 +22,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
     Workspace: {
       fs: { readProjectScriptBundle: async (id: string) => ({ ...BUNDLE, id }) },
       print: { exportPDF: run("pdf"), exportHTML: run("html") },
-      window: { navigateTo: () => {} },
+      window: { navigateTo: (route: string) => calls.routes.push(route) },
     },
   };
 });
@@ -62,6 +63,7 @@ beforeEach(() => {
   calls.downloads.length = 0;
   calls.progress.length = 0;
   calls.release.length = 0;
+  calls.routes.length = 0;
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local", name: "My story" },
@@ -90,6 +92,14 @@ describe("the Share page", () => {
     }
     const link = card("Export a game").querySelector<HTMLAnchorElement>('a[href*="marketplace.visualstudio.com"]')!;
     expect(link.textContent).toContain("Open your project in VS Code");
+  });
+
+  it("goes back to the story from its Back to story action", async () => {
+    await mount();
+    const back = [...host!.querySelectorAll("button")].find((el) => el.textContent?.includes("Back to story"))!;
+    await act(async () => back.click());
+    await settle();
+    expect(calls.routes).toEqual(["write"]);
   });
 
   it("names the screenplay settings and follows them when they change", async () => {

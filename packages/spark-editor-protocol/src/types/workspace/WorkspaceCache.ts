@@ -144,7 +144,6 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
-  outlineSearch?: boolean;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
