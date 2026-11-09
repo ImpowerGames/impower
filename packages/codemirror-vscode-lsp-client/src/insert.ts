@@ -394,11 +394,12 @@ export const insertConstruct =
     return true;
   };
 
-export async function readSceneSpans(
+export async function insertConstructFromServer(
   view: EditorView,
-): Promise<SceneSpan[] | null> {
+  construct: InsertConstruct,
+): Promise<boolean> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin) return null;
+  if (!plugin) return false;
   plugin.client.sync();
   const doc = view.state.doc;
   const symbols = await plugin.client
@@ -408,15 +409,13 @@ export async function readSceneSpans(
       typeof lsp.DocumentSymbolRequest.method
     >("textDocument/documentSymbol", { textDocument: { uri: plugin.uri } })
     .catch(() => undefined);
-  return symbols !== undefined && view.state.doc === doc
-    ? sceneSpansOf(symbols)
-    : null;
-}
-
-export async function insertConstructFromServer(
-  view: EditorView,
-  construct: InsertConstruct,
-): Promise<boolean> {
-  const scenes = await readSceneSpans(view);
-  return !!scenes && insertConstruct(construct, scenes)(view);
+  if (
+    symbols === undefined ||
+    LSPPlugin.get(view) !== plugin ||
+    plugin.client.workspace.getFile(plugin.uri)?.getView() !== view ||
+    view.state.doc !== doc
+  ) {
+    return false;
+  }
+  return insertConstruct(construct, sceneSpansOf(symbols))(view);
 }

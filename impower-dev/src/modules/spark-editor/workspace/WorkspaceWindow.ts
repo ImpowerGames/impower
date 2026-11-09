@@ -448,7 +448,7 @@ export default class WorkspaceWindow {
       return null;
     }
     const { text } = editor.textDocument;
-    const { line, character } = editor.selection.end;
+    const { line, character } = editor.caret;
     const offset = text
       .split("\n")
       .slice(0, line)
@@ -1412,7 +1412,7 @@ export default class WorkspaceWindow {
     if (!editor) {
       return null;
     }
-    const position = editor.selection.end;
+    const position = editor.caret;
     const textDocument = { uri };
     await ls.initialization();
     const [highlights, definitions] = await Promise.all([

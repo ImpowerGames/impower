@@ -444,6 +444,7 @@ export class ScriptEditorController {
       return ReadEditorMessage.type.response(message.id, {
         textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
         selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
+        caret: convertToPosition(view.state.doc, view.state.selection.main.head),
         coordinates,
       });
     }, this.host);

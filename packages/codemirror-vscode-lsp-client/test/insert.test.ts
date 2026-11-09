@@ -4,7 +4,8 @@ import { EditorView } from "@codemirror/view";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { getDocumentSymbols } from "../../sparkdown-language-server/src/utils/providers/getDocumentSymbols";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { LSPClient } from "../src/client";
 import {
   INSERT_CONSTRUCTS,
   insertConstruct,
@@ -29,7 +30,7 @@ const caretAt = (source: string, marker: string, shift = 0) => {
 
 const SYMBOLS_URI = "file:///insert.sd";
 
-const scenesOf = (source: string) => {
+const symbolsOf = (source: string) => {
   const documents = new SparkdownDocumentRegistry(["declarations"]);
   documents.set({
     textDocument: {
@@ -39,14 +40,14 @@ const scenesOf = (source: string) => {
       languageId: "sparkdown",
     },
   });
-  return sceneSpansOf(
-    getDocumentSymbols(
-      documents.get(SYMBOLS_URI)!,
-      documents.annotations(SYMBOLS_URI),
-      documents.tree(SYMBOLS_URI),
-    ),
+  return getDocumentSymbols(
+    documents.get(SYMBOLS_URI)!,
+    documents.annotations(SYMBOLS_URI),
+    documents.tree(SYMBOLS_URI),
   );
 };
+
+const scenesOf = (source: string) => sceneSpansOf(symbolsOf(source));
 
 const contextAt = (source: string, offset: number) =>
   insertContext(source, offset, scenesOf(source));
@@ -488,6 +489,80 @@ describe("structure read from the language server", () => {
     } finally {
       view.destroy();
     }
+  });
+});
+
+describe("insertConstructFromServer", () => {
+  const SOURCE = lines("scene start", "  Hello.", "end");
+  const views: EditorView[] = [];
+
+  afterEach(() => {
+    views.splice(0).forEach((view) => view.destroy());
+    vi.restoreAllMocks();
+  });
+
+  const pending = () => {
+    const client = new LSPClient();
+    let resolve!: (value: unknown) => void;
+    const response = new Promise((done) => {
+      resolve = done;
+    });
+    vi.spyOn(client, "request").mockReturnValue(response as never);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: SOURCE,
+        selection: { anchor: SOURCE.indexOf("Hello.") },
+        extensions: [
+          client.plugin({ uri: SYMBOLS_URI, version: 1 }, "sparkdown"),
+        ],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+    return { view, resolve: () => resolve(symbolsOf(SOURCE)) };
+  };
+
+  it("inserts with the server's scenes once they arrive", async () => {
+    const { view, resolve } = pending();
+    const result = insertConstructFromServer(view, "branch");
+    resolve();
+    expect(await result).toBe(true);
+    expect(view.state.doc.toString()).toContain(
+      lines("  Hello.", "  branch new_branch", "    ", "  end", "end"),
+    );
+  });
+
+  it("inserts nothing when the script changed while the server answered", async () => {
+    const { view, resolve } = pending();
+    const result = insertConstructFromServer(view, "branch");
+    view.dispatch({ changes: { from: 0, insert: LF } });
+    resolve();
+    expect(await result).toBe(false);
+    expect(view.state.doc.toString()).toBe(LF + SOURCE);
+  });
+
+  it("never applies an answer to a script edited after it arrived", async () => {
+    const { view, resolve } = pending();
+    const outside = "store gold = 1";
+    const result = insertConstructFromServer(view, "branch");
+    resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: outside },
+      selection: { anchor: 0 },
+    });
+    await result;
+    expect(view.state.doc.toString()).toBe(outside);
+  });
+
+  it("inserts nothing into an editor destroyed while the server answered", async () => {
+    const { view, resolve } = pending();
+    const result = insertConstructFromServer(view, "branch");
+    view.destroy();
+    resolve();
+    expect(await result).toBe(false);
+    expect(view.state.doc.toString()).toBe(SOURCE);
   });
 });
 

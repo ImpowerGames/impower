@@ -85,7 +85,6 @@ export {
   insertContext,
   isInsertConstruct,
   planInsertion,
-  readSceneSpans,
   sceneSpansOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,

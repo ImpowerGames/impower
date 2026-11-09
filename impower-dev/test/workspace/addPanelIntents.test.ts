@@ -85,7 +85,11 @@ const SCRIPT = [
   "",
 ].join(String.fromCharCode(10));
 
-const editorReading = (line: number, character: number) => {
+const editorReading = (
+  line: number,
+  character: number,
+  end = { line, character },
+) => {
   stops.push(
     onProtocolRequest(ReadEditorMessage.type, (message) =>
       ReadEditorMessage.type.response(message.id, {
@@ -96,8 +100,9 @@ const editorReading = (line: number, character: number) => {
         },
         selection: {
           start: { line, character },
-          end: { line, character },
+          end,
         },
+        caret: { line, character },
         coordinates: null,
       }),
     ),
@@ -153,6 +158,12 @@ describe("the Add panel intents", () => {
     stops.splice(0).forEach((stop) => stop());
     editorReading(0, 3);
     expect(await w.readInsertContext("main.sd")).toEqual({ inScene: false });
+  });
+
+  it("reads the caret, not the selection's later end, for a backward selection", async () => {
+    const w = mount();
+    editorReading(3, 4, { line: 5, character: 0 });
+    expect(await w.readInsertContext("main.sd")).toEqual({ inScene: true });
   });
 
   it("closes and asks the script's editor to insert the construct", async () => {
