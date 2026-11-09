@@ -25,6 +25,14 @@ export {
   type DialogSize,
 } from "./dialog/Dialog";
 export {
+  default as Disclosure,
+  disclosureVariants,
+  disclosureSummaryVariants,
+  type DisclosureProps,
+  type DisclosureSize,
+  type DisclosureEdge,
+} from "./disclosure/Disclosure";
+export {
   DropdownRoot,
   DropdownTrigger,
   DropdownSeparator,
@@ -151,6 +159,8 @@ export {
   ChoiceRow,
   SettingsFoot,
   SettingsPlaceholder,
+  FactRow,
+  SliderRow,
   settingsRowVariants,
   type SettingsSectionProps,
   type SettingsGroupProps,
@@ -161,6 +171,8 @@ export {
   type SwitchRowProps,
   type SelectRowProps,
   type TextRowProps,
+  type FactRowProps,
+  type SliderRowProps,
   type ChoiceRowProps,
   type ChoiceRowOption,
   type SettingsFootProps,
@@ -175,6 +187,22 @@ export {
   type RailIndexItem,
   type RailIndexDepth,
 } from "./rail-index/RailIndex";
+export {
+  default as FeatureCard,
+  featureCardVariants,
+  type FeatureCardProps,
+  type FeatureCardSize,
+} from "./feature-card/FeatureCard";
+export {
+  default as PageFrame,
+  pageFrameVariants,
+  pageFrameInnerVariants,
+  pageFrameIntroVariants,
+  pageFrameTitleVariants,
+  pageFrameBackVariants,
+  type PageFrameProps,
+  type PageFrameSize,
+} from "./page-frame/PageFrame";
 export {
   default as JumpChips,
   jumpChipVariants,
@@ -199,3 +227,17 @@ export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";
 export * from "../layout";
+export {
+  default as Slider,
+  sliderVariants,
+  type SliderProps,
+  type SliderSize,
+  type SliderWidth,
+} from "./slider/Slider";
+export {
+  default as PortraitThumbnail,
+  portraitThumbnailVariants,
+  portraitCropLabel,
+  type PortraitThumbnailProps,
+  type PortraitThumbnailSize,
+} from "./portrait-thumbnail/PortraitThumbnail";

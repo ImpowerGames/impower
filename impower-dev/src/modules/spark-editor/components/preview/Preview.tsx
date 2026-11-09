@@ -3,6 +3,7 @@ import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
+import workspace from "../../workspace/WorkspaceStore";
 import PreviewBar from "../preview-bar/PreviewBar";
 import PreviewGame from "../preview-game/PreviewGame";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
@@ -14,6 +15,13 @@ export type PreviewProps = Partial<typeof propDefaults>;
 const BAR_HEIGHT = PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
 const PANEL_MIN_HEIGHT = 144;
 const STAGE_MIN_HEIGHT = 160;
+
+const playerClass = (mode: string, choosing: boolean) => {
+  if (mode === "game") {
+    return "contents";
+  }
+  return choosing ? "absolute inset-0 z-[2] flex flex-col bg-stage" : "hidden";
+};
 
 function useFullscreen() {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -42,7 +50,20 @@ export default function Preview(_props: PreviewProps) {
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const { ref, fullscreen, toggle } = useFullscreen();
 
-  const stage = mode === "game" ? <PreviewGame /> : <PreviewScreenplay />;
+  const game = workspace.state.value.preview?.modes?.game;
+  const choosing = !!game?.running && !!game?.choosing;
+
+  const stage = (
+    <>
+      <div
+        class={playerClass(mode, choosing)}
+        data-choosing={mode !== "game" && choosing ? "" : undefined}
+      >
+        <PreviewGame />
+      </div>
+      {mode === "screenplay" ? <PreviewScreenplay /> : null}
+    </>
+  );
 
   const bar = (
     <PreviewBar fullscreen={fullscreen} onToggleFullscreen={toggle} />
@@ -62,7 +83,7 @@ export default function Preview(_props: PreviewProps) {
       <PreviewTopBar />
       {phone ? (
         <>
-          <div class="flex min-h-0 flex-1 flex-col bg-stage">{stage}</div>
+          <div class="relative flex min-h-0 flex-1 flex-col bg-stage">{stage}</div>
           {bar}
         </>
       ) : (
@@ -78,7 +99,7 @@ export default function Preview(_props: PreviewProps) {
             reserve: STAGE_MIN_HEIGHT,
             onSizeChange: onPanelHeightChange,
           }}
-          start={<div class="flex h-full flex-col bg-stage">{stage}</div>}
+          start={<div class="relative flex h-full flex-col bg-stage">{stage}</div>}
           end={
             <div class="flex h-full flex-col">
               {bar}

@@ -1,7 +1,14 @@
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview";
 import { useEffect, useRef } from "preact/hooks";
 import { editorAtSend } from "../../workspace/editorAtSend";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
+import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+
+const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
+  const { Workspace } = await import("../../workspace/Workspace");
+  act(Workspace.window);
+};
 
 export const propDefaults = {};
 export type PreviewScreenplayProps = Partial<typeof propDefaults>;
@@ -171,13 +178,47 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
     });
   }, [textPulledAt]);
 
+  const preferences = workspaceSettings.preferences.value;
+  const game = workspace.state.value.preview?.modes?.game;
+  const playing = !!game?.running && !game?.ended;
+
   return (
-    <>
-      <div class="relative flex flex-1 min-h-0">
-        <div class="absolute inset-0 flex flex-col overflow-y-auto">
-          <SparkdownScreenplayPreview scrollMargin="auto auto 60px auto" />
-        </div>
+    <div
+      role="region"
+      aria-label="Screenplay"
+      tabIndex={0}
+      data-playing={playing ? "" : undefined}
+      class="relative flex flex-1 min-h-0 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent"
+      onMouseDownCapture={(e) => {
+        if (playing) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.currentTarget.focus({ preventScroll: true });
+        }
+      }}
+      onClick={() => {
+        if (playing) {
+          void withWindow((window) => window.continueGame());
+        }
+      }}
+      onKeyDown={(e) => {
+        if (playing && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          void withWindow((window) => window.continueGame());
+        }
+      }}
+    >
+      <div class="absolute inset-0 flex flex-col overflow-y-auto">
+        <SparkdownScreenplayPreview
+          scrollMargin="auto auto 60px auto"
+          config={workspaceSettings.screenplayConfig.value}
+          paper={preferences.screenplayPaper}
+          texture={preferences.screenplayPaperTexture}
+          syncScroll={preferences.previewScreenplaySync}
+          playing={playing}
+          picks={game?.picks}
+        />
       </div>
-    </>
+    </div>
   );
 }

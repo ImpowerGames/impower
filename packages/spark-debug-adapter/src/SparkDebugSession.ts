@@ -54,7 +54,10 @@ import {
   Variable,
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
-import { SparkdownDebugManager } from "../managers/SparkdownDebugManager";
+
+export interface SparkDebugSessionHost {
+  readonly syncCursorToExecution: boolean;
+}
 
 export interface FileAccessor {
   isWindows: boolean;
@@ -83,6 +86,8 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _connection: Connection;
 
+  private _host: SparkDebugSessionHost;
+
   private _variableHandles = new Handles<{
     scope: "temps" | "vars" | "defines";
     threadId?: number;
@@ -109,12 +114,17 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _finishFirstRead: (() => void) | undefined;
 
-  public constructor(fileAccessor: FileAccessor, connection: Connection) {
+  public constructor(
+    fileAccessor: FileAccessor,
+    connection: Connection,
+    host: SparkDebugSessionHost,
+  ) {
     super("mock-debug.txt");
 
     this._fileAccessor = fileAccessor;
 
     this._connection = connection;
+    this._host = host;
     this._connection.connectInput((msg) => this.onReceive(msg));
 
     this.setDebuggerLinesStartAt1(false);
@@ -183,7 +193,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       await this.sendStoppedEvent("breakpoint", message.params.run);
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
-      if (SparkdownDebugManager.instance.syncCursorToExecution) {
+      if (this._host.syncCursorToExecution) {
         await this.sendStoppedEvent("awaiting interaction", message.params.run);
       }
     }

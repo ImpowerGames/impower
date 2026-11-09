@@ -105,12 +105,15 @@ export default function ScreenplaySection({ section }: { section: SettingsSectio
           {on("screenplayBranchNames", "Branch names", "Print branch names where they are declared.")}
         </SettingsList>
       </SettingsGroup>
-      <SettingsGroup legend="Printed when exporting to PDF" note="These settings do not affect the in-engine preview.">
+      <SettingsGroup
+        legend="Printed when exporting to PDF"
+        note="Apart from the paper size, these settings do not affect the in-engine preview."
+      >
         <SettingsList>
           <SelectRow
             id={`${id}-screenplayPaperSize`}
             name="Paper size"
-            detail="The size of the paper to print to."
+            detail="The size of the paper to print to. The screenplay preview's page takes its proportions."
             setting="screenplayPaperSize"
             options={PAPER_SIZE_OPTIONS}
             value={settings.screenplayPaperSize}

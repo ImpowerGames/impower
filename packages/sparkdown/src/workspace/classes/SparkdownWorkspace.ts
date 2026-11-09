@@ -1020,6 +1020,7 @@ export abstract class SparkdownWorkspace {
             files: {},
             version: result.program.version,
             playRefusal: playRefusalOf(result.program),
+            frontMatter: result.program.frontMatter,
           },
         }
       : result;
