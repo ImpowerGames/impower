@@ -23,6 +23,11 @@ export class RunRecord {
     return this._beats[this._at];
   }
 
+  protected _moves = 0;
+  get moves(): number {
+    return this._moves;
+  }
+
   get first(): RunBeat | undefined {
     return this._beats[0];
   }
@@ -42,15 +47,18 @@ export class RunRecord {
   clear(): void {
     this._beats = [];
     this._at = -1;
+    this._moves += 1;
   }
 
   record(beat: RunBeat): void {
     this._beats.push(beat);
     this._at = this._beats.length - 1;
+    this._moves += 1;
   }
 
   moveTo(index: number): void {
     this._at = index;
+    this._moves += 1;
   }
 
   truncateAfterCurrent(): void {
@@ -93,6 +101,9 @@ export class RunRecord {
     const kept = this._beats.filter((beat) => !checkpoints.has(beat.checkpoint));
     this._beats = kept;
     this._at = current ? kept.indexOf(current) : kept.length - 1;
+    if (this.current !== current) {
+      this._moves += 1;
+    }
   }
 }
 

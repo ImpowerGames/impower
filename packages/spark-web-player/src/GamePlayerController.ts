@@ -2340,7 +2340,8 @@ export class GamePlayerController {
     const app = this.controlledApp;
     const wasPaused = app?.paused;
     app?.unpause();
-    if (this._workerPlay?.state === "starting") {
+    const play = this._workerPlay;
+    if (play?.state === "starting" && !play.startSent) {
       this.updateLaunchStateIcon();
       return ContinueGameMessage.type.response(message.id, { done: false, run });
     }

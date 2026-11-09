@@ -3,6 +3,7 @@ import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/cl
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { describe, expect, it } from "vitest";
+import { StartPlayMessage } from "../../main/workers/messages/StartPlayMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `store mood = 0
@@ -70,6 +71,55 @@ describe("the player's own Resume", () => {
       expect(resumed.stopped).toBe(false);
       expect(resumed.line).toBeGreaterThan(stepped.line);
     } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("runs on a Step taken while the worker's start answer is still on its way", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+      manualClock: true,
+    });
+    const c = h.controller as any;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let reached: () => void = () => {};
+    const started = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const request = h.link.request.bind(h.link);
+    h.link.request = (async (type: any, params: any) => {
+      const answer = await request(type, params);
+      if (type.method === StartPlayMessage.method) {
+        reached();
+        await gate;
+      }
+      return answer;
+    }) as any;
+    let starting: Promise<boolean> | undefined;
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      await settle(40);
+      await c.handleEnableGameDebug(EnableGameDebugMessage.type.request({}));
+      starting = c.startGameAndApp();
+      await started;
+      expect(c._workerPlay.state).toBe("starting");
+      await c.pauseGame();
+      await c.handleStepGame(StepGameMessage.type.request({ traversal: "over" }));
+      const threads = () =>
+        c.handleGetGameThreads(GetGameThreadsMessage.type.request({}));
+      expect((await threads()).result.stopped).toBe(true);
+      await c.resumeGame();
+      release();
+      expect(await starting).toBe(true);
+      expect((await threads()).result.stopped).toBe(false);
+    } finally {
+      release();
+      await starting;
       h.dispose();
     }
   }, 120_000);

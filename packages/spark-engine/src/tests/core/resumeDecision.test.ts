@@ -116,6 +116,60 @@ describe("deciding whether Resume advances the story", () => {
     expect(game.awaitingResume).toBe(false);
   });
 
+  it("resumes in place after history leaves a stopped beat and returns to it", async () => {
+    const { game, methods, shown } = createGame();
+    game.start();
+    game.step("over");
+    game.step("over");
+    expect(game.awaitingResume).toBe(true);
+    const stopped = shown();
+    expect((await game.rollBack("beat")).moved).toBe(true);
+    expect((await game.rollForward("beat")).moved).toBe(true);
+    expect(shown()).toBe(stopped);
+    expect(game.awaitingResume).toBe(false);
+    game.pause();
+    methods.length = 0;
+    expect(game.resume()).toBe(false);
+    expect(shown()).toBe(stopped);
+    expect(methods).not.toContain("game/awaitingInteraction");
+  });
+
+  it("stops being held when a loop presents a new beat at the stop's address", () => {
+    const loop = compileProgram("scene start\n  Again.\n  -> start\nend\n");
+    const game = new Game({
+      program: loop,
+      now: () => 0,
+      setTimeout: (handler: Function) => {
+        handler();
+        return 0;
+      },
+    } as never);
+    game.start();
+    for (let i = 0; i < 20; i += 1) {
+      game.step("over");
+      if (game.story.asyncContinueComplete && !game.module.interpreter.hasQueuedBeats) {
+        break;
+      }
+    }
+    expect(game.awaitingResume).toBe(true);
+    const address = game.programStory.previousAddress;
+    game.clickedToContinue();
+    expect(game.programStory.previousAddress).toBe(address);
+    expect(game.awaitingResume).toBe(false);
+  });
+
+  it("stays held when the story is repositioned and then restored to the stop", () => {
+    const { game } = createGame();
+    game.start();
+    game.step("over");
+    game.step("over");
+    const image = game.programStory.capture();
+    game.jumpToFlow("start");
+    expect(game.awaitingResume).toBe(false);
+    expect(game.programStory.restore(image)).toBe(true);
+    expect(game.awaitingResume).toBe(true);
+  });
+
   it("advances a playing game, as a click does", () => {
     const { game, shown } = createGame();
     game.start();

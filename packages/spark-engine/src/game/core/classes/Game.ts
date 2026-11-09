@@ -422,7 +422,7 @@ export class Game<T extends M = {}> {
     const stop = this._stop;
     return (
       stop !== null &&
-      stop.beat === this._run.current &&
+      stop.runMoves === this._run.moves &&
       stop.address === this._positions.previous()
     );
   }
@@ -4172,6 +4172,7 @@ export class Game<T extends M = {}> {
     this._stop = {
       reason,
       beat: this._run.current,
+      runMoves: this._run.moves,
       address: this._positions.previous(),
       location: this._executingLocation,
       queued: this.module.interpreter.hasQueuedBeats,
