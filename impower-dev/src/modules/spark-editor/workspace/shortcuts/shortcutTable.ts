@@ -15,6 +15,29 @@ export const APP_SHORTCUT_ROWS = [
     detail: "Play the story from the caret, or stop it.",
     keys: "",
   },
+  {
+    id: "stepOver",
+    group: "story",
+    name: "Step over",
+    detail: "While paused, run to the next statement, passing over a call.",
+    keys: "F10",
+  },
+  {
+    id: "stepInto",
+    group: "story",
+    name: "Step into",
+    detail: "While paused, run to the next statement, entering a call.",
+    keys: { key: "F11", mac: "Ctrl+F11" },
+    aliases: ["Ctrl+F11"],
+  },
+  {
+    id: "stepOut",
+    group: "story",
+    name: "Step out",
+    detail: "While paused, run until the current call returns.",
+    keys: { key: "Shift+F11", mac: "Ctrl+Shift+F11" },
+    aliases: ["Ctrl+Shift+F11"],
+  },
 ] as const satisfies readonly ShortcutRow[];
 
 export type AppShortcutId = (typeof APP_SHORTCUT_ROWS)[number]["id"];

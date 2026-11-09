@@ -3,7 +3,6 @@ import { EditorView } from "@codemirror/view";
 import {
   coarsePointer,
   contextMenu,
-  editorToolCommands,
   isContextMenuOpen,
   showContextMenu,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -37,33 +36,6 @@ const mount = (coarse: boolean) => {
   });
   return view;
 };
-
-describe("the keyboard toolbar's Search key", () => {
-  it("asks the host for Find instead of opening the editor's own panel", async () => {
-    const find = vi.fn();
-    const parent = document.body.appendChild(document.createElement("div"));
-    view = new EditorView({
-      state: EditorState.create({
-        doc: "Hello",
-        extensions: [
-          contextMenu(),
-          keyboardToolbar(),
-          touchAffordances(true),
-          editorToolCommands.of({ find }),
-        ],
-      }),
-      parent,
-    });
-    await showKeyboard(view);
-    view.dom
-      .querySelector<HTMLElement>(".cm-keyboard-toolbar .cm-button")!
-      .dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
-      );
-    expect(find).toHaveBeenCalledTimes(1);
-    expect(view.dom.querySelector(".cm-panel.cm-search")).toBeNull();
-  });
-});
 
 const showKeyboard = async (v: EditorView) => {
   v.focus();

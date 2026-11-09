@@ -2,7 +2,11 @@ import { closeLintPanel } from "@codemirror/lint";
 import { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { closeReferencePanel } from "@impower/codemirror-vscode-lsp-client/src";
-import { closeKeyboardToolbar, openKeyboardToolbar } from "./keyboardToolbar";
+import {
+  closeKeyboardToolbar,
+  hasScriptMode,
+  openKeyboardToolbar,
+} from "./keyboardToolbar";
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -42,7 +46,9 @@ const viewportPlugin = ViewPlugin.fromClass(
         );
         document.documentElement.classList.add("keyboard-open");
         this.view.dom.classList.add("keyboard-open");
-        openKeyboardToolbar(this.view);
+        if (!hasScriptMode(this.view.state)) {
+          openKeyboardToolbar(this.view);
+        }
         closeLintPanel(this.view);
         closeReferencePanel(this.view);
       });
@@ -55,7 +61,9 @@ const viewportPlugin = ViewPlugin.fromClass(
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
-        closeKeyboardToolbar(this.view);
+        if (!hasScriptMode(this.view.state)) {
+          closeKeyboardToolbar(this.view);
+        }
       });
     }
 

@@ -3,13 +3,13 @@ import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { routeOfState } from "../../workspace/routes";
-import { storyScriptOf } from "../../workspace/useActiveEditor";
+import { storyScriptOf, useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { PhoneSearch } from "../find-references-rename";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
-import { workspaceWindow } from "./workspaceWindow";
+import { withWindow, workspaceWindow } from "./workspaceWindow";
 
 function BackToStory({ onBack }: { onBack: () => void }) {
   return (
@@ -44,6 +44,20 @@ export function PhonePreviewBack() {
   );
 }
 
+const takesEditingAway = (target: EventTarget | null) => {
+  if (!(target instanceof Element) || target.closest("[data-keyboard-panel]")) {
+    return false;
+  }
+  const surface = target.closest(
+    '[role="menu"], [role="dialog"], [role="alertdialog"]',
+  );
+  return (
+    !!surface &&
+    !surface.matches("[data-action-sheet]") &&
+    !surface.querySelector("[data-action-sheet]")
+  );
+};
+
 export default function PhoneShell({
   children,
 }: {
@@ -56,8 +70,37 @@ export default function PhoneShell({
     () => !!workspace.state.value.preview?.revealed,
   ).value;
   const [scrolled, setScrolled] = useState(false);
+  const editing = useScriptMode() === "editing";
 
   useEffect(() => setScrolled(false), [route]);
+
+  useEffect(() => {
+    if (editing && !writing) {
+      void withWindow((win) => win.finishEditing());
+    }
+  }, [editing, writing]);
+
+  useEffect(
+    () => () => {
+      if (workspace.scriptMode.peek() === "editing") {
+        void withWindow((win) => win.finishEditing());
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!editing) {
+      return;
+    }
+    const onFocusIn = (event: FocusEvent) => {
+      if (takesEditingAway(event.target)) {
+        void withWindow((win) => win.finishEditing());
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [editing]);
 
   useEffect(() => {
     if (previewRevealed && !writing) {
@@ -69,6 +112,7 @@ export default function PhoneShell({
     <div
       data-phone-shell
       data-naming={naming ?? undefined}
+      data-editing={editing ? "" : undefined}
       class="flex h-full min-h-0 w-full flex-col"
     >
       <PhoneTitleBar scrolled={!writing && scrolled} />

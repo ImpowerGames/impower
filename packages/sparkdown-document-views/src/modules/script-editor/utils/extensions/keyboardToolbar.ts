@@ -1,69 +1,167 @@
-import { indentLess, indentMore, redo, undo } from "@codemirror/commands";
-import { openFind } from "@impower/codemirror-vscode-lsp-client/src";
+import { indentLess, indentMore } from "@codemirror/commands";
 import {
   EditorState,
-  Extension,
+  type Extension,
   Facet,
   StateEffect,
   StateField,
 } from "@codemirror/state";
 import {
-  Command,
+  type Command,
   EditorView,
-  Panel,
-  PanelConstructor,
+  type Panel,
+  type PanelConstructor,
   showPanel,
+  ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
-import { ContextMenuItem } from "@impower/codemirror-vscode-lsp-client/src/context";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
+import { openCustomGotoLinePanel } from "./customSearch";
+import { scriptModeField, setScriptMode } from "./scriptMode";
 
+export type KeyboardToolbarTool = "writingTools" | "add";
 
-const keyboardToolbarTheme = EditorView.theme({
-  ".cm-keyboard-toolbar": {
-    color: "var(--editor-ink)",
-    border: "none",
-    borderTop: "1px color-mix(in srgb, var(--ink) 10%, transparent) solid",
-    padding: "0 8px",
-    display: "flex",
-    alignItems: "stretch",
-    justifyContent: "space-around",
-    overflowX: "auto",
-    zIndex: "100",
-    backgroundColor: "inherit",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "none",
-    touchAction: "pan-x",
+type ToolbarCommandItem = {
+  id: string;
+  label: string;
+  icon: keyof typeof iconMasks;
+  command: Command;
+};
+
+type ToolbarToolItem = {
+  id: KeyboardToolbarTool;
+  label: string;
+  icon: keyof typeof iconMasks;
+  tool: KeyboardToolbarTool;
+  text?: boolean;
+  disabled?: boolean;
+  title?: string;
+};
+
+type ToolbarPositionItem = { id: "position"; position: true };
+
+type ToolbarItem = ToolbarCommandItem | ToolbarToolItem | ToolbarPositionItem;
+
+export type ToolbarEntry = {
+  placement: "start" | "center" | "end";
+  group?: string;
+  items: ToolbarItem[];
+};
+
+export const KEYBOARD_TOOLBAR_TABLE: readonly ToolbarEntry[] = [
+  {
+    placement: "start",
+    group: "Indentation",
+    items: [
+      { id: "indent", label: "Indent", icon: "indent", command: indentMore },
+      { id: "dedent", label: "Dedent", icon: "dedent", command: indentLess },
+    ],
   },
-  ".cm-keyboard-toolbar::-webkit-scrollbar": {
-    display: "none",
+  {
+    placement: "start",
+    items: [
+      {
+        id: "format",
+        label: "Format script",
+        icon: "format",
+        command: formatDocument,
+      },
+      {
+        id: "writingTools",
+        label: "Writing tools",
+        icon: "more",
+        tool: "writingTools",
+      },
+    ],
+  },
+  {
+    placement: "center",
+    items: [{ id: "position", position: true }],
+  },
+  {
+    placement: "end",
+    items: [
+      {
+        id: "add",
+        label: "Add",
+        icon: "plus",
+        tool: "add",
+        text: true,
+        disabled: true,
+        title: "Adding scenes, branches and characters is coming soon",
+      },
+    ],
+  },
+];
+
+const keyboardToolbarTheme = EditorView.baseTheme({
+  ".cm-keyboard-toolbar": {
+    color: "var(--ink)",
+    backgroundColor: "var(--paper)",
+    border: "none",
+    borderTop: "1px solid var(--edge)",
+    padding: "0 4px",
+    height: "52px",
+    minHeight: "52px",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: "100",
+  },
+  ".cm-keyboard-toolbar.cm-keyboard-toolbar-headed > *": {
+    visibility: "hidden",
+  },
+  ".cm-toolbar-placement": {
+    display: "flex",
+    alignItems: "center",
+    flex: "0 1 auto",
+    minWidth: "0",
+  },
+  ".cm-toolbar-group": {
+    display: "flex",
+    alignItems: "center",
   },
   ".cm-keyboard-toolbar .cm-button": {
     position: "relative",
-    display: "flex",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    minWidth: "44px",
+    minHeight: "44px",
+    padding: "0 10px",
     border: "none",
-    fontSize: "14px",
-    touchAction: "manipulation",
+    fontSize: "13px",
+    fontFamily: "var(--font-ui)",
+    color: "inherit",
     backgroundImage: "none",
-    backgroundColor: "inherit",
+    backgroundColor: "transparent",
     boxShadow: "none",
     flexShrink: 0,
     whiteSpace: "nowrap",
-    alignItems: "center",
-    justifyContent: "center",
     borderRadius: "var(--control-radius)",
+    touchAction: "manipulation",
   },
-  ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-label)": {
-    padding: "6px 12px",
-    border: "1px color-mix(in srgb, var(--ink) 20%, transparent) solid",
+  ".cm-keyboard-toolbar .cm-button:disabled": {
+    color: "var(--muted)",
   },
-  ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-icon)": {
-    padding: "8px",
+  ".cm-keyboard-toolbar .cm-toolbar-add": {
+    color: "var(--accent)",
+    border: "1px solid var(--edge)",
+    paddingLeft: "12px",
+    paddingRight: "12px",
   },
-  ".cm-keyboard-toolbar .cm-button .cm-toolbar-icon": {
-    width: "24px",
-    height: "24px",
+  ".cm-keyboard-toolbar .cm-toolbar-position": {
+    color: "var(--muted)",
+    fontSize: "11px",
+  },
+  ".cm-keyboard-toolbar .cm-toolbar-icon": {
+    width: "20px",
+    height: "20px",
     display: "inline-block",
+    flexShrink: 0,
     backgroundColor: "currentColor",
     maskRepeat: "no-repeat",
     webkitMaskRepeat: "no-repeat",
@@ -71,15 +169,6 @@ const keyboardToolbarTheme = EditorView.theme({
     webkitMaskPosition: "center",
     maskSize: "20px 20px",
     webkitMaskSize: "20px 20px",
-  },
-  ".cm-keyboard-toolbar .cm-toolbar-separator": {
-    backgroundColor: "color-mix(in srgb, var(--ink) 20%, transparent)",
-    width: "1px",
-    flexShrink: 0,
-  },
-
-  ".cm-keyboard-toolbar .cm-button:active": {
-    color: "var(--ink)",
   },
   ".cm-keyboard-toolbar .cm-button:active::after": {
     content: "''",
@@ -107,6 +196,23 @@ interface KeyboardToolbarState {
   panel: PanelConstructor;
 }
 
+export interface KeyboardToolbarHold {
+  held: boolean;
+  headed: boolean;
+}
+
+export const setKeyboardToolbarHold = StateEffect.define<KeyboardToolbarHold>();
+
+const keyboardToolbarHold = StateField.define<KeyboardToolbarHold>({
+  create: () => ({ held: false, headed: false }),
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setKeyboardToolbarHold)) return effect.value;
+    }
+    return value;
+  },
+});
+
 const keyboardToolbarState = StateField.define<KeyboardToolbarState | null>({
   create() {
     return null;
@@ -121,52 +227,118 @@ const keyboardToolbarState = StateField.define<KeyboardToolbarState | null>({
 export const setKeyboardToolbar =
   StateEffect.define<KeyboardToolbarState | null>();
 
-function createKeyboardToolbarPanel(view: EditorView): Panel {
-  const config = view.state.facet(keyboardToolbarConfig);
+export interface KeyboardToolbarConfig {
+  onTool?: (tool: KeyboardToolbarTool) => void;
+  hold?: KeyboardToolbarHold;
+}
 
+const keyboardToolbarConfig = Facet.define<
+  KeyboardToolbarConfig,
+  KeyboardToolbarConfig
+>({
+  combine: (values) => ({ onTool: values.find((v) => v.onTool)?.onTool }),
+});
+
+const positionLabel = (state: EditorState) => {
+  const head = state.selection.main.head;
+  const line = state.doc.lineAt(head);
+  return `Line ${line.number}, Col ${head - line.from + 1}`;
+};
+
+const headedClass = (state: EditorState) =>
+  state.field(keyboardToolbarHold, false)?.headed ?? false;
+
+function createToolbarButton(view: EditorView, item: ToolbarItem) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "cm-button";
+  if ("position" in item) {
+    button.classList.add("cm-toolbar-position");
+    button.dataset["toolbarPosition"] = "";
+    button.setAttribute("aria-label", "Go to line");
+    button.textContent = positionLabel(view.state);
+    button.onclick = () => openCustomGotoLinePanel(view);
+    return button;
+  }
+  button.setAttribute("aria-label", view.state.phrase(item.label));
+  button.title = "title" in item && item.title ? item.title : item.label;
+  const icon = document.createElement("span");
+  icon.className = "cm-toolbar-icon";
+  icon.style.maskImage = iconMasks[item.icon];
+  icon.style.webkitMaskImage = iconMasks[item.icon];
+  button.appendChild(icon);
+  if ("tool" in item) {
+    if (item.text) {
+      button.classList.add("cm-toolbar-add");
+      const label = document.createElement("span");
+      label.textContent = view.state.phrase(item.label);
+      button.appendChild(label);
+    }
+    if (item.disabled) button.disabled = true;
+    button.onclick = () => {
+      view.state.facet(keyboardToolbarConfig).onTool?.(item.tool);
+    };
+  } else {
+    button.onclick = () => item.command(view);
+  }
+  return button;
+}
+
+function createKeyboardToolbarPanel(view: EditorView): Panel {
   const dom = document.createElement("div");
   dom.className = "cm-toolbar cm-keyboard-toolbar";
+  dom.setAttribute("role", "toolbar");
+  dom.setAttribute("aria-label", "Writing");
+  dom.classList.toggle("cm-keyboard-toolbar-headed", headedClass(view.state));
 
-  config.items?.forEach((item) => {
-    if ("type" in item) {
-      if (item.type === "separator") {
-        const sepEl = document.createElement("div");
-        sepEl.className = "cm-toolbar-separator";
-        dom.appendChild(sepEl);
-      }
-    } else {
-      const itemEl = document.createElement("button");
-      itemEl.className = "cm-button";
-      itemEl.onmousedown = (e) => {
-        e.preventDefault();
-        item.command(view);
-      };
-      dom.appendChild(itemEl);
-      if (item.label) {
-        const labelEl = document.createElement("div");
-        labelEl.className = "cm-toolbar-label";
-        labelEl.textContent = view.state.phrase(item.label);
-        itemEl.appendChild(labelEl);
-      }
-      if (item.icon) {
-        const iconEl = document.createElement("div");
-        iconEl.className = "cm-toolbar-icon";
-        iconEl.style.maskImage = item.icon;
-        iconEl.style.webkitMaskImage = item.icon;
-        itemEl.appendChild(iconEl);
-      }
+  const placements = new Map<string, HTMLElement>();
+  const placementFor = (placement: string) => {
+    let element = placements.get(placement);
+    if (!element) {
+      element = document.createElement("div");
+      element.className = "cm-toolbar-placement";
+      element.dataset["toolbarPlacement"] = placement;
+      placements.set(placement, element);
+      dom.appendChild(element);
     }
-  });
+    return element;
+  };
+
+  for (const entry of KEYBOARD_TOOLBAR_TABLE) {
+    const parent = placementFor(entry.placement);
+    const target = entry.group
+      ? parent.appendChild(document.createElement("div"))
+      : parent;
+    if (entry.group) {
+      target.className = "cm-toolbar-group";
+      target.setAttribute("role", "group");
+      target.setAttribute("aria-label", entry.group);
+    }
+    for (const item of entry.items) {
+      target.appendChild(createToolbarButton(view, item));
+    }
+  }
+
+  const position = dom.querySelector<HTMLElement>("[data-toolbar-position]");
 
   return {
     top: false,
     dom,
+    update(update: ViewUpdate) {
+      if (position && (update.selectionSet || update.docChanged)) {
+        position.textContent = positionLabel(update.state);
+      }
+      dom.classList.toggle(
+        "cm-keyboard-toolbar-headed",
+        headedClass(update.state),
+      );
+    },
   };
 }
 
 export const openKeyboardToolbar: Command = (view) => {
-  let data: KeyboardToolbarState = { panel: createKeyboardToolbarPanel };
-  let effect =
+  const data: KeyboardToolbarState = { panel: createKeyboardToolbarPanel };
+  const effect =
     view.state.field(keyboardToolbarState, false) === undefined
       ? StateEffect.appendConfig.of(keyboardToolbarState.init(() => data))
       : setKeyboardToolbar.of(data);
@@ -184,48 +356,67 @@ export const closeKeyboardToolbar: Command = (view) => {
   return true;
 };
 
-export interface LSPContextToolbarConfig {
-  items?: ContextMenuItem[];
+export function hasScriptMode(state: EditorState) {
+  return state.field(scriptModeField, false) != null;
 }
 
-const keyboardToolbarConfig = Facet.define<
-  LSPContextToolbarConfig,
-  LSPContextToolbarConfig
->({
-  combine: (values) => {
-    return { items: values.map((v) => v.items ?? []).flat() };
+const wantsToolbar = (view: EditorView) => {
+  const mode = view.state.field(scriptModeField, false);
+  const { held } = view.state.field(keyboardToolbarHold);
+  return mode === "editing" && (held || view.hasFocus);
+};
+
+const reconcilePlugin = ViewPlugin.fromClass(
+  class {
+    scheduled = false;
+    destroyed = false;
+
+    constructor(readonly view: EditorView) {
+      this.schedule();
+    }
+
+    update(update: ViewUpdate) {
+      if (
+        update.focusChanged ||
+        update.transactions.some((tr) =>
+          tr.effects.some(
+            (effect) =>
+              effect.is(setScriptMode) || effect.is(setKeyboardToolbarHold),
+          ),
+        )
+      ) {
+        this.schedule();
+      }
+    }
+
+    schedule() {
+      if (this.scheduled) return;
+      this.scheduled = true;
+      queueMicrotask(() => {
+        this.scheduled = false;
+        if (this.destroyed || !hasScriptMode(this.view.state)) return;
+        const want = wantsToolbar(this.view);
+        const open = isKeyboardToolbarOpen(this.view.state);
+        if (want && !open) openKeyboardToolbar(this.view);
+        else if (!want && open) closeKeyboardToolbar(this.view);
+      });
+    }
+
+    destroy() {
+      this.destroyed = true;
+    }
   },
-});
+);
 
 export function keyboardToolbar(
-  config: LSPContextToolbarConfig = {
-    items: [
-      {
-        icon: iconMasks["search"],
-        command: openFind,
-      },
-      {
-        icon: iconMasks["undo"],
-        command: undo,
-      },
-      {
-        icon: iconMasks["redo"],
-        command: redo,
-      },
-      {
-        icon: iconMasks["indent"],
-        command: indentMore,
-      },
-      {
-        icon: iconMasks["dedent"],
-        command: indentLess,
-      },
-      {
-        icon: iconMasks["format"],
-        command: formatDocument,
-      },
-    ],
-  },
+  config: KeyboardToolbarConfig = {},
 ): Extension {
-  return [keyboardToolbarConfig.of(config), keyboardToolbarTheme];
+  return [
+    keyboardToolbarConfig.of(config),
+    keyboardToolbarTheme,
+    keyboardToolbarHold.init(
+      () => config.hold ?? { held: false, headed: false },
+    ),
+    reconcilePlugin,
+  ];
 }
