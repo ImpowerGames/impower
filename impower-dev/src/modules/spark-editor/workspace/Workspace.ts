@@ -2,9 +2,11 @@ import workspaceSettings from "./settings/WorkspaceSettings";
 import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
+import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
 import WorkspaceSearch from "./WorkspaceSearch";
 import { searchSources } from "./searchSources";
+import workspace from "./WorkspaceStore";
 import WorkspaceSync from "./WorkspaceSync";
 import WorkspaceWindow from "./WorkspaceWindow";
 import { registerWorkspaceProtocol } from "./workspaceProtocol";
@@ -25,6 +27,15 @@ export namespace Workspace {
   export const search = new WorkspaceSearch(
     searchSources({ window, ls, fs, settings }),
   );
+  export const outline = new WorkspaceOutline({
+    openedUri: () => {
+      void workspace.state.value;
+      return window.getActiveEditorForPane("logic")?.uri;
+    },
+    getDocumentSymbols: (uri) => ls.getDocumentSymbols(uri),
+    getFileText: (uri) => fs.getFileText(uri),
+    onPublishedDiagnostics: (listener) => ls.onPublishedDiagnostics(listener),
+  });
 }
 
 registerWorkspaceProtocol(Workspace);

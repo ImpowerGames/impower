@@ -2,10 +2,18 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { getDescendent } from "../../../textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
+
+const ROOT_FUNCTION_WRAPPERS = new Set([
+  "LuauFunctionAttributes",
+  "LuauFunctionAttributes_content",
+  "LuauSparkdownExplicitStatement",
+  "LuauSparkdownExplicitStatement_content",
+]);
 
 export default class ScreenplayParser {
   protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
@@ -58,6 +66,24 @@ export default class ScreenplayParser {
       if (tokens.at(-1)?.tag !== "separator") {
         tokens.push({ tag: "separator" });
       }
+    };
+
+    const isRootFunctionName = (node: SyntaxNode): boolean => {
+      const definition = node.parent?.parent;
+      let container = definition?.parent;
+      while (container && ROOT_FUNCTION_WRAPPERS.has(container.name)) {
+        container = container.parent;
+      }
+      if (
+        node.parent?.name !== "LuauFunctionDefinition_content" ||
+        definition?.name !== "LuauFunctionDefinition" ||
+        container?.name !== "sparkdown"
+      ) {
+        return false;
+      }
+      const begin = definition.getChild("LuauFunctionDefinition_begin");
+      const modifier = begin && getDescendent("LuauScopeModifier", begin);
+      return !modifier || read(modifier.from, modifier.to) !== "local";
     };
 
     const isWhitespaceOnly = (start: number, end: number): boolean => {
@@ -131,6 +157,14 @@ export default class ScreenplayParser {
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
           tokens.push({ tag: "branch", text });
+        }
+
+        if (
+          name === "LuauFunctionDeclarationName" &&
+          isRootFunctionName(nodeRef.node)
+        ) {
+          const text = read(from, to);
+          tokens.push({ tag: "function", text });
         }
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {

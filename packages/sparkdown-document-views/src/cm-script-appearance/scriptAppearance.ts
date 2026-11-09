@@ -1,3 +1,4 @@
+import { autocompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, Extension, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -56,6 +57,8 @@ const OPTION_EXTENSIONS: {
   lineNumbers: (on) => (on ? editorClass("cm-line-numbers") : []),
   indentGuides: (mode) => (mode === "off" ? [] : indentationGuides({ mode })),
   autoCloseBrackets: (on) => autoCloseBrackets.of(on),
+  suggestAutocompletions: (on) =>
+    on ? [] : autocompletion({ activateOnTyping: false }),
 };
 
 const OPTIONS = Object.keys(OPTION_EXTENSIONS) as ScriptAppearanceOption[];
@@ -69,15 +72,21 @@ const optionExtension = <K extends ScriptAppearanceOption>(
   option: K,
 ) => OPTION_EXTENSIONS[option](appearance[option]);
 
+export const ROLE_SYNTAX_VARIABLES = {
+  speaker: "--syntax-speaker",
+  dialogue: "--syntax-dialogue-untinted",
+  tintedDialogue: "--syntax-dialogue",
+} as const;
+
 const scriptAppearanceTheme = EditorView.baseTheme({
   "& .cm-role-speaker": {
-    color: "var(--syntax-speaker)",
+    color: `var(${ROLE_SYNTAX_VARIABLES.speaker})`,
   },
   "& .cm-role-dialogue": {
-    color: "var(--syntax-dialogue-untinted)",
+    color: `var(${ROLE_SYNTAX_VARIABLES.dialogue})`,
   },
   "&.cm-tinted-dialogue .cm-role-dialogue": {
-    color: "var(--syntax-dialogue)",
+    color: `var(${ROLE_SYNTAX_VARIABLES.tintedDialogue})`,
   },
   "&.cm-bold-speakers .cm-role-speaker": {
     fontWeight: "bold",

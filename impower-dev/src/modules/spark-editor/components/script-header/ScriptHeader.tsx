@@ -6,7 +6,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
-import { useState } from "preact/hooks";
+import { finishNaming, useNaming } from "../desktop-shell";
 import { splitScriptPath } from "../../utils/nameRules";
 import { useSettings } from "../../workspace/settings/useSettings";
 import { useEditorScrolled } from "../../workspace/useActiveEditor";
@@ -39,7 +39,7 @@ export default function ScriptHeader({
   const lineNumbers = preferences.lineNumbers;
   const problemColor = useDiagnosticColor(filename);
   const scrolled = useEditorScrolled(filename);
-  const [naming, setNaming] = useState(false);
+  const naming = useNaming() === "script";
 
   const { folder, name } = splitScriptPath(filename);
   const nameClass = cn(
@@ -99,10 +99,11 @@ export default function ScriptHeader({
             <ScriptNameField
               filename={filename}
               name={name}
-              onNamingChange={setNaming}
               class={cn(
-                nameClass,
-                "-ml-1.5 rounded-control border border-transparent bg-transparent px-1.5 py-px outline-none hover:border-edge focus-visible:border-accent focus-visible:bg-panel",
+                "inline-hit -ml-1.5 h-[calc(1lh+4px)] w-fit max-w-full rounded-control border border-transparent font-semibold text-ink hover:border-edge has-focus-visible:border-accent has-focus-visible:bg-panel",
+                desktop
+                  ? "text-[17px] leading-[1.3]"
+                  : "text-[14px] leading-[1.35]",
               )}
             />
           )}
@@ -120,8 +121,7 @@ export default function ScriptHeader({
         <Button
           variant="primary"
           aria-label="Keep the script's name"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={() => (document.activeElement as HTMLElement | null)?.blur()}
+          onClick={finishNaming}
         >
           <CheckIcon />
           Done

@@ -8,7 +8,7 @@ import {
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
-import { SearchRail } from "../find-references-rename";
+import Outline from "../outline/Outline";
 import { SettingsIndex } from "../settings";
 import AppMenu from "./AppMenu";
 
@@ -50,7 +50,7 @@ export default function ShellRail() {
         </Tabs>
       </nav>
       <div data-outline class="flex min-h-0 flex-1 flex-col">
-        {settings ? <SettingsIndex /> : <SearchRail />}
+        {settings ? <SettingsIndex /> : <Outline />}
       </div>
       <div class="flex h-[62px] flex-none items-center border-t border-edge px-[14px] group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0">
         <AppMenu />

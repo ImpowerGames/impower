@@ -8,7 +8,7 @@ import {
   ExportHTMLParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportHTMLMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import { ScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
+import workspaceSettings from "./settings/WorkspaceSettings";
 
 export default class WorkspacePrint {
   protected _worker: Worker;
@@ -20,16 +20,8 @@ export default class WorkspacePrint {
 
   protected _progressQueue: Record<string, (value: ProgressValue) => void> = {};
 
-  protected _config: ScreenplayConfig = {
-    screenplay_print_title_page: true,
-    screenplay_print_bookmarks_for_invisible_headings: true,
-    screenplay_print_dialogue_split_across_pages: true,
-    screenplay_print_page_numbers: true,
-    screenplay_print_headings_bold: true,
-    screenplay_print_scene_numbers: "left",
-  };
   get config() {
-    return this._config;
+    return workspaceSettings.screenplayConfig.peek();
   }
 
   constructor() {

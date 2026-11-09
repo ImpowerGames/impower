@@ -6,7 +6,9 @@ import { announcement } from "../../hooks/useAnnouncer";
 import LiveRegion from "../live-region/LiveRegion";
 import {
   ChoiceRow,
+  FactRow,
   SelectRow,
+  SliderRow,
   SettingsGroup,
   SettingsList,
   SettingsPlaceholder,
@@ -202,6 +204,26 @@ describe("Settings row kit", () => {
     expect(host!.querySelector("#wrap-detail")!.textContent).toBe("Long lines wrap.");
   });
 
+  it("describes a switch with rich detail, keeping its markup", async () => {
+    await mount(
+      <SwitchRow
+        id="markup"
+        name="Emphasize markup"
+        detail={
+          <>
+            Show <i>italic</i> text.
+          </>
+        }
+        checked
+        onCheckedChange={() => {}}
+      />,
+    );
+    const detail = host!.querySelector("#markup-detail")!;
+    expect(detail.textContent).toBe("Show italic text.");
+    expect(detail.querySelector("i")!.textContent).toBe("italic");
+    expect(host!.querySelector('input[role="switch"]')!.getAttribute("aria-describedby")).toBe("markup-detail");
+  });
+
   it("announces a select's chosen label", async () => {
     function Owner() {
       const [side, setSide] = useState("none");
@@ -350,5 +372,88 @@ describe("Settings layout variants", () => {
     expect(css).toContain("@container page not (min-width: 560px)");
     expect(settingsRowVariants({ indent: "sub" })).toContain("phone:pl-[30px]");
     expect(settingsRowVariants({ wrap: true })).toContain("@max-[560px]/page:flex-wrap");
+  });
+});
+
+describe("Settings rows for facts, a refused value and a slider", () => {
+  it("lists facts as a description list, a multi-line value keeping its lines", async () => {
+    await mount(
+      <SettingsList as="dl">
+        <FactRow term="Title" multiline>
+          {"The Long Road\nHome"}
+        </FactRow>
+        <FactRow term="Author">Not set</FactRow>
+      </SettingsList>,
+    );
+    const list = host!.querySelector("dl")!;
+    expect(Array.from(list.querySelectorAll(":scope > div > dt")).map((el) => el.textContent)).toEqual(["Title", "Author"]);
+    expect(Array.from(list.querySelectorAll(":scope > div > dd")).map((el) => el.textContent)).toEqual(["The Long Road\nHome", "Not set"]);
+    expect(list.querySelector("dd")!.className).toContain("whitespace-pre-line");
+  });
+
+  it("shows a text row's problem in place of its detail, marks the field invalid and announces what its owner says on commit", async () => {
+    const onCommit = vi.fn((value: string) => `Folder: ${value} kept.`);
+    await mount(
+      <>
+        <LiveRegion />
+        <TextRow
+          id="folder"
+          name="Folder"
+          detail="Contains nothing yet"
+          problem="A folder name can't be empty, so Backdrops is kept."
+          value="Backdrops"
+          onValueChange={() => {}}
+          onCommit={onCommit}
+        />
+      </>,
+    );
+    const input = host!.querySelector<HTMLInputElement>("#folder-control")!;
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe("folder-detail");
+    expect(host!.querySelector("#folder-detail [data-problem]")!.textContent).toBe(
+      "A folder name can't be empty, so Backdrops is kept.",
+    );
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(onCommit).toHaveBeenCalledWith("Backdrops");
+    expect(region()).toContain("Folder: Backdrops kept.");
+  });
+
+  it("stacks a slider row's name, spoken value, slider, scale and hint beside its aside", async () => {
+    function Owner() {
+      const [value, setValue] = useState(50);
+      return (
+        <SliderRow
+          id="crop"
+          name="Visible area"
+          value={value}
+          min={25}
+          max={100}
+          step={5}
+          valueText={(v) => (v === 100 ? "Whole image" : `Top ${v}%`)}
+          scale={["Top 25%", "Whole image"]}
+          hint="Used for thumbnails only."
+          aside={<span data-aside>{value}</span>}
+          onValueChange={setValue}
+        />
+      );
+    }
+    await mount(<Owner />);
+    const slider = host!.querySelector<HTMLInputElement>("#crop-control")!;
+    expect(slider.type).toBe("range");
+    expect(slider.getAttribute("aria-labelledby")).toBe("crop-name");
+    expect(slider.getAttribute("aria-describedby")).toBe("crop-hint");
+    expect(host!.querySelector("label#crop-name")!.getAttribute("for")).toBe("crop-control");
+    expect(host!.querySelector("output")!.textContent).toBe("Top 50%");
+    await act(async () => {
+      slider.value = "100";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(host!.querySelector("output")!.textContent).toBe("Whole image");
+    expect(host!.querySelector("[data-aside]")!.textContent).toBe("100");
+    expect(host!.querySelector("[data-setting-row]")!.className).toContain("grid-cols-[minmax(0,1fr)_256px]");
   });
 });

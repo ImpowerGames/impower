@@ -1,3 +1,4 @@
+import { history } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
@@ -5,6 +6,7 @@ import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -33,6 +35,7 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
         state: EditorState.create({
           doc: "hello world\n",
           extensions: [
+            history(),
             customSearchPanel(),
             customGotoLinePanel(),
             EditorView.updateListener.of((update) =>
@@ -279,6 +282,135 @@ describe("ScriptEditorController select", () => {
   });
 });
 
+describe("ScriptEditorController problems", () => {
+  const show = (controller: TestController, uri: string) =>
+    controller["handleExecuteEditorCommand"]({
+      ...ExecuteEditorCommandMessage.type.request({
+        textDocument: { uri },
+        command: "problems",
+      }),
+      id: `problems-${nextId++}`,
+    });
+
+  it("opens the problems panel for its own document", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.reveal();
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
+    const response = show(controller, "file:///main.sd");
+    expect(response).toMatchObject({ result: { ran: true } });
+    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("waits for a hidden editor to be revealed before opening the panel", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const editor = host.firstElementChild as HTMLElement;
+    editor.style.visibility = "hidden";
+    expect(show(controller, "file:///main.sd")).toMatchObject({ result: { ran: true } });
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
+    controller.reveal();
+    expect(editor.style.visibility).toBe("visible");
+    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("leaves another document's request unanswered", async () => {
+    const { controller, view } = await loadedEditor();
+    expect(show(controller, "file:///other.sd")).toBeUndefined();
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
+  });
+});
+
+describe("ScriptEditorController initial selection", () => {
+  it("puts the caret where the load asked once the editor settles, even with that line on screen", async () => {
+    const mounted = mount();
+    const at = { line: 1, character: 2 };
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: { start: at, end: at },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "second line\n" } });
+    expect(view.state.selection.main.head).toBe(0);
+    mounted.controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 2);
+  });
+});
+
+describe("ScriptEditorController initial selection after newer moves", () => {
+  const loadAt = async (line: number) => {
+    const mounted = mount();
+    const at = { line, character: 0 };
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: { start: at, end: at },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    return { ...mounted, view };
+  };
+
+  it("keeps a navigation that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(1);
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } },
+      }),
+    );
+    const moved = view.state.doc.line(4).from;
+    expect(view.state.selection.main.head).toBe(moved);
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(moved);
+  });
+
+  it("keeps a navigation to the starting position that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+      }),
+    );
+    expect(view.state.selection.main.head).toBe(0);
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  it("keeps a selection moved away and back to the start before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from }, userEvent: "select.pointer" });
+    view.dispatch({ selection: { anchor: 0 }, userEvent: "select.pointer" });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  it("still settles when only the text changed before the editor settled", async () => {
+    const { controller, view } = await loadAt(3);
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "fifth\n" } });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+  });
+
+  it("keeps a selection the author made before the editor settled", async () => {
+    const { controller, view } = await loadAt(1);
+    const clicked = view.state.doc.line(3).from + 1;
+    view.dispatch({ selection: { anchor: clicked }, userEvent: "select.pointer" });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(clicked);
+  });
+});
+
 describe("ScriptEditorController commands", () => {
   const run = (
     controller: TestController,
@@ -303,12 +435,80 @@ describe("ScriptEditorController commands", () => {
 
   it("opens Go to line, find and the problems panel inside the editor", async () => {
     const { controller, host } = await loadedEditor();
+    controller.reveal();
     run(controller, "gotoLine");
     expect(host.querySelector(".cm-gotoLine")).not.toBeNull();
     run(controller, "search");
     expect(host.querySelector(".cm-search")).not.toBeNull();
     run(controller, "problems");
     expect(host.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("undoes and redoes the script's edits and reports what it can undo and redo", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported: [string, boolean, boolean][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorHistoryMessage.type.is(message)) {
+        const { textDocument, canUndo, canRedo } = message.params;
+        reported.push([textDocument.uri, canUndo, canRedo]);
+      }
+    });
+    view.dispatch({
+      changes: { from: 0, insert: "> " },
+      userEvent: "input.type",
+    });
+    expect(reported).toEqual([["file:///main.sd", true, false]]);
+    expect(run(controller, "undo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", false, true]);
+    expect(run(controller, "redo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("> hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", true, false]);
+    expect(reported).toHaveLength(3);
+  });
+
+  const historyReports = (host: HTMLElement) => {
+    const reported: [string, boolean, boolean][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorHistoryMessage.type.is(message)) {
+        const { textDocument, canUndo, canRedo } = message.params;
+        reported.push([textDocument.uri, canUndo, canRedo]);
+      }
+    });
+    return reported;
+  };
+
+  it("reports the kept history under a renamed script's new name", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported = historyReports(host);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///opening.sd", languageId: "sparkdown", version: 1, text: "" },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+        preserveEditor: true,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    expect(created[created.length - 1]!.view).toBe(view);
+    expect(reported.at(-1)).toEqual(["file:///opening.sd", true, false]);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported.at(-1)).toEqual(["file:///opening.sd", true, false]);
+  });
+
+  it("reports the first edit of the next script the same editor loads", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported = historyReports(host);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported).toEqual([["file:///main.sd", true, false]]);
+    await load(controller, "file:///other.sd");
+    const next = created[created.length - 1]!.view;
+    expect(next).not.toBe(view);
+    next.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported.at(-1)).toEqual(["file:///other.sd", true, false]);
   });
 
   it("leaves a command for another document to that document's editor", async () => {

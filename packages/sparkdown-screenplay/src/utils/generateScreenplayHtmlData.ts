@@ -7,6 +7,7 @@ import { ScreenplayToken } from "../types/ScreenplayToken";
 import { encodeBase64 } from "./encodeBase64";
 import { generateScreenplayMainHtml } from "./generateScreenplayMainHtml";
 import { generateScreenplayTitleHtml } from "./generateScreenplayTitleHtml";
+import { isHiddenIdentifier } from "./isHiddenIdentifier";
 
 export interface EmojiHtmlInliner {
   inline(html: string): string;
@@ -88,7 +89,10 @@ export const generateScreenplayHtmlData = (
   }
 
   let mainHtml = spans
-    ? generateScreenplayMainHtml(spans, "            ")
+    ? generateScreenplayMainHtml(
+        spans.filter((span) => !isHiddenIdentifier(span.tag, config)),
+        "            ",
+      )
     : "";
   if (emoji && mainHtml) {
     mainHtml = emoji.inline(mainHtml);

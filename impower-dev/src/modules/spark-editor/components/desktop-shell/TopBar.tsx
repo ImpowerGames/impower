@@ -1,33 +1,9 @@
 import { SparkLogo } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import { useComputed } from "@preact/signals";
-import workspace from "../../workspace/WorkspaceStore";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
+import StoryProblemCount from "./StoryProblemCount";
 import ProjectNameField from "./ProjectNameField";
-import { problemCountOf } from "./problemCount";
-
-function ProblemCount() {
-  const count = useComputed(() =>
-    problemCountOf(workspace.state.value.debug?.diagnosticsSummary),
-  ).value;
-
-  if (!count.total) {
-    return null;
-  }
-
-  return (
-    <span
-      data-tone={count.errors ? "error" : "warning"}
-      class="text-[12px]/[18px] data-[tone=error]:text-error-strong data-[tone=warning]:text-warning-strong"
-    >
-      <span aria-hidden="true" class="px-1 text-muted">
-        ·
-      </span>
-      {count.total} {count.total === 1 ? "problem" : "problems"}
-    </span>
-  );
-}
 
 export default function TopBar() {
   const compact = useLayout() === "compact";
@@ -50,7 +26,7 @@ export default function TopBar() {
         <ProjectNameField />
         <div class="flex items-center pl-[7px]">
           <SyncStatusLine />
-          {compact && <ProblemCount />}
+          {compact && <StoryProblemCount />}
         </div>
       </div>
       <div class="flex items-center">

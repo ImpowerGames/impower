@@ -4,6 +4,7 @@ import { h, type ComponentType } from "preact";
 import { renderToString } from "preact-render-to-string";
 import { createServer, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { markdownHtmlPlugin } from "../../src/build/markdownHtml";
 import { alias, dedupe, ssrNoExternal } from "../../vite.config";
 
 let server: ViteDevServer;
@@ -17,7 +18,7 @@ beforeAll(async () => {
     server: { middlewareMode: true, hmr: false, ws: false },
     resolve: { alias, dedupe },
     ssr: { noExternal: ssrNoExternal },
-    plugins: [preact()],
+    plugins: [markdownHtmlPlugin(), preact()],
   });
   ({ rootComponent } = await server.ssrLoadModule(
     "/src/modules/spark-editor/preact-registry.ts",
@@ -31,7 +32,7 @@ afterAll(async () => {
 describe("the editor shell's server render", () => {
   it("leaves the bottom navigation's selected screen to the client", () => {
     const html = renderToString(h(rootComponent, null));
-    expect(html).toContain("h-[60px]");
+    expect(html).toContain("data-bottom-navigation");
     for (const screen of ["logic", "assets", "share"]) {
       expect(html).not.toMatch(new RegExp(`id="[^"]*-trigger-${screen}"`));
     }

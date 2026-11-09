@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { markdownHtmlPlugin } from "./src/build/markdownHtml";
 
 export default defineConfig({
+  plugins: [markdownHtmlPlugin()],
   resolve: {
     alias: [
       {
