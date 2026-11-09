@@ -51,7 +51,6 @@ afterEach(() => {
     "--editor-status-ink",
     "--ink",
     "--editor-icon-ink",
-    "--editor-icon-muted",
     "--editor-icon-close",
   ]) {
     document.documentElement.style.removeProperty(name);

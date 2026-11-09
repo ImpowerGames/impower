@@ -401,8 +401,6 @@ Component variables of the editor's own chrome:
 | `--editor-toolbar-ink` | Keyboard toolbar text | `hsl(211 24% 60%)` |
 | `--editor-status-ink` | Status bar text | `hsl(211 24% 42%)` |
 | `--editor-list-selected` | Selected row: completion, problems, references | `#04395e` |
-| `--editor-toggle-on` | A checked find toggle | `rgb(36 137 219 / 0.51)` |
-| `--editor-toggle-on-edge` | A checked find toggle's border, the focused rename field's border | `#2488db` |
 | `--editor-problem-range` | The active problem's range | `#ffdd991a` |
 | `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
 | `--editor-problem-warning` | Status bar warning count | `#cca700` |
@@ -428,7 +426,6 @@ Component variables of the editor's own chrome:
 | `--editor-doc-quote-ink` | Block quote text in documentation | `#9198a1` |
 | `--editor-doc-quote-edge` | Block quote rule | `#3d444d` |
 | `--editor-icon-ink` | Find and go-to-line button icons, a checked find toggle's icon | `#ffffff` |
-| `--editor-icon-muted` | An unchecked find toggle's icon | `#cccccc` |
 | `--editor-icon-close` | The find and go-to-line close icon | `#315881` |
 | `--editor-symbol-highlight` | The other uses of the name under the caret | `color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent)` |
 | `--editor-search-match` | A find match | `#00ffff8a` |
@@ -522,8 +519,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-toolbar-ink` | `var(--muted)` | Muted ink |
 | `--editor-status-ink` | `var(--muted)` | Muted ink |
 | `--editor-list-selected` | `var(--tint)` | Selected wash |
-| `--editor-toggle-on` | `var(--tint)` | Selected wash |
-| `--editor-toggle-on-edge` | `var(--accent)` | Focus edge |
 | `--editor-problem-range` | `color-mix(in srgb, var(--warning) 10%, transparent)` | Midnight's warning wash at its 10% |
 | `--editor-problem-error` | `var(--error)` | Problem colour: error |
 | `--editor-problem-warning` | `var(--warning)` | Problem colour: warning |
@@ -549,7 +544,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-doc-quote-ink` | `var(--muted)` | Muted ink |
 | `--editor-doc-quote-edge` | `var(--edge)` | Divider |
 | `--editor-icon-ink` | `var(--ink)` | Ink |
-| `--editor-icon-muted` | `var(--muted)` | Muted ink |
 | `--editor-icon-close` | `var(--muted)` | Muted ink |
 | `--editor-search-match` | `color-mix(in srgb, var(--accent) 30%, transparent)` | Accent wash |
 | `--editor-search-match-selected` | `color-mix(in srgb, var(--accent) 55%, transparent)` | Accent wash, stronger |
