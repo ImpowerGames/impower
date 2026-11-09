@@ -131,12 +131,9 @@ export default class WorkspaceDebugClient {
         }),
         await this.request(session, "launch", { program }),
       ];
-      for (const [uri, lines] of Object.entries(
-        workspace.current.debug.breakpoints ?? {},
-      )) {
-        if (lines.length > 0) {
-          handshake.push(await this.sendBreakpoints(session, uri, lines));
-        }
+      const saved = Object.entries(workspace.current.debug.breakpoints ?? {});
+      for (const [uri, lines] of saved.length > 0 ? saved : [[program, []] as const]) {
+        handshake.push(await this.sendBreakpoints(session, uri, [...lines]));
       }
       handshake.push(await this.request(session, "configurationDone", {}));
       const refused = handshake.find((response) => response && !response.success);

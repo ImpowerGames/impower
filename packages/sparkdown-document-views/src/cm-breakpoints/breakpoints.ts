@@ -1,4 +1,11 @@
-import { RangeSet, StateEffect, StateField, type Range } from "@codemirror/state";
+import {
+  MapMode,
+  RangeSet,
+  StateEffect,
+  StateField,
+  type Range,
+  type Transaction,
+} from "@codemirror/state";
 import {
   type BlockInfo,
   EditorView,
@@ -46,12 +53,36 @@ const setBreakpointEffect = StateEffect.define<{ pos: number; on: boolean }>({
 
 const setBreakpointStatesEffect = StateEffect.define<BreakpointState[]>();
 
+const mapWithLines = (set: RangeSet<GutterMarker>, transaction: Transaction) => {
+  const before = transaction.startState.doc;
+  const after = transaction.state.doc;
+  const ranges: Range<GutterMarker>[] = [];
+  const iter = set.iter(0);
+  while (iter.value) {
+    const end = transaction.changes.mapPos(
+      before.lineAt(iter.from).to,
+      -1,
+      MapMode.TrackDel,
+    );
+    if (end != null) {
+      const from = after.lineAt(end).from;
+      if (ranges.at(-1)?.from !== from) {
+        ranges.push(iter.value.range(from));
+      }
+    }
+    iter.next();
+  }
+  return RangeSet.of(ranges, true);
+};
+
 export const breakpointsField = StateField.define<RangeSet<GutterMarker>>({
   create() {
     return RangeSet.empty;
   },
   update(set, transaction) {
-    set = set.map(transaction.changes);
+    if (transaction.docChanged) {
+      set = mapWithLines(set, transaction);
+    }
     for (const e of transaction.effects) {
       if (e.is(setBreakpointStatesEffect)) {
         const doc = transaction.state.doc;

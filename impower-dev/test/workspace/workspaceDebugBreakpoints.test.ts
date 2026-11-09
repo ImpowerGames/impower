@@ -101,12 +101,29 @@ describe("breakpoints through the web editor's debug client", () => {
       "launch",
       "setBreakpoints",
       "setBreakpoints",
+      "setBreakpoints",
       "configurationDone",
     ]);
-    expect(fake.requests.slice(2, 4).map((r) => r.arguments)).toEqual([
+    expect(fake.requests.slice(2, 5).map((r) => r.arguments)).toEqual([
       { source: { path: MAIN }, breakpoints: [{ line: 4 }, { line: 9 }] },
+      { source: { path: OTHER }, breakpoints: [] },
       { source: { path: "file:///local/third.sd" }, breakpoints: [{ line: 1 }] },
     ]);
+  });
+
+  it("clears every breakpoint an earlier run left behind when a run starts with none saved", async () => {
+    const fake = fakeAdapter(verifying({}));
+    expect(await client(fake).start(MAIN)).toBe(true);
+    expect(fake.commands()).toEqual([
+      "initialize",
+      "launch",
+      "setBreakpoints",
+      "configurationDone",
+    ]);
+    expect(fake.requests[2]!.arguments).toEqual({
+      source: { path: MAIN },
+      breakpoints: [],
+    });
   });
 
   it("keeps the line the adapter verified, and marks one it could not place, in the debug slice", async () => {

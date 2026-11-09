@@ -99,6 +99,43 @@ describe("the script editor's breakpoint gutter", () => {
     expect(view.state.doc.line(7).text).toBe("    The second line.");
   });
 
+  it("moves a dot with its statement when a line is inserted at the statement's start", () => {
+    const { view } = mount();
+    pressGutterAt(view, 5);
+    view.dispatch({
+      changes: { from: view.state.doc.line(5).from, insert: "    Inserted.\n" },
+    });
+    expect(getBreakpointLineNumbers(view)).toEqual([6]);
+    expect(view.state.doc.line(6).text).toBe("    The second line.");
+  });
+
+  it("keeps a dot when the blank line above its statement is deleted", () => {
+    const { view } = mount();
+    pressGutterAt(view, 5);
+    const blank = view.state.doc.line(4);
+    view.dispatch({ changes: { from: blank.from, to: blank.to + 1 } });
+    expect(getBreakpointLineNumbers(view)).toEqual([4]);
+    expect(view.state.doc.line(4).text).toBe("    The second line.");
+  });
+
+  it("keeps a dot on its line when text is typed at the line's start, so a press still removes it", () => {
+    const { view } = mount();
+    pressGutterAt(view, 5);
+    view.dispatch({ changes: { from: view.state.doc.line(5).from, insert: "x" } });
+    expect(getBreakpointLineNumbers(view)).toEqual([5]);
+    pressGutterAt(view, 5);
+    expect(getBreakpointLineNumbers(view)).toEqual([]);
+  });
+
+  it("deletes a dot with its line", () => {
+    const { view } = mount();
+    pressGutterAt(view, 5);
+    view.dispatch({
+      changes: { from: view.state.doc.line(5).from, to: view.state.doc.line(6).from },
+    });
+    expect(getBreakpointLineNumbers(view)).toEqual([]);
+  });
+
   it("moves a dot to the line the debugger verified, and draws an unplaceable one hollow with its reason", () => {
     const { view } = mount();
     pressGutterAt(view, 4);
