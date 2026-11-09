@@ -12,6 +12,7 @@ import {
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension, WorkspaceMapping } from "./client";
 import { LSPPlugin } from "./plugin";
+import { editorToolCommands } from "./tools";
 import { WorkspaceFile } from "./workspace";
 
 export const referencesTheme = EditorView.baseTheme({
@@ -150,6 +151,11 @@ export interface ReferenceLocation {
 }
 
 export const findReferences: Command = (view) => {
+  const tool = view.state.facet(editorToolCommands).references;
+  if (tool) {
+    tool(view);
+    return true;
+  }
   return requestReferences(view, view.state.selection.main.head);
 };
 

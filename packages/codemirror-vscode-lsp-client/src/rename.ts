@@ -10,6 +10,7 @@ import {
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
+import { editorToolCommands } from "./tools";
 
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
@@ -185,6 +186,11 @@ function createRenameTooltip(spec: {
 }
 
 export const renameSymbol: Command = (view) => {
+  const tool = view.state.facet(editorToolCommands).rename;
+  if (tool) {
+    tool(view);
+    return true;
+  }
   const plugin = LSPPlugin.get(view);
 
   if (!plugin || !plugin.client.hasCapability("renameProvider")) {

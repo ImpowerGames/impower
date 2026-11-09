@@ -124,6 +124,52 @@ const fileRenames = (edit: ReturnType<typeof getRenameEdits>) =>
 const editedUris = (edit: ReturnType<typeof getRenameEdits>) =>
   Object.keys(edit?.changes ?? {}).sort();
 
+describe("renaming a run operand", () => {
+  const HELPER = `${ROOT}lib/helpers.luau`;
+  const UTIL = `${ROOT}lib/util.luau`;
+  const TEXT = lines("run helpers", "scene start", "  Done.", "end", "");
+
+  const rename = (watched: string[], newName: string) => {
+    const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
+    documents.add({
+      textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text: TEXT },
+    });
+    const workspace = Object.create(
+      SparkdownLanguageServerWorkspace.prototype,
+    ) as SparkdownLanguageServerWorkspace;
+    Object.assign(workspace, {
+      _documents: documents,
+      _watchedFiles: new Map(watched.map((uri) => [uri, { uri }])),
+      _programStates: new Map(),
+      _documentVersions: new Map(),
+    });
+    const document = documents.get(MAIN)!;
+    return getRenameEdits(
+      { editor: { autoRenameFiles: true } },
+      document,
+      documents.tree(MAIN),
+      undefined,
+      workspace,
+      newName,
+      document.positionAt(TEXT.indexOf("helpers") + 2),
+    );
+  };
+
+  test("refuses a name another script already has, and changes nothing", () => {
+    expect(() => rename([MAIN, HELPER, UTIL], "util")).toThrow(
+      "util is already a script in this story.",
+    );
+  });
+
+  test("renames the script when the name is free", () => {
+    expect(rename([MAIN, HELPER], "util")?.documentChanges).toContainEqual({
+      kind: "rename",
+      oldUri: HELPER,
+      newUri: UTIL,
+    });
+  });
+});
+
 describe("rename across scripts and asset files", () => {
   test("renaming a picture's name renames its file when Auto-rename files is on", () => {
     const { rename } = setup();

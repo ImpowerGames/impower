@@ -31,9 +31,6 @@ export {
   pasteAvailable,
   textContextMenuItems,
   type ContextMenuItem,
-  editorTool,
-  editorToolCommands,
-  type EditorToolCommands,
 } from "./context";
 export {
   jumpToDeclaration,
@@ -173,3 +170,8 @@ export function languageServerExtensions(): readonly (
     contextMenu(),
   ];
 }
+export {
+  editorTool,
+  editorToolCommands,
+  type EditorToolCommands,
+} from "./tools";

@@ -146,6 +146,12 @@ export const getRenameEdits = (
       const folder = oldUri.slice(0, oldUri.lastIndexOf("/") + 1);
       const file = oldUri.slice(folder.length);
       const newUri = folder + newName + file.slice(file.indexOf("."));
+      if (newUri !== oldUri && workspace.hasFile(newUri)) {
+        throw new ResponseError(
+          ErrorCodes.InvalidRequest,
+          `${newName} is already a script in this story.`,
+        );
+      }
       for (const uri of workspace.uris()) {
         const script = workspace.document(uri);
         const links = workspace.annotations(uri)?.links.iter();

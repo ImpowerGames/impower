@@ -253,31 +253,16 @@ const onName = (state: EditorState, pos: number) => {
   return !HEX_COLOR.test(state.sliceDoc(hash, word.to));
 };
 
-export type EditorToolCommands = Partial<
-  Record<"find" | "rename" | "references", (view: EditorView) => void>
->;
-
-export const editorToolCommands = Facet.define<EditorToolCommands, EditorToolCommands>({
-  combine: (values) => values[0] ?? {},
-});
-
-export const editorTool =
-  (tool: keyof EditorToolCommands, fallback: (view: EditorView) => unknown) =>
-  (view: EditorView) => {
-    (view.state.facet(editorToolCommands)[tool] ?? fallback)(view);
-    return true;
-  };
-
 export const lspContextMenuItems: ContextMenuItem[] = [
   {
     label: "Rename",
-    command: editorTool("rename", renameSymbol),
+    command: renameSymbol,
     shortcut: getShortcutLabel(renameKeymap[0]?.key!),
     when: onName,
   },
   {
     label: "Find references",
-    command: editorTool("references", findReferences),
+    command: findReferences,
     shortcut: getShortcutLabel(findReferencesKeymap[0]?.key!),
     when: onName,
   },
