@@ -64,6 +64,26 @@ const render = (settings?: ScreenplayConfig, text = FIXTURE) => {
 const headings = (view: EditorView) =>
   Array.from(view.dom.querySelectorAll<HTMLElement>(".sp-heading"));
 
+const effectiveWeight = (element: Element | null): string => {
+  for (let node = element; node; node = node.parentElement) {
+    const weight = getComputedStyle(node).fontWeight;
+    if (weight) return weight;
+  }
+  return "normal";
+};
+
+const headingTextWeights = (view: EditorView) =>
+  headings(view).flatMap((heading) => {
+    const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+    const weights: string[] = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.textContent?.trim()) {
+        weights.push(effectiveWeight(walker.currentNode.parentElement));
+      }
+    }
+    return weights;
+  });
+
 const marginNumbers = (heading: HTMLElement) => {
   const found: { margin: string; content: string; position: string }[] = [];
   for (const sheet of Array.from(heading.ownerDocument.styleSheets)) {
@@ -125,6 +145,11 @@ describe("screenplay preview follows the print settings", () => {
     const plain = render({ screenplay_print_headings_bold: false });
     expect(plain.dom.dataset["headingsBold"]).toBe("off");
     expect(headings(plain).map((h) => getComputedStyle(h).fontWeight)).not.toContain("bold");
+  });
+
+  it("weights the heading text by the setting", () => {
+    expect(headingTextWeights(render({ screenplay_print_headings_bold: true }))).toEqual(["bold", "bold"]);
+    expect(headingTextWeights(render({ screenplay_print_headings_bold: false }))).toEqual(["normal", "normal"]);
   });
 
   it("lays the page out at the paper size's proportions", () => {

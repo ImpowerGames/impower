@@ -1,0 +1,158 @@
+import {
+  eventCombos,
+  isShortcutCombo,
+  normalizeCombo,
+  type ShortcutKeyEvent,
+  type ShortcutPlatform,
+} from "./shortcutCombo";
+import {
+  EDITOR_SHORTCUTS,
+  isShortcutRow,
+  platformKeys,
+  type ShortcutEntry,
+  type ShortcutRow,
+} from "./shortcutTable";
+
+export type ShortcutCombos = Readonly<Record<string, string>>;
+
+export const usualCombo = (row: ShortcutRow, platform: ShortcutPlatform) =>
+  normalizeCombo(platformKeys(row.keys, platform), platform);
+
+export const aliasCombos = (row: ShortcutRow, platform: ShortcutPlatform) =>
+  (row.aliases ?? [])
+    .map((alias) => normalizeCombo(platformKeys(alias, platform), platform))
+    .filter(Boolean);
+
+export function resolveShortcuts(
+  rows: readonly ShortcutRow[],
+  overrides: Readonly<Record<string, unknown>>,
+  platform: ShortcutPlatform,
+): ShortcutCombos {
+  const combos: Record<string, string> = {};
+  const held = new Set<string>();
+  for (const row of rows) {
+    const saved = Object.hasOwn(overrides, row.id) ? overrides[row.id] : undefined;
+    const combo =
+      saved === ""
+        ? ""
+        : isShortcutCombo(saved, platform)
+          ? normalizeCombo(saved, platform)
+          : usualCombo(row, platform);
+    if (combo && held.has(combo)) {
+      combos[row.id] = "";
+    } else {
+      combos[row.id] = combo;
+      if (combo) {
+        held.add(combo);
+      }
+    }
+  }
+  return combos;
+}
+
+export const shortcutHolder = (
+  combos: ShortcutCombos,
+  combo: string,
+): string | undefined =>
+  combo
+    ? Object.keys(combos).find((id) => combos[id] === combo)
+    : undefined;
+
+export function activeCombos(
+  row: ShortcutRow,
+  combos: ShortcutCombos,
+  platform: ShortcutPlatform,
+): string[] {
+  const own = combos[row.id] ?? "";
+  if (!own) {
+    return [];
+  }
+  const live = aliasCombos(row, platform).filter(
+    (alias) => alias !== own && !shortcutHolder(combos, alias),
+  );
+  return [...new Set([own, ...live])];
+}
+
+export interface ShortcutChange {
+  readonly combos: ShortcutCombos;
+  readonly displaced?: string;
+  readonly refused?: string;
+}
+
+export function fixedHolder(
+  combo: string,
+  platform: ShortcutPlatform,
+): string | undefined {
+  const wanted = normalizeCombo(combo, platform);
+  if (!wanted) {
+    return undefined;
+  }
+  for (const entry of EDITOR_SHORTCUTS as readonly ShortcutEntry[]) {
+    if (isShortcutRow(entry)) {
+      continue;
+    }
+    const keys = platformKeys(entry.keys, platform);
+    if (!keys) {
+      continue;
+    }
+    const held = [keys, ...(entry.shift ? [`Shift+${keys}`] : [])].map((candidate) =>
+      normalizeCombo(candidate, platform),
+    );
+    if (held.includes(wanted)) {
+      return entry.id;
+    }
+  }
+  return undefined;
+}
+
+export function assignShortcut(
+  combos: ShortcutCombos,
+  id: string,
+  combo: string,
+  platform: ShortcutPlatform,
+): ShortcutChange {
+  const normalized = combo ? normalizeCombo(combo, platform) : "";
+  const holder = shortcutHolder(combos, normalized);
+  const displaced = holder && holder !== id ? holder : undefined;
+  return {
+    combos: {
+      ...combos,
+      ...(displaced ? { [displaced]: "" } : {}),
+      [id]: normalized,
+    },
+    displaced,
+  };
+}
+
+export function restoreShortcut(
+  rows: readonly ShortcutRow[],
+  combos: ShortcutCombos,
+  id: string,
+  platform: ShortcutPlatform,
+): ShortcutChange {
+  const row = rows.find((candidate) => candidate.id === id);
+  return row
+    ? assignShortcut(combos, id, usualCombo(row, platform), platform)
+    : { combos };
+}
+
+export function shortcutForEvent(
+  event: ShortcutKeyEvent,
+  rows: readonly ShortcutRow[],
+  combos: ShortcutCombos,
+  platform: ShortcutPlatform,
+): string | undefined {
+  for (const combo of eventCombos(event, platform)) {
+    const row = rows.find((candidate) =>
+      activeCombos(candidate, combos, platform).includes(combo),
+    );
+    if (row) {
+      return row.id;
+    }
+    const fixed = fixedHolder(combo, platform);
+    if (fixed) {
+      return fixed;
+    }
+  }
+  return undefined;
+}

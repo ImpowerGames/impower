@@ -1,13 +1,5 @@
-import { completionKeymap } from "@codemirror/autocomplete";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-} from "@codemirror/commands";
+import { history } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
-import { searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -15,7 +7,6 @@ import {
   drawSelection,
   dropCursor,
   highlightActiveLineGutter,
-  keymap,
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
@@ -63,14 +54,6 @@ const EDITOR_EXTENSIONS = [
   highlightActiveLineGutter(),
   highlightExtraWhitespace(),
   highlightLines({ isGap: isExecutionGap }),
-  keymap.of([
-    indentWithTab,
-    ...defaultKeymap,
-    ...searchKeymap,
-    ...historyKeymap,
-    ...completionKeymap,
-    ...lintKeymap,
-  ]),
   EditorView.lineWrapping,
   EditorState.allowMultipleSelections.of(true),
   EditorState.phrases.of({ "No diagnostics": "No problems" }),

@@ -26,6 +26,7 @@ import {
   type ContextMenuPresenter,
   editorToolCommands,
   type EditorToolCommands,
+  type ShortcutCombos,
   LSPClient,
   onPasteRefused,
   presentContextMenu,
@@ -81,6 +82,7 @@ import {
   customSearchPanel,
 } from "./extensions/customSearch";
 import { keyboardToolbar } from "./extensions/keyboardToolbar";
+import { scriptEditorShortcuts } from "./extensions/scriptEditorShortcuts";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { statusPanel } from "./extensions/statusPanel";
@@ -118,6 +120,7 @@ interface EditorConfig {
   routePins?: DocumentRoutePin[];
   coarsePointer: boolean;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
   tools?: EditorToolCommands;
   onPasteRefused?: () => void;
@@ -262,6 +265,7 @@ const createEditorView = (
       extensions: [
         ...restoredExtensions,
         EDITOR_EXTENSIONS,
+        scriptEditorShortcuts(config.shortcuts),
         scriptAppearance(config.appearance),
         customSearchPanel(),
         customGotoLinePanel(),
