@@ -185,20 +185,6 @@ describe("the web editor's debug client", () => {
     expect(workspace.debugSession.value.stopped?.reason).toBe("breakpoint");
   });
 
-  it("keeps a choice menu on record through a Resume in place", async () => {
-    const fake = fakeAdapter();
-    const { debug } = client(fake);
-    ending = debug;
-    await debug.start(MAIN);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "game/awaitingInteraction",
-      params: { location: { uri: MAIN, range: {} }, choices: true },
-    } as never);
-    expect(await debug.continue()).toBe(true);
-    expect(workspace.debugSession.value.choosing).toBe(true);
-  });
-
   it("reports a refused stack trace for the running session", async () => {
     const fake = fakeAdapter({ stackTrace: "no game loaded" });
     const { debug, onRefusal, onStop } = client(fake);
@@ -228,21 +214,6 @@ describe("the web editor's debug client", () => {
     expect(onRefusal).toHaveBeenCalledWith("no game loaded");
   });
 
-  it("knows a choice menu is on screen from the player's wait, until the run moves on", async () => {
-    const fake = fakeAdapter();
-    const { debug } = client(fake);
-    ending = debug;
-    await debug.start(MAIN);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "game/awaitingInteraction",
-      params: { location: { uri: MAIN, range: {} }, choices: true },
-    } as never);
-    expect(workspace.debugSession.value.choosing).toBe(true);
-    fake.event("continued", { threadId: 0 });
-    expect(workspace.debugSession.value.choosing).toBe(false);
-  });
-
   it("ends the session when the run stops, answering nothing more", async () => {
     const fake = fakeAdapter();
     const { debug, onStop } = client(fake);
@@ -256,7 +227,6 @@ describe("the web editor's debug client", () => {
     expect(workspace.debugSession.value).toEqual({
       stopped: null,
       stackTrace: null,
-      choosing: false,
     });
   });
 });

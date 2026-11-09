@@ -583,6 +583,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendRefusal(response, e);
       return;
     }
+    this._continueAdvances = true;
     this.sendResponse(response);
   }
 

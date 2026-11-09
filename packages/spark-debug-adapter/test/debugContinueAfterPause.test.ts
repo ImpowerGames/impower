@@ -58,6 +58,15 @@ describe("continuing a debug run", () => {
     });
   }
 
+  for (const traversal of ["nextRequest", "stepInRequest", "stepOutRequest"]) {
+    it(`runs on to the next stop when Resume arrives before ${traversal.replace("Request", "")}'s stop is announced`, async () => {
+      const { debug, response, resumed } = session();
+      await (debug as any).pauseRequest(response("pause"), { threadId: 0 });
+      await (debug as any)[traversal](response("step"), { threadId: 0 });
+      expect(await resumed()).toEqual(["game/unpause", "game/continue"]);
+    });
+  }
+
   it("resumes in place when Resume arrives before the pause's stop is announced", async () => {
     const sent: string[] = [];
     const events: string[] = [];

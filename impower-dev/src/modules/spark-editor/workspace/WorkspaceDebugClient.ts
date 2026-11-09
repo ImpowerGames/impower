@@ -5,7 +5,6 @@ import {
 import type { GamePosition } from "@impower/spark-editor-protocol/src/types";
 import type { FileAccessor } from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
-import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import workspace, { IDLE_DEBUG_SESSION, type DebugSessionState } from "./WorkspaceStore";
 
@@ -83,9 +82,6 @@ export default class WorkspaceDebugClient {
       }
       if (typeof message.method !== "string") {
         return;
-      }
-      if (GameAwaitingInteractionMessage.type.isNotification(message)) {
-        this.update({ choosing: Boolean(message.params.choices) });
       }
       if (message.method.startsWith("game/") || message.method.startsWith("preview/")) {
         connection.receive(message);
@@ -232,7 +228,7 @@ export default class WorkspaceDebugClient {
     }
     if (event.event === "continued") {
       session.stops += 1;
-      this.update({ stopped: null, stackTrace: null, choosing: false });
+      this.update({ stopped: null, stackTrace: null });
     }
   }
 

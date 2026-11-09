@@ -13,14 +13,14 @@ const callDepth = (session: DebugSessionState) =>
   session.stackTrace?.totalFrames ?? session.stackTrace?.stackFrames.length ?? 0;
 
 export const stepRefusals = (
-  { ended, paused }: { ended: boolean; paused: boolean },
+  { ended, paused, choosing }: { ended: boolean; paused: boolean; choosing: boolean },
   session: DebugSessionState,
 ): Record<StepTraversal, string | undefined> => {
   const all = ended
     ? STEP_REASONS.ended
     : !paused
       ? STEP_REASONS.running
-      : session.choosing
+      : choosing
         ? STEP_REASONS.choosing
         : undefined;
   return {

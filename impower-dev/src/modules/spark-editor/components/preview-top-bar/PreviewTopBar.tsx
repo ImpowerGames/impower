@@ -357,7 +357,10 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
-  const refusals = stepRefusals({ ended, paused }, workspace.debugSession.value);
+  const refusals = stepRefusals(
+    { ended, paused, choosing: !!game?.choosing },
+    workspace.debugSession.value,
+  );
   const steps = running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;

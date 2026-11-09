@@ -205,7 +205,6 @@ import workspaceSettings, {
 } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
 import workspace, {
-  IDLE_DEBUG_SESSION,
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
@@ -1992,19 +1991,10 @@ describe("The preview's top bar", () => {
   });
 
   it("disables every step at a choice menu", () => {
-    workspace.debugSession.value = {
-      stopped: { reason: "pause", threadId: 0 },
-      stackTrace: { stackFrames: [], totalFrames: 2 },
-      choosing: true,
-    };
-    try {
-      show({ running: true, paused: true });
-      for (const step of ["Step Over", "Step Into", "Step Out"]) {
-        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
-        expect(control(step)?.title).toBe("Make a choice to step on.");
-      }
-    } finally {
-      workspace.debugSession.value = IDLE_DEBUG_SESSION;
+    show({ running: true, paused: true, choosing: true });
+    for (const step of ["Step Over", "Step Into", "Step Out"]) {
+      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+      expect(control(step)?.title).toBe("Make a choice to step on.");
     }
   });
 
@@ -2052,6 +2042,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Pause",
+      "Step Over",
       "Step Into",
       "Skip back",
       "Stop",

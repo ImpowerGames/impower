@@ -21,13 +21,11 @@ export interface OutlineSnapshot {
 export interface DebugSessionState {
   stopped: DebugProtocol.StoppedEvent["body"] | null;
   stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
-  choosing: boolean;
 }
 
 export const IDLE_DEBUG_SESSION: DebugSessionState = {
   stopped: null,
   stackTrace: null,
-  choosing: false,
 };
 
 const defaults: WorkspaceCache = {
