@@ -24,12 +24,14 @@ import {
   type SettingsSectionInfo,
 } from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
+import ShortcutsSection from "./ShortcutsSection";
 
 const SECTION_BODIES: Partial<
   Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
 > = {
   "theme-preferences": AppearanceSection,
   "editor-preferences": ScriptEditorSection,
+  "shortcut-preferences": ShortcutsSection,
   "preview-preferences": PreviewSection,
   "story-details": MetadataSection,
   "screenplay-settings": ScreenplaySection,

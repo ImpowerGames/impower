@@ -2,8 +2,6 @@ import { StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
-  KeyBinding,
-  keymap,
   showTooltip,
   Tooltip,
 } from "@codemirror/view";
@@ -281,10 +279,6 @@ const doRename = async (view: EditorView, newName: string, pos: number) => {
   return true;
 };
 
-export const renameKeymap: readonly KeyBinding[] = [
-  { key: "F2", run: renameSymbol, preventDefault: true },
-];
-
 export function serverRenaming(): LSPClientExtension {
   return {
     clientCapabilities: {
@@ -294,6 +288,6 @@ export function serverRenaming(): LSPClientExtension {
         },
       },
     },
-    editorExtension: [renameTheme, renameField, keymap.of([...renameKeymap])],
+    editorExtension: [renameTheme, renameField],
   };
 }
