@@ -2001,7 +2001,7 @@ describe("The preview's top bar", () => {
       sendProtocolMessage({
         jsonrpc: "2.0",
         method: "game/stepped",
-        params: { location: { uri, range: {} }, run: 1 },
+        params: { location: { uri, range: {} }, run: 1, history: { canStepOut: true } },
       } as never);
       await vi.waitFor(() =>
         expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(2),

@@ -227,7 +227,28 @@ describe("the web editor's debug client", () => {
     expect(workspace.debugSession.value).toEqual({
       stopped: null,
       stackTrace: null,
+      canStepOut: false,
     });
+  });
+
+  it("takes Step Out's state from the engine's history on each stop and beat", async () => {
+    const fake = fakeAdapter();
+    const { debug } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    expect(workspace.debugSession.value.canStepOut).toBe(false);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "game/stepped",
+      params: { location: { uri: MAIN, range: {} }, history: { canStepOut: true } },
+    } as never);
+    expect(workspace.debugSession.value.canStepOut).toBe(true);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "game/executed",
+      params: { conditions: [], choices: [], state: "running", history: { canStepOut: false } },
+    } as never);
+    expect(workspace.debugSession.value.canStepOut).toBe(false);
   });
 });
 

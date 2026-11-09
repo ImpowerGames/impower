@@ -18,9 +18,6 @@ export const STEP_REASONS = {
   topLevel: "Nothing is calling, so there is nothing to step out of.",
 } as const;
 
-const callDepth = (session: DebugSessionState) =>
-  session.stackTrace?.totalFrames ?? session.stackTrace?.stackFrames.length ?? 0;
-
 export const stepRefusals = (
   game: GameState | undefined,
   session: DebugSessionState,
@@ -35,6 +32,6 @@ export const stepRefusals = (
   return {
     over: all,
     in: all,
-    out: all ?? (callDepth(session) > 1 ? undefined : STEP_REASONS.topLevel),
+    out: all ?? (session.canStepOut ? undefined : STEP_REASONS.topLevel),
   };
 };
