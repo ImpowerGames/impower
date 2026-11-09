@@ -932,6 +932,15 @@ export default class WorkspaceFileSystem {
       return [];
     }
     const moves = computeFolderMoves(relativePaths, from, to);
+    const sources = new Set(moves.map((m) => m.from));
+    const occupied = moves.find(
+      (m) => relativePaths.includes(m.to) && !sources.has(m.to),
+    );
+    if (occupied) {
+      throw new Error(
+        `Cannot rename ${from} to ${to}: ${occupied.to} already exists`,
+      );
+    }
     const renamed =
       moves.length === 0
         ? []
