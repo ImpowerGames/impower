@@ -19,6 +19,9 @@ const { scriptRows } = await import(
 const { NAME_MESSAGES } = await import(
   "../../src/modules/spark-editor/utils/fileListModel"
 );
+const { SCRIPT_FILES_GLOB, setScriptFiles } = await import(
+  "../../src/modules/spark-editor/utils/scriptFiles"
+);
 
 const PROJECT = "p";
 const uri = (path: string) => `file:///${PROJECT}/${path}`;
@@ -198,6 +201,27 @@ describe("Scripts through the workspace", () => {
     await scripts.remove("Scripts/outro.sd");
     expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Scripts/outro.sd") }], mode: "trash" });
     await expect(scripts.remove("main.sd")).rejects.toThrow("Main stays");
+  });
+});
+
+describe("Scripts following File types", () => {
+  it("lists a script of an ending added under File types while the page is open, and drops it when the ending goes, without a file change", async () => {
+    const { scripts, fs } = fakeWorkspace([...PATHS, "Scripts/chapter.story"], FOLDERS);
+    const listed = () => Object.keys(workspace.scriptListing.value?.files ?? {}).sort();
+    const stop = scripts.watch();
+    try {
+      await vi.waitFor(() => expect(listed()).toContain("Scripts/intro.sd"));
+      expect(listed()).not.toContain("Scripts/chapter.story");
+      const reads = fs.getFiles.mock.calls.length;
+      setScriptFiles("*.{sd,luau,story}");
+      await vi.waitFor(() => expect(listed()).toContain("Scripts/chapter.story"));
+      expect(fs.getFiles.mock.calls.length).toBe(reads + 1);
+      setScriptFiles(SCRIPT_FILES_GLOB);
+      await vi.waitFor(() => expect(listed()).not.toContain("Scripts/chapter.story"));
+    } finally {
+      stop();
+      setScriptFiles(SCRIPT_FILES_GLOB);
+    }
   });
 });
 

@@ -4,7 +4,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { downloadFile } from "../utils/downloadFile";
 import { recordMove, recordTrashDeletion } from "../utils/fileUndo";
 import { availableName, copyName, NameError } from "../utils/fileListModel";
-import { isScriptPath } from "../utils/scriptFiles";
+import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import {
   isInside,
   joinPath,
@@ -127,11 +127,12 @@ export default class WorkspaceScripts {
   }
 
   watch(): () => void {
-    void this.load();
     const reload = () => void this.load();
+    const detachEndings = scriptFilesGlob.subscribe(reload);
     const detachFiles = onProtocolMessage(DidChangeWatchedFilesMessage.type, reload);
     const detachFolders = onProtocolMessage(DidChangeDirectoriesMessage.type, reload);
     return () => {
+      detachEndings();
       detachFiles();
       detachFolders();
     };
