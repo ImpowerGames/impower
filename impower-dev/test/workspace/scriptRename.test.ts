@@ -1,3 +1,5 @@
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -216,6 +218,46 @@ describe("WorkspaceWindow.renameScript", () => {
     await pending;
     expect(openFilename()).toBe("scripts/outro.sd");
     expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(true);
+  });
+
+  it("follows the renamed script with the selection and scroll its editor reported during the rename", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    const at = (line: number) => ({
+      start: { line, character: 0 },
+      end: { line, character: 0 },
+    });
+    let finishMove = () => {};
+    fs.renameFileWithReferences.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishMove = () => resolve({ referencesUpdated: 0, scriptsAffected: 0 });
+        }),
+    );
+    const pending = win.renameScript("scripts/intro.sd", "Opening");
+    await vi.waitFor(() => expect(fs.renameFileWithReferences).toHaveBeenCalled());
+    const textDocument = { uri: `${ROOT}scripts/intro.sd` };
+    win["handleSelectedEditor"](
+      SelectedEditorMessage.type.notification({
+        textDocument,
+        selectedRange: at(6),
+        docChanged: false,
+        hasFocus: true,
+      }),
+    );
+    win["handleScrolledEditor"](
+      ScrolledEditorMessage.type.notification({
+        textDocument,
+        visibleRange: at(4),
+        target: "element",
+      }),
+    );
+    finishMove();
+    await pending;
+    const editor = workspace.current.panes.logic.panels.scripts?.activeEditor;
+    expect(editor?.filename).toBe("scripts/Opening.sd");
+    expect(editor?.selectedRange).toEqual(at(6));
+    expect(editor?.visibleRange).toEqual(at(4));
+    expect(editor?.focused).toBe(true);
   });
 
   it("never renames Main", async () => {

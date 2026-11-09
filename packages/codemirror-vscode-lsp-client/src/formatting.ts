@@ -1,6 +1,6 @@
 import { getIndentUnit, indentUnit } from "@codemirror/language";
 import { ChangeSpec } from "@codemirror/state";
-import { Command, KeyBinding, keymap } from "@codemirror/view";
+import { Command } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
@@ -52,10 +52,6 @@ export const formatDocument: Command = (view) => {
   return true;
 };
 
-export const formatKeymap: readonly KeyBinding[] = [
-  { key: "Shift-Alt-f", run: formatDocument, preventDefault: true },
-];
-
 export function serverFormatting(): LSPClientExtension {
   return {
     clientCapabilities: {
@@ -63,6 +59,5 @@ export function serverFormatting(): LSPClientExtension {
         formatting: {},
       },
     },
-    editorExtension: [keymap.of([...formatKeymap])],
   };
 }

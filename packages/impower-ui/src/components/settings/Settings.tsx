@@ -172,8 +172,13 @@ export type SettingsRowProps = Omit<SettingsRowVariantProps, "interactive"> & {
   control?: ComponentChildren;
   setting?: string;
   htmlFor?: string;
+  changed?: boolean;
+  onReset?: () => void;
+  resetLabel?: string;
   class?: string;
 };
+
+const FOCUSABLE = "button:not([data-reset-row]), input, select, textarea, [tabindex]";
 
 export function SettingsRow({
   id,
@@ -183,14 +188,28 @@ export function SettingsRow({
   control,
   setting,
   htmlFor,
+  changed = false,
+  onReset,
+  resetLabel = typeof name === "string" ? `Reset ${name}` : undefined,
   indent,
   wrap,
   disabled,
   class: className,
 }: SettingsRowProps) {
   const Tag = htmlFor ? "label" : "div";
+  const row = useRef<HTMLDivElement & HTMLLabelElement>(null);
+  const reset = () => {
+    onReset?.();
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body || !active.isConnected) {
+        row.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+      }
+    }, 0);
+  };
   return (
     <Tag
+      ref={row}
       class={cn(
         settingsRowVariants({ indent, wrap, disabled, interactive: !!htmlFor && !disabled }),
         className,
@@ -221,6 +240,17 @@ export function SettingsRow({
           </small>
         )}
       </span>
+      {onReset && changed && !disabled && (
+        <Button
+          variant="quiet"
+          class="-my-2 flex-none text-muted"
+          data-reset-row
+          aria-label={resetLabel}
+          onClick={reset}
+        >
+          Reset
+        </Button>
+      )}
       {control}
     </Tag>
   );

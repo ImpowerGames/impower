@@ -192,6 +192,7 @@ describe("the Settings page", () => {
           ![
             "theme-preferences",
             "editor-preferences",
+            "shortcut-preferences",
             "preview-preferences",
             "story-details",
             "screenplay-settings",

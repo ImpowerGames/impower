@@ -1,11 +1,15 @@
 import { openSearchPanel, SearchQuery, setSearchQuery } from "@codemirror/search";
+import { runScopeHandlers, type EditorView } from "@codemirror/view";
 import {
-  keymap,
-  runScopeHandlers,
-  type EditorView,
-  type KeyBinding,
-} from "@codemirror/view";
-import type { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
+  assignShortcut,
+  comboKeyName,
+  EDITOR_SHORTCUT_ROWS,
+  editorShortcutEntries,
+  normalizeCombo,
+  resolveShortcuts,
+  setEditorShortcuts,
+  type LSPClient,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it } from "vitest";
 import { SparkdownCodemirrorWorkspace } from "../src/modules/script-editor/classes/SparkdownCodemirrorWorkspace";
 import createEditorView from "../src/modules/script-editor/utils/createEditorView";
@@ -67,38 +71,36 @@ describe("the shortcuts the editor reports", () => {
     "names a command for every binding the live editor registers (coarse pointer %s)",
     (coarse) => {
       const view = liveEditor(coarse);
-      const unlisted = unlistedKeybindings(view.state).map(
-        (binding) => binding.key ?? binding.mac ?? "?",
-      );
+      const unlisted = unlistedKeybindings(view.state).map((entry) => entry.id);
       expect(unlisted).toEqual([]);
     },
   );
 
   it.each(["win", "mac"] as const)(
-    "lists every live binding's key under its own command in the returned sheet (%s)",
+    "lists every key of every keymap table entry the editor binds under its own command, Shift variants included (%s)",
     (platform) => {
       const view = liveEditor();
       const returned = editorKeybindings(view.state, platform);
       const claimedByEarlier = new Set(["PageUp", "PageDown", "Mod-g", "Escape"]);
       const missing: string[] = [];
-      const check = (binding: KeyBinding, run: unknown, key: string) => {
+      const check = (entryId: string, run: unknown, key: string) => {
         const id = EDITOR_SHORTCUT_COMMANDS.find(
           (command) =>
-            command.runs?.includes(run as never) ||
-            command.bindings?.includes(binding),
+            command.runs?.includes(run as never) || command.entries?.includes(entryId),
         )?.id;
         const listedUnder = returned
           .filter((command) => command.keys.includes(key))
           .map((command) => command.id);
-        if (!id || listedUnder.length === 0) missing.push(`${key} (${id})`);
+        if (!id || listedUnder.length === 0) missing.push(`${key} (${entryId})`);
         else if (!claimedByEarlier.has(key) && !listedUnder.includes(id))
           missing.push(`${key} under ${id}`);
       };
-      for (const binding of view.state.facet(keymap).flat()) {
-        const key = binding[platform] ?? binding.key;
-        if (!key) continue;
-        if (binding.run) check(binding, binding.run, key);
-        if (binding.shift) check(binding, binding.shift, `Shift-${key}`);
+      for (const entry of editorShortcutEntries(view.state, platform)) {
+        for (const combo of entry.combos) {
+          if (entry.run) check(entry.id, entry.run, comboKeyName(combo));
+          if (entry.shift)
+            check(entry.id, entry.shift, comboKeyName(normalizeCombo(`Shift+${combo}`, platform)));
+        }
       }
       expect(missing).toEqual([]);
     },
@@ -112,21 +114,21 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
   });
 
-  it("lists Escape only under the handlers that receive it: the editor's Find close and the Go to line panel's own", () => {
+  it("lists Escape only under the handlers that receive it: the suggestion list's close, the editor's Find close and the Go to line panel's own", () => {
     const view = liveEditor();
     const withEscape = editorKeybindings(view.state, "win")
       .filter((command) => command.keys.includes("Escape"))
       .map((command) => command.id);
-    expect(withEscape.sort()).toEqual(["closeGotoLine", "escape"]);
+    expect(withEscape.sort()).toEqual(["closeGotoLine", "closeSuggestions", "escape"]);
   });
 
-  it("delivers the listed panel keys: Mod-g in Find steps to the next match, Escape in Go to line closes it", () => {
+  it("delivers the listed panel keys: F3 in Find steps to the next match, Escape in Go to line closes it", () => {
     const view = liveEditor();
     openSearchPanel(view);
     view.dispatch({
       effects: setSearchQuery.of(new SearchQuery({ search: "start" })),
     });
-    const next = new KeyboardEvent("keydown", { key: "g", ctrlKey: true });
+    const next = new KeyboardEvent("keydown", { key: "F3" });
     expect(runScopeHandlers(view, next, "search-panel")).toBe(true);
     const { from, to } = view.state.selection.main;
     expect(view.state.sliceDoc(from, to)).toBe("start");
@@ -139,12 +141,12 @@ describe("the shortcuts the editor reports", () => {
     expect(customGotoLinePanelOpen(view.state)).toBe(false);
   });
 
-  it("reads Find as Mod-f and Go to line as Mod-g from the live keymap", () => {
+  it("reads Find as Mod-f, Go to line as Mod-g and Next match as F3 from the keymap table", () => {
     const view = liveEditor();
     expect(keysOf(view, "search", "win")).toEqual(["Mod-f"]);
     expect(keysOf(view, "search", "mac")).toEqual(["Mod-f"]);
     expect(keysOf(view, "gotoLine", "win")).toContain("Mod-g");
-    expect(keysOf(view, "findNext", "win")).toContain("Mod-g");
+    expect(keysOf(view, "findNext", "win")).toEqual(["F3"]);
   });
 
   it("takes a Mac's own key where a binding has one", () => {
@@ -153,11 +155,21 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "redo", "mac")).toContain("Mod-Shift-z");
     expect(keysOf(view, "selectLine", "win")).toEqual(["Alt-l"]);
     expect(keysOf(view, "selectLine", "mac")).toEqual(["Ctrl-l"]);
-    expect(keysOf(view, "toggleBlockComment", "win")).toEqual(["Alt-A"]);
-    const shifted = new KeyboardEvent("keydown", { key: "A", altKey: true, shiftKey: true });
-    const unshifted = new KeyboardEvent("keydown", { key: "a", altKey: true });
+    expect(keysOf(view, "toggleBlockComment", "win")).toEqual(["Shift-Alt-a"]);
+    const shifted = new KeyboardEvent("keydown", { key: "A", keyCode: 65, altKey: true, shiftKey: true });
+    const unshifted = new KeyboardEvent("keydown", { key: "a", keyCode: 65, altKey: true });
     expect(runScopeHandlers(view, unshifted, "editor")).toBe(false);
     expect(runScopeHandlers(view, shifted, "editor")).toBe(true);
+  });
+
+  it("answers with the keys the writer recorded, not the defaults", () => {
+    const view = liveEditor();
+    const defaults = resolveShortcuts(EDITOR_SHORTCUT_ROWS, {}, "linux");
+    const moved = assignShortcut(defaults, "rename", "Mod+F", "linux").combos;
+    setEditorShortcuts(view, moved);
+    const own = editorKeybindings(view.state, "linux");
+    expect(own.find((command) => command.id === "rename")?.keys).toEqual(["Mod-f"]);
+    expect(own.find((command) => command.id === "search")?.keys).toEqual([]);
   });
 
   it("lists a command with no binding with no keys", () => {
