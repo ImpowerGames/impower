@@ -15,12 +15,12 @@ interface ScriptRole {
   readonly within?: readonly string[];
 }
 
-const SPEAKER_ROLE: ScriptRole = {
+export const SPEAKER_ROLE: ScriptRole = {
   className: "cm-role-speaker",
   nodes: ["DialogueCharacterName"],
 };
 
-const DIALOGUE_ROLE: ScriptRole = {
+export const DIALOGUE_ROLE: ScriptRole = {
   className: "cm-role-dialogue",
   nodes: ["TextChunk"],
   within: ["BlockDialogue", "InlineDialogue"],
@@ -39,7 +39,7 @@ export const DECLARED_NAME_ROLE: ScriptRole = {
 
 export const scriptRole = Facet.define<ScriptRole>();
 
-const isWithin = (node: SyntaxNode, names: readonly string[]) => {
+export const isWithin = (node: SyntaxNode, names: readonly string[]) => {
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (names.includes(parent.name)) {
       return true;

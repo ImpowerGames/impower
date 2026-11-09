@@ -1,21 +1,41 @@
 /// <reference path="../../declaration.d.ts" />
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef } from "preact/hooks";
-import type { ScreenplayPreviewController as ScreenplayPreviewControllerType } from "./ScreenplayPreviewController";
+import type { ScreenplayConfig } from "../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import type {
+  ScreenplayPreviewController as ScreenplayPreviewControllerType,
+  ScreenplayPreviewOptions,
+} from "./ScreenplayPreviewController";
 import cssText from "./sparkdown-screenplay-preview.css?raw";
 
 export const propDefaults = {
   scrollMargin: null as string | null,
 };
 
-export type SparkdownScreenplayPreviewProps = Partial<typeof propDefaults>;
+export type SparkdownScreenplayPreviewProps = Partial<typeof propDefaults> & {
+  config?: ScreenplayConfig;
+  paper?: "paper" | "theme";
+  texture?: boolean;
+  syncScroll?: boolean;
+  playing?: boolean;
+  picks?: Record<string, readonly number[]>;
+};
 
 export default function SparkdownScreenplayPreview({
   scrollMargin,
+  config,
+  paper,
+  texture,
+  syncScroll = true,
+  playing = false,
+  picks,
 }: SparkdownScreenplayPreviewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const controllerRef = useRef<ScreenplayPreviewControllerType>();
+  const optionsRef = useRef<ScreenplayPreviewOptions>({});
+  optionsRef.current = { config, syncScroll, playing, picks };
 
   useEffect(() => {
     const root = rootRef.current;
@@ -38,20 +58,43 @@ export default function SparkdownScreenplayPreview({
         controller = new ScreenplayPreviewController(
           realHost,
           { preview, loading },
-          { scrollMargin: scrollMargin ?? "" },
+          { ...optionsRef.current, scrollMargin: scrollMargin ?? "" },
         );
+        controllerRef.current = controller;
         controller.setup();
       },
     );
 
     return () => {
       cancelled = true;
+      controllerRef.current = undefined;
       controller?.dispose();
     };
   }, [scrollMargin]);
 
+  useEffect(() => {
+    controllerRef.current?.setConfig(config);
+  }, [config]);
+
+  useEffect(() => {
+    controllerRef.current?.setPicks(picks);
+  }, [picks]);
+
+  useEffect(() => {
+    controllerRef.current?.setSyncScroll(syncScroll);
+  }, [syncScroll]);
+
+  useEffect(() => {
+    controllerRef.current?.setPlaying(playing);
+  }, [playing]);
+
   return (
-    <div class="sparkdown-screenplay-preview-root" ref={rootRef}>
+    <div
+      class="sparkdown-screenplay-preview-root"
+      ref={rootRef}
+      data-paper={paper}
+      data-texture={texture ? "" : undefined}
+    >
       <style>{cssText}</style>
       <LoadingBar
         containerRef={loadingRef}

@@ -54,6 +54,11 @@ import {
   DidExpandPreviewPaneParams,
 } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import {
+  DidChangeConfigurationMessage,
+  DidChangeConfigurationMethod,
+  DidChangeConfigurationParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import {
   Range,
   TextDocumentIdentifier,
   TextDocumentItem,
@@ -65,7 +70,12 @@ import { getScrollClientHeight } from "../../utils/getScrollClientHeight.js";
 import { getScrollTop } from "../../utils/getScrollTop.js";
 import { getVisibleRange } from "../../utils/getVisibleRange.js";
 import { scrollY } from "../../utils/scrollY";
+import type { ScreenplayConfig } from "../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import createEditorView from "./utils/createEditorView";
+import {
+  setScreenplayConfig,
+  setScreenplayPicks,
+} from "./utils/screenplaySettings";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -76,6 +86,10 @@ export interface ScreenplayPreviewRefs {
 
 export interface ScreenplayPreviewOptions {
   scrollMargin?: string;
+  config?: ScreenplayConfig;
+  syncScroll?: boolean;
+  playing?: boolean;
+  picks?: Record<string, readonly number[]>;
 }
 
 export class ScreenplayPreviewController {
@@ -135,6 +149,37 @@ export class ScreenplayPreviewController {
     );
   }
 
+  setConfig(config: ScreenplayConfig | undefined): void {
+    this.options.config = config;
+    this._view?.dispatch({ effects: setScreenplayConfig.of(config) });
+  }
+
+  setPicks(
+    picks: Record<string, readonly number[]> | undefined,
+  ): void {
+    this.options.picks = picks;
+    this._view?.dispatch({
+      effects: setScreenplayPicks.of(this.picksFor()),
+    });
+  }
+
+  setSyncScroll(syncScroll: boolean): void {
+    this.options.syncScroll = syncScroll;
+  }
+
+  setPlaying(playing: boolean): void {
+    this.options.playing = playing;
+  }
+
+  protected picksFor(): readonly number[] {
+    const uri = this._textDocument?.uri;
+    return (uri && this.options.picks?.[uri]) || [];
+  }
+
+  protected get syncScroll(): boolean {
+    return this.options.syncScroll !== false;
+  }
+
   dispose(): void {
     this.host.removeEventListener(
       "touchstart",
@@ -175,6 +220,9 @@ export class ScreenplayPreviewController {
     );
     p.onNotification(SelectedEditorMessage.type, (m) =>
       this.handleSelectedEditor(m),
+    );
+    p.onNotification(DidChangeConfigurationMessage.type, (m) =>
+      this.handleDidChangeConfiguration(m),
     );
 
     p.onRequest(
@@ -274,21 +322,41 @@ export class ScreenplayPreviewController {
     }
   };
 
+  protected handleDidChangeConfiguration = (
+    message: NotificationMessage<
+      DidChangeConfigurationMethod,
+      DidChangeConfigurationParams
+    >,
+  ) => {
+    const printSettings = Object.entries(message.params.settings ?? {}).filter(
+      ([key]) => key.startsWith("screenplay_print_"),
+    );
+    const current: Record<string, unknown> = { ...this.options.config };
+    if (printSettings.some(([key, value]) => current[key] !== value)) {
+      this.setConfig({ ...current, ...Object.fromEntries(printSettings) });
+    }
+  };
+
   protected handleScrolledEditor = (
     message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
-    if (this._loaded) {
-      this._userInitiatedScroll = false;
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.visibleRange;
-      const target = params.target;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.cacheVisibleRange(range);
-        if (target === "element") {
-          this.scrollToRange(range);
-        }
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.visibleRange;
+    const target = params.target;
+    if (!this.syncScroll || textDocument.uri !== this._textDocument?.uri) {
+      return;
+    }
+    if (!this._loaded) {
+      if (target === "element") {
+        this._initialVisibleRange = range;
       }
+      return;
+    }
+    this._userInitiatedScroll = false;
+    this.cacheVisibleRange(range);
+    if (target === "element") {
+      this.scrollToRange(range);
     }
   };
 
@@ -299,10 +367,15 @@ export class ScreenplayPreviewController {
     const textDocument = params.textDocument;
     const selectedRange = params.selectedRange;
     const docChanged = params.docChanged;
-    const userEvent = params.userEvent;
     if (textDocument.uri === this._textDocument?.uri) {
-      if (!docChanged && userEvent) {
-        this.selectRange(selectedRange, false);
+      if (!docChanged) {
+        if (!this._loaded) {
+          this._initialSelectedRange = selectedRange;
+        }
+        this.selectRange(
+          selectedRange,
+          this.options.playing ? "nearest" : false,
+        );
       }
     }
   };
@@ -337,6 +410,8 @@ export class ScreenplayPreviewController {
           visibleRange && typeof visibleRange !== "string"
             ? (visibleRange?.start.line ?? 0) + 1
             : undefined,
+        config: this.options.config,
+        picks: this.picksFor(),
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();
@@ -506,7 +581,7 @@ export class ScreenplayPreviewController {
         visibleRange.end.line !== this._visibleRange?.end?.line
       ) {
         if (this._textDocument) {
-          if (this._userInitiatedScroll) {
+          if (this._userInitiatedScroll && this.syncScroll) {
             this.cacheVisibleRange(visibleRange);
             this._scrollTarget = undefined;
             sendProtocolMessage(

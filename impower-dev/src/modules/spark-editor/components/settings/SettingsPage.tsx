@@ -8,9 +8,13 @@ import { useLayout } from "@impower/impower-ui/layout";
 import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
+import AddMenuSection from "./AddMenuSection";
 import AppearanceSection from "./AppearanceSection";
+import FileTypesSection from "./FileTypesSection";
+import MetadataSection from "./MetadataSection";
 import PreviewSection from "./PreviewSection";
 import SaveSyncSection from "./SaveSyncSection";
+import ScreenplaySection from "./ScreenplaySection";
 import ScriptEditorSection from "./ScriptEditorSection";
 import {
   SETTINGS_INDEX,
@@ -20,13 +24,19 @@ import {
   type SettingsSectionInfo,
 } from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
+import ShortcutsSection from "./ShortcutsSection";
 
 const SECTION_BODIES: Partial<
   Record<SettingsSectionId, FunctionComponent<{ section: SettingsSectionInfo }>>
 > = {
   "theme-preferences": AppearanceSection,
   "editor-preferences": ScriptEditorSection,
+  "shortcut-preferences": ShortcutsSection,
   "preview-preferences": PreviewSection,
+  "story-details": MetadataSection,
+  "screenplay-settings": ScreenplaySection,
+  "add-folder-preferences": AddMenuSection,
+  "file-types": FileTypesSection,
   "save-settings": SaveSyncSection,
 };
 

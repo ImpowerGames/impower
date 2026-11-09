@@ -1,13 +1,10 @@
 import {
-  BracketsIcon,
   Button,
   CloudIcon,
   DeviceIcon,
   DownloadIcon,
   FolderIcon,
-  OpenIcon,
   PlusIcon,
-  SettingsFoot,
   SettingsList,
   SettingsRow,
   SettingsSection,
@@ -39,9 +36,6 @@ const BACKUP_DETAIL: Record<Backup, string> = {
 
 const IMPORT_DETAIL =
   "Replace this project with the contents of a backup. Files the backup lacks are removed.";
-
-const VSCODE_EXTENSION_URL =
-  "https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown";
 
 const CLOUD_DETAIL =
   "Keep a copy on Google Drive for online backup, revision history and working on other devices. Optional; nothing here needs an account.";
@@ -205,20 +199,6 @@ export default function SaveSyncSection({ section }: { section: SettingsSectionI
           />
         )}
       </SettingsList>
-      <SettingsFoot>
-        <Button variant="quiet" asChild>
-          <a
-            data-vscode-link
-            href={VSCODE_EXTENSION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <BracketsIcon />
-            <span>Want to edit files locally? Open your project in VS Code</span>
-            <OpenIcon />
-          </a>
-        </Button>
-      </SettingsFoot>
     </SettingsSection>
   );
 }

@@ -14,6 +14,7 @@ import {
   SelectIcon,
   TrashIcon,
 } from "@impower/impower-ui/components";
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
@@ -43,7 +44,6 @@ import {
   type FileTreeNode,
 } from "../../utils/fileTree";
 import getValidFileName from "../../utils/getValidFileName";
-import globToRegex from "../../utils/globToRegex";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import { inspectAsset, inspectedAsset } from "../../utils/assetInspector";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";

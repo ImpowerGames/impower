@@ -188,7 +188,18 @@ describe("the Settings page", () => {
     expect([...host!.querySelectorAll("[data-settings-section]")].map((el) => el.id)).toEqual([...SETTINGS_SECTION_IDS]);
     expect([...host!.querySelectorAll("[data-settings-placeholder]")].map((el) => el.closest("[data-settings-section]")!.id)).toEqual(
       SETTINGS_SECTION_IDS.filter(
-        (id) => !["theme-preferences", "editor-preferences", "preview-preferences", "save-settings"].includes(id),
+        (id) =>
+          ![
+            "theme-preferences",
+            "editor-preferences",
+            "shortcut-preferences",
+            "preview-preferences",
+            "story-details",
+            "screenplay-settings",
+            "add-folder-preferences",
+            "file-types",
+            "save-settings",
+          ].includes(id),
       ),
     );
     expect(document.getElementById("save-settings")!.querySelector("[data-settings-placeholder]")).toBeNull();

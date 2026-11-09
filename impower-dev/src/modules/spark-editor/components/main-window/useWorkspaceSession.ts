@@ -1,23 +1,9 @@
 import { useEffect } from "preact/hooks";
+import { isEditableFocus } from "../../utils/focusedElement";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
-
-function isEditableFocus(): boolean {
-  let el: Element | null = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  if (!el) {
-    return false;
-  }
-  const tag = el.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA") {
-    return true;
-  }
-  if ((el as HTMLElement).isContentEditable) {
-    return true;
-  }
-  return !!el.closest?.(".cm-editor");
-}
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import workspace from "../../workspace/WorkspaceStore";
 
 export function useWorkspaceSession(): void {
   useEffect(() => {
@@ -45,18 +31,28 @@ export function useWorkspaceSession(): void {
 
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "s") {
+      if (workspaceShortcuts.matches(e, "format")) {
         e.preventDefault();
         const { Workspace } = await import("../../workspace/Workspace");
         await Workspace.window.syncProject();
         return;
       }
-      const key = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && (key === "z" || key === "y")) {
+      if (workspaceShortcuts.matches(e, "playFromHere")) {
+        const game = workspace.state.peek().preview?.modes?.game;
+        e.preventDefault();
+        if (workspaceSettings.preferences.peek().previewMode !== "game" || game?.loading) {
+          return;
+        }
+        const { Workspace } = await import("../../workspace/Workspace");
+        Workspace.window.toggleGameRunning();
+        return;
+      }
+      const isUndo = workspaceShortcuts.matches(e, "undo");
+      const isRedo = !isUndo && workspaceShortcuts.matches(e, "redo");
+      if (isUndo || isRedo) {
         if (isEditableFocus()) {
           return;
         }
-        const isRedo = key === "y" || (key === "z" && e.shiftKey);
         if (isRedo ? !canRedo.value : !canUndo.value) {
           return;
         }

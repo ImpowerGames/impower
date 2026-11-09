@@ -117,16 +117,6 @@ describe("the Save & sync section", () => {
     expect(button("Choose a .zip…", section())).toBeDefined();
   });
 
-  it("keeps the Open in VS Code link in the section's foot, opening the extension's page in a new tab", async () => {
-    await mountSection();
-    const link = section().querySelector<HTMLAnchorElement>("a[data-vscode-link]")!;
-    expect(link.textContent).toContain("Want to edit files locally? Open your project in VS Code");
-    expect(link.href).toBe("https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown");
-    expect(link.target).toBe("_blank");
-    expect(link.rel).toBe("noopener noreferrer");
-    expect(link.closest("[data-setting-row]")).toBeNull();
-  });
-
   it("reads Not saved locally from the same source as the app menu's heading", async () => {
     await setState("local", "load_error");
     await mountSection();

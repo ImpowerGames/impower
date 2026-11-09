@@ -35,11 +35,26 @@ export type ProjectMetadataField =
   | "zipRevisionId"
   | "zipSynced";
 
+export interface GameSize {
+  width: number;
+  height: number;
+  aspectRatio: string | null;
+}
+
+export interface GamePosition {
+  uri: string;
+  line: number;
+}
+
 export interface GameState {
+  size?: GameSize;
+  position?: GamePosition;
   loading?: boolean;
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
+  choosing?: boolean;
+  picks?: Record<string, number[]>;
   compiling?: boolean;
   playRefusal?: string;
 }
@@ -128,7 +143,15 @@ export interface ScreenState {
   pickingResource?: boolean;
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
+  writingTools?: WritingToolsState;
   outlineSearch?: boolean;
+}
+
+export type WritingToolsView = "menu" | "guide" | "shortcuts";
+
+export interface WritingToolsState {
+  view: WritingToolsView;
+  fromMenu: boolean;
 }
 
 export interface ShellState {

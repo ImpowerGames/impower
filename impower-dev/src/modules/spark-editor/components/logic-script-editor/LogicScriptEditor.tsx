@@ -5,6 +5,9 @@ import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { editorAtSend } from "../../workspace/editorAtSend";
+import { useScriptReadonly } from "../../workspace/useActiveEditor";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
@@ -42,15 +45,9 @@ export default function LogicScriptEditor({
 
   const appearance = workspaceSettings.scriptAppearance.value;
 
-  const readonly = useComputed(() => {
-    const status = workspace.state.value.sync?.status;
-    return (
-      status === "syncing" ||
-      status === "loading" ||
-      status === "importing" ||
-      status === "exporting"
-    );
-  }).value;
+  const shortcuts = workspaceShortcuts.combos.value;
+
+  const readonly = useScriptReadonly();
 
   useEffect(() => {
     let disposed = false;
@@ -120,19 +117,22 @@ export default function LogicScriptEditor({
         versionRef.current = version;
         textRef.current = text;
 
+        const current =
+          editorAtSend(uri, () => Workspace.window.getActiveEditorForFile(fn)) ??
+          editor;
         const detail = LoadEditorMessage.type.request({
           textDocument: { uri, languageId, version, text },
-          focused: editor.focused,
-          visibleRange: editor.visibleRange,
-          selectedRange: editor.selectedRange,
-          breakpointLines: editor.breakpointLines,
-          pinpointLines: editor.pinpointLines,
-          highlightLines: editor.highlightLines,
-          startingValueLines: editor.startingValueLines,
-          routePins: editor.routePins,
+          focused: current.focused,
+          visibleRange: current.visibleRange,
+          selectedRange: current.selectedRange,
+          breakpointLines: current.breakpointLines,
+          pinpointLines: current.pinpointLines,
+          highlightLines: current.highlightLines,
+          startingValueLines: current.startingValueLines,
+          routePins: current.routePins,
           languageServerInitializeParams,
           languageServerInitializeResult,
-          preserveEditor: Boolean(editor.originalFilename),
+          preserveEditor: Boolean(current.originalFilename),
         });
         sentOnConnection = connection;
         sendProtocolMessage(detail);
@@ -232,12 +232,13 @@ export default function LogicScriptEditor({
           readonly={readonly}
           coarsePointer={coarsePointer}
           appearance={appearance}
+          shortcuts={shortcuts}
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}
         />
       </div>
-      <WriterBar filename={filename || "main.sd"} />
+      <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />
     </div>
   );
 }

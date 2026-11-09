@@ -66,10 +66,15 @@ export const stateForRoute = (
   state: WorkspaceCache,
   route: Route,
 ): WorkspaceCache => {
+  const writingTools =
+    route === "write" ? state.screen.writingTools : undefined;
   if (route === "project") {
-    return { ...state, screen: { ...state.screen, settingsOpen: true } };
+    return {
+      ...state,
+      screen: { ...state.screen, settingsOpen: true, writingTools },
+    };
   }
-  const screen = { ...state.screen, settingsOpen: false };
+  const screen = { ...state.screen, settingsOpen: false, writingTools };
   if (route === "collection") {
     return { ...state, screen, pane: "assets" };
   }

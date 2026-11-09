@@ -1,6 +1,7 @@
 import { ImageVocabularyCache, imageFileForCompiler } from "../utils/prepareImageFile";
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { File,Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
@@ -46,16 +47,6 @@ import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
 
 const DEBOUNCE_DELAY = 600;
-
-const globToRegex = (glob: string) => {
-  return RegExp(
-    glob
-      .replace(/[.]/g, "[.]")
-      .replace(/[*]/g, ".*")
-      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i",
-  );
-};
 
 export class CompilerRestartedError extends Error {
   override name = "CompilerRestartedError";
@@ -1020,6 +1011,7 @@ export abstract class SparkdownWorkspace {
             files: {},
             version: result.program.version,
             playRefusal: playRefusalOf(result.program),
+            frontMatter: result.program.frontMatter,
           },
         }
       : result;

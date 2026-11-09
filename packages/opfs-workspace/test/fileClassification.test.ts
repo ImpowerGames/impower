@@ -1,14 +1,5 @@
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { describe, expect, it } from "vitest";
-
-const globToRegex = (glob: string) => {
-  return RegExp(
-    glob
-      .replace(/[.]/g, "[.]")
-      .replace(/[*]/g, ".*")
-      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i",
-  );
-};
 
 const scriptFilePattern = globToRegex("*.{sd}");
 const imageFilePattern = globToRegex(

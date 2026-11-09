@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   views: [] as { destroyed: boolean; view: unknown }[],
+  editor: undefined as Record<string, unknown> | undefined,
   reads: [] as (() => void)[],
   connect: [] as (() => void)[],
   writes: [] as {
@@ -65,7 +66,8 @@ vi.mock(
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     window: {
-      getActiveEditorForFile: () => ({ uri: "file:///project/main.sd" }),
+      getActiveEditorForFile: () =>
+        mocks.editor ?? { uri: "file:///project/main.sd" },
       recordScriptChange: async () => {},
     },
     fs: {
@@ -115,6 +117,9 @@ const { sendProtocolMessage } = await import(
 );
 const { DidSaveTextDocumentMessage } = await import(
   "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage"
+);
+const { DidChangeTextDocumentMessage } = await import(
+  "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage"
 );
 const { DidWriteFilesMessage } = await import(
   "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
@@ -176,6 +181,7 @@ afterEach(async () => {
   mocks.reads.splice(0);
   mocks.connect.splice(0);
   mocks.writes.splice(0);
+  mocks.editor = undefined;
 });
 
 describe("LogicScriptEditor mount", { timeout: 60_000 }, () => {
@@ -265,5 +271,107 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
     await type("hello ab\n");
     await didWrite("hello a\n");
     expect(mocks.reads.length).toBe(1);
+  });
+});
+
+describe("LogicScriptEditor load handover", { timeout: 60_000 }, () => {
+  const at = (line: number) => ({
+    start: { line, character: 0 },
+    end: { line, character: 0 },
+  });
+
+  it("loads with the selection made while it was still reading the file", async () => {
+    const loads: { selectedRange?: unknown }[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/load" && "params" in message) {
+        loads.push(message.params);
+      }
+    };
+    window.addEventListener("jsonrpc", hear);
+    try {
+      mocks.editor = { uri: "file:///project/main.sd", selectedRange: at(1) };
+      await mount();
+      mocks.editor = { uri: "file:///project/main.sd", selectedRange: at(2) };
+      await connectController();
+      await answerReads();
+      expect(loads.length).toBeGreaterThan(0);
+      expect(loads.at(-1)!.selectedRange).toEqual(at(2));
+    } finally {
+      window.removeEventListener("jsonrpc", hear);
+    }
+  });
+
+  it("loads with the scroll, focus and line marks current when it sends", async () => {
+    const loads: Record<string, unknown>[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/load" && "params" in message) {
+        loads.push(message.params);
+      }
+    };
+    const state = (line: number) => ({
+      uri: "file:///project/main.sd",
+      focused: line > 1,
+      visibleRange: at(line),
+      selectedRange: at(line),
+      breakpointLines: [line],
+      pinpointLines: [line + 10],
+      highlightLines: [line + 20],
+      startingValueLines: [line + 30],
+      routePins: [{ line, offer: 0 }],
+    });
+    window.addEventListener("jsonrpc", hear);
+    try {
+      mocks.editor = state(1);
+      await mount();
+      mocks.editor = state(2);
+      await connectController();
+      await answerReads();
+      expect(loads.length).toBeGreaterThan(0);
+      const { uri: _uri, ...newest } = state(2);
+      expect(loads.at(-1)).toMatchObject(newest);
+    } finally {
+      window.removeEventListener("jsonrpc", hear);
+    }
+  });
+});
+
+describe("LogicScriptEditor save handover", { timeout: 60_000 }, () => {
+  const uri = "file:///project/main.sd";
+
+  it("autosaves the text and version the editor reached while the save waited", async () => {
+    await mount();
+    await connectController();
+    await answerReads();
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri },
+          text: "hello a\n",
+        }),
+      );
+      sendProtocolMessage(
+        DidChangeTextDocumentMessage.type.notification({
+          textDocument: { uri, version: 7 },
+          contentChanges: [],
+        }),
+      );
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri },
+          text: "hello ab\n",
+        }),
+      );
+    });
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    expect(mocks.writes[0]!.textDocument).toEqual({
+      uri,
+      version: 7,
+      text: "hello ab\n",
+    });
   });
 });

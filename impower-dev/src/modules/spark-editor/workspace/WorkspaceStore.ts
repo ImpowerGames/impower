@@ -117,6 +117,10 @@ class WorkspaceStore {
 
   readonly trashOpen = signal<boolean>(false);
 
+  readonly editorHistory = signal<
+    Record<string, { canUndo: boolean; canRedo: boolean }>
+  >({});
+
   readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
@@ -124,6 +128,8 @@ class WorkspaceStore {
   readonly syncedAt = signal<number | null>(null);
 
   readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
+
+  readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

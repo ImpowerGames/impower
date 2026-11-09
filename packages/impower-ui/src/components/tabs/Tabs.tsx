@@ -15,6 +15,7 @@ const tabsContainer = cva("relative flex w-full", {
     variant: {
       default: "",
       rail: "@container",
+      bar: "",
     },
   },
   defaultVariants: { orientation: "horizontal", variant: "default" },
@@ -26,8 +27,13 @@ const tabsList = cva("flex w-full", {
       horizontal: "flex-row items-stretch",
       vertical: "flex-col",
     },
+    variant: {
+      default: "",
+      rail: "",
+      bar: "items-center justify-evenly",
+    },
   },
-  defaultVariants: { orientation: "horizontal" },
+  defaultVariants: { orientation: "horizontal", variant: "default" },
 });
 
 const tabTrigger = cva(
@@ -53,6 +59,7 @@ const tabTrigger = cva(
           "data-[state=active]:bg-tint data-[state=active]:font-semibold",
           "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
         ],
+        bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[10px]/none font-normal",
       },
     },
     defaultVariants: {
@@ -105,7 +112,14 @@ export default function Tabs({
   containerRef,
   children,
 }: TabsProps) {
-  const iconSize = variant === "rail" ? 18 : iconLayout === "above" ? 21 : 16;
+  const iconSize =
+    variant === "rail"
+      ? 18
+      : variant === "bar"
+        ? 19
+        : iconLayout === "above"
+          ? 21
+          : 16;
   const listRef = useRef<HTMLDivElement | null>(null);
   const [indicatorRect, setIndicatorRect] = useState<{
     x: number;
@@ -166,6 +180,7 @@ export default function Tabs({
               class={cn(
                 tabsList({
                   orientation: vertical ? "vertical" : "horizontal",
+                  variant,
                 }),
                 "relative",
               )}
@@ -221,9 +236,9 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  const rail = ctx.variant === "rail";
-  const activeColorClass = rail ? "text-accent" : "text-tab-ink";
-  const inactiveColor = color || (rail ? "text-muted" : "text-tab-muted");
+  const accented = ctx.variant !== "default";
+  const activeColorClass = accented ? "text-accent" : "text-tab-ink";
+  const inactiveColor = color || (accented ? "text-muted" : "text-tab-muted");
   const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
@@ -289,6 +304,7 @@ export function Tab({
           class={cn(
             "relative inline-block leading-none motion-safe:transition-transform motion-safe:duration-100",
             ctx.iconLayout === "above" &&
+              ctx.variant === "default" &&
               "scale-80 group-data-[state=active]:scale-90",
           )}
         >

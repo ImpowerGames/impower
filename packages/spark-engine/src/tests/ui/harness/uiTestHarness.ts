@@ -1,7 +1,7 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import { writeBeatText } from "../../../game/core/classes/Coordinator";
+import { writeBeatText } from "../../../game/core/classes/presenters/VisualNovelPresenter";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
 import { BEAT_LEAD_MS } from "../../../game/core/utils/sharedClock";
