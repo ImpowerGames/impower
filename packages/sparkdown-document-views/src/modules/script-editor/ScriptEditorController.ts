@@ -521,7 +521,10 @@ export class ScriptEditorController {
     const applied =
       doc.sliceString(from, to) === text &&
       (await applyDocumentColor(view, { from, to }, color));
-    return ApplyEditorColorMessage.type.response(message.id, { applied });
+    return ApplyEditorColorMessage.type.response(message.id, {
+      applied,
+      ...(!applied && view.state.readOnly ? { readOnly: true } : {}),
+    });
   };
 
   protected executeCommand(view: EditorView, command: EditorCommand) {

@@ -165,7 +165,7 @@ export async function applyDocumentColor(
   color: lsp.Color,
 ): Promise<boolean> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin) return false;
+  if (!plugin || view.state.readOnly) return false;
 
   const text = view.state.doc.sliceString(range.from, range.to);
 
@@ -184,7 +184,10 @@ export async function applyDocumentColor(
     });
     const insert = colorPresentationFor(presentations ?? [], text);
     if (insert == null) return false;
-    if (view.state.doc.sliceString(range.from, range.to) !== text) {
+    if (
+      view.state.readOnly ||
+      view.state.doc.sliceString(range.from, range.to) !== text
+    ) {
       return false;
     }
     view.dispatch({

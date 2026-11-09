@@ -51,11 +51,14 @@ const mount = (ls: unknown = undefined) => {
   return win;
 };
 
-const editorAnswering = (applied: boolean) => {
+const editorAnswering = (applied: boolean, readOnly?: boolean) => {
   const requests: ApplyEditorColorParams[] = [];
   stopEditor = onProtocolRequest(ApplyEditorColorMessage.type, (message) => {
     requests.push(message.params);
-    return ApplyEditorColorMessage.type.response(message.id, { applied });
+    return ApplyEditorColorMessage.type.response(message.id, {
+      applied,
+      ...(readOnly ? { readOnly } : {}),
+    });
   });
   return requests;
 };
@@ -110,6 +113,14 @@ describe("the Change color intents", () => {
     w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
     expect(await w.applyChangeColor("blue")).toBe("invalid");
     expect(requests).toEqual([]);
+    expect(workspace.state.value.screen.writingTools?.color).toBeDefined();
+  });
+
+  it("reports a locked script and leaves the view open", async () => {
+    const w = mount();
+    editorAnswering(false, true);
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(await w.applyChangeColor("#00aaff")).toBe("locked");
     expect(workspace.state.value.screen.writingTools?.color).toBeDefined();
   });
 

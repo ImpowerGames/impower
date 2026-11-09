@@ -14,6 +14,7 @@ export interface ApplyEditorColorParams {
 
 export interface ApplyEditorColorResult {
   applied: boolean;
+  readOnly?: boolean;
 }
 
 export class ApplyEditorColorMessage {

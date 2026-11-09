@@ -23,10 +23,11 @@ const mount = async (
   value: string,
   colors: string[] = [],
   onUse = vi.fn(async () => "applied" as const),
+  canEdit = true,
 ) => {
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
-    render(h(ChangeColorView, { value, color: ORANGE, colors, onUse }), host!),
+    render(h(ChangeColorView, { value, color: ORANGE, colors, onUse, canEdit }), host!),
   );
   return { onUse };
 };
@@ -106,6 +107,21 @@ describe("the Change color view", () => {
     expect(onUse).not.toHaveBeenCalled();
     expect(status().textContent).toMatch(/#f2c14e/);
     expect(document.activeElement).toBe(field());
+  });
+
+  it("holds Use color back and says why while the script cannot be edited", async () => {
+    const { onUse } = await mount("#ff8800", [], undefined, false);
+    const button = document.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(button.disabled).toBe(true);
+    expect(status().textContent).toMatch(/cannot be changed/);
+    await use();
+    expect(onUse).not.toHaveBeenCalled();
+  });
+
+  it("says why when the script locks while the color is being applied", async () => {
+    await mount("#ff8800", [], vi.fn(async () => "locked" as const));
+    await use();
+    expect(status().textContent).toMatch(/cannot be changed/);
   });
 
   it("says so when the value has moved in the script", async () => {

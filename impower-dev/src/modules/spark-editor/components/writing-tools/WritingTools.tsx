@@ -219,6 +219,7 @@ export default function WritingTools({
             value={colorTarget.value}
             color={colorTarget.color}
             colors={storyColors}
+            canEdit={canEdit}
             onUse={(value) => withWindow((win) => win.applyChangeColor(value))}
           />
         ) : view === "guide" ? (

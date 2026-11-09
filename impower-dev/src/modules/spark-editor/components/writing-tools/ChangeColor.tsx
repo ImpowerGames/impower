@@ -18,24 +18,27 @@ import type { Color } from "@impower/spark-editor-protocol/src/types";
 import type { JSX } from "preact";
 import { useId, useRef, useState } from "preact/hooks";
 
-export type ChangeColorOutcome = "applied" | "invalid" | "moved";
+export type ChangeColorOutcome = "applied" | "invalid" | "moved" | "locked";
 
 export type ChangeColorViewProps = {
   value: string;
   color: Color;
   colors: readonly string[];
+  canEdit: boolean;
   onUse: (value: string) => Promise<ChangeColorOutcome>;
 };
 
 const INVALID = "Write a color as # and six letters or digits, such as #f2c14e.";
 const MOVED = "This color has changed in the script. Open Change color from it again.";
 
+const LOCKED = "The script cannot be changed right now. Try again when it has finished saving.";
+
 const percentText = (percent: number) => `${percent}%`;
 
 const initialColor = (value: string, color: Color): ColorValue =>
   colorValueOf(value) ?? colorValueOfLspColor(color);
 
-export function ChangeColorView({ value, color, colors, onUse }: ChangeColorViewProps) {
+export function ChangeColorView({ value, color, colors, canEdit, onUse }: ChangeColorViewProps) {
   const [current, setCurrent] = useState(() => initialColor(value, color));
   const [text, setText] = useState(() =>
     colorValueOf(value) ? value : formatColorValue(initialColor(value, color), value),
@@ -66,6 +69,7 @@ export function ChangeColorView({ value, color, colors, onUse }: ChangeColorView
 
   const onSubmit = async (event: Event) => {
     event.preventDefault();
+    if (!canEdit) return;
     const parsed = colorValueOf(text);
     if (!parsed) {
       refuse(INVALID);
@@ -74,6 +78,7 @@ export function ChangeColorView({ value, color, colors, onUse }: ChangeColorView
     const outcome = await onUse(formatColorValue(parsed, value));
     if (outcome === "invalid") refuse(INVALID);
     else if (outcome === "moved") refuse(MOVED);
+    else if (outcome === "locked") refuse(LOCKED);
   };
 
   return (
@@ -136,12 +141,12 @@ export function ChangeColorView({ value, color, colors, onUse }: ChangeColorView
         </>
       )}
       <div class="col-span-full flex items-center justify-end gap-2 compact:col-span-1 compact:col-start-2 phone:col-span-1 phone:col-start-2">
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={!canEdit}>
           Use color
         </Button>
       </div>
       <p role="status" class="col-span-full m-0 text-[12px]/[1.6] text-muted empty:hidden">
-        {status}
+        {status || (canEdit ? "" : LOCKED)}
       </p>
     </form>
   );

@@ -270,7 +270,9 @@ export default class WorkspaceWindow {
     });
   }
 
-  async applyChangeColor(value: string): Promise<"applied" | "invalid" | "moved"> {
+  async applyChangeColor(
+    value: string,
+  ): Promise<"applied" | "invalid" | "moved" | "locked"> {
     const target = this.store.screen.writingTools?.color;
     const projectId = this.store.project.id;
     const color = colorValueOf(value);
@@ -288,7 +290,7 @@ export default class WorkspaceWindow {
       color: lspColorOf(color),
     });
     if (!result?.applied) {
-      return "moved";
+      return result?.readOnly ? "locked" : "moved";
     }
     if (this.store.screen.writingTools?.color === target) {
       this.closeWritingTools();

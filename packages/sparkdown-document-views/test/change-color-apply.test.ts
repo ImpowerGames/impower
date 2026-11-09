@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LSPPlugin } from "@impower/codemirror-vscode-lsp-client/src";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
@@ -23,10 +23,24 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function mount(doc: string) {
+const lock = new Compartment();
+
+const setLocked = (locked: boolean) =>
+  view!.dispatch({ effects: lock.reconfigure(EditorState.readOnly.of(locked)) });
+
+function mount(doc: string, beforeAnswer: () => void = () => {}) {
   const host = document.body.appendChild(document.createElement("div"));
-  view = new EditorView({ state: EditorState.create({ doc }), parent: host });
-  const request = vi.fn(async () => PRESENTATIONS);
+  view = new EditorView({
+    state: EditorState.create({
+      doc,
+      extensions: [lock.of(EditorState.readOnly.of(false))],
+    }),
+    parent: host,
+  });
+  const request = vi.fn(async () => {
+    beforeAnswer();
+    return PRESENTATIONS;
+  });
   vi.spyOn(LSPPlugin, "get").mockReturnValue({
     uri: URI,
     client: { request },
@@ -94,5 +108,27 @@ describe("Use color in the script editor", () => {
     expect(response && "result" in response && response.result).toEqual({ applied: false });
     expect(view!.state.doc.toString()).toBe("text-color = #00aaff");
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("refuses while the script is read-only, and says that is why", async () => {
+    const { request, apply } = mount("text-color = #ff8800");
+    setLocked(true);
+    const response = await applyAt(apply, 13, "#ff8800");
+    expect(response && "result" in response && response.result).toEqual({
+      applied: false,
+      readOnly: true,
+    });
+    expect(view!.state.doc.toString()).toBe("text-color = #ff8800");
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the script becomes read-only while the server answers", async () => {
+    const { apply } = mount("text-color = #ff8800", () => setLocked(true));
+    const response = await applyAt(apply, 13, "#ff8800");
+    expect(response && "result" in response && response.result).toEqual({
+      applied: false,
+      readOnly: true,
+    });
+    expect(view!.state.doc.toString()).toBe("text-color = #ff8800");
   });
 });
