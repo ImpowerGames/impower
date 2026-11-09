@@ -30,6 +30,8 @@ const isSynth = (asset: object, type: string): boolean =>
 
 export interface AudioConfig {}
 
+const BEAT_SCOPED_CHANNELS = ["sound", "voice"] as const;
+
 export interface AudibleLoop {
   to: number | undefined;
   looping: boolean;
@@ -162,6 +164,17 @@ export class AudioModule extends Module<
     before: ReadonlyMap<string, ReadonlyMap<string, AudibleLoop>>,
   ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
     const held = this.loopsHeld();
+    for (const channel of BEAT_SCOPED_CHANNELS) {
+      const stops: AudioPlayerUpdate[] = [];
+      for (const key of this._channelsCurrentlyPlaying.get(channel)?.keys() ?? []) {
+        if (!held.get(channel)?.has(key) && !before.get(channel)?.has(key)) {
+          stops.push({ control: "stop", key, now: true });
+        }
+      }
+      if (stops.length > 0) {
+        this.update(channel, stops);
+      }
+    }
     this._channelsCurrentlyPlaying = this.playingFromState();
     const loops: SettledLoop[] = [];
     const stoppedLoops: StoppedLoop[] = [];

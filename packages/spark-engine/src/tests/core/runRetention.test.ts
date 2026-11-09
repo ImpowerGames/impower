@@ -316,7 +316,7 @@ describe("the count of what checkpoints hold beyond the globals", () => {
       "scene start",
       "  Begin.",
       ...Array.from({ length: 30 }, (_, i) => [
-        "  table.clear(payload)",
+        "  & table.clear(payload)",
         `  payload[string.reverse(string.rep(tostring(${i}), ${size}))] = ${i}`,
         `  Beat ${i}.`,
       ]).flat(),
@@ -327,6 +327,8 @@ describe("the count of what checkpoints hold beyond the globals", () => {
       game.clickedToContinue();
     }
     expect((game.story.currentText ?? "").trim()).toBe("Beat 29.");
+    const live = (game.story.state.variablesState as any).globalEntries.get("payload");
+    expect(live.value.size).toBe(1);
     const keys = new Set<string>();
     for (const image of reachableImages(liveImages(game))) {
       for (const copy of image.tables.values()) {
@@ -538,5 +540,36 @@ describe("the count of a large table", () => {
     );
     expect(Math.max(...roots)).toBeGreaterThan(150_000);
     expect(game.checkpoints.bytes).toBeGreaterThan(150_000 * 32);
+  });
+});
+
+describe("the count of a table's original contents", () => {
+  test("covers what the story keeps of a table that was cleared after its checkpoint", async () => {
+    const size = 1_500_000;
+    const source = [
+      `store payload = { text = string.reverse(string.rep("x", ${size})) }`,
+      "scene start",
+      "  Begin.",
+      "  & table.clear(payload)",
+      "  After.",
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {
+      checkpointBaseInterval: 1,
+      checkpointByteBudget: 2_000_000,
+    });
+    expect((game.story.currentText ?? "").trim()).toBe("Begin.");
+    game.clickedToContinue();
+    expect((game.story.currentText ?? "").trim()).toBe("After.");
+    const globals = (game.story.state.variablesState as any).globalEntries;
+    expect(globals.get("payload").value.size).toBe(0);
+    const counted = game.checkpoints.bytes;
+    expect(
+      counted,
+      `the store counts ${counted} bytes while the table's original contents keep ${size * 2}`,
+    ).toBeGreaterThanOrEqual(size * 2);
+    expect((await game.rollBack("beat")).moved).toBe(true);
+    const restored = (game.story.state.variablesState as any).globalEntries.get("payload");
+    expect(restored.value.get("text").value.length).toBe(size);
   });
 });

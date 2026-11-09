@@ -1,4 +1,7 @@
-import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
+import type {
+  ProgramImage,
+  ProgramImages,
+} from "@impower/sparkdown/src/program/ProgramImages";
 import type { PositionalCopy } from "@impower/sparkdown/src/program/ProgramStoryState";
 import {
   ObjectValue,
@@ -15,7 +18,10 @@ type ThreadCopy = PositionalCopy["threads"][number];
 
 const LEAF: readonly unknown[] = [];
 
-export const valueParts = (value: unknown): ValueParts => {
+export const valueParts = (
+  value: unknown,
+  images: ProgramImages,
+): ValueParts => {
   if (typeof value === "string") {
     return { bytes: value.length * 2, children: LEAF };
   }
@@ -27,22 +33,35 @@ export const valueParts = (value: unknown): ValueParts => {
   }
   if (value instanceof ObjectValue) {
     const entries = value.value;
+    const pristine = images.pristineTable(value);
     const children: unknown[] = [];
     for (const [key, entry] of entries ?? []) {
+      children.push(key, entry);
+    }
+    for (const [key, entry] of pristine?.entries ?? []) {
       children.push(key, entry);
     }
     if (value.metatable) {
       children.push(value.metatable);
     }
+    if (pristine?.metatable) {
+      children.push(pristine.metatable);
+    }
     return {
-      bytes: OBJECT_BYTES + ENTRY_BYTES * (entries?.size ?? 0),
+      bytes:
+        OBJECT_BYTES +
+        ENTRY_BYTES * ((entries?.size ?? 0) + (pristine?.entries?.size ?? 0)),
       children,
     };
   }
   if (value instanceof VariablePointerValue) {
+    const pristine = images.pristineCell(value)?.value;
     return {
       bytes: OBJECT_BYTES,
-      children: value.isClosed ? [value.closedValue] : LEAF,
+      children: [
+        ...(value.isClosed ? [value.closedValue] : []),
+        ...(pristine ? [pristine] : []),
+      ],
     };
   }
   const values = (value as { values?: unknown }).values;

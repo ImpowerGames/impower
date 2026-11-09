@@ -767,7 +767,7 @@ export class Game<T extends M = {}> {
         snapshotRuntime: () => this._runtimeState.snapshotFull(),
         drainRuntime: () => this._runtimeState.drainDeltas(),
         imageParts: (image) => imageParts(image as ProgramImage),
-        valueParts,
+        valueParts: (value) => valueParts(value, this._story.images),
       },
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );
@@ -2654,8 +2654,6 @@ export class Game<T extends M = {}> {
     this._executingLocation =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
     this._awaiting = this._executingLocation;
-    audio.stopChannel("sound");
-    audio.stopChannel("voice");
     const { loops, stoppedLoops } = audio.settleLoops(before);
     const restored: SettledBeat = {
       beat: target,

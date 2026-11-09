@@ -932,3 +932,78 @@ describe("a track played once after it looped", () => {
     ).toHaveLength(1);
   });
 });
+
+const tickingHarness = async (lines: string[]) => {
+  const h = createHarness(lines.join("\n"));
+  await h.ready;
+  h.jumpToFlow("start");
+  const tick = async () => {
+    await flushMicrotasks(40);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(40);
+  };
+  return { h, tick };
+};
+
+describe("the beat-scoped channels of a restored beat", () => {
+  for (const channel of ["sound", "voice"]) {
+    test(`keep an explicit ${channel} loop the restored beat holds`, async () => {
+      const { h, tick } = await tickingHarness([
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "scene start",
+        `  ((play ${channel} theme loop))`,
+        "  First.",
+        `  ((play ${channel} theme loop))`,
+        "  Second.",
+        "end",
+      ]);
+      const keys = () =>
+        (h.game.module.audio.state.channels?.[channel]?.looping ?? []).map(
+          (state) => state.key,
+        );
+      h.game.start();
+      await tick();
+      h.game.continue();
+      await tick();
+      expect(keys()).toEqual(["audio.theme"]);
+      const rolled = await h.game.rollBack("beat");
+      await tick();
+      expect(h.game.story.currentText?.trim()).toBe("First.");
+      expect(keys()).toEqual(["audio.theme"]);
+      expect(rolled.moved && rolled.restored.loops).toEqual([
+        { channel, key: "audio.theme", play: "continue" },
+      ]);
+      expect(rolled.moved && rolled.restored.stoppedLoops).toEqual([]);
+    });
+  }
+
+  test("silence a one-shot sound the left beat played", async () => {
+    const { h, tick } = await tickingHarness([
+      "define ding as audio with",
+      '  src = "https://example.com/ding.wav"',
+      "end",
+      "scene start",
+      "  First.",
+      "  ((play sound ding))",
+      "  Second.",
+      "end",
+    ]);
+    h.game.start();
+    await tick();
+    h.game.continue();
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("Second.");
+    const from = h.messages.length;
+    const rolled = await h.game.rollBack("beat");
+    await tick();
+    const updates = h.messages
+      .slice(from)
+      .filter((m) => m.method === "audio/update" && m.params.channel === "sound")
+      .flatMap((m) => m.params.updates);
+    expect(updates.filter((u: any) => u.control === "stop" && u.key === "audio.ding")).toHaveLength(1);
+    expect(rolled.moved && rolled.restored.loops).toEqual([]);
+    expect(rolled.moved && rolled.restored.stoppedLoops).toEqual([]);
+  });
+});
