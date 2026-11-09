@@ -729,6 +729,17 @@ describe("ScriptEditorController commands", () => {
     expect(focus).toHaveBeenCalledOnce();
   });
 
+  it("drops a waiting focus when the script returns to reading", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setReadonly(true);
+    run(controller, "focus");
+    controller.setScriptMode("reading");
+    const focus = vi.spyOn(view, "focus");
+
+    controller.setReadonly(false);
+    expect(focus).not.toHaveBeenCalled();
+  });
+
   it("indents and dedents the caret's line for the writer's bar", async () => {
     const { controller, view } = await loadedEditor();
     expect(run(controller, "indent")).toMatchObject({ result: { ran: true } });

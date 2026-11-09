@@ -312,6 +312,9 @@ export class ScriptEditorController {
 
   setScriptMode(mode: ScriptModeValue | null): void {
     this.options.scriptMode = mode;
+    if (mode === "reading") {
+      this._focusWhenEditable = false;
+    }
     const view = this._view;
     if (!view) return;
     view.dispatch({ effects: setScriptMode.of(mode) });

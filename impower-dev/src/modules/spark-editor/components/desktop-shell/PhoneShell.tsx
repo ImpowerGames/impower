@@ -43,6 +43,20 @@ export function PhonePreviewBack() {
   );
 }
 
+const takesEditingAway = (target: EventTarget | null) => {
+  if (!(target instanceof Element) || target.closest("[data-keyboard-panel]")) {
+    return false;
+  }
+  const surface = target.closest(
+    '[role="menu"], [role="dialog"], [role="alertdialog"]',
+  );
+  return (
+    !!surface &&
+    !surface.matches("[data-action-sheet]") &&
+    !surface.querySelector("[data-action-sheet]")
+  );
+};
+
 export default function PhoneShell({
   children,
 }: {
@@ -72,12 +86,7 @@ export default function PhoneShell({
       return;
     }
     const onFocusIn = (event: FocusEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        !target.closest("[data-keyboard-panel]") &&
-        target.closest('[role="menu"], [role="dialog"], [role="alertdialog"]')
-      ) {
+      if (takesEditingAway(event.target)) {
         void withWindow((win) => win.finishEditing());
       }
     };

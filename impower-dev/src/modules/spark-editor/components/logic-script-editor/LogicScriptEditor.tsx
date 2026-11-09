@@ -62,8 +62,11 @@ export default function LogicScriptEditor({
     workspace.keyboardPanels.value.some((panel) => panel.heading),
   ).value;
 
-  const startEditing = () =>
-    withWindow((win) => win.startEditing(filenameRef.current || "main.sd"));
+  const startEditing = () => {
+    if (!scriptBusy) {
+      withWindow((win) => win.startEditing(filenameRef.current || "main.sd"));
+    }
+  };
 
   const openTool = (tool: "writingTools" | "add") => {
     if (tool === "writingTools") {

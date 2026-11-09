@@ -494,6 +494,25 @@ describe("the phone's reading and editing modes", () => {
     menu.remove();
   });
 
+  it("keeps editing while the script's own action sheet has focus", async () => {
+    await mount();
+    await edit();
+    const sheet = document.body.appendChild(document.createElement("div"));
+    sheet.setAttribute("role", "dialog");
+    const menu = sheet.appendChild(document.createElement("div"));
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("data-action-sheet", "");
+    const item = menu.appendChild(document.createElement("button"));
+    await act(async () => item.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("editing");
+    sheet.tabIndex = -1;
+    await act(async () => sheet.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("editing");
+    sheet.remove();
+  });
+
   it("returns the caret to the script when a name field is left while editing", async () => {
     await mount();
     await act(async () => {
