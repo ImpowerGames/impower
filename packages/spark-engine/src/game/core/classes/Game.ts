@@ -412,6 +412,11 @@ export class Game<T extends M = {}> {
 
   protected _announcedStop = false;
 
+  protected _awaitingResume = false;
+  get awaitingResume() {
+    return this._awaitingResume;
+  }
+
   protected _ending: GameEnding | null = null;
   get ending(): GameEnding | null {
     return this._ending;
@@ -2496,6 +2501,23 @@ export class Game<T extends M = {}> {
     }
   }
 
+  resume(): boolean {
+    const paused = this._paused;
+    const advances = !paused || this._awaitingResume;
+    this.unpause();
+    if (!advances) {
+      return false;
+    }
+    try {
+      return this.continue();
+    } catch (e) {
+      if (paused) {
+        this.pause();
+      }
+      throw e;
+    }
+  }
+
   skip(seconds: number): void {
     if (this._clock) {
       this._clock.adjustTime(seconds);
@@ -3276,6 +3298,7 @@ export class Game<T extends M = {}> {
 
   reset() {
     this.cancelPreview();
+    this._awaitingResume = false;
     this._ending = null;
     this._errorEnding = null;
     this.rewindStory();
@@ -3292,6 +3315,7 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
+    this._awaitingResume = false;
     this.supersedeRolls();
     if (this._run.behindLatest) {
       this.forkRun();
@@ -3374,6 +3398,7 @@ export class Game<T extends M = {}> {
       location: this._executingLocation,
     };
     this._announcedStop = false;
+    this._awaitingResume = false;
     this._steppingInThroughEntry = false;
     const outer = !this._stepping;
     this._stepping = true;
@@ -3753,6 +3778,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this._announcedStop = true;
+    this._awaitingResume = true;
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4137,6 +4163,7 @@ export class Game<T extends M = {}> {
 
   protected notifyStepped() {
     this._announcedStop = true;
+    this._awaitingResume = true;
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
