@@ -1,6 +1,6 @@
 import { history } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
-import { EditorState, StateEffect, Transaction } from "@codemirror/state";
+import { Compartment, EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import {
   EditorCommand,
@@ -37,6 +37,12 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
         state: EditorState.create({
           doc: "hello world\n",
           extensions: [
+            (actual["readOnlyConfig"] as Compartment).of(
+              EditorState.readOnly.of(false),
+            ),
+            (actual["editableConfig"] as Compartment).of(
+              EditorView.editable.of(true),
+            ),
             history(),
             customSearchPanel(),
             customGotoLinePanel(),
@@ -703,6 +709,25 @@ describe("ScriptEditorController commands", () => {
       }),
       id: `command-${nextId++}`,
     });
+
+  it("focuses the script at once when it is editable", async () => {
+    const { controller, view } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
+    expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("waits to focus a read-only script until it can be edited, for Edit's round trip", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setReadonly(true);
+    const focus = vi.spyOn(view, "focus");
+    expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
+    expect(focus).not.toHaveBeenCalled();
+
+    controller.setReadonly(false);
+    expect(view.state.facet(EditorView.editable)).toBe(true);
+    expect(focus).toHaveBeenCalledOnce();
+  });
 
   it("indents and dedents the caret's line for the writer's bar", async () => {
     const { controller, view } = await loadedEditor();

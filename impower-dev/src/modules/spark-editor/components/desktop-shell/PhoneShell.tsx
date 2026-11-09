@@ -3,12 +3,12 @@ import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { routeOfState } from "../../workspace/routes";
-import { storyScriptOf } from "../../workspace/useActiveEditor";
+import { storyScriptOf, useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
-import { workspaceWindow } from "./workspaceWindow";
+import { withWindow, workspaceWindow } from "./workspaceWindow";
 
 function BackToStory({ onBack }: { onBack: () => void }) {
   return (
@@ -55,8 +55,35 @@ export default function PhoneShell({
     () => !!workspace.state.value.preview?.revealed,
   ).value;
   const [scrolled, setScrolled] = useState(false);
+  const editing = useScriptMode() === "editing";
 
   useEffect(() => setScrolled(false), [route]);
+
+  useEffect(() => {
+    if (editing && !writing) {
+      void withWindow((win) => win.finishEditing());
+    }
+  }, [editing, writing]);
+
+  useEffect(() => () => void withWindow((win) => win.finishEditing()), []);
+
+  useEffect(() => {
+    if (!editing) {
+      return;
+    }
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        !target.closest("[data-keyboard-panel]") &&
+        target.closest('[role="menu"], [role="dialog"], [role="alertdialog"]')
+      ) {
+        void withWindow((win) => win.finishEditing());
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [editing]);
 
   useEffect(() => {
     if (previewRevealed && !writing) {
@@ -68,6 +95,7 @@ export default function PhoneShell({
     <div
       data-phone-shell
       data-naming={naming ?? undefined}
+      data-editing={editing ? "" : undefined}
       class="flex h-full min-h-0 w-full flex-col"
     >
       <PhoneTitleBar scrolled={!writing && scrolled} />

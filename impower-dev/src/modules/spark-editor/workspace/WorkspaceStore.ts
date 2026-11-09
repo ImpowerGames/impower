@@ -10,6 +10,12 @@ import type {
 import type { AccountInfo } from "./types/AccountInfo";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
+export type ScriptMode = "reading" | "editing";
+
+export interface KeyboardPanel {
+  heading: boolean;
+}
+
 export interface OutlineSnapshot {
   uri: string;
   symbols: readonly DocumentSymbol[];
@@ -115,6 +121,19 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly scriptMode = signal<ScriptMode>("reading");
+
+  readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
+
+  addKeyboardPanel(panel: KeyboardPanel): () => void {
+    this.keyboardPanels.value = [...this.keyboardPanels.peek(), panel];
+    return () => {
+      this.keyboardPanels.value = this.keyboardPanels
+        .peek()
+        .filter((entry) => entry !== panel);
+    };
+  }
 
   readonly editorHistory = signal<
     Record<string, { canUndo: boolean; canRedo: boolean }>

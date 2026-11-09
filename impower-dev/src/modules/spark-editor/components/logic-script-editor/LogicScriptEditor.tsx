@@ -6,10 +6,19 @@ import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { editorAtSend } from "../../workspace/editorAtSend";
-import { useScriptReadonly } from "../../workspace/useActiveEditor";
+import { useScriptMode, useScriptReadonly } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
+
+type WorkspaceWindow =
+  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
+
+const withWindow = (act: (win: WorkspaceWindow) => void) => {
+  void import("../../workspace/Workspace").then(({ Workspace }) =>
+    act(Workspace.window),
+  );
+};
 
 export const propDefaults = {
   filename: "",
@@ -44,7 +53,27 @@ export default function LogicScriptEditor({
 
   const appearance = workspaceSettings.scriptAppearance.value;
 
-  const readonly = useScriptReadonly();
+  const scriptBusy = useScriptReadonly();
+  const scriptMode = useScriptMode();
+  const readonly = scriptBusy || scriptMode === "reading";
+  const held = useComputed(() => workspace.keyboardPanels.value.length > 0)
+    .value;
+  const headed = useComputed(() =>
+    workspace.keyboardPanels.value.some((panel) => panel.heading),
+  ).value;
+
+  const startEditing = () =>
+    withWindow((win) => win.startEditing(filenameRef.current || "main.sd"));
+
+  const openTool = (tool: "writingTools" | "add") => {
+    if (tool === "writingTools") {
+      withWindow((win) =>
+        workspace.state.peek().screen?.writingTools
+          ? win.closeWritingTools()
+          : win.openWritingTools(),
+      );
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -232,6 +261,10 @@ export default function LogicScriptEditor({
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}
+          scriptMode={scriptMode ?? null}
+          keyboardHold={{ held, headed }}
+          onReadingDoubleTap={startEditing}
+          onToolbarTool={openTool}
         />
       </div>
       <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />

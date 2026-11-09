@@ -13,8 +13,10 @@ import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
 import {
   storyScriptOf,
   useEditorHistory,
+  useScriptMode,
 } from "../../workspace/useActiveEditor";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
+import { FoldedScriptHeader } from "../script-header";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
@@ -23,9 +25,12 @@ import StoryProblemCount from "./StoryProblemCount";
 import { withWindow } from "./workspaceWindow";
 
 export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
-  const naming = useNaming() === "project";
+  const namingField = useNaming();
   const script = useComputed(() => storyScriptOf()).value;
   const story = script !== undefined;
+  const editing = useScriptMode() === "editing" && story;
+  const naming =
+    namingField === "project" || (namingField === "script" && editing);
   const { canUndo, canRedo } = useEditorHistory(script);
 
   const run = (command: EditorCommand) =>
@@ -40,21 +45,27 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
         scrolled && "shadow-[0_7px_10px_-4px_var(--editor-sticky-shadow)]",
       )}
     >
-      <SparkLogo layout="mark" size="md" class="flex-none" />
-      <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
-        <ProjectNameField />
-        <div class="w-full min-w-0 pl-1.5">
-          <div class="flex items-center overflow-hidden whitespace-nowrap fade-edge">
-            <SyncStatusLine />
-            <StoryProblemCount />
+      {editing ? (
+        <FoldedScriptHeader filename={script!} />
+      ) : (
+        <>
+          <SparkLogo layout="mark" size="md" class="flex-none" />
+          <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
+            <ProjectNameField />
+            <div class="w-full min-w-0 pl-1.5">
+              <div class="flex items-center overflow-hidden whitespace-nowrap fade-edge">
+                <SyncStatusLine />
+                <StoryProblemCount />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
       {naming ? (
         <Button
-          variant="primary"
+          size="pill"
           aria-label="Keep the name"
-          class="mr-2.5 min-h-9 gap-1.5 px-3.5 [&_svg]:size-4"
+          class="mr-1"
           onClick={finishNaming}
         >
           <CheckIcon />
@@ -62,7 +73,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
         </Button>
       ) : (
         <div class="flex flex-none items-center">
-          <SyncButton />
+          {!editing && <SyncButton />}
           {story && (
             <Button
               variant="quiet"
@@ -75,7 +86,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
               <SearchIcon />
             </Button>
           )}
-          {story && (
+          {editing && (
             <div role="group" aria-label="Edit history" class="flex">
               <Button
                 variant="quiet"
@@ -101,7 +112,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
               </Button>
             </div>
           )}
-          {story && (
+          {story && !editing && (
             <Button
               variant="quiet"
               size="icon"
@@ -113,7 +124,19 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
               <FollowIcon />
             </Button>
           )}
-          <AppMenu trigger="bar" />
+          {editing ? (
+            <Button
+              size="pill"
+              aria-label="Done editing"
+              class="mr-1"
+              onClick={() => void withWindow((win) => win.finishEditing())}
+            >
+              <CheckIcon />
+              Done
+            </Button>
+          ) : (
+            <AppMenu trigger="bar" />
+          )}
         </div>
       )}
       <ImportProgressBar />

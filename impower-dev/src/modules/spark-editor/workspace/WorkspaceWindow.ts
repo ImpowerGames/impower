@@ -293,6 +293,15 @@ export default class WorkspaceWindow {
     });
   }
 
+  startEditing(filename: string) {
+    workspace.scriptMode.value = "editing";
+    this.executeEditorCommand(filename, "focus");
+  }
+
+  finishEditing() {
+    workspace.scriptMode.value = "reading";
+  }
+
   openSparkdownGuide() {
     if (this._route !== "write") {
       this.navigateTo("write");

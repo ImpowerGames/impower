@@ -363,23 +363,31 @@ describe("Writing tools focus", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("on a phone, gives focus back on Escape but not when the backdrop closes the sheet", async () => {
+  it("on a phone, stands in the keyboard's place and registers while it is open", async () => {
     layout.value = "phone";
     layout.coarse = true;
     await mount();
     const input = field();
     await open();
-    expect(panel()!.contains(document.activeElement)).toBe(true);
-    await key(document.activeElement!, "Escape");
+    expect(panel()!.hasAttribute("data-keyboard-panel")).toBe(true);
+    expect(workspace.keyboardPanels.value).toEqual([{ heading: true }]);
+    expect(document.activeElement).not.toBe(input);
+    await key(document, "Escape");
     await until(() => !panel());
     await settle(50);
     expect(document.activeElement).toBe(input);
+    expect(workspace.keyboardPanels.value).toEqual([]);
+  });
 
+  it("on a phone, closes on a press outside without giving focus back", async () => {
+    layout.value = "phone";
+    layout.coarse = true;
+    await mount();
+    const input = field();
     await open();
-    const backdrop = panel()!.parentElement!;
+    const outside = document.body.appendChild(document.createElement("div"));
     await act(async () => {
-      backdrop.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
-      backdrop.click();
+      outside.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
     });
     await until(() => !panel());
     await settle(50);

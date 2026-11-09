@@ -100,12 +100,12 @@ describe("the code editor's chrome icons", () => {
     expect(chrome.filter((rule) => !known.has(rule.mask))).toEqual([]);
   });
 
-  it("draws the keyboard toolbar's search, undo, redo, indent, dedent and format from the map", () => {
+  it("draws the keyboard toolbar's indent, dedent, format, writing tools and add from the map", () => {
     const view = mount();
     openKeyboardToolbar(view);
     const icons = Array.from(view.dom.querySelectorAll<HTMLElement>(".cm-keyboard-toolbar .cm-toolbar-icon"));
     expect(icons.map((icon) => icon.style.maskImage)).toEqual(
-      (["search", "undo", "redo", "indent", "dedent", "format"] as const).map((name) => iconMasks[name]),
+      (["indent", "dedent", "format", "more", "plus"] as const).map((name) => iconMasks[name]),
     );
   });
 

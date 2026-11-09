@@ -137,6 +137,12 @@ import {
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
 } from "./utils/extensions/customSearch";
+import {
+  setKeyboardToolbarHold,
+  type KeyboardToolbarHold,
+  type KeyboardToolbarTool,
+} from "./utils/extensions/keyboardToolbar";
+import { setScriptMode, type ScriptModeValue } from "./utils/extensions/scriptMode";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
@@ -152,6 +158,10 @@ export interface ScriptEditorRefs {
 export interface ScriptEditorOptions {
   readonly?: boolean;
   coarsePointer?: boolean;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
   onContextMenu?: ContextMenuPresenter;
   onPasteRefused?: () => void;
@@ -182,6 +192,7 @@ export class ScriptEditorController {
   protected _selectionMoved = false;
   protected _viewScrolled = false;
   protected _focusLeft = false;
+  protected _focusWhenEditable = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -293,6 +304,36 @@ export class ScriptEditorController {
   setReadonly(readonly: boolean): void {
     this.options.readonly = readonly;
     this.allowEditing(!readonly);
+    if (!readonly && this._focusWhenEditable) {
+      this._focusWhenEditable = false;
+      this.focusAtCaret();
+    }
+  }
+
+  setScriptMode(mode: ScriptModeValue | null): void {
+    this.options.scriptMode = mode;
+    const view = this._view;
+    if (!view) return;
+    view.dispatch({ effects: setScriptMode.of(mode) });
+    if (mode === "reading" && view.hasFocus) {
+      view.contentDOM.blur();
+    }
+  }
+
+  setKeyboardHold(hold: KeyboardToolbarHold): void {
+    this.options.keyboardHold = hold;
+    this._view?.dispatch({ effects: setKeyboardToolbarHold.of(hold) });
+  }
+
+  protected focusAtCaret() {
+    const view = this._view;
+    if (!view) return;
+    view.focus();
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.selection.main, {
+        y: "nearest",
+      }),
+    });
   }
 
   setCoarsePointer(coarse: boolean): void {
@@ -550,6 +591,13 @@ export class ScriptEditorController {
 
   protected executeCommand(view: EditorView, command: EditorCommand) {
     switch (command) {
+      case "focus":
+        if (view.state.facet(EditorView.editable)) {
+          this.focusAtCaret();
+        } else {
+          this._focusWhenEditable = true;
+        }
+        return true;
       case "indent":
         view.focus();
         return indentMore(view);
@@ -820,6 +868,11 @@ export class ScriptEditorController {
         this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
+          readonly: this.options.readonly,
+          scriptMode: this.options.scriptMode,
+          keyboardHold: this.options.keyboardHold,
+          onReadingDoubleTap: this.options.onReadingDoubleTap,
+          onToolbarTool: this.options.onToolbarTool,
           appearance: this.options.appearance,
           onContextMenu: this.options.onContextMenu,
           onPasteRefused: this.options.onPasteRefused,
@@ -879,7 +932,7 @@ export class ScriptEditorController {
                 this.allowEditing(false);
               },
               onDidApplyWorkspaceEdit: () => {
-                this.allowEditing(true);
+                this.allowEditing(!this.options.readonly);
               },
             }),
           textDocument: this._textDocument,

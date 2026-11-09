@@ -435,7 +435,7 @@ const EDITOR_THEME: {
   },
   "& .cm-panel.cm-keyboard-toolbar": {
     order: "100",
-    backgroundColor: "var(--bg)",
+    backgroundColor: "var(--paper)",
     color: "var(--editor-toolbar-ink)",
   },
   "& .cm-panel.cm-panel-lint ul": {
