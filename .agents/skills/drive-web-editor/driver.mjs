@@ -1950,7 +1950,7 @@ async function verify(args, deps = liveDeps) {
 
 const SURFACES = {
   find: {
-    selector: 'section[data-view="find"], form[data-find-bar]',
+    selector: ':is(section[data-view="find"], form[data-find-bar])',
     open: "Control+f",
     fields: { search: "input[name=search]", replace: "input[name=replace]" },
     buttons: ["next", "prev", "replace", "replaceAll", "close"],

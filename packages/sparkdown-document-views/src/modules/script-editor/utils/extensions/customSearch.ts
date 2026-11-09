@@ -1,3 +1,4 @@
+import { completionStatus } from "@codemirror/autocomplete";
 import {
   closeSearchPanel,
   findNext,
@@ -748,10 +749,14 @@ export class SearchPanel implements Panel {
 }
 
 export function closeCustomSearchPanel(view: EditorView) {
+  const claimed =
+    searchPanelOpen(view.state) ||
+    view.state.selection.ranges.length > 1 ||
+    completionStatus(view.state) !== null;
   closeSearchPanel(view);
   view.focus();
   view.dispatch({ selection: view.state.selection.main });
-  return true;
+  return claimed;
 }
 
 const customSearchPanelKeymap = [
@@ -949,10 +954,11 @@ export const openCustomGotoLinePanel: Command = (view) => {
 };
 
 export const closeCustomGotoLinePanel: Command = (view) => {
+  const claimed = customGotoLinePanelOpen(view.state);
   view.dispatch({ effects: [goToLineEffect.of(false)] });
   view.focus();
   view.dispatch({ selection: view.state.selection.main });
-  return true;
+  return claimed;
 };
 
 export function customGotoLinePanelOpen(state: EditorState) {

@@ -1,4 +1,5 @@
 import { openSearchPanel, SearchQuery, setSearchQuery } from "@codemirror/search";
+import { EditorSelection } from "@codemirror/state";
 import {
   keymap,
   runScopeHandlers,
@@ -120,7 +121,24 @@ describe("the shortcuts the editor reports", () => {
     expect(withEscape.sort()).toEqual(["closeGotoLine", "escape"]);
   });
 
-  it("delivers the listed panel keys: Mod-g in Find steps to the next match, Escape in Go to line closes it", () => {
+  it("leaves Escape to the page when the editor has nothing of its own to dismiss", () => {
+    const view = liveEditor();
+    const escape = () => new KeyboardEvent("keydown", { key: "Escape" });
+    expect(runScopeHandlers(view, escape(), "editor")).toBe(false);
+    view.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.cursor(0),
+        EditorSelection.cursor(2),
+      ]),
+    });
+    expect(view.state.selection.ranges).toHaveLength(2);
+    expect(runScopeHandlers(view, escape(), "editor")).toBe(true);
+    expect(view.state.selection.ranges).toHaveLength(1);
+    openSearchPanel(view);
+    expect(runScopeHandlers(view, escape(), "editor")).toBe(true);
+  });
+
+  it("delivers the listed panel keys: Mod-g in Find steps to the next match, Escape in Go to line closes it",() => {
     const view = liveEditor();
     openSearchPanel(view);
     view.dispatch({

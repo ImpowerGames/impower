@@ -3,12 +3,13 @@ import { EditorView } from "@codemirror/view";
 import {
   coarsePointer,
   contextMenu,
+  editorToolCommands,
   isContextMenuOpen,
   presentContextMenu,
   showContextMenu,
   type ContextMenuModel,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let view: EditorView | undefined;
 
@@ -59,6 +60,20 @@ const openAt = (v: EditorView, pos: number) =>
   showContextMenu(v, { pos, x: 10, y: 10 });
 
 describe("the context menu on a fine pointer", () => {
+  it("runs the host's own Rename and Find references when it gives them", () => {
+    const rename = vi.fn();
+    const references = vi.fn();
+    const v = mount(EditorSelection.single(8), [
+      editorToolCommands.of({ rename, references }),
+    ]);
+    openAt(v, 8);
+    item("Rename").click();
+    expect(rename).toHaveBeenCalledTimes(1);
+    openAt(v, 8);
+    item("Find references").click();
+    expect(references).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ["#ff8800", 3, false],
     ["#f80", 2, false],

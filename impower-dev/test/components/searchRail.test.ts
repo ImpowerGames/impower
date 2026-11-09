@@ -192,6 +192,69 @@ describe("the rail's Find view", () => {
     expect(search.openFindFromSelection).toHaveBeenCalledTimes(2);
   });
 
+  describe("Escape once the focus has left the field", () => {
+    const Shortcut = () => {
+      useFindShortcut();
+      return null;
+    };
+
+    const escapeFrom = async (target: Element, claimed = false) => {
+      const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, composed: true });
+      if (claimed) {
+        target.addEventListener("keydown", (e) => e.preventDefault(), { once: true });
+      }
+      target.dispatchEvent(event);
+      await flush();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await flush();
+    };
+
+    const script = () => {
+      const root = document.body.appendChild(document.createElement("div"));
+      root.className = "sparkdown-script-editor-root";
+      return root.appendChild(document.createElement("div"));
+    };
+
+    beforeEach(async () => {
+      await act(async () => render(h(Shortcut, {}), host));
+      workspace.search.value = findSnapshot;
+    });
+
+    afterEach(() => {
+      document.querySelector(".sparkdown-script-editor-root")?.remove();
+      document.querySelector("[data-other-layer]")?.remove();
+    });
+
+    it("closes Search from the script", async () => {
+      await escapeFrom(script());
+      expect(search.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes Search with nothing focused", async () => {
+      await escapeFrom(document.body);
+      expect(search.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves Search open when the editor used Escape for itself", async () => {
+      await escapeFrom(script(), true);
+      expect(search.close).not.toHaveBeenCalled();
+    });
+
+    it("leaves Search open for Escape inside another surface", async () => {
+      const dialog = document.body.appendChild(document.createElement("div"));
+      dialog.setAttribute("data-other-layer", "");
+      dialog.setAttribute("role", "dialog");
+      await escapeFrom(dialog.appendChild(document.createElement("input")));
+      expect(search.close).not.toHaveBeenCalled();
+    });
+
+    it("does nothing while Search is closed", async () => {
+      workspace.search.value = INITIAL_SEARCH;
+      await escapeFrom(script());
+      expect(search.close).not.toHaveBeenCalled();
+    });
+  });
+
   it("steps from F3, Shift+F3 and Ctrl+Shift+G, and leaves Ctrl+G to Go to line", async () => {
     const Shortcut = () => {
       useFindShortcut();
