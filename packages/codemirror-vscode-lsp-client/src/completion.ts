@@ -146,6 +146,7 @@ export function serverCompletions(
   const autocompletionConfig = {
     positionInfo,
     filterStrict: true,
+    defaultKeymap: false,
   };
   if (config.override) {
     editorExtension = [
