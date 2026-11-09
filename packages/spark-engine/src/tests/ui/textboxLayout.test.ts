@@ -90,6 +90,20 @@ async function playLive(h: UIHarness, settle?: () => Promise<void>) {
   }
 }
 
+const playing = (game: any) => {
+  game.context.system.previewing = undefined;
+  game.context.system.composeBeats = true;
+};
+
+async function displayLive(h: UIHarness, beat: any) {
+  const coordinator = new Coordinator(h.game, beat);
+  for (let i = 0; i < 10; i += 1) {
+    await flushMicrotasks(20);
+    coordinator.onUpdate({ deltaMS: 100 } as Clock);
+  }
+  await flushMicrotasks(30);
+}
+
 const FONTS = [
   {
     uri: "inmemory:///fancy.ttf",
@@ -194,6 +208,139 @@ end
     await playLive(h, release);
     expect(mounted(h)).toEqual(["main", "textbox"]);
     expect(h.observedElementIds().length).toBeGreaterThanOrEqual(2);
+  });
+
+  test.each([
+    [
+      "switching from the textbox to another text layout",
+      { end: 0, text: { action: [{ text: "First." }] } },
+      {
+        textbox: [{ control: "close", name: "textbox" }],
+        panel: [{ control: "open", name: "panel" }],
+      },
+    ],
+    [
+      "closing and reopening the textbox",
+      { end: 0, layout: { textbox: [{ control: "close", name: "textbox" }] } },
+      {
+        textbox: [
+          { control: "close", name: "textbox" },
+          { control: "open", name: "textbox" },
+        ],
+      },
+    ],
+  ])("%s delivers the beat's line to the mounted element", async (_name, first, layout) => {
+    const h = createHarness(
+      `layout panel {
+  action {
+    text
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, beforeConnect: playing },
+    );
+    await h.ready;
+    await displayLive(h, first);
+    h.reset();
+    await displayLive(h, {
+      end: 0,
+      text: { action: [{ text: "Shown." }] },
+      layout,
+    });
+    const ids = h.game.module.ui.findIds("action");
+    expect(ids).toHaveLength(1);
+    const written = flattenMessages(
+      h.messages.flatMap((m: any) =>
+        m.method === "ui/beat" ? m.params.messages : [m],
+      ),
+    ).filter(
+      (m: any) =>
+        m.method === "ui/write-text" &&
+        m.params.instructions?.some((e: any) => e.text === "Shown."),
+    );
+    expect(written.some((m: any) => m.params.elements?.includes(ids[0]))).toBe(
+      true,
+    );
+  });
+
+  test("a navigate cancels an initial textbox still waiting for its font", async () => {
+    const h = createHarness(
+      `${FANCY_TEXTBOX}
+layout panel {
+  label {
+    text "Menu"
+  }
+}
+
+scene start
+  [[navigate to panel]]
+  Unseen.
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        holdAssets: true,
+        assets: FONTS,
+        beforeConnect: playing,
+      },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    const coordinator = new Coordinator(h.game, h.nextBeat()!);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(20);
+      coordinator.onUpdate({ deltaMS: 100 } as Clock);
+    }
+    expect(h.heldAssetLoadCount()).toBeGreaterThan(0);
+    h.releaseAssets();
+    await flushMicrotasks(100);
+    expect(mounted(h)).toEqual(["main", "panel"]);
+  });
+
+  test("an observation cancelled while the layout waits for its font never fires", async () => {
+    const h = createHarness(
+      `${FANCY_TEXTBOX}
+scene start
+  Hello.
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        holdAssets: true,
+        assets: FONTS,
+        beforeConnect: playing,
+      },
+    );
+    await h.ready;
+    const ui = h.game.module.ui;
+    const opening = ui.applyLayoutInstructions(
+      [{ control: "open", name: "textbox" }],
+      true,
+    );
+    await flushMicrotasks(20);
+    expect(h.heldAssetLoadCount()).toBeGreaterThan(0);
+    let calls = 0;
+    ui.observe("click", "choice 0", () => {
+      calls += 1;
+    });
+    ui.unobserve("click", "choice 0");
+    h.releaseAssets();
+    await opening;
+    await flushMicrotasks(40);
+    const ids = ui.findIds("choice 0");
+    expect(ids).toHaveLength(1);
+    h.emitEvent("click", ids[0]!, { button: 0 });
+    await flushMicrotasks(20);
+    expect(calls).toBe(0);
   });
 
   test("a navigate that closes the only text layout reports the unshown text", async () => {

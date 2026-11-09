@@ -18,6 +18,7 @@ export class StagePresenter implements Presenter {
 
   present(time?: number): void {
     const ui = this._game.module.ui;
+    ui.beginPresentation();
     const composed = ui.beginCompose();
     clearStage(this._game, this._instructions, ui.getTransientTargets());
     ui.reveal();
