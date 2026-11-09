@@ -57,6 +57,7 @@ const createGame = (previewing?: boolean) => {
     text: recorder("text"),
     image: recorder("image"),
     style: recorder("style"),
+    initialLayoutsOpened: true,
     afterCompose: (work: () => void) => work(),
     getTransientTargets: () => {
       uiWrites.push("getTransientTargets");

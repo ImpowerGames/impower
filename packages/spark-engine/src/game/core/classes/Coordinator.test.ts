@@ -60,8 +60,10 @@ const createGame = (
         loadWorld: (name: string) => calls.loadedWorlds.push(name),
       },
       ui: {
+        initialLayoutsOpened: true,
+        openedLayouts: () => ["main"],
+        layoutHolds: () => true,
         getTransientTargets: () => [],
-        showLayout: () => {},
         applyLayoutInstructions: () => {},
         refreshLayouts: () => {},
         beginCompose: () => false,

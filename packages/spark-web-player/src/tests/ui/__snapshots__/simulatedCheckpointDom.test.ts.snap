@@ -2275,6 +2275,23 @@ spark-web-player #game .end_mark {
                 {
                   "children": [
                     {
+                      "class": "animation",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "screen",
+                  "tag": "div",
+                },
+              ],
+              "class": "main",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
                       "attrs": {
                         "data-display-target": "choice",
                       },
@@ -3008,18 +3025,8 @@ spark-web-player #game .end_mark {
                   "class": "textbox",
                   "tag": "div",
                 },
-                {
-                  "children": [
-                    {
-                      "class": "animation",
-                      "tag": "div",
-                    },
-                  ],
-                  "class": "screen",
-                  "tag": "div",
-                },
               ],
-              "class": "main",
+              "class": "layout-textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

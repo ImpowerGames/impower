@@ -15,6 +15,7 @@ import type { Transition } from "./Transition";
 export interface UIConfig {
   styles_element_name: string;
   layouts_element_name: string;
+  layouts_initial: string[];
   breakpoints: Record<string, number>;
   root_text_size: string;
   ending_transition: string;

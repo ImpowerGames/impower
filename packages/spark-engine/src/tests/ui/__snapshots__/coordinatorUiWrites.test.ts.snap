@@ -7,6 +7,20 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
+    "ui.applyLayoutInstructions",
+    [
+      {
+        "control": "open",
+        "name": "main",
+      },
+    ],
+    false,
+  ],
+  [
+    "ui.composeWait",
+    {},
+  ],
+  [
     "ui.beginCompose",
   ],
   [
@@ -21,6 +35,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -34,6 +54,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -51,10 +77,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
         ],
       },
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -222,6 +244,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -236,6 +264,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -244,10 +278,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -405,6 +435,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -419,6 +455,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -427,10 +469,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -601,6 +639,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -615,6 +659,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -623,10 +673,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -783,6 +829,20 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
+    "ui.applyLayoutInstructions",
+    [
+      {
+        "control": "open",
+        "name": "main",
+      },
+    ],
+    false,
+  ],
+  [
+    "ui.composeWait",
+    {},
+  ],
+  [
     "ui.beginCompose",
   ],
   [
@@ -797,6 +857,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -810,6 +876,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -827,10 +899,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
         ],
       },
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -992,6 +1060,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1006,6 +1080,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1014,10 +1094,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1169,6 +1245,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1183,6 +1265,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1191,10 +1279,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1361,6 +1445,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1375,6 +1465,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1383,10 +1479,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1537,6 +1629,20 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     0,
   ],
   [
+    "ui.applyLayoutInstructions",
+    [
+      {
+        "control": "open",
+        "name": "main",
+      },
+    ],
+    true,
+  ],
+  [
+    "ui.composeWait",
+    {},
+  ],
+  [
     "ui.beginCompose",
   ],
   [
@@ -1551,6 +1657,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1564,6 +1676,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1581,10 +1699,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
         ],
       },
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1746,6 +1860,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1760,6 +1880,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1768,10 +1894,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1933,6 +2055,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1947,6 +2075,12 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "choice 0",
       "choice 1",
       "choice 2",
+      "choice 3",
+      "choice 4",
+      "choice 5",
+      "title",
+      "heading",
+      "transitional",
     ],
   ],
   [
@@ -1955,10 +2089,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",

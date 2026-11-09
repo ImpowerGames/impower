@@ -1,6 +1,7 @@
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
+import { clearStage, writeStage } from "./stage";
 
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -66,14 +67,8 @@ export class VisualNovelPresenter implements Presenter {
     if (!extended || instructions.text) {
       game.module.ui.text.clearAll(transientLayers);
     }
-    if (!extended) {
-      game.module.ui.image.clearAll(
-        transientLayers.filter((layer) => !instructions.image?.[layer]),
-      );
-    }
-    game.module.ui.image.restoreCleared(instructions);
+    clearStage(game, instructions, transientLayers);
 
-    game.module.ui.showLayout("main");
     game.module.ui.reveal();
 
     const indicatorStyle: Record<string, string | null> = {};
@@ -106,21 +101,6 @@ export class VisualNovelPresenter implements Presenter {
 
     writeBeatText(game.module.ui, instructions, instant, time);
 
-    if (instructions.image) {
-      Object.entries(instructions.image).forEach(([target, events]) =>
-        game.module.ui.image.write(target, events, instant, time),
-      );
-    }
-
-    if (instructions.layout) {
-      const settle = !!instant || Boolean(game.context.system.simulating);
-      Object.values(instructions.layout).forEach((events) =>
-        game.module.ui.composeWait(
-          game.module.ui.applyLayoutInstructions(events, settle),
-        ),
-      );
-    }
-
-    game.module.ui.refreshLayouts();
+    writeStage(game, instructions, instant, time);
   }
 }

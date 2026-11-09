@@ -1866,7 +1866,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected getLayoutElement(uiName: string): Element | undefined {
     const rootLayoutElement = this.getOrCreateRootLayoutElement();
-    return rootLayoutElement.findChild(uiName);
+    return rootLayoutElement.findChild(this.layoutRootName(uiName));
+  }
+
+  protected layoutRootName(layoutName: string): string {
+    return this.layoutHolds(layoutName, [layoutName])
+      ? `layout-${layoutName}`
+      : layoutName;
   }
 
   protected getThemeVariables(): Record<string, string> {
@@ -1978,7 +1984,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
-      name: structName,
+      name: this.layoutRootName(structName),
       style: {
         position: "absolute",
         inset: "0",
@@ -2040,8 +2046,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     { element: Element; scope: ReactiveScope; screen?: string }
   > = new Map();
 
-  _autoOpenAll = false;
-
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
@@ -2057,9 +2061,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const targetAllLayouts = !structNames || structNames.length === 0;
     const validLayoutNames = !targetAllLayouts
       ? structNames
-      : this._autoOpenAll
-        ? Object.keys(layouts)
-        : Object.keys(layouts).filter((name) => name === "main");
+      : Object.keys(layouts).filter((name) => name === "main");
     for (const layoutName of validLayoutNames) {
       if (layoutName && !layoutName.startsWith("$")) {
         const layout = layouts[layoutName];
@@ -2079,7 +2081,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
-      name: layout.name,
+      name: this.layoutRootName(layout.name),
       style: {
         position: "absolute",
         inset: "0",
@@ -3526,6 +3528,71 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+  }
+
+  get initialLayoutsOpened(): boolean {
+    return this._state.layout !== undefined;
+  }
+
+  openInitialLayouts(names: string[], settle: boolean): void {
+    this._state.layout ??= [];
+    this.composeWait(
+      this.applyLayoutInstructions(
+        names.map((name) => ({ control: "open", name })),
+        settle,
+      ),
+    );
+  }
+
+  openedLayouts(): string[] {
+    return ["main", ...(this._state.layout ?? []).map((s) => s.name)];
+  }
+
+  layoutHolds(layoutName: string, elements: readonly string[]): boolean {
+    const wanted = new Set(elements);
+    const sparkle = this._game.program?.sparkle;
+    if (sparkle?.layouts) {
+      const layout = sparkle.layouts[layoutName];
+      if (!layout) {
+        return false;
+      }
+      const components = sparkle.components ?? {};
+      const expanded = new Set<string>();
+      const visit = (value: unknown): boolean => {
+        if (Array.isArray(value)) {
+          return value.some(visit);
+        }
+        if (!value || typeof value !== "object") {
+          return false;
+        }
+        const node = value as Record<string, any>;
+        if (node["kind"] === "element") {
+          const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
+          if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+            return true;
+          }
+          const tag = node["tag"];
+          const body = typeof tag === "string" ? components[tag] : undefined;
+          if (body && !expanded.has(tag)) {
+            expanded.add(tag);
+            if (visit(body.children)) {
+              return true;
+            }
+          }
+        }
+        return Object.values(node).some(
+          (v) => v !== null && typeof v === "object" && visit(v),
+        );
+      };
+      return visit(layout.children);
+    }
+    const layout = this.context.layout?.[layoutName];
+    if (!layout) {
+      return false;
+    }
+    return Object.keys(getAllProperties(layout)).some((path) =>
+      path.split(/[.\s]/).some((part) => wanted.has(part)),
+    );
   }
 
   protected resolveLayoutAnimation(

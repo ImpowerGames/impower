@@ -46,6 +46,7 @@ end
 define ui as config with
   styles_element_name = "styles"
   layouts_element_name = "layouts"
+  layouts_initial = { "textbox" }
   breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
   -- Base size that every `rem` in a style resolves against. Empty means "leave
   -- the host document alone", which is what a game embedded in someone else's
@@ -3687,6 +3688,12 @@ layout main {
       image
     }
   }
+  screen {
+    animation
+  }
+}
+
+layout textbox {
   choices {
     choice.0 {
       text
@@ -3744,9 +3751,6 @@ layout main {
     continue_indicator {
       text = ▼
     }
-  }
-  screen {
-    animation
   }
 }
 
