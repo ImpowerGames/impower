@@ -140,6 +140,10 @@ import {
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
+import {
+  setEditorShortcuts,
+  type ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
 export interface ScriptEditorRefs {
@@ -153,6 +157,7 @@ export interface ScriptEditorOptions {
   readonly?: boolean;
   coarsePointer?: boolean;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
   onPasteRefused?: () => void;
   scrollMargin?: string;
@@ -180,6 +185,8 @@ export class ScriptEditorController {
     | "center";
   protected _initialSelectedRange?: Range;
   protected _selectionMoved = false;
+  protected _viewScrolled = false;
+  protected _focusLeft = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -229,6 +236,17 @@ export class ScriptEditorController {
     this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
+    this.host.addEventListener("wheel", this.handleAuthorScroll, {
+      passive: true,
+    });
+    this.host.addEventListener("touchmove", this.handleAuthorScroll, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("pointerdown", this.handleScrollbarPointerDown, {
+      passive: true,
+    });
+    document.addEventListener("focusin", this.handleDocumentFocusIn);
     this.registerProtocolHandlers();
     sendProtocolMessage(
       ConnectedEditorMessage.type.notification({}),
@@ -253,6 +271,13 @@ export class ScriptEditorController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
+    this.host.removeEventListener("wheel", this.handleAuthorScroll);
+    this.host.removeEventListener("touchmove", this.handleAuthorScroll, true);
+    document.removeEventListener(
+      "pointerdown",
+      this.handleScrollbarPointerDown,
+    );
+    document.removeEventListener("focusin", this.handleDocumentFocusIn);
     this._protocols.dispose();
     if (this._textDocument) {
       if (this._editing) {
@@ -287,6 +312,13 @@ export class ScriptEditorController {
     this.options.appearance = appearance;
     if (this._view) {
       setScriptAppearance(this._view, previous, appearance);
+    }
+  }
+
+  setShortcuts(shortcuts: ShortcutCombos): void {
+    this.options.shortcuts = shortcuts;
+    if (this._view) {
+      setEditorShortcuts(this._view, shortcuts);
     }
   }
 
@@ -398,6 +430,28 @@ export class ScriptEditorController {
     this._scroller?.addEventListener("scroll", this.handlePointerScroll);
   }
 
+  protected handleAuthorScroll = () => {
+    this._viewScrolled = true;
+  };
+
+  protected handleScrollbarPointerDown = (e: PointerEvent) => {
+    const view = this._view;
+    if (view && e.target === getScrollableParent(view.scrollDOM)) {
+      this._viewScrolled = true;
+    }
+  };
+
+  protected handleDocumentFocusIn = (e: FocusEvent) => {
+    const target = e.target;
+    if (
+      target instanceof Node &&
+      target !== this.host &&
+      !this._view?.contentDOM.contains(target)
+    ) {
+      this._focusLeft = true;
+    }
+  };
+
   protected unbindView(view: EditorView) {
     this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
     view.destroy();
@@ -428,6 +482,9 @@ export class ScriptEditorController {
       DidCollapsePreviewPaneParams
     >,
   ) => {
+    if (this._loaded && this._visibleRange) {
+      this._viewScrolled = true;
+    }
     this.scrollToRange(this._visibleRange);
   };
 
@@ -447,18 +504,24 @@ export class ScriptEditorController {
   protected handleScrolledPreview = (
     message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>,
   ) => {
-    if (this._loaded) {
-      this._userInitiatedScroll = false;
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.visibleRange;
-      const target = params.target;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.cacheVisibleRange(range);
-        if (target === "element") {
-          this.scrollToRange(range);
-        }
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.visibleRange;
+    const target = params.target;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      return;
+    }
+    if (!this._loaded) {
+      if (target === "element") {
+        this._initialVisibleRange = range;
       }
+      return;
+    }
+    this._userInitiatedScroll = false;
+    this.cacheVisibleRange(range);
+    if (target === "element") {
+      this._viewScrolled = true;
+      this.scrollToRange(range);
     }
   };
 
@@ -770,6 +833,7 @@ export class ScriptEditorController {
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
           appearance: this.options.appearance,
+          shortcuts: this.options.shortcuts,
           onContextMenu: this.options.onContextMenu,
           onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,
@@ -1089,6 +1153,8 @@ export class ScriptEditorController {
           },
         });
         this._selectionMoved = false;
+        this._viewScrolled = false;
+        this._focusLeft = false;
       }
     }
     sendProtocolMessage(
@@ -1264,7 +1330,9 @@ export class ScriptEditorController {
         typeof this._initialVisibleRange === "string"
           ? this._initialVisibleRange
           : undefined;
-      this.scrollToRange(initialVisibleRange, scrollStrategy);
+      if (!this._selectionMoved && !this._viewScrolled) {
+        this.scrollToRange(initialVisibleRange, scrollStrategy);
+      }
       if (initialSelectedRange) {
         this.settleSelection(initialSelectedRange, false);
       }
@@ -1279,18 +1347,17 @@ export class ScriptEditorController {
             this._view.hasFocus ||
             !initialSelectedRange ||
             this._selectionMoved ||
+            this._viewScrolled ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
-          if (initialSelectedRange) {
-            this.settleSelection(
-              initialSelectedRange,
-              scrollStrategy ?? false,
-              initialFocused,
-            );
-          }
+          this.settleSelection(
+            initialSelectedRange,
+            scrollStrategy ?? false,
+            initialFocused && !this._focusLeft,
+          );
         }, 100);
       }
       if (this._textDocument) {

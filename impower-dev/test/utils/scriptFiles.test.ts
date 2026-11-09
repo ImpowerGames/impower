@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import globToRegex from "../../src/modules/spark-editor/utils/globToRegex";
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import {
   isScriptExtension,
   isScriptPath,
