@@ -279,8 +279,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
             return;
           }
           const files = await Workspace.fs.getFiles(projectId);
-          const uri = Workspace.window.getOpenedDocumentUri();
           const projectPath = await Workspace.fs.getDirectoryUri(projectId);
+          const uri = Workspace.window.getOpenedDocumentUri();
           await connection.sendRequest(InitializeMessage.type, {
             rootUri: projectPath,
             processId: 0,

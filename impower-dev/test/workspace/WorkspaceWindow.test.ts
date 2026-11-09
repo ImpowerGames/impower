@@ -4,6 +4,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
@@ -136,6 +137,7 @@ vi.mock("@impower/impower-ui/components", async () => {
 const channels = vi.hoisted(() => ({
   all: [] as {
     posted: unknown[];
+    sent: [unknown, unknown][];
     responses: [unknown, unknown][];
     listeners: ((e: { data: unknown }) => void)[];
     receive: (message: unknown) => void;
@@ -163,7 +165,9 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
     postMessage(message: unknown) {
       this.posted.push(message);
     }
-    async sendRequest() {
+    sent: [unknown, unknown][] = [];
+    async sendRequest(type: unknown, params: unknown) {
+      this.sent.push([type, params]);
       return {};
     }
     sendResponse(message: unknown, result: unknown) {
@@ -850,6 +854,53 @@ describe("Preview preferences", () => {
         render(null, container);
         container.remove();
         current.window = undefined;
+      }
+    }, 30000);
+
+    it("starts the player in the script open when it initializes, not the one open when it read the files", async () => {
+      const before = workspace.current;
+      const win = load();
+      current.window = win;
+      const uriOf = (path: string) =>
+        `file://${workspace.current.project.id}/${path}`;
+      win.openPane("logic");
+      await win.showDocument(uriOf("main.sd"));
+      let answer: ((uri: string) => void) | undefined;
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: () =>
+          new Promise<string>((resolve) => (answer = resolve)),
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      const initialized = (sent: [unknown, unknown][]) =>
+        sent
+          .map(([, params]) => params as { initializationOptions?: { uri?: string } })
+          .filter((params) => params?.initializationOptions)
+          .map((params) => params.initializationOptions!.uri);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        await vi.waitFor(() => expect(answer).toBeDefined());
+        await win.showDocument(uriOf("scripts/intro.sd"));
+        answer!("file://local");
+        await vi.waitFor(() =>
+          expect(initialized(channels.all[0]!.sent)).toEqual([
+            uriOf("scripts/intro.sd"),
+          ]),
+        );
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+        workspace.current = before;
       }
     }, 30000);
 
@@ -1716,6 +1767,40 @@ describe("Revealing a script from the bar under the game", () => {
     document.exitFullscreen = exitFullscreen;
     await win.revealDocument(uriOf("main.sd"));
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the selection the script's editor reported while fullscreen was closing", async () => {
+    const at = (line: number) => ({
+      start: { line, character: 0 },
+      end: { line, character: 0 },
+    });
+    await win.revealDocument(uriOf("main.sd"), at(2));
+    let exited: () => void = () => {};
+    document.exitFullscreen = () =>
+      new Promise<void>((resolve) => {
+        exited = () => {
+          delete (document as { fullscreenElement?: Element }).fullscreenElement;
+          resolve();
+        };
+      });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    const revealing = win.revealDocument(uriOf("main.sd"));
+    win["handleSelectedEditor"](
+      SelectedEditorMessage.type.notification({
+        textDocument: { uri: uriOf("main.sd") },
+        selectedRange: at(8),
+        docChanged: false,
+        hasFocus: true,
+      }),
+    );
+    exited();
+    await revealing;
+    expect(
+      workspace.current.panes.logic.panels.main!.activeEditor?.selectedRange,
+    ).toEqual(at(8));
   });
 
   it("asks the script's editor for its problems once it is on screen", async () => {
