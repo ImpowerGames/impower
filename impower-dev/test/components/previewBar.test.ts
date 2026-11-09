@@ -1,6 +1,8 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
+import { routeOfHash, sectionOfHash } from "../../src/modules/spark-editor/workspace/routes";
 
 const intents = vi.hoisted(() => ({
   showProblems: vi.fn(),
@@ -269,7 +271,9 @@ describe("the bar under the game", () => {
     const link = bar().querySelector<HTMLAnchorElement>("a")!;
     expect(link.getAttribute("aria-label")).toBe("Screenplay settings");
     expect(link.textContent).toBe("US Letter");
-    expect(link.getAttribute("href")).toBe("#project?section=screenplay");
+    expect(routeOfHash(link.getAttribute("href")!)).toBe("project");
+    expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
+    expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
   });
 
