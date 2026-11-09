@@ -216,6 +216,13 @@ describe("the Preview section", () => {
     }
   });
 
+  it("says which Screenplay settings appear only in exports", async () => {
+    await mountPreview();
+    expect(host!.textContent).toContain(
+      "The screenplay preview follows the Screenplay settings; page numbers, dialogue split across pages and bookmarks appear only in exports.",
+    );
+  });
+
   it("sends Show idle animations to the player as it changes", async () => {
     const posted: { method?: string; params?: { enabled?: boolean } }[] = [];
     const sync = createPlayerPreferenceSync((message) => posted.push(message as never));

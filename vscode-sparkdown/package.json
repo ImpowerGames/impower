@@ -723,20 +723,6 @@
             "default": true,
             "description": "Synchronize game preview with editor's cursor position"
           },
-          "sparkdown.screenplay.previewTexture": {
-            "type": "boolean",
-            "default": true,
-            "description": "Show textured background in screenplay preview"
-          },
-          "sparkdown.screenplay.previewTheme": {
-            "type": "string",
-            "enum": [
-              "vscode",
-              "paper"
-            ],
-            "description": "The theme to be used for the screenplay preview",
-            "default": "paper"
-          },
           "sparkdown.screenplay.previewSynchronizedWithCursor": {
             "type": "boolean",
             "default": true,

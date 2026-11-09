@@ -12,6 +12,7 @@ import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import NameWidget from "../classes/widgets/NameWidget";
 import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 import TitlePageWidget, {
   TitlePageSpec,
@@ -19,9 +20,14 @@ import TitlePageWidget, {
 import { CollapseSpec } from "../types/CollapseSpec";
 import { MarkSpec } from "../types/MarkSpec";
 import { MarkupContent } from "../types/MarkupContent";
+import { NameSpec } from "../types/NameSpec";
 import { PageBreakSpec } from "../types/PageBreakSpec";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 import { RevealSpec } from "../types/RevealSpec";
+import {
+  screenplayConfigField,
+  screenplayPicksField,
+} from "./screenplaySettings";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -38,7 +44,8 @@ type DecorationSpec =
   | DialogueSpec
   | TitlePageSpec
   | MarkSpec
-  | PageBreakSpec;
+  | PageBreakSpec
+  | NameSpec;
 
 const getDialogueLineStyle = (type: string) => {
   const dialogueWidth = DIALOGUE_WIDTH;
@@ -194,6 +201,14 @@ const createDecorations = (
       }).range(spec.from, spec.to),
     ];
   }
+  if (spec.type === "name") {
+    return [
+      Decoration.replace({
+        widget: new NameWidget(spec),
+        block: true,
+      }).range(spec.from, spec.to),
+    ];
+  }
   if (spec.type === "title_page") {
     return [
       Decoration.replace({
@@ -238,6 +253,24 @@ export const decorate = (
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
+  const config = state.field(screenplayConfigField, false);
+  const picks = state.field(screenplayPicksField, false);
+  let sceneNumber = 0;
+
+  const declarationName = (nodeRef: SyntaxNodeRef, child: SparkdownNodeName) => {
+    const cursor = nodeRef.node.cursor();
+    while (cursor.next() && cursor.from < nodeRef.to) {
+      if (cursor.name === child) {
+        return doc.sliceString(cursor.from, cursor.to).trim();
+      }
+    }
+    return "";
+  };
+
+  const blockEnd = (nodeRef: SyntaxNodeRef) =>
+    doc.sliceString(nodeRef.from, nodeRef.to).endsWith("\n")
+      ? nodeRef.to - 1
+      : nodeRef.to;
 
   const isOnlyHiddenDirectives = (text: string): boolean => {
     const stripped = text
@@ -507,13 +540,34 @@ export const decorate = (
           });
         }
       } else if (name === "Scene") {
+        const sceneName = config?.screenplay_print_scene_identifiers
+          ? declarationName(nodeRef, "SceneDeclarationName")
+          : "";
+        decorations.push(
+          ...createDecorations(
+            doc,
+            sceneName
+              ? { type: "name", from, to, name: sceneName, pageBreak: true }
+              : { type: "page_break", from, to },
+          ),
+        );
+        return false;
+      } else if (
+        name === "Branch" &&
+        nodeRef.node.parent?.name === "sparkdown" &&
+        config?.screenplay_print_branch_identifiers &&
+        declarationName(nodeRef, "BranchDeclarationName")
+      ) {
         decorations.push(
           ...createDecorations(doc, {
-            type: "page_break",
+            type: "name",
             from,
-            to,
+            to: blockEnd(nodeRef),
+            name: declarationName(nodeRef, "BranchDeclarationName"),
+            pageBreak: false,
           }),
         );
+        lineStart = nodeRef.to;
         return false;
       } else if (isLeadingIndent(name, from, to)) {
         const indentLine = doc.lineAt(from);
@@ -547,6 +601,10 @@ export const decorate = (
       const from = nodeRef.from;
       const to = nodeRef.to;
       if (name === "FrontMatter") {
+        if (config?.screenplay_print_title_page === false) {
+          hideBlockRange(nodeRef);
+          return;
+        }
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -598,12 +656,17 @@ export const decorate = (
           }),
         );
       } else if (name === "BlockHeading" || name === "InlineHeading") {
+        sceneNumber += 1;
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
             from,
             to,
           }),
+          Decoration.line({
+            class: "sp-heading",
+            attributes: { "data-scene-number": String(sceneNumber) },
+          }).range(doc.lineAt(from).from),
         );
       } else if (
         name === "BlockTransitional" ||
@@ -635,6 +698,14 @@ export const decorate = (
             from,
             to,
           }),
+        );
+        const optionLine = doc.lineAt(from);
+        decorations.push(
+          Decoration.line({
+            class: picks?.has(optionLine.number - 1)
+              ? "sp-option sp-chosen"
+              : "sp-option",
+          }).range(optionLine.from),
         );
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         if (inDualDialogue) {
@@ -730,9 +801,14 @@ const replaceDecorations = StateField.define<DecorationSet>({
   },
   update(decorations, transaction) {
     if (!transaction.docChanged) {
-      const oldTree = syntaxTree(transaction.startState);
-      const newTree = syntaxTree(transaction.state);
-      if (oldTree === newTree) return decorations;
+      const { startState, state } = transaction;
+      const unchanged =
+        syntaxTree(startState) === syntaxTree(state) &&
+        startState.field(screenplayConfigField, false) ===
+          state.field(screenplayConfigField, false) &&
+        startState.field(screenplayPicksField, false) ===
+          state.field(screenplayPicksField, false);
+      if (unchanged) return decorations;
     }
     const ranges = decorate(transaction.state);
     return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
