@@ -4,6 +4,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
@@ -16,6 +17,8 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { programSummary } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const current = vi.hoisted(() => ({ window: undefined as unknown }));
@@ -27,6 +30,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
       writeProjectMetadata: vi.fn(),
+      getFiles: async () => ({}),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
       getFilename: (uri: string) => uri.split("/").slice(-1).join(""),
@@ -41,6 +45,24 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       return current.window;
     },
   },
+}));
+
+const screenplayProps = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock(
+  "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview",
+  async () => {
+    const { h } = await import("preact");
+    return {
+      default: (props: Record<string, unknown>) => {
+        screenplayProps.push(props);
+        return h("div", { "data-screenplay-page": "" });
+      },
+    };
+  },
+);
+
+vi.mock("../../src/modules/spark-editor/components/preview-bar/PreviewBar", () => ({
+  default: () => null,
 }));
 
 vi.mock("@impower/impower-ui/components", async () => {
@@ -69,6 +91,8 @@ vi.mock("@impower/impower-ui/components", async () => {
   ];
   return {
     Button: element("button"),
+    SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
+      h("div", {}, start as never, end as never),
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
@@ -113,6 +137,7 @@ vi.mock("@impower/impower-ui/components", async () => {
 const channels = vi.hoisted(() => ({
   all: [] as {
     posted: unknown[];
+    sent: [unknown, unknown][];
     responses: [unknown, unknown][];
     listeners: ((e: { data: unknown }) => void)[];
     receive: (message: unknown) => void;
@@ -140,7 +165,9 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
     postMessage(message: unknown) {
       this.posted.push(message);
     }
-    async sendRequest() {
+    sent: [unknown, unknown][] = [];
+    async sendRequest(type: unknown, params: unknown) {
+      this.sent.push([type, params]);
       return {};
     }
     sendResponse(message: unknown, result: unknown) {
@@ -158,6 +185,10 @@ import {
   playerUrl,
 } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewTopBar from "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar";
+import Preview from "../../src/modules/spark-editor/components/preview/Preview";
+import PreviewScreenplay from "../../src/modules/spark-editor/components/preview-screenplay/PreviewScreenplay";
+import WorkspacePrint from "../../src/modules/spark-editor/workspace/WorkspacePrint";
+import { SCREENPLAY_SETTING_KEYS } from "../../src/modules/spark-editor/workspace/settings/screenplaySettings";
 import workspaceSettings, {
   WorkspaceSettings,
 } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
@@ -701,6 +732,101 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.screen.settingsOpen).toBe(true);
       expect(window.location.hash).toBe("#project?section=save-settings");
     });
+
+    it("navigates to a settings section, telling an open settings page to land on it", () => {
+      const landed = vi.fn();
+      window.addEventListener("hashchange", landed);
+      try {
+        win.closeSettings();
+        win.navigateTo("project", "save-settings");
+        expect(workspace.current.screen.settingsOpen).toBe(true);
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).not.toHaveBeenCalled();
+        window.history.replaceState(null, "", "#project");
+        win.navigateTo("project", "save-settings");
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener("hashchange", landed);
+      }
+    });
+  });
+
+  describe("replacing the project from a backup", () => {
+    const fs = Workspace.fs as unknown as Record<string, unknown>;
+    let project: typeof workspace.current.project;
+
+    beforeEach(() => {
+      project = workspace.current.project;
+      const id = workspace.current.project.id || "local";
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id, name: "Raffles" },
+      };
+      fs.getFiles = vi.fn(async () =>
+        Object.fromEntries(
+          [
+            ".name",
+            ".folders",
+            ".vscode/settings.json",
+            "main.sd",
+            "scripts/act1.sd",
+            "scripts/util.luau",
+            "images/cover.png",
+            "audio/theme.mp3",
+            ".layout",
+            ".drafts/scene.sd",
+            ".images/cover.png",
+          ].map((path) => [`file://${id}/${path}`, { uri: `file://${id}/${path}` }]),
+        ),
+      );
+    });
+
+    afterEach(() => {
+      delete fs.getFiles;
+      workspace.replaceProject.value = null;
+      workspace.current = { ...workspace.current, project };
+    });
+
+    it("asks before importing, counting every script and asset the replace removes, dot folders included", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      expect(workspace.replaceProject.value).toEqual({
+        fileName: "backup.zip",
+        projectName: "Raffles",
+        scripts: 4,
+        assets: 3,
+      });
+      expect(importing).not.toHaveBeenCalled();
+    });
+
+    it("imports the chosen backup only once the writer confirms", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      const file = Object.assign(new File(["zip"], "backup.zip"), {
+        arrayBuffer: async () => new TextEncoder().encode("zip").buffer,
+      });
+      await win.requestProjectReplace(file);
+      await win.confirmProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      expect(importing).toHaveBeenCalledTimes(1);
+      expect(importing.mock.calls[0]![0]).toBe("backup.zip");
+      expect(new TextDecoder().decode(importing.mock.calls[0]![1])).toBe("zip");
+    });
+
+    it("drops the chosen backup on cancel, so a later confirm imports nothing", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      win.cancelProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      await win.confirmProjectReplace();
+      expect(importing).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -710,6 +836,8 @@ const PREVIEW_DEFAULTS = {
   previewIdleAnimations: true,
   previewTypingPauses: false,
   previewScreenplaySync: true,
+  screenplayPaper: "paper",
+  screenplayPaperTexture: false,
 } as const;
 
 const resetPreviewPreferences = () => {
@@ -899,6 +1027,53 @@ describe("Preview preferences", () => {
         render(null, container);
         container.remove();
         current.window = undefined;
+      }
+    }, 30000);
+
+    it("starts the player in the script open when it initializes, not the one open when it read the files", async () => {
+      const before = workspace.current;
+      const win = load();
+      current.window = win;
+      const uriOf = (path: string) =>
+        `file://${workspace.current.project.id}/${path}`;
+      win.openPane("logic");
+      await win.showDocument(uriOf("main.sd"));
+      let answer: ((uri: string) => void) | undefined;
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: () =>
+          new Promise<string>((resolve) => (answer = resolve)),
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      const initialized = (sent: [unknown, unknown][]) =>
+        sent
+          .map(([, params]) => params as { initializationOptions?: { uri?: string } })
+          .filter((params) => params?.initializationOptions)
+          .map((params) => params.initializationOptions!.uri);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        await vi.waitFor(() => expect(answer).toBeDefined());
+        await win.showDocument(uriOf("scripts/intro.sd"));
+        answer!("file://local");
+        await vi.waitFor(() =>
+          expect(initialized(channels.all[0]!.sent)).toEqual([
+            uriOf("scripts/intro.sd"),
+          ]),
+        );
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+        workspace.current = before;
       }
     }, 30000);
 
@@ -1333,6 +1508,104 @@ describe("PLAY for a story with no start scene", () => {
   });
 });
 
+describe("Choosing during a Screenplay play-through", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  const stopped: unknown[] = [];
+  const hearStop = (e: Event) => {
+    if (e instanceof CustomEvent && e.detail?.method === "game/stop") stopped.push(e.detail);
+  };
+
+  const stage = () => container.querySelector("iframe#iframe")!.parentElement!.parentElement!;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
+    workspace.current = savedWorkspaceState();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    Object.assign(Workspace.fs, {
+      getFiles: async () => ({}),
+      getDirectoryUri: async () => "file://a",
+    });
+    (Workspace as unknown as { configuration: unknown }).configuration = { settings: {} };
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    container = document.createElement("div");
+    document.body.append(container);
+    channels.all = [];
+    stopped.length = 0;
+    window.addEventListener(MessageProtocol.event, hearStop);
+  });
+
+  afterEach(() => {
+    window.removeEventListener(MessageProtocol.event, hearStop);
+    render(null, container);
+    container.remove();
+    win.dispose();
+    current.window = undefined;
+    resetPreviewPreferences();
+  });
+
+  it("shows the game's stage over the page while the story waits on a choice, and hides it after the pick without stopping the run", async () => {
+    render(h(Preview, {}), container);
+    container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
+    const channel = channels.all[0]!;
+    win.startGame();
+    const location = { uri: "file://a/main.sd", range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } } };
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: false } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    render(h(Preview, {}), container);
+    expect(stage().className).toBe("hidden");
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location, choices: true } });
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.choosing).toBe(true));
+    render(h(Preview, {}), container);
+    expect(stage().className).not.toContain("hidden");
+    expect(stage().hasAttribute("data-choosing")).toBe(true);
+    expect(container.querySelector('[role="region"][aria-label="Screenplay"]')).not.toBeNull();
+
+    channel.receive({ jsonrpc: "2.0", method: "game/chosePathToContinue", params: { location } });
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.choosing).toBe(false));
+    render(h(Preview, {}), container);
+    expect(stage().className).toBe("hidden");
+    expect(workspace.current.preview.modes.game.running).toBe(true);
+    expect(stopped).toEqual([]);
+  }, 30000);
+
+  it("keeps the option the engine reports picked, and only that one, for the rest of the run, and forgets picks when the run stops", async () => {
+    render(h(Preview, {}), container);
+    container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
+    const channel = channels.all[0]!;
+    win.startGame();
+    const uri = "file://a/main.sd";
+    const at = (line: number) => ({ uri, range: { start: { line, character: 2 }, end: { line, character: 2 } } });
+    const executed = (ranges: number[]) => ({
+      jsonrpc: "2.0",
+      method: "game/executed",
+      params: { executedLines: { [uri]: { ranges, last: ranges.at(-1) } }, state: "running", conditions: [], choices: [] },
+    });
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location: at(2), choices: true } });
+    channel.receive(executed([2, 4]));
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.choosing).toBe(true));
+    channel.receive({ jsonrpc: "2.0", method: "game/chosePathToContinue", params: { location: at(2), option: at(4) } });
+    channel.receive(executed([2, 4, 6, 6]));
+    await vi.waitFor(() => expect(workspace.current.preview.modes.game.picks).toEqual({ [uri]: [4] }));
+    expect(workspace.current.preview.modes.game.choosing).toBe(false);
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location: at(7), choices: false } });
+    channel.receive(executed([7, 7]));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(workspace.current.preview.modes.game.picks).toEqual({ [uri]: [4] });
+
+    win.stopGame();
+    expect(workspace.current.preview.modes.game.picks).toEqual({});
+  }, 30000);
+});
+
 describe("The game preview's player bar", () => {
   const MAIN = "file://a/main.sd";
   let win: WorkspaceWindow;
@@ -1490,6 +1763,80 @@ describe("The game preview's player bar", () => {
   }, 30000);
 });
 
+describe("the story's front matter", () => {
+  let win: WorkspaceWindow;
+  const STORY = "file://proj/main.sd";
+
+  const publish = (uri: string, text: string) => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    });
+    const { program } = compiler.compile({ textDocument: { uri } });
+    sendProtocolMessage(
+      CompiledProgramMessage.type.notification({
+        textDocument: { uri, version: 1 },
+        program: programSummary(program, true),
+      }),
+    );
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "proj" },
+    };
+    workspace.storyFrontMatter.value = {};
+  });
+
+  afterEach(() => {
+    current.window = undefined;
+    win.dispose();
+  });
+
+  it("follows main's front matter as each compile of the story arrives, and ignores other scripts", () => {
+    publish(STORY, ["---", "title: The Long Road", "author: Ada", "---", "", "Hello."].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["The Long Road"], author: ["Ada"] });
+
+    publish("file://proj/scripts/other.sd", ["---", "title: Not the story", "---", ""].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["The Long Road"], author: ["Ada"] });
+
+    publish(STORY, ["---", "title: A New Name", "---", "", "Hello."].join("\n") + "\n");
+    expect(workspace.storyFrontMatter.value).toEqual({ title: ["A New Name"] });
+
+    publish(STORY, "Hello.\n");
+    expect(workspace.storyFrontMatter.value).toEqual({});
+  });
+
+  it("opens a file of a script ending added under File types in the script editor", () => {
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+    workspaceSettings.setProjectSetting("scriptFiles", "*.{sd,luau,story}");
+    try {
+      expect(win.getPaneType("scripts/chapter.story")).toBe("logic");
+      expect(win.getPanelType("scripts/chapter.story")).toBe("scripts");
+    } finally {
+      workspaceSettings.resetProjectSettings(["scriptFiles"]);
+    }
+    expect(win.getPaneType("scripts/chapter.story")).toBeNull();
+  });
+
+  it("opens main at a line for Edit in Main", async () => {
+    workspace.current = {
+      ...workspace.current,
+      screen: { ...workspace.current.screen, settingsOpen: true },
+    };
+    await win.editMainAt(0);
+    await vi.waitFor(() => expect(workspace.current.screen.settingsOpen).toBe(false));
+    const main = workspace.current.panes.logic.panels.main!.activeEditor!;
+    expect(workspace.current.pane).toBe("logic");
+    expect(main.filename).toBe("main.sd");
+    expect(main.selectedRange).toEqual({ start: { line: 0, character: 0 }, end: { line: 0, character: 0 } });
+  });
+});
+
 describe("Revealing a script from the bar under the game", () => {
   let win: WorkspaceWindow;
   let sent: { method?: string; id?: unknown; params?: any }[];
@@ -1593,6 +1940,40 @@ describe("Revealing a script from the bar under the game", () => {
     document.exitFullscreen = exitFullscreen;
     await win.revealDocument(uriOf("main.sd"));
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the selection the script's editor reported while fullscreen was closing", async () => {
+    const at = (line: number) => ({
+      start: { line, character: 0 },
+      end: { line, character: 0 },
+    });
+    await win.revealDocument(uriOf("main.sd"), at(2));
+    let exited: () => void = () => {};
+    document.exitFullscreen = () =>
+      new Promise<void>((resolve) => {
+        exited = () => {
+          delete (document as { fullscreenElement?: Element }).fullscreenElement;
+          resolve();
+        };
+      });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    const revealing = win.revealDocument(uriOf("main.sd"));
+    win["handleSelectedEditor"](
+      SelectedEditorMessage.type.notification({
+        textDocument: { uri: uriOf("main.sd") },
+        selectedRange: at(8),
+        docChanged: false,
+        hasFocus: true,
+      }),
+    );
+    exited();
+    await revealing;
+    expect(
+      workspace.current.panes.logic.panels.main!.activeEditor?.selectedRange,
+    ).toEqual(at(8));
   });
 
   it("asks the script's editor for its problems once it is on screen", async () => {
@@ -1778,7 +2159,23 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Skip back",
+      "Play From Here",
       "Skip forward",
+      "Preview settings",
+    ]);
+  });
+
+  it("keeps the whole transport in Screenplay mode, playing the story through the page", () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    show({ running: true });
+    expect(labels()).toEqual([
+      "Viewing mode",
+      "Pause",
+      "Step Into",
+      "Skip back",
+      "Stop",
+      "Skip forward",
+      "Step Out",
       "Preview settings",
     ]);
   });
@@ -1813,11 +2210,155 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([
       ["Sync screenplay and editor scroll position", "true"],
+      ["Screenplay paper matches my theme", "false"],
+      ["Screenplay paper texture", "false"],
     ]);
     rows("menuitemcheckbox")[0]!.click();
-    expect(workspaceSettings.preferences.value.previewScreenplaySync).toBe(
-      false,
-    );
+    rows("menuitemcheckbox")[1]!.click();
+    rows("menuitemcheckbox")[2]!.click();
+    expect(workspaceSettings.preferences.value).toMatchObject({
+      previewScreenplaySync: false,
+      screenplayPaper: "theme",
+      screenplayPaperTexture: true,
+    });
+    render(h(PreviewTopBar, {}), container);
+    expect(names()).toEqual([
+      ["Sync screenplay and editor scroll position", "false"],
+      ["Screenplay paper matches my theme", "true"],
+      ["Screenplay paper texture", "true"],
+    ]);
+    rows("menuitemcheckbox")[1]!.click();
+    expect(workspaceSettings.preferences.value.screenplayPaper).toBe("paper");
+  });
+});
+
+describe("The Screenplay viewing mode", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let requests: string[] = [];
+
+  const hear = (e: Event) => {
+    const message = (e as CustomEvent).detail;
+    if (typeof message?.method === "string" && "id" in message && !("result" in message)) {
+      requests.push(message.method);
+    }
+  };
+
+  const setGame = (game: Record<string, unknown>) => {
+    workspace.current = {
+      ...workspace.current,
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game },
+      },
+    };
+  };
+
+  const page = () => {
+    render(h(PreviewScreenplay, {}), container);
+    return screenplayProps.at(-1)!;
+  };
+
+  const exportConfig = () =>
+    Object.getOwnPropertyDescriptor(WorkspacePrint.prototype, "config")!.get!.call(undefined);
+
+  const region = () => container.querySelector<HTMLElement>('[role="region"][aria-label="Screenplay"]')!;
+
+  beforeEach(() => {
+    resetPreviewPreferences();
+    screenplayProps.length = 0;
+    requests = [];
+    window.addEventListener(MessageProtocol.event, hear);
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    window.removeEventListener(MessageProtocol.event, hear);
+    current.window = undefined;
+    win.dispose();
+    setGame({});
+    workspaceSettings.resetProjectSettings(SCREENPLAY_SETTING_KEYS);
+    resetPreviewPreferences();
+  });
+
+  it("draws the page from the very config object the PDF and HTML exports send", () => {
+    workspaceSettings.setProjectSetting("screenplaySceneNumbers", "left");
+    workspaceSettings.setProjectSetting("screenplayHeadingsBold", true);
+    workspaceSettings.setProjectSetting("screenplayPaperSize", "a4");
+    const config = page()["config"];
+    expect(config).toBe(exportConfig());
+    expect(config).toMatchObject({
+      screenplay_print_scene_numbers: "left",
+      screenplay_print_headings_bold: true,
+      screenplay_print_paper_size: "a4",
+    });
+    workspaceSettings.setProjectSetting("screenplayPaperSize", "usletter");
+    const changed = page()["config"];
+    expect(changed).toBe(exportConfig());
+    expect(changed).toMatchObject({ screenplay_print_paper_size: "usletter" });
+  });
+
+  it("passes the paper colour, texture and sync preferences to the page", () => {
+    expect(page()).toMatchObject({ paper: "paper", texture: false, syncScroll: true });
+    workspaceSettings.setPreference("screenplayPaper", "theme");
+    workspaceSettings.setPreference("screenplayPaperTexture", true);
+    workspaceSettings.setPreference("previewScreenplaySync", false);
+    expect(page()).toMatchObject({ paper: "theme", texture: true, syncScroll: false });
+  });
+
+  it("plays through the page: a click or Enter continues the story, and the run's picks reach the page", async () => {
+    expect(page()["playing"]).toBe(false);
+    region().click();
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(requests).not.toContain("game/continue");
+
+    const picks = { "file:///main.sd": [4] };
+    setGame({ running: true, picks });
+    expect(page()).toMatchObject({ playing: true, picks });
+    region().click();
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(1));
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(2));
+
+    setGame({ running: true, paused: true });
+    page();
+    region().click();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(requests.filter((m) => m === "game/continue")).toHaveLength(2);
+  });
+
+  it("takes keyboard focus from a click on the page while playing, so the next Enter continues there", async () => {
+    setGame({ running: true });
+    page();
+    const elsewhere = document.body.appendChild(document.createElement("textarea"));
+    elsewhere.focus();
+    const inner = container.querySelector("[data-screenplay-page]")!;
+    const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    inner.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(region());
+    region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(1));
+    elsewhere.remove();
+  });
+
+  it("keeps the game's player mounted, out of sight, while the page is on screen", () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    render(h(Preview, {}), container);
+    const iframe = container.querySelector("iframe#iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe!.closest(".hidden")).not.toBeNull();
+    expect(region()).not.toBeNull();
+    workspaceSettings.setPreference("previewMode", "game");
+    render(h(Preview, {}), container);
+    expect(container.querySelector("iframe#iframe")!.closest(".hidden")).toBeNull();
+    expect(region()).toBeNull();
   });
 });
 

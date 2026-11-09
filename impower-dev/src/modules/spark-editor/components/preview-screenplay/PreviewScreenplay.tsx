@@ -1,6 +1,14 @@
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview";
 import { useEffect, useRef } from "preact/hooks";
+import { editorAtSend } from "../../workspace/editorAtSend";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
+import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+
+const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
+  const { Workspace } = await import("../../workspace/Workspace");
+  act(Workspace.window);
+};
 
 export const propDefaults = {};
 export type PreviewScreenplayProps = Partial<typeof propDefaults>;
@@ -32,8 +40,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       if (!projectId) return;
       const editor = Workspace.window.getActiveEditorForPane("logic");
       if (!editor) return;
-      const { uri, visibleRange, selectedRange, originalFilename } = editor;
-      const preserveEditor = Boolean(originalFilename);
+      const { uri } = editor;
       const files = await Workspace.fs.getFiles(projectId);
       const file = files[uri];
       const text = file?.text || "";
@@ -50,13 +57,17 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       lastUri.current = uri;
       lastVersion.current = version;
       lastText.current = text;
+      const current =
+        editorAtSend(uri, () =>
+          Workspace.window.getActiveEditorForPane("logic"),
+        ) ?? editor;
       sendProtocolMessage(
         LoadPreviewMessage.type.request({
           type: "screenplay",
           textDocument: { uri, languageId, version, text },
-          visibleRange,
-          selectedRange,
-          preserveEditor,
+          visibleRange: current.visibleRange,
+          selectedRange: current.selectedRange,
+          preserveEditor: Boolean(current.originalFilename),
         }),
       );
     };
@@ -151,25 +162,63 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       lastUri.current = editor.uri;
       lastVersion.current = version;
       lastText.current = text;
+      const current =
+        editorAtSend(editor.uri, () =>
+          Workspace.window.getActiveEditorForPane("logic"),
+        ) ?? editor;
       sendProtocolMessage(
         LoadPreviewMessage.type.request({
           type: "screenplay",
           textDocument: { uri: editor.uri, languageId, version, text },
-          visibleRange: editor.visibleRange,
-          selectedRange: editor.selectedRange,
-          preserveEditor: Boolean(editor.originalFilename),
+          visibleRange: current.visibleRange,
+          selectedRange: current.selectedRange,
+          preserveEditor: Boolean(current.originalFilename),
         }),
       );
     });
   }, [textPulledAt]);
 
+  const preferences = workspaceSettings.preferences.value;
+  const game = workspace.state.value.preview?.modes?.game;
+  const playing = !!game?.running && !game?.ended;
+
   return (
-    <>
-      <div class="relative flex flex-1 min-h-0">
-        <div class="absolute inset-0 flex flex-col overflow-y-auto">
-          <SparkdownScreenplayPreview scrollMargin="auto auto 60px auto" />
-        </div>
+    <div
+      role="region"
+      aria-label="Screenplay"
+      tabIndex={0}
+      data-playing={playing ? "" : undefined}
+      class="relative flex flex-1 min-h-0 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent"
+      onMouseDownCapture={(e) => {
+        if (playing) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.currentTarget.focus({ preventScroll: true });
+        }
+      }}
+      onClick={() => {
+        if (playing) {
+          void withWindow((window) => window.continueGame());
+        }
+      }}
+      onKeyDown={(e) => {
+        if (playing && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          void withWindow((window) => window.continueGame());
+        }
+      }}
+    >
+      <div class="absolute inset-0 flex flex-col overflow-y-auto">
+        <SparkdownScreenplayPreview
+          scrollMargin="auto auto 60px auto"
+          config={workspaceSettings.screenplayConfig.value}
+          paper={preferences.screenplayPaper}
+          texture={preferences.screenplayPaperTexture}
+          syncScroll={preferences.previewScreenplaySync}
+          playing={playing}
+          picks={game?.picks}
+        />
       </div>
-    </>
+    </div>
   );
 }

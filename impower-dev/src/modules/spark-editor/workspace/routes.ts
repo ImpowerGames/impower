@@ -19,7 +19,8 @@ const LEGACY_ROUTES: Record<string, Route> = {
   assets: "collection",
 };
 
-export const hashOfRoute = (route: Route): string => `#${route}`;
+export const hashOfRoute = (route: Route, section?: string): string =>
+  section ? `#${route}?section=${encodeURIComponent(section)}` : `#${route}`;
 
 const nameOfHash = (hash: string): string =>
   hash.replace(/^#/, "").split(/[?&]/)[0]!.toLowerCase();

@@ -13,7 +13,7 @@ const runAction = async (action: SaveAction) => {
   if (action === "conflict") {
     Workspace.window.openSyncConflict();
   } else if (action === "settings") {
-    Workspace.window.navigateTo("project");
+    Workspace.window.navigateTo("project", "save-settings");
   } else {
     Workspace.window.setAppMenuOpen(true);
   }

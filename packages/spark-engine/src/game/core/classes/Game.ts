@@ -111,6 +111,8 @@ import type {
 } from "@impower/sparkdown/src/runtime/VariablesState";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
+import type { UIState } from "../../modules/ui/classes/UIModule";
+import type { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
@@ -131,6 +133,14 @@ import type { GameState } from "../types/GameState";
 import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
 import type { RouteResumption } from "../types/RouteResumption";
+import type {
+  GameHistory,
+  RollResult,
+  RollTarget,
+  SettledBeat,
+} from "../types/RunHistory";
+import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
+import { imageParts, valueParts } from "../utils/imageParts";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -171,13 +181,17 @@ import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "./messages/GamePreviewedMessage";
+import { GameRolledMessage } from "./messages/GameRolledMessage";
 import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
 import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
+import { RunRecord } from "./RunRecord";
 import { RuntimeState } from "./RuntimeState";
+
+const CHECKPOINT_BYTE_BUDGET = 64 * 1024 * 1024;
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -226,6 +240,42 @@ const sameLocation = (
     return !a && !b;
   }
   return a.length === b.length && a.every((value, i) => value === b[i]);
+};
+
+interface Stage {
+  text: string[];
+  image: string[];
+  style: Map<string, string[]>;
+  attributes: Map<string, string[]>;
+  layout: string[];
+}
+
+const stageOf = (state: RecursiveReadonly<UIState>): Stage => ({
+  text: Object.keys(state.text ?? {}),
+  image: Object.keys(state.image ?? {}),
+  style: new Map(
+    Object.entries(state.style ?? {}).map(([target, set]) => [
+      target,
+      Object.keys(set ?? {}),
+    ]),
+  ),
+  attributes: new Map(
+    Object.entries(state.attributes ?? {}).map(([target, set]) => [
+      target,
+      Object.keys(set ?? {}),
+    ]),
+  ),
+  layout: (state.layout ?? []).map((layout) => layout.name),
+});
+
+const unsetKeys = (
+  keys: string[],
+  kept: Readonly<Record<string, string | null>> | undefined,
+): Record<string, null> | null => {
+  const unset = keys.filter((key) => kept?.[key] == null);
+  return unset.length > 0
+    ? Object.fromEntries(unset.map((key) => [key, null]))
+    : null;
 };
 
 export class Game<T extends M = {}> {
@@ -649,6 +699,14 @@ export class Game<T extends M = {}> {
     return this._checkpoints;
   }
 
+  protected _checkpointByteBudget = CHECKPOINT_BYTE_BUDGET;
+
+  protected _run = new RunRecord();
+
+  protected _rolls = 0;
+
+  protected _rollsDrawing = 0;
+
   protected _version = "";
   protected _saveHistory = 16;
   protected _rewindBeats = 128;
@@ -708,9 +766,13 @@ export class Game<T extends M = {}> {
         durableExecuted: (executed) => this.durableExecuted(executed),
         snapshotRuntime: () => this._runtimeState.snapshotFull(),
         drainRuntime: () => this._runtimeState.drainDeltas(),
+        imageParts: (image) => imageParts(image as ProgramImage),
+        valueParts: (value) => valueParts(value, this._story.images),
       },
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );
+    this._checkpointByteBudget =
+      options?.checkpointByteBudget ?? CHECKPOINT_BYTE_BUDGET;
 
     this._context = {
       system: {
@@ -2370,6 +2432,7 @@ export class Game<T extends M = {}> {
 
   start(save: string = ""): void {
     this.cancelPreview();
+    this._run.clear();
     this._state = "running";
     this._ending = null;
     this._errorEnding = null;
@@ -2489,6 +2552,186 @@ export class Game<T extends M = {}> {
         ? this._routeSimulator?.decisionsTaken()
         : undefined;
     }
+  }
+
+  protected recordsRun(): boolean {
+    return (
+      this._state === "running" &&
+      this._simulation !== "simulating" &&
+      !this._replaying
+    );
+  }
+
+  protected recordBeat(shown: Instructions): void {
+    const checkpoint = this._checkpoints.length - 1;
+    this._run.record({ checkpoint, shown, menus: this._playedMenus.length });
+    this._checkpoints.charge(checkpoint, JSON.stringify(shown).length * 2);
+    const folded = this._checkpoints.fold(
+      this._checkpointByteBudget,
+      this._run.first!.checkpoint,
+    );
+    if (folded.length > 0) {
+      this._run.drop(new Set(folded));
+    }
+  }
+
+  protected forkRun(): void {
+    const beat = this._run.current;
+    if (!beat) {
+      return;
+    }
+    this._run.truncateAfterCurrent();
+    const kept = beat.checkpoint + 1;
+    this._checkpoints.truncate(kept);
+    this._checkpointStepCursors.length = kept;
+    this._checkpointShownBeats.length = kept;
+    this._checkpointDecisionsTaken.length = kept;
+    this._playedMenus.length = beat.menus;
+  }
+
+  get history(): GameHistory {
+    const run = this._run;
+    const canRollBack = run.canRollBack;
+    const canRollForward = run.canRollForward;
+    const behindLatest = run.behindLatest;
+    const canStepOut = this.stoppedDepth() > 1;
+    return {
+      canRollBack,
+      canRollForward,
+      behindLatest,
+      canStepOut,
+      rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+      rollForwardRefusal: canRollForward ? null : HISTORY_REASONS.rollForward,
+      stepRefusal: behindLatest ? HISTORY_REASONS.step : null,
+      stepOutRefusal: canStepOut ? null : HISTORY_REASONS.stepOut,
+    };
+  }
+
+  async rollBack(to: RollTarget): Promise<RollResult> {
+    const target = this._run.backFrom(to);
+    return target === null
+      ? { moved: false, reason: HISTORY_REASONS.rollBack, history: this.history }
+      : this.rollTo(target);
+  }
+
+  async rollForward(to: RollTarget): Promise<RollResult> {
+    const target = this._run.forwardFrom(to);
+    return target === null
+      ? {
+          moved: false,
+          reason: HISTORY_REASONS.rollForward,
+          history: this.history,
+        }
+      : this.rollTo(target);
+  }
+
+  protected rollForwardOnTap(): void {
+    this.rollForward("beat").catch((e) => this.log(e, "error"));
+  }
+
+  protected async rollTo(target: number): Promise<RollResult> {
+    const beat = this._run.beats[target]!;
+    const audio = this.module.audio;
+    const ui = this.module.ui;
+    const before = audio.loopsPlaying();
+    const stage = stageOf(ui.state);
+    if (!this.restoreCheckpoint(beat.checkpoint)) {
+      throw new Error("This beat can no longer be restored.");
+    }
+    if (beat.shown.choices?.length) {
+      const runtime = this._runtimeState;
+      this._runtimeState = new RuntimeState();
+      this._story.ContinueMaximally();
+      this._runtimeState = runtime;
+    }
+    this._connection.beginEpoch();
+    const roll = ++this._rolls;
+    this._ending = null;
+    this._errorEnding = null;
+    this._coordinator = null;
+    this.clearChoices();
+    this._run.moveTo(target);
+    this._executingLocation =
+      this.lastExecutedScriptLocation() ?? this._executingLocation;
+    this._awaiting = this._executingLocation;
+    const { loops, stoppedLoops } = audio.settleLoops(before);
+    const restored: SettledBeat = {
+      beat: target,
+      location: this._executingLocation
+        ? this.getDocumentLocation(this._executingLocation)
+        : null,
+      choices: this._story.currentChoices.map((c) => c.text),
+      chosen: beat.chosen ?? null,
+      textRevealed: true,
+      transitionsEnded: true,
+      oneShotsSilent: true,
+      timersRestarted: true,
+      loops,
+      stoppedLoops,
+    };
+    this._rollsDrawing += 1;
+    try {
+      await Promise.all([
+        ...this.clearStageBeyond(stage),
+        ui.onRestore(),
+        this.module.assets.onRestore(),
+      ]);
+    } finally {
+      this._rollsDrawing -= 1;
+    }
+    const history = this.history;
+    if (roll !== this._rolls) {
+      return { moved: false, superseded: true, history };
+    }
+    this.noteShownChoices(beat.shown);
+    this._shownBeatOnScreen = beat.shown;
+    this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    this.connection.emit(
+      GameRolledMessage.type.notification({ restored, history }),
+    );
+    return { moved: true, restored, history };
+  }
+
+  protected clearStageBeyond(stage: Stage): Promise<void>[] {
+    const ui = this.module.ui;
+    const now = ui.state;
+    const cleared: Promise<void>[] = [];
+    for (const target of stage.text) {
+      if (!now.text?.[target]) {
+        cleared.push(ui.text.clear(target));
+      }
+    }
+    for (const target of stage.image) {
+      if (!now.image?.[target]) {
+        cleared.push(ui.image.clear(target));
+      }
+    }
+    for (const [target, keys] of stage.style) {
+      const unset = unsetKeys(keys, now.style?.[target]);
+      if (unset) {
+        cleared.push(ui.style.update(target, unset));
+      }
+    }
+    for (const [target, keys] of stage.attributes) {
+      const unset = unsetKeys(keys, now.attributes?.[target]);
+      if (unset) {
+        cleared.push(ui.attributes.update(target, unset));
+      }
+    }
+    for (const name of stage.layout) {
+      if (!now.layout?.some((layout) => layout.name === name)) {
+        cleared.push(ui.closeLayout(name, undefined, true));
+      }
+    }
+    return cleared;
+  }
+
+  protected supersedeRolls(): void {
+    if (this._rollsDrawing > 0) {
+      this._connection.beginEpoch();
+      this.module.audio.restartPending();
+    }
+    this._rolls += 1;
   }
 
   save(): string {
@@ -3049,6 +3292,10 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
+    this.supersedeRolls();
+    if (this._run.behindLatest) {
+      this.forkRun();
+    }
     if (!preserveExecutionInfo) {
       this._runtimeState = new RuntimeState();
     }
@@ -3086,6 +3333,25 @@ export class Game<T extends M = {}> {
     return done;
   }
 
+  protected stoppedDepth(): number {
+    const state = this._story.state;
+    const depth = state.callstackDepth;
+    const frames = this._story.debugFrames(
+      state.callStack.currentThread.threadIndex,
+      this.lastExecutedAddress() ?? -1,
+    );
+    const top = frames?.at(-1);
+    const caller = frames?.at(-2);
+    return top &&
+      caller &&
+      sameLocation(
+        this.scriptLocationOf(top.address),
+        this.scriptLocationOf(caller.address),
+      )
+      ? depth - 1
+      : depth;
+  }
+
   protected resetExecutionBudget() {
     this._executionBudgetExhausted = false;
     this._executionStepsRemaining = this._executionStepLimit;
@@ -3095,12 +3361,16 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
+    if (this._run.behindLatest) {
+      return false;
+    }
+    this.supersedeRolls();
     this.cancelPreview();
     this._awaiting = null;
     this.resetExecutionBudget();
     this.refreshDataWatches();
     const origin = {
-      depth: this._story.state.callstackDepth,
+      depth: this.stoppedDepth(),
       location: this._executingLocation,
     };
     this._announcedStop = false;
@@ -3214,11 +3484,16 @@ export class Game<T extends M = {}> {
             (!(instructions.load || instructions.cutscene) ||
               (instructions.choices?.length ?? 0) > 0)
           ) {
-            this.notifyAwaitingInteraction();
+            this.notifyAwaitingInteraction(
+              (instructions.choices?.length ?? 0) > 0,
+            );
           }
         }
         if (instructions || this._simulation !== "simulating") {
           this.checkpoint();
+        }
+        if (instructions && this.recordsRun()) {
+          this.recordBeat(instructions);
         }
         if (
           instructions &&
@@ -3319,6 +3594,7 @@ export class Game<T extends M = {}> {
             this._story.currentDisplayInstructions,
             this._story.currentChoices.map((c) => c.text),
             this._story.currentText || "",
+            location,
           );
         }
 
@@ -3383,7 +3659,7 @@ export class Game<T extends M = {}> {
   }
 
   autoAdvancedToContinue() {
-    if (this._ending) {
+    if (this._ending || this._run.behindLatest) {
       return;
     }
     this.notifyAutoAdvancedToContinue();
@@ -3394,6 +3670,10 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return;
     }
+    if (this._run.behindLatest) {
+      this.rollForwardOnTap();
+      return;
+    }
     this.notifyClickedToContinue();
     this.continue();
   }
@@ -3402,10 +3682,25 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return;
     }
+    const beat = this._run.current;
+    if (beat?.shown.choices?.length) {
+      if (this._run.behindLatest) {
+        if (beat.chosen === index) {
+          this.rollForwardOnTap();
+          return;
+        }
+        this.forkRun();
+      }
+      beat.chosen = index;
+    }
+    const picked = Number(this._story.currentChoices[index]?.sourcePath);
+    const option = Number.isInteger(picked)
+      ? this.documentLocationOf(picked)
+      : null;
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.notifyChosePathToContinue();
+    this.notifyChosePathToContinue(option);
     this.continue();
   }
 
@@ -3465,13 +3760,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyAwaitingInteraction() {
+  protected notifyAwaitingInteraction(choices: boolean) {
     const location =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
     this._awaiting = location;
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(location),
+        choices,
       }),
     );
   }
@@ -3492,10 +3788,11 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyChosePathToContinue() {
+  protected notifyChosePathToContinue(option: DocumentLocation | null) {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        ...(option ? { option } : {}),
       }),
     );
   }
@@ -3637,6 +3934,7 @@ export class Game<T extends M = {}> {
       simulationFailure:
         this._simulation === "fail" ? this._simulationFailure : undefined,
       route: this._previewRoute,
+      history: this.history,
     };
   }
 
@@ -3842,6 +4140,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        history: this.history,
       }),
     );
   }
@@ -4518,7 +4817,9 @@ export class Game<T extends M = {}> {
         (!(instructions.load || instructions.cutscene) ||
           (instructions.choices?.length ?? 0) > 0)
       ) {
-        this.notifyAwaitingInteraction();
+        this.notifyAwaitingInteraction(
+          (instructions.choices?.length ?? 0) > 0,
+        );
       }
     }
     this.checkpoint();

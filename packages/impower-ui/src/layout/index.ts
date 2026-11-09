@@ -1,6 +1,7 @@
 export { useLayout } from "../hooks/useLayout";
 export { useCoarsePointer } from "../hooks/useCoarsePointer";
 export { useRailDefault } from "../hooks/useRailDefault";
+export { useSheetOpen } from "../hooks/useSheetOpen";
 export {
   layoutState,
   pointerState,

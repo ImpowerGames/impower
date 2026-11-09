@@ -6,10 +6,13 @@ import { announcement } from "../../hooks/useAnnouncer";
 import LiveRegion from "../live-region/LiveRegion";
 import {
   ChoiceRow,
+  FactRow,
   SelectRow,
+  SliderRow,
   SettingsGroup,
   SettingsList,
   SettingsPlaceholder,
+  SettingsRow,
   SettingsSection,
   SwitchRow,
   TextRow,
@@ -370,5 +373,140 @@ describe("Settings layout variants", () => {
     expect(css).toContain("@container page not (min-width: 560px)");
     expect(settingsRowVariants({ indent: "sub" })).toContain("phone:pl-[30px]");
     expect(settingsRowVariants({ wrap: true })).toContain("@max-[560px]/page:flex-wrap");
+  });
+});
+
+describe("a row's own Reset", () => {
+  function Owner() {
+    const [keys, setKeys] = useState("Ctrl+U");
+    return (
+      <SettingsList>
+        <SettingsRow
+          id="undo"
+          name="Undo"
+          setting="undo"
+          changed={keys !== "Ctrl+Z"}
+          onReset={() => setKeys("Ctrl+Z")}
+          control={
+            <button type="button" id="undo-control" onClick={() => setKeys("Ctrl+U")}>
+              {keys}
+            </button>
+          }
+        />
+        <SettingsRow id="locked" name="Locked" changed disabled onReset={() => {}} />
+      </SettingsList>
+    );
+  }
+
+  it("shows Reset beside the control only while the row differs, and its click restores the row and keeps focus in it", async () => {
+    await mount(<Owner />);
+    const reset = () => host!.querySelector<HTMLButtonElement>("#undo-control")!.parentElement!.querySelector<HTMLButtonElement>("[data-reset-row]");
+    const control = () => host!.querySelector<HTMLButtonElement>("#undo-control")!;
+    expect(reset()!.textContent).toBe("Reset");
+    expect(reset()!.getAttribute("aria-label")).toBe("Reset Undo");
+    expect(reset()!.nextElementSibling).toBe(control());
+    expect(host!.querySelectorAll("[data-reset-row]").length).toBe(1);
+    await act(async () => {
+      reset()!.focus();
+      reset()!.click();
+    });
+    await settle();
+    expect(control().textContent).toBe("Ctrl+Z");
+    expect(reset()).toBeNull();
+    expect(document.activeElement).toBe(control());
+    await act(async () => control().click());
+    expect(reset()).not.toBeNull();
+  });
+
+  it("draws no Reset without an owner's restore", async () => {
+    await mount(
+      <SettingsList>
+        <SettingsRow id="plain" name="Plain" changed control={<button type="button">Open</button>} />
+      </SettingsList>,
+    );
+    expect(host!.querySelector("[data-reset-row]")).toBeNull();
+  });
+});
+
+describe("Settings rows for facts, a refused value and a slider", () => {
+  it("lists facts as a description list, a multi-line value keeping its lines", async () => {
+    await mount(
+      <SettingsList as="dl">
+        <FactRow term="Title" multiline>
+          {"The Long Road\nHome"}
+        </FactRow>
+        <FactRow term="Author">Not set</FactRow>
+      </SettingsList>,
+    );
+    const list = host!.querySelector("dl")!;
+    expect(Array.from(list.querySelectorAll(":scope > div > dt")).map((el) => el.textContent)).toEqual(["Title", "Author"]);
+    expect(Array.from(list.querySelectorAll(":scope > div > dd")).map((el) => el.textContent)).toEqual(["The Long Road\nHome", "Not set"]);
+    expect(list.querySelector("dd")!.className).toContain("whitespace-pre-line");
+  });
+
+  it("shows a text row's problem in place of its detail, marks the field invalid and announces what its owner says on commit", async () => {
+    const onCommit = vi.fn((value: string) => `Folder: ${value} kept.`);
+    await mount(
+      <>
+        <LiveRegion />
+        <TextRow
+          id="folder"
+          name="Folder"
+          detail="Contains nothing yet"
+          problem="A folder name can't be empty, so Backdrops is kept."
+          value="Backdrops"
+          onValueChange={() => {}}
+          onCommit={onCommit}
+        />
+      </>,
+    );
+    const input = host!.querySelector<HTMLInputElement>("#folder-control")!;
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe("folder-detail");
+    expect(host!.querySelector("#folder-detail [data-problem]")!.textContent).toBe(
+      "A folder name can't be empty, so Backdrops is kept.",
+    );
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(onCommit).toHaveBeenCalledWith("Backdrops");
+    expect(region()).toContain("Folder: Backdrops kept.");
+  });
+
+  it("stacks a slider row's name, spoken value, slider, scale and hint beside its aside", async () => {
+    function Owner() {
+      const [value, setValue] = useState(50);
+      return (
+        <SliderRow
+          id="crop"
+          name="Visible area"
+          value={value}
+          min={25}
+          max={100}
+          step={5}
+          valueText={(v) => (v === 100 ? "Whole image" : `Top ${v}%`)}
+          scale={["Top 25%", "Whole image"]}
+          hint="Used for thumbnails only."
+          aside={<span data-aside>{value}</span>}
+          onValueChange={setValue}
+        />
+      );
+    }
+    await mount(<Owner />);
+    const slider = host!.querySelector<HTMLInputElement>("#crop-control")!;
+    expect(slider.type).toBe("range");
+    expect(slider.getAttribute("aria-labelledby")).toBe("crop-name");
+    expect(slider.getAttribute("aria-describedby")).toBe("crop-hint");
+    expect(host!.querySelector("label#crop-name")!.getAttribute("for")).toBe("crop-control");
+    expect(host!.querySelector("output")!.textContent).toBe("Top 50%");
+    await act(async () => {
+      slider.value = "100";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(host!.querySelector("output")!.textContent).toBe("Whole image");
+    expect(host!.querySelector("[data-aside]")!.textContent).toBe("100");
+    expect(host!.querySelector("[data-setting-row]")!.className).toContain("grid-cols-[minmax(0,1fr)_256px]");
   });
 });

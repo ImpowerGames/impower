@@ -7,6 +7,7 @@ import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
+import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
@@ -122,11 +123,19 @@ class WorkspaceStore {
 
   readonly scriptReferences = signal<readonly Reference[]>([]);
 
+  readonly editorHistory = signal<
+    Record<string, { canUndo: boolean; canRedo: boolean }>
+  >({});
+
   readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
+
+  readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
+
+  readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

@@ -1,6 +1,6 @@
 import { getIndentUnit, indentString } from "@codemirror/language";
-import { EditorSelection, Facet, Prec, combineConfig } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorSelection, Facet, combineConfig } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
@@ -185,14 +185,6 @@ export const vscodeOnEnterRules = (
   return [
     vscodeOnEnterRulesConfig.of(
       regexConfig as VSCodeOnEnterRulesConfig<RegExp>,
-    ),
-    Prec.high(
-      keymap.of([
-        {
-          key: "Enter",
-          run: onEnterRulesCommand,
-        },
-      ]),
     ),
   ];
 };

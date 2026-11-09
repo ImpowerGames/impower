@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, openPreviewSettings, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openFileMenu, openPreviewSettings, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -896,7 +896,51 @@ await asyncCheck("--step drawer opens the drawer below the desktop width and fai
   const stuck = { ...opened, waitForFunction: async () => { throw new Error("timeout"); } };
   assert.match((await openDrawerOrRail(stuck, { timeout: 1000 })).reason, /the drawer did not open within 1 s/);
   const none = { evaluate: async () => null, locator: () => ({ first: () => ({ count: async () => 0 }) }) };
-  assert.match((await openDrawerOrRail(none)).reason, /neither the desktop rail nor the drawer's Open Menu button/);
+  assert.match((await openDrawerOrRail(none)).reason, /neither the desktop rail, the drawer's Open Menu button nor the phone's app menu/);
+});
+
+const appMenuPage = ({ buttons = 1, opens = true, sheet = true, clicks = [], selectors = [] } = {}) => ({
+  waitForFunction: async () => true,
+  evaluate: async () => sheet,
+  locator: (selector) => {
+    selectors.push(selector);
+    return {
+      first: () => ({
+        count: async () => buttons,
+        click: async () => clicks.push(selector),
+        waitFor: async () => {
+          if (!opens) throw new Error("timeout");
+        },
+      }),
+    };
+  },
+});
+
+await asyncCheck("--step app-menu presses the title bar's App menu or the rail's footer and reports a sheet or a popover", async () => {
+  const clicks = [];
+  const selectors = [];
+  assert.deepEqual(await openAppMenu(appMenuPage({ clicks, selectors })), { step: "app-menu", ran: true, opened: "sheet" });
+  assert.ok(selectors[0].includes('button[aria-label="App menu"]'), selectors[0]);
+  assert.ok(selectors[0].includes('aside[aria-label="Sidebar"] button[aria-haspopup="menu"]'), selectors[0]);
+  assert.deepEqual(clicks, [selectors[0]]);
+  assert.deepEqual(await openAppMenu(appMenuPage({ sheet: false })), { step: "app-menu", ran: true, opened: "popover" });
+  assert.match((await openAppMenu(appMenuPage({ opens: false }), { timeout: 1000 })).reason, /the app menu did not open within 1 s/);
+  assert.match((await openAppMenu(appMenuPage({ buttons: 0 }))).reason, /no app menu button on the page/);
+});
+
+await asyncCheck("--step drawer opens the app menu on a phone, which has neither a rail nor a drawer", async () => {
+  const page = {
+    waitForFunction: async () => true,
+    evaluate: async (_fn, selector) => (selector === 'aside[aria-label="Sidebar"]' ? null : true),
+    locator: (selector) => ({
+      first: () => ({
+        count: async () => (selector.includes("Open Menu") ? 0 : 1),
+        click: async () => {},
+        waitFor: async () => {},
+      }),
+    }),
+  };
+  assert.deepEqual(await openDrawerOrRail(page), { step: "drawer", ran: true, opened: "app-menu", menu: "sheet" });
 });
 
 await asyncCheck("--step focus-project-name clicks the name field and reports its value and selection, or fails by name", async () => {

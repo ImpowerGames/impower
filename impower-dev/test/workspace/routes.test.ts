@@ -1,6 +1,10 @@
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  SETTINGS_SECTION_IDS,
+  settingsSectionHref,
+} from "../../src/modules/spark-editor/components/settings/sections";
+import {
   routeOfHash,
   routeOfState,
   sectionOfHash,
@@ -53,6 +57,10 @@ describe("sectionOfHash", () => {
     ["", undefined],
   ])("reads %s as %s", (hash, section) => {
     expect(sectionOfHash(hash)).toBe(section);
+  });
+
+  it.each(SETTINGS_SECTION_IDS)("reads the settings href of %s back as that section", (id) => {
+    expect(sectionOfHash(settingsSectionHref(id))).toBe(id);
   });
 });
 

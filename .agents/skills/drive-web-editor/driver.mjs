@@ -2043,7 +2043,7 @@ export async function openFileMenu(page, { timeout = 10_000 } = {}) {
 const SCREENS = {
   logic: `${SCRIPTS_PAGE_SELECTOR}, .sparkdown-script-editor-root .cm-content`,
   assets: '[role="tab"][id$="-trigger-files"]',
-  share: '[role="tab"][id$="-trigger-game"]',
+  share: "#share-page",
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
 const SELECTED_SCREEN_TAB = Object.keys(SCREENS).map((name) => `${tabSelector(name)}[aria-selected="true"]`).join(", ");
@@ -2130,6 +2130,33 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
 
 const RAIL_SELECTOR = 'aside[aria-label="Sidebar"]';
 const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
+const APP_MENU_BUTTON_SELECTOR = 'button[aria-label="App menu"], aside[aria-label="Sidebar"] button[aria-haspopup="menu"]';
+const APP_MENU_SELECTOR = '[role="menu"]';
+
+export async function openAppMenu(page, { timeout = 5000 } = {}) {
+  const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
+  if (!(await button.count())) return { step: "app-menu", ran: false, reason: "no app menu button on the page: neither the title bar's App menu nor the rail's footer" };
+  await button.click();
+  try {
+    await page.locator(APP_MENU_SELECTOR).first().waitFor({ state: "visible", timeout });
+    await page.waitForFunction(
+      (selector) => {
+        const menu = document.querySelector(selector);
+        const sheet = menu?.closest('[role="dialog"]');
+        const root = sheet?.parentElement ?? menu;
+        if (!root || getComputedStyle(root).opacity !== "1") return false;
+        if (sheet && Math.abs(sheet.getBoundingClientRect().bottom - window.innerHeight) > 1) return false;
+        return root.getAnimations({ subtree: true }).every((animation) => animation.playState !== "running");
+      },
+      APP_MENU_SELECTOR,
+      { timeout },
+    );
+  } catch {
+    return { step: "app-menu", ran: false, reason: `the app menu did not open within ${timeout / 1000} s of pressing its button` };
+  }
+  const sheet = await page.evaluate((selector) => !!document.querySelector(selector)?.closest('[role="dialog"]'), APP_MENU_SELECTOR);
+  return { step: "app-menu", ran: true, opened: sheet ? "sheet" : "popover" };
+}
 const PROJECT_NAME_SELECTOR = 'input[aria-label="Project name"], input[aria-label="Project Name"]';
 const SCRIPT_NAME_SELECTOR = 'input[data-script-name]';
 
@@ -2142,7 +2169,11 @@ export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   }, RAIL_SELECTOR);
   if (rail) return { step: "drawer", ran: true, opened: "rail", rail };
   const button = page.locator(DRAWER_BUTTON_SELECTOR).first();
-  if (!(await button.count())) return { step: "drawer", ran: false, reason: "neither the desktop rail nor the drawer's Open Menu button is on the page" };
+  if (!(await button.count())) {
+    const menu = await openAppMenu(page, { timeout });
+    if (menu.ran) return { step: "drawer", ran: true, opened: "app-menu", menu: menu.opened };
+    return { step: "drawer", ran: false, reason: `neither the desktop rail, the drawer's Open Menu button nor the phone's app menu is on the page (${menu.reason})` };
+  }
   await button.click();
   try {
     await page.waitForFunction(() => {
@@ -3481,6 +3512,10 @@ async function ui(args, deps = liveDeps) {
             }
             if (step.step === "drawer") {
               result.steps.push(await openDrawerOrRail(page));
+              continue;
+            }
+            if (step.step === "app-menu") {
+              result.steps.push(await openAppMenu(page));
               continue;
             }
             if (step.step === "focus-project-name") {

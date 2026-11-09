@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
 import { createAspectRatioSync } from "./aspectRatioSync";
 import { showSnackbar } from "../../utils/snackbar";
@@ -89,6 +90,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -123,6 +126,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameStartedMessage },
         { GameWorkerRestartedMessage },
         { ResizeGameMessage },
+        { GameAwaitingInteractionMessage },
+        { GameChosePathToContinueMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -274,8 +279,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
             return;
           }
           const files = await Workspace.fs.getFiles(projectId);
-          const uri = Workspace.window.getOpenedDocumentUri();
           const projectPath = await Workspace.fs.getDirectoryUri(projectId);
+          const uri = Workspace.window.getOpenedDocumentUri();
           await connection.sendRequest(InitializeMessage.type, {
             rootUri: projectPath,
             processId: 0,
@@ -373,6 +378,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
               }
             }
           }
+          if (GameAwaitingInteractionMessage.type.isNotification(message)) {
+            Workspace.window.syncGameChoosing(!!message.params.choices);
+          }
+          if (GameChosePathToContinueMessage.type.isNotification(message)) {
+            const { option } = message.params;
+            Workspace.window.syncGameChose(
+              option
+                ? { uri: option.uri, line: option.range.start.line }
+                : undefined,
+            );
+          }
           if (GameEndedMessage.type.is(message)) {
             Workspace.window.syncGameEnded(true);
           }
@@ -413,8 +429,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
         };
 
         const onKeyDown = (e: KeyboardEvent) => {
-          if (e.key !== "PageUp" && e.key !== "PageDown") return;
-          void skipBeat(e.key === "PageUp" ? -1 : 1);
+          if (workspaceShortcuts.matches(e, "previousBeat")) {
+            void skipBeat(-1);
+          } else if (workspaceShortcuts.matches(e, "nextBeat")) {
+            void skipBeat(1);
+          }
         };
 
         window.addEventListener(MessageProtocol.event, onProtocol);

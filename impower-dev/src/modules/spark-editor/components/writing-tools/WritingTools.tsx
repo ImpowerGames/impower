@@ -15,6 +15,7 @@ import {
   ToolPanelTrigger,
   type ToolPanelCloseReason,
 } from "../tool-panel";
+import { ChangeColorView } from "./ChangeColor";
 import ShortcutsSheet from "./ShortcutsSheet";
 import { shortcutSections } from "./shortcuts";
 import SparkdownGuide from "./SparkdownGuide";
@@ -37,6 +38,7 @@ const TITLES: Record<WritingToolsView, string> = {
   menu: "Writing tools",
   guide: "Sparkdown guide",
   shortcuts: "Keyboard shortcuts",
+  color: "Change color",
 };
 
 const deepActiveElement = (): HTMLElement | null => {
@@ -146,6 +148,19 @@ export default function WritingTools({
     };
   }, [open, view, filename]);
 
+  const colorTarget = state?.color;
+  const [storyColors, setStoryColors] = useState<string[]>([]);
+  useEffect(() => {
+    if (!colorTarget) return;
+    let current = true;
+    void withWindow((win) => win.readStoryColors()).then((found) => {
+      if (current) setStoryColors(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [colorTarget]);
+
   const close = (_reason?: ToolPanelCloseReason) =>
     void withWindow((win) => win.closeWritingTools());
   const show = (next: WritingToolsView) =>
@@ -197,6 +212,15 @@ export default function WritingTools({
             onView={show}
             onName={onName}
             onCommand={onCommand}
+          />
+        ) : view === "color" && colorTarget ? (
+          <ChangeColorView
+            key={`${colorTarget.filename}:${colorTarget.range.start.line}:${colorTarget.range.start.character}:${colorTarget.value}`}
+            value={colorTarget.value}
+            color={colorTarget.color}
+            colors={storyColors}
+            canEdit={canEdit}
+            onUse={(value) => withWindow((win) => win.applyChangeColor(value))}
           />
         ) : view === "guide" ? (
           <SparkdownGuide />

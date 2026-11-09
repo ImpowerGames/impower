@@ -143,6 +143,7 @@ describe("the Syntax color key", () => {
         const rows = keyRows();
         const variables = rows.map((row) => row.variable);
         const rendered = renderedVariables();
+        expect(variables).not.toContain("--syntax-invalid");
         expect(rendered.complete || value === "showcase").toBe(true);
         if (rendered.complete) {
           expect([...variables].sort()).toEqual([...rendered.variables].sort());

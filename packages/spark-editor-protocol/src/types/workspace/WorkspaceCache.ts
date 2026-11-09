@@ -1,4 +1,4 @@
-import { type Range } from "vscode-languageserver-protocol";
+import { type Color, type Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
@@ -53,6 +53,8 @@ export interface GameState {
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
+  choosing?: boolean;
+  picks?: Record<string, number[]>;
   compiling?: boolean;
   playRefusal?: string;
 }
@@ -150,11 +152,19 @@ export interface ListsState {
   scriptsFolder?: string;
 }
 
-export type WritingToolsView = "menu" | "guide" | "shortcuts";
+export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
 
 export interface WritingToolsState {
   view: WritingToolsView;
   fromMenu: boolean;
+  color?: ChangeColorState;
+}
+
+export interface ChangeColorState {
+  filename: string;
+  range: Range;
+  value: string;
+  color: Color;
 }
 
 export interface ShellState {

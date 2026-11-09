@@ -92,6 +92,18 @@ export {
 } from "./popover/Popover";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
+  default as ColorWell,
+  colorWellVariants,
+  type ColorWellProps,
+  type ColorWellSize,
+} from "./color-well/ColorWell";
+export {
+  default as ColorChips,
+  colorChipVariants,
+  type ColorChipsProps,
+  type ColorChipSize,
+} from "./color-chips/ColorChips";
+export {
   default as SidebarLayout,
   sidebarLayoutVariants,
   type SidebarLayoutProps,
@@ -146,6 +158,12 @@ export {
   type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
 export {
+  default as KeysChip,
+  keysChipVariants,
+  type KeysChipProps,
+  type KeysChipState,
+} from "./keys-chip/KeysChip";
+export {
   default as ThemeSwatch,
   themeSwatchVariants,
   type ThemeSwatchProps,
@@ -162,6 +180,8 @@ export {
   ChoiceRow,
   SettingsFoot,
   SettingsPlaceholder,
+  FactRow,
+  SliderRow,
   settingsRowVariants,
   type SettingsSectionProps,
   type SettingsGroupProps,
@@ -172,6 +192,8 @@ export {
   type SwitchRowProps,
   type SelectRowProps,
   type TextRowProps,
+  type FactRowProps,
+  type SliderRowProps,
   type ChoiceRowProps,
   type ChoiceRowOption,
   type SettingsFootProps,
@@ -186,6 +208,22 @@ export {
   type RailIndexItem,
   type RailIndexDepth,
 } from "./rail-index/RailIndex";
+export {
+  default as FeatureCard,
+  featureCardVariants,
+  type FeatureCardProps,
+  type FeatureCardSize,
+} from "./feature-card/FeatureCard";
+export {
+  default as PageFrame,
+  pageFrameVariants,
+  pageFrameInnerVariants,
+  pageFrameIntroVariants,
+  pageFrameTitleVariants,
+  pageFrameBackVariants,
+  type PageFrameProps,
+  type PageFrameSize,
+} from "./page-frame/PageFrame";
 export {
   default as JumpChips,
   jumpChipVariants,
@@ -210,3 +248,18 @@ export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";
 export * from "../layout";
+export {
+  default as Slider,
+  sliderVariants,
+  type SliderProps,
+  type SliderSize,
+  type SliderWidth,
+  type SliderTrack,
+} from "./slider/Slider";
+export {
+  default as PortraitThumbnail,
+  portraitThumbnailVariants,
+  portraitCropLabel,
+  type PortraitThumbnailProps,
+  type PortraitThumbnailSize,
+} from "./portrait-thumbnail/PortraitThumbnail";

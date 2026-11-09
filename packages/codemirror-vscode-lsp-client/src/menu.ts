@@ -19,6 +19,7 @@ import {
   recordMenuClipboard,
 } from "./context";
 import { coarsePointer } from "./pointer";
+import { shortcutLabelFor } from "./shortcuts";
 
 const contextMenuTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-context-menu": {
@@ -175,13 +176,17 @@ function shownItems(view: EditorView, pos: number): ContextMenuItem[] {
       ((!item.when || item.when(state, pos)) &&
         !(coarse && empty && item.needsSelection)),
   );
-  return kept.filter(
-    (item, index) =>
-      !("type" in item) ||
-      (index > 0 &&
-        index < kept.length - 1 &&
-        !("type" in kept[index - 1]!)),
-  );
+  const shown: ContextMenuItem[] = [];
+  for (const item of kept) {
+    const last = shown.at(-1);
+    if (!("type" in item) || (last && !("type" in last))) {
+      shown.push(item);
+    }
+  }
+  if (shown.length > 0 && "type" in shown.at(-1)!) {
+    shown.pop();
+  }
+  return shown;
 }
 
 function isDisabled(view: EditorView, item: ContextMenuItem) {
@@ -222,7 +227,9 @@ function menuModel(view: EditorView, spec: ContextMenuSpec): ContextMenuModel {
       "label" in item
         ? {
             label: view.state.phrase(item.label!),
-            shortcut: item.shortcut,
+            shortcut: item.shortcut
+              ? shortcutLabelFor(view.state, item.shortcut)
+              : undefined,
             disabled: isDisabled(view, item),
             run: () => runItem(view, item, openMenuPos(view, spec.pos)),
           }
@@ -266,10 +273,13 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         const labelSpan = document.createElement("span");
         labelSpan.textContent = view.state.phrase(item.label!);
         itemEl.appendChild(labelSpan);
-        if (!coarse && item.shortcut) {
+        const shortcut = item.shortcut
+          ? shortcutLabelFor(view.state, item.shortcut)
+          : undefined;
+        if (!coarse && shortcut) {
           const shortcutSpan = document.createElement("span");
           shortcutSpan.className = "cm-menu-shortcut";
-          shortcutSpan.textContent = item.shortcut;
+          shortcutSpan.textContent = shortcut;
           itemEl.appendChild(shortcutSpan);
         }
         const showDisabled = () => {
