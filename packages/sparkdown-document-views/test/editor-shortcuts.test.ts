@@ -154,6 +154,19 @@ describe("the shortcuts the editor reports", () => {
     expect(customGotoLinePanelOpen(view.state)).toBe(false);
   });
 
+  it("returns focus to Go to line's field when Go to line is asked for again from the script", () => {
+    const view = liveEditor();
+    openCustomGotoLinePanel(view);
+    const field = view.dom.querySelector<HTMLElement>(".cm-gotoLine [contenteditable]")!;
+    expect(document.activeElement).toBe(field);
+    view.focus();
+    expect(document.activeElement).not.toBe(field);
+    const goto = new KeyboardEvent("keydown", { key: "g", ctrlKey: true });
+    expect(runScopeHandlers(view, goto, "editor")).toBe(true);
+    expect(customGotoLinePanelOpen(view.state)).toBe(true);
+    expect(document.activeElement).toBe(field);
+  });
+
   it("reads Find as Mod-f, Go to line as Mod-g and Next match as F3 from the keymap table", () => {
     const view = liveEditor();
     expect(keysOf(view, "search", "win")).toEqual(["Mod-f"]);

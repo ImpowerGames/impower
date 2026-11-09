@@ -155,20 +155,11 @@ const gotoLineField = StateField.define<boolean>({
     showPanel.from(f, (val) => (val ? createGotoLinePanel : null)),
 });
 
-function getGotoLineInput(view: EditorView) {
-  let panel = getPanel(view, createGotoLinePanel);
-  return (
-    panel &&
-    (panel.dom.querySelector("[main-field]") as HTMLInputElement | null)
-  );
-}
-
 export const openCustomGotoLinePanel: Command = (view) => {
   if (customGotoLinePanelOpen(view.state)) {
-    let input = getGotoLineInput(view);
-    if (input && input != view.root.activeElement) {
-      input.focus();
-      input.select();
+    const panel = getPanel(view, createGotoLinePanel);
+    if (panel instanceof GotoLinePanel && panel.input !== view.root.activeElement) {
+      panel.mount();
     }
   } else {
     view.dispatch({ effects: [goToLineEffect.of(true)] });
