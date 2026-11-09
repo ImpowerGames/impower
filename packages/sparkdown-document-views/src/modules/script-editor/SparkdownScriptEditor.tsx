@@ -8,6 +8,7 @@ import {
 } from "@impower/impower-ui/action-sheet";
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef, useState } from "preact/hooks";
+import type { Color, Range } from "@impower/spark-editor-protocol/src/types";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 import type {
   ScriptEditorController as ScriptEditorControllerType,
@@ -27,6 +28,7 @@ export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
   onPasteRefused?: () => void;
+  onChangeColor?: (range: Range, value: string, color: Color) => void;
 };
 
 let languageServerWorker: Worker | undefined;
@@ -51,10 +53,14 @@ export default function SparkdownScriptEditor({
   top,
   bottom,
   onPasteRefused,
+  onChangeColor,
 }: SparkdownScriptEditorProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuModel | null>(null);
   const onPasteRefusedRef = useRef(onPasteRefused);
   onPasteRefusedRef.current = onPasteRefused;
+  const onChangeColorRef = useRef(onChangeColor);
+  onChangeColorRef.current = onChangeColor;
+  const hostsColorView = !!onChangeColor;
   const rootRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -101,6 +107,10 @@ export default function SparkdownScriptEditor({
           shortcuts: shortcutsRef.current,
           onContextMenu: setContextMenu,
           onPasteRefused: () => onPasteRefusedRef.current?.(),
+          onChangeColor: hostsColorView
+            ? (range, value, color) =>
+                onChangeColorRef.current?.(range, value, color)
+            : undefined,
           scrollMargin: scrollMargin ?? "",
           top: top ?? "",
           bottom: bottom ?? "",
@@ -118,7 +128,7 @@ export default function SparkdownScriptEditor({
       controllerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollMargin, top, bottom]);
+  }, [scrollMargin, top, bottom, hostsColorView]);
 
   useEffect(() => {
     controllerRef.current?.setReadonly(!!readonly);
