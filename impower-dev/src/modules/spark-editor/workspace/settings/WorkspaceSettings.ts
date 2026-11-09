@@ -6,6 +6,8 @@ import {
   signal,
   type ReadonlySignal,
 } from "@preact/signals";
+import { setAssetFiles } from "../../utils/fileIcon";
+import { setScriptFiles } from "../../utils/scriptFiles";
 import workspace from "../WorkspaceStore";
 import {
   LIGHT_SCHEME_QUERY,
@@ -270,5 +272,11 @@ export class WorkspaceSettings {
 }
 
 const workspaceSettings = new WorkspaceSettings(workspace.signals.projectId);
+
+effect(() => {
+  const { scriptFiles, imageFiles, audioFiles } = workspaceSettings.projectSettings.value;
+  setScriptFiles(scriptFiles);
+  setAssetFiles({ imageFiles, audioFiles });
+});
 
 export default workspaceSettings;
