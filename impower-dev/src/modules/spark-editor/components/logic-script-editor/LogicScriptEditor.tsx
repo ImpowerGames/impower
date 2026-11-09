@@ -236,6 +236,12 @@ export default function LogicScriptEditor({
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}
+          onChangeColor={(range, value, color) => {
+            if (readonly) return;
+            void import("../../workspace/Workspace").then(({ Workspace }) =>
+              Workspace.window.openChangeColor(filename || "main.sd", range, value, color),
+            );
+          }}
         />
       </div>
       <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />

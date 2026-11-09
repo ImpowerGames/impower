@@ -77,4 +77,14 @@ describe("Slider", () => {
     expect(control.className).toContain("mt-2");
     expect(control.disabled).toBe(true);
   });
+
+  it("draws the opacity track only when asked, and takes its color from the page", async () => {
+    expect(sliderVariants().split(/\s+/)).not.toContain("slider-opacity-track");
+    expect(sliderVariants({ track: "opacity" }).split(/\s+/)).toContain("slider-opacity-track");
+    const control = await mount(
+      <Slider aria-label="Opacity" track="opacity" style={{ "--swatch": "#ff8800" }} />,
+    );
+    expect(control.className.split(/\s+/)).toContain("slider-opacity-track");
+    expect(control.style.getPropertyValue("--swatch")).toBe("#ff8800");
+  });
 });

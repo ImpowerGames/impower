@@ -29,4 +29,5 @@ export interface GameConfiguration {
   savesSceneEntries?: boolean;
   /** Beats between the checkpoints' keyframe images. Default 50. */
   checkpointBaseInterval?: number;
+  checkpointByteBudget?: number;
 }

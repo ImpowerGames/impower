@@ -5,6 +5,7 @@ import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/Si
 import type { DocumentLocation } from "../../types/DocumentLocation";
 import type { ExecutedLines } from "../../types/ExecutedLines";
 import type { PreviewRoute } from "../../types/PreviewRoute";
+import type { GameHistory } from "../../types/RunHistory";
 
 export type { ExecutedLines, PreviewRoute, SimulationFailure };
 
@@ -25,6 +26,7 @@ export interface GameExecutedParams {
   simulateLocation?: DocumentLocation;
   startLocation?: DocumentLocation;
   route?: PreviewRoute;
+  history?: GameHistory;
 }
 
 export class GameExecutedMessage {
