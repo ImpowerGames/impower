@@ -35,7 +35,12 @@ import {
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
-import { stepRefusals, type StepTraversal } from "./stepStates";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import {
+  STEP_SHORTCUTS,
+  stepRefusals,
+  type StepTraversal,
+} from "../../workspace/stepStates";
 
 export const propDefaults = {};
 export type PreviewTopBarProps = Partial<typeof propDefaults>;
@@ -138,6 +143,7 @@ function ControlButton({
   icon: Icon,
   disabled,
   reason,
+  title,
   pressed,
   onClick,
 }: {
@@ -145,6 +151,7 @@ function ControlButton({
   icon: IconComponent;
   disabled?: boolean;
   reason?: string;
+  title?: string;
   pressed?: boolean;
   onClick: () => void;
 }) {
@@ -153,7 +160,7 @@ function ControlButton({
       variant="quiet"
       size="icon"
       aria-label={label}
-      title={reason ?? label}
+      title={reason ?? title ?? label}
       aria-pressed={pressed}
       aria-disabled={reason ? true : undefined}
       disabled={disabled}
@@ -357,10 +364,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
-  const refusals = stepRefusals(
-    { ended, paused, choosing: !!game?.choosing },
-    workspace.debugSession.value,
-  );
+  const refusals = stepRefusals(game, workspace.debugSession.value);
   const steps = running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
@@ -369,6 +373,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         label={label}
         icon={icon}
         reason={refusals[traversal]}
+        title={workspaceShortcuts.title(STEP_SHORTCUTS[traversal], label)}
         onClick={() => step(traversal)}
       />
     );

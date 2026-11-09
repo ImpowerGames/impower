@@ -3,6 +3,7 @@ import { isEditableFocus } from "../../utils/focusedElement";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import { STEP_SHORTCUTS, STEP_TRAVERSALS } from "../../workspace/stepStates";
 import workspace from "../../workspace/WorkspaceStore";
 
 export function useWorkspaceSession(): void {
@@ -45,6 +46,17 @@ export function useWorkspaceSession(): void {
         }
         const { Workspace } = await import("../../workspace/Workspace");
         Workspace.window.toggleGameRunning();
+        return;
+      }
+      const traversal = STEP_TRAVERSALS.find((step) =>
+        workspaceShortcuts.matches(e, STEP_SHORTCUTS[step]),
+      );
+      if (traversal) {
+        if (workspace.state.peek().preview?.modes?.game?.running) {
+          e.preventDefault();
+          const { Workspace } = await import("../../workspace/Workspace");
+          void Workspace.window.stepGame(traversal);
+        }
         return;
       }
       const isUndo = workspaceShortcuts.matches(e, "undo");

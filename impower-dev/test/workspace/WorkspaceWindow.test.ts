@@ -1989,6 +1989,7 @@ describe("The preview's top bar", () => {
       show(workspace.current.preview.modes.game);
       expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
       expect(control("Step Over")?.hasAttribute("aria-disabled")).toBe(false);
+      expect(control("Step Over")?.title).toBe("Step Over (F10)");
       expect(control("Step Into")?.hasAttribute("aria-disabled")).toBe(false);
       expect(control("Step Out")?.getAttribute("aria-disabled")).toBe("true");
       expect(control("Step Out")?.title).toBe(
@@ -2073,6 +2074,24 @@ describe("The preview's top bar", () => {
         "The story is over, so there is nothing to step to.",
       );
     }
+  });
+
+  it("runs no step the bar refuses, so a key cannot get past a disabled button", async () => {
+    const stepOut = vi.spyOn(win.debug, "stepOut").mockResolvedValue(true);
+    const next = vi.spyOn(win.debug, "next").mockResolvedValue(true);
+    show({ running: true, paused: true });
+    expect(await win.stepGame("out")).toBe(false);
+    show({ running: true, paused: true, choosing: true });
+    expect(await win.stepGame("over")).toBe(false);
+    show({ running: true, ended: true });
+    expect(await win.stepGame("over")).toBe(false);
+    show({ running: true });
+    expect(await win.stepGame("over")).toBe(false);
+    expect(stepOut).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    show({ running: true, paused: true });
+    expect(await win.stepGame("over")).toBe(true);
+    expect(next).toHaveBeenCalledTimes(1);
   });
 
   it("disables every step at a choice menu", () => {

@@ -7,7 +7,11 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const calls = vi.hoisted(() => ({ toggleGameRunning: 0, syncProject: 0 }));
+const calls = vi.hoisted(() => ({
+  toggleGameRunning: 0,
+  syncProject: 0,
+  steps: [] as string[],
+}));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
@@ -21,6 +25,10 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       syncProject: async () => {
         calls.syncProject += 1;
       },
+      stepGame: async (traversal: string) => {
+        calls.steps.push(traversal);
+        return true;
+      },
     },
   },
 }));
@@ -33,6 +41,9 @@ const { default: workspaceShortcuts, WorkspaceShortcuts } = await import(
 );
 const { SHORTCUT_PREFERENCE_KEYS, SHORTCUT_ROWS } = await import(
   "../../src/modules/spark-editor/workspace/shortcuts/shortcutTable"
+);
+const { default: workspace } = await import(
+  "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
 const { useWorkspaceSession } = await import(
   "../../src/modules/spark-editor/components/main-window/useWorkspaceSession"
@@ -148,6 +159,73 @@ describe("the app's own shortcuts", () => {
     });
     return event;
   };
+
+  describe("the debugger's step keys", () => {
+    const playing = (running: boolean) => {
+      workspace.current = {
+        ...workspace.current,
+        preview: {
+          ...workspace.current.preview,
+          modes: {
+            ...workspace.current.preview.modes,
+            game: { running, paused: running },
+          },
+        },
+      };
+    };
+
+    beforeEach(() => {
+      calls.steps = [];
+    });
+
+    afterEach(() => {
+      playing(false);
+    });
+
+    it("steps with F10, F11 and Shift+F11 during a run, keeping the browser out of it", async () => {
+      playing(true);
+      const over = await fire({ key: "F10", code: "F10" });
+      const into = await fire({ key: "F11", code: "F11" });
+      const out = await fire({ key: "F11", code: "F11", shiftKey: true });
+      expect(calls.steps).toEqual(["over", "in", "out"]);
+      expect([over, into, out].map((event) => event.defaultPrevented)).toEqual([true, true, true]);
+    });
+
+    it("also steps with Ctrl+F11 and Ctrl+Shift+F11 where the browser keeps F11", async () => {
+      playing(true);
+      await fire({ key: "F11", code: "F11", ctrlKey: true });
+      await fire({ key: "F11", code: "F11", ctrlKey: true, shiftKey: true });
+      expect(calls.steps).toEqual(["in", "out"]);
+    });
+
+    it("leaves the keys to the browser with no run", async () => {
+      playing(false);
+      const event = await fire({ key: "F11", code: "F11" });
+      expect(calls.steps).toEqual([]);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("lists the three steps under Story and app with their usual keys", () => {
+      expect(
+        ["stepOver", "stepInto", "stepOut"].map((id) => [
+          SHORTCUT_ROWS.find((row) => row.id === id)?.group,
+          workspaceShortcuts.usual(id as never),
+          workspaceShortcuts.active(id as never),
+        ]),
+      ).toEqual([
+        ["story", "F10", ["F10"]],
+        ["story", "F11", ["F11", "Mod+F11"]],
+        ["story", "Shift+F11", ["Shift+F11", "Mod+Shift+F11"]],
+      ]);
+    });
+
+    it("offers the Mac the Control keys, because the system keeps F11 there", () => {
+      const mac = macShortcuts();
+      expect(mac.usual("stepOver" as never)).toBe("F10");
+      expect(mac.usual("stepInto" as never)).toBe("Ctrl+F11");
+      expect(mac.usual("stepOut" as never)).toBe("Ctrl+Shift+F11");
+    });
+  });
 
   it("plays from here on the keys recorded for it, and only while the preview shows the game", async () => {
     await fire({ key: "Enter", code: "Enter", ctrlKey: true, altKey: true });

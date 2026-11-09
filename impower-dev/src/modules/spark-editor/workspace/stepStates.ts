@@ -1,6 +1,15 @@
-import type { DebugSessionState } from "../../workspace/WorkspaceStore";
+import type { GameState } from "@impower/spark-editor-protocol/src/types";
+import type { DebugSessionState } from "./WorkspaceStore";
 
-export type StepTraversal = "over" | "in" | "out";
+export const STEP_TRAVERSALS = ["over", "in", "out"] as const;
+
+export type StepTraversal = (typeof STEP_TRAVERSALS)[number];
+
+export const STEP_SHORTCUTS = {
+  over: "stepOver",
+  in: "stepInto",
+  out: "stepOut",
+} as const satisfies Record<StepTraversal, string>;
 
 export const STEP_REASONS = {
   running: "Pause the story to step through it",
@@ -13,14 +22,14 @@ const callDepth = (session: DebugSessionState) =>
   session.stackTrace?.totalFrames ?? session.stackTrace?.stackFrames.length ?? 0;
 
 export const stepRefusals = (
-  { ended, paused, choosing }: { ended: boolean; paused: boolean; choosing: boolean },
+  game: GameState | undefined,
   session: DebugSessionState,
 ): Record<StepTraversal, string | undefined> => {
-  const all = ended
+  const all = game?.ended
     ? STEP_REASONS.ended
-    : !paused
+    : !game?.paused
       ? STEP_REASONS.running
-      : choosing
+      : game.choosing
         ? STEP_REASONS.choosing
         : undefined;
   return {

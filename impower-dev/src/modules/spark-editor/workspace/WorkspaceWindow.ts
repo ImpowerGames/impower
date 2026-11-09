@@ -85,6 +85,7 @@ import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
+import { stepRefusals, type StepTraversal } from "./stepStates";
 import {
   checkName,
   joinScriptPath,
@@ -1782,9 +1783,9 @@ export default class WorkspaceWindow {
     });
   }
 
-  async stepGame(traversal: "over" | "in" | "out") {
+  async stepGame(traversal: StepTraversal) {
     const game = this.store.preview.modes.game;
-    if (!game.running || !game.paused) {
+    if (!game.running || stepRefusals(game, workspace.debugSession.peek())[traversal]) {
       return false;
     }
     return traversal === "over"
