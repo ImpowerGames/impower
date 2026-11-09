@@ -103,6 +103,7 @@ export default function ScreenplaySection({ section }: { section: SettingsSectio
           />
           {on("screenplaySceneNames", "Scene names", "Print scene names where they are declared.")}
           {on("screenplayBranchNames", "Branch names", "Print branch names where they are declared.")}
+          {on("screenplayFunctionNames", "Function names", "Print function names where they are declared.")}
         </SettingsList>
       </SettingsGroup>
       <SettingsGroup
