@@ -54,6 +54,11 @@ import {
   DidExpandPreviewPaneParams,
 } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import {
+  DidChangeConfigurationMessage,
+  DidChangeConfigurationMethod,
+  DidChangeConfigurationParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import {
   Range,
   TextDocumentIdentifier,
   TextDocumentItem,
@@ -216,6 +221,9 @@ export class ScreenplayPreviewController {
     p.onNotification(SelectedEditorMessage.type, (m) =>
       this.handleSelectedEditor(m),
     );
+    p.onNotification(DidChangeConfigurationMessage.type, (m) =>
+      this.handleDidChangeConfiguration(m),
+    );
 
     p.onRequest(
       LoadPreviewMessage.type,
@@ -311,6 +319,21 @@ export class ScreenplayPreviewController {
           view.dispatch({ changes: [change] });
         }
       }
+    }
+  };
+
+  protected handleDidChangeConfiguration = (
+    message: NotificationMessage<
+      DidChangeConfigurationMethod,
+      DidChangeConfigurationParams
+    >,
+  ) => {
+    const printSettings = Object.entries(message.params.settings ?? {}).filter(
+      ([key]) => key.startsWith("screenplay_print_"),
+    );
+    const current: Record<string, unknown> = { ...this.options.config };
+    if (printSettings.some(([key, value]) => current[key] !== value)) {
+      this.setConfig({ ...current, ...Object.fromEntries(printSettings) });
     }
   };
 
