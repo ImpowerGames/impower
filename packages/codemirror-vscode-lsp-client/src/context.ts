@@ -232,7 +232,16 @@ export const textContextMenuItems: ContextMenuItem[] = [
   },
 ];
 
-const onName = (state: EditorState, pos: number) => state.wordAt(pos) != null;
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+const onName = (state: EditorState, pos: number) => {
+  const word = state.wordAt(pos);
+  if (!word) {
+    return false;
+  }
+  const hash = state.sliceDoc(word.from - 1, word.from) === "#" ? word.from - 1 : word.from;
+  return !HEX_COLOR.test(state.sliceDoc(hash, word.to));
+};
 
 export const lspContextMenuItems: ContextMenuItem[] = [
   {

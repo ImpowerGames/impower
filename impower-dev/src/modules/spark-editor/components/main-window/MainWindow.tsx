@@ -13,6 +13,7 @@ import {
   useFocusRule,
 } from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
+import { useFindShortcut } from "../find-references-rename";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
 import { SettingsPage } from "../settings";
@@ -39,6 +40,7 @@ const STRIP_HEIGHT = {
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   useFocusRule();
+  useFindShortcut();
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";

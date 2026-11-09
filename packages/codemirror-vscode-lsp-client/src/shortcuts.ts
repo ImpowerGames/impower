@@ -80,10 +80,7 @@ import { foldAll, foldCode, unfoldAll, unfoldCode } from "@codemirror/language";
 import { nextDiagnostic, openLintPanel } from "@codemirror/lint";
 import {
   closeSearchPanel,
-  findNext,
-  findPrevious,
   gotoLine,
-  openSearchPanel,
   selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
@@ -128,6 +125,7 @@ import {
   type ShortcutPrecedence,
 } from "./shortcutTable";
 import { nextSignature, prevSignature, showSignatureHelp } from "./signature";
+import { findNextMatch, findPreviousMatch, openFind } from "./tools";
 
 export type ShortcutCommand =
   | Command
@@ -147,7 +145,7 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   suggestions: startCompletion,
   fold: foldCode,
   unfold: unfoldCode,
-  search: openSearchPanel,
+  search: openFind,
   definition: jumpToDefinition,
   references: findReferences,
   undoSelection,
@@ -172,8 +170,8 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   foldAll,
   unfoldAll,
   tabFocus: toggleTabFocusMode,
-  findNext,
-  findPrevious,
+  findNext: findNextMatch,
+  findPrevious: findPreviousMatch,
   selectMatches: selectSelectionMatches,
   selectNextMatch: selectNextOccurrence,
   gotoLine,

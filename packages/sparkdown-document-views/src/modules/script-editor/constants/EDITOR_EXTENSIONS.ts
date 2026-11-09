@@ -16,6 +16,7 @@ import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indente
 import { lineBands } from "../../../cm-line-bands/lineBands";
 import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 import { problemMarks } from "../../../cm-problem-marks/problemMarks";
+import { findMatches } from "../utils/extensions/findMatches";
 
 const carriesFiles = (event: DragEvent) =>
   Array.from(event.dataTransfer?.types ?? []).includes("Files");
@@ -46,6 +47,7 @@ const EDITOR_EXTENSIONS = [
   drawSelection(),
   lineBands(),
   problemMarks(),
+  findMatches(),
   dropCursor(),
   crosshairCursor(),
   rectangularSelection(),

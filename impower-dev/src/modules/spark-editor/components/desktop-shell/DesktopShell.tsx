@@ -2,23 +2,10 @@ import { SidebarLayout } from "@impower/impower-ui/components";
 import { useLayout, useRailDefault } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
+import { RAIL_COMPACT_WIDTH, RAIL_WIDTH } from "../../workspace/railWidths";
 import workspace from "../../workspace/WorkspaceStore";
 import ShellRail from "./ShellRail";
 import TopBar from "./TopBar";
-
-const RAIL_WIDTH = {
-  default: 232,
-  min: 180,
-  max: 420,
-  collapsed: 76,
-  reserve: 624,
-} as const;
-
-const RAIL_COMPACT_WIDTH = {
-  full: 190,
-  collapsed: 76,
-  reserve: 280,
-} as const;
 
 export default function DesktopShell({
   children,

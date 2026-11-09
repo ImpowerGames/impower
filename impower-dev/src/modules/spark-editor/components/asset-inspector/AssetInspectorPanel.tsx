@@ -14,7 +14,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { PreviewKind } from "../file-preview/FilePreviewOverlay";
-import type { UsageLocation } from "../file-list/FileUsagesPanel";
+import type { UsageLocation } from "../find-references-rename";
 
 export type AssetInspectorPanelProps = {
   path: string;
