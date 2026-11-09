@@ -1,5 +1,6 @@
 import type { DidChangeConfigurationParams } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import type { ScriptAppearance } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
+import type { ScreenplayConfig } from "../../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
 import {
   computed,
   effect,
@@ -16,6 +17,7 @@ import {
   type Appearance,
   type Theme,
 } from "./applyTheme";
+import { screenplayConfig } from "./screenplaySettings";
 import {
   buildConfiguration,
   isValidSetting,
@@ -103,6 +105,8 @@ export class WorkspaceSettings {
 
   readonly configuration: ReadonlySignal<Record<string, unknown>>;
 
+  readonly screenplayConfig: ReadonlySignal<ScreenplayConfig>;
+
   readonly theme: ReadonlySignal<Theme>;
 
   readonly appearance: ReadonlySignal<Appearance>;
@@ -138,6 +142,9 @@ export class WorkspaceSettings {
     );
     this.configuration = computed(() =>
       buildConfiguration(this.preferences.value, this.projectSettings.value),
+    );
+    this.screenplayConfig = computed(() =>
+      screenplayConfig(this.projectSettings.value),
     );
     this.theme = computed(() =>
       resolveTheme(this.preferences.value.theme, this._prefersLight.value),
