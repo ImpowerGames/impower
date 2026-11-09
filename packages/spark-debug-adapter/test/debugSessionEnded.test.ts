@@ -1,15 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("../src/managers/SparkdownDebugManager", () => ({
-  SparkdownDebugManager: { instance: {} },
-}));
+import { describe, expect, it } from "vitest";
 
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
-import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
   DidChangeGameStateMessage.type.notification({
@@ -54,7 +50,9 @@ const session = (
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
   };
-  const s = new SparkDebugSession(fileAccessor as any, connection as any);
+  const s = new SparkDebugSession(fileAccessor as any, connection as any, {
+    syncCursorToExecution: false,
+  });
   (s as any).sendEvent = (event: any) =>
     events.push({ event: event.event, body: event.body });
   (s as any).sendResponse = () => events.push({ event: "response", body: null });

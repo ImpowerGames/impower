@@ -1,14 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("../../../../../vscode-sparkdown/src/managers/SparkdownDebugManager", () => ({
-  SparkdownDebugManager: { instance: { syncCursorToExecution: true } },
-}));
+import { describe, expect, it } from "vitest";
 
 import { GameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
-import { SparkDebugSession } from "../../../../../vscode-sparkdown/src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "../../../../spark-debug-adapter/src/SparkDebugSession";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 const SCRIPT = "scene start\n  First.\n  Second.\n  Third.\n  fin\nend\n";
@@ -53,6 +49,7 @@ describe("a VS Code debug session attached to PLAY in the worker", () => {
               return answer.result;
             },
           } as any,
+          { syncCursorToExecution: true },
         );
         session.sendEvent = (event: any) => events.push(event);
         session.sendResponse = () => {};
@@ -155,6 +152,7 @@ describe("a VS Code debug session attached to an ended PLAY run in the worker", 
             getRootPath: () => undefined,
           } as any,
           connection,
+          { syncCursorToExecution: true },
         );
         session.sendEvent = (event: any) => events.push(event);
         session.sendResponse = () => {};

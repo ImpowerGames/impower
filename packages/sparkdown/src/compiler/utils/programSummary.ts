@@ -15,6 +15,7 @@ export const programSummary = (
   summary: true,
   runnable,
   playRefusal: playRefusalOf(program),
+  frontMatter: program.frontMatter,
 });
 
 export const isSameProgram = (

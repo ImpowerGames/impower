@@ -70,7 +70,7 @@ vi.mock("../src/managers/SparkProgramManager", () => ({
 }));
 
 import { activateDebugger } from "../src/debugger/activateDebugger";
-import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+import { SparkDebugSession } from "@impower/spark-debug-adapter/src/SparkDebugSession";
 
 const SCRIPT = [
   "scene main",
@@ -140,7 +140,9 @@ const adapter = (context: Record<string, unknown>) => {
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
   };
-  const s = new SparkDebugSession(fileAccessor as any, connection as any);
+  const s = new SparkDebugSession(fileAccessor as any, connection as any, {
+    syncCursorToExecution: false,
+  });
   (s as any).sendResponse = (response: any) => responses.push(response);
   const evaluate = async (expression: string, context: string) => {
     await (s as any).evaluateRequest(

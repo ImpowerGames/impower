@@ -1,5 +1,5 @@
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
-import { computed } from "@preact/signals";
+import { computed, useComputed } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 import workspace from "./WorkspaceStore";
 
@@ -25,6 +25,18 @@ const caretPositionOf = (filename: string) => {
 
 export function useCaretPosition(filename: string) {
   return useScriptValue(filename, caretPositionOf);
+}
+
+export function useScriptReadonly() {
+  return useComputed(() => {
+    const status = workspace.state.value.sync?.status;
+    return (
+      status === "syncing" ||
+      status === "loading" ||
+      status === "importing" ||
+      status === "exporting"
+    );
+  }).value;
 }
 
 export const storyScriptOf = (

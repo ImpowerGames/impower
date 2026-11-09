@@ -1,8 +1,14 @@
 import {
+  copyLineDown,
   indentLess,
   indentMore,
+  moveLineDown,
+  moveLineUp,
   redo,
   redoDepth,
+  selectAll,
+  selectLine,
+  toggleComment,
   undo,
   undoDepth,
 } from "@codemirror/commands";
@@ -14,11 +20,14 @@ import {
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
+  findReferences,
   formatDocument,
   getDocumentVersion,
+  jumpToDefinition,
   type ContextMenuPresenter,
   LSPClient,
   LSPPlugin,
+  renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
@@ -34,6 +43,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
+import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   HideEditorStatusBarMessage,
@@ -128,6 +138,7 @@ import {
   openCustomGotoLinePanel,
 } from "./utils/extensions/customSearch";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
+import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
@@ -168,6 +179,8 @@ export class ScriptEditorController {
     | "end"
     | "center";
   protected _initialSelectedRange?: Range;
+  protected _selectionMoved = false;
+  protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
   protected _textDocument?: TextDocumentItem;
@@ -192,6 +205,8 @@ export class ScriptEditorController {
   protected _focusIntervalTimeout = 0;
 
   protected _revealTimeout = 0;
+
+  protected _problemsOnReveal: string | undefined;
   protected _protocols = new ProtocolObserver();
 
   constructor(
@@ -323,6 +338,16 @@ export class ScriptEditorController {
         textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
         selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
         coordinates,
+      });
+    }, this.host);
+    p.onRequest(ReadEditorKeybindingsMessage.type, (message) => {
+      const view = this._view;
+      const uri = this._textDocument?.uri;
+      if (!view || (message.params.textDocument && message.params.textDocument.uri !== uri)) return undefined;
+      const platform = shortcutPlatform();
+      return ReadEditorKeybindingsMessage.type.response(message.id, {
+        mac: platform === "mac",
+        commands: editorKeybindings(view.state, platform),
       });
     }, this.host);
     p.onRequest(
@@ -464,6 +489,10 @@ export class ScriptEditorController {
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
     }
+    if (command === "problems" && this.refs.editor?.style.visibility === "hidden") {
+      this._problemsOnReveal = textDocument.uri;
+      return ExecuteEditorCommandMessage.type.response(message.id, { ran: true });
+    }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
@@ -488,6 +517,27 @@ export class ScriptEditorController {
         return undo(view);
       case "redo":
         return redo(view);
+      case "selectAll":
+        view.focus();
+        return selectAll(view);
+      case "selectLine":
+        view.focus();
+        return selectLine(view);
+      case "moveLineUp":
+        return moveLineUp(view);
+      case "moveLineDown":
+        return moveLineDown(view);
+      case "duplicateLine":
+        return copyLineDown(view);
+      case "toggleComment":
+        return toggleComment(view);
+      case "rename":
+        view.focus();
+        return renameSymbol(view);
+      case "references":
+        return findReferences(view);
+      case "definition":
+        return jumpToDefinition(view);
     }
   }
 
@@ -1013,6 +1063,9 @@ export class ScriptEditorController {
           },
           onViewUpdate: (update) => {
             this.publishHistory(update.state);
+            if (update.selectionSet && !this._settling) {
+              this._selectionMoved = true;
+            }
             if (
               searchPanelOpen(update.state) ||
               customGotoLinePanelOpen(update.state)
@@ -1035,6 +1088,7 @@ export class ScriptEditorController {
             }
           },
         });
+        this._selectionMoved = false;
       }
     }
     sendProtocolMessage(
@@ -1091,6 +1145,19 @@ export class ScriptEditorController {
           });
         }
       }
+    }
+  }
+
+  protected settleSelection(
+    range: Range,
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false,
+    takeFocus?: boolean,
+  ) {
+    this._settling = true;
+    try {
+      this.selectRange(range, scrollIntoView, takeFocus);
+    } finally {
+      this._settling = false;
     }
   }
 
@@ -1158,6 +1225,11 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
+    const problems = this._problemsOnReveal;
+    this._problemsOnReveal = undefined;
+    if (this._view && problems && problems === this._textDocument?.uri) {
+      openLintPanel(this._view);
+    }
   };
 
   protected handleViewportParsed = () => {
@@ -1180,7 +1252,9 @@ export class ScriptEditorController {
   protected handleIdle = () => {
     if (!this._loaded) {
       const initialFocused = this._initialFocused;
-      const initialSelectedRange = this._initialSelectedRange;
+      const initialSelectedRange = this._selectionMoved
+        ? undefined
+        : this._initialSelectedRange;
       const initialVisibleRange =
         this._initialVisibleRange == null ||
         typeof this._initialVisibleRange === "string"
@@ -1191,6 +1265,10 @@ export class ScriptEditorController {
           ? this._initialVisibleRange
           : undefined;
       this.scrollToRange(initialVisibleRange, scrollStrategy);
+      if (initialSelectedRange) {
+        this.settleSelection(initialSelectedRange, false);
+      }
+      this._selectionMoved = false;
       const view = this._view;
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
@@ -1200,13 +1278,14 @@ export class ScriptEditorController {
             !this._view ||
             this._view.hasFocus ||
             !initialSelectedRange ||
+            this._selectionMoved ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
           if (initialSelectedRange) {
-            this.selectRange(
+            this.settleSelection(
               initialSelectedRange,
               scrollStrategy ?? false,
               initialFocused,

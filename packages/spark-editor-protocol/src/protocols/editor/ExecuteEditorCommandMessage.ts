@@ -15,6 +15,15 @@ export const EDITOR_COMMANDS = [
   "search",
   "undo",
   "redo",
+  "selectAll",
+  "selectLine",
+  "moveLineUp",
+  "moveLineDown",
+  "duplicateLine",
+  "toggleComment",
+  "rename",
+  "references",
+  "definition",
 ] as const;
 
 export type EditorCommand = (typeof EDITOR_COMMANDS)[number];

@@ -1,3 +1,4 @@
+import { builtinModules } from "node:module";
 import tsParser from "@typescript-eslint/parser";
 import yml from "eslint-plugin-yml";
 import sparkdownGrammar from "./packages/eslint-plugin-sparkdown-grammar/src/index.ts";
@@ -16,6 +17,24 @@ const RADIX_SYNTAX = [
     message: RADIX_MESSAGE,
   },
   { selector: `TSImportType[argument.literal.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
+];
+
+const HOST_FREE_FILES = ["packages/spark-debug-adapter/**"];
+
+const NODE_BUILTINS = builtinModules.filter((name) => /^[a-z][a-z0-9_]*$/.test(name));
+
+const HOST_FREE_SOURCE = `/^(vscode|node:.*|(${NODE_BUILTINS.join("|")})([^a-z0-9_-].*)?)$/`;
+const HOST_FREE_MESSAGE =
+  "packages/spark-debug-adapter runs in a browser page as well as the extension host: import neither vscode nor a Node built-in there; take host services through a constructor option.";
+
+const HOST_FREE_SYNTAX = [
+  { selector: `ImportExpression[source.value=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
+  { selector: `ImportExpression[source.quasis.0.value.raw=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.value=${HOST_FREE_SOURCE}]`,
+    message: HOST_FREE_MESSAGE,
+  },
+  { selector: `TSImportType[argument.literal.value=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
 ];
 
 const FORM_CONTROL_MESSAGE =
@@ -66,6 +85,22 @@ export default [
         },
       ],
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX],
+    },
+  },
+  {
+    files: HOST_FREE_FILES,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ["vscode", ...NODE_BUILTINS].map((name) => ({ name, message: HOST_FREE_MESSAGE })),
+          patterns: [
+            { group: ["@radix-ui/*"], message: RADIX_MESSAGE },
+            { group: ["node:*", ...NODE_BUILTINS.map((name) => `${name}/*`)], message: HOST_FREE_MESSAGE },
+          ],
+        },
+      ],
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...HOST_FREE_SYNTAX],
     },
   },
   {

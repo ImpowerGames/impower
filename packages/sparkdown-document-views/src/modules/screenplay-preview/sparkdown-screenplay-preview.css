@@ -5,9 +5,28 @@ sparkdown-screenplay-preview {
 }
 
 .sparkdown-screenplay-preview-root {
+  --sp-paper: #ebeae8;
+  --sp-ink: #333;
+  --sp-muted: #666;
+  --sp-accent: #9c4519;
+  --sp-lit: #0000000d;
+  --sp-texture: none;
+  container-type: inline-size;
   display: flex;
   flex: 1;
   flex-direction: column;
+}
+
+.sparkdown-screenplay-preview-root[data-paper="theme"] {
+  --sp-paper: var(--paper);
+  --sp-ink: var(--ink);
+  --sp-muted: var(--muted);
+  --sp-accent: var(--accent);
+  --sp-lit: var(--tint);
+}
+
+.sparkdown-screenplay-preview-root[data-texture] {
+  --sp-texture: var(--screenplay-preview-texture, none);
 }
 
 .sparkdown-screenplay-preview-root * {

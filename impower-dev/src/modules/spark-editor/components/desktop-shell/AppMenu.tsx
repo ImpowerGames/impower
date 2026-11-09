@@ -21,7 +21,6 @@ import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { importProjectFile } from "../../utils/importProjectFile";
-import { showSnackbar } from "../../utils/snackbar";
 import { localSaveLabel } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
@@ -53,6 +52,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
     () => !!workspace.state.value.screen?.pickingResource,
   ).value;
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const openingGuide = useRef(false);
   const projectId = workspace.signals.projectId.value;
   const onDrive =
     !!projectId && projectId !== WorkspaceConstants.LOCAL_PROJECT_ID;
@@ -104,6 +104,12 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           side="top"
           align="start"
           sideOffset={20}
+          onCloseAutoFocus={(event) => {
+            if (openingGuide.current) {
+              openingGuide.current = false;
+              event.preventDefault();
+            }
+          }}
           class="w-[280px] in-data-[layout=phone]:w-auto"
         >
           <DropdownLabel class="flex flex-row items-center gap-1 py-0 pr-0">
@@ -190,11 +196,10 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
             </>
           )}
           <DropdownItem
-            onSelect={() =>
-              showSnackbar({
-                message: "Help and guides will be available here.",
-              })
-            }
+            onSelect={() => {
+              openingGuide.current = true;
+              void withWindow((win) => win.openSparkdownGuide());
+            }}
           >
             <HelpIcon />
             {"Help & guide"}

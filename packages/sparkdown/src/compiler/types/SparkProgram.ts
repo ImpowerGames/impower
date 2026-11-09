@@ -80,4 +80,5 @@ export interface SparkProgram {
   summary?: true;
   runnable?: boolean;
   playRefusal?: string;
+  frontMatter?: { [keyword: string]: string[] };
 }

@@ -25,6 +25,14 @@ export {
   type DialogSize,
 } from "./dialog/Dialog";
 export {
+  default as Disclosure,
+  disclosureVariants,
+  disclosureSummaryVariants,
+  type DisclosureProps,
+  type DisclosureSize,
+  type DisclosureEdge,
+} from "./disclosure/Disclosure";
+export {
   DropdownRoot,
   DropdownTrigger,
   DropdownSeparator,
@@ -70,6 +78,16 @@ export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverAnchor,
+  PopoverContent,
+  popoverVariants,
+  type PopoverProps,
+  type PopoverContentProps,
+  type PopoverVariantProps,
+} from "./popover/Popover";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
   default as SidebarLayout,
@@ -141,6 +159,8 @@ export {
   ChoiceRow,
   SettingsFoot,
   SettingsPlaceholder,
+  FactRow,
+  SliderRow,
   settingsRowVariants,
   type SettingsSectionProps,
   type SettingsGroupProps,
@@ -151,6 +171,8 @@ export {
   type SwitchRowProps,
   type SelectRowProps,
   type TextRowProps,
+  type FactRowProps,
+  type SliderRowProps,
   type ChoiceRowProps,
   type ChoiceRowOption,
   type SettingsFootProps,
@@ -189,3 +211,17 @@ export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";
 export * from "../layout";
+export {
+  default as Slider,
+  sliderVariants,
+  type SliderProps,
+  type SliderSize,
+  type SliderWidth,
+} from "./slider/Slider";
+export {
+  default as PortraitThumbnail,
+  portraitThumbnailVariants,
+  portraitCropLabel,
+  type PortraitThumbnailProps,
+  type PortraitThumbnailSize,
+} from "./portrait-thumbnail/PortraitThumbnail";

@@ -2,6 +2,7 @@ import Button from "./components/button/Button";
 import { actionSheetGallery } from "./components/action-sheet/ActionSheet.gallery";
 import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
+import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
@@ -11,10 +12,13 @@ import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
+import { popoverGallery } from "./components/popover/Popover.gallery";
 import { railIndexGallery } from "./components/rail-index/RailIndex.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
+import { portraitThumbnailGallery } from "./components/portrait-thumbnail/PortraitThumbnail.gallery";
 import { selectGallery } from "./components/select/Select.gallery";
 import { settingsGallery } from "./components/settings/Settings.gallery";
+import { sliderGallery } from "./components/slider/Slider.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
@@ -30,6 +34,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   buttonGallery,
   choiceGroupGallery,
   dialogGallery,
+  disclosureGallery,
   dropdownGallery,
   iconGallery,
   jumpChipsGallery,
@@ -38,11 +43,14 @@ export const galleryEntries: readonly GalleryEntry[] = [
   loadingBarGallery,
   madeWithSparkSplashGallery,
   sparkLogoGallery,
+  popoverGallery,
   railIndexGallery,
   routerGallery,
+  portraitThumbnailGallery,
   selectGallery,
   settingsGallery,
   sidebarLayoutGallery,
+  sliderGallery,
   splitPaneGallery,
   switchGallery,
   tabsGallery,

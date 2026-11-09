@@ -1,13 +1,13 @@
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
-import { problemCountOf } from "./problemCount";
+import { countProblems } from "../../workspace/problemCounts";
 
 export default function StoryProblemCount() {
   const count = useComputed(() =>
-    problemCountOf(workspace.state.value.debug?.diagnosticsSummary),
+    countProblems(workspace.state.value.debug?.diagnosticsSummary),
   ).value;
 
-  if (!count.total) {
+  if (!count.problems) {
     return null;
   }
 
@@ -19,7 +19,7 @@ export default function StoryProblemCount() {
       <span aria-hidden="true" class="px-1 text-muted">
         ·
       </span>
-      {count.total} {count.total === 1 ? "problem" : "problems"}
+      {count.problems} {count.problems === 1 ? "problem" : "problems"}
     </span>
   );
 }
