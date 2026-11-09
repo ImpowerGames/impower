@@ -10,6 +10,7 @@ export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
   "transitional",
   "dialogue",
   "action",
+  "continue_indicator",
   "choices",
   "choice",
 ];
@@ -17,25 +18,48 @@ export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
 export const UNSHOWN_TEXT_MESSAGE =
   "No open layout shows this text. Open textbox or textstream.";
 
-export function holdsPresentedText(game: Game, layoutName: string): boolean {
-  return game.module.ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS);
+type LayoutReader = Pick<Game["module"]["ui"], "layoutHolds">;
+
+export function holdsPresentedText(
+  game: Game,
+  layoutName: string,
+  ui: LayoutReader = game.module.ui,
+): boolean {
+  return ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS);
 }
 
-export function initialLayouts(game: Game): string[] {
+function configuredInitialLayouts(game: Game): unknown[] {
   const configured = game.context.config?.["ui"]?.layouts_initial;
-  const names = Array.isArray(configured)
+  return Array.isArray(configured)
     ? configured
     : configured && typeof configured === "object"
       ? Object.values(configured)
       : [];
+}
+
+export function skippedInitialLayouts(
+  game: Game,
+  ui: LayoutReader = game.module.ui,
+): string[] {
+  const opened = initialLayouts(game, ui);
+  return configuredInitialLayouts(game).filter(
+    (name): name is string =>
+      typeof name === "string" && !!name && !opened.includes(name),
+  );
+}
+
+export function initialLayouts(
+  game: Game,
+  ui: LayoutReader = game.module.ui,
+): string[] {
   const opened = ["main"];
-  for (const name of names) {
+  for (const name of configuredInitialLayouts(game)) {
     if (typeof name !== "string" || !name || opened.includes(name)) {
       continue;
     }
     if (
-      holdsPresentedText(game, name) &&
-      opened.some((open) => holdsPresentedText(game, open))
+      holdsPresentedText(game, name, ui) &&
+      opened.some((open) => holdsPresentedText(game, open, ui))
     ) {
       continue;
     }

@@ -32,7 +32,7 @@ const previewAt = async (h: any, line: number) => {
   const badge = h.bar("#ending-status");
   return {
     text: shownText(h.overlay),
-    indicatorHidden: indicator?.style.display === "none",
+    indicatorHidden: !indicator || indicator.style.display === "none",
     endMark: h.overlay.querySelector(".end_mark") !== null,
     badge: badge.hidden ? null : badge.textContent,
     kind: badge.getAttribute("data-kind"),

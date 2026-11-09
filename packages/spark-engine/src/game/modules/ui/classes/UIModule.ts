@@ -19,6 +19,7 @@ import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
+import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -898,27 +899,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onRestore() {
     const epoch = this._game.connection.epoch;
-    const tasks: Promise<void>[] = [];
-    if (this._state.text) {
-      for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
-      }
-    }
-    if (this._state.image) {
-      for (const [target] of Object.entries(this._state.image)) {
-        tasks.push(this.image.restore(target));
-      }
-    }
-    if (this._state.style) {
-      for (const [target] of Object.entries(this._state.style)) {
-        tasks.push(this.style.restore(target));
-      }
-    }
-    if (this._state.attributes) {
-      for (const [target] of Object.entries(this._state.attributes)) {
-        tasks.push(this.attributes.restore(target));
-      }
-    }
     if (this._state.layout) {
       let remounted = false;
       for (const { name } of this._state.layout) {
@@ -952,6 +932,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (remounted) {
         this._game.story.variablesState.takeReactiveChanges();
         this.reveal();
+      }
+    }
+    const tasks: Promise<void>[] = [];
+    if (this._state.text) {
+      for (const [target] of Object.entries(this._state.text)) {
+        tasks.push(this.text.restore(target));
+      }
+    }
+    if (this._state.image) {
+      for (const [target] of Object.entries(this._state.image)) {
+        tasks.push(this.image.restore(target));
+      }
+    }
+    if (this._state.style) {
+      for (const [target] of Object.entries(this._state.style)) {
+        tasks.push(this.style.restore(target));
+      }
+    }
+    if (this._state.attributes) {
+      for (const [target] of Object.entries(this._state.attributes)) {
+        tasks.push(this.attributes.restore(target));
       }
     }
     await Promise.all(tasks);
@@ -1965,8 +1966,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructLayouts(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
+    const skipped = skippedInitialLayouts(this._game, this);
     const validStructNames = targetAllStructs
-      ? Object.keys(this.context?.layout || {})
+      ? Object.keys(this.context?.layout || {}).filter(
+          (name) => !skipped.includes(name),
+        )
       : structNames;
     for (const structName of validStructNames) {
       if (structName && !structName.startsWith("$")) {
@@ -3458,8 +3462,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   initLayouts(): void {
+    const skipped = skippedInitialLayouts(this._game, this);
     for (const structName of Object.keys(this.context?.layout || {})) {
-      if (structName && !structName.startsWith("$")) {
+      if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
         if (layout) {
           this.initLayout(layout);
@@ -3536,9 +3541,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   openInitialLayouts(names: string[], settle: boolean): void {
     this._state.layout ??= [];
+    const closed = names.filter(
+      (name) =>
+        !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
+    );
+    if (closed.length === 0) {
+      return;
+    }
     this.composeWait(
       this.applyLayoutInstructions(
-        names.map((name) => ({ control: "open", name })),
+        closed.map((name) => ({ control: "open", name })),
         settle,
       ),
     );
