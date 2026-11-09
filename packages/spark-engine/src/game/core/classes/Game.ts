@@ -3484,7 +3484,9 @@ export class Game<T extends M = {}> {
             (!(instructions.load || instructions.cutscene) ||
               (instructions.choices?.length ?? 0) > 0)
           ) {
-            this.notifyAwaitingInteraction();
+            this.notifyAwaitingInteraction(
+              (instructions.choices?.length ?? 0) > 0,
+            );
           }
         }
         if (instructions || this._simulation !== "simulating") {
@@ -3691,10 +3693,14 @@ export class Game<T extends M = {}> {
       }
       beat.chosen = index;
     }
+    const picked = Number(this._story.currentChoices[index]?.sourcePath);
+    const option = Number.isInteger(picked)
+      ? this.documentLocationOf(picked)
+      : null;
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.notifyChosePathToContinue();
+    this.notifyChosePathToContinue(option);
     this.continue();
   }
 
@@ -3754,13 +3760,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyAwaitingInteraction() {
+  protected notifyAwaitingInteraction(choices: boolean) {
     const location =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
     this._awaiting = location;
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(location),
+        choices,
       }),
     );
   }
@@ -3781,10 +3788,11 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyChosePathToContinue() {
+  protected notifyChosePathToContinue(option: DocumentLocation | null) {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        ...(option ? { option } : {}),
       }),
     );
   }
@@ -4809,7 +4817,9 @@ export class Game<T extends M = {}> {
         (!(instructions.load || instructions.cutscene) ||
           (instructions.choices?.length ?? 0) > 0)
       ) {
-        this.notifyAwaitingInteraction();
+        this.notifyAwaitingInteraction(
+          (instructions.choices?.length ?? 0) > 0,
+        );
       }
     }
     this.checkpoint();
