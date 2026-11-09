@@ -52,6 +52,7 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
   --color-edge: var(--edge);
+  --color-swatch-edge: var(--swatch-edge);
   --color-selection: var(--selection);
   --color-syntax-active: var(--syntax-active);
   --color-scrollbar: var(--scrollbar);
@@ -214,6 +215,45 @@
     height: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+@utility slider-opacity-track {
+  appearance: none;
+  background: transparent;
+  &::-webkit-slider-runnable-track {
+    height: 14px;
+    border-radius: 7px;
+    background:
+      linear-gradient(90deg, transparent, var(--swatch)),
+      repeating-conic-gradient(var(--checker-dark) 0 25%, var(--checker-light) 0 50%) 0 0 / 8px 8px;
+    box-shadow: inset 0 0 0 1px var(--swatch-edge);
+  }
+  &::-moz-range-track {
+    height: 14px;
+    border-radius: 7px;
+    background:
+      linear-gradient(90deg, transparent, var(--swatch)),
+      repeating-conic-gradient(var(--checker-dark) 0 25%, var(--checker-light) 0 50%) 0 0 / 8px 8px;
+    box-shadow: inset 0 0 0 1px var(--swatch-edge);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -4px;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--slider-thumb);
+    box-shadow: var(--slider-thumb-shadow);
+  }
+  &::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--slider-thumb);
+    box-shadow: var(--slider-thumb-shadow);
   }
 }
 

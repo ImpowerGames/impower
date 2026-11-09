@@ -7,6 +7,7 @@ import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
+import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
@@ -144,6 +145,8 @@ class WorkspaceStore {
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
+
+  readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
 
   readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
 

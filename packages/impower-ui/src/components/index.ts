@@ -90,6 +90,18 @@ export {
 } from "./popover/Popover";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
+  default as ColorWell,
+  colorWellVariants,
+  type ColorWellProps,
+  type ColorWellSize,
+} from "./color-well/ColorWell";
+export {
+  default as ColorChips,
+  colorChipVariants,
+  type ColorChipsProps,
+  type ColorChipSize,
+} from "./color-chips/ColorChips";
+export {
   default as SidebarLayout,
   sidebarLayoutVariants,
   type SidebarLayoutProps,
@@ -239,6 +251,7 @@ export {
   type SliderProps,
   type SliderSize,
   type SliderWidth,
+  type SliderTrack,
 } from "./slider/Slider";
 export {
   default as PortraitThumbnail,

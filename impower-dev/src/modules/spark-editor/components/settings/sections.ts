@@ -1,4 +1,5 @@
 import type { RailIndexGroup } from "@impower/impower-ui/components";
+import { hashOfRoute } from "../../workspace/routes";
 
 export type SettingsSectionInfo = {
   readonly id: string;
@@ -82,3 +83,6 @@ export const SETTINGS_INDEX: readonly RailIndexGroup[] = SETTINGS_SCOPES.map((sc
 
 export const isSettingsSectionId = (id: string | undefined): id is SettingsSectionId =>
   !!id && (SETTINGS_SECTION_IDS as readonly string[]).includes(id);
+
+export const settingsSectionHref = (id: SettingsSectionId): string =>
+  `${hashOfRoute("project")}?section=${id}`;

@@ -86,6 +86,9 @@ describe("TextField", () => {
   it("sizes by width and font variants, letting the page's class win", async () => {
     expect(textFieldVariants({ width: "wide" })).toContain("w-[300px]");
     expect(textFieldVariants({ width: "short", font: "mono" })).toContain("font-mono");
+    expect(textFieldVariants({ size: "tall" }).split(/\s+/)).toEqual(
+      expect.arrayContaining(["h-14", "text-[16px]/[1.5]", "compact:h-11", "phone:h-11"]),
+    );
     const input = await mount(<TextField aria-label="Folder" class="w-32" />);
     expect(input.className.split(/\s+/)).toContain("w-32");
     expect(input.className.split(/\s+/)).not.toContain("w-[180px]");
