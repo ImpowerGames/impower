@@ -27,6 +27,8 @@ import {
   type ContextMenuPresenter,
   type HoverValueSource,
   hoverValues,
+  editorToolCommands,
+  type EditorToolCommands,
   type ShortcutCombos,
   LSPClient,
   onPasteRefused,
@@ -139,6 +141,7 @@ interface EditorConfig {
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
+  tools?: EditorToolCommands;
   onChangeColor?: ColorPickerPresenter;
   onPasteRefused?: () => void;
   scrollToLineNumber?: number;
@@ -528,6 +531,7 @@ const createEditorView = (
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
+        config.tools ? editorToolCommands.of(config.tools) : [],
         config.onChangeColor ? presentColorPicker(config.onChangeColor) : [],
         config.onPasteRefused ? onPasteRefused(config.onPasteRefused) : [],
         EditorView.theme(EDITOR_THEME, { dark: true }),

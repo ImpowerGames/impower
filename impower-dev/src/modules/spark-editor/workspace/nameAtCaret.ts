@@ -12,6 +12,8 @@ export type NameKind =
   | "name";
 
 export type NameAtCaret = {
+  uri: string;
+  position: Position;
   name: string;
   kind: NameKind;
   definition: { uri: string; range: Range } | null;

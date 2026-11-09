@@ -14,6 +14,7 @@ const calls = vi.hoisted(() => ({
   finished: [] as string[],
   commands: [] as [string, string][],
   routes: [] as string[],
+  finds: 0,
   finishedEditing: { count: 0 },
 }));
 
@@ -65,6 +66,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
     env.stateForRoute(...args);
   return {
     Workspace: {
+      search: {
+        openFindFromSelection: () => {
+          calls.finds += 1;
+        },
+      },
       sync: { google: { getCurrentAccount: async () => null } },
       window: {
         setAccount: () => {},
@@ -157,6 +163,7 @@ beforeEach(() => {
   calls.finished.length = 0;
   calls.commands.length = 0;
   calls.routes.length = 0;
+  calls.finds = 0;
   calls.finishedEditing.count = 0;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
@@ -325,7 +332,7 @@ describe("the phone shell", () => {
     expect(button("Show the preview")).not.toBeNull();
     await act(async () => button("Search")!.click());
     await settle();
-    expect(calls.commands).toEqual([["scripts/intro.sd", "search"]]);
+    expect(calls.finds).toBe(1);
   });
 
   it("follows the edit history and commands of whichever script the Story route shows", async () => {
@@ -385,10 +392,8 @@ describe("the phone shell", () => {
     await act(async () => button("Undo edit")!.click());
     await act(async () => button("Search")!.click());
     await settle();
-    expect(calls.commands).toEqual([
-      ["main.sd", "undo"],
-      ["main.sd", "search"],
-    ]);
+    expect(calls.commands).toEqual([["main.sd", "undo"]]);
+    expect(calls.finds).toBe(1);
     await go("collection");
     expect(button("Search")).toBeNull();
     expect(button("Undo edit")).toBeNull();

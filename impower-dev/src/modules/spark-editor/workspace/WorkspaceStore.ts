@@ -11,6 +11,12 @@ import type {
 } from "vscode-languageserver-protocol";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
+import {
+  INITIAL_SEARCH,
+  INITIAL_SEARCH_POSITION,
+  type SearchPosition,
+  type SearchSnapshot,
+} from "./searchState";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 export type ScriptMode = "reading" | "editing";
@@ -138,6 +144,10 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
+
+  readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
 
   readonly scriptMode = signal<ScriptMode>("reading");
 

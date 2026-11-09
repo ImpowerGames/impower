@@ -253,3 +253,10 @@ export function languageServerExtensions(): readonly (
     contextMenu(),
   ];
 }
+export {
+  editorToolCommands,
+  findNextMatch,
+  findPreviousMatch,
+  openFind,
+  type EditorToolCommands,
+} from "./tools";
