@@ -130,8 +130,15 @@ export default class WorkspaceDebugClient {
           columnsStartAt1: false,
         }),
         await this.request(session, "launch", { program }),
-        await this.request(session, "configurationDone", {}),
       ];
+      for (const [uri, lines] of Object.entries(
+        workspace.current.debug.breakpoints ?? {},
+      )) {
+        if (lines.length > 0) {
+          handshake.push(await this.sendBreakpoints(session, uri, lines));
+        }
+      }
+      handshake.push(await this.request(session, "configurationDone", {}));
       const refused = handshake.find((response) => response && !response.success);
       if (refused) {
         this._options.onRefusal?.(refused.message ?? "");
@@ -181,6 +188,61 @@ export default class WorkspaceDebugClient {
 
   stepOut() {
     return this.command("stepOut");
+  }
+
+  async setBreakpoints(uri: string, lines: number[]) {
+    const session = this._session;
+    if (!session || !(await session.ready) || this._session !== session) {
+      return false;
+    }
+    const response = await this.sendBreakpoints(session, uri, lines);
+    return Boolean(response?.success);
+  }
+
+  async evaluate(expression: string) {
+    const session = this._session;
+    const frameId =
+      workspace.debugSession.peek().stackTrace?.stackFrames[0]?.id;
+    if (!session || frameId == null || !workspace.debugSession.peek().stopped) {
+      return null;
+    }
+    const response = (await this.request(session, "evaluate", {
+      expression,
+      frameId,
+      context: "hover",
+    })) as DebugProtocol.EvaluateResponse | null;
+    return response?.success ? response.body.result : null;
+  }
+
+  protected async sendBreakpoints(
+    session: Session,
+    uri: string,
+    lines: number[],
+  ) {
+    const response = (await this.request(session, "setBreakpoints", {
+      source: { path: uri },
+      breakpoints: lines.map((line) => ({ line })),
+    })) as DebugProtocol.SetBreakpointsResponse | null;
+    if (!response || this._session !== session) {
+      return response;
+    }
+    if (!response.success) {
+      this._options.onRefusal?.(response.message ?? "");
+      return response;
+    }
+    const answered = response.body?.breakpoints ?? [];
+    if (answered.length === lines.length) {
+      this.update({
+        breakpoints: {
+          ...workspace.debugSession.peek().breakpoints,
+          [uri]: answered.map((b, i) => ({
+            line: b.verified && b.line != null ? b.line : lines[i]!,
+            verified: b.verified,
+          })),
+        },
+      });
+    }
+    return response;
   }
 
   protected async command(command: string) {

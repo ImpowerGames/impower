@@ -69,6 +69,8 @@ import {
   SelectEditorMethod,
   SelectEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
+import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
+import { SetEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
@@ -128,6 +130,7 @@ import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/Re
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
 import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../cm-highlight-lines/highlightLines";
+import { setBreakpointStates } from "../../cm-breakpoints/breakpoints";
 import { setPinpoints } from "../../cm-pinpoints/pinpoints";
 import { setRoutePinsEffect } from "../../cm-route-pins/routePins";
 import { getScrollableParent } from "../../utils/getScrollableParent";
@@ -465,6 +468,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      SetEditorBreakpointsMessage.type,
+      (m) => this.handleSetEditorBreakpoints(m),
+      this.host,
+    );
+    p.onRequest(
       SetEditorPinpointsMessage.type,
       (m) => this.handleSetEditorPinpoints(m),
       this.host,
@@ -773,6 +781,48 @@ export class ScriptEditorController {
     }
     return SetEditorHighlightsMessage.type.response(message.id, {});
   };
+
+  protected handleSetEditorBreakpoints = (
+    message: SetEditorBreakpointsMessage.Request,
+  ) => {
+    const { textDocument, breakpoints } = message.params;
+    if (this._view && textDocument.uri === this._textDocument?.uri) {
+      setBreakpointStates(
+        this._view,
+        breakpoints.map(({ line, verified }) => ({ line: line + 1, verified })),
+      );
+    }
+    return SetEditorBreakpointsMessage.type.response(message.id, {});
+  };
+
+  protected evaluateHover = (expression: string) =>
+    new Promise<string | null>((resolve) => {
+      const uri = this._textDocument?.uri;
+      if (!uri) {
+        resolve(null);
+        return;
+      }
+      const request = EvaluateEditorHoverMessage.type.request({
+        textDocument: { uri },
+        expression,
+      });
+      const finish = (value: string | null) => {
+        window.removeEventListener(MessageProtocol.event, onProtocol);
+        resolve(value);
+      };
+      const onProtocol = (e: Event) => {
+        if (
+          e instanceof CustomEvent &&
+          EvaluateEditorHoverMessage.type.isResponse(e.detail, request.id)
+        ) {
+          finish("result" in e.detail ? (e.detail.result?.value ?? null) : null);
+        }
+      };
+      window.addEventListener(MessageProtocol.event, onProtocol);
+      if (!sendProtocolMessage(request, this.host) || !this.host.isConnected) {
+        finish(null);
+      }
+    });
 
   protected handleSetEditorPinpoints = (
     message: SetEditorPinpointsMessage.Request,
@@ -1182,6 +1232,7 @@ export class ScriptEditorController {
               );
             }
           },
+          hoverValue: this.evaluateHover,
           onCompletionPreview: (event, state) => {
             const uri = this._textDocument?.uri;
             if (!uri) {

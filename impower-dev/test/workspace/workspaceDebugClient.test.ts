@@ -228,6 +228,7 @@ describe("the web editor's debug client", () => {
       stopped: null,
       stackTrace: null,
       canStepOut: false,
+      breakpoints: {},
     });
   });
 
