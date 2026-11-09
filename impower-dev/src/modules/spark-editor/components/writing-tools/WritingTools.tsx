@@ -190,6 +190,7 @@ export default function WritingTools({
 
   return (
     <ToolPanelRoot
+      presentation={phone ? "keyboard" : undefined}
       open={open}
       onOpen={() => void withWindow((win) => win.openWritingTools())}
       onClose={close}
@@ -200,7 +201,9 @@ export default function WritingTools({
         title={TITLES[view]}
         onClose={close}
         onBack={state?.fromMenu ? () => show("menu") : undefined}
-        keepOpenOn={(target) => !!target.closest("[data-writer-bar]")}
+        keepOpenOn={(target) =>
+          !!target.closest("[data-writer-bar], .cm-keyboard-toolbar")
+        }
         returnFocus={() => returnTo.current}
       >
         {view === "menu" ? (

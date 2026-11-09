@@ -14,6 +14,7 @@ const calls = vi.hoisted(() => ({
   finished: [] as string[],
   commands: [] as [string, string][],
   routes: [] as string[],
+  finishedEditing: { count: 0 },
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -80,6 +81,14 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
             screen: { ...store.current.screen, appMenuOpen },
           };
         },
+        startEditing: () => {
+          env.store.scriptMode.value = "editing";
+        },
+        finishEditing: () => {
+          calls.finishedEditing.count += 1;
+          env.store.scriptMode.value = "reading";
+        },
+        renameScript: async () => ({ status: "renamed" }),
         startEditingProjectName: () => {},
         finishEditingProjectName: async (name: string) => {
           calls.finished.push(name);
@@ -148,7 +157,9 @@ beforeEach(() => {
   calls.finished.length = 0;
   calls.commands.length = 0;
   calls.routes.length = 0;
+  calls.finishedEditing.count = 0;
   workspace.editorHistory.value = {};
+  workspace.scriptMode.value = "reading";
   workspace.current = stateForRoute(
     {
       ...workspace.current,
@@ -209,8 +220,8 @@ const go = async (route: string) => {
   await settle();
 };
 
-const mousedown = (target: Element) => {
-  const event = new MouseEvent("mousedown", {
+const press = (target: Element) => {
+  const event = new MouseEvent("pointerdown", {
     bubbles: true,
     cancelable: true,
     composed: true,
@@ -320,6 +331,9 @@ describe("the phone shell", () => {
   it("follows the edit history and commands of whichever script the Story route shows", async () => {
     await mount();
     await act(async () => {
+      workspace.scriptMode.value = "editing";
+    });
+    await act(async () => {
       workspace.editorHistory.value = {
         "main.sd": { canUndo: false, canRedo: false },
         "scripts/intro.sd": { canUndo: true, canRedo: false },
@@ -355,6 +369,9 @@ describe("the phone shell", () => {
 
   it("shows Search and the edit history only on the Story route, disabled until the script can undo or redo", async () => {
     await mount();
+    await act(async () => {
+      workspace.scriptMode.value = "editing";
+    });
     expect(button("Search")).not.toBeNull();
     expect(button("Undo edit")!.disabled).toBe(true);
     expect(button("Redo edit")!.disabled).toBe(true);
@@ -411,6 +428,156 @@ describe("the phone shell", () => {
   });
 });
 
+describe("the phone's reading and editing modes", () => {
+  const edit = () =>
+    act(async () => {
+      workspace.scriptMode.value = "editing";
+    });
+
+  it("reads by default: no history, the project's name and the navigation show", async () => {
+    await mount();
+    expect(workspace.scriptMode.value).toBe("reading");
+    expect(button("Undo edit")).toBeNull();
+    expect(button("Done editing")).toBeNull();
+    expect(nameField()).not.toBeNull();
+    expect(navigation().hidden).toBe(false);
+  });
+
+  it("folds the script header into the title bar with Done and hides the navigation while editing", async () => {
+    await mount();
+    await edit();
+    expect(button("Done editing")).not.toBeNull();
+    expect(button("Undo edit")).not.toBeNull();
+    expect(titleBar().querySelector("[data-script-header-folded]")).not.toBeNull();
+    expect(navigation().hidden).toBe(true);
+    expect(
+      host!.querySelector("[data-phone-shell]")!.hasAttribute("data-editing"),
+    ).toBe(true);
+  });
+
+  it("returns to reading from Done and restores the bar and the navigation", async () => {
+    await mount();
+    await edit();
+    await act(async () => button("Done editing")!.click());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("reading");
+    expect(button("Done editing")).toBeNull();
+    expect(navigation().hidden).toBe(false);
+    expect(
+      host!.querySelector("[data-phone-shell]")!.hasAttribute("data-editing"),
+    ).toBe(false);
+  });
+
+  it("ends editing when the route leaves the story", async () => {
+    await mount();
+    await edit();
+    await go("collection");
+    await settle();
+    expect(workspace.scriptMode.value).toBe("reading");
+  });
+
+  it("ends editing when a menu takes the focus, but not when a keyboard panel does", async () => {
+    await mount();
+    await edit();
+    const panel = document.body.appendChild(document.createElement("section"));
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("data-keyboard-panel", "");
+    const inside = panel.appendChild(document.createElement("button"));
+    await act(async () => inside.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("editing");
+    panel.remove();
+
+    const menu = document.body.appendChild(document.createElement("div"));
+    menu.setAttribute("role", "menu");
+    const item = menu.appendChild(document.createElement("button"));
+    await act(async () => item.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("reading");
+    menu.remove();
+  });
+
+  it("keeps editing while the script's own action sheet has focus", async () => {
+    await mount();
+    await edit();
+    const sheet = document.body.appendChild(document.createElement("div"));
+    sheet.setAttribute("role", "dialog");
+    const menu = sheet.appendChild(document.createElement("div"));
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("data-action-sheet", "");
+    const item = menu.appendChild(document.createElement("button"));
+    await act(async () => item.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("editing");
+    sheet.tabIndex = -1;
+    await act(async () => sheet.focus());
+    await settle();
+    expect(workspace.scriptMode.value).toBe("editing");
+    sheet.remove();
+  });
+
+  it("returns the caret to the script when a name field is left while editing", async () => {
+    await mount();
+    await act(async () => {
+      const logic = workspace.current.panes.logic;
+      workspace.current = {
+        ...workspace.current,
+        panes: {
+          ...workspace.current.panes,
+          logic: {
+            ...logic,
+            panel: "scripts",
+            panels: {
+              ...logic.panels,
+              scripts: {
+                ...logic.panels.scripts,
+                activeEditor: { open: true, filename: "scripts/intro.sd" },
+              },
+            },
+          },
+        },
+      };
+    });
+    await settle();
+    await edit();
+    const field = host!.querySelector<HTMLInputElement>(
+      'input[aria-label="Script name"]',
+    )!;
+    await act(async () => field.focus());
+    await settle();
+    expect(button("Keep the name")).not.toBeNull();
+    await act(async () => field.blur());
+    await settle();
+    expect(calls.commands).toContainEqual(["scripts/intro.sd", "focus"]);
+    expect(workspace.scriptMode.value).toBe("editing");
+  });
+
+  it("finishes editing on unmount only when it is editing", async () => {
+    await mount();
+    await act(async () => render(null, host!));
+    await settle();
+    expect(calls.finishedEditing.count).toBe(0);
+
+    await mount();
+    await edit();
+    await act(async () => render(null, host!));
+    await settle();
+    expect(calls.finishedEditing.count).toBe(1);
+    expect(workspace.scriptMode.value).toBe("reading");
+  });
+
+  it("hides the navigation while a panel stands in the keyboard's place", async () => {
+    await mount();
+    let remove: () => void = () => {};
+    await act(async () => {
+      remove = workspace.addKeyboardPanel({ heading: true });
+    });
+    expect(navigation().hidden).toBe(true);
+    await act(async () => remove());
+    expect(navigation().hidden).toBe(false);
+  });
+});
+
 describe("naming the project on a phone", () => {
   it("hides the navigation and the bar's controls behind Done, and Done commits in one step", async () => {
     await mount();
@@ -429,7 +596,7 @@ describe("naming the project on a phone", () => {
       nameField().value = "Night shift";
       nameField().dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(mousedown(done)).toBe(true);
+    expect(press(done)).toBe(true);
     expect(document.activeElement).toBe(nameField());
     await act(async () => done.click());
     await settle();
@@ -443,20 +610,20 @@ describe("naming the project on a phone", () => {
     await mount();
     await act(async () => nameField().focus());
     await settle();
-    expect(mousedown(titleBar())).toBe(true);
-    expect(mousedown(host!.querySelector('[data-route="logic"]')!)).toBe(true);
+    expect(press(titleBar())).toBe(true);
+    expect(press(host!.querySelector('[data-route="logic"]')!)).toBe(true);
     expect(
-      mousedown(host!.querySelector('input[aria-label="Other field"]')!),
+      press(host!.querySelector('input[aria-label="Other field"]')!),
     ).toBe(false);
     const link = document.body.appendChild(document.createElement("a"));
     link.href = "#share";
-    expect(mousedown(link)).toBe(false);
+    expect(press(link)).toBe(false);
   });
 
   it("leaves presses alone when no field has focus", async () => {
     await mount();
-    expect(mousedown(titleBar())).toBe(false);
-    expect(mousedown(button("Search")!)).toBe(false);
+    expect(press(titleBar())).toBe(false);
+    expect(press(button("Search")!)).toBe(false);
   });
 
   it("lets a bottom navigation tab take the focus from a field", async () => {
@@ -467,8 +634,8 @@ describe("naming the project on a phone", () => {
     await act(async () => other.focus());
     await settle();
     expect(navigation().hidden).toBe(false);
-    expect(mousedown(navigation().querySelector('[role="tab"]')!)).toBe(false);
-    expect(mousedown(titleBar())).toBe(true);
+    expect(press(navigation().querySelector('[role="tab"]')!)).toBe(false);
+    expect(press(titleBar())).toBe(true);
   });
 });
 

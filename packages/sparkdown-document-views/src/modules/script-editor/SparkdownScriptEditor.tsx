@@ -14,6 +14,11 @@ import type {
   ScriptEditorController as ScriptEditorControllerType,
   ScriptEditorOptions,
 } from "./ScriptEditorController";
+import type {
+  KeyboardToolbarHold,
+  KeyboardToolbarTool,
+} from "./utils/extensions/keyboardToolbar";
+import type { ScriptModeValue } from "./utils/extensions/scriptMode";
 import cssText from "./sparkdown-script-editor.css?raw";
 
 export const propDefaults = {
@@ -28,6 +33,10 @@ export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
   onPasteRefused?: () => void;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   onChangeColor?: (range: Range, value: string, color: Color) => void;
 };
 
@@ -53,11 +62,25 @@ export default function SparkdownScriptEditor({
   top,
   bottom,
   onPasteRefused,
+  scriptMode = null,
+  keyboardHold,
+  onReadingDoubleTap,
+  onToolbarTool,
   onChangeColor,
 }: SparkdownScriptEditorProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuModel | null>(null);
   const onPasteRefusedRef = useRef(onPasteRefused);
   onPasteRefusedRef.current = onPasteRefused;
+  const onReadingDoubleTapRef = useRef(onReadingDoubleTap);
+  onReadingDoubleTapRef.current = onReadingDoubleTap;
+  const onToolbarToolRef = useRef(onToolbarTool);
+  onToolbarToolRef.current = onToolbarTool;
+  const readonlyRef = useRef(!!readonly);
+  readonlyRef.current = !!readonly;
+  const scriptModeRef = useRef(scriptMode);
+  scriptModeRef.current = scriptMode;
+  const keyboardHoldRef = useRef(keyboardHold);
+  keyboardHoldRef.current = keyboardHold;
   const onChangeColorRef = useRef(onChangeColor);
   onChangeColorRef.current = onChangeColor;
   const hostsColorView = !!onChangeColor;
@@ -101,8 +124,12 @@ export default function SparkdownScriptEditor({
         realHost,
         { editor, loading, placeholder, main },
         {
-          readonly: !!readonly,
+          readonly: readonlyRef.current,
           coarsePointer: coarsePointerRef.current,
+          scriptMode: scriptModeRef.current,
+          keyboardHold: keyboardHoldRef.current,
+          onReadingDoubleTap: () => onReadingDoubleTapRef.current?.(),
+          onToolbarTool: (tool) => onToolbarToolRef.current?.(tool),
           appearance: appearanceRef.current,
           shortcuts: shortcutsRef.current,
           onContextMenu: setContextMenu,
@@ -133,6 +160,16 @@ export default function SparkdownScriptEditor({
   useEffect(() => {
     controllerRef.current?.setReadonly(!!readonly);
   }, [readonly]);
+
+  useEffect(() => {
+    controllerRef.current?.setScriptMode(scriptMode);
+  }, [scriptMode]);
+
+  useEffect(() => {
+    if (keyboardHold) {
+      controllerRef.current?.setKeyboardHold(keyboardHold);
+    }
+  }, [keyboardHold?.held, keyboardHold?.headed]);
 
   useEffect(() => {
     controllerRef.current?.setCoarsePointer(!!coarsePointer);

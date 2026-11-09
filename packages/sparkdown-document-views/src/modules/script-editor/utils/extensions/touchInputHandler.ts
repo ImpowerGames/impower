@@ -578,6 +578,10 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     };
 
     onTouchStart = (event: TouchEvent) => {
+      if (!this.view.state.facet(EditorView.editable)) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 
@@ -626,6 +630,10 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     };
 
     onTouchMove = (event: TouchEvent) => {
+      if (!this.view.state.facet(EditorView.editable)) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 
@@ -703,6 +711,10 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     };
 
     onTouchEnd = (event: TouchEvent) => {
+      if (!this.view.state.facet(EditorView.editable)) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 
@@ -875,10 +887,10 @@ export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
     touchEventsPlugin,
 
     EditorView.domEventHandlers({
-      touchstart: () => true,
-      touchmove: () => true,
-      touchend: () => true,
-      touchcancel: () => true,
+      touchstart: (_, view) => view.state.facet(EditorView.editable),
+      touchmove: (_, view) => view.state.facet(EditorView.editable),
+      touchend: (_, view) => view.state.facet(EditorView.editable),
+      touchcancel: (_, view) => view.state.facet(EditorView.editable),
     }),
   ];
 }

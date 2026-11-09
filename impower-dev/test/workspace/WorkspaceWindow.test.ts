@@ -644,6 +644,30 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.screen.writingTools).toBeUndefined();
     });
 
+    it("reads by default, edits from Edit and reads again from Done", () => {
+      const commands = vi.spyOn(win, "executeEditorCommand");
+      expect(workspace.scriptMode.value).toBe("reading");
+
+      win.startEditing("main.sd");
+      expect(workspace.scriptMode.value).toBe("editing");
+      expect(commands).toHaveBeenCalledWith("main.sd", "focus");
+
+      win.finishEditing();
+      expect(workspace.scriptMode.value).toBe("reading");
+    });
+
+    it("counts each panel standing in the keyboard's place while it is registered", () => {
+      const removeTools = workspace.addKeyboardPanel({ heading: true });
+      const removeSearch = workspace.addKeyboardPanel({ heading: false });
+      expect(workspace.keyboardPanels.value).toHaveLength(2);
+      expect(workspace.keyboardPanels.value.some((p) => p.heading)).toBe(true);
+
+      removeTools();
+      expect(workspace.keyboardPanels.value).toEqual([{ heading: false }]);
+      removeSearch();
+      expect(workspace.keyboardPanels.value).toEqual([]);
+    });
+
     it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
       win.navigateTo("collection");
       win.openSparkdownGuide();
