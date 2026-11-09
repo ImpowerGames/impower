@@ -1,3 +1,4 @@
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
@@ -93,16 +94,6 @@ const THUMBNAILS_SUPPORTED =
   typeof createImageBitmap === "function" &&
   typeof OffscreenCanvas === "function" &&
   typeof caches !== "undefined";
-
-const globToRegex = (glob: string) => {
-  return RegExp(
-    glob
-      .replace(/[.]/g, "[.]")
-      .replace(/[*]/g, ".*")
-      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i",
-  );
-};
 
 interface WriteResult {
   file: FileData;
