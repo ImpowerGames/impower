@@ -393,7 +393,6 @@ Component variables of the editor's own chrome:
 | `--editor-indent-guide-active` | Indentation guide of the current block | `#4d5866` |
 | `--editor-field-edge` | Go-to-line and rename field border | `hsl(210.6 30% 20%)` |
 | `--editor-field-edge-hover` | Field border under the pointer or pressed | `hsl(210.6 30% 30%)` |
-| `--editor-button-hover` | Panel button and toggle hover wash | `rgb(43 17 17 / 0.05)` |
 | `--editor-focus` | Focus outline and the focused field's border | `#0da2e7` |
 | `--editor-focus-edge` | Selected reference outline, the dialog close button under the pointer | `#007acc` |
 | `--editor-selection-match` | Other occurrences of the selection | `#62331599` |
@@ -511,7 +510,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-indent-guide-active` | `color-mix(in srgb, var(--accent) 55%, transparent)` | `--guide-lit`, `folio-themes.css:906` |
 | `--editor-field-edge` | `var(--edge)` | Divider |
 | `--editor-field-edge-hover` | `var(--muted)` | Muted ink |
-| `--editor-button-hover` | `var(--control-hover)` | Hover overlay |
 | `--editor-focus` | `var(--accent)` | Focus edge |
 | `--editor-focus-edge` | `var(--accent)` | Focus edge |
 | `--editor-selection-match` | `color-mix(in srgb, var(--accent) 25%, transparent)` | Accent wash |

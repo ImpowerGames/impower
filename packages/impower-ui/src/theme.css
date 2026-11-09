@@ -98,7 +98,6 @@
   --editor-indent-guide-active: #4d5866;
   --editor-field-edge: hsl(210.6 30% 20%);
   --editor-field-edge-hover: hsl(210.6 30% 30%);
-  --editor-button-hover: rgb(43 17 17 / 0.05);
   --editor-focus: #0da2e7;
   --editor-focus-edge: #007acc;
   --editor-selection-match: #62331599;
@@ -549,7 +548,6 @@
   --editor-indent-guide-active: color-mix(in srgb, var(--accent) 55%, transparent);
   --editor-field-edge: var(--edge);
   --editor-field-edge-hover: var(--muted);
-  --editor-button-hover: var(--control-hover);
   --editor-focus: var(--accent);
   --editor-focus-edge: var(--accent);
   --editor-selection-match: color-mix(in srgb, var(--accent) 25%, transparent);
