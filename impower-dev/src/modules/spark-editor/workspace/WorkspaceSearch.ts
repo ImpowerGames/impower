@@ -1,3 +1,4 @@
+import type { EditorTool } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type {
   FindTextParams,
@@ -18,6 +19,7 @@ import {
   type SearchView,
 } from "./searchState";
 import workspace from "./WorkspaceStore";
+import type { NameAtCaret } from "./nameAtCaret";
 
 export interface SearchFile {
   uri: string;
@@ -31,6 +33,7 @@ export interface SearchSources {
   findText: (params: FindTextParams) => Promise<FindTextResult>;
   references: (uri: string, position: Position) => Promise<Location[]>;
   definitions: (uri: string, position: Position) => Promise<Location[]>;
+  nameAtCaret: () => Promise<NameAtCaret | null>;
   prepareRename: (uri: string, position: Position) => Promise<Range | null>;
   renameEdits: (
     uri: string,
@@ -52,6 +55,7 @@ export interface SearchSources {
   autoRenameFiles: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
+  onEditorTool: (listener: (tool: EditorTool) => void) => () => void;
   onRenamed?: () => Promise<void>;
 }
 
@@ -185,9 +189,6 @@ const groupLocations = async (
 const assetFilesNamed = (files: readonly SearchFile[], name: string) =>
   files.filter((f) => f.type !== "script" && f.name === name).map((f) => f.uri);
 
-const CHARACTER_DEFINITION = (name: string) =>
-  new RegExp(`^\\s*define\\s+${name}\\s+as\\s+character\\b`);
-
 export const renameNote = (
   subject: NameSubject | undefined,
   uses: number,
@@ -234,6 +235,13 @@ export default class WorkspaceSearch {
           ...(current ? { current: { uri: current.uri, range: current.range } } : {}),
         };
       }),
+      sources.onEditorTool((tool) => {
+        void (tool === "find"
+          ? this.openFindFromSelection()
+          : tool === "rename"
+            ? this.openRename()
+            : this.openReferences());
+      }),
       sources.onEditorLoaded(() => {
         this._published = "";
         this.publishMatches();
@@ -261,7 +269,13 @@ export default class WorkspaceSearch {
 
   open(view: SearchView = "find") {
     this._sources.revealRail();
-    this.update({ open: true, view, status: "", statusTone: "info" });
+    this.update({
+      open: true,
+      view,
+      status: "",
+      statusTone: "info",
+      focusRequest: this.snapshot.focusRequest + 1,
+    });
     if (view === "find") {
       void this.refresh();
     }
@@ -289,6 +303,13 @@ export default class WorkspaceSearch {
       }
     }
     this.open("find");
+  }
+
+  stepOrOpen(backward: boolean) {
+    const { open, view, term } = this.snapshot;
+    return open && view === "find" && term
+      ? this.step(backward)
+      : this.openFindFromSelection();
   }
 
   setTerm(term: string) {
@@ -552,41 +573,21 @@ export default class WorkspaceSearch {
     await this.refresh();
   }
 
-  protected caret(): { uri: string; position: Position } | undefined {
-    const uri = this._sources.openedUri();
-    const selection = this._sources.selection();
-    return uri && selection ? { uri, position: selection.end } : undefined;
-  }
-
-  protected async subjectAtCaret(): Promise<NameSubject | undefined> {
-    const caret = this.caret();
-    if (!caret) {
+  protected async subjectOf(
+    given?: NameAtCaret | NameSubject,
+  ): Promise<NameSubject | undefined> {
+    const found = given ?? (await this._sources.nameAtCaret());
+    if (!found) {
       return undefined;
     }
-    const range = await this._sources.prepareRename(caret.uri, caret.position);
-    if (!range) {
-      return undefined;
-    }
-    const text = await this._sources.fileText(caret.uri);
-    const lines = text.split(/\r\n|\r|\n/);
-    const name = (lines[range.start.line] ?? "").slice(
-      range.start.character,
-      range.end.character,
-    );
-    if (!name) {
-      return undefined;
-    }
-    const definitions = await this._sources
-      .definitions(caret.uri, caret.position)
-      .catch(() => []);
-    let character = false;
-    for (const d of definitions) {
-      const source = d.uri === caret.uri ? text : await this._sources.fileText(d.uri);
-      if (CHARACTER_DEFINITION(name).test(lineOf(source, d.range.start.line))) {
-        character = true;
-      }
-    }
-    return { name, uri: caret.uri, position: caret.position, character };
+    return "kind" in found
+      ? {
+          name: found.name,
+          uri: found.uri,
+          position: found.position,
+          character: found.kind === "character",
+        }
+      : found;
   }
 
   protected async gather(subject: NameSubject) {
@@ -617,8 +618,8 @@ export default class WorkspaceSearch {
     return { references, files };
   }
 
-  async openReferences(subject?: NameSubject) {
-    const found = subject ?? (await this.subjectAtCaret());
+  async openReferences(given?: NameAtCaret | NameSubject) {
+    const found = await this.subjectOf(given);
     this._sources.revealRail();
     this.update({
       open: true,
@@ -638,8 +639,8 @@ export default class WorkspaceSearch {
     this.update({ references, files });
   }
 
-  async openRename() {
-    const found = await this.subjectAtCaret();
+  async openRename(given?: NameAtCaret) {
+    const found = await this.subjectOf(given);
     this._sources.revealRail();
     this.update({
       open: true,
@@ -677,12 +678,14 @@ export default class WorkspaceSearch {
     return this.exclusive(() => this.runRename());
   }
 
-  protected async nameStillAt(subject: NameSubject) {
-    if (!subject.uri || !subject.position) {
-      return false;
-    }
-    const range = await this._sources.prepareRename(subject.uri, subject.position);
-    if (!range || range.start.line !== range.end.line) {
+  protected async renamableRange(subject: NameSubject) {
+    return subject.uri && subject.position
+      ? this._sources.prepareRename(subject.uri, subject.position)
+      : null;
+  }
+
+  protected async nameStillAt(subject: NameSubject, range: Range) {
+    if (!subject.uri || range.start.line !== range.end.line) {
       return false;
     }
     const text = await this._sources.fileText(subject.uri).catch(() => "");
@@ -701,7 +704,12 @@ export default class WorkspaceSearch {
     if (newName === subject.name) {
       return false;
     }
-    if (!(await this.nameStillAt(subject))) {
+    const range = await this.renamableRange(subject);
+    if (!range) {
+      this.say(`${subject.name} can't be renamed here.`, "error");
+      return false;
+    }
+    if (!(await this.nameStillAt(subject, range))) {
       this.say(`The script changed and ${subject.name} is no longer there. Open Rename again.`, "error");
       return false;
     }

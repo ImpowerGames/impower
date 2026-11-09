@@ -6,7 +6,11 @@ import { fileTitle } from "./scriptTitle";
 import UsesList from "./UsesList";
 import { withSearch } from "./withSearch";
 
-export default function ReferencesView() {
+export default function ReferencesView({
+  onOpened,
+}: {
+  onOpened?: () => void;
+}) {
   const { subject, references, files } = workspace.search.value;
   const total = references.reduce((n, g) => n + g.uses.length, 0);
 
@@ -23,7 +27,12 @@ export default function ReferencesView() {
       )}
       <UsesList
         groups={references}
-        onOpen={(use) => withSearch((search) => search.openUse(use))}
+        onOpen={(use) =>
+          withSearch(async (search) => {
+            await search.openUse(use);
+            onOpened?.();
+          })
+        }
       />
       {files.length > 0 && (
         <section aria-label="Linked assets">
@@ -43,7 +52,12 @@ export default function ReferencesView() {
                     icon={<FileIcon />}
                     label={fileTitle(uri)}
                     title={`Open ${fileTitle(uri)} in Assets`}
-                    onClick={() => withSearch((search) => search.openAsset(uri))}
+                    onClick={() =>
+                      withSearch(async (search) => {
+                        await search.openAsset(uri);
+                        onOpened?.();
+                      })
+                    }
                   />
                 </li>
               );

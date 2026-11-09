@@ -2,6 +2,7 @@ import { signal } from "@preact/signals";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FindTextParams } from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
 import type { Location, Range } from "vscode-languageserver-protocol";
+import type { NameAtCaret } from "../../src/modules/spark-editor/workspace/nameAtCaret";
 
 const storage = new Map<string, string>();
 vi.stubGlobal("localStorage", {
@@ -58,6 +59,7 @@ const setup = (opened: string | undefined = MAIN) => {
   const selection = signal<Range | undefined>(range(0, 0, 0));
   const autoRenameFiles = signal(true);
   const textListeners: (() => void)[] = [];
+  const nameToolListeners: ((tool: "find" | "rename" | "references") => void)[] = [];
   const sources = {
     openedUri: () => openedUri.value,
     selection: () => selection.value,
@@ -85,7 +87,16 @@ const setup = (opened: string | undefined = MAIN) => {
     definitions: vi.fn(async (): Promise<Location[]> => [
       { uri: EPILOGUE, range: range(0, 7, 12) },
     ]),
-    prepareRename: vi.fn(async () => range(1, 6, 11)),
+    nameAtCaret: vi.fn(
+      async (): Promise<NameAtCaret | null> => ({
+        uri: MAIN,
+        position: range(1, 6, 6).start,
+        name: "imani",
+        kind: "character",
+        definition: null,
+      }),
+    ),
+    prepareRename: vi.fn(async (): Promise<Range | null> => range(1, 6, 11)),
     renameEdits: vi.fn(async (_uri: string, _p: unknown, newName: string) => {
       if (newName === "zadie") {
         throw new Error("zadie is already a name in this story.");
@@ -129,10 +140,22 @@ const setup = (opened: string | undefined = MAIN) => {
       return () => {};
     },
     onEditorLoaded: () => () => {},
+    onEditorTool: (listener: (tool: "find" | "rename" | "references") => void) => {
+      nameToolListeners.push(listener);
+      return () => {};
+    },
     onRenamed: vi.fn(async () => {}),
   };
   const search = new WorkspaceSearch(sources);
-  return { search, sources, openedUri, selection, autoRenameFiles, textListeners };
+  return {
+    search,
+    sources,
+    openedUri,
+    selection,
+    autoRenameFiles,
+    textListeners,
+    nameToolListeners,
+  };
 };
 
 let disposers: (() => void)[] = [];
@@ -405,6 +428,65 @@ describe("Rename", () => {
       statusTone: "error",
       open: true,
     });
+  });
+
+  it("says so and changes nothing when the name at the caret can't be renamed", async () => {
+    const { search, sources } = make(MAIN);
+    sources.prepareRename.mockImplementation(async () => null);
+    await search.openRename();
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(sources.renameEdits).not.toHaveBeenCalled();
+    expect(workspace.search.value.status).toBe("imani can't be renamed here.");
+  });
+});
+
+describe("a tool asked for from inside the editor", () => {
+  it("opens Find from the keyboard toolbar's Search key", async () => {
+    const { nameToolListeners } = make(MAIN);
+    nameToolListeners.forEach((listener) => listener("find"));
+    await vi.waitFor(() =>
+      expect(workspace.search.value).toMatchObject({ open: true, view: "find" }),
+    );
+  });
+
+  it("steps while Find is open with words in it, and opens Find otherwise", async () => {
+    const { search, sources } = make(MAIN);
+    await search.stepOrOpen(false);
+    expect(workspace.search.value).toMatchObject({ open: true, view: "find" });
+    expect(sources.showMatch).not.toHaveBeenCalled();
+    await search.setTerm("rumour");
+    await search.stepOrOpen(false);
+    expect(sources.showMatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens Rename and References on the name at the caret", async () => {
+    const { nameToolListeners, sources } = make(MAIN);
+    nameToolListeners.forEach((listener) => listener("rename"));
+    await vi.waitFor(() =>
+      expect(workspace.search.value).toMatchObject({
+        open: true,
+        view: "rename",
+        renameName: "imani",
+      }),
+    );
+    nameToolListeners.forEach((listener) => listener("references"));
+    await vi.waitFor(() =>
+      expect(workspace.search.value.view).toBe("references"),
+    );
+    expect(sources.nameAtCaret).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens the view with nothing named when the caret is on no name", async () => {
+    const { search, sources } = make(MAIN);
+    sources.nameAtCaret.mockImplementation(async () => null);
+    await search.openReferences();
+    expect(workspace.search.value).toMatchObject({
+      open: true,
+      view: "references",
+      subject: undefined,
+    });
+    expect(sources.references).not.toHaveBeenCalled();
   });
 });
 

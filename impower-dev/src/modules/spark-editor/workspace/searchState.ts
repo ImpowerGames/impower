@@ -55,6 +55,7 @@ export interface SearchSnapshot {
   references: SearchGroup[];
   files: string[];
   renameName: string;
+  focusRequest: number;
 }
 
 export const INITIAL_SEARCH: SearchSnapshot = {
@@ -70,4 +71,5 @@ export const INITIAL_SEARCH: SearchSnapshot = {
   references: [],
   files: [],
   renameName: "",
+  focusRequest: 0,
 };

@@ -24,6 +24,8 @@ import {
   completionPreview,
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
+  editorToolCommands,
+  type EditorToolCommands,
   LSPClient,
   onPasteRefused,
   presentContextMenu,
@@ -117,6 +119,7 @@ interface EditorConfig {
   coarsePointer: boolean;
   appearance: ScriptAppearance;
   onContextMenu?: ContextMenuPresenter;
+  tools?: EditorToolCommands;
   onPasteRefused?: () => void;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
@@ -495,6 +498,7 @@ const createEditorView = (
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
+        config.tools ? editorToolCommands.of(config.tools) : [],
         config.onPasteRefused ? onPasteRefused(config.onPasteRefused) : [],
         EditorView.theme(EDITOR_THEME, { dark: true }),
       ],

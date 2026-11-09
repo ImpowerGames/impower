@@ -14,6 +14,7 @@ const calls = vi.hoisted(() => ({
   finished: [] as string[],
   commands: [] as [string, string][],
   routes: [] as string[],
+  finds: 0,
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -30,8 +31,8 @@ vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
 vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
   default: () => h("div", { "data-route": "assets" }),
 }));
-vi.mock("../../src/modules/spark-editor/components/share/Share", () => ({
-  default: () => h("div", { "data-route": "share" }),
+vi.mock("../../src/modules/spark-editor/components/share", () => ({
+  SharePage: () => h("div", { "data-route": "share" }),
 }));
 vi.mock("../../src/modules/spark-editor/components/settings", () => ({
   SettingsPage: () => h("section", { "data-settings-page": "" }),
@@ -64,6 +65,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
     env.stateForRoute(...args);
   return {
     Workspace: {
+      search: {
+        openFindFromSelection: () => {
+          calls.finds += 1;
+        },
+      },
       sync: { google: { getCurrentAccount: async () => null } },
       window: {
         setAccount: () => {},
@@ -148,6 +154,7 @@ beforeEach(() => {
   calls.finished.length = 0;
   calls.commands.length = 0;
   calls.routes.length = 0;
+  calls.finds = 0;
   workspace.editorHistory.value = {};
   workspace.current = stateForRoute(
     {
@@ -314,7 +321,7 @@ describe("the phone shell", () => {
     expect(button("Show the preview")).not.toBeNull();
     await act(async () => button("Search")!.click());
     await settle();
-    expect(calls.commands).toEqual([["scripts/intro.sd", "search"]]);
+    expect(calls.finds).toBe(1);
   });
 
   it("follows the edit history and commands of whichever script the Story route shows", async () => {
@@ -368,10 +375,8 @@ describe("the phone shell", () => {
     await act(async () => button("Undo edit")!.click());
     await act(async () => button("Search")!.click());
     await settle();
-    expect(calls.commands).toEqual([
-      ["main.sd", "undo"],
-      ["main.sd", "search"],
-    ]);
+    expect(calls.commands).toEqual([["main.sd", "undo"]]);
+    expect(calls.finds).toBe(1);
     await go("collection");
     expect(button("Search")).toBeNull();
     expect(button("Undo edit")).toBeNull();

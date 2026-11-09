@@ -21,10 +21,11 @@ import { useContext, useRef } from "preact/hooks";
 
 export type ToolPanelCloseReason = "close" | "escape" | "dismiss";
 
-export type ToolPanelPresentation = "popover" | "sheet";
+export type ToolPanelPresentation = "popover" | "sheet" | "bar";
 
 type PanelContext = {
   sheet: boolean;
+  bar: boolean;
   open: boolean;
   onOpen: () => void;
   onClose: (reason: ToolPanelCloseReason) => void;
@@ -32,6 +33,7 @@ type PanelContext = {
 
 const Context = createContext<PanelContext>({
   sheet: false,
+  bar: false,
   open: false,
   onOpen: () => {},
   onClose: () => {},
@@ -55,8 +57,9 @@ export function ToolPanelRoot({
   const layout = useLayout();
   const sheet =
     (presentation ?? (layout === "phone" ? "sheet" : "popover")) === "sheet";
-  const value = { sheet, open, onOpen, onClose };
-  if (sheet) {
+  const bar = presentation === "bar";
+  const value = { sheet, bar, open, onOpen, onClose };
+  if (sheet || bar) {
     return <Context.Provider value={value}>{children}</Context.Provider>;
   }
   return (
@@ -73,8 +76,8 @@ export function ToolPanelRoot({
 }
 
 export function ToolPanelAnchor({ children }: { children?: ComponentChildren }) {
-  const { sheet } = useContext(Context);
-  if (sheet) return <>{children}</>;
+  const { sheet, bar } = useContext(Context);
+  if (sheet || bar) return <>{children}</>;
   return <PopoverAnchor asChild>{children}</PopoverAnchor>;
 }
 
@@ -99,6 +102,7 @@ export type ToolPanelProps = {
   open: boolean;
   title: string;
   chrome?: ToolPanelChrome;
+  closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
   onBack?: () => void;
   closeOnOutside?: boolean;
@@ -111,9 +115,12 @@ const keepFocus = (event: PointerEvent) => event.preventDefault();
 
 function Heading({
   title,
+  closeLabel,
   onBack,
   onClose,
-}: Pick<ToolPanelProps, "title" | "onBack"> & { onClose: () => void }) {
+}: Pick<ToolPanelProps, "title" | "closeLabel" | "onBack"> & {
+  onClose: () => void;
+}) {
   const { sheet } = useContext(Context);
   return (
     <header class="flex min-h-[52px] flex-none items-center gap-1 border-b border-edge py-1 pl-2.5 pr-2.5">
@@ -141,7 +148,7 @@ function Heading({
       <Button
         variant="quiet"
         size="icon"
-        aria-label="Close writing tools"
+        aria-label={closeLabel}
         class="text-muted"
         onPointerDown={keepFocus}
         onClick={onClose}
@@ -156,6 +163,7 @@ export function ToolPanel({
   open,
   title,
   chrome = "heading",
+  closeLabel = "Close writing tools",
   onClose,
   onBack,
   closeOnOutside = true,
@@ -163,7 +171,7 @@ export function ToolPanel({
   returnFocus,
   children,
 }: ToolPanelProps) {
-  const { sheet } = useContext(Context);
+  const { sheet, bar } = useContext(Context);
   const reason = useRef<ToolPanelCloseReason>("dismiss");
   const close = (why: ToolPanelCloseReason) => {
     reason.current = why;
@@ -179,13 +187,34 @@ export function ToolPanel({
   const body = (
     <>
       {chrome === "heading" ? (
-        <Heading title={title} onBack={onBack} onClose={() => close("close")} />
+        <Heading
+          title={title}
+          closeLabel={closeLabel}
+          onBack={onBack}
+          onClose={() => close("close")}
+        />
       ) : (
         sheet && <DialogTitle class="sr-only">{title}</DialogTitle>
       )}
       <div class="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </>
   );
+  if (bar) {
+    return open ? (
+      <section
+        aria-label={title}
+        class="flex-none"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close("escape");
+          }
+        }}
+      >
+        {children}
+      </section>
+    ) : null;
+  }
   if (sheet) {
     return (
       <Sheet

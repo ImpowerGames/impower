@@ -15,6 +15,7 @@ import {
   useEditorHistory,
 } from "../../workspace/useActiveEditor";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
+import { openFind } from "../find-references-rename";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
@@ -70,7 +71,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
               aria-label="Search"
               title="Search"
               class="text-muted"
-              onClick={() => run("search")}
+              onClick={openFind}
             >
               <SearchIcon />
             </Button>

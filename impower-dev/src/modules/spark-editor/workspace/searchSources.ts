@@ -1,4 +1,5 @@
 import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
+import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
 import {
   onProtocolMessage,
@@ -19,8 +20,6 @@ import type WorkspaceWindow from "./WorkspaceWindow";
 
 const TEXT_CHANGE_DELAY = 300;
 
-const MAIN_SCRIPT = "main.sd";
-
 export const searchSources = (parts: {
   window: WorkspaceWindow;
   ls: WorkspaceLanguageServer;
@@ -32,27 +31,16 @@ export const searchSources = (parts: {
     void workspace.state.value;
     return window.getActiveEditorForPane("logic");
   };
-  const revealScript = (uri: string) => {
-    const projectId = workspace.signals.projectId.peek();
-    if (!projectId) {
-      return;
-    }
-    const filename = fs.getRelativePath(projectId, uri);
-    if (filename !== MAIN_SCRIPT) {
-      window.openFileEditor(filename);
-      return;
-    }
-    const scripts = workspace.state.peek().panes.logic.panels.scripts?.activeEditor;
-    if (scripts?.open && scripts.filename) {
-      window.closeFileEditor(scripts.filename);
-    }
-  };
   return {
     openedUri: () => logicEditor()?.uri,
     selection: () => logicEditor()?.selectedRange,
     findText: (params) => ls.findText(params),
     references: (uri, position) => ls.getReferences(uri, position),
     definitions: (uri, position) => ls.getDefinitions(uri, position),
+    nameAtCaret: async () => {
+      const filename = logicEditor()?.filename;
+      return filename ? window.readNameAtCaret(filename) : null;
+    },
     prepareRename: (uri, position) => ls.prepareRename(uri, position),
     renameEdits: (uri, position, newName) =>
       ls.getRenameEdits(uri, position, newName),
@@ -81,15 +69,10 @@ export const searchSources = (parts: {
       return outcome;
     },
     showMatch: async (uri, range) => {
-      revealScript(uri);
       await window.showDocument(uri, range, false, true);
     },
     openLocation: async (uri, range) => {
-      if (workspace.state.peek().pane !== "logic") {
-        window.navigateTo("write");
-      }
-      revealScript(uri);
-      await window.showDocument(uri, range, true, true);
+      await window.revealDocument(uri, range);
     },
     openAsset: async (uri) => {
       const projectId = workspace.signals.projectId.peek();
@@ -133,5 +116,9 @@ export const searchSources = (parts: {
     },
     onEditorLoaded: (listener) =>
       onProtocolMessage(DidLoadEditorMessage.type, () => listener()),
+    onEditorTool: (listener) =>
+      onProtocolMessage(RequestedEditorToolMessage.type, (message) =>
+        listener(message.params.tool),
+      ),
   };
 };

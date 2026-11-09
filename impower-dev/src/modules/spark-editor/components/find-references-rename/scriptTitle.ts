@@ -1,3 +1,5 @@
+import type { SearchSnapshot } from "../../workspace/searchState";
+
 export const scriptTitle = (uri: string) => {
   const base = uri.split("/").pop() ?? uri;
   if (base === "main.sd") {
@@ -8,3 +10,10 @@ export const scriptTitle = (uri: string) => {
 };
 
 export const fileTitle = (uri: string) => uri.split("/").pop() ?? uri;
+
+export const searchTitle = ({ view, subject }: SearchSnapshot) =>
+  view === "find"
+    ? "Search"
+    : view === "references"
+      ? `References to ${subject?.name || "a name"}`
+      : `Rename ${subject?.name || "a name"}`;

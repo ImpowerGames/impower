@@ -31,6 +31,9 @@ export {
   pasteAvailable,
   textContextMenuItems,
   type ContextMenuItem,
+  editorTool,
+  editorToolCommands,
+  type EditorToolCommands,
 } from "./context";
 export {
   jumpToDeclaration,

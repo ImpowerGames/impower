@@ -15,6 +15,7 @@ const search = vi.hoisted(() => ({
   setRenameName: vi.fn(),
   rename: vi.fn(),
   openFindFromSelection: vi.fn(),
+  stepOrOpen: vi.fn(),
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -28,7 +29,7 @@ vi.stubGlobal("localStorage", {
   removeItem: (key: string) => void storage.delete(key),
 });
 
-const { SearchRail } = await import(
+const { SearchRail, useFindShortcut } = await import(
   "../../src/modules/spark-editor/components/find-references-rename"
 );
 const { default: workspace } = await import(
@@ -177,7 +178,11 @@ describe("the rail's Find view", () => {
   });
 
   it("opens Find from Ctrl+F and Cmd+F wherever the focus is", async () => {
-    await mount();
+    const Shortcut = () => {
+      useFindShortcut();
+      return null;
+    };
+    await act(async () => render(h(Shortcut, {}), host));
     for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
       await act(async () => {
         document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true, ...modifier }));
@@ -185,6 +190,30 @@ describe("the rail's Find view", () => {
     }
     await flush();
     expect(search.openFindFromSelection).toHaveBeenCalledTimes(2);
+  });
+
+  it("steps from F3, Shift+F3 and Ctrl+Shift+G, and leaves Ctrl+G to Go to line", async () => {
+    const Shortcut = () => {
+      useFindShortcut();
+      return null;
+    };
+    await act(async () => render(h(Shortcut, {}), host));
+    const press = async (init: KeyboardEventInit) => {
+      const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+      document.body.dispatchEvent(event);
+      await flush();
+      return event.defaultPrevented;
+    };
+    expect(await press({ key: "F3" })).toBe(true);
+    expect(await press({ key: "F3", shiftKey: true })).toBe(true);
+    expect(await press({ key: "G", ctrlKey: true, shiftKey: true })).toBe(true);
+    expect(await press({ key: "g", ctrlKey: true })).toBe(false);
+    await vi.waitFor(() => expect(search.stepOrOpen).toHaveBeenCalledTimes(3));
+    expect(search.stepOrOpen.mock.calls.map(([backward]) => backward)).toEqual([
+      false,
+      true,
+      true,
+    ]);
   });
 });
 

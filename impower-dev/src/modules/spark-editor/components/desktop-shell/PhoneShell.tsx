@@ -5,6 +5,7 @@ import { useEffect, useState } from "preact/hooks";
 import { routeOfState } from "../../workspace/routes";
 import { storyScriptOf } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
+import { PhoneSearch } from "../find-references-rename";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
@@ -80,6 +81,7 @@ export default function PhoneShell({
       >
         {children}
       </div>
+      <PhoneSearch />
       <BottomNavigation />
     </div>
   );

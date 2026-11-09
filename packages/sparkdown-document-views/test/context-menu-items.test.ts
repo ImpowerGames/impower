@@ -25,10 +25,14 @@ afterEach(() => {
 
 const DOC = "scene intro\n\n  -> intro";
 
-function mount(selection: EditorSelection, extensions: Extension[] = []) {
+function mount(
+  selection: EditorSelection,
+  extensions: Extension[] = [],
+  doc = DOC,
+) {
   view = new EditorView({
     state: EditorState.create({
-      doc: DOC,
+      doc,
       selection,
       extensions: [contextMenu(), ...extensions],
     }),
@@ -55,6 +59,21 @@ const openAt = (v: EditorView, pos: number) =>
   showContextMenu(v, { pos, x: 10, y: 10 });
 
 describe("the context menu on a fine pointer", () => {
+  it.each([
+    ["#ff8800", 3, false],
+    ["#f80", 2, false],
+    ["#ff8800cc", 3, false],
+    ["ff8800", 3, true],
+    ["#ff88", 2, false],
+    ["#fg8800", 3, true],
+  ])("treats %s at %i as a name: %s", (doc, pos, named) => {
+    const v = mount(EditorSelection.single(pos), [], doc);
+    openAt(v, pos);
+    expect(rows().includes("Rename")).toBe(named);
+    expect(rows().includes("Find references")).toBe(named);
+    expect(rows().includes("Go to definition")).toBe(named);
+  });
+
   it("offers the text commands, then the name's commands where the pointer is on a name", () => {
     const v = mount(EditorSelection.single(8));
     openAt(v, 8);

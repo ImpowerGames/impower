@@ -242,18 +242,42 @@ export const textContextMenuItems: ContextMenuItem[] = [
   },
 ];
 
-const onName = (state: EditorState, pos: number) => state.wordAt(pos) != null;
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+const onName = (state: EditorState, pos: number) => {
+  const word = state.wordAt(pos);
+  if (!word) {
+    return false;
+  }
+  const hash = state.sliceDoc(word.from - 1, word.from) === "#" ? word.from - 1 : word.from;
+  return !HEX_COLOR.test(state.sliceDoc(hash, word.to));
+};
+
+export type EditorToolCommands = Partial<
+  Record<"find" | "rename" | "references", (view: EditorView) => void>
+>;
+
+export const editorToolCommands = Facet.define<EditorToolCommands, EditorToolCommands>({
+  combine: (values) => values[0] ?? {},
+});
+
+export const editorTool =
+  (tool: keyof EditorToolCommands, fallback: (view: EditorView) => unknown) =>
+  (view: EditorView) => {
+    (view.state.facet(editorToolCommands)[tool] ?? fallback)(view);
+    return true;
+  };
 
 export const lspContextMenuItems: ContextMenuItem[] = [
   {
     label: "Rename",
-    command: renameSymbol,
+    command: editorTool("rename", renameSymbol),
     shortcut: getShortcutLabel(renameKeymap[0]?.key!),
     when: onName,
   },
   {
     label: "Find references",
-    command: findReferences,
+    command: editorTool("references", findReferences),
     shortcut: getShortcutLabel(findReferencesKeymap[0]?.key!),
     when: onName,
   },

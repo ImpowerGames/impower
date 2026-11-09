@@ -33,6 +33,10 @@ import {
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
+import {
+  RequestedEditorToolMessage,
+  type EditorTool,
+} from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
@@ -773,6 +777,13 @@ export class ScriptEditorController {
     return ApplyEditorEditMessage.type.response(message.id, { applied });
   };
 
+  protected requestEditorTool(tool: EditorTool) {
+    sendProtocolMessage(
+      RequestedEditorToolMessage.type.notification({ tool }),
+      this.host,
+    );
+  }
+
   protected cachedEditorState(textDocument: TextDocumentItem) {
     const restored = this._historyCache.restore(
       textDocument.uri,
@@ -890,6 +901,11 @@ export class ScriptEditorController {
           coarsePointer: !!this.options.coarsePointer,
           appearance: this.options.appearance,
           onContextMenu: this.options.onContextMenu,
+          tools: {
+            find: () => this.requestEditorTool("find"),
+            rename: () => this.requestEditorTool("rename"),
+            references: () => this.requestEditorTool("references"),
+          },
           onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,

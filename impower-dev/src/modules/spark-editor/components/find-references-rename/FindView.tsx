@@ -1,82 +1,27 @@
 import {
-  Button,
   DownIcon,
   ReplaceAllIcon,
   ReplaceIcon,
   TextField,
   UpIcon,
 } from "@impower/impower-ui/components";
-import type { ComponentChildren } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import { count } from "../../workspace/WorkspaceSearch";
-import type { FindOption } from "../../workspace/searchState";
 import workspace from "../../workspace/WorkspaceStore";
+import {
+  FormButton,
+  MatchSwitches,
+  onFindKeyDown,
+  useFieldFocus,
+} from "./findControls";
 import UsesList from "./UsesList";
 import { withSearch } from "./withSearch";
-
-const OPTIONS: {
-  option: FindOption;
-  name: string;
-  label: string;
-  icon: ComponentChildren;
-}[] = [
-  { option: "matchCase", name: "case", label: "Match case", icon: "Aa" },
-  { option: "wholeWord", name: "word", label: "Whole words", icon: <u>ab</u> },
-  { option: "regex", name: "re", label: "Regular expression", icon: ".*" },
-];
-
-const keepFieldFocus = (event: PointerEvent) => event.preventDefault();
-
-function FormButton({
-  name,
-  label,
-  title,
-  onClick,
-  children,
-}: {
-  name: string;
-  label: string;
-  title?: string;
-  onClick: () => void;
-  children: ComponentChildren;
-}) {
-  return (
-    <Button
-      variant="quiet"
-      size="glyph"
-      class="text-muted"
-      name={name}
-      aria-label={label}
-      title={title ?? label}
-      onPointerDown={keepFieldFocus}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  );
-}
 
 export default function FindView() {
   const snapshot = workspace.search.value;
   const position = workspace.searchPosition.value;
   const field = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    field.current?.focus({ preventScroll: true });
-    field.current?.select();
-  }, []);
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const backward = event.shiftKey;
-      withSearch((search) => search.step(backward));
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      withSearch((search) => search.close());
-    }
-  };
+  useFieldFocus(field, snapshot.focusRequest);
 
   const { term, total, error, status, statusTone, groups, options } = snapshot;
   const summary =
@@ -96,7 +41,7 @@ export default function FindView() {
           event.preventDefault();
           withSearch((search) => search.step());
         }}
-        onKeyDown={onKeyDown}
+        onKeyDown={onFindKeyDown}
       >
         <div class="flex items-center gap-0.5">
           <TextField
@@ -153,23 +98,7 @@ export default function FindView() {
             <ReplaceAllIcon />
           </FormButton>
         </div>
-        <div role="group" aria-label="How to match" class="mt-0.5 flex gap-px">
-          {OPTIONS.map(({ option, name, label, icon }) => (
-            <Button
-              key={option}
-              name={name}
-              variant="toggle"
-              size="glyph"
-              aria-label={label}
-              title={label}
-              aria-pressed={options[option]}
-              onPointerDown={keepFieldFocus}
-              onClick={() => withSearch((search) => search.toggleOption(option))}
-            >
-              {icon}
-            </Button>
-          ))}
-        </div>
+        <MatchSwitches options={options} size="glyph" class="mt-0.5 flex gap-px" />
         {line && (
           <p
             role="status"

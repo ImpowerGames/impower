@@ -5,3 +5,6 @@ export const withSearch = (run: (search: WorkspaceSearch) => unknown) => {
     run(Workspace.search),
   );
 };
+
+export const openFind = () =>
+  withSearch((search) => search.openFindFromSelection());
