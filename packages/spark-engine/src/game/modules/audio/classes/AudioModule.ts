@@ -30,7 +30,7 @@ const isSynth = (asset: object, type: string): boolean =>
 
 export interface AudioConfig {}
 
-const BEAT_SCOPED_CHANNELS = ["sound", "voice"] as const;
+const BEAT_SCOPED_CHANNELS = new Set(["sound", "voice"]);
 
 export interface AudibleLoop {
   to: number | undefined;
@@ -71,9 +71,12 @@ export class AudioModule extends Module<
 
   protected _audible = new Map<string, Map<string, AudibleLoop>>();
 
+  protected _sounding = new Map<string, Set<string>>();
+
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
     this._audible = new Map();
+    this._sounding = new Map();
   }
 
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
@@ -164,9 +167,9 @@ export class AudioModule extends Module<
     before: ReadonlyMap<string, ReadonlyMap<string, AudibleLoop>>,
   ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
     const held = this.loopsHeld();
-    for (const channel of BEAT_SCOPED_CHANNELS) {
+    for (const [channel, keys] of this._sounding) {
       const stops: AudioPlayerUpdate[] = [];
-      for (const key of this._channelsCurrentlyPlaying.get(channel)?.keys() ?? []) {
+      for (const key of keys) {
         if (!held.get(channel)?.has(key) && !before.get(channel)?.has(key)) {
           stops.push({ control: "stop", key, now: true });
         }
@@ -281,7 +284,30 @@ export class AudioModule extends Module<
     );
   }
 
+  protected noteSounding(channel: string, updates: AudioPlayerUpdate[]): void {
+    if (!BEAT_SCOPED_CHANNELS.has(channel)) {
+      return;
+    }
+    let sounding = this._sounding.get(channel);
+    for (const update of updates) {
+      if (update.control === "stop") {
+        if (update.key) {
+          sounding?.delete(update.key);
+        } else {
+          sounding?.clear();
+        }
+      } else if (update.control === "start" && update.key) {
+        if (!sounding) {
+          sounding = new Set();
+          this._sounding.set(channel, sounding);
+        }
+        sounding.add(update.key);
+      }
+    }
+  }
+
   protected hear(channel: string, updates: AudioPlayerUpdate[]): void {
+    this.noteSounding(channel, updates);
     let audible = this._audible.get(channel);
     for (const update of updates) {
       if (update.control === "stop") {
@@ -700,9 +726,10 @@ export class AudioModule extends Module<
     const trigger = (time?: number) => {
       this.update(channel, updates, time);
     };
+    const epoch = this._game.connection.epoch;
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
-      if (autoTrigger) {
+      if (autoTrigger && !this.superseded(epoch)) {
         trigger();
       }
     });

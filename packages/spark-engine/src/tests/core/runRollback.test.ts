@@ -1007,3 +1007,92 @@ describe("the beat-scoped channels of a restored beat", () => {
     expect(rolled.moved && rolled.restored.stoppedLoops).toEqual([]);
   });
 });
+
+describe("a one-shot still sounding when a roll leaves its beat", () => {
+  test("is stopped though a replacement was still loading", async () => {
+    const { h, tick } = await tickingHarness([
+      "define first as audio with",
+      '  src = "https://example.com/first.wav"',
+      "end",
+      "define other as audio with",
+      '  src = "https://example.com/other.wav"',
+      "end",
+      "define HERO as character with",
+      '  name = "HERO"',
+      "end",
+      "scene start",
+      "  Quiet.",
+      "  HERO: ((play voice first)) First .. >",
+      "  .. ((play voice other)) second.",
+      "end",
+    ]);
+    const releases: (() => void)[] = [];
+    (h.game.module.audio as any).loadAllAudio = async (data: any[]) => {
+      if (data.some((d) => d.key === "audio.other")) {
+        await new Promise<void>((resolve) => releases.push(resolve));
+      }
+    };
+    const updates = (from = 0) =>
+      h.messages
+        .slice(from)
+        .filter((m) => m.method === "audio/update" && m.params.channel === "voice")
+        .flatMap((m) => m.params.updates);
+    h.game.start();
+    await tick();
+    h.game.continue();
+    await tick();
+    expect(
+      updates().filter((u: any) => u.control === "start" && u.key === "audio.first"),
+    ).toHaveLength(1);
+    h.game.continue();
+    await tick();
+    expect(Boolean((h.game as any)._run.current.shown.extended)).toBe(true);
+    expect(releases.length).toBeGreaterThan(0);
+    expect(updates().filter((u: any) => u.control === "start" && u.key === "audio.other")).toEqual([]);
+    const from = h.messages.length;
+    const rolled = await h.game.rollBack("choice");
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("Quiet.");
+    expect(rolled.moved && rolled.restored.loops).toEqual([]);
+    expect(
+      updates(from).filter((u: any) => u.control === "stop" && u.key === "audio.first"),
+    ).toHaveLength(1);
+    expect(
+      updates(from).filter((u: any) => u.key === "audio.other"),
+    ).toEqual([]);
+  });
+});
+
+describe("a channel stop the left beat had only scheduled", () => {
+  for (const channel of ["sound", "voice"]) {
+    test(`does not stop the ${channel} loop a roll in the same turn restores`, async () => {
+      const { h, tick } = await tickingHarness([
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "scene start",
+        `  ((play ${channel} theme loop))`,
+        "  First.",
+        "  Second.",
+        "end",
+      ]);
+      h.game.start();
+      await tick();
+      expect(h.game.module.audio.loopsPlaying().get(channel)?.has("audio.theme")).toBe(true);
+      h.game.continue();
+      const from = h.messages.length;
+      const rolled = await h.game.rollBack("beat");
+      await flushMicrotasks(40);
+      expect(rolled.moved && rolled.restored.loops).toEqual([
+        { channel, key: "audio.theme", play: "continue" },
+      ]);
+      const stops = h.messages
+        .slice(from)
+        .filter((m) => m.method === "audio/update" && m.params.channel === channel)
+        .flatMap((m) => m.params.updates)
+        .filter((u: any) => u.control === "stop" && (!u.key || u.key === "audio.theme"));
+      expect(stops).toEqual([]);
+      expect(h.game.module.audio.loopsPlaying().get(channel)?.get("audio.theme")?.looping).toBe(true);
+    });
+  }
+});
