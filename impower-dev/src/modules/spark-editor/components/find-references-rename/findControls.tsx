@@ -23,12 +23,14 @@ export function FormButton({
   name,
   label,
   title,
+  disabled,
   onClick,
   children,
 }: {
   name: string;
   label: string;
   title?: string;
+  disabled?: boolean;
   onClick: () => void;
   children: ComponentChildren;
 }) {
@@ -40,6 +42,7 @@ export function FormButton({
       name={name}
       aria-label={label}
       title={title ?? label}
+      disabled={disabled}
       onMouseDown={keepFieldFocus}
       onClick={onClick}
     >

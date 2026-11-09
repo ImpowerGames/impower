@@ -7,6 +7,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useRef } from "preact/hooks";
 import { count } from "../../workspace/WorkspaceSearch";
+import { useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import {
   FormButton,
@@ -22,6 +23,7 @@ export default function FindView() {
   const position = workspace.searchPosition.value;
   const field = useRef<HTMLInputElement>(null);
   useFieldFocus(field, snapshot.focusRequest);
+  const reading = useScriptMode() === "reading";
 
   const { term, total, error, status, statusTone, groups, options } = snapshot;
   const summary =
@@ -75,7 +77,8 @@ export default function FindView() {
           <TextField
             width="full"
             class="flex-1"
-            placeholder="Replace"
+            placeholder={reading ? "Tap Edit to replace." : "Replace"}
+          disabled={reading}
             name="replace"
             aria-label="Replace with"
             value={snapshot.replacement}
@@ -86,6 +89,8 @@ export default function FindView() {
           <FormButton
             name="replace"
             label="Replace this match"
+        title={reading ? "Tap Edit to replace." : undefined}
+        disabled={reading}
             onClick={() => withSearch((search) => search.replaceOne())}
           >
             <ReplaceIcon />
@@ -93,6 +98,8 @@ export default function FindView() {
           <FormButton
             name="replaceAll"
             label="Replace all matches"
+        title={reading ? "Tap Edit to replace." : undefined}
+        disabled={reading}
             onClick={() => withSearch((search) => search.replaceAll())}
           >
             <ReplaceAllIcon />

@@ -1,6 +1,7 @@
 import { Button, TextField } from "@impower/impower-ui/components";
 import { useEffect, useRef } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { useScriptMode } from "../../workspace/useActiveEditor";
 import { renameNote } from "../../workspace/WorkspaceSearch";
 import workspace from "../../workspace/WorkspaceStore";
 import { withSearch } from "./withSearch";
@@ -10,6 +11,7 @@ export default function RenameView() {
     workspace.search.value;
   const autoRenameFiles = workspaceSettings.preferences.value.autoRenameFiles;
   const field = useRef<HTMLInputElement>(null);
+  const reading = useScriptMode() === "reading";
 
   useEffect(() => {
     field.current?.focus({ preventScroll: true });
@@ -28,6 +30,7 @@ export default function RenameView() {
   const error = statusTone === "error" && status;
   const line =
     error ||
+    (reading && "Tap Edit to rename.") ||
     renameNote(subject, uses, references.length, autoRenameFiles ? files.length : 0);
 
   return (
@@ -65,7 +68,7 @@ export default function RenameView() {
             withSearch((search) => search.setRenameName(value))
           }
         />
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={reading}>
           Rename
         </Button>
       </div>
