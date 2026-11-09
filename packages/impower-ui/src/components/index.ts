@@ -143,6 +143,12 @@ export {
   type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
 export {
+  default as KeysChip,
+  keysChipVariants,
+  type KeysChipProps,
+  type KeysChipState,
+} from "./keys-chip/KeysChip";
+export {
   default as ThemeSwatch,
   themeSwatchVariants,
   type ThemeSwatchProps,

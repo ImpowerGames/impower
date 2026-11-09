@@ -2,8 +2,6 @@ import { EditorState, StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
-  KeyBinding,
-  keymap,
   Panel,
   PanelConstructor,
   showPanel,
@@ -471,11 +469,6 @@ export function forEachReference(
   }
 }
 
-export const findReferencesKeymap: readonly KeyBinding[] = [
-  { key: "Shift-F12", run: findReferences, preventDefault: true },
-  { key: "Escape", run: closeReferencePanel },
-];
-
 export function updateDocumentReferences(client: LSPClient) {
   for (const file of client.workspace.files) {
     const view = file.getView();
@@ -508,6 +501,6 @@ export function serverReferences(): LSPClientExtension {
         updateDocumentReferences(client);
       },
     },
-    editorExtension: [referencesTheme, keymap.of([...findReferencesKeymap])],
+    editorExtension: [referencesTheme],
   };
 }

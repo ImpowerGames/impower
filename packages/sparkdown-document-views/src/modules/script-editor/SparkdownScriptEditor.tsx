@@ -1,4 +1,7 @@
-import type { ContextMenuModel } from "@impower/codemirror-vscode-lsp-client/src";
+import type {
+  ContextMenuModel,
+  ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import {
   ActionSheet,
   type ActionSheetItem,
@@ -27,6 +30,7 @@ export const propDefaults = {
 
 export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onPasteRefused?: () => void;
   scriptMode?: ScriptModeValue | null;
   keyboardHold?: KeyboardToolbarHold;
@@ -51,6 +55,7 @@ export default function SparkdownScriptEditor({
   readonly,
   coarsePointer,
   appearance,
+  shortcuts,
   scrollMargin,
   top,
   bottom,
@@ -83,6 +88,8 @@ export default function SparkdownScriptEditor({
   coarsePointerRef.current = !!coarsePointer;
   const appearanceRef = useRef(appearance);
   appearanceRef.current = appearance;
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -118,6 +125,7 @@ export default function SparkdownScriptEditor({
           onReadingDoubleTap: () => onReadingDoubleTapRef.current?.(),
           onToolbarTool: (tool) => onToolbarToolRef.current?.(tool),
           appearance: appearanceRef.current,
+          shortcuts: shortcutsRef.current,
           onContextMenu: setContextMenu,
           onPasteRefused: () => onPasteRefusedRef.current?.(),
           scrollMargin: scrollMargin ?? "",
@@ -160,6 +168,12 @@ export default function SparkdownScriptEditor({
   useEffect(() => {
     controllerRef.current?.setAppearance(appearance);
   }, [appearance]);
+
+  useEffect(() => {
+    if (shortcuts) {
+      controllerRef.current?.setShortcuts(shortcuts);
+    }
+  }, [shortcuts]);
 
   return (
     <div class="sparkdown-script-editor-root" ref={rootRef}>

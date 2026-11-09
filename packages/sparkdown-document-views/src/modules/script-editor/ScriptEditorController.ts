@@ -146,6 +146,10 @@ import { setScriptMode, type ScriptModeValue } from "./utils/extensions/scriptMo
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
+import {
+  setEditorShortcuts,
+  type ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
 export interface ScriptEditorRefs {
@@ -163,6 +167,7 @@ export interface ScriptEditorOptions {
   onReadingDoubleTap?: () => void;
   onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
   onPasteRefused?: () => void;
   scrollMargin?: string;
@@ -351,6 +356,13 @@ export class ScriptEditorController {
     this.options.appearance = appearance;
     if (this._view) {
       setScriptAppearance(this._view, previous, appearance);
+    }
+  }
+
+  setShortcuts(shortcuts: ShortcutCombos): void {
+    this.options.shortcuts = shortcuts;
+    if (this._view) {
+      setEditorShortcuts(this._view, shortcuts);
     }
   }
 
@@ -877,6 +889,7 @@ export class ScriptEditorController {
           onReadingDoubleTap: this.options.onReadingDoubleTap,
           onToolbarTool: this.options.onToolbarTool,
           appearance: this.options.appearance,
+          shortcuts: this.options.shortcuts,
           onContextMenu: this.options.onContextMenu,
           onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,

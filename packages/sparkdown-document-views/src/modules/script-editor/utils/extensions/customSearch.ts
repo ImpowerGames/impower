@@ -3,7 +3,6 @@ import {
   findNext,
   findPrevious,
   getSearchQuery,
-  openSearchPanel,
   replaceAll,
   replaceNext,
   search,
@@ -14,13 +13,11 @@ import {
 } from "@codemirror/search";
 import {
   EditorSelection,
-  Prec,
   SelectionRange,
   Text,
 } from "@codemirror/state";
 import {
   EditorView,
-  keymap,
   Panel,
   runScopeHandlers,
   ViewUpdate,
@@ -754,23 +751,9 @@ export function closeCustomSearchPanel(view: EditorView) {
   return true;
 }
 
-const customSearchPanelKeymap = [
-  {
-    key: "Mod-f",
-    run: openSearchPanel,
-    scope: "editor search-panel",
-  },
-  {
-    key: "Escape",
-    run: closeCustomSearchPanel,
-    scope: "editor search-panel",
-  },
-];
-
 export function customSearchPanel() {
   return [
     searchPanelTheme,
-    Prec.highest(keymap.of(customSearchPanelKeymap)),
     search({
       createPanel: (view) => new SearchPanel(view),
       scrollToMatch: (range: SelectionRange) =>
@@ -971,28 +954,12 @@ const gotoLinePanelTheme = EditorView.baseTheme({
   },
 });
 
-const gotoLinePanelKeymap = Prec.high(
-  keymap.of([
-    {
-      key: "Mod-g",
-      run: openCustomGotoLinePanel,
-      scope: "editor gotoline-panel",
-    },
-    {
-      key: "Escape",
-      run: closeCustomGotoLinePanel,
-      scope: "editor gotoline-panel",
-    },
-  ]),
-);
-
 export function customGotoLinePanel() {
   let wasSearchPanelOpen = false;
   let wasGoToPanelOpen = false;
   return [
     gotoLineField,
     gotoLinePanelTheme,
-    gotoLinePanelKeymap,
     EditorView.updateListener.of((update) => {
       const isSearchPanelOpen = searchPanelOpen(update.state);
       const isGoToPanelOpen = customGotoLinePanelOpen(update.state);

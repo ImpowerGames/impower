@@ -9,6 +9,7 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import type { EditorCommand } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import {
   useCaretPosition,
   useScriptReadonly,
@@ -64,7 +65,7 @@ export default function WriterBar({
                     variant="quiet"
                     size="icon"
                     aria-label="Indent"
-                    title="Indent"
+                    title={workspaceShortcuts.title("indent", "Indent")}
                     onClick={() => run("indent")}
                   >
                     <IndentIcon />
@@ -73,7 +74,7 @@ export default function WriterBar({
                     variant="quiet"
                     size="icon"
                     aria-label="Dedent"
-                    title="Dedent"
+                    title={workspaceShortcuts.title("dedent", "Dedent")}
                     onClick={() => run("dedent")}
                   >
                     <DedentIcon />
@@ -83,7 +84,7 @@ export default function WriterBar({
                   variant="quiet"
                   size="icon"
                   aria-label="Format script"
-                  title="Format script"
+                  title={workspaceShortcuts.title("format", "Format script")}
                   onClick={() => run("format")}
                 >
                   <FormatIcon />
@@ -96,7 +97,7 @@ export default function WriterBar({
             variant="quiet"
             data-caret-position
             aria-live="off"
-            title="Go to line"
+            title={workspaceShortcuts.title("gotoLine", "Go to line")}
             class="min-w-0 justify-self-center px-2 text-[11px] font-normal text-muted"
             onClick={() => run("gotoLine")}
           >

@@ -24,6 +24,7 @@ import {
   completionPreview,
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
+  type ShortcutCombos,
   LSPClient,
   onPasteRefused,
   presentContextMenu,
@@ -83,6 +84,7 @@ import {
   type KeyboardToolbarHold,
   type KeyboardToolbarTool,
 } from "./extensions/keyboardToolbar";
+import { scriptEditorShortcuts } from "./extensions/scriptEditorShortcuts";
 import {
   onReadingDoubleTap,
   scriptMode,
@@ -130,6 +132,7 @@ interface EditorConfig {
   onReadingDoubleTap?: () => void;
   onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
   onPasteRefused?: () => void;
   scrollToLineNumber?: number;
@@ -273,6 +276,7 @@ const createEditorView = (
       extensions: [
         ...restoredExtensions,
         EDITOR_EXTENSIONS,
+        scriptEditorShortcuts(config.shortcuts),
         scriptAppearance(config.appearance),
         customSearchPanel(),
         customGotoLinePanel(),
