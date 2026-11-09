@@ -62,6 +62,7 @@ const createGame = (
       ui: {
         initialLayoutsOpened: true,
         openedLayoutsAfter: () => ["main"],
+        findIds: () => [],
         whenLayoutsSettled: () => null,
         beginPresentation: () => 0,
         layoutHolds: () => true,

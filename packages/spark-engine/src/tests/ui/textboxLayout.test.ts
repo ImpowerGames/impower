@@ -268,6 +268,105 @@ end
     );
   });
 
+  test("replacing one of two elements with a target's name delivers the line to the replacement", async () => {
+    const h = createHarness(
+      `layout main {
+  action {
+    text
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, beforeConnect: playing },
+    );
+    await h.ready;
+    const ui = h.game.module.ui;
+    await displayLive(h, {
+      end: 0,
+      layout: { textbox: [{ control: "open", name: "textbox" }] },
+    });
+    expect(ui.findIds("action")).toHaveLength(2);
+    h.reset();
+    await displayLive(h, {
+      end: 0,
+      text: { action: [{ text: "After replacement." }] },
+      layout: {
+        textbox: [
+          { control: "close", name: "textbox" },
+          { control: "open", name: "textbox" },
+        ],
+      },
+    });
+    const ids = ui.findIds("action");
+    expect(ids).toHaveLength(2);
+    const written = flattenMessages(
+      h.messages.flatMap((m: any) =>
+        m.method === "ui/beat" ? m.params.messages : [m],
+      ),
+    )
+      .filter(
+        (m: any) =>
+          m.method === "ui/write-text" &&
+          m.params.instructions?.some(
+            (e: any) => e.text === "After replacement.",
+          ),
+      )
+      .flatMap((m: any) => m.params.elements ?? []);
+    for (const id of ids) {
+      expect(written).toContain(id);
+    }
+  });
+
+  test("a font cancelled by a navigate does not hold back the destination's line", async () => {
+    const h = createHarness(
+      `${FANCY_TEXTBOX}
+layout panel {
+  action {
+    text
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        holdAssets: true,
+        assets: FONTS,
+        beforeConnect: playing,
+      },
+    );
+    await h.ready;
+    await displayLive(h, {
+      end: 0,
+      text: { action: [{ text: "Panel is ready." }] },
+      layout: { panel: [{ control: "navigate", name: "panel" }] },
+    });
+    expect(h.heldAssetLoadCount()).toBeGreaterThan(0);
+    expect(mounted(h)).toEqual(["main", "panel"]);
+    const ids = h.game.module.ui.findIds("action");
+    expect(ids).toHaveLength(1);
+    const written = flattenMessages(
+      h.messages.flatMap((m: any) =>
+        m.method === "ui/beat" ? m.params.messages : [m],
+      ),
+    )
+      .filter(
+        (m: any) =>
+          m.method === "ui/write-text" &&
+          m.params.instructions?.some((e: any) => e.text === "Panel is ready."),
+      )
+      .flatMap((m: any) => m.params.elements ?? []);
+    expect(written).toContain(ids[0]);
+  });
+
   test("a navigate cancels an initial textbox still waiting for its font", async () => {
     const h = createHarness(
       `${FANCY_TEXTBOX}

@@ -148,10 +148,13 @@ export class VisualNovelPresenter implements Presenter {
       return;
     }
     void settled.then(() => {
-      const lostTarget = this.textElementIds().some(
-        (ids, index) =>
-          ids.length > 0 && !written[index]?.some((id) => ids.includes(id)),
-      );
+      const lostTarget = this.textElementIds().some((ids, index) => {
+        const before = written[index] ?? [];
+        return (
+          ids.some((id) => !before.includes(id)) &&
+          (before.length === 0 || before.some((id) => !ids.includes(id)))
+        );
+      });
       if (!ui.isCurrentPresentation(presentation) || !lostTarget) {
         return;
       }

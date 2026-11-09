@@ -418,7 +418,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _mountOwners = new Map<Promise<void>, Composition>();
 
-  protected _pendingOpens = new Map<string, Set<{ cancelled: boolean }>>();
+  protected _pendingOpens = new Map<
+    string,
+    Set<{ cancelled: boolean; cancel: () => void }>
+  >();
 
   protected _retiring = new Set<Retirement>();
 
@@ -3665,7 +3668,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     let mounted: (() => void) | undefined;
     if (fonts) {
       const epoch = this._game.connection.epoch;
-      const pendingOpen = { cancelled: false };
+      let cancel = () => {};
+      const cancelledOpen = new Promise<void>((resolve) => {
+        cancel = resolve;
+      });
+      const pendingOpen = { cancelled: false, cancel };
       const opens = this._pendingOpens.get(name) ?? new Set();
       opens.add(pendingOpen);
       this._pendingOpens.set(name, opens);
@@ -3685,7 +3692,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       this.notifyRealization();
       try {
-        await fonts;
+        await Promise.race([fonts, cancelledOpen]);
       } catch (error) {
         mounted?.();
         throw error;
@@ -3742,6 +3749,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const opens = name ? this._pendingOpens.get(name) : undefined;
     for (const open of opens ?? []) {
       open.cancelled = true;
+      open.cancel();
     }
     const entry = name ? this._mountedLayouts.get(name) : undefined;
     if (!entry) {

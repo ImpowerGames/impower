@@ -31,7 +31,7 @@ export function holdsPresentedText(
 }
 
 function configuredInitialLayouts(game: Game): unknown[] {
-  const configured = game.context.config?.["ui"]?.layouts_initial;
+  const configured = game.context?.config?.["ui"]?.layouts_initial;
   return Array.isArray(configured)
     ? configured
     : configured && typeof configured === "object"
