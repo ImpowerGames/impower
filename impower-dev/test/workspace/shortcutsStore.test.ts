@@ -275,6 +275,33 @@ describe("the app's own shortcuts", () => {
       return view;
     };
 
+    const mountStepEditor = (withSearch = false) => {
+      view = new EditorView({
+        parent: document.body.appendChild(document.createElement("div")),
+        state: EditorState.create({
+          doc: "line one",
+          extensions: [
+            ...(withSearch ? [search()] : []),
+            editorShortcuts({ combos: workspaceShortcuts.editorCombos.peek(), platform: "linux" }),
+          ],
+        }),
+      });
+      return view;
+    };
+
+    const stepping = (running: boolean) => {
+      workspace.current = {
+        ...workspace.current,
+        preview: {
+          ...workspace.current.preview,
+          modes: {
+            ...workspace.current.preview.modes,
+            game: { running, paused: running },
+          },
+        },
+      };
+    };
+
     const pressIn = async (target: Element, init: KeyboardEventInit) => {
       const event = keydown(init);
       await act(async () => {
@@ -283,6 +310,53 @@ describe("the app's own shortcuts", () => {
       });
       return event;
     };
+
+    it("leaves F10 and F11 to the browser from the script with no run", async () => {
+      calls.steps = [];
+      stepping(false);
+      const editor = mountStepEditor();
+      const over = await pressIn(editor.contentDOM, { key: "F10", code: "F10", keyCode: 121 });
+      const into = await pressIn(editor.contentDOM, { key: "F11", code: "F11", keyCode: 122 });
+      expect([over.defaultPrevented, into.defaultPrevented]).toEqual([false, false]);
+      expect(calls.steps).toEqual([]);
+    });
+
+    it("leaves F11 to the browser from the search field with no run", async () => {
+      calls.steps = [];
+      stepping(false);
+      const editor = mountStepEditor(true);
+      openSearchPanel(editor);
+      const field = editor.dom.querySelector("input.cm-textfield")!;
+      const event = await pressIn(field, { key: "F11", code: "F11", keyCode: 122 });
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("steps from the script during a run", async () => {
+      calls.steps = [];
+      stepping(true);
+      try {
+        const editor = mountStepEditor();
+        const event = await pressIn(editor.contentDOM, { key: "F10", code: "F10", keyCode: 121 });
+        expect(event.defaultPrevented).toBe(true);
+        expect(calls.steps).toEqual(["over"]);
+      } finally {
+        stepping(false);
+      }
+    });
+
+    it("gives the editor the same combos object until a run starts or stops", () => {
+      stepping(false);
+      const idle = workspaceShortcuts.editorCombos.peek();
+      expect(idle["stepOver"]).toBeUndefined();
+      stepping(false);
+      expect(workspaceShortcuts.editorCombos.peek()).toBe(idle);
+      stepping(true);
+      try {
+        expect(workspaceShortcuts.editorCombos.peek()["stepOver"]).toBe("F10");
+      } finally {
+        stepping(false);
+      }
+    });
 
     it("plays from here on the keys recorded for it in the editor, before the editor reaches Format's later name for the same press", async () => {
       workspaceShortcuts.record("playFromHere", "Mod+;");
