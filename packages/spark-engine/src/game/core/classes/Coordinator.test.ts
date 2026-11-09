@@ -61,7 +61,7 @@ const createGame = (
       },
       ui: {
         initialLayoutsOpened: true,
-        openedLayouts: () => ["main"],
+        openedLayoutsAfter: () => ["main"],
         layoutHolds: () => true,
         getTransientTargets: () => [],
         applyLayoutInstructions: () => {},

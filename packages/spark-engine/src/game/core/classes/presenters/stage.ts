@@ -14,18 +14,11 @@ export function clearStage(
   game.module.ui.image.restoreCleared(instructions);
 }
 
-export function writeStage(
+export function applyLayoutDirectives(
   game: Game,
   instructions: Instructions,
   instant?: boolean,
-  time?: number,
 ): void {
-  if (instructions.image) {
-    Object.entries(instructions.image).forEach(([target, events]) =>
-      game.module.ui.image.write(target, events, instant, time),
-    );
-  }
-
   if (instructions.layout) {
     const settle = !!instant || Boolean(game.context.system.simulating);
     Object.values(instructions.layout).forEach((events) =>
@@ -33,6 +26,24 @@ export function writeStage(
         game.module.ui.applyLayoutInstructions(events, settle),
       ),
     );
+  }
+}
+
+export function writeStage(
+  game: Game,
+  instructions: Instructions,
+  instant?: boolean,
+  time?: number,
+  layoutsApplied = false,
+): void {
+  if (instructions.image) {
+    Object.entries(instructions.image).forEach(([target, events]) =>
+      game.module.ui.image.write(target, events, instant, time),
+    );
+  }
+
+  if (!layoutsApplied) {
+    applyLayoutDirectives(game, instructions, instant);
   }
 
   game.module.ui.refreshLayouts();

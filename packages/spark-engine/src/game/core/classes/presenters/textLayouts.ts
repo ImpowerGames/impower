@@ -89,15 +89,19 @@ export function textLayoutOpenAfter(
   game: Game,
   instructions: Instructions,
 ): boolean {
-  const open = new Set(game.module.ui.openedLayouts());
-  for (const events of Object.values(instructions.layout ?? {})) {
-    for (const e of events) {
-      if (e.control === "close") {
-        open.delete(e.name);
-      } else if (e.name) {
-        open.add(e.name);
-      }
-    }
-  }
-  return [...open].some((name) => holdsPresentedText(game, name));
+  const events = Object.values(instructions.layout ?? {}).flat();
+  return game.module.ui
+    .openedLayoutsAfter(events)
+    .some((name) => holdsPresentedText(game, name));
+}
+
+export function opensTextLayout(
+  game: Game,
+  instructions: Instructions,
+): boolean {
+  return (
+    presentsText(instructions) &&
+    !textLayoutOpenAfter(game, {}) &&
+    textLayoutOpenAfter(game, instructions)
+  );
 }

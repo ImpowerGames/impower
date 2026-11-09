@@ -1,7 +1,8 @@
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
-import { clearStage, writeStage } from "./stage";
+import { applyLayoutDirectives, clearStage, writeStage } from "./stage";
+import { opensTextLayout } from "./textLayouts";
 
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -64,6 +65,11 @@ export class VisualNovelPresenter implements Presenter {
     const transientLayers = this._transientLayers;
     const extended = Boolean(instructions.extended);
 
+    const layoutsFirst = opensTextLayout(game, instructions);
+    if (layoutsFirst) {
+      applyLayoutDirectives(game, instructions, instant);
+    }
+
     if (!extended || instructions.text) {
       game.module.ui.text.clearAll(transientLayers);
     }
@@ -101,6 +107,6 @@ export class VisualNovelPresenter implements Presenter {
 
     writeBeatText(game.module.ui, instructions, instant, time);
 
-    writeStage(game, instructions, instant, time);
+    writeStage(game, instructions, instant, time, layoutsFirst);
   }
 }

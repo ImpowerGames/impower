@@ -706,6 +706,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async onRedisplay() {
     const standing = this._standing;
     this.discardCompose();
+    this._pendingObservers = [];
     this._standing = undefined;
     this._building = undefined;
     this._restoredEdits = undefined;
@@ -2044,6 +2045,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     return uiEl;
   }
+
+  protected _pendingObservers: (() => void)[] = [];
 
   protected _mountedLayouts: Map<
     string,
@@ -3556,10 +3559,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  openedLayouts(): string[] {
-    return ["main", ...(this._state.layout ?? []).map((s) => s.name)];
-  }
-
   layoutHolds(layoutName: string, elements: readonly string[]): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
@@ -3715,6 +3714,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       vs.restoreReactiveChanges(pending);
       this.notifyMounted(name);
       this.reveal();
+      if (fonts) {
+        this.restoreMountedContent(name);
+      }
     } finally {
       mounted?.();
     }
@@ -4041,40 +4043,73 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     ]);
   }
 
-  protected saveLayoutState(e: LayoutInstruction): void {
+  protected nextLayoutState(
+    state: { name: string; screen?: string }[] | undefined,
+    e: LayoutInstruction,
+  ): { name: string; screen?: string }[] | undefined {
     const layouts = this._game.program?.sparkle?.layouts;
-    const recordOpen = (name: string) => {
+    const recordOpen = (
+      list: { name: string; screen?: string }[] | undefined,
+      name: string,
+    ) => {
       if (!name || UIModule.MANAGED_LAYOUTS.has(name) || !layouts?.[name]) {
-        return;
+        return list;
+      }
+      if (list?.some((s) => s.name === name)) {
+        return list;
       }
       const screen = layouts[name]?.screen;
-      this._state.layout ??= [];
-      if (!this._state.layout.some((s) => s.name === name)) {
-        this._state.layout.push({
-          name,
-          ...(screen ? { screen } : {}),
-        });
-      }
+      return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
     };
     if (e.control === "close") {
-      if (this._state.layout) {
-        this._state.layout = this._state.layout.filter((s) => s.name !== e.name);
-      }
-      return;
+      return state?.filter((s) => s.name !== e.name);
     }
     if (e.control === "navigate") {
       if (!e.name) {
-        return;
+        return state;
       }
-      if (this._state.layout) {
-        this._state.layout = this._state.layout.filter((s) =>
+      return recordOpen(
+        state?.filter((s) =>
           e.screen ? s.screen !== e.screen || s.name === e.name : s.name === e.name,
-        );
-      }
-      recordOpen(e.name);
-      return;
+        ),
+        e.name,
+      );
     }
-    recordOpen(e.name);
+    return recordOpen(state, e.name);
+  }
+
+  protected saveLayoutState(e: LayoutInstruction): void {
+    const next = this.nextLayoutState(this._state.layout, e);
+    if (next) {
+      this._state.layout = next;
+    }
+  }
+
+  openedLayoutsAfter(instructions: LayoutInstruction[]): string[] {
+    let state = this._state.layout;
+    for (const e of instructions) {
+      state = this.nextLayoutState(state, e);
+    }
+    return ["main", ...(state ?? []).map((s) => s.name)];
+  }
+
+  protected restoreMountedContent(layoutName: string): void {
+    const holds = (target: string) =>
+      this.layoutHolds(layoutName, [target.split(/[ #]/)[0]!]);
+    for (const target of Object.keys(this._state.text ?? {}).filter(holds)) {
+      void this.text.restore(target);
+    }
+    for (const target of Object.keys(this._state.image ?? {}).filter(holds)) {
+      void this.image.restore(target);
+    }
+    for (const target of Object.keys(this._state.style ?? {}).filter(holds)) {
+      void this.style.restore(target);
+    }
+    const pending = this._pendingObservers;
+    this._pendingObservers = [];
+    for (const bind of pending) {
+      bind();
+    }
   }
 
   async applyLayoutInstructions(
@@ -4301,6 +4336,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     once = false,
   ): boolean {
     const targetEls = this.findElements(target);
+    if (targetEls.length === 0 && callback && this._pendingOpens.size > 0) {
+      this._pendingObservers.push(() =>
+        this.setEventListener(event, target, callback, stopPropagation, once),
+      );
+    }
     for (const targetEl of targetEls) {
       this.markHandler(targetEl);
       if (callback) {

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import type { Clock } from "../../game/core/classes/Clock";
+import { Coordinator } from "../../game/core/classes/Coordinator";
 import { initialLayouts } from "../../game/core/classes/presenters/textLayouts";
 import {
   createHarness,
@@ -75,7 +77,168 @@ async function previewAt(source: string, line: number, loadCheckpoint?: string) 
   return { h, logs, unshown };
 }
 
+async function playLive(h: UIHarness, settle?: () => Promise<void>) {
+  h.jumpToFlow("start");
+  let beat = h.nextBeat();
+  while (beat) {
+    const coordinator = new Coordinator(h.game, beat);
+    for (let i = 0; i < 5; i += 1) {
+      await (settle ? settle() : flushMicrotasks(5));
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+    }
+    beat = h.nextBeat();
+  }
+}
+
+const FONTS = [
+  {
+    uri: "inmemory:///fancy.ttf",
+    type: "font",
+    name: "Fancy",
+    ext: "ttf",
+    src: "/file:/proj/fancy.ttf?v=1",
+  } as any,
+];
+
+const FANCY_TEXTBOX = `style textbox {
+  font_family = "Fancy"
+}
+`;
+
 describe("the textbox layout and ui.layouts_initial", () => {
+  test("an [[open textbox]] in a played beat shows that beat's own line", async () => {
+    const h = createHarness(
+      `define HERO as character with
+  name = "HERO"
+end
+
+scene start
+  HERO:
+    [[open textbox]]
+    Shown.
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        beforeConnect: (game) => {
+          game.context.system.previewing = undefined;
+          game.context.system.composeBeats = true;
+        },
+      },
+    );
+    await h.ready;
+    new Coordinator(h.game, {
+      end: 0,
+      text: { action: [{ text: "Hidden." }] },
+      layout: { textbox: [{ control: "close", name: "textbox" }] },
+    } as any);
+    await flushMicrotasks(30);
+    expect(h.game.module.ui.findIds("dialogue")).toEqual([]);
+    h.jumpToFlow("start");
+    h.reset();
+    const beat = h.nextBeat();
+    expect(beat?.layout?.["textbox"]?.[0]?.control).toBe("open");
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(10);
+      (coordinator as any)._onTick?.(100);
+    }
+    await flushMicrotasks(20);
+    expect(h.game.module.ui.findIds("dialogue")).toHaveLength(1);
+    expect(
+      flattenMessages(
+        h.messages.flatMap((m: any) =>
+          m.method === "ui/beat" ? m.params.messages : [m],
+        ),
+      )
+        .filter(
+          (m: any) =>
+            m.method === "ui/write-text" && m.params.target === "dialogue",
+        )
+        .map((m: any) => m.params.instructions.map((e: any) => e.text).join("")),
+    ).toContain("Shown.");
+  });
+
+  test("a line shown while the textbox layout's font loads appears when it mounts", async () => {
+    const h = createHarness(`${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdAssets: true,
+      assets: FONTS,
+    });
+    const release = async () => {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    };
+    await release();
+    await h.ready;
+    await playLive(h, release);
+    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(shown(h, "action")).toBe("First line.");
+  });
+
+  test("a choice shown while the textbox layout's font loads can be picked once it mounts", async () => {
+    const h = createHarness(
+      `${FANCY_TEXTBOX}\nscene start\n  choose\n    + Stay\n      Stayed.\n    + Go\n      Gone.\n  end\nend\n`,
+      0,
+      { reactive: true, autoOpenAll: false, holdAssets: true, assets: FONTS },
+    );
+    const release = async () => {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    };
+    await release();
+    await h.ready;
+    await playLive(h, release);
+    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(h.observedElementIds().length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("a navigate that closes the only text layout reports the unshown text", async () => {
+    const logs: unknown[] = [];
+    const h = createHarness(
+      `screen menu {
+}
+
+layout textbox in menu {
+  action {
+    text
+  }
+}
+
+layout panel in menu {
+  label {
+    text "Menu"
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    (h.game.context.system as any).log = (message: unknown) => logs.push(message);
+    await h.ready;
+    new Coordinator(h.game, {
+      end: 0,
+      text: { action: [{ text: "First." }] },
+    } as any);
+    await flushMicrotasks(20);
+    expect(h.game.module.ui.findIds("action")).toHaveLength(1);
+    new Coordinator(h.game, {
+      end: 0,
+      text: { action: [{ text: "Unseen." }] },
+      layout: { panel: [{ control: "navigate", screen: "menu", name: "panel" }] },
+    } as any);
+    await flushMicrotasks(30);
+    expect(h.game.module.ui.findIds("action")).toEqual([]);
+    expect(logs).toContain(UNSHOWN);
+  });
+
   test("with the default layouts_initial a dialogue line shows in the textbox layout", async () => {
     const { h, unshown } = await previewAt(
       `scene start\n  Hello there.\nend\n`,
@@ -199,7 +362,7 @@ end
 
     const restored = await previewAt(source, 3, json!);
     expect(restored.h.game.module.ui.initialLayoutsOpened).toBe(true);
-    expect(restored.h.game.module.ui.openedLayouts()).toEqual(["main"]);
+    expect(restored.h.game.module.ui.openedLayoutsAfter([])).toEqual(["main"]);
     expect(mounted(restored.h)).toEqual(["main"]);
     restored.h.game.start();
     await flushMicrotasks(10);
