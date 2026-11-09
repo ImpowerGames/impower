@@ -654,6 +654,101 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.screen.settingsOpen).toBe(true);
       expect(window.location.hash).toBe("#project?section=save-settings");
     });
+
+    it("navigates to a settings section, telling an open settings page to land on it", () => {
+      const landed = vi.fn();
+      window.addEventListener("hashchange", landed);
+      try {
+        win.closeSettings();
+        win.navigateTo("project", "save-settings");
+        expect(workspace.current.screen.settingsOpen).toBe(true);
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).not.toHaveBeenCalled();
+        window.history.replaceState(null, "", "#project");
+        win.navigateTo("project", "save-settings");
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener("hashchange", landed);
+      }
+    });
+  });
+
+  describe("replacing the project from a backup", () => {
+    const fs = Workspace.fs as unknown as Record<string, unknown>;
+    let project: typeof workspace.current.project;
+
+    beforeEach(() => {
+      project = workspace.current.project;
+      const id = workspace.current.project.id || "local";
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id, name: "Raffles" },
+      };
+      fs.getFiles = vi.fn(async () =>
+        Object.fromEntries(
+          [
+            ".name",
+            ".folders",
+            ".vscode/settings.json",
+            "main.sd",
+            "scripts/act1.sd",
+            "scripts/util.luau",
+            "images/cover.png",
+            "audio/theme.mp3",
+            ".layout",
+            ".drafts/scene.sd",
+            ".images/cover.png",
+          ].map((path) => [`file://${id}/${path}`, { uri: `file://${id}/${path}` }]),
+        ),
+      );
+    });
+
+    afterEach(() => {
+      delete fs.getFiles;
+      workspace.replaceProject.value = null;
+      workspace.current = { ...workspace.current, project };
+    });
+
+    it("asks before importing, counting every script and asset the replace removes, dot folders included", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      expect(workspace.replaceProject.value).toEqual({
+        fileName: "backup.zip",
+        projectName: "Raffles",
+        scripts: 4,
+        assets: 3,
+      });
+      expect(importing).not.toHaveBeenCalled();
+    });
+
+    it("imports the chosen backup only once the writer confirms", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      const file = Object.assign(new File(["zip"], "backup.zip"), {
+        arrayBuffer: async () => new TextEncoder().encode("zip").buffer,
+      });
+      await win.requestProjectReplace(file);
+      await win.confirmProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      expect(importing).toHaveBeenCalledTimes(1);
+      expect(importing.mock.calls[0]![0]).toBe("backup.zip");
+      expect(new TextDecoder().decode(importing.mock.calls[0]![1])).toBe("zip");
+    });
+
+    it("drops the chosen backup on cancel, so a later confirm imports nothing", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      win.cancelProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      await win.confirmProjectReplace();
+      expect(importing).not.toHaveBeenCalled();
+    });
   });
 });
 

@@ -132,6 +132,54 @@ describe("the sync conflict dialog", () => {
     expect(dialog()).not.toBeNull();
   });
 
+  it("links a failed save from the status line to Settings at Save & sync", async () => {
+    const navigate = vi.spyOn(win, "navigateTo").mockImplementation(() => {});
+    try {
+      await mount();
+      await act(() => {
+        workspace.current = {
+          ...workspace.current,
+          sync: { ...workspace.current.sync, status: "sync_error" },
+        };
+      });
+      const caption = button("Could not sync project")!;
+      expect(caption.dataset.action).toBe("settings");
+      await act(async () => caption.click());
+      await settle();
+      expect(navigate).toHaveBeenCalledWith("project", "save-settings");
+    } finally {
+      navigate.mockRestore();
+    }
+  });
+
+  it.each(["load_error", "import_error"] as const)(
+    "links a local draft that is not saved (%s) to Settings at Save & sync",
+    async (status) => {
+      const navigate = vi
+        .spyOn(win, "navigateTo")
+        .mockImplementation(() => {});
+      const menu = vi.spyOn(win, "setAppMenuOpen");
+      try {
+        await mount();
+        await act(() => {
+          workspace.current = {
+            ...workspace.current,
+            project: { ...workspace.current.project, id: "local" },
+            sync: { ...workspace.current.sync, status },
+          };
+        });
+        const caption = button("Draft not saved")!;
+        await act(async () => caption.click());
+        await settle();
+        expect(navigate).toHaveBeenCalledWith("project", "save-settings");
+        expect(menu).not.toHaveBeenCalledWith(true);
+      } finally {
+        navigate.mockRestore();
+        menu.mockRestore();
+      }
+    },
+  );
+
   it("reopens from the sync button while the conflict stands, without syncing", async () => {
     const host = await mount();
     await setStatus("sync_conflict");

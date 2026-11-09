@@ -8,12 +8,12 @@ import { useLayout } from "@impower/impower-ui/layout";
 import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
-import Account from "../account/Account";
 import AddMenuSection from "./AddMenuSection";
 import AppearanceSection from "./AppearanceSection";
 import FileTypesSection from "./FileTypesSection";
 import MetadataSection from "./MetadataSection";
 import PreviewSection from "./PreviewSection";
+import SaveSyncSection from "./SaveSyncSection";
 import ScreenplaySection from "./ScreenplaySection";
 import ScriptEditorSection from "./ScriptEditorSection";
 import {
@@ -37,6 +37,7 @@ const SECTION_BODIES: Partial<
   "screenplay-settings": ScreenplaySection,
   "add-folder-preferences": AddMenuSection,
   "file-types": FileTypesSection,
+  "save-settings": SaveSyncSection,
 };
 
 const backToStory = async () => {
@@ -140,13 +141,7 @@ export default function SettingsPage() {
                   id={section.id}
                   title={section.title}
                   detail={"detail" in section ? section.detail : undefined}
-                >
-                  {section.id === "save-settings" && (
-                    <div class="mt-3 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
-                      <Account />
-                    </div>
-                  )}
-                </SettingsPlaceholder>
+                />
               );
             }),
           ])}

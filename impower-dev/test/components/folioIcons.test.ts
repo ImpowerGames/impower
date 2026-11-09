@@ -104,7 +104,6 @@ describe("the Folio icon set", () => {
   it("keeps the old names only as aliases of Folio components, for the shell files #995 rewrites", () => {
     const aliases = values.filter(({ name }) => generated.has(kit[name as keyof typeof kit]) && !(name in icons));
     expect([...new Set(aliases.map(({ file }) => file.split("/").slice(0, -1).join("/")))].sort()).toEqual([
-      "modules/spark-editor/components/account",
     ]);
   });
 

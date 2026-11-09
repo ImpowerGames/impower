@@ -95,7 +95,7 @@ export const saveStatusOf = (
       text: "Draft not saved",
       tone: "error",
       glyph: "error",
-      action: "menu",
+      action: "settings",
     };
   }
   if (status === "synced") {

@@ -108,13 +108,13 @@ describe("the save status caption map", () => {
   });
 
   it.each(["load_error", "import_error"] as const)(
-    "reads a local project's %s as a draft that is not saved",
+    "reads a local project's %s as a draft that is not saved, linking to Save & sync",
     (status) => {
       expect(saveStatusOf(status, true)).toEqual({
         text: "Draft not saved",
         tone: "error",
         glyph: "error",
-        action: "menu",
+        action: "settings",
       });
       expect(localSaveLabel(status, true)).toBe("Not saved locally");
     },
