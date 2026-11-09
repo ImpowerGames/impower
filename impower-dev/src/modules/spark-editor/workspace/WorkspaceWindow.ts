@@ -83,18 +83,17 @@ import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
-import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
-import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
+import WorkspaceDebugClient from "./WorkspaceDebugClient";
+import { stepRefusals, type StepTraversal } from "./stepStates";
 import {
   checkName,
   joinScriptPath,
@@ -169,6 +168,11 @@ export default class WorkspaceWindow {
   };
 
   protected _skipBeat?: (direction: -1 | 1) => Promise<boolean>;
+
+  readonly debug = new WorkspaceDebugClient({
+    onStop: (position) => this.followStop(position),
+    onRefusal: (message) => showSnackbar({ message }),
+  });
 
   constructor(workspace: {
     fs: WorkspaceFileSystem;
@@ -572,6 +576,7 @@ export default class WorkspaceWindow {
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
+    this.debug.end();
   }
 
   protected registerProtocolHandlers() {
@@ -1689,6 +1694,7 @@ export default class WorkspaceWindow {
               ...this.store.preview.modes.game,
               loading: false,
               running: true,
+              paused: false,
               picks: {},
             },
           },
@@ -1697,9 +1703,7 @@ export default class WorkspaceWindow {
       const request = StartGameMessage.type.request({});
       this._startGameRequestId = request.id;
       sendProtocolMessage(request);
-      if (this.store.preview.modes.game.paused) {
-        this.unpauseGame();
-      }
+      void this.debug.start(this.getOpenedDocumentUri() ?? "");
     }
   }
 
@@ -1722,6 +1726,7 @@ export default class WorkspaceWindow {
           },
         },
       });
+      this.debug.end();
     }
   }
 
@@ -1767,41 +1772,16 @@ export default class WorkspaceWindow {
     }
   }
 
-  pauseGame() {
-    if (!this.store.preview.modes.game.paused) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              paused: true,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(PauseGameMessage.type.request({}));
+  async pauseGame() {
+    const game = this.store.preview.modes.game;
+    if (game.running && !game.paused && (await this.debug.pause())) {
+      this.syncGamePaused(true);
     }
   }
 
-  unpauseGame() {
-    if (this.store.preview.modes.game.paused) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              paused: false,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(UnpauseGameMessage.type.request({}));
+  async unpauseGame() {
+    if (this.store.preview.modes.game.paused && (await this.debug.continue())) {
+      this.syncGamePaused(false);
     }
   }
 
@@ -1924,11 +1904,30 @@ export default class WorkspaceWindow {
     });
   }
 
-  stepGame(traversal: "in" | "out") {
+  async stepGame(traversal: StepTraversal) {
     const game = this.store.preview.modes.game;
-    if (game.running && game.paused) {
-      sendProtocolMessage(StepGameMessage.type.request({ traversal }));
+    if (!game.running || stepRefusals(game, workspace.debugSession.peek())[traversal]) {
+      return false;
     }
+    return traversal === "over"
+      ? this.debug.next()
+      : traversal === "in"
+        ? this.debug.stepIn()
+        : this.debug.stepOut();
+  }
+
+  followStop(position: GamePosition) {
+    this.syncGamePosition(position);
+    const highlights = this.store.debug.highlights ?? {};
+    const lines = highlights[position.uri] ?? [];
+    if (!lines.includes(position.line)) {
+      this.setHighlights({
+        ...highlights,
+        [position.uri]: [...lines, position.line].sort((a, b) => a - b),
+      });
+    }
+    const at = { line: position.line, character: 0 };
+    void this.showDocument(position.uri, { start: at, end: at }, false);
   }
 
   continueGame() {

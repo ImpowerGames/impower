@@ -45,7 +45,7 @@ export default function LogicScriptEditor({
 
   const appearance = workspaceSettings.scriptAppearance.value;
 
-  const shortcuts = workspaceShortcuts.combos.value;
+  const shortcuts = workspaceShortcuts.editorCombos.value;
 
   const readonly = useScriptReadonly();
 
