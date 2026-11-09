@@ -161,6 +161,14 @@ function dialogueEnd(lines: SourceLine[], cue: number): number {
   return last;
 }
 
+function cueAround(lines: SourceLine[], index: number): number | null {
+  if (lines[index]!.content) return cueOwning(lines, index);
+  let previous = index - 1;
+  while (previous >= 0 && !lines[previous]!.content) previous--;
+  const cue = previous >= 0 ? cueOwning(lines, previous) : null;
+  return cue != null && dialogueEnd(lines, cue) > index ? cue : null;
+}
+
 function templateOf(
   construct: InsertConstruct,
   source: string,
@@ -286,7 +294,7 @@ function planStoryBlock(
   let at = line.to;
   let indent = line.indent;
   let speaker: string | null = null;
-  const cue = cueOwning(lines, index);
+  const cue = cueAround(lines, index);
   if (cue != null) {
     speaker = cueName(lines[cue]!);
     indent = lines[cue]!.indent;

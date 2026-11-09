@@ -154,6 +154,11 @@ describe("Scene", () => {
     expect(result.selected).toBe("new_scene");
   });
 
+  it("adds no diagnostic an empty script did not already have", () => {
+    const result = apply("", 0, "scene")!;
+    expect(diagnosticsOf(result.text)).toEqual(diagnosticsOf(""));
+  });
+
   it("starts an empty script", () => {
     const result = apply("", 0, "scene")!;
     expect(result.text).toBe(lines("scene new_scene", "  ", "end", ""));
@@ -247,6 +252,60 @@ describe("Branch, Choice Menu and Dialogue", () => {
       ),
     );
     expect(result.selected).toBe("CHARACTER");
+  });
+
+  it("treat a blank line inside a cue's dialogue as inside it, and one after it as outside", () => {
+    const source = lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  IMANI:",
+      "    First.",
+      "",
+      "    Second.",
+      "",
+      "  The door opens.",
+      "end",
+      "",
+    );
+    const inside = caretAt(source, "First.") + "First.".length + 1;
+    const dialogue = apply(source, inside, "dialogue")!;
+    expect(dialogue.text).toBe(
+      source.replace(
+        "    Second." + LF,
+        lines("    Second.", "  IMANI:", "    What do they say?", ""),
+      ),
+    );
+    expect(dialogue.selected).toBe("What do they say?");
+    const branch = apply(source, inside, "branch")!;
+    expect(branch.text).toBe(
+      source.replace(
+        "    Second." + LF,
+        lines("    Second.", "  branch new_branch", "    ", "  end", ""),
+      ),
+    );
+    expect(diagnosticsOf(dialogue.text)).toEqual([]);
+    expect(diagnosticsOf(branch.text)).toEqual([]);
+    const after = caretAt(source, "Second.") + "Second.".length + 1;
+    const outside = apply(source, after, "choose")!;
+    expect(outside.text).toBe(
+      source.replace(
+        lines("    Second.", "", "  The door"),
+        lines(
+          "    Second.",
+          "  choose",
+          "    What happens next?",
+          "    + [First option]",
+          "      The first path begins here.",
+          "    + [Second option]",
+          "      The second path begins here.",
+          "  end",
+          "  The door",
+        ),
+      ),
+    );
   });
 
   it("keep a cue's dialogue with its cue and take the nearest speaker inside it", () => {
