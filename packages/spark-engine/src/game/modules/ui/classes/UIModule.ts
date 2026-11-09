@@ -903,7 +903,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onRestore() {
     const epoch = this._game.connection.epoch;
-    if (this._state.layout) {
+    if (this._state.layout && this._reactive) {
       let remounted = false;
       for (const { name } of this._state.layout) {
         if (
