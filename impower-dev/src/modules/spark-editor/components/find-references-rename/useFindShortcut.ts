@@ -27,7 +27,7 @@ export default function useFindShortcut() {
         withSearch((search) => search.close());
         return;
       }
-      if (editorShortcutDispatch(event)) {
+      if (event.defaultPrevented || editorShortcutDispatch(event)?.handled) {
         return;
       }
       const backward = workspaceShortcuts.matches(event, "findPrevious");

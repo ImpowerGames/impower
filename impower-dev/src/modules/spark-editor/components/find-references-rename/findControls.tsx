@@ -79,7 +79,12 @@ export function MatchSwitches({
 }
 
 export const onFindKeyDown = (event: KeyboardEvent) => {
-  if (event.key === "Enter") {
+  if (
+    event.key === "Enter" &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  ) {
     event.preventDefault();
     const backward = event.shiftKey;
     withSearch((search) => search.step(backward));

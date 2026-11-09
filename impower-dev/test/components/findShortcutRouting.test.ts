@@ -12,6 +12,8 @@ import { ALL_ON_APPEARANCE } from "../../../packages/sparkdown-document-views/te
 const search = vi.hoisted(() => ({
   openFindFromSelection: vi.fn(),
   stepOrOpen: vi.fn(),
+  step: vi.fn(),
+  setTerm: vi.fn(),
   close: vi.fn(),
 }));
 
@@ -28,6 +30,9 @@ vi.stubGlobal("localStorage", {
 
 const { default: useFindShortcut } = await import(
   "../../src/modules/spark-editor/components/find-references-rename/useFindShortcut"
+);
+const { default: FindView } = await import(
+  "../../src/modules/spark-editor/components/find-references-rename/FindView"
 );
 const { default: shortcuts } = await import(
   "../../src/modules/spark-editor/workspace/shortcuts/WorkspaceShortcuts"
@@ -203,6 +208,85 @@ describe("Find's keys outside the script follow the same shortcuts", () => {
     await mount();
     await pressOutside({ key: "F3", keyCode: 114 });
     expect(search.stepOrOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe("Find's keys from the Go to line field and the Find field", () => {
+  it("opens Find from its reassigned key while the Go to line field has focus", async () => {
+    expect(shortcuts.record("search", "Mod+J").refused).toBeUndefined();
+    await mount();
+    await press({ key: "g", ctrlKey: true, keyCode: 71 });
+    const field = view.dom.querySelector<HTMLElement>('.cm-gotoLine [name="line"]');
+    expect(field).not.toBeNull();
+    await act(async () =>
+      field!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "j",
+          ctrlKey: true,
+          keyCode: 74,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        }),
+      ),
+    );
+    await flush();
+    expect(
+      tools.find.mock.calls.length +
+        search.openFindFromSelection.mock.calls.length,
+    ).toBe(1);
+  });
+
+  it("steps backward once from a Previous match key given to Ctrl+Enter in the Find field", async () => {
+    expect(shortcuts.record("findPrevious", "Mod+Enter").refused).toBeUndefined();
+    await mount();
+    const findHost = document.body.appendChild(document.createElement("div"));
+    workspace.search.value = {
+      ...INITIAL_SEARCH,
+      open: true,
+      view: "find",
+      term: "start",
+    };
+    await act(async () => render(h(FindView, {}), findHost));
+    const field = findHost.querySelector<HTMLInputElement>('input[name="search"]')!;
+    await act(async () =>
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          ctrlKey: true,
+          keyCode: 13,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    await flush();
+    await vi.waitFor(() =>
+      expect([...search.step.mock.calls, ...search.stepOrOpen.mock.calls]).toEqual([
+        [true],
+      ]),
+    );
+    await act(async () => render(null, findHost));
+  });
+
+  it("leaves a key a field already used alone", async () => {
+    expect(shortcuts.record("search", "Mod+J").refused).toBeUndefined();
+    await mount();
+    const input = document.body.appendChild(document.createElement("input"));
+    input.addEventListener("keydown", (event) => event.preventDefault());
+    await act(async () =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "j",
+          ctrlKey: true,
+          keyCode: 74,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    await flush();
+    expect(search.openFindFromSelection).not.toHaveBeenCalled();
   });
 });
 

@@ -21,10 +21,11 @@ import {
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 import { getReferences, linkedTypes } from "./getReferences";
-import { getRenameRefusal, NAME_REGEX } from "./getRenameRefusal";
+import { getRenameRefusal } from "./getRenameRefusal";
 import { getSymbol } from "./getSymbol";
 
-const RUN_FILE_NAME = /^[^\s./\\"'](?:[^./\\"']*[^\s./\\"'])?$/;
+const RUN_FILE_NAME =
+  /^[^\s./\\"'\p{C}\p{Zl}\p{Zp}](?:[^./\\"'\p{C}\p{Zl}\p{Zp}]*[^\s./\\"'\p{C}\p{Zl}\p{Zp}])?$/u;
 
 export const getRenameEdits = (
   settings: SparkdownConfiguration | undefined,
@@ -167,9 +168,6 @@ export const getRenameEdits = (
         while (script && links?.value) {
           const text = script.read(links.from, links.to);
           if (workspace.resolveRun(uri, text) === oldUri) {
-            if (!/^["']/.test(text.trim()) && !NAME_REGEX.test(newName)) {
-              throw refuse(invalid);
-            }
             const [start, end] = runOperandNameSpan(text);
             renameSymbol(uri, script.range(links.from + start, links.from + end));
           }

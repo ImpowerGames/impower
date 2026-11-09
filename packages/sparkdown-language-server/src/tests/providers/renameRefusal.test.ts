@@ -184,21 +184,43 @@ describe("renaming a run operand", () => {
     ).toThrow("util is already a script in this story.");
   });
 
-  test.each(["", "   ", "bad/name", "bad.name", "..", 'qu"ote'])(
-    "refuses %j as a script name",
+  test("refuses a name only an open document in another folder has", () => {
+    expect(() =>
+      rename([MAIN, HELPER], "util", "helpers", [`${ROOT}other/util.luau`]),
+    ).toThrow("util is already a script in this story.");
+  });
+
+  test.each([
+    "",
+    "   ",
+    "bad/name",
+    "bad.name",
+    "..",
+    'qu"ote',
+    "new\nname",
+    "new\rname",
+    "new\tname",
+    "new name",
+  ])("refuses %j as a script name, for a bare or a quoted operand", (name) => {
+    expect(() => rename([MAIN, HELPER], name)).toThrow(/not a valid script name/);
+    expect(() => rename([MAIN, HELPER], name, '"lib/helpers"')).toThrow(
+      /not a valid script name/,
+    );
+  });
+
+  test.each(["my-util", "42", "my util"])(
+    "accepts %j, a file name the run statement resolves, for a bare or a quoted operand",
     (name) => {
-      expect(() => rename([MAIN, HELPER], name)).toThrow(/not a valid script name/);
+      for (const operand of ["helpers", '"lib/helpers"']) {
+        const edit = rename([MAIN, HELPER], name, operand);
+        expect(edit?.documentChanges).toContainEqual({
+          kind: "rename",
+          oldUri: HELPER,
+          newUri: `${ROOT}lib/${name}.luau`,
+        });
+      }
     },
   );
-
-  test("refuses a name a bare operand could not be written with, and allows it in a quoted one", () => {
-    expect(() => rename([MAIN, HELPER], "my-util")).toThrow(/not a valid script name/);
-    expect(rename([MAIN, HELPER], "my-util", '"lib/helpers"')?.documentChanges).toContainEqual({
-      kind: "rename",
-      oldUri: HELPER,
-      newUri: `${ROOT}lib/my-util.luau`,
-    });
-  });
 
   test("keeps the same name as nothing to refuse", () => {
     expect(() => rename([MAIN, HELPER], "helpers")).not.toThrow();

@@ -160,7 +160,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return (
       findRunName(
         name,
-        this.runLuauFiles(uri).filter((script) => script !== except),
+        [
+          ...new Set([
+            ...this.runLuauFiles(uri),
+            ...[...this._documents.keys()].filter(hasLuauExtension),
+          ]),
+        ].filter((script) => script !== except),
         this.compilerConfig?.uriPathsAsWritten,
       ).matches.length > 0
     );
