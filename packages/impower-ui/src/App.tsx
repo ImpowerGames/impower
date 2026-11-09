@@ -4,10 +4,12 @@ import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
 import { colorChipsGallery } from "./components/color-chips/ColorChips.gallery";
 import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
+import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
+import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
@@ -15,6 +17,7 @@ import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
 import { popoverGallery } from "./components/popover/Popover.gallery";
 import { railIndexGallery } from "./components/rail-index/RailIndex.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
+import { portraitThumbnailGallery } from "./components/portrait-thumbnail/PortraitThumbnail.gallery";
 import { selectGallery } from "./components/select/Select.gallery";
 import { settingsGallery } from "./components/settings/Settings.gallery";
 import { sliderGallery } from "./components/slider/Slider.gallery";
@@ -23,7 +26,9 @@ import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
+import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
 import { toastGallery } from "./components/toast/Toast.gallery";
+import { virtualListGallery } from "./components/virtual-list/VirtualList.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
@@ -33,9 +38,11 @@ export const galleryEntries: readonly GalleryEntry[] = [
   colorChipsGallery,
   colorWellGallery,
   dialogGallery,
+  disclosureGallery,
   dropdownGallery,
   iconGallery,
   jumpChipsGallery,
+  listRowGallery,
   liveRegionGallery,
   loadingBarGallery,
   madeWithSparkSplashGallery,
@@ -43,6 +50,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   popoverGallery,
   railIndexGallery,
   routerGallery,
+  portraitThumbnailGallery,
   selectGallery,
   settingsGallery,
   sidebarLayoutGallery,
@@ -51,7 +59,9 @@ export const galleryEntries: readonly GalleryEntry[] = [
   switchGallery,
   tabsGallery,
   textFieldGallery,
+  themeSwatchGallery,
   toastGallery,
+  virtualListGallery,
 ];
 
 export function App() {

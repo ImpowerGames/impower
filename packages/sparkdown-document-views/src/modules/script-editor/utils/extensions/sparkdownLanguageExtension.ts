@@ -24,14 +24,16 @@ import {
 import EDITOR_HIGHLIGHTS from "../../constants/EDITOR_HIGHLIGHTS";
 import EDITOR_LSP_ICONS from "../../constants/EDITOR_LSP_ICONS";
 
+export const leavePageKeysToPreview = () => true;
+
 const sparkdownKeymap = [
   {
     key: "PageUp",
-    run: () => true,
+    run: leavePageKeysToPreview,
   },
   {
     key: "PageDown",
-    run: () => true,
+    run: leavePageKeysToPreview,
   },
   { key: "Mod-s", run: formatDocument, preventDefault: true },
 ] as const;

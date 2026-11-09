@@ -12,6 +12,7 @@ import {
   ScreenplayTokenType,
 } from "../types/ScreenplayTokenType";
 import { TextOptions } from "../types/TextOptions";
+import { isHiddenIdentifier } from "../utils/isHiddenIdentifier";
 import { styleText } from "../utils/styleText";
 
 export default class ScreenplayTypesetter {
@@ -69,6 +70,9 @@ export default class ScreenplayTypesetter {
           spans.push({ tag: t.tag });
         }
       } else if (t.tag === "function") {
+        if (isHiddenIdentifier(t.tag, config)) {
+          continue;
+        }
         const level = 0;
         const lines = this.format(
           t.tag,

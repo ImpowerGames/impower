@@ -35,7 +35,20 @@ export type ProjectMetadataField =
   | "zipRevisionId"
   | "zipSynced";
 
+export interface GameSize {
+  width: number;
+  height: number;
+  aspectRatio: string | null;
+}
+
+export interface GamePosition {
+  uri: string;
+  line: number;
+}
+
 export interface GameState {
+  size?: GameSize;
+  position?: GamePosition;
   loading?: boolean;
   running?: boolean;
   ended?: boolean;
@@ -128,7 +141,16 @@ export interface ScreenState {
   pickingResource?: boolean;
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
-  changeColor?: ChangeColorState;
+  writingTools?: WritingToolsState;
+  outlineSearch?: boolean;
+}
+
+export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
+
+export interface WritingToolsState {
+  view: WritingToolsView;
+  fromMenu: boolean;
+  color?: ChangeColorState;
 }
 
 export interface ChangeColorState {
@@ -142,6 +164,10 @@ export interface ShellState {
   railWidth?: number;
   railCompactWidth?: number;
   stripHeight?: number;
+}
+
+export interface OutlineState {
+  collapsed?: Record<string, string[]>;
 }
 
 export interface DebugState {
@@ -159,6 +185,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;
   debug: DebugState;

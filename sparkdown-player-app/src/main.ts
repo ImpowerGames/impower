@@ -148,7 +148,7 @@ if (!SAME_ORIGIN_PREVIEW && "serviceWorker" in navigator) {
   });
 }
 
-const PLAYER_CONTROLS = ["skip-buttons", "step-buttons"];
+const PLAYER_CONTROLS = ["skip-buttons", "step-buttons", "host-display"];
 
 const load = async () => {
   const player = document.querySelector("spark-web-player");

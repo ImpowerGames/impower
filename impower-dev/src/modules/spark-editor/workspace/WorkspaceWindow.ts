@@ -4,10 +4,7 @@ import {
   storyColors,
 } from "@impower/codemirror-vscode-lsp-client/src/colorValue";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
-import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
-import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import {
   onProtocolMessage,
   onProtocolRequest,
@@ -25,10 +22,15 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
+import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
   SelectedEditorMessage,
@@ -66,12 +68,17 @@ import {
   Color,
   ColorInformation,
   EditorState,
+  GamePosition,
+  GameSize,
+  GameState,
   PaneType,
   PanelType,
   Range,
   SyncStatus,
   WorkspaceCache,
+  WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
+import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
@@ -95,6 +102,21 @@ import {
 import { showSnackbar } from "../utils/snackbar";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
+import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
+
+type WorkspaceLanguageServerAccess = PreviewBeatSkipperDeps["ls"] &
+  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection" | "getProgram">>;
+import {
+  definitionOf,
+  isCue,
+  isScriptUri,
+  kindOfDefinition,
+  lineOf,
+  nameRangeAt,
+  textOf,
+  type HighlightLike,
+  type NameAtCaret,
+} from "./nameAtCaret";
 import workspace, {
   cacheableWorkspaceState,
   loadedProjectId,
@@ -128,8 +150,7 @@ import {
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
-type WorkspaceLanguageServerAccess = PreviewBeatSkipperDeps["ls"] &
-  Partial<Pick<WorkspaceLanguageServer, "connection" | "getProgram">>;
+const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -239,23 +260,18 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: {
         ...this.store.screen,
-        changeColor: { filename, range, value, color },
+        appMenuOpen: false,
+        writingTools: {
+          view: "color",
+          fromMenu: true,
+          color: { filename, range, value, color },
+        },
       },
     });
   }
 
-  closeChangeColor() {
-    if (!this.store.screen.changeColor) {
-      return;
-    }
-    this.update({
-      ...this.store,
-      screen: { ...this.store.screen, changeColor: undefined },
-    });
-  }
-
   async applyChangeColor(value: string): Promise<"applied" | "invalid" | "moved"> {
-    const target = this.store.screen.changeColor;
+    const target = this.store.screen.writingTools?.color;
     const projectId = this.store.project.id;
     const color = colorValueOf(value);
     if (!color) {
@@ -274,8 +290,8 @@ export default class WorkspaceWindow {
     if (!result?.applied) {
       return "moved";
     }
-    if (this.store.screen.changeColor === target) {
-      this.closeChangeColor();
+    if (this.store.screen.writingTools?.color === target) {
+      this.closeWritingTools();
     }
     return "applied";
   }
@@ -314,32 +330,6 @@ export default class WorkspaceWindow {
     return storyColors(documents);
   }
 
-  protected requestEditor<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P,
-    timeout = 3000,
-  ): Promise<R | null> {
-    const request = type.request(params);
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        stop();
-        resolve(null);
-      }, timeout);
-      const stop = onProtocolMessage(
-        {
-          is: (m: unknown): m is ResponseMessage<M, R> =>
-            type.isResponse(m, request.id),
-        },
-        (message) => {
-          clearTimeout(timer);
-          stop();
-          resolve(("result" in message ? message.result : null) ?? null);
-        },
-      );
-      sendProtocolMessage(request);
-    });
-  }
-
   setAppMenuOpen(open: boolean) {
     if (!!this.store.screen.appMenuOpen === open) {
       return;
@@ -350,11 +340,93 @@ export default class WorkspaceWindow {
     });
   }
 
+  openWritingTools(view: WritingToolsView = "menu") {
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: { view, fromMenu: false },
+      },
+    });
+  }
+
+  showWritingToolsView(view: WritingToolsView) {
+    if (!this.store.screen.writingTools) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        writingTools: { view, fromMenu: view !== "menu" },
+      },
+    });
+  }
+
+  closeWritingTools() {
+    if (!this.store.screen.writingTools) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, writingTools: undefined },
+    });
+  }
+
+  openSparkdownGuide() {
+    if (this._route !== "write") {
+      this.navigateTo("write");
+    }
+    this.openWritingTools("guide");
+  }
+
   setRailWidth(width: number | undefined) {
     this.update({
       ...this.store,
       shell: { ...this.store.shell, railWidth: width },
     });
+  }
+
+  setOutlineSceneCollapsed(uri: string, scene: string, collapsed: boolean) {
+    const current = this.store.outline?.collapsed?.[uri] ?? [];
+    if (current.includes(scene) === collapsed) {
+      return;
+    }
+    const scenes = collapsed
+      ? [...current, scene]
+      : current.filter((key) => key !== scene);
+    const { [uri]: _previous, ...others } = this.store.outline?.collapsed ?? {};
+    this.update({
+      ...this.store,
+      outline: {
+        ...this.store.outline,
+        collapsed: scenes.length ? { ...others, [uri]: scenes } : others,
+      },
+    });
+  }
+
+  setOutlineSearch(open: boolean) {
+    if (!!this.store.screen.outlineSearch === open) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, outlineSearch: open },
+    });
+    const filename = open
+      ? this.getActiveEditorForPane("logic")?.filename
+      : undefined;
+    if (filename) {
+      this.executeEditorCommand(filename, "search");
+    }
+  }
+
+  async openOutlineLocation(uri: string, range: Range) {
+    if (this.store.pane !== "logic" || this.store.screen.settingsOpen) {
+      this.navigateTo("write");
+    }
+    await this.showDocument(uri, range, true, true);
   }
 
   setRailCompactWidth(width: number | undefined) {
@@ -559,7 +631,7 @@ export default class WorkspaceWindow {
     message: ShowDocumentMessage.Request,
   ) => {
     const { uri, selection, takeFocus } = message.params;
-    const result = await this.showDocument(uri, selection, takeFocus);
+    const result = await this.revealDocument(uri, selection, takeFocus ?? true);
     return ShowDocumentMessage.type.response(message.id, result);
   };
 
@@ -706,16 +778,7 @@ export default class WorkspaceWindow {
   recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
     const summary = { ...this.store.debug.diagnosticsSummary };
     delete summary[uri];
-    const counts = { errors: 0, warnings: 0, infos: 0 };
-    for (const d of diagnostics) {
-      if (d.severity === 1) {
-        counts.errors++;
-      } else if (d.severity === 2) {
-        counts.warnings++;
-      } else {
-        counts.infos++;
-      }
-    }
+    const counts = countDiagnostics(diagnostics);
     this.update({
       ...this.store,
       debug: {
@@ -735,6 +798,9 @@ export default class WorkspaceWindow {
     const story =
       !!projectId &&
       program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
+    if (story) {
+      this.setStoryFrontMatter(program.frontMatter ?? {});
+    }
     this.update({
       ...this.store,
       preview: {
@@ -1079,6 +1145,19 @@ export default class WorkspaceWindow {
     if (!pane || !panel) {
       return { success: false };
     }
+    const panels = this.store.panes[pane].panels;
+    const scripts = (
+      panels as Record<string, { activeEditor?: EditorState } | undefined>
+    )["scripts"];
+    const coveringEditor =
+      panel === "main" && scripts?.activeEditor?.open
+        ? {
+            scripts: {
+              ...scripts,
+              activeEditor: { ...scripts.activeEditor, open: false },
+            },
+          }
+        : {};
     this.update({
       ...this.store,
       panes: {
@@ -1088,11 +1167,13 @@ export default class WorkspaceWindow {
           view: panel === "main" ? "list" : "logic-editor",
           panel: panel,
           panels: {
-            ...this.store.panes[pane].panels,
+            ...panels,
+            ...coveringEditor,
             [panel]: {
               ...this.store.panes[pane].panels[panel],
               activeEditor: {
                 ...this.store.panes[pane].panels[panel]?.activeEditor,
+                open: true,
                 filename: filename,
                 focused:
                   takeFocus ??
@@ -1101,7 +1182,10 @@ export default class WorkspaceWindow {
                 selectedRange: range
                   ? { ...range }
                   : this.store.panes[pane].panels[panel]?.activeEditor
-                      ?.selectedRange,
+                        ?.filename === filename
+                    ? this.store.panes[pane].panels[panel]?.activeEditor
+                        ?.selectedRange
+                    : undefined,
               },
             },
           },
@@ -1120,6 +1204,120 @@ export default class WorkspaceWindow {
       );
     }
     return { success: true };
+  }
+
+  protected setStoryFrontMatter(frontMatter: Record<string, string[]>) {
+    workspace.storyFrontMatter.value = frontMatter;
+  }
+
+  async editMainAt(line: number) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const position = { line, character: 0 };
+    await this.showDocument(
+      this._workspace.fs.getFileUri(projectId, "main.sd"),
+      { start: position, end: position },
+      true,
+    );
+    this.navigateTo("write");
+  }
+
+  protected requestEditor<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    timeout = 3000,
+  ): Promise<R | null> {
+    const request = type.request(params);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        stop();
+        resolve(null);
+      }, timeout);
+      const stop = onProtocolMessage(
+        {
+          is: (m: unknown): m is ResponseMessage<M, R> =>
+            type.isResponse(m, request.id),
+        },
+        (message) => {
+          clearTimeout(timer);
+          stop();
+          resolve(("result" in message ? message.result : null) ?? null);
+        },
+      );
+      sendProtocolMessage(request);
+    });
+  }
+
+  async readEditorKeybindings(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    return this.requestEditor(ReadEditorKeybindingsMessage.type, {
+      textDocument: { uri },
+    });
+  }
+
+  async readNameAtCaret(filename: string): Promise<NameAtCaret | null> {
+    const projectId = this.store.project.id;
+    const ls = this._workspace.ls;
+    if (!projectId || !ls?.initialization || !ls.connection) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const editor = await this.requestEditor(ReadEditorMessage.type, {
+      textDocument: { uri },
+    });
+    if (!editor) {
+      return null;
+    }
+    const position = editor.selection.end;
+    const textDocument = { uri };
+    await ls.initialization();
+    const [highlights, definitions] = await Promise.all([
+      ls.connection.sendRequest<HighlightLike[] | null>(
+        "textDocument/documentHighlight",
+        { textDocument, position },
+      ),
+      ls.connection.sendRequest<HighlightLike[] | null>(
+        "textDocument/definition",
+        { textDocument, position },
+      ),
+    ]);
+    const range = nameRangeAt(highlights, position);
+    if (!range) {
+      return null;
+    }
+    const text = editor.textDocument.text;
+    const name = textOf(text, range);
+    if (!name.trim()) {
+      return null;
+    }
+    const definition = definitionOf(definitions);
+    if (!definition) {
+      return {
+        name,
+        kind: isCue(lineOf(text, position.line), name) ? "character" : "name",
+        definition: null,
+      };
+    }
+    const definitionText =
+      definition.uri === uri
+        ? text
+        : isScriptUri(definition.uri)
+          ? await this._workspace.fs.getFileText(definition.uri)
+          : "";
+    return {
+      name,
+      kind: kindOfDefinition(
+        definition.uri,
+        lineOf(definitionText, definition.range.start.line),
+      ),
+      definition,
+    };
   }
 
   executeEditorCommand(filename: string, command: EditorCommand) {
@@ -1551,6 +1749,83 @@ export default class WorkspaceWindow {
     }
   }
 
+  syncGameSize(size: GameSize) {
+    const game = this.store.preview.modes.game;
+    const last = game.size;
+    if (
+      last &&
+      last.width === size.width &&
+      last.height === size.height &&
+      last.aspectRatio === size.aspectRatio
+    ) {
+      return;
+    }
+    this.updateGame({ ...game, size });
+  }
+
+  syncGamePosition(position: GamePosition) {
+    const game = this.store.preview.modes.game;
+    const last = game.position;
+    if (last?.uri === position.uri && last.line === position.line) {
+      return;
+    }
+    this.updateGame({ ...game, position });
+  }
+
+  protected updateGame(game: GameState) {
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: { ...this.store.preview.modes, game },
+      },
+    });
+  }
+
+  async revealDocument(uri: string, range?: Range, takeFocus = true) {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+    if (this.store.preview.revealed) {
+      this.collapsePreviewPane();
+    }
+    const result = await this.showDocument(uri, range, takeFocus);
+    if (routeOfState(this.store) !== "write") {
+      this.navigateTo("write");
+    }
+    return result;
+  }
+
+  async showProblems(uri: string) {
+    await this.revealDocument(uri, undefined, false);
+    const request = () =>
+      ExecuteEditorCommandMessage.type.request({
+        textDocument: { uri },
+        command: "problems",
+      });
+    const first = request();
+    const stop = () => {
+      stopAnswer();
+      stopLoad();
+      clearTimeout(timer);
+    };
+    const stopAnswer = onProtocolMessage(
+      {
+        is: (message: unknown): message is ExecuteEditorCommandMessage.Response =>
+          ExecuteEditorCommandMessage.type.isResponse(message, first.id),
+      },
+      () => stop(),
+    );
+    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
+      if (message.params.textDocument.uri === uri) {
+        stop();
+        sendProtocolMessage(request());
+      }
+    });
+    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
+    sendProtocolMessage(first);
+  }
+
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
     if (!game.running || Boolean(game.paused) === paused) {
@@ -1594,6 +1869,7 @@ export default class WorkspaceWindow {
 
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;
+    this.setStoryFrontMatter({});
     this.update({
       ...this.store,
       project: {

@@ -34,7 +34,7 @@ let stopEditor: (() => void) | undefined;
 afterEach(() => {
   stopEditor?.();
   stopEditor = undefined;
-  win?.closeChangeColor();
+  win?.closeWritingTools();
   win?.dispose();
   win = undefined;
 });
@@ -64,14 +64,14 @@ describe("the Change color intents", () => {
   it("opens over the value under the caret and closes again", () => {
     const w = mount();
     w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
-    expect(workspace.state.value.screen.changeColor).toEqual({
+    expect(workspace.state.value.screen.writingTools?.color).toEqual({
       filename: "main.sd",
       range: RANGE,
       value: "#ff8800",
       color: ORANGE,
     });
-    w.closeChangeColor();
-    expect(workspace.state.value.screen.changeColor).toBeUndefined();
+    w.closeWritingTools();
+    expect(workspace.state.value.screen.writingTools?.color).toBeUndefined();
   });
 
   it("applies a color through the editor at the value's range, then closes", async () => {
@@ -87,7 +87,7 @@ describe("the Change color intents", () => {
         color: { red: 1, green: 136 / 255, blue: 0, alpha: 128 / 255 },
       },
     ]);
-    expect(workspace.state.value.screen.changeColor).toBeUndefined();
+    expect(workspace.state.value.screen.writingTools?.color).toBeUndefined();
   });
 
   it("refuses a value that is not a color and leaves the view open", async () => {
@@ -96,7 +96,7 @@ describe("the Change color intents", () => {
     w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
     expect(await w.applyChangeColor("blue")).toBe("invalid");
     expect(requests).toEqual([]);
-    expect(workspace.state.value.screen.changeColor).toBeDefined();
+    expect(workspace.state.value.screen.writingTools?.color).toBeDefined();
   });
 
   it("reports a value the editor no longer holds and leaves the view open", async () => {
@@ -104,7 +104,7 @@ describe("the Change color intents", () => {
     editorAnswering(false);
     w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
     expect(await w.applyChangeColor("#00aaff")).toBe("moved");
-    expect(workspace.state.value.screen.changeColor).toBeDefined();
+    expect(workspace.state.value.screen.writingTools?.color).toBeDefined();
   });
 });
 

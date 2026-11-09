@@ -1,1 +1,5 @@
-export { ChangeColorPanel, type ChangeColorPanelProps } from "./ChangeColorPanel";
+export {
+  default as WritingTools,
+  WritingToolsTrigger,
+  type WritingToolsProps,
+} from "./WritingTools";

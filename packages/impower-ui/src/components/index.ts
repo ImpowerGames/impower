@@ -25,6 +25,14 @@ export {
   type DialogSize,
 } from "./dialog/Dialog";
 export {
+  default as Disclosure,
+  disclosureVariants,
+  disclosureSummaryVariants,
+  type DisclosureProps,
+  type DisclosureSize,
+  type DisclosureEdge,
+} from "./disclosure/Disclosure";
+export {
   DropdownRoot,
   DropdownTrigger,
   DropdownSeparator,
@@ -37,6 +45,26 @@ export {
   dropdownRadioItemVariants,
   type DropdownRadioItemIndicator,
 } from "./dropdown/Dropdown";
+export {
+  default as ListRow,
+  listRowVariants,
+  listRowBodyVariants,
+  listRowLabelVariants,
+  LIST_ROW_INDENT,
+  type ListRowProps,
+  type ListRowSize,
+  type ListRowState,
+  type ListRowTone,
+  type ListRowLabelOverflow,
+} from "./list-row/ListRow";
+export {
+  default as VirtualList,
+  virtualListVariants,
+  virtualListSlotVariants,
+  VIRTUAL_LIST_ROW_HEIGHT,
+  type VirtualListProps,
+  type VirtualListSize,
+} from "./virtual-list/VirtualList";
 export {
   default as SparkLogo,
   sparkLogoVariants,
@@ -124,7 +152,14 @@ export {
   type ChoiceGroupProps,
   type ChoiceOption,
   type ChoiceGroupSize,
+  type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
+export {
+  default as ThemeSwatch,
+  themeSwatchVariants,
+  type ThemeSwatchProps,
+  type ThemeSwatchSize,
+} from "./theme-swatch/ThemeSwatch";
 export {
   SettingsSection,
   SettingsGroup,
@@ -136,6 +171,8 @@ export {
   ChoiceRow,
   SettingsFoot,
   SettingsPlaceholder,
+  FactRow,
+  SliderRow,
   settingsRowVariants,
   type SettingsSectionProps,
   type SettingsGroupProps,
@@ -146,6 +183,8 @@ export {
   type SwitchRowProps,
   type SelectRowProps,
   type TextRowProps,
+  type FactRowProps,
+  type SliderRowProps,
   type ChoiceRowProps,
   type ChoiceRowOption,
   type SettingsFootProps,
@@ -191,3 +230,10 @@ export {
   type SliderSize,
   type SliderWidth,
 } from "./slider/Slider";
+export {
+  default as PortraitThumbnail,
+  portraitThumbnailVariants,
+  portraitCropLabel,
+  type PortraitThumbnailProps,
+  type PortraitThumbnailSize,
+} from "./portrait-thumbnail/PortraitThumbnail";

@@ -2,8 +2,12 @@ import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { DownloadIcon } from "../icon/icons.generated";
+import PortraitThumbnail, { portraitCropLabel } from "../portrait-thumbnail/PortraitThumbnail";
+import { SAMPLE_PORTRAIT } from "../portrait-thumbnail/PortraitThumbnail.gallery";
 import {
   ChoiceRow,
+  FactRow,
+  SliderRow,
   SelectRow,
   SettingsFoot,
   SettingsGroup,
@@ -34,6 +38,8 @@ const DEFAULTS = {
 
 function RowKit({ theme }: { theme: (typeof THEMES)[number] }) {
   const [values, setValues] = useState({ ...DEFAULTS, titlePage: false });
+  const [crop, setCrop] = useState(50);
+  const [folder, setFolder] = useState("Backdrops");
   const set = <K extends keyof typeof DEFAULTS>(key: K, value: (typeof DEFAULTS)[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
   const changed = (Object.keys(DEFAULTS) as (keyof typeof DEFAULTS)[]).some(
@@ -115,12 +121,80 @@ function RowKit({ theme }: { theme: (typeof THEMES)[number] }) {
                 onCheckedChange={(next) => set(indent === "none" ? "bookmarks" : "hidden", next)}
               />
             ))}
+            <SwitchRow
+              id={`${theme}-rich-detail`}
+              name="Emphasize markup"
+              detail={
+                <>
+                  Show <i>italic</i> and <b>bold</b> as the reader sees them.
+                </>
+              }
+              checked={values.bookmarks}
+              onCheckedChange={(next) => set("bookmarks", next)}
+            />
             <SettingsRow id={`${theme}-plain`} name="A row with only copy" detail="Its control is a button." control={<Button>Open</Button>} />
           </SettingsList>
         </SettingsGroup>
         <SettingsFoot>
           <Button variant="quiet">Download settings.json</Button>
         </SettingsFoot>
+      </SettingsSection>
+      <SettingsSection id={`${theme}-metadata`} title="Project metadata" detail="Facts read from the story.">
+        <SettingsList as="dl">
+          <FactRow term="Title" multiline>
+            {"The Long Road\nHome"}
+          </FactRow>
+          <FactRow term="Author">Not set</FactRow>
+        </SettingsList>
+      </SettingsSection>
+      <SettingsSection id={`${theme}-add-menu`} title="Add menu">
+        <SettingsGroup legend="Folders">
+          <SettingsList>
+            <TextRow
+              id={`${theme}-folder`}
+              name="Backdrop"
+              detail="Contains 12 backdrop files"
+              value={folder}
+              onValueChange={setFolder}
+            />
+            <TextRow
+              id={`${theme}-folder-refused`}
+              name="Portrait"
+              detail="Contains nothing yet"
+              problem="A folder name can't contain a slash, so Portraits is kept."
+              value="Portraits"
+              onValueChange={() => {}}
+            />
+          </SettingsList>
+        </SettingsGroup>
+        <SettingsGroup legend="Portrait thumbnails" note="A slider row, with an aside beside it.">
+          <SettingsList>
+            <SliderRow
+              id={`${theme}-crop`}
+              name="Visible area"
+              value={crop}
+              min={25}
+              max={100}
+              step={5}
+              valueText={portraitCropLabel}
+              scale={["Top 25%", "Whole image"]}
+              hint="Used for thumbnails only."
+              onValueChange={setCrop}
+              aside={<PortraitThumbnail size="example" src={SAMPLE_PORTRAIT} crop={crop} />}
+            />
+            <SliderRow
+              id={`${theme}-crop-plain`}
+              name="Without an aside, disabled"
+              value={75}
+              min={25}
+              max={100}
+              step={5}
+              disabled
+              valueText={portraitCropLabel}
+              onValueChange={() => {}}
+            />
+          </SettingsList>
+        </SettingsGroup>
       </SettingsSection>
       <SettingsPlaceholder id={`${theme}-file-types`} title="File types" detail="Which files the project reads as scripts, images and sounds." />
     </div>
@@ -152,6 +226,8 @@ export const settingsGallery: GalleryEntry = {
     "ChoiceRow",
     "SettingsFoot",
     "SettingsPlaceholder",
+    "FactRow",
+    "SliderRow",
     "settingsRowVariants",
   ],
   Demo: SettingsDemo,

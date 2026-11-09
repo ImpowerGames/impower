@@ -711,11 +711,6 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "Automatically closes <> inside of text.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
-          },
-          "sparkdown.formatter.convertInkSyntaxToSparkdownSyntax": {
-            "type": "boolean",
-            "default": true,
-            "markdownDescription": "When formatting, replace all ink-specific syntax with sparkdown-equivalent syntax\n\n(e.g. 'var' instead of 'VAR', 'temp' instead of '~ temp', etc.)."
           }
         }
       },
@@ -788,11 +783,6 @@
             ],
             "default": "none",
             "description": "Print scene numbers in screenplay"
-          },
-          "sparkdown.screenplay.numbering.printSectionNumbers": {
-            "type": "boolean",
-            "default": false,
-            "description": "Print section numbers in screenplay"
           },
           "sparkdown.screenplay.pages.printTitlePage": {
             "type": "boolean",
@@ -1005,6 +995,7 @@
     "typecheck": "node ../scripts/typecheck.mjs vscode-sparkdown/tsconfig.json"
   },
   "dependencies": {
+    "@impower/spark-debug-adapter": "file:../packages/spark-debug-adapter",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
     "@impower/spark-engine": "file:../packages/spark-engine",
     "@impower/spark-web-player": "file:../packages/spark-web-player",
@@ -1013,8 +1004,6 @@
     "@impower/sparkdown-screenplay": "file:../packages/sparkdown-screenplay",
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@vscode/codicons": "^0.0.36",
-    "@vscode/debugadapter": "^1.68.0",
-    "@vscode/debugprotocol": "^1.68.0",
     "await-notify": "^1.0.1",
     "csv-stringify": "^6.5.2",
     "process": "^0.11.10",
