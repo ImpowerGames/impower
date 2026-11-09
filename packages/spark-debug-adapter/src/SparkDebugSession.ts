@@ -122,6 +122,8 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _continues = 0;
 
+  private _resuming: Promise<void> | undefined;
+
   private _finishFirstRead: (() => void) | undefined;
 
   public constructor(
@@ -316,15 +318,16 @@ export class SparkDebugSession extends LoggingDebugSession {
     run: number | null | undefined = this._run,
     once = false,
   ) {
-    const continues = this._continues;
+    const announceable = this._continues + (this._resuming ? 1 : 0);
     const answer = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
     if (this._firstRead) {
       await this._firstRead;
     }
+    await this._resuming;
     if (
-      continues !== this._continues ||
+      this._continues > announceable ||
       !this.answersRun(answer.run, run) ||
       !this.isCurrentStop(reason, run)
     ) {
@@ -520,15 +523,29 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    this._continues += 1;
+    let settle = () => {};
+    this._resuming = new Promise((resolve) => {
+      settle = resolve;
+    });
+    let unpaused = false;
     try {
       await this._connection.emit(UnpauseGameMessage.type.request({}));
+      unpaused = true;
       if (this._continueAdvances) {
         await this._connection.emit(ContinueGameMessage.type.request({}));
       }
+      this._continues += 1;
     } catch (e) {
+      if (unpaused) {
+        await this._connection
+          .emit(PauseGameMessage.type.request({}))
+          .catch(() => undefined);
+      }
       this.sendRefusal(response, e);
       return;
+    } finally {
+      this._resuming = undefined;
+      settle();
     }
     this.sendResponse(response);
   }
