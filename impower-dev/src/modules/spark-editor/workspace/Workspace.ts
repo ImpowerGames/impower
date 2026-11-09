@@ -4,6 +4,8 @@ import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
+import WorkspaceSearch from "./WorkspaceSearch";
+import { searchSources } from "./searchSources";
 import workspace from "./WorkspaceStore";
 import WorkspaceSync from "./WorkspaceSync";
 import WorkspaceWindow from "./WorkspaceWindow";
@@ -22,6 +24,9 @@ export namespace Workspace {
   );
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
+  export const search = new WorkspaceSearch(
+    searchSources({ window, ls, fs, settings }),
+  );
   export const outline = new WorkspaceOutline({
     openedUri: () => {
       void workspace.state.value;

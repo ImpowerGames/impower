@@ -79,10 +79,7 @@ import { foldAll, foldCode, unfoldAll, unfoldCode } from "@codemirror/language";
 import { nextDiagnostic, openLintPanel } from "@codemirror/lint";
 import {
   closeSearchPanel,
-  findNext,
-  findPrevious,
   gotoLine,
-  openSearchPanel,
   selectNextOccurrence,
   selectSelectionMatches,
 } from "@codemirror/search";
@@ -104,6 +101,9 @@ import {
   shortcutPlatform,
   type EditorShortcutEntryState,
   type ShortcutPlatform,
+  findNextMatch,
+  findPreviousMatch,
+  openFind,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import type {
   EditorKeybinding,
@@ -179,11 +179,11 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "foldAll", label: "Fold every block", group: "navigation", runs: [foldAll] },
   { id: "unfoldAll", label: "Open every folded block", group: "navigation", runs: [unfoldAll] },
   { id: "tabFocus", label: "Let Tab move focus", group: "navigation", runs: [toggleTabFocusMode] },
-  { id: "search", label: "Find", group: "find", runs: [openSearchPanel] },
+  { id: "search", label: "Find", group: "find", runs: [openFind] },
   { id: "escape", label: "Close Find, suggestions and extra carets", group: "find", runs: [closeCustomSearchPanel], claims: true },
   { id: "closeSearch", label: "Close Find", group: "find", runs: [closeSearchPanel] },
-  { id: "findNext", label: "Next match", group: "find", runs: [findNext] },
-  { id: "findPrevious", label: "Previous match", group: "find", runs: [findPrevious] },
+  { id: "findNext", label: "Next match", group: "find", runs: [findNextMatch] },
+  { id: "findPrevious", label: "Previous match", group: "find", runs: [findPreviousMatch] },
   { id: "selectMatches", label: "Select every match", group: "find", runs: [selectSelectionMatches] },
   { id: "selectNextMatch", label: "Add the next match to the selection", group: "find", runs: [selectNextOccurrence] },
   { id: "suggestions", label: "Show suggestions", group: "story", runs: [startCompletion] },
