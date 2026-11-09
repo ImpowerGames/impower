@@ -34,11 +34,7 @@
 
 @formatDocument
 
-@formatKeymap
-
 @renameSymbol
-
-@renameKeymap
 
 @signatureHelp
 
@@ -48,8 +44,6 @@
 
 @prevSignature
 
-@signatureKeymap
-
 @jumpToDefinition
 
 @jumpToDeclaration
@@ -58,10 +52,10 @@
 
 @jumpToImplementation
 
-@jumpToDefinitionKeymap
-
 @findReferences
 
 @closeReferencePanel
 
-@findReferencesKeymap
+@editorShortcuts
+
+@setEditorShortcuts

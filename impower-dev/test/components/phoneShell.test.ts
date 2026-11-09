@@ -30,7 +30,7 @@ vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
 vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
   default: () => h("div", { "data-route": "assets" }),
 }));
-vi.mock("../../src/modules/spark-editor/components/share/Share", () => ({
+vi.mock("../../src/modules/spark-editor/components/share/SharePage", () => ({
   default: () => h("div", { "data-route": "share" }),
 }));
 vi.mock("../../src/modules/spark-editor/components/settings", () => ({

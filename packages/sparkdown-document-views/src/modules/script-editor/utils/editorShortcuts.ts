@@ -1,7 +1,6 @@
 import {
   acceptCompletion,
   closeCompletion,
-  completionKeymap,
   deleteBracketPair,
   startCompletion,
 } from "@codemirror/autocomplete";
@@ -88,7 +87,7 @@ import {
   selectSelectionMatches,
 } from "@codemirror/search";
 import type { EditorState } from "@codemirror/state";
-import { keymap, type Command, type KeyBinding } from "@codemirror/view";
+import type { Command } from "@codemirror/view";
 import { onEnterRulesCommand } from "@impower/codemirror-vscode-language/src/extensions/vscodeOnEnterRules";
 import {
   closeReferencePanel,
@@ -99,6 +98,12 @@ import {
   prevSignature,
   renameSymbol,
   showSignatureHelp,
+  comboKeyName,
+  editorShortcutEntries,
+  normalizeCombo,
+  shortcutPlatform,
+  type EditorShortcutEntryState,
+  type ShortcutPlatform,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import type {
   EditorKeybinding,
@@ -109,20 +114,16 @@ import {
   closeCustomSearchPanel,
   openCustomGotoLinePanel,
 } from "./extensions/customSearch";
-import { leavePageKeysToPreview } from "./extensions/sparkdownLanguageExtension";
+import { leavePageKeysToPreview } from "./extensions/scriptEditorShortcuts";
 
 type ShortcutCommand = {
   id: string;
   label: string;
   group: EditorShortcutGroup;
   runs?: readonly Command[];
-  bindings?: readonly KeyBinding[];
+  entries?: readonly string[];
   claims?: boolean;
 };
-
-const suggestionMoves = completionKeymap.filter((binding) =>
-  /^(Arrow|Page)/.test(binding.key ?? ""),
-);
 
 export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "undo", label: "Undo", group: "editing", runs: [undo] },
@@ -188,7 +189,7 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "suggestions", label: "Show suggestions", group: "story", runs: [startCompletion] },
   { id: "closeSuggestions", label: "Close suggestions", group: "story", runs: [closeCompletion] },
   { id: "acceptSuggestion", label: "Accept the suggestion", group: "story", runs: [acceptCompletion] },
-  { id: "moveSuggestion", label: "Move through suggestions", group: "story", bindings: suggestionMoves },
+  { id: "moveSuggestion", label: "Move through suggestions", group: "story", entries: ["nextSuggestion", "previousSuggestion", "nextSuggestionPage", "previousSuggestionPage"] },
   { id: "signature", label: "Show parameter hints", group: "story", runs: [showSignatureHelp] },
   { id: "signatureStep", label: "Previous or next parameter hint", group: "story", runs: [prevSignature, nextSignature] },
   { id: "definition", label: "Go to definition", group: "story", runs: [jumpToDefinition] },
@@ -200,27 +201,13 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "previewBeat", label: "Previous or next beat in the preview", group: "story", runs: [leavePageKeysToPreview], claims: true },
 ];
 
-export type ShortcutPlatform = "mac" | "win" | "linux";
+export { shortcutPlatform, type ShortcutPlatform };
 
-export const shortcutPlatform = (): ShortcutPlatform => {
-  const nav = typeof navigator === "undefined" ? null : navigator;
-  if (!nav) return "linux";
-  if (/Mac|iP(hone|[oa]d)/.test(nav.platform)) return "mac";
-  if (/Win/.test(nav.platform)) return "win";
-  return "linux";
-};
-
-const platformKey = (binding: KeyBinding, platform: ShortcutPlatform) =>
-  binding[platform] ?? binding.key;
-
-const commandFor = (binding: KeyBinding, run: Command | undefined) =>
+const commandFor = (entry: EditorShortcutEntryState, run: Command | undefined) =>
   EDITOR_SHORTCUT_COMMANDS.find(
     (command) =>
-      (run && command.runs?.includes(run)) ||
-      command.bindings?.includes(binding),
+      (run && command.runs?.includes(run)) || command.entries?.includes(entry.id),
   );
-
-const liveBindings = (state: EditorState) => state.facet(keymap).flat();
 
 export function editorKeybindings(
   state: EditorState,
@@ -233,21 +220,21 @@ export function editorKeybindings(
     if (!list.includes(key)) list.push(key);
     keys.set(id, list);
   };
-  const take = (binding: KeyBinding, run: Command, key: string) => {
-    const slots = (binding.scope ?? "editor")
+  const take = (entry: EditorShortcutEntryState, run: Command, key: string) => {
+    const slots = (entry.scope ?? "editor")
       .split(" ")
       .map((scope) => `${scope}|${key}`);
     if (slots.every((slot) => claimed.has(slot))) return;
-    const command = commandFor(binding, run);
+    const command = commandFor(entry, run);
     if (!command) return;
     add(command.id, key);
     if (command.claims) slots.forEach((slot) => claimed.add(slot));
   };
-  for (const binding of liveBindings(state)) {
-    const key = platformKey(binding, platform);
-    if (!key) continue;
-    if (binding.run) take(binding, binding.run, key);
-    if (binding.shift) take(binding, binding.shift, `Shift-${key}`);
+  for (const entry of editorShortcutEntries(state, platform)) {
+    for (const combo of entry.combos) {
+      if (entry.run) take(entry, entry.run, comboKeyName(combo));
+      if (entry.shift) take(entry, entry.shift, comboKeyName(normalizeCombo(`Shift+${combo}`, platform)));
+    }
   }
   return EDITOR_SHORTCUT_COMMANDS.map(({ id, label, group }) => ({
     id,
@@ -257,10 +244,10 @@ export function editorKeybindings(
   }));
 }
 
-export function unlistedKeybindings(state: EditorState): KeyBinding[] {
-  return liveBindings(state).filter(
-    (binding) =>
-      (binding.run && !commandFor(binding, binding.run)) ||
-      (binding.shift && !commandFor(binding, binding.shift)),
+export function unlistedKeybindings(state: EditorState): EditorShortcutEntryState[] {
+  return editorShortcutEntries(state).filter(
+    (entry) =>
+      (entry.run && !commandFor(entry, entry.run)) ||
+      (entry.shift && !commandFor(entry, entry.shift)),
   );
 }
