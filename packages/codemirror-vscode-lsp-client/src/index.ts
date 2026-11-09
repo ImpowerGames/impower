@@ -248,7 +248,9 @@ export function languageServerExtensions(): readonly (
   ];
 }
 export {
-  editorTool,
   editorToolCommands,
+  findNextMatch,
+  findPreviousMatch,
+  openFind,
   type EditorToolCommands,
 } from "./tools";

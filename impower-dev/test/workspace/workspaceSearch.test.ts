@@ -2,6 +2,7 @@ import { signal } from "@preact/signals";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FindTextParams } from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
 import type { Location, Range } from "vscode-languageserver-protocol";
+import type { EditorTool } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import type { NameAtCaret } from "../../src/modules/spark-editor/workspace/nameAtCaret";
 
 const storage = new Map<string, string>();
@@ -59,7 +60,7 @@ const setup = (opened: string | undefined = MAIN) => {
   const selection = signal<Range | undefined>(range(0, 0, 0));
   const autoRenameFiles = signal(true);
   const textListeners: (() => void)[] = [];
-  const nameToolListeners: ((tool: "find" | "rename" | "references") => void)[] = [];
+  const nameToolListeners: ((tool: EditorTool) => void)[] = [];
   const sources = {
     openedUri: () => openedUri.value,
     selection: () => selection.value,
@@ -140,7 +141,7 @@ const setup = (opened: string | undefined = MAIN) => {
       return () => {};
     },
     onEditorLoaded: () => () => {},
-    onEditorTool: (listener: (tool: "find" | "rename" | "references") => void) => {
+    onEditorTool: (listener: (tool: EditorTool) => void) => {
       nameToolListeners.push(listener);
       return () => {};
     },
@@ -448,6 +449,16 @@ describe("a tool asked for from inside the editor", () => {
     await vi.waitFor(() =>
       expect(workspace.search.value).toMatchObject({ open: true, view: "find" }),
     );
+  });
+
+  it("steps forward and backward from the editor's own next and previous keys", async () => {
+    const { search, nameToolListeners, sources } = make(MAIN);
+    search.open("find");
+    await search.setTerm("rumour");
+    nameToolListeners.forEach((listener) => listener("findNext"));
+    await vi.waitFor(() => expect(sources.showMatch).toHaveBeenCalledTimes(1));
+    nameToolListeners.forEach((listener) => listener("findPrevious"));
+    await vi.waitFor(() => expect(sources.showMatch).toHaveBeenCalledTimes(2));
   });
 
   it("steps while Find is open with words in it, and opens Find otherwise", async () => {

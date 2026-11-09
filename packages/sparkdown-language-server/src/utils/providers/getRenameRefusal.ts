@@ -2,7 +2,7 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { linkedTypes } from "./getReferences";
 
-const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*$/u;
+export const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*$/u;
 
 const IGNORED_DECLARATIONS = new Set(["end", "param"]);
 

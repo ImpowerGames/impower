@@ -1,20 +1,8 @@
+import { editorShortcutDispatch } from "@impower/codemirror-vscode-lsp-client/src/shortcutDispatch";
 import { useEffect } from "preact/hooks";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
 import { withSearch } from "./withSearch";
-
-const isFindShortcut = (event: KeyboardEvent) =>
-  (event.metaKey || event.ctrlKey) &&
-  !event.altKey &&
-  !event.shiftKey &&
-  event.key.toLowerCase() === "f";
-
-const isStepShortcut = (event: KeyboardEvent) =>
-  !event.altKey &&
-  (event.key === "F3"
-    ? !event.metaKey && !event.ctrlKey
-    : (event.metaKey || event.ctrlKey) &&
-      event.shiftKey &&
-      event.key.toLowerCase() === "g");
 
 const leftTheField = (event: KeyboardEvent) =>
   event.target === document.body ||
@@ -28,36 +16,30 @@ const leftTheField = (event: KeyboardEvent) =>
 
 export default function useFindShortcut() {
   useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        !workspace.search.peek().open ||
-        !leftTheField(event)
-      ) {
-        return;
-      }
-      event.preventDefault();
-      withSearch((search) => search.close());
-    };
-    window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
-  }, []);
-
-  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const step = isStepShortcut(event);
-      if (!step && !isFindShortcut(event)) {
+      if (
+        event.key === "Escape" &&
+        !event.defaultPrevented &&
+        workspace.search.peek().open &&
+        leftTheField(event)
+      ) {
+        event.preventDefault();
+        withSearch((search) => search.close());
         return;
       }
-      event.preventDefault();
-      event.stopPropagation();
-      const backward = event.shiftKey;
-      withSearch((search) =>
-        step ? search.stepOrOpen(backward) : search.openFindFromSelection(),
-      );
+      if (editorShortcutDispatch(event)) {
+        return;
+      }
+      const backward = workspaceShortcuts.matches(event, "findPrevious");
+      if (backward || workspaceShortcuts.matches(event, "findNext")) {
+        event.preventDefault();
+        withSearch((search) => search.stepOrOpen(backward));
+      } else if (workspaceShortcuts.matches(event, "search")) {
+        event.preventDefault();
+        withSearch((search) => search.openFindFromSelection());
+      }
     };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 }

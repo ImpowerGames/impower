@@ -177,19 +177,17 @@ describe("the rail's Find view", () => {
     expect(status.getAttribute("data-tone")).toBe("error");
   });
 
-  it("opens Find from Ctrl+F and Cmd+F wherever the focus is", async () => {
+  it("opens Find from its key outside the script", async () => {
     const Shortcut = () => {
       useFindShortcut();
       return null;
     };
     await act(async () => render(h(Shortcut, {}), host));
-    for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
-      await act(async () => {
-        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true, ...modifier }));
-      });
-    }
+    await act(async () => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true, cancelable: true, ctrlKey: true }));
+    });
     await flush();
-    expect(search.openFindFromSelection).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(search.openFindFromSelection).toHaveBeenCalledTimes(1));
   });
 
   describe("Escape once the focus has left the field", () => {

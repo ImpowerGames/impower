@@ -236,11 +236,14 @@ export default class WorkspaceSearch {
         };
       }),
       sources.onEditorTool((tool) => {
-        void (tool === "find"
-          ? this.openFindFromSelection()
-          : tool === "rename"
-            ? this.openRename()
-            : this.openReferences());
+        const tools: Record<EditorTool, () => unknown> = {
+          find: () => this.openFindFromSelection(),
+          findNext: () => this.stepOrOpen(false),
+          findPrevious: () => this.stepOrOpen(true),
+          rename: () => this.openRename(),
+          references: () => this.openReferences(),
+        };
+        void tools[tool]();
       }),
       sources.onEditorLoaded(() => {
         this._published = "";

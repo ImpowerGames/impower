@@ -129,11 +129,22 @@ describe("renaming a run operand", () => {
   const UTIL = `${ROOT}lib/util.luau`;
   const TEXT = lines("run helpers", "scene start", "  Done.", "end", "");
 
-  const rename = (watched: string[], newName: string) => {
+  const rename = (
+    watched: string[],
+    newName: string,
+    operand = "helpers",
+    openOnly: string[] = [],
+  ) => {
+    const text = TEXT.replace("run helpers", `run ${operand}`);
     const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
     documents.add({
-      textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text: TEXT },
+      textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text },
     });
+    for (const uri of openOnly) {
+      documents.add({
+        textDocument: { uri, languageId: "luau", version: 1, text: "return 1" },
+      });
+    }
     const workspace = Object.create(
       SparkdownLanguageServerWorkspace.prototype,
     ) as SparkdownLanguageServerWorkspace;
@@ -151,7 +162,7 @@ describe("renaming a run operand", () => {
       undefined,
       workspace,
       newName,
-      document.positionAt(TEXT.indexOf("helpers") + 2),
+      document.positionAt(text.indexOf("helpers") + 2),
     );
   };
 
@@ -159,6 +170,38 @@ describe("renaming a run operand", () => {
     expect(() => rename([MAIN, HELPER, UTIL], "util")).toThrow(
       "util is already a script in this story.",
     );
+  });
+
+  test("refuses a name only an open document has so far", () => {
+    expect(() => rename([MAIN, HELPER], "util", "helpers", [UTIL])).toThrow(
+      "util is already a script in this story.",
+    );
+  });
+
+  test("refuses a name a script in another folder has, which would leave run util ambiguous", () => {
+    expect(() =>
+      rename([MAIN, HELPER, `${ROOT}other/util.luau`], "util"),
+    ).toThrow("util is already a script in this story.");
+  });
+
+  test.each(["", "   ", "bad/name", "bad.name", "..", 'qu"ote'])(
+    "refuses %j as a script name",
+    (name) => {
+      expect(() => rename([MAIN, HELPER], name)).toThrow(/not a valid script name/);
+    },
+  );
+
+  test("refuses a name a bare operand could not be written with, and allows it in a quoted one", () => {
+    expect(() => rename([MAIN, HELPER], "my-util")).toThrow(/not a valid script name/);
+    expect(rename([MAIN, HELPER], "my-util", '"lib/helpers"')?.documentChanges).toContainEqual({
+      kind: "rename",
+      oldUri: HELPER,
+      newUri: `${ROOT}lib/my-util.luau`,
+    });
+  });
+
+  test("keeps the same name as nothing to refuse", () => {
+    expect(() => rename([MAIN, HELPER], "helpers")).not.toThrow();
   });
 
   test("renames the script when the name is free", () => {

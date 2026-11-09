@@ -1,8 +1,12 @@
+import { findNext, findPrevious, openSearchPanel } from "@codemirror/search";
 import { Facet } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 export type EditorToolCommands = Partial<
-  Record<"find" | "rename" | "references", (view: EditorView) => void>
+  Record<
+    "find" | "findNext" | "findPrevious" | "rename" | "references",
+    (view: EditorView) => void
+  >
 >;
 
 export const editorToolCommands = Facet.define<
@@ -18,3 +22,9 @@ export const editorTool =
     (view.state.facet(editorToolCommands)[tool] ?? fallback)(view);
     return true;
   };
+
+export const openFind = editorTool("find", openSearchPanel);
+
+export const findNextMatch = editorTool("findNext", findNext);
+
+export const findPreviousMatch = editorTool("findPrevious", findPrevious);

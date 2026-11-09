@@ -1,7 +1,12 @@
 import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
-export type EditorTool = "find" | "rename" | "references";
+export type EditorTool =
+  | "find"
+  | "findNext"
+  | "findPrevious"
+  | "rename"
+  | "references";
 
 export type RequestedEditorToolMethod = typeof RequestedEditorToolMessage.method;
 

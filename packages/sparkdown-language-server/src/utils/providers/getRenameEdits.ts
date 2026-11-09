@@ -21,8 +21,10 @@ import {
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 import { getReferences, linkedTypes } from "./getReferences";
-import { getRenameRefusal } from "./getRenameRefusal";
+import { getRenameRefusal, NAME_REGEX } from "./getRenameRefusal";
 import { getSymbol } from "./getSymbol";
+
+const RUN_FILE_NAME = /^[^\s./\\"'](?:[^./\\"']*[^\s./\\"'])?$/;
 
 export const getRenameEdits = (
   settings: SparkdownConfiguration | undefined,
@@ -146,11 +148,18 @@ export const getRenameEdits = (
       const folder = oldUri.slice(0, oldUri.lastIndexOf("/") + 1);
       const file = oldUri.slice(folder.length);
       const newUri = folder + newName + file.slice(file.indexOf("."));
-      if (newUri !== oldUri && workspace.hasFile(newUri)) {
-        throw new ResponseError(
-          ErrorCodes.InvalidRequest,
-          `${newName} is already a script in this story.`,
-        );
+      const refuse = (reason: string) =>
+        new ResponseError(ErrorCodes.InvalidRequest, reason);
+      const invalid = `${newName || "An empty name"} is not a valid script name.`;
+      if (!RUN_FILE_NAME.test(newName)) {
+        throw refuse(invalid);
+      }
+      if (
+        newUri !== oldUri &&
+        (workspace.hasFile(newUri) ||
+          workspace.runNameTaken(document.uri, newName, oldUri))
+      ) {
+        throw refuse(`${newName} is already a script in this story.`);
       }
       for (const uri of workspace.uris()) {
         const script = workspace.document(uri);
@@ -158,6 +167,9 @@ export const getRenameEdits = (
         while (script && links?.value) {
           const text = script.read(links.from, links.to);
           if (workspace.resolveRun(uri, text) === oldUri) {
+            if (!/^["']/.test(text.trim()) && !NAME_REGEX.test(newName)) {
+              throw refuse(invalid);
+            }
             const [start, end] = runOperandNameSpan(text);
             renameSymbol(uri, script.range(links.from + start, links.from + end));
           }

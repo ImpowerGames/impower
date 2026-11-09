@@ -14,7 +14,7 @@ import {
   undoDepth,
 } from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
-import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
+import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -29,6 +29,7 @@ import {
   type ContextMenuPresenter,
   LSPClient,
   LSPPlugin,
+  openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
@@ -633,7 +634,7 @@ export class ScriptEditorController {
       case "problems":
         return openLintPanel(view);
       case "search":
-        return openSearchPanel(view);
+        return openFind(view);
       case "undo":
         return undo(view);
       case "redo":
@@ -1000,6 +1001,8 @@ export class ScriptEditorController {
           onContextMenu: this.options.onContextMenu,
           tools: {
             find: () => this.requestEditorTool("find"),
+            findNext: () => this.requestEditorTool("findNext"),
+            findPrevious: () => this.requestEditorTool("findPrevious"),
             rename: () => this.requestEditorTool("rename"),
             references: () => this.requestEditorTool("references"),
           },

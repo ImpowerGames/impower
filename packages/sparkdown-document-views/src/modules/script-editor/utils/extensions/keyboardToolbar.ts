@@ -1,6 +1,5 @@
 import { indentLess, indentMore, redo, undo } from "@codemirror/commands";
-import { openSearchPanel } from "@codemirror/search";
-import { editorTool } from "@impower/codemirror-vscode-lsp-client/src";
+import { openFind } from "@impower/codemirror-vscode-lsp-client/src";
 import {
   EditorState,
   Extension,
@@ -203,7 +202,7 @@ export function keyboardToolbar(
     items: [
       {
         icon: iconMasks["search"],
-        command: editorTool("find", openSearchPanel),
+        command: openFind,
       },
       {
         icon: iconMasks["undo"],
