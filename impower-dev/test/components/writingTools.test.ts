@@ -370,6 +370,8 @@ describe("Writing tools focus", () => {
     const input = field();
     await open();
     expect(panel()!.hasAttribute("data-keyboard-panel")).toBe(true);
+    expect(panel()!.className).toContain("h-[var(--keyboard-height,");
+    expect(panel()!.className).not.toContain("max-h-");
     expect(workspace.keyboardPanels.value).toEqual([{ heading: true }]);
     expect(document.activeElement).not.toBe(input);
     await key(document, "Escape");

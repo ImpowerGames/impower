@@ -231,7 +231,7 @@ function KeyboardPanel({
       role="dialog"
       aria-label={title}
       data-keyboard-panel
-      class="relative z-[301] flex h-[var(--keyboard-height,264px)] max-h-[42dvh] flex-none flex-col bg-panel"
+      class="relative z-[301] flex h-[var(--keyboard-height,min(264px,42dvh))] flex-none flex-col bg-panel"
     >
       {children}
     </section>
