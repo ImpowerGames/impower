@@ -79,10 +79,7 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
-import {
-  customGotoLinePanel,
-  customSearchPanel,
-} from "./extensions/customSearch";
+import { customGotoLinePanel } from "./extensions/gotoLinePanel";
 import {
   keyboardToolbar,
   type KeyboardToolbarHold,
@@ -284,7 +281,6 @@ const createEditorView = (
         EDITOR_EXTENSIONS,
         scriptEditorShortcuts(config.shortcuts),
         scriptAppearance(config.appearance),
-        customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),
         scriptMode(config.scriptMode ?? null),

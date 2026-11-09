@@ -1,9 +1,11 @@
-import { openSearchPanel } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import { EditorView, showPanel } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
-import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
+import {
+  customGotoLinePanel,
+  openCustomGotoLinePanel,
+} from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
 
 const HOST_CHROME_Z_MIN = 10;
 const HOST_CHROME_Z_MAX = 20;
@@ -91,12 +93,12 @@ describe("editor panel layering vs the host app's chrome (#337)", () => {
     );
   });
 
-  it("keeps the open search panel above the host's header band", () => {
-    const view = mount(customSearchPanel());
-    openSearchPanel(view);
+  it("keeps the open go-to-line panel above the host's header band", () => {
+    const view = mount(customGotoLinePanel());
+    openCustomGotoLinePanel(view);
 
     const panels = view.dom.querySelector(".cm-panels-top");
-    const panel = view.dom.querySelector<HTMLElement>(".cm-panel.cm-search");
+    const panel = view.dom.querySelector<HTMLElement>(".cm-panel.cm-gotoLine");
     expect(panels).toBeTruthy();
     expect(panel).toBeTruthy();
 

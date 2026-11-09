@@ -111,9 +111,8 @@ import type {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import {
   closeCustomGotoLinePanel,
-  closeCustomSearchPanel,
   openCustomGotoLinePanel,
-} from "./extensions/customSearch";
+} from "./extensions/gotoLinePanel";
 import { leavePageKeysToPreview } from "./extensions/scriptEditorShortcuts";
 
 type ShortcutCommand = {
@@ -180,7 +179,6 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "unfoldAll", label: "Open every folded block", group: "navigation", runs: [unfoldAll] },
   { id: "tabFocus", label: "Let Tab move focus", group: "navigation", runs: [toggleTabFocusMode] },
   { id: "search", label: "Find", group: "find", runs: [openFind] },
-  { id: "escape", label: "Close Find, suggestions and extra carets", group: "find", runs: [closeCustomSearchPanel], claims: true },
   { id: "closeSearch", label: "Close Find", group: "find", runs: [closeSearchPanel] },
   { id: "findNext", label: "Next match", group: "find", runs: [findNextMatch] },
   { id: "findPrevious", label: "Previous match", group: "find", runs: [findPreviousMatch] },

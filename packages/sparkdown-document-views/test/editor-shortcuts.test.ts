@@ -1,4 +1,3 @@
-import { openSearchPanel, SearchQuery, setSearchQuery } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { runScopeHandlers, type EditorView } from "@codemirror/view";
 import {
@@ -22,7 +21,7 @@ import {
 import {
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
-} from "../src/modules/script-editor/utils/extensions/customSearch";
+} from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
 if (!Range.prototype.getClientRects) {
@@ -115,12 +114,18 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
   });
 
-  it("lists Escape only under the handlers that receive it: the suggestion list's close, the editor's Find close and the Go to line panel's own", () => {
+  it("lists Escape under every handler that receives it: Find's close, the suggestion list's, Go to line's, the extra carets' and the references panel's", () => {
     const view = liveEditor();
     const withEscape = editorKeybindings(view.state, "win")
       .filter((command) => command.keys.includes("Escape"))
       .map((command) => command.id);
-    expect(withEscape.sort()).toEqual(["closeGotoLine", "closeSuggestions", "escape"]);
+    expect(withEscape.sort()).toEqual([
+      "closeGotoLine",
+      "closeReferences",
+      "closeSearch",
+      "closeSuggestions",
+      "simplifySelection",
+    ]);
   });
 
   it("leaves Escape to the page when the editor has nothing of its own to dismiss", () => {
@@ -136,20 +141,10 @@ describe("the shortcuts the editor reports", () => {
     expect(view.state.selection.ranges).toHaveLength(2);
     expect(runScopeHandlers(view, escape(), "editor")).toBe(true);
     expect(view.state.selection.ranges).toHaveLength(1);
-    openSearchPanel(view);
-    expect(runScopeHandlers(view, escape(), "editor")).toBe(true);
   });
 
-  it("delivers the listed panel keys: F3 in Find steps to the next match, Escape in Go to line closes it", () => {
+  it("delivers the listed panel key: Escape in Go to line closes it", () => {
     const view = liveEditor();
-    openSearchPanel(view);
-    view.dispatch({
-      effects: setSearchQuery.of(new SearchQuery({ search: "start" })),
-    });
-    const next = new KeyboardEvent("keydown", { key: "F3" });
-    expect(runScopeHandlers(view, next, "search-panel")).toBe(true);
-    const { from, to } = view.state.selection.main;
-    expect(view.state.sliceDoc(from, to)).toBe("start");
     expect(customGotoLinePanelOpen(view.state)).toBe(false);
 
     openCustomGotoLinePanel(view);

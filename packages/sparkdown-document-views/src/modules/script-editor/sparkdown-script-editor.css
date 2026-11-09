@@ -66,8 +66,6 @@ sparkdown-script-editor {
 }
 
 @media (forced-colors: active) {
-  .sparkdown-script-editor-root .cm-panel.cm-search button::after,
-  .sparkdown-script-editor-root .cm-panel.cm-search label::after,
   .sparkdown-script-editor-root .cm-panel.cm-gotoLine button::after,
   .sparkdown-script-editor-root .codicon::after,
   .sparkdown-script-editor-root .cm-activeDiagnosticIcon,
