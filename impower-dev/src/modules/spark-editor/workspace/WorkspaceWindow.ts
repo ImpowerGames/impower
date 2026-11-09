@@ -5,6 +5,7 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src/colorValue";
 import {
   insertContext,
+  sceneSpansOf,
   type InsertConstruct,
   type InsertContext,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
@@ -94,7 +95,10 @@ import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
-import { type ShowDocumentResult } from "vscode-languageserver-protocol";
+import {
+  type DocumentSymbol,
+  type ShowDocumentResult,
+} from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
@@ -423,7 +427,8 @@ export default class WorkspaceWindow {
 
   async readInsertContext(filename: string): Promise<InsertContext | null> {
     const projectId = this.store.project.id;
-    if (!projectId) {
+    const ls = this._workspace.ls;
+    if (!projectId || !ls?.initialization || !ls.connection) {
       return null;
     }
     const uri = this._workspace.fs.getFileUri(projectId, filename);
@@ -433,13 +438,22 @@ export default class WorkspaceWindow {
     if (!editor) {
       return null;
     }
+    await ls.initialization();
+    const symbols = await ls.connection
+      .sendRequest<DocumentSymbol[] | null>("textDocument/documentSymbol", {
+        textDocument: { uri },
+      })
+      .catch(() => undefined);
+    if (symbols === undefined) {
+      return null;
+    }
     const { text } = editor.textDocument;
     const { line, character } = editor.selection.end;
     const offset = text
       .split("\n")
       .slice(0, line)
       .reduce((total, row) => total + row.length + 1, character);
-    return insertContext(text, offset);
+    return insertContext(text, offset, sceneSpansOf(symbols));
   }
 
   async insertConstruct(

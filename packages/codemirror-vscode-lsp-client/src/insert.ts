@@ -1,5 +1,7 @@
 import { isolateHistory } from "@codemirror/commands";
-import type { Command } from "@codemirror/view";
+import type { Command, EditorView } from "@codemirror/view";
+import type * as lsp from "vscode-languageserver-protocol";
+import { LSPPlugin } from "./plugin";
 
 export const INSERT_CONSTRUCTS = [
   "character",
@@ -35,6 +37,11 @@ export interface InsertContext {
   inScene: boolean;
 }
 
+export interface SceneSpan {
+  startLine: number;
+  endLine: number;
+}
+
 interface SourceLine {
   from: number;
   to: number;
@@ -43,37 +50,50 @@ interface SourceLine {
   content: string;
 }
 
-interface SceneSpan {
-  start: number;
-  end: number;
-}
+const SCENE_SYMBOL_KIND: typeof lsp.SymbolKind.Class = 5;
 
 const STEP = "  ";
 
-const SCENE_HEADER = /^scene\s+[\p{L}_][\p{L}\p{N}_]*/u;
-const BLOCK_HEADER =
-  /^(?:(?:scene|branch)\s+[\p{L}_][\p{L}\p{N}_]*.*|choose\s*(?:(?:--|\/\/).*)?)$/u;
-const END_LINE = /^end\s*(?:(?:--|\/\/).*)?$/;
-const CUE =
-  /^([\p{L}\p{N}][\p{L}\p{N} _'’.-]*?)\s*(?:\([^)]*\))?\s*(?:\[[^\]]*\])?:\s*$/u;
+const COMMENT = String.raw`(?:\s*(?:--|\/\/).*)?`;
+const BLOCK_HEADER = new RegExp(
+  String.raw`^(?:(?:scene|branch)\s+[\p{L}_][\p{L}\p{N}_]*.*|choose${COMMENT}\s*)$`,
+  "u",
+);
+const END_LINE = new RegExp(String.raw`^end${COMMENT}\s*$`);
+const CUE = new RegExp(
+  String.raw`^([\p{L}\p{N}][\p{L}\p{N} _'’.-]*?)\s*(?:\([^)]*\))?\s*(?:\[[^\]]*\])?:${COMMENT}\s*$`,
+  "u",
+);
 
 const newlineOf = (source: string) => (source.includes("\r\n") ? "\r\n" : "\n");
 
 const widthOf = (indent: string) => indent.replace(/\t/g, STEP).length;
 
 const escapeRegExp = (text: string) =>
-  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 export function uniqueName(source: string, base: string): string {
   const taken = (name: string) =>
     new RegExp(
-      `(?<![\\p{L}\\p{N}_])${escapeRegExp(name)}(?![\\p{L}\\p{N}_])`,
+      String.raw`(?<![\p{L}\p{N}_])${escapeRegExp(name)}(?![\p{L}\p{N}_])`,
       "u",
     ).test(source);
   if (!taken(base)) return base;
   let number = 2;
   while (taken(`${base}_${number}`)) number++;
   return `${base}_${number}`;
+}
+
+export function sceneSpansOf(
+  symbols: readonly lsp.DocumentSymbol[] | null | undefined,
+): SceneSpan[] {
+  return (symbols ?? [])
+    .filter((symbol) => symbol.kind === SCENE_SYMBOL_KIND)
+    .map((symbol) => ({
+      startLine: symbol.range.start.line,
+      endLine: symbol.range.end.line,
+    }))
+    .sort((a, b) => a.startLine - b.startLine);
 }
 
 function linesOf(source: string): SourceLine[] {
@@ -98,39 +118,16 @@ function lineIndexAt(lines: SourceLine[], offset: number): number {
   return index;
 }
 
-function scenesOf(lines: SourceLine[]): SceneSpan[] {
-  const scenes: SceneSpan[] = [];
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!;
-    if (!SCENE_HEADER.test(line.content)) continue;
-    let end = lines.length - 1;
-    for (let next = index + 1; next < lines.length; next++) {
-      const candidate = lines[next]!;
-      if (SCENE_HEADER.test(candidate.content)) {
-        end = next - 1;
-        while (end > index && !lines[end]!.content) end--;
-        break;
-      }
-      if (
-        END_LINE.test(candidate.content) &&
-        candidate.indent === line.indent
-      ) {
-        end = next;
-        break;
-      }
-    }
-    scenes.push({ start: index, end });
-    index = end;
-  }
-  return scenes;
-}
+const sceneAt = (scenes: readonly SceneSpan[], index: number) =>
+  scenes.find((scene) => index >= scene.startLine && index <= scene.endLine) ??
+  null;
 
-const sceneAt = (scenes: SceneSpan[], index: number) =>
-  scenes.find((scene) => index >= scene.start && index <= scene.end) ?? null;
-
-export function insertContext(source: string, offset: number): InsertContext {
-  const lines = linesOf(source);
-  return { inScene: !!sceneAt(scenesOf(lines), lineIndexAt(lines, offset)) };
+export function insertContext(
+  source: string,
+  offset: number,
+  scenes: readonly SceneSpan[],
+): InsertContext {
+  return { inScene: !!sceneAt(scenes, lineIndexAt(linesOf(source), offset)) };
 }
 
 const cueName = (line: SourceLine) => line.content.match(CUE)?.[1] ?? null;
@@ -223,13 +220,14 @@ function planScene(
   source: string,
   lines: SourceLine[],
   index: number,
+  scenes: readonly SceneSpan[],
 ): InsertPlan {
   const newline = newlineOf(source);
   const id = uniqueName(source, "new_scene");
   const block = [`scene ${id}`, STEP, "end"].join(newline);
-  const current = sceneAt(scenesOf(lines), index);
+  const current = sceneAt(scenes, index);
   if (current) {
-    const at = lines[current.end]!.to;
+    const at = lines[Math.min(current.endLine, lines.length - 1)]!.to;
     const insert = newline + newline + block;
     const anchor = at + newline.length * 2 + "scene ".length;
     return { from: at, to: at, insert, anchor, head: anchor + id.length };
@@ -251,11 +249,15 @@ function planScene(
   };
 }
 
-function planCharacter(source: string, lines: SourceLine[]): InsertPlan {
+function planCharacter(
+  source: string,
+  lines: SourceLine[],
+  scenes: readonly SceneSpan[],
+): InsertPlan {
   const newline = newlineOf(source);
   const id = uniqueName(source, "new_character");
-  const first = scenesOf(lines)[0];
-  const at = first ? lines[first.start]!.from : source.length;
+  const first = scenes[0];
+  const at = first ? lines[first.startLine]!.from : source.length;
   const before = source.slice(0, at);
   const gap =
     !before || before.endsWith(newline + newline)
@@ -286,8 +288,9 @@ function planStoryBlock(
   lines: SourceLine[],
   index: number,
   construct: InsertConstruct,
+  scenes: readonly SceneSpan[],
 ): InsertPlan | null {
-  if (!sceneAt(scenesOf(lines), index)) return null;
+  if (!sceneAt(scenes, index)) return null;
   const newline = newlineOf(source);
   const line = lines[index]!;
   let mode: "after" | "replace" | "before" = "after";
@@ -358,25 +361,27 @@ export function planInsertion(
   source: string,
   offset: number,
   construct: InsertConstruct,
+  scenes: readonly SceneSpan[],
 ): InsertPlan | null {
   const lines = linesOf(source);
   const index = lineIndexAt(
     lines,
     Math.max(0, Math.min(source.length, offset)),
   );
-  if (construct === "scene") return planScene(source, lines, index);
-  if (construct === "character") return planCharacter(source, lines);
-  return planStoryBlock(source, lines, index, construct);
+  if (construct === "scene") return planScene(source, lines, index, scenes);
+  if (construct === "character") return planCharacter(source, lines, scenes);
+  return planStoryBlock(source, lines, index, construct, scenes);
 }
 
 export const insertConstruct =
-  (construct: InsertConstruct): Command =>
+  (construct: InsertConstruct, scenes: readonly SceneSpan[]): Command =>
   (view) => {
     if (view.state.readOnly) return false;
     const plan = planInsertion(
       view.state.doc.toString(),
       view.state.selection.main.head,
       construct,
+      scenes,
     );
     if (!plan) return false;
     view.dispatch({
@@ -388,3 +393,30 @@ export const insertConstruct =
     });
     return true;
   };
+
+export async function readSceneSpans(
+  view: EditorView,
+): Promise<SceneSpan[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin) return null;
+  plugin.client.sync();
+  const doc = view.state.doc;
+  const symbols = await plugin.client
+    .request<
+      lsp.DocumentSymbolParams,
+      lsp.DocumentSymbol[] | null,
+      typeof lsp.DocumentSymbolRequest.method
+    >("textDocument/documentSymbol", { textDocument: { uri: plugin.uri } })
+    .catch(() => undefined);
+  return symbols !== undefined && view.state.doc === doc
+    ? sceneSpansOf(symbols)
+    : null;
+}
+
+export async function insertConstructFromServer(
+  view: EditorView,
+  construct: InsertConstruct,
+): Promise<boolean> {
+  const scenes = await readSceneSpans(view);
+  return !!scenes && insertConstruct(construct, scenes)(view);
+}

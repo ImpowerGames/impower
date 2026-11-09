@@ -81,14 +81,18 @@ export { hoverPreviews, serverHovers } from "./hover";
 export {
   INSERT_CONSTRUCTS,
   insertConstruct,
+  insertConstructFromServer,
   insertContext,
   isInsertConstruct,
   planInsertion,
+  readSceneSpans,
+  sceneSpansOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,
   type InsertConstruct,
   type InsertContext,
   type InsertPlan,
+  type SceneSpan,
 } from "./insert";
 export {
   convertFromServerCodeLens,

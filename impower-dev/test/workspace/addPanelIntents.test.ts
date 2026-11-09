@@ -41,12 +41,36 @@ afterEach(() => {
   win = undefined;
 });
 
+const symbolRequests: unknown[] = [];
+
+const SCENE_SYMBOLS = [
+  {
+    name: "start",
+    kind: 5,
+    range: { start: { line: 2, character: 0 }, end: { line: 4, character: 3 } },
+    selectionRange: {
+      start: { line: 2, character: 0 },
+      end: { line: 2, character: 11 },
+    },
+  },
+];
+
 const mount = () => {
+  symbolRequests.length = 0;
   win = new WorkspaceWindow({
     fs: {
       getLoadedProjectId: () => "project",
       getFileUri: (projectId: string, filename: string) =>
         `file:///${projectId}/${filename}`,
+    },
+    ls: {
+      initialization: async () => {},
+      connection: {
+        sendRequest: async (method: string, params: unknown) => {
+          symbolRequests.push([method, params]);
+          return SCENE_SYMBOLS;
+        },
+      },
     },
   } as unknown as ConstructorParameters<typeof WorkspaceWindow>[0]);
   return win;
@@ -112,10 +136,20 @@ describe("the Add panel intents", () => {
     expect(workspace.scriptMode.value).toBe("editing");
   });
 
-  it("reads whether the caret is in a scene", async () => {
+  it("reads whether the caret is in a scene from the language server's scene symbols", async () => {
     const w = mount();
     editorReading(3, 4);
     expect(await w.readInsertContext("main.sd")).toEqual({ inScene: true });
+    expect(symbolRequests).toEqual([
+      [
+        "textDocument/documentSymbol",
+        {
+          textDocument: {
+            uri: `file:///${workspace.state.value.project.id}/main.sd`,
+          },
+        },
+      ],
+    ]);
     stops.splice(0).forEach((stop) => stop());
     editorReading(0, 3);
     expect(await w.readInsertContext("main.sd")).toEqual({ inScene: false });

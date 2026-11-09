@@ -25,7 +25,7 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
-  insertConstruct,
+  insertConstructFromServer,
   isInsertConstruct,
   jumpToDefinition,
   type ContextMenuPresenter,
@@ -655,7 +655,7 @@ export class ScriptEditorController {
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
 
-  protected handleInsertEditorConstruct = (
+  protected handleInsertEditorConstruct = async (
     message: RequestMessage<
       InsertEditorConstructMethod,
       InsertEditorConstructParams
@@ -667,8 +667,9 @@ export class ScriptEditorController {
       return undefined;
     }
     const inserted =
-      isInsertConstruct(construct) && insertConstruct(construct)(view);
-    if (inserted) {
+      isInsertConstruct(construct) &&
+      (await insertConstructFromServer(view, construct));
+    if (inserted && this._view === view) {
       this.focusAtCaret();
     }
     return InsertEditorConstructMessage.type.response(message.id, { inserted });

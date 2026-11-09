@@ -2,12 +2,16 @@ import { history, undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { getDocumentSymbols } from "../../sparkdown-language-server/src/utils/providers/getDocumentSymbols";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   INSERT_CONSTRUCTS,
   insertConstruct,
+  insertConstructFromServer,
   insertContext,
   planInsertion,
+  sceneSpansOf,
   uniqueName,
   type InsertConstruct,
 } from "../src/insert";
@@ -23,8 +27,32 @@ const caretAt = (source: string, marker: string, shift = 0) => {
   return index + shift;
 };
 
+const SYMBOLS_URI = "file:///insert.sd";
+
+const scenesOf = (source: string) => {
+  const documents = new SparkdownDocumentRegistry(["declarations"]);
+  documents.set({
+    textDocument: {
+      uri: SYMBOLS_URI,
+      text: source,
+      version: 1,
+      languageId: "sparkdown",
+    },
+  });
+  return sceneSpansOf(
+    getDocumentSymbols(
+      documents.get(SYMBOLS_URI)!,
+      documents.annotations(SYMBOLS_URI),
+      documents.tree(SYMBOLS_URI),
+    ),
+  );
+};
+
+const contextAt = (source: string, offset: number) =>
+  insertContext(source, offset, scenesOf(source));
+
 const apply = (source: string, caret: number, construct: InsertConstruct) => {
-  const plan = planInsertion(source, caret, construct);
+  const plan = planInsertion(source, caret, construct, scenesOf(source));
   if (!plan) return null;
   const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
   return {
@@ -105,26 +133,22 @@ describe("unique names", () => {
 
 describe("insertion context", () => {
   it("is in a scene from its header through its end line, and outside it elsewhere", () => {
-    expect(insertContext(SCRIPT, caretAt(SCRIPT, "The room")).inScene).toBe(
+    expect(contextAt(SCRIPT, caretAt(SCRIPT, "The room")).inScene).toBe(true);
+    expect(contextAt(SCRIPT, caretAt(SCRIPT, "scene start")).inScene).toBe(
       true,
     );
-    expect(insertContext(SCRIPT, caretAt(SCRIPT, "scene start")).inScene).toBe(
-      true,
-    );
-    expect(insertContext(SCRIPT, sceneEnd(SCRIPT)).inScene).toBe(true);
-    expect(insertContext(SCRIPT, caretAt(SCRIPT, "define")).inScene).toBe(
+    expect(contextAt(SCRIPT, sceneEnd(SCRIPT)).inScene).toBe(true);
+    expect(contextAt(SCRIPT, caretAt(SCRIPT, "define")).inScene).toBe(false);
+    expect(contextAt(SCRIPT, caretAt(SCRIPT, "title")).inScene).toBe(false);
+    expect(contextAt(SCRIPT, caretAt(SCRIPT, "scene later") - 1).inScene).toBe(
       false,
     );
-    expect(insertContext(SCRIPT, caretAt(SCRIPT, "title")).inScene).toBe(false);
-    expect(
-      insertContext(SCRIPT, caretAt(SCRIPT, "scene later") - 1).inScene,
-    ).toBe(false);
   });
 
   it("refuses story blocks outside a scene and keeps Scene and Character", () => {
     const outside = caretAt(SCRIPT, "title");
     for (const construct of INSERT_CONSTRUCTS) {
-      const plan = planInsertion(SCRIPT, outside, construct);
+      const plan = planInsertion(SCRIPT, outside, construct, scenesOf(SCRIPT));
       if (construct === "scene" || construct === "character") {
         expect(plan, construct).not.toBeNull();
       } else {
@@ -356,6 +380,117 @@ describe("Branch, Choice Menu and Dialogue", () => {
   });
 });
 
+describe("structure read from the language server", () => {
+  const STRING_SCENE = lines(
+    "store example = [[",
+    "scene example",
+    "  Example.",
+    "end",
+    "]]",
+    "",
+    "scene start",
+    "  Hello.",
+    "end",
+    "",
+  );
+
+  it("does not take scene text inside a string for a scene", () => {
+    expect(diagnosticsOf(STRING_SCENE)).toEqual([]);
+    expect(
+      contextAt(STRING_SCENE, caretAt(STRING_SCENE, "Example.")).inScene,
+    ).toBe(false);
+    const character = apply(
+      STRING_SCENE,
+      caretAt(STRING_SCENE, "Hello."),
+      "character",
+    )!;
+    expect(character.text).toBe(
+      STRING_SCENE.replace(
+        lines("]]", "", "scene start"),
+        lines(
+          "]]",
+          "",
+          "define new_character as character with",
+          '  name = "New character"',
+          "end",
+          "",
+          "scene start",
+        ),
+      ),
+    );
+    expect(character.selected).toBe("new_character");
+  });
+
+  it("keeps a nested end at the scene's indent inside the scene", () => {
+    const source = lines(
+      "scene start",
+      "branch hall",
+      "  Dark.",
+      "end",
+      "  After.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    expect(contextAt(source, caretAt(source, "After.")).inScene).toBe(true);
+    const scene = apply(source, caretAt(source, "Dark."), "scene")!;
+    expect(scene.text).toBe(
+      lines(
+        "scene start",
+        "branch hall",
+        "  Dark.",
+        "end",
+        "  After.",
+        "end",
+        "",
+        "scene new_scene",
+        "  ",
+        "end",
+        "",
+      ),
+    );
+    expect(diagnosticsOf(scene.text)).toEqual([]);
+  });
+
+  it("recognizes a cue with a trailing comment as the speaker", () => {
+    const source = lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  IMANI: // speaker note",
+      "    First.",
+      "    Second.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "IMANI: //"), "dialogue")!;
+    expect(dialogue.text).toBe(
+      source.replace(
+        "    Second." + LF,
+        lines("    Second.", "  IMANI:", "    What do they say?", ""),
+      ),
+    );
+    expect(dialogue.selected).toBe("What do they say?");
+    expect(diagnosticsOf(dialogue.text)).toEqual([]);
+  });
+
+  it("inserts nothing when the editor has no language server to ask", async () => {
+    const view = new EditorView({
+      state: EditorState.create({ doc: SCRIPT }),
+      parent: document.body,
+    });
+    try {
+      expect(await insertConstructFromServer(view, "scene")).toBe(false);
+      expect(view.state.doc.toString()).toBe(SCRIPT);
+    } finally {
+      view.destroy();
+    }
+  });
+});
+
 describe("inserted syntax", () => {
   it("compiles without diagnostics for each text construct", () => {
     expect(diagnosticsOf(SCRIPT)).toEqual([]);
@@ -414,7 +549,7 @@ describe("insertConstruct command", () => {
       userEvent: "input.type",
     });
     const typed = editor.state.doc.toString();
-    expect(insertConstruct("choose")(editor)).toBe(true);
+    expect(insertConstruct("choose", scenesOf(SCRIPT))(editor)).toBe(true);
     const { from, to } = editor.state.selection.main;
     expect(editor.state.sliceDoc(from, to)).toBe("What happens next?");
     expect(undo(editor)).toBe(true);
@@ -422,10 +557,12 @@ describe("insertConstruct command", () => {
   });
 
   it("does nothing outside a scene or in a read-only script", () => {
-    expect(insertConstruct("branch")(mount(SCRIPT, 0))).toBe(false);
+    expect(insertConstruct("branch", scenesOf(SCRIPT))(mount(SCRIPT, 0))).toBe(
+      false,
+    );
     view!.destroy();
     const locked = mount(SCRIPT, caretAt(SCRIPT, "quiet"), true);
-    expect(insertConstruct("branch")(locked)).toBe(false);
+    expect(insertConstruct("branch", scenesOf(SCRIPT))(locked)).toBe(false);
     expect(locked.state.doc.toString()).toBe(SCRIPT);
   });
 });
