@@ -15,7 +15,7 @@ import {
   WarningIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import { useMemo } from "preact/hooks";
+import { useEffect, useMemo } from "preact/hooks";
 import {
   CARD_TITLE,
   CONSOLE_SEVERITIES,
@@ -215,6 +215,13 @@ export default function ProblemsPanel() {
   const shown = useComputed(() => problems.shown.value).value;
   const cards = useComputed(() => problems.cards.value).value;
   const reveal = useComputed(() => problems.reveal.value).value;
+
+  useEffect(
+    () => () => {
+      problems.reveal.value = null;
+    },
+    [],
+  );
 
   const rows = useMemo(
     () => panelRows({ problems: all, played, shown, open: cards }),

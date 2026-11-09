@@ -166,6 +166,37 @@ describe("VirtualList", () => {
     expect(scroller!.scrollTop).toBe(0);
   });
 
+  it("reveals once per request, leaving a later change of index alone, and follows the index when it has no request", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? rowHeight * 4 : 0;
+      },
+    });
+    const list = (revealIndex: number, revealRequest?: number) => (
+      <VirtualList
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        revealIndex={revealIndex}
+        revealRequest={revealRequest}
+        listRef={(element) => {
+          scroller = element;
+        }}
+      />
+    );
+    await act(async () => render(list(0, 1), host!));
+    await act(async () => render(list(200, 1), host!));
+    expect(scroller!.scrollTop).toBe(0);
+    await act(async () => render(list(200, 2), host!));
+    expect(scroller!.scrollTop).toBe(201 * rowHeight - rowHeight * 4);
+    await act(async () => render(list(10), host!));
+    expect(scroller!.scrollTop).toBe(10 * rowHeight);
+  });
+
   it("reveals its row once a list mounted hidden gets a viewport", async () => {
     const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
     host = document.body.appendChild(document.createElement("div"));

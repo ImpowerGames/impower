@@ -106,6 +106,7 @@ export default function VirtualList<T>({
   }, []);
 
   const hasViewport = view.height > 0;
+  const revealedRequest = useRef<number | undefined>(undefined);
 
   useLayoutEffect(() => {
     const element = scroller.current;
@@ -114,6 +115,12 @@ export default function VirtualList<T>({
     }
     if (revealIndex >= items.length) {
       return;
+    }
+    if (revealRequest !== undefined) {
+      if (revealRequest === revealedRequest.current) {
+        return;
+      }
+      revealedRequest.current = revealRequest;
     }
     const top = topOf(revealIndex);
     const bottom = topOf(revealIndex + 1);

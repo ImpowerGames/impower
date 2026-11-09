@@ -470,6 +470,49 @@ describe("the Problems panel", () => {
       expect(problems.played.value).toHaveLength(100);
       expect(viewport().scrollTop).toBe(bottom);
     });
+
+    it("leaves the writer's place alone when the rows change with no new request", async () => {
+      problems.record({
+        uri: MAIN,
+        diagnostics: Array.from({ length: 40 }, (_, line) =>
+          diagnostic(line, 1, `problem ${line}`),
+        ),
+      });
+      for (let index = 0; index < 10; index += 1) {
+        problems.recordPlayed({ severity: "warning", message: `old ${index}` });
+      }
+      await mountShort();
+      await act(async () =>
+        problems.recordPlayed({ severity: "error", message: "latest" }),
+      );
+      await settle();
+      expect(viewport().scrollTop).toBeGreaterThan(3000);
+      await scrollTo(0);
+      await act(async () =>
+        problems.record({
+          uri: MAIN,
+          diagnostics: Array.from({ length: 41 }, (_, line) =>
+            diagnostic(line, 1, `problem ${line}`),
+          ),
+        }),
+      );
+      await settle();
+      expect(viewport().scrollTop).toBe(0);
+      await act(async () => chip("note").click());
+      await settle();
+      expect(viewport().scrollTop).toBe(0);
+    });
+
+    it("forgets its reveal request when the panel closes, so a later opening starts at the top", async () => {
+      await mountShort();
+      await act(async () =>
+        problems.recordPlayed({ severity: "error", message: "latest" }),
+      );
+      await settle();
+      expect(problems.reveal.value).not.toBeNull();
+      await act(async () => render(null, host!));
+      expect(problems.reveal.value).toBeNull();
+    });
   });
 
   it("opens the whole story's Problems to fix dialog from the toggle on a phone", async () => {
