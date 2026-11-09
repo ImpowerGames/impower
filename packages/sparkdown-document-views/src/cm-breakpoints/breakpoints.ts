@@ -149,13 +149,12 @@ const breakpointAttributes = EditorView.editorAttributes.compute(
 
 const breakpointTheme = EditorView.baseTheme({
   ".cm-breakpoint-gutter": {
-    width: "0",
+    width: "14px",
     overflow: "hidden",
   },
-  "&.cm-line-numbers .cm-breakpoint-gutter, &.cm-has-breakpoints .cm-breakpoint-gutter":
-    {
-      width: "14px",
-    },
+  "&.cm-breakpoints-coarse .cm-breakpoint-gutter": {
+    width: "0",
+  },
   "&.cm-breakpoints-coarse.cm-line-numbers .cm-breakpoint-gutter, &.cm-breakpoints-coarse.cm-has-breakpoints .cm-breakpoint-gutter":
     {
       width: "44px",
@@ -178,6 +177,16 @@ const breakpointTheme = EditorView.baseTheme({
   ".cm-breakpoint.cm-breakpoint-unverified": {
     backgroundColor: "transparent",
   },
+  "&:not(.cm-breakpoints-coarse) .cm-breakpoint-gutter .cm-gutterElement:not(:has(.cm-breakpoint)):hover::after":
+    {
+      content: '""',
+      display: "block",
+      width: "8px",
+      height: "8px",
+      borderRadius: "50%",
+      backgroundColor: "var(--editor-breakpoint)",
+      opacity: "0.4",
+    },
 });
 
 export const breakpoints = () => [

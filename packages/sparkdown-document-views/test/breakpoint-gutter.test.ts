@@ -121,6 +121,25 @@ describe("the script editor's breakpoint gutter", () => {
     expect(view.dom.classList.contains("cm-has-breakpoints")).toBe(true);
   });
 
+  it("offers a fine pointer its column before any breakpoint, with line numbers off", () => {
+    const { view, changes } = mount();
+    expect(view.dom.classList.contains("cm-line-numbers")).toBe(false);
+    const gutter = view.dom.querySelector(".cm-breakpoint-gutter")!;
+    expect(getComputedStyle(gutter).width).toBe("14px");
+    pressGutterAt(view, 3);
+    expect(changes).toEqual([[3]]);
+    expect(markers(view)).toHaveLength(1);
+    expect(getComputedStyle(gutter).width).toBe("14px");
+  });
+
+  it("keeps a touch editor's column hidden until the script has a breakpoint", () => {
+    const { view } = mount({ coarse: true, mode: "editing" });
+    const gutter = view.dom.querySelector(".cm-breakpoint-gutter")!;
+    expect(getComputedStyle(gutter).width).toBe("0px");
+    pressGutterAt(view, 3);
+    expect(getComputedStyle(gutter).width).toBe("44px");
+  });
+
   it("widens its target for a coarse pointer", () => {
     expect(mount({ coarse: true }).view.dom.classList).toContain(
       "cm-breakpoints-coarse",
