@@ -2503,7 +2503,8 @@ export class Game<T extends M = {}> {
 
   resume(): boolean {
     const paused = this._paused;
-    const advances = !paused || this._awaitingResume;
+    const held = this._awaitingResume;
+    const advances = !paused || held;
     this.unpause();
     if (!advances) {
       return false;
@@ -2511,6 +2512,7 @@ export class Game<T extends M = {}> {
     try {
       return this.continue();
     } catch (e) {
+      this._awaitingResume = held;
       if (paused) {
         this.pause();
       }
@@ -3398,6 +3400,7 @@ export class Game<T extends M = {}> {
       location: this._executingLocation,
     };
     this._announcedStop = false;
+    const held = this._awaitingResume;
     this._awaitingResume = false;
     this._steppingInThroughEntry = false;
     const outer = !this._stepping;
@@ -3408,6 +3411,9 @@ export class Game<T extends M = {}> {
       while (!done && traversal !== "continue") {
         done = this.stepWithinBudget(traversal, origin);
       }
+    } catch (e) {
+      this._awaitingResume = held;
+      throw e;
     } finally {
       if (outer) {
         this._stepping = false;

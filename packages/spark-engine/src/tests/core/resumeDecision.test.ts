@@ -92,16 +92,42 @@ describe("deciding whether Resume advances the story", () => {
     expect(game.resume()).toBe(false);
   });
 
-  it("leaves a paused game paused when its advance fails", () => {
-    const { game } = createGame();
+  it("keeps a paused game paused and held at its stop when its advance fails, so Resume can retry", () => {
+    const { game, methods } = createGame();
     game.start();
     game.step("over");
     game.pause();
-    vi.spyOn(game, "continue").mockImplementation(() => {
-      throw new Error("refused");
-    });
+    const execute = vi
+      .spyOn(game.story, "ContinueAsync")
+      .mockImplementationOnce(() => {
+        throw new Error("refused");
+      });
     expect(() => game.resume()).toThrow("refused");
+    expect(execute).toHaveBeenCalledOnce();
+    execute.mockRestore();
     expect(game.paused).toBe(true);
     expect(game.awaitingResume).toBe(true);
+    methods.length = 0;
+    game.resume();
+    expect(game.paused).toBe(false);
+    expect(methods).toContain("game/awaitingInteraction");
+  });
+
+  it("stays held at its stop when a later Step fails, so Resume still runs on", () => {
+    const { game, methods } = createGame();
+    game.start();
+    game.step("over");
+    game.pause();
+    const execute = vi
+      .spyOn(game.story, "ContinueAsync")
+      .mockImplementationOnce(() => {
+        throw new Error("refused");
+      });
+    expect(() => game.step("over")).toThrow("refused");
+    execute.mockRestore();
+    expect(game.awaitingResume).toBe(true);
+    methods.length = 0;
+    game.resume();
+    expect(methods).toContain("game/awaitingInteraction");
   });
 });

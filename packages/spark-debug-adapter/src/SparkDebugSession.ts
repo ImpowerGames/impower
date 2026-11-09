@@ -328,10 +328,10 @@ export class SparkDebugSession extends LoggingDebugSession {
       answer = await this._connection.emit(
         GetGameThreadsMessage.type.request({}),
       );
+      if (this._firstRead) {
+        await this._firstRead;
+      }
     } while (resuming !== this._resuming);
-    if (this._firstRead) {
-      await this._firstRead;
-    }
     if (
       (answer.stopped === false && HELD_STOPS.has(reason)) ||
       !this.answersRun(answer.run, run) ||

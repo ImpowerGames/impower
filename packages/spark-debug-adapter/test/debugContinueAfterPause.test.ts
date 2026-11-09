@@ -218,6 +218,62 @@ describe("continuing a debug run", () => {
     expect(h.events).toEqual(["stopped:pause"]);
   });
 
+  it("drops a pause's stop when Resume is accepted while the first state read is pending", async () => {
+    let paused = false;
+    let finishState: (value: unknown) => void = () => {};
+    const state = new Promise((resolve) => {
+      finishState = resolve;
+    });
+    const events: string[] = [];
+    const responses: string[] = [];
+    const debug = new SparkDebugSession(
+      {
+        isWindows: false,
+        uriToPath: (uri: string) => uri,
+        pathToUri: (path: string) => path,
+        getRootPath: () => undefined,
+      } as any,
+      {
+        connectInput() {},
+        emit: async (message: { method: string }) => {
+          if (message.method === "preview/gameState") {
+            return state;
+          }
+          if (message.method === "game/pause") {
+            paused = true;
+          }
+          if (message.method === "game/continue") {
+            paused = false;
+          }
+          if (message.method === "game/threads") {
+            return { threads: [{ id: 0, name: "main" }], stopped: paused, run: 1 };
+          }
+          return { run: 1 };
+        },
+      } as any,
+      { syncCursorToExecution: false },
+    );
+    (debug as any).sendEvent = (event: { event: string; body?: { reason?: string } }) =>
+      events.push(`${event.event}:${event.body?.reason ?? ""}`);
+    (debug as any).sendResponse = (answer: { command: string }) => responses.push(answer.command);
+    const response = (command: string) => ({
+      seq: 0,
+      type: "response",
+      request_seq: 1,
+      command,
+      success: true,
+    });
+    const reading = (debug as any).readGameState();
+    const pausing = (debug as any).pauseRequest(response("pause"), { threadId: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await (debug as any).continueRequest(response("continue"), { threadId: 0 });
+    expect(responses).toEqual(["pause", "continue"]);
+    finishState({ launchState: "play", run: 1 });
+    await reading;
+    await pausing;
+    expect(events).toEqual([]);
+  });
+
   it("holds a pause's stop until a Resume in flight is answered, then drops it if accepted", async () => {
     const h = held();
     h.holding.add("game/threads");
