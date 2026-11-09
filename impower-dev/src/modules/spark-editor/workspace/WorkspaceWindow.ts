@@ -16,6 +16,7 @@ import {
   ChangedEditorBreakpointsParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import {
   ScrolledEditorMessage,
@@ -571,6 +572,9 @@ export default class WorkspaceWindow {
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
       ),
+      onProtocolMessage(ChangedEditorHistoryMessage.type, (m) =>
+        this.handleChangedEditorHistory(m),
+      ),
       onProtocolMessage(ChangedEditorStartingValueLinesMessage.type, (m) =>
         this.handleChangedEditorStartingValueLines(m),
       ),
@@ -777,6 +781,16 @@ export default class WorkspaceWindow {
       },
     });
   };
+
+  protected handleChangedEditorHistory(
+    message: ChangedEditorHistoryMessage.Notification,
+  ) {
+    const { textDocument, canUndo, canRedo } = message.params;
+    workspace.editorHistory.value = {
+      ...workspace.editorHistory.peek(),
+      [this.relativePathOf(textDocument.uri)]: { canUndo, canRedo },
+    };
+  }
 
   recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
     const summary = { ...this.store.debug.diagnosticsSummary };

@@ -62,6 +62,45 @@ describe("skipping the preview by beat", () => {
     expect(await skip(1)).toBe(false);
   });
 
+  const heldSkip = () => {
+    let answer: (value: { file: string; line: number }) => void = () => {};
+    const ls = {
+      getOffsetSourceLocation: vi.fn(
+        () => new Promise<{ file: string; line: number }>((resolve) => (answer = resolve)),
+      ),
+    };
+    return { ls, answer: (line: number) => answer({ file: URI, line }) };
+  };
+
+  it("keeps a caret the author moved while the language server looked for the beat", async () => {
+    const { editor, window } = editorAt(4);
+    const { ls, answer } = heldSkip();
+    const skip = createPreviewBeatSkipper({ window, ls });
+    const skipping = skip(1);
+    editor.selectedRange = {
+      start: { line: 6, character: 2 },
+      end: { line: 6, character: 2 },
+    };
+    answer(9);
+    expect(await skipping).toBe(false);
+    expect(window.showDocument).not.toHaveBeenCalled();
+    expect(editor.selectedRange.start).toEqual({ line: 6, character: 2 });
+  });
+
+  it("stays in the script the author switched to while the language server looked for the beat", async () => {
+    const { editor, window } = editorAt(4);
+    const { ls, answer } = heldSkip();
+    const skip = createPreviewBeatSkipper({ window, ls });
+    const skipping = skip(1);
+    window.getActiveEditorForPane.mockReturnValue({
+      ...editor,
+      uri: "file://project/other.sd",
+    });
+    answer(9);
+    expect(await skipping).toBe(false);
+    expect(window.showDocument).not.toHaveBeenCalled();
+  });
+
   it("drops a skip that arrives while the previous one is still moving", async () => {
     const { editor, window } = editorAt(0);
     let answer: (value: { file: string; line: number }) => void = () => {};

@@ -116,6 +116,10 @@ class WorkspaceStore {
 
   readonly trashOpen = signal<boolean>(false);
 
+  readonly editorHistory = signal<
+    Record<string, { canUndo: boolean; canRedo: boolean }>
+  >({});
+
   readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);

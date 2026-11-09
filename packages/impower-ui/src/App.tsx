@@ -10,6 +10,7 @@ import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { featureCardGallery } from "./components/feature-card/FeatureCard.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
+import { keysChipGallery } from "./components/keys-chip/KeysChip.gallery";
 import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
@@ -45,6 +46,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   featureCardGallery,
   iconGallery,
   jumpChipsGallery,
+  keysChipGallery,
   listRowGallery,
   liveRegionGallery,
   loadingBarGallery,

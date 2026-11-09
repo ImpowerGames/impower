@@ -2,16 +2,17 @@ import { redo, selectAll, undo } from "@codemirror/commands";
 import { EditorSelection, EditorState, Extension, Facet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { changeColor, documentColorAt } from "./color";
-import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
+import { jumpToDefinition } from "./definition";
 import { coarsePointer } from "./pointer";
-import { findReferences, findReferencesKeymap } from "./references";
-import { renameKeymap, renameSymbol } from "./rename";
+import { findReferences } from "./references";
+import { renameSymbol } from "./rename";
+import type { EditorShortcutId } from "./shortcutTable";
 
 export type ContextMenuItem =
   | {
       label?: string;
       icon?: string;
-      shortcut?: string;
+      shortcut?: EditorShortcutId;
       command: (view: EditorView) => void;
       when?: (state: EditorState, pos: number) => boolean;
       needsSelection?: boolean;
@@ -19,18 +20,6 @@ export type ContextMenuItem =
       disabled?: () => boolean;
     }
   | { type: "separator" };
-
-export function getShortcutLabel(key: string) {
-  return key
-    .split("-")
-    .map((k) => {
-      if (k === "Mod") {
-        return /Mac/.test(navigator.platform) ? "Cmd" : "Ctrl";
-      }
-      return k.length === 1 ? k.toUpperCase() : k;
-    })
-    .join("+");
-}
 
 let menuClipboard: { pieces: string[]; linewise: boolean } | null = null;
 
@@ -207,12 +196,12 @@ export const historyContextMenuItems: ContextMenuItem[] = [
   {
     label: "Undo",
     command: undo,
-    shortcut: getShortcutLabel("Mod-z"),
+    shortcut: "undo",
   },
   {
     label: "Redo",
     command: redo,
-    shortcut: getShortcutLabel("Mod-y"),
+    shortcut: "redo",
   },
 ];
 
@@ -220,25 +209,25 @@ export const textContextMenuItems: ContextMenuItem[] = [
   {
     label: "Cut",
     command: cut,
-    shortcut: getShortcutLabel("Mod-x"),
+    shortcut: "cut",
     needsSelection: true,
   },
   {
     label: "Copy",
     command: copy,
-    shortcut: getShortcutLabel("Mod-c"),
+    shortcut: "copy",
     needsSelection: true,
   },
   {
     label: "Paste",
     command: paste,
-    shortcut: getShortcutLabel("Mod-v"),
+    shortcut: "paste",
     disabled: () => !pasteAvailable(),
   },
   {
     label: "Select all",
     command: selectAll,
-    shortcut: getShortcutLabel("Mod-a"),
+    shortcut: "selectAll",
     keepsMenuOpen: true,
   },
 ];
@@ -249,19 +238,19 @@ export const lspContextMenuItems: ContextMenuItem[] = [
   {
     label: "Rename",
     command: renameSymbol,
-    shortcut: getShortcutLabel(renameKeymap[0]?.key!),
+    shortcut: "rename",
     when: onName,
   },
   {
     label: "Find references",
     command: findReferences,
-    shortcut: getShortcutLabel(findReferencesKeymap[0]?.key!),
+    shortcut: "references",
     when: onName,
   },
   {
     label: "Go to definition",
     command: jumpToDefinition,
-    shortcut: getShortcutLabel(jumpToDefinitionKeymap[0]?.key!),
+    shortcut: "definition",
     when: onName,
   },
 ];

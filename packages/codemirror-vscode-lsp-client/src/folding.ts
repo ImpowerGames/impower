@@ -1,7 +1,6 @@
 import {
   codeFolding,
   foldGutter,
-  foldKeymap,
   foldService,
 } from "@codemirror/language";
 import {
@@ -11,7 +10,7 @@ import {
   StateField,
   TransactionSpec,
 } from "@codemirror/state";
-import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
+import { EditorView, ViewUpdate } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
@@ -314,7 +313,6 @@ export function serverFolding(): LSPClientExtension {
         markerDOM: foldingMarkerDOM,
         foldingChanged,
       }),
-      keymap.of([...foldKeymap]),
     ],
   };
 }

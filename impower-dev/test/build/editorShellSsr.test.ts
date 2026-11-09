@@ -32,7 +32,7 @@ afterAll(async () => {
 describe("the editor shell's server render", () => {
   it("leaves the bottom navigation's selected screen to the client", () => {
     const html = renderToString(h(rootComponent, null));
-    expect(html).toContain("h-[60px]");
+    expect(html).toContain("data-bottom-navigation");
     for (const screen of ["logic", "assets", "share"]) {
       expect(html).not.toMatch(new RegExp(`id="[^"]*-trigger-${screen}"`));
     }

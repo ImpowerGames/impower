@@ -44,7 +44,6 @@ export {
   copy,
   cut,
   defaultContextMenuItems,
-  getShortcutLabel,
   historyContextMenuItems,
   lspContextMenuItems,
   onPasteRefused,
@@ -56,7 +55,6 @@ export {
 export {
   jumpToDeclaration,
   jumpToDefinition,
-  jumpToDefinitionKeymap,
   jumpToImplementation,
   jumpToTypeDefinition,
   serverDefinitions,
@@ -76,7 +74,7 @@ export {
   updateDocumentFoldingRanges,
   type DocumentFoldingRange,
 } from "./folding";
-export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
+export { formatDocument, serverFormatting } from "./formatting";
 export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { type LSPClientIcons } from "./icons";
 export { hoverPreviews, serverHovers } from "./hover";
@@ -118,14 +116,13 @@ export {
 export {
   closeReferencePanel,
   findReferences,
-  findReferencesKeymap,
   forEachReference,
   isReferencePanelOpen,
   serverReferences,
   setReferencePanel,
   type ReferenceLocation,
 } from "./references";
-export { renameKeymap, renameSymbol, serverRenaming } from "./rename";
+export { renameSymbol, serverRenaming } from "./rename";
 export {
   convertFromServerSemanticTokens,
   serverSemanticHighlighting,
@@ -139,8 +136,67 @@ export {
   prevSignature,
   serverSignatureHelp,
   showSignatureHelp,
-  signatureKeymap,
 } from "./signature";
+export {
+  KEYS_BY_CODE,
+  codeMirrorKey,
+  comboKeyName,
+  comboFromEvent,
+  comboLabel,
+  comboParts,
+  isFunctionKey,
+  isShortcutCombo,
+  normalizeCombo,
+  parseCombo,
+  shortcutPlatform,
+  type ShortcutCombo,
+  type ShortcutPlatform,
+} from "./shortcutCombo";
+export {
+  activeCombos,
+  aliasCombos,
+  assignShortcut,
+  resolveShortcuts,
+  restoreShortcut,
+  shortcutHolder,
+  shortcutForEvent,
+  usualCombo,
+  type ShortcutChange,
+  type ShortcutCombos,
+} from "./shortcutRules";
+export {
+  editorShortcutDispatch,
+  type EditorShortcutDispatch,
+} from "./shortcutDispatch";
+export {
+  EDITOR_SHORTCUT_COMMANDS,
+  editorShortcutEntries,
+  editorShortcuts,
+  setEditorShortcuts,
+  shortcutCombosFor,
+  shortcutKeyBindings,
+  shortcutLabelFor,
+  type EditorShortcutEntryState,
+  type EditorShortcutsConfig,
+  type EditorShortcutsState,
+  type ShortcutCommand,
+  type ShortcutCommands,
+} from "./shortcuts";
+export {
+  EDITOR_SHORTCUT_ROWS,
+  EDITOR_SHORTCUTS,
+  SHORTCUT_GROUPS,
+  isShortcutRow,
+  platformKeys,
+  type EditorShortcutId,
+  type EditorShortcutRowId,
+  type FixedShortcut,
+  type PlatformKeys,
+  type ShortcutEntry,
+  type ShortcutGroupId,
+  type ShortcutPrecedence,
+  type ShortcutRow,
+} from "./shortcutTable";
 export { serverDocumentSymbols } from "./symbols";
 export { serverAutoSync } from "./sync";
 export { BrowserTransport, WorkerTransport, type Transport } from "./transport";
