@@ -144,6 +144,7 @@ import { imageParts, valueParts } from "../utils/imageParts";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
+import type { HeldStop } from "../types/HeldStop";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
 import type { SystemConfiguration } from "../types/SystemConfiguration";
@@ -412,9 +413,18 @@ export class Game<T extends M = {}> {
 
   protected _announcedStop = false;
 
-  protected _awaitingResume = false;
-  get awaitingResume() {
-    return this._awaitingResume;
+  protected _stop: HeldStop | null = null;
+  get stop(): HeldStop | null {
+    return this.awaitingResume ? this._stop : null;
+  }
+
+  get awaitingResume(): boolean {
+    const stop = this._stop;
+    return (
+      stop !== null &&
+      stop.beat === this._run.current &&
+      stop.address === this._positions.previous()
+    );
   }
 
   protected _ending: GameEnding | null = null;
@@ -2503,8 +2513,7 @@ export class Game<T extends M = {}> {
 
   resume(): boolean {
     const paused = this._paused;
-    const held = this._awaitingResume;
-    const advances = !paused || held;
+    const advances = !paused || this.awaitingResume;
     this.unpause();
     if (!advances) {
       return false;
@@ -2512,7 +2521,6 @@ export class Game<T extends M = {}> {
     try {
       return this.continue();
     } catch (e) {
-      this._awaitingResume = held;
       if (paused) {
         this.pause();
       }
@@ -2662,7 +2670,6 @@ export class Game<T extends M = {}> {
     if (!this.restoreCheckpoint(beat.checkpoint)) {
       throw new Error("This beat can no longer be restored.");
     }
-    this._awaitingResume = false;
     if (beat.shown.choices?.length) {
       const runtime = this._runtimeState;
       this._runtimeState = new RuntimeState();
@@ -3301,7 +3308,6 @@ export class Game<T extends M = {}> {
 
   reset() {
     this.cancelPreview();
-    this._awaitingResume = false;
     this._ending = null;
     this._errorEnding = null;
     this.rewindStory();
@@ -3318,7 +3324,6 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return true;
     }
-    this._awaitingResume = false;
     this.supersedeRolls();
     if (this._run.behindLatest) {
       this.forkRun();
@@ -3401,8 +3406,6 @@ export class Game<T extends M = {}> {
       location: this._executingLocation,
     };
     this._announcedStop = false;
-    const held = this._awaitingResume;
-    this._awaitingResume = false;
     this._steppingInThroughEntry = false;
     const outer = !this._stepping;
     this._stepping = true;
@@ -3412,9 +3415,6 @@ export class Game<T extends M = {}> {
       while (!done && traversal !== "continue") {
         done = this.stepWithinBudget(traversal, origin);
       }
-    } catch (e) {
-      this._awaitingResume = held;
-      throw e;
     } finally {
       if (outer) {
         this._stepping = false;
@@ -3785,7 +3785,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this._announcedStop = true;
-    this._awaitingResume = true;
+    this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4168,9 +4168,19 @@ export class Game<T extends M = {}> {
     this.connection.emit(GameExecutedMessage.type.notification(params));
   }
 
+  protected holdStop(reason: HeldStop["reason"]) {
+    this._stop = {
+      reason,
+      beat: this._run.current,
+      address: this._positions.previous(),
+      location: this._executingLocation,
+      queued: this.module.interpreter.hasQueuedBeats,
+    };
+  }
+
   protected notifyStepped() {
     this._announcedStop = true;
-    this._awaitingResume = true;
+    this.holdStop("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),

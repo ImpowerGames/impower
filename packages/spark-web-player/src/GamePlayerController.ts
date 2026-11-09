@@ -2317,7 +2317,7 @@ export class GamePlayerController {
   }
 
   resumeGame() {
-    return this.handleUnpauseGame(UnpauseGameMessage.type.request({}));
+    return this.handleContinueGame(ContinueGameMessage.type.request({}));
   }
 
   stepGame(traversal: "in" | "out") {
@@ -2340,6 +2340,10 @@ export class GamePlayerController {
     const app = this.controlledApp;
     const wasPaused = app?.paused;
     app?.unpause();
+    if (this._workerPlay?.state === "starting") {
+      this.updateLaunchStateIcon();
+      return ContinueGameMessage.type.response(message.id, { done: false, run });
+    }
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(

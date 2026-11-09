@@ -92,6 +92,30 @@ describe("deciding whether Resume advances the story", () => {
     expect(game.history.behindLatest).toBe(true);
   });
 
+  it("describes the stop it is held at until execution moves", () => {
+    const { game } = createGame();
+    game.start();
+    expect(game.stop).toBeNull();
+    game.step("over");
+    expect(game.stop?.reason).toBe("step");
+    expect(game.stop?.beat).toBe((game as any)._run.current);
+    game.pause();
+    expect(game.stop?.reason).toBe("step");
+    game.resume();
+    expect(game.stop).toBeNull();
+  });
+
+  it("stops being held once execution moves within the same beat", () => {
+    const { game } = createGame();
+    game.start();
+    game.step("over");
+    const beat = (game as any)._run.current;
+    expect(game.awaitingResume).toBe(true);
+    game.step();
+    expect((game as any)._run.current).toBe(beat);
+    expect(game.awaitingResume).toBe(false);
+  });
+
   it("advances a playing game, as a click does", () => {
     const { game, shown } = createGame();
     game.start();

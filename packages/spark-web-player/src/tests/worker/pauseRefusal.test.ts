@@ -92,6 +92,16 @@ describe("a pause the worker refuses", () => {
     expect(published).toEqual([false]);
   });
 
+  it("unpauses a play that is still starting without asking the worker", async () => {
+    const ask = vi.fn(refused);
+    const { controller, app } = controllerWith(true, ask);
+    controller._workerPlay.state = "starting";
+    const answer = await controller.handleContinueGame(ContinueGameMessage.type.request({}));
+    expect(answer.result).toEqual({ done: false, run: 7 });
+    expect(app.paused).toBe(false);
+    expect(ask).not.toHaveBeenCalled();
+  });
+
   it("leaves the app's clock alone when a clock step is refused", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
