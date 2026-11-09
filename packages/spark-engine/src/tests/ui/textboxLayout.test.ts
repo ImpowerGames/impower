@@ -367,6 +367,38 @@ end
     expect(written).toContain(ids[0]);
   });
 
+  test("redelivery does not record an untouched target's line a second time", async () => {
+    const h = createHarness(
+      `layout main {
+  banner {
+    text "Score: "
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, beforeConnect: playing },
+    );
+    await h.ready;
+    await displayLive(h, { end: 0, text: { action: [{ text: "First." }] } });
+    await displayLive(h, {
+      end: 0,
+      text: { action: [{ text: "Second." }], banner: [{ text: "1" }] },
+      layout: {
+        textbox: [
+          { control: "close", name: "textbox" },
+          { control: "open", name: "textbox" },
+        ],
+      },
+    });
+    const state = (h.game.module.ui as any)._state.text;
+    expect(state.banner).toEqual([{ text: "1" }]);
+    expect(state.action).toEqual([{ text: "Second." }]);
+  });
+
   test("a navigate cancels an initial textbox still waiting for its font", async () => {
     const h = createHarness(
       `${FANCY_TEXTBOX}

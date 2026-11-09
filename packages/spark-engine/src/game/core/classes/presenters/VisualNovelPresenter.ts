@@ -85,10 +85,14 @@ export class VisualNovelPresenter implements Presenter {
   }
 
   protected writeContent(instant?: boolean, time?: number): void {
+    this.writeIndicator(instant);
+    this.bindChoices();
+    writeBeatText(this._game.module.ui, this._instructions, instant, time);
+  }
+
+  protected writeIndicator(instant?: boolean): void {
     const game = this._game;
-    const instructions = this._instructions;
-    const autoAdvance = instructions?.auto;
-    const choose = this._options.choose;
+    const autoAdvance = this._instructions?.auto;
 
     const indicatorStyle: Record<string, string | null> = {};
     if (autoAdvance || game.shownEnding) {
@@ -100,8 +104,13 @@ export class VisualNovelPresenter implements Presenter {
       indicatorStyle["display"] = null;
     }
     game.module.ui.style.update("continue_indicator", indicatorStyle);
+  }
 
-    const choiceTargets = instructions.choices;
+  protected bindChoices(): void {
+    const game = this._game;
+    const choose = this._options.choose;
+
+    const choiceTargets = this._instructions.choices;
     if (choiceTargets) {
       choiceTargets.forEach((target, index) => {
         const handleClick = (): void => {
@@ -117,17 +126,18 @@ export class VisualNovelPresenter implements Presenter {
         game.module.ui.observe("click", target, handleClick);
       });
     }
+  }
 
-    writeBeatText(game.module.ui, instructions, instant, time);
+  protected textTargets(): string[] {
+    return [
+      ...Object.keys(this._instructions.text ?? {}),
+      ...(this._instructions.choices ?? []),
+    ];
   }
 
   protected textElementIds(): string[][] {
     const ui = this._game.module.ui;
-    const targets = [
-      ...Object.keys(this._instructions.text ?? {}),
-      ...(this._instructions.choices ?? []),
-    ];
-    return targets.map((target) => ui.findIds(target));
+    return this.textTargets().map((target) => ui.findIds(target));
   }
 
   protected redeliverAfterLayouts(
@@ -148,19 +158,23 @@ export class VisualNovelPresenter implements Presenter {
       return;
     }
     void settled.then(() => {
-      const lostTarget = this.textElementIds().some((ids, index) => {
+      const targets = this.textTargets();
+      const lostTargets = this.textElementIds().flatMap((ids, index) => {
         const before = written[index] ?? [];
-        return (
-          ids.some((id) => !before.includes(id)) &&
+        return ids.some((id) => !before.includes(id)) &&
           (before.length === 0 || before.some((id) => !ids.includes(id)))
-        );
+          ? [targets[index]!]
+          : [];
       });
-      if (!ui.isCurrentPresentation(presentation) || !lostTarget) {
+      if (!ui.isCurrentPresentation(presentation) || lostTargets.length === 0) {
         return;
       }
       const composed = ui.beginCompose();
-      ui.text.clearAll(this._transientLayers);
-      this.writeContent(true);
+      this.writeIndicator(true);
+      this.bindChoices();
+      for (const target of lostTargets) {
+        void ui.text.restore(target);
+      }
       ui.reveal();
       ui.refreshLayouts();
       if (composed) {
