@@ -53,6 +53,8 @@ export interface GameState {
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
+  choosing?: boolean;
+  picks?: Record<string, number[]>;
   compiling?: boolean;
   playRefusal?: string;
 }

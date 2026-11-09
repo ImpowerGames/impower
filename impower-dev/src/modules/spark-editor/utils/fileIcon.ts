@@ -11,6 +11,24 @@ import {
   TextIcon,
   VideoIcon,
 } from "@impower/impower-ui/icons";
+import { signal } from "@preact/signals";
+import { patternEndings } from "../workspace/settings/fileEndings";
+
+type ConfiguredCategory = "image" | "audio";
+
+const configuredEndings = signal<Readonly<Record<ConfiguredCategory, readonly string[]>>>({
+  image: [],
+  audio: [],
+});
+
+export const setAssetFiles = ({ imageFiles, audioFiles }: { imageFiles: string; audioFiles: string }): void => {
+  configuredEndings.value = { image: patternEndings(imageFiles), audio: patternEndings(audioFiles) };
+};
+
+const configuredCategory = (ext: string): ConfiguredCategory | undefined => {
+  const { image, audio } = configuredEndings.value;
+  return image.includes(ext) ? "image" : audio.includes(ext) ? "audio" : undefined;
+};
 
 const ICON_BY_EXT: Record<string, IconComponent> = {
   sd: StoryIcon,
@@ -103,7 +121,8 @@ const CATEGORY_BY_EXT: Record<string, FileCategory> = {
 };
 
 export function fileCategory(path: string): FileCategory {
-  return CATEGORY_BY_EXT[extOf(path)] ?? "other";
+  const ext = extOf(path);
+  return configuredCategory(ext) ?? CATEGORY_BY_EXT[ext] ?? "other";
 }
 
 export function iconForPath(
@@ -113,11 +132,16 @@ export function iconForPath(
   if (isDirectory) {
     return FolderIcon;
   }
-  return ICON_BY_EXT[extOf(path)] ?? TextIcon;
+  const ext = extOf(path);
+  const configured = configuredCategory(ext);
+  if (configured) {
+    return configured === "image" ? ImageIcon : MusicIcon;
+  }
+  return ICON_BY_EXT[ext] ?? TextIcon;
 }
 
 export function isImagePath(path: string): boolean {
-  return ICON_BY_EXT[extOf(path)] === ImageIcon;
+  return iconForPath(path, false) === ImageIcon;
 }
 
 export function iconForCategory(category: string | undefined): IconComponent {
