@@ -48,6 +48,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useHoldRepeat",
   "useLayout",
   "useRailDefault",
+  "useSheetOpen",
   "useMountTransition",
   "VIRTUAL_LIST_ROW_HEIGHT",
   "virtualListSlotVariants",

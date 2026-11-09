@@ -5,10 +5,12 @@ import {
   moveLineDown,
   moveLineUp,
   redo,
+  redoDepth,
   selectAll,
   selectLine,
   toggleComment,
   undo,
+  undoDepth,
 } from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
@@ -30,6 +32,7 @@ import {
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import {
@@ -538,6 +541,32 @@ export class ScriptEditorController {
     }
   }
 
+  protected _history: { uri?: string; canUndo: boolean; canRedo: boolean } =
+    { canUndo: false, canRedo: false };
+
+  protected publishHistory(state: EditorState) {
+    const uri = this._textDocument?.uri;
+    const canUndo = undoDepth(state) > 0;
+    const canRedo = redoDepth(state) > 0;
+    if (
+      !uri ||
+      (uri === this._history.uri &&
+        canUndo === this._history.canUndo &&
+        canRedo === this._history.canRedo)
+    ) {
+      return;
+    }
+    this._history = { uri, canUndo, canRedo };
+    sendProtocolMessage(
+      ChangedEditorHistoryMessage.type.notification({
+        textDocument: { uri },
+        canUndo,
+        canRedo,
+      }),
+      this.host,
+    );
+  }
+
   protected handleShowEditorStatusBar = (
     message: RequestMessage<
       ShowEditorStatusBarMethod,
@@ -709,6 +738,7 @@ export class ScriptEditorController {
         SelectedEditorMessage.type.notification(params),
         this.host,
       );
+      this.publishHistory(state);
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";
@@ -1032,6 +1062,7 @@ export class ScriptEditorController {
             );
           },
           onViewUpdate: (update) => {
+            this.publishHistory(update.state);
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }
