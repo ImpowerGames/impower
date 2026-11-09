@@ -25,7 +25,7 @@ import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
 import { SettingsPage } from "../settings";
-import SharePanel from "../share/Share";
+import { SharePage } from "../share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
 
 export const propDefaults = {};
@@ -34,7 +34,7 @@ export type MainWindowProps = Partial<typeof propDefaults>;
 function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) {
   if (settings) return <SettingsPage key="settings" />;
   if (pane === "assets") return <Assets key="assets" />;
-  if (pane === "share") return <SharePanel key="share" />;
+  if (pane === "share") return <SharePage key="share" />;
   return <Logic key="logic" />;
 }
 

@@ -1968,7 +1968,7 @@ const SURFACES = {
 const SCREENS = {
   logic: '[role="tab"][id$="-trigger-main"], .sparkdown-script-editor-root .cm-content',
   assets: '[role="tab"][id$="-trigger-files"]',
-  share: '[role="tab"][id$="-trigger-game"]',
+  share: "#share-page",
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
 const SELECTED_SCREEN_TAB = Object.keys(SCREENS).map((name) => `${tabSelector(name)}[aria-selected="true"]`).join(", ");
