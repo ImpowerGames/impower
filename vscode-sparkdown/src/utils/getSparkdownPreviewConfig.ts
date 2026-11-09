@@ -25,8 +25,6 @@ export const getSparkdownPreviewConfig = (
       gameConfig["previewSynchronizedWithCursor"],
     screenplay_preview_synchronized_with_cursor:
       screenplayConfig["previewSynchronizedWithCursor"],
-    screenplay_preview_theme: screenplayConfig["previewTheme"],
-    screenplay_preview_texture: screenplayConfig["previewTexture"],
     screenplay_print_headings_bold:
       screenplayConfig["formatting"].printHeadingsBold,
     screenplay_print_function_identifiers:
