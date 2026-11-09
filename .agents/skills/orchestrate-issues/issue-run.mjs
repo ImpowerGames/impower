@@ -797,6 +797,19 @@ export function closedBeforeRun(record, t) {
   return !(t.prs ?? []).some((p) => branchTicket(p.branch) === t.number && (p.state === "OPEN" || p.state === "MERGED"));
 }
 
+export function finishedContainers(record, snapshot) {
+  const tickets = snapshot.tickets ?? [], childrenOf = new Map();
+  for (const t of tickets) { if (!childrenOf.has(t.parent)) childrenOf.set(t.parent, []); childrenOf.get(t.parent).push(t); }
+  const subIssuesFinished = (c) => !c.truncated && (childrenOf.get(c.number) ?? []).length > 0 && childrenOf.get(c.number).every(finished);
+  function finished(t) {
+    if (closedBeforeRun(record, t)) return true;
+    if (!t.container) return t.state === "closed" && Boolean(t.delivered);
+    return t.state === "closed" && t.stateReason === "completed" && subIssuesFinished(t);
+  }
+  const containers = tickets.filter((t) => t.container);
+  return { ready: new Set(containers.filter((t) => t.state !== "closed" && subIssuesFinished(t)).map((t) => t.number)), closed: new Set(containers.filter(finished).map((t) => t.number)) };
+}
+
 const plannedNodes = (nodes) => nodes.filter((t) => !t.container || t.truncated);
 
 const pullsFilter = (client, tickets = null, split = false) => {
@@ -1037,7 +1050,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     return `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`;
   };
   const historic = new Set(snapshot.tickets.filter((t) => closedBeforeRun(record, t)).map((t) => t.number));
-  const met = (b) => b.delivered || historic.has(b.number);
+  const containers = finishedContainers(record, snapshot);
+  const met = (b) => b.delivered || historic.has(b.number) || containers.closed.has(b.number);
   const undelivered = (t) => t.blockers.filter((b) => !met(b));
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
@@ -1124,7 +1138,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         const action = open.length ? "adopt-pr" : "adopt-worktree";
         add(t, action, `the ticket gained sub-issues while existing work on it (${[...open.map((p) => `PR #${p.number}`), ...t.worktrees.map((w) => w.path)].join(", ")}) may still have a writer; find that writer and record it with adopt, then settle it before its sub-issues are dispatched`, { ...(open.length && { pr: open[0].number, rounds: open[0].rounds, branch: open[0].branch }), worktrees: t.worktrees, container: true, continueBlocked: "the ticket is now a container; its sub-issues are planned individually" });
       } else if (t.truncated) add(t, "decision-needed", "its sub-issues nest deeper than GitHub's limit, so the snapshot could not read them");
-      else add(t, "container", "its own sub-issues are planned individually");
+      else if (containers.ready.has(t.number)) {
+        const unmet = record.containers?.[t.number];
+        add(t, "close-container", unmet ? `every sub-issue is delivered, but it stays open: the check on main ${unmet.mainSha} found ${unmet.unmet.map((c) => `"${c.criterion}" unmet (${c.gap})`).join("; ")}; check its criteria on main again once that is true` : "every sub-issue is delivered; check its acceptance criteria on main and close it with integration.mjs close-container", unmet ? { unmet: unmet.unmet, checkedOn: unmet.mainSha } : {});
+      } else add(t, "container", containers.closed.has(t.number) ? "closed with every sub-issue delivered" : "its own sub-issues are planned individually");
       continue;
     }
     if (t.state === "closed" && !t.delivered && closedBeforeRun(record, t)) { add(t, "done", HISTORY, { history: true }); continue; }
