@@ -27,10 +27,10 @@ export default function RenameView() {
   }
 
   const uses = references.reduce((n, g) => n + g.uses.length, 0);
-  const error = statusTone === "error" && status;
+  const error = !reading && statusTone === "error" && status;
   const line =
-    error ||
     (reading && "Tap Edit to rename.") ||
+    error ||
     renameNote(subject, uses, references.length, autoRenameFiles ? files.length : 0);
 
   return (

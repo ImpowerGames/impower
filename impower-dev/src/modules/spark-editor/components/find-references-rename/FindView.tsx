@@ -78,7 +78,7 @@ export default function FindView() {
             width="full"
             class="flex-1"
             placeholder={reading ? "Tap Edit to replace." : "Replace"}
-          disabled={reading}
+            disabled={reading}
             name="replace"
             aria-label="Replace with"
             value={snapshot.replacement}
@@ -89,8 +89,8 @@ export default function FindView() {
           <FormButton
             name="replace"
             label="Replace this match"
-        title={reading ? "Tap Edit to replace." : undefined}
-        disabled={reading}
+            title={reading ? "Tap Edit to replace." : undefined}
+            disabled={reading}
             onClick={() => withSearch((search) => search.replaceOne())}
           >
             <ReplaceIcon />
@@ -98,8 +98,8 @@ export default function FindView() {
           <FormButton
             name="replaceAll"
             label="Replace all matches"
-        title={reading ? "Tap Edit to replace." : undefined}
-        disabled={reading}
+            title={reading ? "Tap Edit to replace." : undefined}
+            disabled={reading}
             onClick={() => withSearch((search) => search.replaceAll())}
           >
             <ReplaceAllIcon />

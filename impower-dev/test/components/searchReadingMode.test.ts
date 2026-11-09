@@ -95,4 +95,24 @@ describe("the Rename view", () => {
     expect(submit.disabled).toBe(false);
     expect(view.querySelector("#rename-status")!.textContent).not.toBe("Tap Edit to rename.");
   });
+
+  it("shows Tap Edit to rename. over an earlier rename's error once reading starts", async () => {
+    workspace.search.value = {
+      ...INITIAL_SEARCH,
+      open: true,
+      view: "rename",
+      subject: { name: "imani", character: true },
+      renameName: "zadie",
+      status: "zadie is already a name in this story.",
+      statusTone: "error",
+    };
+    await setMode("editing");
+    const view = await mount(RenameView);
+    const status = view.querySelector("#rename-status")!;
+    expect(status.textContent).toBe("zadie is already a name in this story.");
+
+    await setMode("reading");
+    expect(status.textContent).toBe("Tap Edit to rename.");
+    expect(status.getAttribute("data-tone")).toBe("info");
+  });
 });
