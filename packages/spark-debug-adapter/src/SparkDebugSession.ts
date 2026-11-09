@@ -120,6 +120,8 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _continueAdvances = true;
 
+  private _continues = 0;
+
   private _finishFirstRead: (() => void) | undefined;
 
   public constructor(
@@ -314,13 +316,18 @@ export class SparkDebugSession extends LoggingDebugSession {
     run: number | null | undefined = this._run,
     once = false,
   ) {
+    const continues = this._continues;
     const answer = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
     if (this._firstRead) {
       await this._firstRead;
     }
-    if (!this.answersRun(answer.run, run) || !this.isCurrentStop(reason, run)) {
+    if (
+      continues !== this._continues ||
+      !this.answersRun(answer.run, run) ||
+      !this.isCurrentStop(reason, run)
+    ) {
       return;
     }
     if (once) {
@@ -499,6 +506,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendRefusal(response, e);
       return;
     }
+    this._continueAdvances = false;
     this.sendResponse(response);
     if (this.answersRun(answer.run, run)) {
       await this.sendStoppedEvent("pause", run);
@@ -512,6 +520,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
+    this._continues += 1;
     try {
       await this._connection.emit(UnpauseGameMessage.type.request({}));
       if (this._continueAdvances) {

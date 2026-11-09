@@ -58,6 +58,50 @@ describe("continuing a debug run", () => {
     });
   }
 
+  it("resumes in place when Resume arrives before the pause's stop is announced", async () => {
+    const sent: string[] = [];
+    const events: string[] = [];
+    let answerThreads: (value: unknown) => void = () => {};
+    const debug = new SparkDebugSession(
+      {
+        isWindows: false,
+        uriToPath: (uri: string) => uri,
+        pathToUri: (path: string) => path,
+        getRootPath: () => undefined,
+      } as any,
+      {
+        connectInput() {},
+        emit: (message: { method: string }) => {
+          sent.push(message.method);
+          return message.method === "game/threads"
+            ? new Promise((resolve) => {
+                answerThreads = resolve;
+              })
+            : Promise.resolve({});
+        },
+      } as any,
+      { syncCursorToExecution: false },
+    );
+    const acknowledged = new Promise<void>((resolve) => {
+      (debug as any).sendResponse = () => resolve();
+    });
+    (debug as any).sendEvent = (event: { event: string }) => events.push(event.event);
+    const response = (command: string) => ({
+      seq: 0,
+      type: "response",
+      request_seq: 1,
+      command,
+      success: true,
+    });
+    const pausing = (debug as any).pauseRequest(response("pause"), { threadId: 0 });
+    await acknowledged;
+    await (debug as any).continueRequest(response("continue"), { threadId: 0 });
+    answerThreads({ threads: [{ id: 0, name: "main" }] });
+    await pausing;
+    expect(sent).not.toContain("game/continue");
+    expect(events).not.toContain("stopped");
+  });
+
   it("runs on to the next stop after a breakpoint", async () => {
     const { debug, resumed } = session();
     await (debug as any).onReceiveNotification({

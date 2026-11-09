@@ -8,17 +8,18 @@ import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 
 const MAIN = "file:///local/main.sd";
 
-const fakeAdapter = (refuse: Record<string, string> = {}) => {
+const fakeAdapter = (refuse: Record<string, string> = {}, holdStack = false) => {
   const requests: DebugProtocol.Request[] = [];
   let send: (message: DebugProtocol.ProtocolMessage) => void = () => {};
   let seq = 0;
   const frames: DebugProtocol.StackFrame[] = [];
+  let releaseStack = () => {};
   const adapter: DebugAdapter = {
     handleMessage(message) {
       const request = message as DebugProtocol.Request;
       requests.push(request);
       const refusal = refuse[request.command];
-      send({
+      const answer = () => send({
         seq: ++seq,
         type: "response",
         request_seq: request.seq,
@@ -29,6 +30,11 @@ const fakeAdapter = (refuse: Record<string, string> = {}) => {
           ? { body: { stackFrames: frames, totalFrames: frames.length } }
           : {}),
       } as DebugProtocol.Response);
+      if (holdStack && request.command === "stackTrace") {
+        releaseStack = answer;
+      } else {
+        answer();
+      }
     },
     onDidSendMessage(listener) {
       send = listener;
@@ -39,6 +45,7 @@ const fakeAdapter = (refuse: Record<string, string> = {}) => {
     adapter,
     requests,
     commands: () => requests.map((r) => r.command),
+    releaseStack: () => releaseStack(),
     event: (event: string, body: unknown) =>
       send({ seq: ++seq, type: "event", event, body } as DebugProtocol.Event),
     stackAt: (...lines: number[]) => {
@@ -143,6 +150,73 @@ describe("the web editor's debug client", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onStop).not.toHaveBeenCalled();
     expect(workspace.debugSession.value.stackTrace).toBeNull();
+  });
+
+  it("drops a pause's stack trace that arrives after an accepted Resume", async () => {
+    const fake = fakeAdapter({}, true);
+    const { debug, onStop } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    fake.stackAt(3);
+    fake.event("stopped", { reason: "pause", threadId: 0 });
+    expect(await debug.continue()).toBe(true);
+    expect(workspace.debugSession.value).toMatchObject({ stopped: null, stackTrace: null });
+    fake.releaseStack();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onStop).not.toHaveBeenCalled();
+    expect(workspace.debugSession.value.stackTrace).toBeNull();
+  });
+
+  it("keeps a stop that lands while Resume is in flight", async () => {
+    const fake = fakeAdapter();
+    const { debug, onStop } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    fake.stackAt(9);
+    const handle = fake.adapter.handleMessage.bind(fake.adapter);
+    fake.adapter.handleMessage = (message) => {
+      if ((message as DebugProtocol.Request).command === "continue") {
+        fake.event("stopped", { reason: "breakpoint", threadId: 0 });
+      }
+      handle(message);
+    };
+    expect(await debug.continue()).toBe(true);
+    await vi.waitFor(() => expect(onStop).toHaveBeenCalledWith({ uri: MAIN, line: 9 }));
+    expect(workspace.debugSession.value.stopped?.reason).toBe("breakpoint");
+  });
+
+  it("keeps a choice menu on record through a Resume in place", async () => {
+    const fake = fakeAdapter();
+    const { debug } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "game/awaitingInteraction",
+      params: { location: { uri: MAIN, range: {} }, choices: true },
+    } as never);
+    expect(await debug.continue()).toBe(true);
+    expect(workspace.debugSession.value.choosing).toBe(true);
+  });
+
+  it("reports a refused stack trace for the running session", async () => {
+    const fake = fakeAdapter({ stackTrace: "no game loaded" });
+    const { debug, onRefusal, onStop } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    fake.event("stopped", { reason: "pause", threadId: 0 });
+    await vi.waitFor(() => expect(onRefusal).toHaveBeenCalledWith("no game loaded"));
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet about a refused stack trace once the session has ended", async () => {
+    const fake = fakeAdapter({ stackTrace: "no game loaded" }, true);
+    const { debug, onRefusal } = client(fake);
+    await debug.start(MAIN);
+    fake.event("stopped", { reason: "pause", threadId: 0 });
+    debug.end();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onRefusal).not.toHaveBeenCalled();
   });
 
   it("reports a request the adapter refuses and leaves the run as it was", async () => {

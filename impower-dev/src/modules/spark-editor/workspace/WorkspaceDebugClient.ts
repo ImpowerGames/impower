@@ -155,8 +155,15 @@ export default class WorkspaceDebugClient {
     return this.command("pause");
   }
 
-  continue() {
-    return this.command("continue");
+  async continue() {
+    const session = this._session;
+    const stops = session?.stops;
+    const accepted = await this.command("continue");
+    if (accepted && session && this._session === session && session.stops === stops) {
+      session.stops += 1;
+      this.update({ stopped: null, stackTrace: null });
+    }
+    return accepted;
   }
 
   next() {
@@ -239,7 +246,11 @@ export default class WorkspaceDebugClient {
     const response = (await this.request(session, "stackTrace", {
       threadId: stopped.threadId ?? 0,
     })) as DebugProtocol.StackTraceResponse | null;
-    if (this._session !== session || session.stops !== stop || !response?.success) {
+    if (this._session !== session || session.stops !== stop || !response) {
+      return;
+    }
+    if (!response.success) {
+      this._options.onRefusal?.(response.message ?? "");
       return;
     }
     this.update({ stackTrace: response.body });
