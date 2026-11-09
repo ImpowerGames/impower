@@ -144,6 +144,7 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
+  addPanel?: boolean;
   outlineSearch?: boolean;
 }
 

@@ -12,6 +12,7 @@ import ListRow, { type ListRowSize } from "./ListRow";
 const SIZES: Record<ListRowSize, string> = {
   default: "Default: 60px, the Scripts and Assets pages' rows",
   compact: "Compact: 44px",
+  block: "Block: 64px with a 12px help line, the Add panel's rows",
 };
 
 const menu = (

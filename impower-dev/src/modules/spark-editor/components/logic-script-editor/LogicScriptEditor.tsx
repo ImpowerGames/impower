@@ -78,6 +78,12 @@ export default function LogicScriptEditor({
           ? win.closeWritingTools()
           : win.openWritingTools(),
       );
+    } else {
+      withWindow((win) =>
+        workspace.state.peek().screen?.addPanel
+          ? win.closeAddPanel()
+          : win.openAddPanel(),
+      );
     }
   };
 

@@ -79,6 +79,18 @@ export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { type LSPClientIcons } from "./icons";
 export { hoverPreviews, serverHovers } from "./hover";
 export {
+  INSERT_CONSTRUCTS,
+  insertConstruct,
+  insertContext,
+  isInsertConstruct,
+  planInsertion,
+  TOP_LEVEL_CONSTRUCTS,
+  uniqueName,
+  type InsertConstruct,
+  type InsertContext,
+  type InsertPlan,
+} from "./insert";
+export {
   convertFromServerCodeLens,
   serverCodeLenses,
   setDocumentCodeLenses,

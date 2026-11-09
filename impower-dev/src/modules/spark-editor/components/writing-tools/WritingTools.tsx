@@ -199,6 +199,7 @@ export default function WritingTools({
       <ToolPanel
         open={open}
         title={TITLES[view]}
+        closeLabel="Close writing tools"
         onClose={close}
         onBack={state?.fromMenu ? () => show("menu") : undefined}
         keepOpenOn={(target) =>

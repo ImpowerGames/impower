@@ -24,6 +24,8 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
+  insertConstruct,
+  isInsertConstruct,
   jumpToDefinition,
   type ContextMenuPresenter,
   LSPClient,
@@ -47,6 +49,11 @@ import {
   ExecuteEditorCommandMethod,
   ExecuteEditorCommandParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import {
+  InsertEditorConstructMessage,
+  type InsertEditorConstructMethod,
+  type InsertEditorConstructParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
@@ -445,6 +452,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      InsertEditorConstructMessage.type,
+      (m) => this.handleInsertEditorConstruct(m),
+      this.host,
+    );
+    p.onRequest(
       ApplyEditorColorMessage.type,
       (m) => this.handleApplyEditorColor(m),
       this.host,
@@ -615,6 +627,25 @@ export class ScriptEditorController {
     }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
+  };
+
+  protected handleInsertEditorConstruct = (
+    message: RequestMessage<
+      InsertEditorConstructMethod,
+      InsertEditorConstructParams
+    >,
+  ) => {
+    const { textDocument, construct } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const inserted =
+      isInsertConstruct(construct) && insertConstruct(construct)(view);
+    if (inserted) {
+      this.focusAtCaret();
+    }
+    return InsertEditorConstructMessage.type.response(message.id, { inserted });
   };
 
   protected handleApplyEditorColor = async (

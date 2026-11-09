@@ -3,6 +3,11 @@ import {
   lspColorOf,
   storyColors,
 } from "@impower/codemirror-vscode-lsp-client/src/colorValue";
+import {
+  insertContext,
+  type InsertConstruct,
+  type InsertContext,
+} from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -29,6 +34,7 @@ import {
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -358,6 +364,7 @@ export default class WorkspaceWindow {
       screen: {
         ...this.store.screen,
         appMenuOpen: false,
+        addPanel: undefined,
         writingTools: { view, fromMenu: false },
       },
     });
@@ -384,6 +391,73 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, writingTools: undefined },
     });
+  }
+
+  openAddPanel() {
+    if (
+      layoutState.current() === "phone" &&
+      workspace.scriptMode.peek() === "reading"
+    ) {
+      workspace.scriptMode.value = "editing";
+    }
+    this.setOutlineSearch(false);
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: undefined,
+        addPanel: true,
+      },
+    });
+  }
+
+  closeAddPanel() {
+    if (!this.store.screen.addPanel) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, addPanel: undefined },
+    });
+  }
+
+  async readInsertContext(filename: string): Promise<InsertContext | null> {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const editor = await this.requestEditor(ReadEditorMessage.type, {
+      textDocument: { uri },
+    });
+    if (!editor) {
+      return null;
+    }
+    const { text } = editor.textDocument;
+    const { line, character } = editor.selection.end;
+    const offset = text
+      .split("\n")
+      .slice(0, line)
+      .reduce((total, row) => total + row.length + 1, character);
+    return insertContext(text, offset);
+  }
+
+  async insertConstruct(
+    filename: string,
+    construct: InsertConstruct,
+  ): Promise<boolean> {
+    this.closeAddPanel();
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const result = await this.requestEditor(InsertEditorConstructMessage.type, {
+      textDocument: { uri },
+      construct,
+    });
+    return !!result?.inserted;
   }
 
   startEditing(filename: string) {

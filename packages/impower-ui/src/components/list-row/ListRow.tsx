@@ -44,6 +44,8 @@ export const listRowBodyVariants = cva(
           "min-h-[60px] gap-[13px] px-3 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px]",
         compact:
           "min-h-11 gap-2.5 px-2 py-1 text-[12px]/[1.4] [&>svg:first-child]:size-[18px]",
+        block:
+          "min-h-16 gap-3 px-2.5 py-2 text-[14px]/[1.4] [&>svg:first-child]:size-[22px]",
       },
       interactive: {
         true: "control-overlay cursor-pointer focus-inset",
@@ -51,6 +53,20 @@ export const listRowBodyVariants = cva(
       },
     },
     defaultVariants: { size: "default", interactive: true },
+  },
+);
+
+export const listRowDescriptionVariants = cva(
+  "text-muted [--fade:24px] fade-edge",
+  {
+    variants: {
+      size: {
+        default: "text-[11px]/[1.4]",
+        compact: "text-[11px]/[1.4]",
+        block: "text-[12px]/[1.5]",
+      },
+    },
+    defaultVariants: { size: "default" },
   },
 );
 
@@ -153,7 +169,7 @@ export default function ListRow({
         {label}
       </span>
       {description && (
-        <small class="text-[11px]/[1.4] text-muted [--fade:24px] fade-edge">
+        <small class={listRowDescriptionVariants({ size })}>
           {description}
         </small>
       )}

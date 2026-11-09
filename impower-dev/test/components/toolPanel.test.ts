@@ -24,17 +24,30 @@ afterEach(async () => {
   layout.value = "desktop";
 });
 
-const mount = async (chrome?: "heading" | "none", onClose = vi.fn()) => {
+const mount = async (
+  chrome?: "heading" | "none",
+  onClose = vi.fn(),
+  extra: Record<string, unknown> = {},
+  presentation?: "keyboard",
+) => {
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
     render(
       h(
         ToolPanelRoot,
-        { open: true, onOpen: () => {}, onClose },
+        { open: true, onOpen: () => {}, onClose, presentation },
         h(ToolPanelAnchor, null, h("div", { "data-bar": "" })),
         h(
           ToolPanel,
-          { open: true, title: "Search", chrome, onClose, onBack: () => {} },
+          {
+            open: true,
+            title: "Search",
+            closeLabel: "Close writing tools",
+            chrome,
+            onClose,
+            onBack: () => {},
+            ...extra,
+          },
           h("input", { "aria-label": "Words to find" }),
         ),
       ),
@@ -55,8 +68,12 @@ describe("ToolPanel chrome", () => {
     async (value) => {
       layout.value = value;
       await mount();
-      expect(panel()?.querySelector('[aria-label="Back to writing tools"]')).not.toBeNull();
-      expect(panel()?.querySelector('[aria-label="Close writing tools"]')).not.toBeNull();
+      expect(
+        panel()?.querySelector('[aria-label="Back to writing tools"]'),
+      ).not.toBeNull();
+      expect(
+        panel()?.querySelector('[aria-label="Close writing tools"]'),
+      ).not.toBeNull();
       expect(panel()?.textContent).toContain("Search");
     },
   );
@@ -68,8 +85,12 @@ describe("ToolPanel chrome", () => {
       const onClose = await mount("none");
       const dialog = panel()!;
       expect(dialog.querySelector("header")).toBeNull();
-      expect(dialog.querySelector('[aria-label="Close writing tools"]')).toBeNull();
-      expect(dialog.querySelector('[aria-label="Words to find"]')).not.toBeNull();
+      expect(
+        dialog.querySelector('[aria-label="Close writing tools"]'),
+      ).toBeNull();
+      expect(
+        dialog.querySelector('[aria-label="Words to find"]'),
+      ).not.toBeNull();
       const labelledBy = dialog.getAttribute("aria-labelledby");
       const name =
         dialog.getAttribute("aria-label") ??
@@ -77,10 +98,35 @@ describe("ToolPanel chrome", () => {
       expect(name).toBe("Search");
       await act(async () => {
         dialog.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
         );
       });
       expect(onClose).toHaveBeenCalledWith("escape");
     },
   );
+
+  it("leaves Close to the trigger in a popover and keeps it in the keyboard heading", async () => {
+    await mount(undefined, vi.fn(), {
+      closeButton: "trigger",
+      closeLabel: "Close add menu",
+    });
+    expect(panel()?.querySelector("header")).not.toBeNull();
+    expect(panel()?.querySelector('[aria-label="Close add menu"]')).toBeNull();
+    await act(async () => render(null, host!));
+    host!.remove();
+    layout.value = "phone";
+    await mount(
+      undefined,
+      vi.fn(),
+      { closeButton: "trigger", closeLabel: "Close add menu" },
+      "keyboard",
+    );
+    expect(
+      panel()?.querySelector('[aria-label="Close add menu"]'),
+    ).not.toBeNull();
+  });
 });

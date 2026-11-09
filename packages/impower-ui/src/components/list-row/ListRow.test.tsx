@@ -110,4 +110,17 @@ describe("ListRow", () => {
     expect(label.className).toContain("line-clamp-2");
     expect(label.className).not.toContain("fade-edge");
   });
+
+  it("draws a block row 64px tall with a 12px help line, and keeps 11px help on the other sizes", async () => {
+    const root = await mount(
+      <ListRow size="block" label="Scene" description="Start a new part of the story." onClick={() => {}} />,
+    );
+    expect(root.querySelector("button")!.className).toContain("min-h-16");
+    expect(root.querySelector("small")!.className).toContain("text-[12px]/[1.5]");
+    await act(async () => render(null, host!));
+    await act(async () =>
+      render(<ListRow label="main.sd" description="2 kB" onClick={() => {}} />, host!),
+    );
+    expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
 });
