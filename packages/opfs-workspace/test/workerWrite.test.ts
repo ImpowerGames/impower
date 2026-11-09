@@ -197,7 +197,7 @@ it("commits a rename onto a file before the editor's autosave that follows it", 
   const before = h.messages.length;
   h.blockCall(1);
   await h.request("inflight", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 2, data: new Uint8Array([65, 1]).buffer }] });
-  await h.request("rename", "workspace/willRenameFiles", { files: [{ oldUri: "file://local/x.sd", newUri: "file://local/main.sd" }] }, 0);
+  await h.request("rename", "workspace/willRenameFiles", { files: [{ oldUri: "file://local/x.sd", newUri: "file://local/main.sd", options: { overwrite: true } }] }, 0);
   await h.request("autosave", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 3, data: new Uint8Array([65, 66, 67]).buffer }], origin: "editor" }, 0);
   h.release();
   await vi.advanceTimersByTimeAsync(250);

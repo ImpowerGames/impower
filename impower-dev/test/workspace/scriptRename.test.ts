@@ -121,6 +121,21 @@ describe("WorkspaceWindow.renameScript", () => {
     expect(snackbar.value?.message).toBe("A script named Outro already exists.");
   });
 
+  it("says the target exists when the workspace refuses the move, and keeps the editor where it was", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fs.renameFileWithReferences.mockRejectedValueOnce({
+      code: -32603,
+      message: "Cannot rename intro to Opening: Opening already exists",
+    });
+    await win.renameScript("scripts/intro.sd", "Opening");
+    expect(snackbar.value?.message).toBe(
+      "Couldn't rename intro.sd: Opening.sd already exists.",
+    );
+    expect(win.recordScriptChange).not.toHaveBeenCalled();
+    expect(openFilename()).toBe("scripts/intro.sd");
+  });
+
   it("allows a name a script in another folder already has", async () => {
     open(["scripts/intro.sd", "scripts/act1/outro.sd"], "scripts/intro.sd");
     await win.renameScript("scripts/intro.sd", "outro");

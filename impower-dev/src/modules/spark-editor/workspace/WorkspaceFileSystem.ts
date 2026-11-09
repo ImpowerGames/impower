@@ -265,12 +265,17 @@ export default class WorkspaceFileSystem {
       emptyFolders,
     );
     for (const batch of batches) {
-      await this.renameFiles({
-        files: batch.map((m) => ({
-          oldUri: this.getFileUri(projectId, m.from),
-          newUri: this.getFileUri(projectId, m.to),
-        })),
-      });
+      try {
+        await this.renameFiles({
+          files: batch.map((m) => ({
+            oldUri: this.getFileUri(projectId, m.from),
+            newUri: this.getFileUri(projectId, m.to),
+          })),
+        });
+      } catch (err) {
+        console.error("Layout migration stopped at a refused move", err);
+        throw err;
+      }
     }
     if (batches.length > 0) {
       await this.deleteFolders(
@@ -903,11 +908,14 @@ export default class WorkspaceFileSystem {
       await this.moveFile(projectId, fromPath, toPath);
       return { referencesUpdated: 0, scriptsAffected: 0 };
     }
-    await this.applyWorkspaceEdit(
+    const result = await this.applyWorkspaceEdit(
       edit,
       `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
       { isRefactoring: true },
     );
+    if (!result.applied) {
+      throw new Error(result.failureReason ?? `Cannot rename ${oldUri}`);
+    }
     const referencesUpdated = textEdits.reduce((n, c) => n + c.edits.length, 0);
     return { referencesUpdated, scriptsAffected: textEdits.length };
   }

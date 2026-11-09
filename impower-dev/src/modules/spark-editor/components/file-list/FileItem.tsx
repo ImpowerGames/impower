@@ -37,6 +37,7 @@ import { openRowMenu } from "./openRowMenu";
 import FileOptionsButton from "./FileOptionsButton";
 import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
 import RenameReferencesDialog from "./RenameReferencesDialog";
+import { renameOrReport } from "../../utils/renameOrReport";
 
 export const INDENT_PER_DEPTH = 16;
 export const BASE_INDENT = 12;
@@ -275,8 +276,11 @@ function FileItem({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const renamed = await Workspace.fs.moveFile(projectId, oldPath, newPath);
-    if (renamed.some((d) => d.type === "script")) {
+    const move = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.moveFile(projectId, oldPath, newPath),
+    );
+    if (!move.renamed) return;
+    if (move.result.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
       await Workspace.window.recordAssetChange();
@@ -314,7 +318,10 @@ function FileItem({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    await Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath);
+    const rename = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath),
+    );
+    if (!rename.renamed) return;
     await Workspace.window.recordScriptChange();
     await Workspace.window.recordAssetChange();
     recordReferenceRename(projectId, oldPath, newPath);
@@ -345,7 +352,10 @@ function FileItem({
     const projectId = workspace.signals.projectId.value;
     if (!projectId || !canMoveFolder(oldPath, newPath)) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    await Workspace.fs.moveFolder(projectId, oldPath, newPath);
+    const move = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.moveFolder(projectId, oldPath, newPath),
+    );
+    if (!move.renamed) return;
     onFolderRenamed?.(oldPath, newPath);
     await Workspace.window.recordAssetChange();
     recordMove(projectId, oldPath, newPath, true);

@@ -151,6 +151,7 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+import { renameOrReport } from "../utils/renameOrReport";
 
 const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
@@ -1629,11 +1630,13 @@ export default class WorkspaceWindow {
       return check;
     }
     const newFilename = joinScriptPath(folder, check.name, ext);
-    const { referencesUpdated } = await fs.renameFileWithReferences(
-      projectId,
-      filename,
-      newFilename,
+    const rename = await renameOrReport(filename, newFilename, () =>
+      fs.renameFileWithReferences(projectId, filename, newFilename),
     );
+    if (!rename.renamed) {
+      return check;
+    }
+    const { referencesUpdated } = rename.result;
     await this.recordScriptChange();
     this.followRenamedScript(filename, newFilename);
     showSnackbar({

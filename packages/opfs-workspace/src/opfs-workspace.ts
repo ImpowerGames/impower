@@ -33,6 +33,7 @@ import {
   FileCreate,
   FileData,
   FileEvent,
+  RenameFileOptions,
   TextDocumentEdit,
   TextEdit,
 } from "@impower/spark-editor-protocol/src/types";
@@ -116,6 +117,7 @@ interface DeleteResult {
 interface RenameOutcome {
   oldUri: string;
   newUri: string;
+  options?: RenameFileOptions;
   file?: FileData;
   write?: WriteResult;
   deleted?: DeleteResult;
@@ -1957,6 +1959,17 @@ const moveFile = async (move: RenameOutcome) => {
     move.file = State.files.get(move.oldUri);
     return;
   }
+  if (!move.options?.overwrite) {
+    await drainWrites(move.newUri);
+    if (await findFileHandle(move.newUri)) {
+      if (move.options?.ignoreIfExists) {
+        return;
+      }
+      throw new Error(
+        `Cannot rename ${move.oldUri} to ${move.newUri}: ${move.newUri} already exists`,
+      );
+    }
+  }
   move.deleted = await copyThenRemove(move.oldUri, move.newUri, (write) => {
     move.write = write;
     move.file = write?.file;
@@ -1984,11 +1997,12 @@ const copyThenRemove = async (
 };
 
 const renameFiles = async (
-  files: { oldUri: string; newUri: string }[],
+  files: { oldUri: string; newUri: string; options?: RenameFileOptions }[],
 ): Promise<RenameOutcome[]> => {
   const outcomes: RenameOutcome[] = files.map((f) => ({
     oldUri: f.oldUri,
     newUri: f.newUri,
+    options: f.options,
   }));
   const targets = new Set<string>();
   for (const o of outcomes) {

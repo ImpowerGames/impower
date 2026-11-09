@@ -73,6 +73,7 @@ import {
   type ExternalDropFile,
 } from "./useExternalFileDrop";
 import { useTreeDrag } from "./useTreeDrag";
+import { renameOrReport } from "../../utils/renameOrReport";
 
 const THUMB_WIDTH = 144;
 
@@ -916,10 +917,13 @@ export default function FileList({
       if (destPath === src) continue;
       const isDir = !filesByPath.has(src);
       if (isDir && !canMoveFolder(src, destPath)) continue;
-      const result = isDir
-        ? await Workspace.fs.moveFolder(projectId, src, destPath)
-        : await Workspace.fs.moveFile(projectId, src, destPath);
-      if (result.some((d) => d.type === "script")) scriptChanged = true;
+      const move = await renameOrReport(src, destPath, () =>
+        isDir
+          ? Workspace.fs.moveFolder(projectId, src, destPath)
+          : Workspace.fs.moveFile(projectId, src, destPath),
+      );
+      if (!move.renamed) continue;
+      if (move.result.some((d) => d.type === "script")) scriptChanged = true;
       else assetChanged = true;
       if (isDir) remapExpanded(src, destPath);
       recordMove(projectId, src, destPath, isDir);
