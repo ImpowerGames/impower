@@ -113,18 +113,6 @@ export {
   type TabsVariant,
 } from "./tabs/Tabs";
 export {
-  default as ListRow,
-  listRowVariants,
-  listRowBodyVariants,
-  listRowLabelVariants,
-  LIST_ROW_INDENT,
-  type ListRowProps,
-  type ListRowSize,
-  type ListRowState,
-  type ListRowTone,
-  type ListRowLabelOverflow,
-} from "./list-row/ListRow";
-export {
   default as Switch,
   switchVariants,
   type SwitchProps,
