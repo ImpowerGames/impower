@@ -15,6 +15,7 @@ import {
   TextField,
 } from "@impower/impower-ui/components";
 import type { Color } from "@impower/spark-editor-protocol/src/types";
+import type { JSX } from "preact";
 import { useId, useRef, useState } from "preact/hooks";
 
 export type ChangeColorOutcome = "applied" | "invalid" | "moved";
@@ -110,6 +111,8 @@ export function ChangeColorView({ value, color, colors, onUse }: ChangeColorView
           min={0}
           max={100}
           step={1}
+          track="opacity"
+          style={{ "--swatch": current.rgb } as JSX.CSSProperties}
           value={percent}
           valueText={percentText}
           onValueChange={(next) => show(withOpacity(current, next))}

@@ -114,6 +114,14 @@ describe("the Change color view", () => {
     expect(status().textContent).not.toBe("");
   });
 
+  it("fades the current color in along the opacity track", async () => {
+    await mount("#ff880080");
+    expect(slider().className.split(/\s+/)).toContain("slider-opacity-track");
+    expect(slider().style.getPropertyValue("--swatch")).toBe("#ff8800");
+    await input(picker(), "#00aaff");
+    expect(slider().style.getPropertyValue("--swatch")).toBe("#00aaff");
+  });
+
   it("hides the story's colors when the story has none", async () => {
     await mount("#ff8800");
     expect(document.querySelector('[role="group"]')).toBeNull();

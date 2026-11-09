@@ -74,6 +74,20 @@ describe("the Change color intents", () => {
     expect(workspace.state.value.screen.writingTools?.color).toBeUndefined();
   });
 
+  it("opens as a Writing tools view whose Back returns to the menu and drops the value", () => {
+    const w = mount();
+    w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
+    expect(workspace.state.value.screen.writingTools).toMatchObject({
+      view: "color",
+      fromMenu: true,
+    });
+    w.showWritingToolsView("menu");
+    expect(workspace.state.value.screen.writingTools).toEqual({
+      view: "menu",
+      fromMenu: false,
+    });
+  });
+
   it("applies a color through the editor at the value's range, then closes", async () => {
     const w = mount();
     const requests = editorAnswering(true);

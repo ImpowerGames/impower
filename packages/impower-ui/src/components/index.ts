@@ -229,6 +229,7 @@ export {
   type SliderProps,
   type SliderSize,
   type SliderWidth,
+  type SliderTrack,
 } from "./slider/Slider";
 export {
   default as PortraitThumbnail,
