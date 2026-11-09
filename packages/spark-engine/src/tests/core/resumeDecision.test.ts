@@ -75,6 +75,23 @@ describe("deciding whether Resume advances the story", () => {
     expect(shown()).toBe("Second beat.\n");
   });
 
+  it("resumes in place after rolling back past a Step, keeping the restored beat and its future", async () => {
+    const { game, methods, shown } = createGame();
+    game.start();
+    game.clickedToContinue();
+    game.step("over");
+    expect(game.awaitingResume).toBe(true);
+    expect((await game.rollBack("beat")).moved).toBe(true);
+    expect(shown()).toBe("First beat.\n");
+    expect(game.awaitingResume).toBe(false);
+    game.pause();
+    methods.length = 0;
+    expect(game.resume()).toBe(false);
+    expect(shown()).toBe("First beat.\n");
+    expect(methods).not.toContain("game/awaitingInteraction");
+    expect(game.history.behindLatest).toBe(true);
+  });
+
   it("advances a playing game, as a click does", () => {
     const { game, shown } = createGame();
     game.start();

@@ -2662,6 +2662,7 @@ export class Game<T extends M = {}> {
     if (!this.restoreCheckpoint(beat.checkpoint)) {
       throw new Error("This beat can no longer be restored.");
     }
+    this._awaitingResume = false;
     if (beat.shown.choices?.length) {
       const runtime = this._runtimeState;
       this._runtimeState = new RuntimeState();
