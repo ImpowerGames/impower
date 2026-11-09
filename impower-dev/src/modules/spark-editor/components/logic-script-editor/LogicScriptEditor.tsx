@@ -9,6 +9,7 @@ import { editorAtSend } from "../../workspace/editorAtSend";
 import { useScriptMode, useScriptReadonly } from "../../workspace/useActiveEditor";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
+import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
 
@@ -79,11 +80,7 @@ export default function LogicScriptEditor({
           : win.openWritingTools(),
       );
     } else {
-      withWindow((win) =>
-        workspace.state.peek().screen?.addPanel
-          ? win.closeAddPanel()
-          : win.openAddPanel(),
-      );
+      toggleAddPanel();
     }
   };
 

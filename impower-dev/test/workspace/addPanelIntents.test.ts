@@ -81,15 +81,13 @@ const editorReading = (line: number, character: number) => {
 };
 
 describe("the Add panel intents", () => {
-  it("opens closing Writing tools, the app menu and Search, and closes again", () => {
+  it("opens closing Writing tools and the app menu, and closes again", () => {
     const w = mount();
     w.openWritingTools();
-    w.setOutlineSearch(true);
     w.openAddPanel();
     expect(workspace.state.value.screen).toMatchObject({
       addPanel: true,
       appMenuOpen: false,
-      outlineSearch: false,
     });
     expect(workspace.state.value.screen.writingTools).toBeUndefined();
     w.closeAddPanel();

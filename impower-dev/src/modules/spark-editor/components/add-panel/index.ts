@@ -1,1 +1,5 @@
-export { default as AddPanel, type AddPanelProps } from "./AddPanel";
+export {
+  default as AddPanel,
+  toggleAddPanel,
+  type AddPanelProps,
+} from "./AddPanel";

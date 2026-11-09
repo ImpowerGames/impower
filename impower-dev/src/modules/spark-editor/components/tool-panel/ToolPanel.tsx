@@ -23,11 +23,12 @@ import workspace from "../../workspace/WorkspaceStore";
 
 export type ToolPanelCloseReason = "close" | "escape" | "dismiss";
 
-export type ToolPanelPresentation = "popover" | "sheet" | "keyboard";
+export type ToolPanelPresentation = "popover" | "sheet" | "keyboard" | "bar";
 
 type PanelContext = {
   sheet: boolean;
   keyboard: boolean;
+  bar: boolean;
   open: boolean;
   onOpen: () => void;
   onClose: (reason: ToolPanelCloseReason) => void;
@@ -36,6 +37,7 @@ type PanelContext = {
 const Context = createContext<PanelContext>({
   sheet: false,
   keyboard: false,
+  bar: false,
   open: false,
   onOpen: () => {},
   onClose: () => {},
@@ -60,8 +62,9 @@ export function ToolPanelRoot({
   const resolved = presentation ?? (layout === "phone" ? "sheet" : "popover");
   const sheet = resolved === "sheet";
   const keyboard = resolved === "keyboard";
-  const value = { sheet, keyboard, open, onOpen, onClose };
-  if (sheet || keyboard) {
+  const bar = resolved === "bar";
+  const value = { sheet, keyboard, bar, open, onOpen, onClose };
+  if (sheet || keyboard || bar) {
     return <Context.Provider value={value}>{children}</Context.Provider>;
   }
   return (
@@ -78,14 +81,14 @@ export function ToolPanelRoot({
 }
 
 export function ToolPanelAnchor({ children }: { children?: ComponentChildren }) {
-  const { sheet, keyboard } = useContext(Context);
-  if (sheet || keyboard) return <>{children}</>;
+  const { sheet, keyboard, bar } = useContext(Context);
+  if (sheet || keyboard || bar) return <>{children}</>;
   return <PopoverAnchor asChild>{children}</PopoverAnchor>;
 }
 
 export function ToolPanelTrigger({ children }: { children?: ComponentChildren }) {
-  const { sheet, keyboard, open, onOpen, onClose } = useContext(Context);
-  if (!sheet && !keyboard) {
+  const { sheet, keyboard, bar, open, onOpen, onClose } = useContext(Context);
+  if (!sheet && !keyboard && !bar) {
     return <PopoverTrigger asChild>{children}</PopoverTrigger>;
   }
   if (!isValidElement(children)) return <>{children}</>;
@@ -114,10 +117,10 @@ const POPOVER_PLACEMENT = {
 export type ToolPanelProps = {
   open: boolean;
   title: string;
-  closeLabel: string;
   closeButton?: ToolPanelCloseButton;
   anchoring?: ToolPanelAnchoring;
   chrome?: ToolPanelChrome;
+  closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
   onBack?: () => void;
   closeOnOutside?: boolean;
@@ -260,10 +263,10 @@ function KeyboardPanel({
 export function ToolPanel({
   open,
   title,
-  closeLabel,
   closeButton = "heading",
   anchoring = "bar",
   chrome = "heading",
+  closeLabel = "Close writing tools",
   onClose,
   onBack,
   closeOnOutside = true,
@@ -271,7 +274,7 @@ export function ToolPanel({
   returnFocus,
   children,
 }: ToolPanelProps) {
-  const { sheet, keyboard } = useContext(Context);
+  const { sheet, keyboard, bar } = useContext(Context);
   const reason = useRef<ToolPanelCloseReason>("dismiss");
   const close = (why: ToolPanelCloseReason) => {
     reason.current = why;
@@ -303,6 +306,22 @@ export function ToolPanel({
       <div class="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </>
   );
+  if (bar) {
+    return open ? (
+      <section
+        aria-label={title}
+        class="flex-none"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close("escape");
+          }
+        }}
+      >
+        {children}
+      </section>
+    ) : null;
+  }
   if (keyboard) {
     return open ? (
       <KeyboardPanel

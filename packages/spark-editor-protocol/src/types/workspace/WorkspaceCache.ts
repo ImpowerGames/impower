@@ -145,7 +145,6 @@ export interface ScreenState {
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
   addPanel?: boolean;
-  outlineSearch?: boolean;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";

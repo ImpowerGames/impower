@@ -32,6 +32,16 @@ const withWindow = async <T,>(
   return act(Workspace.window);
 };
 
+export const toggleAddPanel = () =>
+  void import("../../workspace/Workspace").then(({ Workspace }) => {
+    if (workspace.state.peek().screen?.addPanel) {
+      Workspace.window.closeAddPanel();
+      return;
+    }
+    Workspace.search.close();
+    Workspace.window.openAddPanel();
+  });
+
 const TITLE = "Add to script";
 const CLOSE_LABEL = "Close add menu";
 
@@ -181,7 +191,7 @@ export default function AddPanel({ filename, canEdit }: AddPanelProps) {
     <ToolPanelRoot
       presentation={phone ? "keyboard" : undefined}
       open={open}
-      onOpen={() => void withWindow((win) => win.openAddPanel())}
+      onOpen={toggleAddPanel}
       onClose={close}
     >
       {!phone && <AddTrigger open={open} disabled={!canEdit} />}

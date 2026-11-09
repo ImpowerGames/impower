@@ -7,6 +7,7 @@ const calls = vi.hoisted(() => ({
   inserted: [] as [string, string][],
   opened: 0,
   closed: 0,
+  searchClosed: 0,
   context: { inScene: true } as { inScene: boolean } | null,
 }));
 const layout = vi.hoisted(() => ({ value: "desktop" }));
@@ -28,6 +29,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
   };
   return {
     Workspace: {
+      search: {
+        close: () => {
+          calls.searchClosed++;
+        },
+      },
       window: {
         executeEditorCommand: (filename: string, command: string) => {
           calls.commands.push([filename, command]);
@@ -101,6 +107,7 @@ beforeEach(() => {
   calls.inserted.length = 0;
   calls.opened = 0;
   calls.closed = 0;
+  calls.searchClosed = 0;
   calls.context = { inScene: true };
   layout.value = "desktop";
   workspace.current = {
@@ -121,13 +128,14 @@ afterEach(async () => {
 });
 
 describe("the Add panel on desktop", () => {
-  it("opens from Add as a popover headed Add to script, and Add becomes the close button", async () => {
+  it("opens from Add as a popover headed Add to script, closing Search, and Add becomes the close button", async () => {
     await mount();
     expect(trigger()!.textContent).toContain("Add");
     expect(trigger()!.getAttribute("aria-expanded")).toBe("false");
     await act(async () => trigger()!.click());
     await settle();
     expect(calls.opened).toBe(1);
+    expect(calls.searchClosed).toBe(1);
     expect(panel()).not.toBeNull();
     expect(panel()!.querySelector("h2")?.textContent).toBe("Add to script");
     expect(panel()!.querySelector('[aria-label="Close add menu"]')).toBeNull();

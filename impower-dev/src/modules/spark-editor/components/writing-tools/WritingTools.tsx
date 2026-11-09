@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { isScriptUri, type NameAtCaret } from "../../workspace/nameAtCaret";
 import { useCaretPosition } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
+import { openFind, withSearch } from "../find-references-rename";
 import {
   ToolPanel,
   ToolPanelAnchor,
@@ -174,16 +175,25 @@ export default function WritingTools({
       win.closeWritingTools();
       if (asset) {
         void win.showDocument(asset);
-      } else {
+      } else if (action === "definition") {
         win.executeEditorCommand(filename, action);
       }
     });
+    if (name && action !== "definition") {
+      withSearch((search) =>
+        action === "rename" ? search.openRename(name) : search.openReferences(name),
+      );
+    }
   };
 
   const onCommand = (row: CommandRow) =>
     void withWindow((win) => {
       if (row.closes) win.closeWritingTools();
-      win.executeEditorCommand(filename, row.command);
+      if (row.command === "search") {
+        openFind();
+      } else {
+        win.executeEditorCommand(filename, row.command);
+      }
     });
 
   const trigger = <WritingToolsTrigger />;
@@ -199,7 +209,6 @@ export default function WritingTools({
       <ToolPanel
         open={open}
         title={TITLES[view]}
-        closeLabel="Close writing tools"
         onClose={close}
         onBack={state?.fromMenu ? () => show("menu") : undefined}
         keepOpenOn={(target) =>
