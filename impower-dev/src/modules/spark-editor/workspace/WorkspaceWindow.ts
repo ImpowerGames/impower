@@ -449,22 +449,6 @@ export default class WorkspaceWindow {
     });
   }
 
-  setOutlineSearch(open: boolean) {
-    if (!!this.store.screen.outlineSearch === open) {
-      return;
-    }
-    this.update({
-      ...this.store,
-      screen: { ...this.store.screen, outlineSearch: open },
-    });
-    const filename = open
-      ? this.getActiveEditorForPane("logic")?.filename
-      : undefined;
-    if (filename) {
-      this.executeEditorCommand(filename, "search");
-    }
-  }
-
   async openOutlineLocation(uri: string, range: Range) {
     if (this.store.pane !== "logic" || this.store.screen.settingsOpen) {
       this.navigateTo("write");
@@ -1388,6 +1372,8 @@ export default class WorkspaceWindow {
     const definition = definitionOf(definitions);
     if (!definition) {
       return {
+        uri,
+        position,
         name,
         kind: isCue(lineOf(text, position.line), name) ? "character" : "name",
         definition: null,
@@ -1400,6 +1386,8 @@ export default class WorkspaceWindow {
           ? await this._workspace.fs.getFileText(definition.uri)
           : "";
     return {
+      uri,
+      position,
       name,
       kind: kindOfDefinition(
         definition.uri,

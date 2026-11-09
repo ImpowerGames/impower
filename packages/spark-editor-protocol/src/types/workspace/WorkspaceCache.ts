@@ -144,7 +144,6 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
-  outlineSearch?: boolean;
 }
 
 export interface ListsState {

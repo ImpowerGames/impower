@@ -12,6 +12,12 @@ import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
+import {
+  INITIAL_SEARCH,
+  INITIAL_SEARCH_POSITION,
+  type SearchPosition,
+  type SearchSnapshot,
+} from "./searchState";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 export type ScriptMode = "reading" | "editing";
@@ -141,6 +147,10 @@ class WorkspaceStore {
   readonly scriptListing = signal<ScriptListing | null>(null);
 
   readonly scriptReferences = signal<readonly Reference[]>([]);
+
+  readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
+
+  readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
 
   readonly scriptMode = signal<ScriptMode>("reading");
 

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { hitArea } from "../../../test/hitArea";
 import Button, { buttonVariants, type ButtonSize, type ButtonVariant } from "./Button";
 
-const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure"] as const satisfies readonly ButtonVariant[];
+const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure", "toggle"] as const satisfies readonly ButtonVariant[];
 const SIZES = ["default", "icon", "compact", "glyph", "pill"] as const satisfies readonly ButtonSize[];
 
 const mount = async (node: ComponentChild): Promise<HTMLDivElement> => {
@@ -51,6 +51,28 @@ describe("Button kinds", () => {
     expect(classes).toContain("[&_svg]:motion-safe:transition-transform");
     const css = await packageCss(classes.split(/\s+/));
     expect(css).toMatch(/prefers-reduced-motion: no-preference[\s\S]*transition-property: transform/);
+  });
+
+  it("marks a pressed toggle with the accent, the tint and an accent edge, and a released one muted", async () => {
+    const host = await mount(
+      <>
+        <Button variant="toggle" size="glyph" aria-label="Match case" aria-pressed={false}>
+          Aa
+        </Button>
+        <Button variant="toggle" size="glyph" aria-label="Whole words" aria-pressed={true}>
+          ab
+        </Button>
+      </>,
+    );
+    const [released, pressed] = Array.from(host.querySelectorAll("button"));
+    expect(released!.getAttribute("aria-pressed")).toBe("false");
+    expect(pressed!.getAttribute("aria-pressed")).toBe("true");
+    const classes = buttonVariants({ variant: "toggle", size: "glyph" });
+    for (const name of ["text-muted", "aria-pressed:text-accent", "aria-pressed:bg-tint", "aria-pressed:border-accent/45"]) {
+      expect(classes).toContain(name);
+    }
+    const css = await packageCss(classes.split(" "));
+    expect(css).toMatch(/\[aria-pressed="true"\][^{]*\{[^}]*background-color: var\(--tint\)/);
   });
 
   it("draws every kind with the one control radius except the phone pill", () => {

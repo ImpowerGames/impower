@@ -19,6 +19,11 @@ export const buttonVariants = cva(
         primary: "border-accent bg-accent text-accent-ink focus-inset",
         quiet: "border-transparent bg-transparent text-ink",
         destructive: "border-error bg-error text-bg focus-inset",
+        toggle: [
+          "border-transparent bg-transparent text-muted text-[12px]/none font-semibold",
+          "[&_u]:decoration-[1.5px] [&_u]:underline-offset-2",
+          "aria-pressed:border-accent/45 aria-pressed:bg-tint aria-pressed:text-accent",
+        ],
         disclosure: [
           "border-transparent bg-transparent text-muted aria-pressed:text-accent",
           "[&_svg]:motion-safe:transition-transform [&_svg]:motion-safe:duration-150 aria-pressed:[&_svg]:rotate-180",
@@ -31,6 +36,7 @@ export const buttonVariants = cva(
         compact:
           "min-h-11 min-w-11 gap-1.5 px-2 text-[12px]/[1.4] font-normal [&_svg]:size-4",
         glyph: "size-11 p-0 [&_svg]:size-4",
+        inset: "h-9 w-7 min-w-7 p-0 [&_svg]:size-4",
         pill: "min-h-[46px] min-w-11 gap-2 px-[13px] rounded-[16px] border-4 bg-clip-padding text-[14px]/none font-semibold [&_svg]:size-5",
       },
     },
@@ -58,6 +64,7 @@ export type ButtonProps = Omit<
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     class?: string;
+    name?: string;
     type?: "button" | "submit" | "reset";
     disabled?: boolean;
     children?: ComponentChildren;

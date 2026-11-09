@@ -8,6 +8,17 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import {
+  FindTextMessage,
+  type FindTextParams,
+  type FindTextResult,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
+import type {
+  Location,
+  LocationLink,
+  Position,
+  Range,
+} from "vscode-languageserver-protocol";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   PublishDiagnosticsMessage,
@@ -384,6 +395,64 @@ export default class WorkspaceLanguageServer {
       (await this._connection.sendRequest<
         { from: string; to: string; divert: boolean }[]
       >("sparkdown/scriptReferences", { uri })) ?? []
+    );
+  }
+
+  async findText(params: FindTextParams): Promise<FindTextResult> {
+    await this.initialization();
+    return this._connection.sendRequest<FindTextResult>(
+      FindTextMessage.method,
+      params,
+    );
+  }
+
+  async getReferences(uri: string, position: Position): Promise<Location[]> {
+    await this.initialization();
+    return (
+      (await this._connection.sendRequest<Location[] | null>(
+        "textDocument/references",
+        {
+          textDocument: { uri },
+          position,
+          context: { includeDeclaration: true },
+        },
+      )) ?? []
+    );
+  }
+
+  async getDefinitions(uri: string, position: Position): Promise<Location[]> {
+    await this.initialization();
+    const result = await this._connection.sendRequest<
+      Location | Location[] | LocationLink[] | null
+    >("textDocument/definition", { textDocument: { uri }, position });
+    const list = result == null ? [] : Array.isArray(result) ? result : [result];
+    return list.map((l) =>
+      "targetUri" in l
+        ? { uri: l.targetUri, range: l.targetSelectionRange }
+        : l,
+    );
+  }
+
+  async prepareRename(uri: string, position: Position): Promise<Range | null> {
+    await this.initialization();
+    const result = await this._connection.sendRequest<
+      Range | { range: Range } | { defaultBehavior: boolean } | null
+    >("textDocument/prepareRename", { textDocument: { uri }, position });
+    if (!result || "defaultBehavior" in result) {
+      return null;
+    }
+    return "range" in result ? result.range : result;
+  }
+
+  async getRenameEdits(
+    uri: string,
+    position: Position,
+    newName: string,
+  ): Promise<WorkspaceEdit | null> {
+    await this.initialization();
+    return this._connection.sendRequest<WorkspaceEdit | null>(
+      "textDocument/rename",
+      { textDocument: { uri }, position, newName },
     );
   }
 

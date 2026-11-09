@@ -4,7 +4,6 @@ import {
   ChevronDownIcon,
   ChevronIcon,
   ChooseIcon,
-  CloseIcon,
   ErrorIcon,
   FileIcon,
   ListRow,
@@ -19,6 +18,7 @@ import type { ComponentChildren } from "preact";
 import { useMemo } from "preact/hooks";
 import type { Position, Range } from "vscode-languageserver-protocol";
 import workspace from "../../workspace/WorkspaceStore";
+import { openFind, SearchRail } from "../find-references-rename";
 import {
   outlineRows,
   problemSummary,
@@ -119,9 +119,7 @@ function Heading({
 export default function Outline() {
   const snapshot = workspace.outline.value;
   const uri = snapshot?.uri;
-  const searching = useComputed(
-    () => !!workspace.state.value.screen?.outlineSearch,
-  ).value;
+  const searching = workspace.search.value.open;
   const caret = useComputed(() =>
     caretIn(workspace.state.value, workspace.outline.value?.uri),
   ).value;
@@ -161,26 +159,7 @@ export default function Outline() {
         class="flex h-full min-h-0 flex-col pt-3 group-data-[sidebar=collapsed]/sidebar:hidden"
       >
         {searching ? (
-          <>
-            <Heading
-              title="Search"
-              action={
-                <Button
-                  variant="quiet"
-                  size="icon"
-                  class="text-muted"
-                  aria-label="Back to outline"
-                  title="Back to outline"
-                  onClick={() =>
-                    withWindow((win) => win.setOutlineSearch(false))
-                  }
-                >
-                  <CloseIcon />
-                </Button>
-              }
-            />
-            <div data-outline-search class="min-h-0 flex-1" />
-          </>
+          <SearchRail />
         ) : (
           <>
             <Heading
@@ -193,9 +172,7 @@ export default function Outline() {
                   aria-label="Search"
                   title="Search"
                   aria-expanded={false}
-                  onClick={() =>
-                    withWindow((win) => win.setOutlineSearch(true))
-                  }
+                  onClick={openFind}
                 >
                   <SearchIcon />
                 </Button>
