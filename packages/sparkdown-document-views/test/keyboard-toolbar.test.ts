@@ -169,13 +169,40 @@ describe("the keyboard toolbar on a phone", () => {
     expect(toolbar()).toBeNull();
   });
 
-  it("hands Writing tools to the host and runs indent on the view", async () => {
+  it("hands Writing tools to the host", async () => {
     const v = mount("editing");
     await focus(v);
     toolbar()!
       .querySelector<HTMLElement>('button[aria-label="Writing tools"]')!
       .click();
     expect(tools).toEqual(["writingTools"]);
+  });
+
+  it("indents and dedents the script when its buttons are pressed", async () => {
+    const v = mount("editing");
+    await focus(v);
+    const press = (label: string) =>
+      toolbar()!
+        .querySelector<HTMLElement>(`button[aria-label="${label}"]`)!
+        .click();
+
+    press("Indent");
+    expect(v.state.doc.line(1).text).toMatch(/^\s+one$/);
+    press("Dedent");
+    expect(v.state.doc.line(1).text).toBe("one");
+  });
+
+  it("runs the formatter from Format script", async () => {
+    const item = KEYBOARD_TOOLBAR_TABLE.flatMap((entry) => entry.items).find(
+      (entry) => entry.id === "format",
+    ) as { command: (view: EditorView) => boolean };
+    const format = vi.spyOn(item, "command").mockReturnValue(true);
+    const v = mount("editing");
+    await focus(v);
+    toolbar()!
+      .querySelector<HTMLElement>('button[aria-label="Format script"]')!
+      .click();
+    expect(format).toHaveBeenCalledWith(v);
   });
 
   it("closes when the mode returns to reading", async () => {
