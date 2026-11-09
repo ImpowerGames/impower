@@ -2229,8 +2229,12 @@ export class GamePlayerController {
     if (app && this._workerPlay?.ended) {
       return PauseGameMessage.type.response(message.id, { run });
     }
+    const wasPaused = app?.paused;
     app?.pause();
     const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
+    if (!told && !wasPaused) {
+      app?.unpause();
+    }
     this.updateLaunchStateIcon();
     return told
       ? PauseGameMessage.type.response(message.id, { run })
@@ -2242,9 +2246,13 @@ export class GamePlayerController {
 
   protected handleUnpauseGame = async (message: UnpauseGameMessage.Request) => {
     const app = this.controlledApp;
+    const wasPaused = app?.paused;
     app?.unpause();
     const told =
       app && (await this.tellWorkerPlay(UnpauseGameMessage.type, {}));
+    if (!told && wasPaused) {
+      app?.pause();
+    }
     this.updateLaunchStateIcon();
     return told
       ? UnpauseGameMessage.type.response(message.id, {})

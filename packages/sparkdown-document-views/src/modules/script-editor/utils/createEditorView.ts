@@ -81,8 +81,17 @@ import {
   customGotoLinePanel,
   customSearchPanel,
 } from "./extensions/customSearch";
-import { keyboardToolbar } from "./extensions/keyboardToolbar";
+import {
+  keyboardToolbar,
+  type KeyboardToolbarHold,
+  type KeyboardToolbarTool,
+} from "./extensions/keyboardToolbar";
 import { scriptEditorShortcuts } from "./extensions/scriptEditorShortcuts";
+import {
+  onReadingDoubleTap,
+  scriptMode,
+  type ScriptModeValue,
+} from "./extensions/scriptMode";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { statusPanel } from "./extensions/statusPanel";
@@ -119,6 +128,11 @@ interface EditorConfig {
   startingValueLines?: number[];
   routePins?: DocumentRoutePin[];
   coarsePointer: boolean;
+  readonly?: boolean;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
   shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
@@ -270,9 +284,14 @@ const createEditorView = (
         customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),
-        keyboardToolbar(),
-        readOnlyConfig.of(EditorState.readOnly.of(false)),
-        editableConfig.of(EditorView.editable.of(true)),
+        scriptMode(config.scriptMode ?? null),
+        onReadingDoubleTap.of(() => config.onReadingDoubleTap?.()),
+        keyboardToolbar({
+          onTool: config.onToolbarTool,
+          hold: config.keyboardHold,
+        }),
+        readOnlyConfig.of(EditorState.readOnly.of(!!config.readonly)),
+        editableConfig.of(EditorView.editable.of(!config.readonly)),
         breakpointsField.init(() => {
           const gutterMarkers: Range<GutterMarker>[] =
             breakpointLineNumbers

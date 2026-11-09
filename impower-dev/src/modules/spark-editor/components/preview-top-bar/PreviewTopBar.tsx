@@ -5,6 +5,7 @@ import {
   CogIcon,
   DropdownCheckboxItem,
   DropdownContent,
+  DropdownItem,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
@@ -18,6 +19,7 @@ import {
   ScreenplayIcon,
   StepIntoIcon,
   StepOutIcon,
+  StepOverIcon,
   StopIcon,
   useHoldRepeat,
   VisualIcon,
@@ -33,6 +35,12 @@ import {
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import {
+  STEP_SHORTCUTS,
+  stepRefusals,
+  type StepTraversal,
+} from "../../workspace/stepStates";
 
 export const propDefaults = {};
 export type PreviewTopBarProps = Partial<typeof propDefaults>;
@@ -105,6 +113,16 @@ export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   ],
 };
 
+const STEPS: readonly {
+  traversal: StepTraversal;
+  label: string;
+  icon: IconComponent;
+}[] = [
+  { traversal: "over", label: "Step Over", icon: StepOverIcon },
+  { traversal: "in", label: "Step Into", icon: StepIntoIcon },
+  { traversal: "out", label: "Step Out", icon: StepOutIcon },
+];
+
 const isToggleOn = (preferences: Preferences, key: PreviewToggleKey) =>
   key === "screenplayPaper"
     ? preferences.screenplayPaper === "theme"
@@ -124,12 +142,16 @@ function ControlButton({
   label,
   icon: Icon,
   disabled,
+  reason,
+  title,
   pressed,
   onClick,
 }: {
   label: string;
   icon: IconComponent;
   disabled?: boolean;
+  reason?: string;
+  title?: string;
   pressed?: boolean;
   onClick: () => void;
 }) {
@@ -138,14 +160,61 @@ function ControlButton({
       variant="quiet"
       size="icon"
       aria-label={label}
-      title={label}
+      title={reason ?? title ?? label}
       aria-pressed={pressed}
+      aria-disabled={reason ? true : undefined}
       disabled={disabled}
-      onClick={onClick}
-      class={pressed ? "text-accent" : controlClass}
+      onClick={reason ? undefined : onClick}
+      class={`${pressed ? "text-accent" : controlClass} aria-disabled:cursor-default aria-disabled:opacity-40`}
     >
       <Icon />
     </Button>
+  );
+}
+
+const step = (traversal: StepTraversal) =>
+  void withWindow((window) => window.stepGame(traversal));
+
+function StepMenu({
+  refusals,
+}: {
+  refusals: Record<StepTraversal, string | undefined>;
+}) {
+  return (
+    <DropdownRoot>
+      <DropdownTrigger asChild>
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label="Step"
+          title="Step"
+          class="text-muted aria-expanded:bg-tint aria-expanded:text-accent"
+        >
+          <StepOverIcon />
+        </Button>
+      </DropdownTrigger>
+      <DropdownContent align="center">
+        {STEPS.map(({ traversal, label, icon: Icon }) => {
+          const reason = refusals[traversal];
+          return (
+            <DropdownItem
+              key={traversal}
+              disabled={!!reason}
+              onSelect={() => step(traversal)}
+              class="min-h-14 gap-3 py-2"
+            >
+              <Icon class="shrink-0" />
+              <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+                <strong class="text-sm/[1.4] font-semibold">{label}</strong>
+                {reason ? (
+                  <small class="text-xs/[1.5] text-muted">{reason}</small>
+                ) : null}
+              </span>
+            </DropdownItem>
+          );
+        })}
+      </DropdownContent>
+    </DropdownRoot>
   );
 }
 
@@ -286,6 +355,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
 
 export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const { preferences } = useSettings();
+  const phone = useLayout() === "phone";
   const mode = preferences.previewMode;
   const game = workspace.state.value.preview?.modes?.game;
   const running = !!game?.running;
@@ -294,6 +364,20 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
+  const refusals = stepRefusals(game, workspace.debugSession.value);
+  const steps = running;
+  const stepButton = (traversal: StepTraversal) => {
+    const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
+    return (
+      <ControlButton
+        label={label}
+        icon={icon}
+        reason={refusals[traversal]}
+        title={workspaceShortcuts.title(STEP_SHORTCUTS[traversal], label)}
+        onClick={() => step(traversal)}
+      />
+    );
+  };
 
   return (
     <div
@@ -326,14 +410,9 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         ) : null}
       </div>
       <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
-        {playing ? (
-          <ControlButton
-            label="Step Into"
-            icon={StepIntoIcon}
-            disabled={!paused}
-            onClick={() => void withWindow((window) => window.stepGame("in"))}
-          />
-        ) : null}
+        {steps && phone ? <StepMenu refusals={refusals} /> : null}
+        {steps && !phone ? stepButton("over") : null}
+        {steps && !phone ? stepButton("in") : null}
         <SkipButton direction={-1} />
         <Button
           variant="primary"
@@ -351,14 +430,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           {running ? <StopIcon /> : <PlayIcon />}
         </Button>
         <SkipButton direction={1} />
-        {playing ? (
-          <ControlButton
-            label="Step Out"
-            icon={StepOutIcon}
-            disabled={!paused}
-            onClick={() => void withWindow((window) => window.stepGame("out"))}
-          />
-        ) : null}
+        {steps && !phone ? stepButton("out") : null}
       </div>
       <div class="justify-self-end">
         <SettingsMenu mode={mode} />

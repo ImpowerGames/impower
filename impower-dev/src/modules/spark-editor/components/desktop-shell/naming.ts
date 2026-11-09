@@ -2,6 +2,9 @@ import { useCoarsePointer, useLayout } from "@impower/impower-ui/layout";
 import { signal } from "@preact/signals";
 import type { JSX } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { storyScriptOf } from "../../workspace/useActiveEditor";
+import workspace from "../../workspace/WorkspaceStore";
+import { withWindow } from "./workspaceWindow";
 
 export type NamingField = "project" | "script";
 
@@ -14,7 +17,7 @@ export function useNaming(): NamingField | null {
 const TEXT_FIELD =
   'input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]), textarea, [contenteditable]:not([contenteditable="false"])';
 
-const TAKES_FOCUS = `${TEXT_FIELD}, select, label, a[href], nav, [role="tab"]`;
+const TAKES_FOCUS = `${TEXT_FIELD}, select, label, a[href], nav, [role="tab"], [aria-haspopup="menu"], input[type="range"]`;
 
 const deepActiveElement = (): Element | null => {
   let active = document.activeElement;
@@ -40,7 +43,7 @@ export function useFocusRule() {
     if (!active) {
       return;
     }
-    const keepFocus = (event: MouseEvent) => {
+    const keepFocus = (event: Event) => {
       if (!deepActiveElement()?.matches(TEXT_FIELD)) {
         return;
       }
@@ -50,8 +53,8 @@ export function useFocusRule() {
       }
       event.preventDefault();
     };
-    document.addEventListener("mousedown", keepFocus, true);
-    return () => document.removeEventListener("mousedown", keepFocus, true);
+    document.addEventListener("pointerdown", keepFocus, true);
+    return () => document.removeEventListener("pointerdown", keepFocus, true);
   }, [active]);
 }
 
@@ -129,6 +132,15 @@ export function useNameField({
       restoring.current = false;
       if (namingField.peek() === field) {
         namingField.value = null;
+      }
+      if (
+        !e.relatedTarget &&
+        workspace.scriptMode.peek() === "editing"
+      ) {
+        const script = storyScriptOf();
+        if (script) {
+          withWindow((win) => win.executeEditorCommand(script, "focus"));
+        }
       }
       void onCommit(value).then((shown) => {
         if (shown !== undefined) {
