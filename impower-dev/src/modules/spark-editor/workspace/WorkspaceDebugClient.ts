@@ -58,10 +58,6 @@ export default class WorkspaceDebugClient {
 
   constructor(protected readonly _options: WorkspaceDebugClientOptions = {}) {}
 
-  get started() {
-    return this._session !== undefined;
-  }
-
   start(program: string) {
     this.end();
     const target = this._options.target ?? window;
@@ -156,32 +152,32 @@ export default class WorkspaceDebugClient {
   }
 
   pause() {
-    return this.command("pause", {});
+    return this.command("pause");
   }
 
   continue() {
-    return this.command("continue", {});
+    return this.command("continue");
   }
 
   next() {
-    return this.command("next", {});
+    return this.command("next");
   }
 
   stepIn() {
-    return this.command("stepIn", {});
+    return this.command("stepIn");
   }
 
   stepOut() {
-    return this.command("stepOut", {});
+    return this.command("stepOut");
   }
 
-  protected async command(command: string, args: Record<string, unknown>) {
+  protected async command(command: string) {
     const session = this._session;
     if (!session || !(await session.ready)) {
       return false;
     }
     const threadId = workspace.debugSession.peek().stopped?.threadId ?? 0;
-    const response = await this.request(session, command, { threadId, ...args });
+    const response = await this.request(session, command, { threadId });
     if (!response) {
       return false;
     }

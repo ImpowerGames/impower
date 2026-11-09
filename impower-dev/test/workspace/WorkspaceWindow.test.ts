@@ -180,6 +180,7 @@ import workspaceSettings, {
 } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
 import workspace, {
+  IDLE_DEBUG_SESSION,
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
@@ -1844,16 +1845,42 @@ describe("The preview's top bar", () => {
     }
   });
 
-  it("offers Play Again instead of Pause and the Steps once the story has ended", () => {
+  it("offers Play Again instead of Pause once the story has ended, with the Steps disabled", () => {
     show({ running: true, ended: true });
     expect(labels()).toEqual([
       "Viewing mode",
       "Play Again",
+      "Step Over",
+      "Step Into",
       "Skip back",
       "Stop",
       "Skip forward",
+      "Step Out",
       "Preview settings",
     ]);
+    for (const step of ["Step Over", "Step Into", "Step Out"]) {
+      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+      expect(control(step)?.title).toBe(
+        "The story is over, so there is nothing to step to.",
+      );
+    }
+  });
+
+  it("disables every step at a choice menu", () => {
+    workspace.debugSession.value = {
+      stopped: { reason: "pause", threadId: 0 },
+      stackTrace: { stackFrames: [], totalFrames: 2 },
+      choosing: true,
+    };
+    try {
+      show({ running: true, paused: true });
+      for (const step of ["Step Over", "Step Into", "Step Out"]) {
+        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+        expect(control(step)?.title).toBe("Make a choice to step on.");
+      }
+    } finally {
+      workspace.debugSession.value = IDLE_DEBUG_SESSION;
+    }
   });
 
   it("skips by beat from both skip buttons", async () => {

@@ -93,7 +93,7 @@ export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   screenplay: ["previewScreenplaySync"],
 };
 
-export const STEPS: readonly {
+const STEPS: readonly {
   traversal: StepTraversal;
   label: string;
   icon: IconComponent;
@@ -334,8 +334,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
   const playable = mode === "game";
-  const refusals = stepRefusals(paused, workspace.debugSession.value);
-  const steps = playable && playing;
+  const refusals = stepRefusals({ ended, paused }, workspace.debugSession.value);
+  const steps = playable && running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
     return (

@@ -3100,7 +3100,10 @@ export class Game<T extends M = {}> {
     this.resetExecutionBudget();
     this.refreshDataWatches();
     const origin = {
-      depth: this._story.state.callstackDepth,
+      depth:
+        traversal === "over"
+          ? this.callingDepth()
+          : this._story.state.callstackDepth,
       location: this._executingLocation,
     };
     this._announcedStop = false;
@@ -3126,6 +3129,22 @@ export class Game<T extends M = {}> {
     }
     this.module.assets.releaseAbandonedGates();
     return done;
+  }
+
+  protected callingDepth() {
+    const depth = this._story.state.callstackDepth;
+    const frames = this._story.debugFrames(
+      this._story.state.callStack.currentThread.threadIndex,
+      this.lastExecutedAddress(),
+    );
+    const callee = frames?.at(-1);
+    const caller = frames?.at(-2);
+    if (!callee || !caller) {
+      return depth;
+    }
+    const entered = this.scriptLocationOf(callee.address);
+    const called = this.scriptLocationOf(caller.address);
+    return entered && called && sameLocation(entered, called) ? depth - 1 : depth;
   }
 
   protected stepWithinBudget(
