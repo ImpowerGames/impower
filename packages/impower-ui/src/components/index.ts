@@ -143,6 +143,12 @@ export {
   type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
 export {
+  default as KeysChip,
+  keysChipVariants,
+  type KeysChipProps,
+  type KeysChipState,
+} from "./keys-chip/KeysChip";
+export {
   default as ThemeSwatch,
   themeSwatchVariants,
   type ThemeSwatchProps,
@@ -187,6 +193,22 @@ export {
   type RailIndexItem,
   type RailIndexDepth,
 } from "./rail-index/RailIndex";
+export {
+  default as FeatureCard,
+  featureCardVariants,
+  type FeatureCardProps,
+  type FeatureCardSize,
+} from "./feature-card/FeatureCard";
+export {
+  default as PageFrame,
+  pageFrameVariants,
+  pageFrameInnerVariants,
+  pageFrameIntroVariants,
+  pageFrameTitleVariants,
+  pageFrameBackVariants,
+  type PageFrameProps,
+  type PageFrameSize,
+} from "./page-frame/PageFrame";
 export {
   default as JumpChips,
   jumpChipVariants,

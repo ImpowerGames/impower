@@ -1,7 +1,10 @@
+import { comboKeyName } from "@impower/codemirror-vscode-lsp-client/src/shortcutCombo";
 import type {
   EditorKeybinding,
   EditorShortcutGroup,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import type { ShortcutId } from "../../workspace/shortcuts/shortcutTable";
 
 export type ShortcutGroup = EditorShortcutGroup | "app";
 
@@ -21,17 +24,20 @@ const SECTIONS: readonly [ShortcutGroup, string][] = [
   ["app", "App"],
 ];
 
-export const APP_SHORTCUTS: readonly ShortcutRow[] = [
-  { id: "sync", label: "Sync with Google Drive", keys: ["Ctrl-s"] },
+const keysOf = (id: ShortcutId) => workspaceShortcuts.active(id).map(comboKeyName);
+
+export const appShortcuts = (): ShortcutRow[] => [
+  { id: "playFromHere", label: "Play from here", keys: keysOf("playFromHere") },
+  { id: "sync", label: "Sync with Google Drive", keys: keysOf("format") },
   {
     id: "undoFileChange",
     label: "Undo a change to your files, outside the script",
-    keys: ["Mod-z"],
+    keys: keysOf("undo"),
   },
   {
     id: "redoFileChange",
     label: "Redo a change to your files, outside the script",
-    keys: ["Mod-y", "Mod-Shift-z"],
+    keys: keysOf("redo"),
   },
 ];
 
@@ -73,7 +79,7 @@ export function shortcutSections(
     title,
     rows:
       group === "app"
-        ? [...APP_SHORTCUTS]
+        ? appShortcuts()
         : commands
             .filter((command) => command.group === group)
             .map(({ id, label, keys }) => ({ id, label, keys })),

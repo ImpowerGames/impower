@@ -115,6 +115,7 @@ export class SparkdownPreviewScreenplayPanelManager {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._connected = true;
+          this.notifyConfiguredWorkspace();
           if (this._document) {
             this.loadDocument(this._document);
           }

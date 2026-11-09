@@ -1,12 +1,10 @@
-import { Prec, StateEffect, StateField } from "@codemirror/state";
+import { StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
-  KeyBinding,
   Tooltip,
   ViewPlugin,
   ViewUpdate,
-  keymap,
   showTooltip,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -339,19 +337,7 @@ export const prevSignature: Command = (view) => {
   return true;
 };
 
-export const signatureKeymap: readonly KeyBinding[] = [
-  { key: "Mod-Shift-Space", run: showSignatureHelp },
-  { key: "Mod-Shift-ArrowUp", run: prevSignature },
-  { key: "Mod-Shift-ArrowDown", run: nextSignature },
-];
-
-export interface ServerSignatureHelpConfig {
-  keymap?: boolean;
-}
-
-export function serverSignatureHelp(
-  config: ServerSignatureHelpConfig = {},
-): LSPClientExtension {
+export function serverSignatureHelp(): LSPClientExtension {
   return {
     clientCapabilities: {
       textDocument: {
@@ -369,7 +355,6 @@ export function serverSignatureHelp(
       signatureTheme,
       signatureState,
       signaturePlugin,
-      config.keymap === false ? [] : Prec.high(keymap.of(signatureKeymap)),
     ],
   };
 }
