@@ -26,7 +26,12 @@ export const SETTINGS_SCOPES = [
         title: "Keyboard shortcuts",
         detail: "Change which keys trigger what actions.",
       },
-      { id: "preview-preferences", label: "Preview", title: "Preview" },
+      {
+        id: "preview-preferences",
+        label: "Preview",
+        title: "Preview",
+        detail: "The screenplay preview follows the Screenplay settings; page numbers, dialogue split across pages and bookmarks appear only in exports.",
+      },
     ],
   },
   {

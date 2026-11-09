@@ -53,7 +53,7 @@ export default function PreviewSection({ section }: { section: SettingsSectionIn
   const { preferences, setPreference } = useSettings();
   const reset = useSectionReset({ preferences: PREVIEW_PREFERENCES });
   return (
-    <SettingsSection id={section.id} title={section.title} {...reset}>
+    <SettingsSection id={section.id} title={section.title} detail={section.detail} {...reset}>
       <SettingsGroup>
         <SettingsList>
           <ChoiceRow

@@ -6,6 +6,7 @@ import { cn } from "../../utils/cn";
 import Button from "../button/Button";
 import ChoiceGroup, { type ChoiceOption } from "../choice-group/ChoiceGroup";
 import Select, { type SelectOption } from "../select/Select";
+import Slider from "../slider/Slider";
 import Switch from "../switch/Switch";
 import TextField, { type TextFieldFont, type TextFieldWidth } from "../text-field/TextField";
 
@@ -88,20 +89,44 @@ export function SettingsGroup({ legend, note, id, hidden, class: className, chil
 }
 
 export type SettingsListProps = {
+  as?: "div" | "dl";
   class?: string;
   children?: ComponentChildren;
 };
 
-export function SettingsList({ class: className, children }: SettingsListProps) {
+export function SettingsList({ as: Tag = "div", class: className, children }: SettingsListProps) {
   return (
-    <div
+    <Tag
       class={cn(
-        "grid min-w-0 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel",
+        "m-0 grid min-w-0 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel",
         "[&>*+*]:border-t [&>*+*]:border-solid [&>*+*]:border-[color-mix(in_srgb,var(--edge)_60%,transparent)]",
         className,
       )}
     >
       {children}
+    </Tag>
+  );
+}
+
+export type FactRowProps = {
+  term: string;
+  multiline?: boolean;
+  class?: string;
+  children?: ComponentChildren;
+};
+
+export function FactRow({ term, multiline = false, class: className, children }: FactRowProps) {
+  return (
+    <div class={cn(settingsRowVariants(), "items-baseline", className)} data-fact-row>
+      <dt class="flex-[0_0_88px] text-[12px]/[1.5] text-muted phone:basis-16">{term}</dt>
+      <dd
+        class={cn(
+          "m-0 min-w-0 flex-1 text-[14px]/[1.5] [overflow-wrap:anywhere]",
+          multiline && "whitespace-pre-line",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -365,35 +390,40 @@ export function SelectRow<V extends string = string>({
 
 export type TextRowProps = RowBase & {
   detail?: string;
+  problem?: string;
   value: string;
   placeholder?: string;
   maxLength?: number;
   width?: Exclude<TextFieldWidth, "full">;
   font?: TextFieldFont;
   onValueChange: (value: string) => void;
+  onCommit?: (value: string) => string | void;
 };
 
 export function TextRow({
   id,
   name,
   detail,
+  problem,
   value,
   placeholder,
   maxLength = 40,
   width = "default",
   font,
   onValueChange,
+  onCommit,
   setting,
   indent,
   disabled,
   class: className,
 }: TextRowProps) {
   const wide = width === "wide";
+  const shown = problem ?? detail;
   return (
     <SettingsRow
       id={id}
       name={name}
-      detail={detail}
+      detail={problem ? <span class="text-error" data-problem>{problem}</span> : detail}
       setting={setting}
       indent={indent}
       disabled={disabled}
@@ -414,12 +444,95 @@ export function TextRow({
           placeholder={placeholder}
           maxLength={maxLength}
           disabled={disabled}
-          {...labelledBy(id, detail)}
+          aria-invalid={problem ? "true" : undefined}
+          {...labelledBy(id, shown)}
           onValueChange={onValueChange}
-          onCommit={(committed) => announce(`${name}: ${committed}.`)}
+          onCommit={(committed) => announce(onCommit?.(committed) || `${name}: ${committed}.`)}
         />
       }
     />
+  );
+}
+
+export type SliderRowProps = RowBase & {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  valueText: (value: number) => string;
+  scale?: readonly [string, string];
+  hint?: string;
+  aside?: ComponentChildren;
+  onValueChange: (value: number) => void;
+};
+
+export function SliderRow({
+  id,
+  name,
+  value,
+  min,
+  max,
+  step,
+  valueText,
+  scale,
+  hint,
+  aside,
+  onValueChange,
+  setting,
+  disabled,
+  class: className,
+}: SliderRowProps) {
+  return (
+    <div
+      class={cn(
+        "grid items-center gap-x-7 gap-y-5 p-4",
+        aside &&
+          "grid-cols-[minmax(0,1fr)_256px] compact:grid-cols-1 phone:grid-cols-1 @max-[560px]/page:grid-cols-1",
+        className,
+      )}
+      data-setting-row
+      data-reset={setting}
+    >
+      <div class={cn("min-w-0", disabled && "opacity-55")}>
+        <div class="flex min-h-9 items-center gap-2">
+          <label id={`${id}-name`} for={`${id}-control`} class="text-[14px]/[1.4] font-semibold">
+            {name}
+          </label>
+          <output for={`${id}-control`} class="ml-auto text-[13px] whitespace-nowrap text-accent">
+            {valueText(value)}
+          </output>
+        </div>
+        <Slider
+          id={`${id}-control`}
+          class="mt-0.5"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          valueText={valueText}
+          aria-labelledby={`${id}-name`}
+          {...(hint ? { "aria-describedby": `${id}-hint` } : {})}
+          onValueChange={onValueChange}
+        />
+        {scale && (
+          <div class="-mt-1 flex justify-between text-[12px] text-muted" aria-hidden="true">
+            <span>{scale[0]}</span>
+            <span>{scale[1]}</span>
+          </div>
+        )}
+        {hint && (
+          <p id={`${id}-hint`} class="mt-2.5 mb-0 text-[12px]/[1.6] text-muted">
+            {hint}
+          </p>
+        )}
+      </div>
+      {aside && (
+        <div class="min-w-0 compact:w-64 compact:max-w-full compact:justify-self-center phone:w-64 phone:max-w-full phone:justify-self-center @max-[560px]/page:w-64 @max-[560px]/page:max-w-full @max-[560px]/page:justify-self-center">
+          {aside}
+        </div>
+      )}
+    </div>
   );
 }
 

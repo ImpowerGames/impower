@@ -90,6 +90,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -124,6 +126,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameStartedMessage },
         { GameWorkerRestartedMessage },
         { ResizeGameMessage },
+        { GameAwaitingInteractionMessage },
+        { GameChosePathToContinueMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -373,6 +377,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 }
               }
             }
+          }
+          if (GameAwaitingInteractionMessage.type.isNotification(message)) {
+            Workspace.window.syncGameChoosing(!!message.params.choices);
+          }
+          if (GameChosePathToContinueMessage.type.isNotification(message)) {
+            const { option } = message.params;
+            Workspace.window.syncGameChose(
+              option
+                ? { uri: option.uri, line: option.range.start.line }
+                : undefined,
+            );
           }
           if (GameEndedMessage.type.is(message)) {
             Workspace.window.syncGameEnded(true);

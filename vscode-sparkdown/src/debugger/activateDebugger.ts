@@ -4,6 +4,10 @@
 
 "use strict";
 
+import {
+  FileAccessor,
+  SparkDebugSession,
+} from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import * as vscode from "vscode";
 import {
   CancellationToken,
@@ -16,7 +20,6 @@ import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGa
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
-import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
 import { debugPathToUri, debugUriToPath } from "./debugUriMapping";
 import { evaluatableExpressionRange } from "./evaluatableExpressionRange";
 
@@ -342,6 +345,11 @@ class InlineDebugAdapterFactory
       new SparkDebugSession(
         fileAccessor,
         SparkdownPreviewGamePanelManager.instance.connection,
+        {
+          get syncCursorToExecution() {
+            return SparkdownDebugManager.instance.syncCursorToExecution;
+          },
+        },
       ),
     );
   }

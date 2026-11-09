@@ -4,6 +4,8 @@ import {
   isScriptExtension,
   isScriptPath,
   SCRIPT_FILES_GLOB,
+  scriptFilesGlob,
+  setScriptFiles,
 } from "../../src/modules/spark-editor/utils/scriptFiles";
 import WorkspaceConfiguration from "../../src/modules/spark-editor/workspace/WorkspaceConfiguration";
 
@@ -24,6 +26,22 @@ describe("script file typing", () => {
     expect(isScriptPath("assets/luau")).toBe(false);
     expect(isScriptPath("notes.luau/readme.txt")).toBe(false);
     expect(isScriptPath(".luau")).toBe(false);
+  });
+
+  it("follows the configured script endings, in any case, and falls back to sd and luau when none are left", () => {
+    try {
+      setScriptFiles("*.{sd,luau,story}");
+      expect(isScriptPath("scripts/chapter.STORY")).toBe(true);
+      expect(scriptFilesGlob.value).toBe("*.{sd,luau,story}");
+      setScriptFiles("*.{story}");
+      expect(isScriptExtension("sd")).toBe(false);
+      expect(isScriptExtension("story")).toBe(true);
+      setScriptFiles("");
+      expect(scriptFilesGlob.value).toBe(SCRIPT_FILES_GLOB);
+      expect(isScriptExtension("story")).toBe(false);
+    } finally {
+      setScriptFiles(SCRIPT_FILES_GLOB);
+    }
   });
 
   it("types the workspace configuration's script files with the shared glob, which matches .sd and .luau", () => {

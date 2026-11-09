@@ -92,6 +92,11 @@ function TabsDemo() {
           <IconTabs vertical variant="rail" indicator="none" />
         </div>
       </GalleryRow>
+      <GalleryRow label="Bar variant, the phone's bottom navigation: three 64px targets, a 19px icon over a 10px word, the accent on the current tab">
+        <div class="w-[360px] rounded border border-surface-border bg-panel">
+          <IconTabs variant="bar" indicator="none" />
+        </div>
+      </GalleryRow>
       <GalleryRow label="Vertical, labels only">
         <div class="w-56 rounded border border-surface-border bg-surface">
           <LabelTabs vertical />

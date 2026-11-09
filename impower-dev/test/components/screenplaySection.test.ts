@@ -81,6 +81,7 @@ describe("the Screenplay section", () => {
       "screenplaySceneNumbers",
       "screenplaySceneNames",
       "screenplayBranchNames",
+      "screenplayFunctionNames",
       "screenplayPaperSize",
       "screenplayPageNumbers",
       "screenplaySplitDialogue",
@@ -150,6 +151,21 @@ describe("the Screenplay section", () => {
     expect((control("screenplaySceneNumbers") as HTMLSelectElement).value).toBe("none");
     expect(control("screenplayHiddenBookmarks").disabled).toBe(false);
     expect(host!.querySelector("[data-reset-all]")).toBeNull();
+  });
+
+  it("draws Function names off by default, writes and stores it, and resets it", async () => {
+    await mount();
+    const row = host!.querySelector('[data-reset="screenplayFunctionNames"]')!;
+    expect(row.textContent).toContain("Function names");
+    expect(row.textContent).toContain("Print function names where they are declared.");
+    expect((control("screenplayFunctionNames") as HTMLInputElement).checked).toBe(false);
+    await click("screenplayFunctionNames");
+    expect(workspaceSettings.projectSettings.value.screenplayFunctionNames).toBe(true);
+    const stored = Object.keys(localStorage).map((key) => localStorage.getItem(key)!);
+    expect(stored.some((value) => value.includes('"screenplayFunctionNames":true'))).toBe(true);
+    await act(async () => host!.querySelector<HTMLButtonElement>("[data-reset-all]")!.click());
+    expect((control("screenplayFunctionNames") as HTMLInputElement).checked).toBe(false);
+    expect(workspaceSettings.projectSettings.value.screenplayFunctionNames).toBe(false);
   });
 
   it("switches the preview to Screenplay mode from Show preview", async () => {

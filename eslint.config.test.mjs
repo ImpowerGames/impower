@@ -92,6 +92,71 @@ test("no tracked script file is ignored by the lint", async () => {
   assert.deepEqual(ignored, []);
 });
 
+const ADAPTER_PROBE = "packages/spark-debug-adapter/src/probe.ts";
+
+const assertHostRefused = async (code, ruleId) => {
+  const messages = await lint(ADAPTER_PROBE, code);
+  assert.equal(messages.length, 1, `${code}: ${messages.join("; ")}`);
+  assert.ok(messages[0].startsWith(`${ruleId}: `), messages[0]);
+  assert.match(messages[0], /packages\/spark-debug-adapter runs in a browser page/);
+};
+
+test("a vscode or Node built-in import under packages/spark-debug-adapter fails", async () => {
+  for (const code of [
+    'import * as vscode from "vscode";\nexport const probe = vscode;\n',
+    'import type { Uri } from "vscode";\nexport type U = Uri;\n',
+    'import { readFile } from "fs";\nexport const probe = readFile;\n',
+    'import { readFile } from "node:fs";\nexport const probe = readFile;\n',
+    'import { readFile } from "fs/promises";\nexport const probe = readFile;\n',
+    'import path from "path";\nexport const probe = path;\n',
+    'export { spawn } from "child_process";\n',
+    'import process from "process";\nexport const probe = process;\n',
+  ]) {
+    await assertHostRefused(code, "no-restricted-imports");
+  }
+});
+
+test("a dynamic import, require or import type of vscode or a Node built-in under the package fails", async () => {
+  for (const code of [
+    'export const load = () => import("vscode");\n',
+    'export const load = () => import("node:path");\n',
+    "export const load = () => import(`os`);\n",
+    'const fs = require("fs");\nmodule.exports = fs;\n',
+    'const fs = require("fs/promises");\nmodule.exports = fs;\n',
+    'export type Fs = typeof import("node:fs");\n',
+    'export type Vscode = typeof import("vscode");\n',
+  ]) {
+    await assertHostRefused(code, "no-restricted-syntax");
+  }
+});
+
+test("the debug adapter's own dependencies and look-alike names pass under the package", async () => {
+  for (const code of [
+    'import { LoggingDebugSession } from "@vscode/debugadapter";\nexport const probe = LoggingDebugSession;\n',
+    'import type { DebugProtocol } from "@vscode/debugprotocol";\nexport type P = DebugProtocol.Request;\n',
+    'import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";\nexport const probe = Connection;\n',
+    'import { RequestType } from "vscode-jsonrpc";\nexport const probe = RequestType;\n',
+    'export const load = () => import("./fsHelpers");\n',
+  ]) {
+    assert.deepEqual(await lint(ADAPTER_PROBE, code), [], code);
+  }
+});
+
+test("vscode and Node built-ins stay allowed outside packages/spark-debug-adapter", async () => {
+  for (const file of ["vscode-sparkdown/src/debugger/probe.ts", "packages/spark-engine/src/probe.ts"]) {
+    assert.deepEqual(await lint(file, 'import * as vscode from "vscode";\nimport fs from "node:fs";\nexport const probe = [vscode, fs];\n'), []);
+  }
+});
+
+test("the Radix boundary still holds under packages/spark-debug-adapter", async () => {
+  await assertRefused(ADAPTER_PROBE, PROBE, "no-restricted-imports");
+  await assertRefused(ADAPTER_PROBE, 'export const load = () => import("@radix-ui/react-dialog");\n', "no-restricted-syntax");
+});
+
+test("an inline disable comment cannot lift the debug adapter boundary", async () => {
+  await assertHostRefused('// eslint-disable-next-line no-restricted-imports\nimport fs from "fs";\nexport const probe = fs;\n', "no-restricted-imports");
+});
+
 const FORM_PROBE = (element) => `export const Probe = () => ${element};\n`;
 
 test("a bare input, select or textarea in impower-dev fails with a message naming the package", async () => {

@@ -39,7 +39,7 @@ export default function WriterBar({
           aria-label="Writing"
           data-writer-bar
           class={cn(
-            "flex flex-none items-center justify-between border-t border-edge bg-paper",
+            "flex flex-none items-center justify-between border-t border-edge bg-paper in-data-naming:hidden",
             desktop
               ? "grid h-[62px] min-h-[62px] grid-cols-[1fr_auto_1fr] gap-1 px-5"
               : "h-[52px] min-h-[52px] gap-0 px-1",
