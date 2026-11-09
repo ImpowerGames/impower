@@ -232,6 +232,7 @@ export class ScriptEditorController {
       passive: true,
     });
     this.host.addEventListener("touchmove", this.handleAuthorScroll, {
+      capture: true,
       passive: true,
     });
     document.addEventListener("pointerdown", this.handleScrollbarPointerDown, {
@@ -263,7 +264,7 @@ export class ScriptEditorController {
       this.handlePointerLeaveScroller,
     );
     this.host.removeEventListener("wheel", this.handleAuthorScroll);
-    this.host.removeEventListener("touchmove", this.handleAuthorScroll);
+    this.host.removeEventListener("touchmove", this.handleAuthorScroll, true);
     document.removeEventListener(
       "pointerdown",
       this.handleScrollbarPointerDown,
