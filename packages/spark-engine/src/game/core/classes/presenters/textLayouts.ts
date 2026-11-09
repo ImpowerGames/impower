@@ -101,7 +101,7 @@ export function opensTextLayout(
 ): boolean {
   return (
     presentsText(instructions) &&
-    !textLayoutOpenAfter(game, {}) &&
+    !textLayoutOpenAfter(game, { end: 0 }) &&
     textLayoutOpenAfter(game, instructions)
   );
 }
