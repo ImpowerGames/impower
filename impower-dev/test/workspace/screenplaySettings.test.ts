@@ -57,6 +57,7 @@ describe("the screenplay settings", () => {
       screenplaySceneNumbers: "none",
       screenplaySceneNames: false,
       screenplayBranchNames: false,
+      screenplayFunctionNames: false,
       screenplayKnotNames: false,
       screenplayPaperSize: "usletter",
       screenplayPageNumbers: true,
@@ -138,6 +139,7 @@ describe("the print configuration", () => {
       screenplay_print_scene_numbers: "none",
       screenplay_print_scene_identifiers: false,
       screenplay_print_branch_identifiers: false,
+      screenplay_print_function_identifiers: false,
       screenplay_print_knot_identifiers: false,
       screenplay_print_stitch_identifiers: false,
       screenplay_print_paper_size: "usletter",
@@ -154,6 +156,7 @@ describe("the print configuration", () => {
       ["screenplaySceneNumbers", "right", { screenplay_print_scene_numbers: "right" }],
       ["screenplaySceneNames", true, { screenplay_print_scene_identifiers: true }],
       ["screenplayBranchNames", true, { screenplay_print_branch_identifiers: true }],
+      ["screenplayFunctionNames", true, { screenplay_print_function_identifiers: true }],
       [
         "screenplayKnotNames",
         true,
@@ -269,6 +272,12 @@ describe("the screenplay export keys", () => {
       screenplaySceneNumbers: "right",
       screenplayPaperSize: "a4",
     });
+  });
+
+  it("write and read Function names under the extension's key", () => {
+    const json = projectSettingsJson({ ...defaults(), screenplayFunctionNames: true }, manifest);
+    expect(JSON.parse(json!)).toEqual({ "sparkdown.screenplay.markup.printFunctionIdentifiers": true });
+    expect(projectSettingsFromJson(json!)).toEqual({ screenplayFunctionNames: true });
   });
 
   it("write knot names as both the knot and stitch keys and never write branch names", () => {
