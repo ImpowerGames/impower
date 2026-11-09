@@ -516,3 +516,27 @@ describe("the count of a table changed between measurements", () => {
     });
   }
 });
+
+describe("the count of a large table", () => {
+  test("measures a checkpoint whose copied table holds 150,000 entries without failing the beat", () => {
+    const source = [
+      "store payload = table.create(150000, 1)",
+      "scene start",
+      "  First.",
+      "  payload[1] = 2",
+      "  Second.",
+      "  Third.",
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {});
+    expect((game.story.currentText ?? "").trim()).toBe("First.");
+    game.clickedToContinue();
+    expect((game.story.currentText ?? "").trim()).toBe("Second.");
+    expect(game.ending).toBeNull();
+    const roots = ((game.checkpoints as any)._entries as any[]).map(
+      (entry) => entry.roots.length,
+    );
+    expect(Math.max(...roots)).toBeGreaterThan(150_000);
+    expect(game.checkpoints.bytes).toBeGreaterThan(150_000 * 32);
+  });
+});

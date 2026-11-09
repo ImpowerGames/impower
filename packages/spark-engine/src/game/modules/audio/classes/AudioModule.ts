@@ -277,12 +277,19 @@ export class AudioModule extends Module<
         } else {
           audible?.clear();
         }
-      } else if (update.control === "start" && update.loop && update.key) {
-        if (!audible) {
-          audible = new Map();
-          this._audible.set(channel, audible);
+      } else if (update.control === "start" && update.key) {
+        if (update.loop) {
+          if (!audible) {
+            audible = new Map();
+            this._audible.set(channel, audible);
+          }
+          audible.set(update.key, { to: update.to, looping: true });
+        } else if (update.loop === false) {
+          const loop = audible?.get(update.key);
+          if (loop) {
+            loop.looping = false;
+          }
         }
-        audible.set(update.key, { to: update.to, looping: true });
       } else if (update.control === "fade") {
         for (const key of update.key ? [update.key] : [...(audible?.keys() ?? [])]) {
           const loop = audible?.get(key);

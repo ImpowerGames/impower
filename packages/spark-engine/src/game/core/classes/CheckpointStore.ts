@@ -187,7 +187,9 @@ export class CheckpointStore {
     const pending: unknown[] = [];
     for (const entry of this._entries) {
       if (!entry.folded) {
-        pending.push(...entry.roots);
+        for (const root of entry.roots) {
+          pending.push(root);
+        }
       }
     }
     let bytes = 0;

@@ -884,3 +884,51 @@ describe("a track a queue left to end", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("a track played once after it looped", () => {
+  test("loops again when a roll restores the beat it looped on", async () => {
+    const h = createHarness(
+      [
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "scene start",
+        "  ((play ambient theme))",
+        "  First.",
+        "  ((play ambient theme once))",
+        "  Second.",
+        "  Third.",
+        "end",
+      ].join("\n"),
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    const tick = async () => {
+      await flushMicrotasks(40);
+      (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+      await flushMicrotasks(40);
+    };
+    const updates = () =>
+      h.messages
+        .filter((m) => m.method === "audio/update" && m.params.channel === "ambient")
+        .flatMap((m) => m.params.updates);
+    h.game.start();
+    await tick();
+    h.game.continue();
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("Second.");
+    expect(
+      updates().filter((u: any) => u.control === "start" && u.key === "audio.theme").map((u: any) => u.loop),
+    ).toEqual([true, false]);
+    const from = updates().length;
+    const rolled = await h.game.rollBack("beat");
+    await tick();
+    expect(h.game.story.currentText?.trim()).toBe("First.");
+    expect(rolled.moved && rolled.restored.loops).toEqual([
+      { channel: "ambient", key: "audio.theme", play: "continue" },
+    ]);
+    expect(
+      updates().slice(from).filter((u: any) => u.key === "audio.theme" && u.loop === true),
+    ).toHaveLength(1);
+  });
+});
