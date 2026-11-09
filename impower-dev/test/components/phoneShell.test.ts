@@ -14,6 +14,7 @@ const calls = vi.hoisted(() => ({
   finished: [] as string[],
   commands: [] as [string, string][],
   routes: [] as string[],
+  finishedEditing: { count: 0 },
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -84,6 +85,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
           env.store.scriptMode.value = "editing";
         },
         finishEditing: () => {
+          calls.finishedEditing.count += 1;
           env.store.scriptMode.value = "reading";
         },
         renameScript: async () => ({ status: "renamed" }),
@@ -155,6 +157,7 @@ beforeEach(() => {
   calls.finished.length = 0;
   calls.commands.length = 0;
   calls.routes.length = 0;
+  calls.finishedEditing.count = 0;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
   workspace.current = stateForRoute(
@@ -547,6 +550,20 @@ describe("the phone's reading and editing modes", () => {
     await settle();
     expect(calls.commands).toContainEqual(["scripts/intro.sd", "focus"]);
     expect(workspace.scriptMode.value).toBe("editing");
+  });
+
+  it("finishes editing on unmount only when it is editing", async () => {
+    await mount();
+    await act(async () => render(null, host!));
+    await settle();
+    expect(calls.finishedEditing.count).toBe(0);
+
+    await mount();
+    await edit();
+    await act(async () => render(null, host!));
+    await settle();
+    expect(calls.finishedEditing.count).toBe(1);
+    expect(workspace.scriptMode.value).toBe("reading");
   });
 
   it("hides the navigation while a panel stands in the keyboard's place", async () => {
