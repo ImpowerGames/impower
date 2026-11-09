@@ -19,16 +19,22 @@ export const sliderVariants = cva(
         full: "w-full",
         default: "w-[180px]",
       },
+      track: {
+        default: "",
+        opacity: "slider-opacity-track",
+      },
     },
     defaultVariants: {
       size: "default",
       width: "full",
+      track: "default",
     },
   },
 );
 
 export type SliderSize = NonNullable<VariantProps<typeof sliderVariants>["size"]>;
 export type SliderWidth = NonNullable<VariantProps<typeof sliderVariants>["width"]>;
+export type SliderTrack = NonNullable<VariantProps<typeof sliderVariants>["track"]>;
 
 export type SliderProps = Omit<
   JSX.InputHTMLAttributes<HTMLInputElement>,
@@ -50,6 +56,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
   {
     size,
     width,
+    track,
     class: className,
     value,
     defaultValue,
@@ -71,7 +78,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
     <input
       ref={ref}
       type="range"
-      class={cn(sliderVariants({ size, width }), className)}
+      class={cn(sliderVariants({ size, width, track }), className)}
       min={min}
       max={max}
       step={step}

@@ -1,4 +1,10 @@
+import {
+  colorValueOf,
+  lspColorOf,
+  storyColors,
+} from "@impower/codemirror-vscode-lsp-client/src/colorValue";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
+import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
   onProtocolMessage,
   onProtocolRequest,
@@ -60,6 +66,8 @@ import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/proto
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
+  Color,
+  ColorInformation,
   EditorState,
   GamePosition,
   GameSize,
@@ -99,7 +107,7 @@ import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 
 type WorkspaceLanguageServerAccess = PreviewBeatSkipperDeps["ls"] &
-  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection">>;
+  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection" | "getProgram">>;
 import {
   definitionOf,
   isCue,
@@ -247,6 +255,83 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, settingsOpen: false },
     });
+  }
+
+  openChangeColor(filename: string, range: Range, value: string, color: Color) {
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: {
+          view: "color",
+          fromMenu: true,
+          color: { filename, range, value, color },
+        },
+      },
+    });
+  }
+
+  async applyChangeColor(
+    value: string,
+  ): Promise<"applied" | "invalid" | "moved" | "locked"> {
+    const target = this.store.screen.writingTools?.color;
+    const projectId = this.store.project.id;
+    const color = colorValueOf(value);
+    if (!color) {
+      return "invalid";
+    }
+    if (!target || !projectId) {
+      return "moved";
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, target.filename);
+    const result = await this.requestEditor(ApplyEditorColorMessage.type, {
+      textDocument: { uri },
+      range: target.range,
+      text: target.value,
+      color: lspColorOf(color),
+    });
+    if (!result?.applied) {
+      return result?.readOnly ? "locked" : "moved";
+    }
+    if (this.store.screen.writingTools?.color === target) {
+      this.closeWritingTools();
+    }
+    return "applied";
+  }
+
+  async readStoryColors(): Promise<string[]> {
+    const ls = this._workspace.ls;
+    const connection = ls?.connection;
+    if (!connection || !ls.getProgram) {
+      return [];
+    }
+    const program = await ls.getProgram().catch((error: unknown) => {
+      console.error("Story colors: no program to read scripts from", error);
+      return null;
+    });
+    const uris = Object.keys(program?.scripts ?? {});
+    const documents = await Promise.all(
+      uris.map(async (uri) => {
+        const infos = await connection
+          .sendRequest<ColorInformation[] | null>(
+            "textDocument/documentColor",
+            { textDocument: { uri } },
+          )
+          .catch((error: unknown) => {
+            console.error(`Story colors: documentColor failed for ${uri}`, error);
+            return null;
+          });
+        return [...(infos ?? [])]
+          .sort(
+            (a, b) =>
+              a.range.start.line - b.range.start.line ||
+              a.range.start.character - b.range.start.character,
+          )
+          .map((info) => info.color);
+      }),
+    );
+    return storyColors(documents);
   }
 
   setAppMenuOpen(open: boolean) {

@@ -2,6 +2,8 @@ import Button from "./components/button/Button";
 import { actionSheetGallery } from "./components/action-sheet/ActionSheet.gallery";
 import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
+import { colorChipsGallery } from "./components/color-chips/ColorChips.gallery";
+import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
 import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
@@ -36,6 +38,8 @@ export const galleryEntries: readonly GalleryEntry[] = [
   actionSheetGallery,
   buttonGallery,
   choiceGroupGallery,
+  colorChipsGallery,
+  colorWellGallery,
   dialogGallery,
   disclosureGallery,
   dropdownGallery,
