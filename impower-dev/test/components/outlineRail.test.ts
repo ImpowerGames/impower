@@ -426,8 +426,15 @@ describe("an Outline badge", () => {
   });
 
   it("shows no rail badge when only another script has problems", async () => {
-    await mount([]);
-    expect(railBadge()).toBeNull();
+    const other = "file://outline/chapter.sd";
+    problems.record({ uri: other, diagnostics: [STORM_ERROR, DOCK_WARNING] });
+    try {
+      expect(problems.counts.value.problems).toBeGreaterThan(0);
+      await mount([]);
+      expect(railBadge()).toBeNull();
+    } finally {
+      problems.record({ uri: other, diagnostics: [] });
+    }
   });
 
   it("scopes a branch's badge to its own lines", async () => {
