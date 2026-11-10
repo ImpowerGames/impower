@@ -1185,6 +1185,7 @@ export class Game<T extends M = {}> {
     story.onExecute = null;
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
+      this.module.ui.page.choose(story.currentChoices.indexOf(choice));
       if (this._simulation !== "simulating") {
         this._playedMenus.push({
           sources: story.currentChoices.map((c) => c.sourcePath),
