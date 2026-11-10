@@ -30,6 +30,7 @@ import { sliderGallery } from "./components/slider/Slider.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
+import { tabbedPageGallery } from "./components/tabbed-page/TabbedPage.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
 import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
@@ -69,6 +70,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   sliderGallery,
   splitPaneGallery,
   switchGallery,
+  tabbedPageGallery,
   tabsGallery,
   textFieldGallery,
   themeSwatchGallery,

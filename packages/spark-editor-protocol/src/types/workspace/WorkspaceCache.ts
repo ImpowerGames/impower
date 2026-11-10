@@ -149,6 +149,9 @@ export interface ScreenState {
 export interface ListsState {
   scriptsSort?: string;
   scriptsFolder?: string;
+  scriptsTab?: string;
+  scriptsQueries?: Record<string, string>;
+  scriptsScrolls?: Record<string, number>;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
