@@ -1349,19 +1349,35 @@ export class Game<T extends M = {}> {
     if (mode === this._startingDisplayMode) {
       return false;
     }
-    const before = initialLayouts(this);
     this._startingDisplayMode = mode;
-    const ui = this.module.ui;
-    if (!ui.initialLayoutsOpened) {
-      return true;
+    const shown = this._shownBeatOnScreen;
+    if (
+      this.showStartingDisplayMode() &&
+      shown &&
+      this._coordinator &&
+      !this._context.system.previewing
+    ) {
+      this._coordinator = new Coordinator(this, shown, { settled: "restored" });
     }
-    const after = initialLayouts(this);
+    return true;
+  }
+
+  protected showStartingDisplayMode(): boolean {
+    const ui = this.module.ui;
+    const mode = this._startingDisplayMode;
+    const shownMode = ui.displayMode;
+    if (!ui.initialLayoutsOpened || shownMode === mode) {
+      return false;
+    }
+    ui.displayMode = mode;
+    const before = initialLayouts(this, ui, shownMode);
+    const after = initialLayouts(this, ui, mode);
     const open = ui.openedLayoutsAfter([]);
     const closing = before.filter(
       (name) => !after.includes(name) && open.includes(name),
     );
     if (closing.length === 0) {
-      return true;
+      return false;
     }
     const opening = after.filter(
       (name) => !before.includes(name) && !open.includes(name),
@@ -1375,10 +1391,6 @@ export class Game<T extends M = {}> {
         true,
       ),
     );
-    const shown = this._shownBeatOnScreen;
-    if (shown && this._coordinator && !this._context.system.previewing) {
-      this._coordinator = new Coordinator(this, shown, { settled: "restored" });
-    }
     return true;
   }
 
@@ -2546,6 +2558,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
+    this.showStartingDisplayMode();
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
@@ -2808,6 +2821,7 @@ export class Game<T extends M = {}> {
     if (roll !== this._rolls || this._destroyed) {
       return { moved: false, superseded: true, history };
     }
+    this.showStartingDisplayMode();
     this.noteShownChoices(beat.shown);
     this._shownBeatOnScreen = beat.shown;
     this._coordinator = new Coordinator(this, beat.shown, {

@@ -1,6 +1,7 @@
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { StartingDisplayMode } from "../../../core/classes/messages/SetStartingDisplayModeMessage";
 import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
@@ -221,6 +222,7 @@ export interface UIState {
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
   layout?: { name: string; screen?: string }[];
+  displayMode?: StartingDisplayMode;
   page?: PageState;
 }
 
@@ -3576,8 +3578,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this._state.layout !== undefined;
   }
 
-  openInitialLayouts(names: string[], settle: boolean): void {
+  get displayMode(): StartingDisplayMode {
+    return this._state.displayMode ?? "textbox";
+  }
+
+  set displayMode(mode: StartingDisplayMode) {
+    this._state.displayMode = mode;
+  }
+
+  openInitialLayouts(
+    names: string[],
+    settle: boolean,
+    mode: StartingDisplayMode,
+  ): void {
     this._state.layout ??= [];
+    this._state.displayMode = mode;
     const closed = names.filter(
       (name) =>
         !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),

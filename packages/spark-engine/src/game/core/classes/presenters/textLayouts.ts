@@ -49,7 +49,10 @@ export function startingLayouts(
   );
 }
 
-function configuredInitialLayouts(game: Game): unknown[] {
+function configuredInitialLayouts(
+  game: Game,
+  mode: StartingDisplayMode,
+): unknown[] {
   const configured = game.context?.config?.["ui"]?.layouts_initial;
   return startingLayouts(
     Array.isArray(configured)
@@ -57,7 +60,7 @@ function configuredInitialLayouts(game: Game): unknown[] {
       : configured && typeof configured === "object"
         ? Object.values(configured)
         : [],
-    game.startingDisplayMode,
+    mode,
   );
 }
 
@@ -66,7 +69,7 @@ export function skippedInitialLayouts(
   ui: LayoutReader = game.module.ui,
 ): string[] {
   const opened = initialLayouts(game, ui);
-  return configuredInitialLayouts(game).filter(
+  return configuredInitialLayouts(game, game.startingDisplayMode).filter(
     (name): name is string =>
       typeof name === "string" && !!name && !opened.includes(name),
   );
@@ -75,9 +78,10 @@ export function skippedInitialLayouts(
 export function initialLayouts(
   game: Game,
   ui: LayoutReader = game.module.ui,
+  mode: StartingDisplayMode = game.startingDisplayMode,
 ): string[] {
   const opened = ["main"];
-  for (const name of configuredInitialLayouts(game)) {
+  for (const name of configuredInitialLayouts(game, mode)) {
     if (typeof name !== "string" || !name || opened.includes(name)) {
       continue;
     }
@@ -97,7 +101,7 @@ export function openInitialLayouts(game: Game, settle: boolean): void {
   if (ui.initialLayoutsOpened) {
     return;
   }
-  ui.openInitialLayouts(initialLayouts(game), settle);
+  ui.openInitialLayouts(initialLayouts(game), settle, game.startingDisplayMode);
 }
 
 export function presentsText(instructions: Instructions): boolean {

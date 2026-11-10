@@ -168,6 +168,48 @@ describe("the starting display mode chooses the text layout a game opens with (#
     ]);
   });
 
+  test("Skip back across a mid-run switch keeps the chosen mode on screen", async () => {
+    const h = play(STORY);
+    h.game.start();
+    h.tapTo("Did you hear that?");
+    h.game.setStartingDisplayMode("textstream");
+    h.tapTo("Something is wrong.");
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    expect(h.text()).toBe("Did you hear that?");
+    expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.page().map(words).at(-1)).toBe("Did you hear that?");
+
+    h.game.setStartingDisplayMode("textbox");
+    h.tapTo("Something is wrong.");
+    const again = await h.game.rollBack("beat");
+    expect(again.moved).toBe(true);
+    expect(h.open()).toEqual(["main", "textbox"]);
+  });
+
+  test("Skip back in Visual Novel keeps the page a script opened", async () => {
+    const h = play(OPENS_PAGE);
+    h.game.start();
+    h.tapTo("Still a page.");
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    expect(h.text()).toBe("Now it reads as a page.");
+    expect(h.open()).toContain("textstream");
+  });
+
+  test("a save made in Visual Novel resumes on the page in Interactive Fiction", () => {
+    const h = play(STORY);
+    h.game.start();
+    h.tapTo("Did you hear that?");
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const resumed = play(STORY, "textstream");
+    expect(resumed.game.loadToResume(saved!.data)).toBe(true);
+    resumed.game.start();
+    expect(resumed.text()).toBe("Did you hear that?");
+    expect(resumed.open()).toEqual(["main", "textstream"]);
+  });
+
   test("the mode chosen mid-run is the one the next game starts in", () => {
     const h = play(STORY);
     h.game.start();
