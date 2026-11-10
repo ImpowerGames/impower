@@ -54,6 +54,24 @@ describe("layout verb help (#1991)", () => {
     }
   });
 
+  it("offers the verbs while the first word after [[ or (( is still being typed", () => {
+    for (const [source, verbs] of [
+      ["[[c@0]]", ["clear", "close"]],
+      ["[[cl@0]]", ["clear"]],
+      ["[[sh@0]]", ["show"]],
+      ["scene start\n  [[nav@0]]\nend\n", ["navigate"]],
+      ["((pl@0))", ["play"]],
+    ] as const) {
+      const labels = complete(source).labels;
+      expect(labels, source).toEqual(expect.arrayContaining([...verbs]));
+    }
+  });
+
+  it("offers names, not verbs, after a verb", () => {
+    expect(complete("[[clear @0]]").labels).not.toContain("clear");
+    expect(complete("((play @0))").labels).not.toContain("play");
+  });
+
   it("hover on clear shows its description over the verb", async () => {
     const text = "scene start\n  [[clear textstream]]\nend\n";
     const hover = await hoverAt(text, text.indexOf("clear") + 2);

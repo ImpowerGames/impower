@@ -1683,6 +1683,21 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
+    if (
+      prevNode.name === "ImageBeginMark" &&
+      leftStack[0]?.name === "AssetCommandFileName"
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addBracketControlCompletions(completions);
+        addStructReferenceCompletions(
+          completions,
+          program,
+          IMAGE_COMMAND_NAME_TYPES,
+          isPrefilteredName,
+        );
+      }
+      return buildCompletions();
+    }
     if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
         addBracketControlCompletions(completions);
@@ -1832,6 +1847,16 @@ export const getCompletions = (
     );
     if (beforeAudioNode) {
       if (isCursorAfterNodeText(beforeAudioNode)) {
+        addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+      }
+      return buildCompletions();
+    }
+    if (
+      prevNode.name === "AudioBeginMark" &&
+      leftStack[0]?.name === "AssetCommandFileName"
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }
