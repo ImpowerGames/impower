@@ -29,6 +29,7 @@ export const LOCAL_SCOPE_NODES = {
     "LuauSparkleBlockFor_content",
   ]),
   forConditions: nodeNameSet(["LuauForCondition", "LuauSparkdownExplicitLoopCondition"]),
+  forElses: nodeNameSet(["LuauSparkleBlockElse", "LuauSparkleElseBlock"]),
   repeatLoops: nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]),
   untilConditions: nodeNameSet(["LuauUntilCondition"]),
   eventHandlers: nodeNameSet([

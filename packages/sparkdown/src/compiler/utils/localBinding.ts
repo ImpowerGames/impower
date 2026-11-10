@@ -7,7 +7,7 @@ import { findChildByName } from "./findChildByName";
 import { getLocalScope, LOCAL_SCOPE_NODES } from "./localScopes";
 import { nodeNameSet } from "./nodeNameSet";
 import { CHOOSE_BLOCKS, RootLocals, THEN_CLAUSES } from "./rootLocals";
-import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
+import { VARIABLE_DEFINITION_NAMES, valueListAssignmentName } from "./variableDefinitionNames";
 
 type Read = (from: number, to: number) => string;
 
@@ -18,6 +18,7 @@ const {
   constScopes,
   forLoopContents,
   forConditions,
+  forElses,
   repeatLoops,
   untilConditions,
   eventHandlers,
@@ -67,6 +68,7 @@ function variableNames(statement: SyntaxNode): SyntaxNode[] {
   const names: SyntaxNode[] = [];
   for (const child of significantChildren(findChildByName(statement, `${statement.name}_content`))) {
     if (child.name.endsWith("VariableAssignment")) {
+      if (valueListAssignmentName(child)) continue;
       const name = firstNamed(findChildByName(child, `${child.name}_begin`), "LuauVariableName");
       if (name) names.push(name);
     } else if (isExplicitRuleName(child.name, "LuauAccessPath")) {
@@ -90,7 +92,7 @@ function loopHeader(loopContent: SyntaxNode): { condition: SyntaxNode; variables
   if (!condition) return null;
   const variables: SyntaxNode[] = [];
   for (const child of significantChildren(findChildByName(condition, `${condition.name}_content`))) {
-    if (child.name === "LuauCommaSeparator") continue;
+    if (child.name === "LuauCommaSeparator" || child.name.endsWith("TypeAnnotationOperation")) continue;
     if (isExplicitRuleName(child.name, "LuauAccessPath")) {
       const name = firstNamed(child, "LuauVariableName");
       if (name) variables.push(name);
@@ -205,7 +207,7 @@ export class LocalBindings {
       if (forLoopContents.has(scope.name)) {
         const header = loopHeader(scope);
         for (const variable of header?.variables.reverse() ?? []) {
-          if (variable.from === at || (child.from >= header!.condition.to && this.text(variable) === name)) {
+          if (variable.from === at || (child.from >= header!.condition.to && !forElses.has(child.name) && this.text(variable) === name)) {
             return variable.from;
           }
         }

@@ -183,6 +183,16 @@ describe("provider · script references read access paths and bindings from the 
     ).toBe(1);
   });
 
+  test.each([
+    ["a read in a local's value list", "function f()\n  local a, b = 1, settings\n  return settings.score\nend\n"],
+    [
+      "a read in a layout loop's else",
+      'layout inventory {\n  for settings in bag do\n    text "{settings.score}"\n  else\n    text "{settings.score}"\n  end\n}\n',
+    ],
+  ])("%s counts as a use of the define's script", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(1);
+  });
+
   test("a path in an explicit statement counts as a use of the define's script", () => {
     expect(
       referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: "scene chapter_scene\n  & x = character.raffles.name\nend\n" }, CAST),
@@ -238,6 +248,7 @@ describe("provider · script references read access paths and bindings from the 
     ["an event handler's const", 'layout form {\n  button "Go" @click={ const settings = 1 print(settings) }\n}\n'],
     ["an explicit local", "scene s\n  & local settings = {score = 2}\n  {settings.score}\nend\n"],
     ["a component's parameter", 'component Card(settings) {\n  text "{settings.score}"\n}\n'],
+    ["a typed for loop's variable", "function f()\n  for settings: number = 1, 3 do\n    x = settings\n  end\nend\n"],
     ["a choose-preamble local read after the choose", "scene s\n  choose\n    local settings = {score = 1}\n    * Go\n  end\n  {settings.score}\nend\n"],
     ["a then-clause local read after the choose", "scene s\n  choose\n    * Go\n  then\n    local settings = {score = 1}\n  end\n  {settings.score}\nend\n"],
     [

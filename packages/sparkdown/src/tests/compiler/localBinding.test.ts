@@ -256,6 +256,28 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
   });
 
+  test("a name in a local's value list is a read, not a declaration", () => {
+    const { bindingOf } = bindingsOf("function f()\n  local a, b = 1, settings\n  return settings.score\nend\n");
+    expect(bindingOf("settings", 1)).toBeNull();
+    expect(bindingOf("settings", 2)).toBeNull();
+  });
+
+  test.each([
+    ["a typed numeric for", "function f()\n  for settings: number = 1, 3 do\n    x = settings\n  end\nend\n"],
+    ["a typed generic for", "function f(t)\n  for settings: number, v in pairs(t) do\n    x = settings\n  end\nend\n"],
+  ])("%s binds its variable in the body", (_, source) => {
+    const { bindingOf, offset } = bindingsOf(source);
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
+  test("a layout loop's variable does not reach the loop's else", () => {
+    const { bindingOf, offset } = bindingsOf(
+      'layout inventory {\n  for settings in bag do\n    text "{settings.score}"\n  else\n    text "{settings.score}"\n  end\n}\n',
+    );
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBeNull();
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();
