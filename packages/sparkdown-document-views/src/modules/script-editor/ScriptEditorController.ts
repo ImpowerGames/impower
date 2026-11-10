@@ -13,7 +13,12 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
+import {
+  ChangeDesc,
+  EditorSelection,
+  EditorState,
+  Transaction,
+} from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   applyDocumentColor,
@@ -814,7 +819,7 @@ export class ScriptEditorController {
     to: number;
   } | null = null;
 
-  protected publishWithheld(state: EditorState) {
+  protected publishWithheld(state: EditorState, changes?: ChangeDesc) {
     const uri = this._textDocument?.uri;
     const range = uri ? state.field(withheldDiagnosticField, false) : null;
     const last = this._withheld;
@@ -829,8 +834,13 @@ export class ScriptEditorController {
       return;
     }
     const version = getDocumentVersion(state);
-    if (last && (last.uri !== uri || !range)) {
-      this.releaseWithheld(last.uri === uri ? version : undefined);
+    if (last && last.uri !== uri) {
+      this.releaseWithheld();
+    } else if (last && !range) {
+      this.releaseWithheld(
+        version,
+        !!changes?.touchesRange(last.from, last.to),
+      );
     }
     this._withheld = uri && range ? { uri, version, ...range } : null;
     if (uri && range) {
@@ -847,7 +857,7 @@ export class ScriptEditorController {
     }
   }
 
-  protected releaseWithheld(version?: number) {
+  protected releaseWithheld(version?: number, edited = false) {
     const last = this._withheld;
     if (!last) {
       return;
@@ -857,6 +867,7 @@ export class ScriptEditorController {
       ChangedEditorWithheldDiagnosticMessage.type.notification({
         textDocument: { uri: last.uri, version: version ?? last.version },
         range: null,
+        edited,
       }),
       this.host.isConnected ? this.host : window,
     );
@@ -1560,7 +1571,7 @@ export class ScriptEditorController {
           },
           onViewUpdate: (update) => {
             this.publishHistory(update.state);
-            this.publishWithheld(update.state);
+            this.publishWithheld(update.state, update.changes);
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }

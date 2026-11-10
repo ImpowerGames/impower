@@ -213,7 +213,10 @@ export default class WorkspaceLanguageServer {
 
   protected readonly _published = new Map<string, PublishDiagnosticsParams>();
 
-  protected readonly _withheld = new Map<string, Range>();
+  protected readonly _withheld = new Map<
+    string,
+    { version: number; range: Range }[]
+  >();
 
   protected readonly _disposeWithheldListener: () => void;
 
@@ -276,6 +279,14 @@ export default class WorkspaceLanguageServer {
       PublishDiagnosticsMessage.method,
       (params: PublishDiagnosticsParams) => {
         this._published.set(params.uri, params);
+        const withheld = this._withheld.get(params.uri);
+        const current = this.withheldRange(params.uri, params.version);
+        if (withheld && current) {
+          this._withheld.set(
+            params.uri,
+            withheld.slice(withheld.findIndex((w) => w.range === current)),
+          );
+        }
         this.showPublishedDiagnostics(params.uri);
       },
     );
@@ -504,32 +515,48 @@ export default class WorkspaceLanguageServer {
   protected handleChangedEditorWithheldDiagnostic({
     textDocument: { uri, version },
     range,
+    edited,
   }: ChangedEditorWithheldDiagnosticParams) {
-    const previous = this._withheld.get(uri);
     const published = this._published.get(uri);
+    const before = this.visibleDiagnostics(uri)?.length;
     if (range) {
-      this._withheld.set(uri, range);
-    } else if (!previous) {
-      return;
+      this._withheld.set(uri, [
+        ...(this._withheld.get(uri) ?? []).filter((w) => w.version < version),
+        { version, range },
+      ]);
     } else {
+      const stale = this.withheldRange(uri, published?.version);
       this._withheld.delete(uri);
-      if (published?.version != null && published.version < version) {
+      if (edited && published && stale) {
         this._published.set(uri, {
           ...published,
           diagnostics: published.diagnostics.filter(
-            (d) => !isWithheldDiagnostic(d, previous),
+            (d) => !isWithheldDiagnostic(d, stale),
           ),
         });
-        return;
       }
     }
-    const affected = published?.diagnostics.some(
-      (d) =>
-        isWithheldDiagnostic(d, previous) || isWithheldDiagnostic(d, range),
-    );
-    if (affected) {
+    if (this.visibleDiagnostics(uri)?.length !== before) {
       this.showPublishedDiagnostics(uri);
     }
+  }
+
+  protected withheldRange(uri: string, version: number | undefined) {
+    let range: Range | undefined;
+    for (const withheld of this._withheld.get(uri) ?? []) {
+      if (version == null || withheld.version <= version) {
+        range = withheld.range;
+      }
+    }
+    return range;
+  }
+
+  protected visibleDiagnostics(uri: string) {
+    const published = this._published.get(uri);
+    const withheld = this.withheldRange(uri, published?.version);
+    return withheld
+      ? published?.diagnostics.filter((d) => !isWithheldDiagnostic(d, withheld))
+      : published?.diagnostics;
   }
 
   protected showPublishedDiagnostics(uri: string) {
@@ -537,15 +564,10 @@ export default class WorkspaceLanguageServer {
     if (!published) {
       return;
     }
-    const withheld = this._withheld.get(uri);
-    const params = withheld
-      ? {
-          ...published,
-          diagnostics: published.diagnostics.filter(
-            (d) => !isWithheldDiagnostic(d, withheld),
-          ),
-        }
-      : published;
+    const params = {
+      ...published,
+      diagnostics: this.visibleDiagnostics(uri) ?? [],
+    };
     problems.record(params);
     for (const listener of this._publishedDiagnosticsListeners) {
       listener(params);

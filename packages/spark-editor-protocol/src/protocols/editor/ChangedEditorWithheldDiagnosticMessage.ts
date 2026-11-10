@@ -8,6 +8,7 @@ export type ChangedEditorWithheldDiagnosticMethod =
 export interface ChangedEditorWithheldDiagnosticParams {
   textDocument: VersionedTextDocumentIdentifier;
   range: Range | null;
+  edited?: boolean;
 }
 
 export class ChangedEditorWithheldDiagnosticMessage {

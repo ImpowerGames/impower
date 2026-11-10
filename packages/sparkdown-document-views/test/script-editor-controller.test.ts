@@ -796,7 +796,7 @@ describe("ScriptEditorController withheld diagnostic", () => {
     view.dispatch({ selection: { anchor: 8 } });
     expect(reported).toEqual([
       { textDocument, range: HELLO },
-      { textDocument, range: null },
+      { textDocument, range: null, edited: false },
     ]);
   });
 
@@ -826,6 +826,7 @@ describe("ScriptEditorController withheld diagnostic", () => {
         version: getDocumentVersion(view.state),
       },
       range: null,
+      edited: true,
     });
   });
 
@@ -854,7 +855,7 @@ describe("ScriptEditorController withheld diagnostic", () => {
     controller.dispose();
     expect(reported).toEqual([
       { textDocument, range: HELLO },
-      { textDocument, range: null },
+      { textDocument, range: null, edited: false },
     ]);
   });
 
@@ -874,6 +875,6 @@ describe("ScriptEditorController withheld diagnostic", () => {
     } finally {
       window.removeEventListener(MessageProtocol.event, listener);
     }
-    expect(released).toEqual([{ textDocument, range: null }]);
+    expect(released).toEqual([{ textDocument, range: null, edited: false }]);
   });
 });

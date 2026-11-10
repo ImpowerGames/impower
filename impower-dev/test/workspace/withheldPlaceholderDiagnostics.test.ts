@@ -64,11 +64,12 @@ describe("the app withholds the placeholder warning the editor withholds", () =>
       diagnostics,
     });
 
-  const withheld = (version: number, range: Range | null) =>
+  const withheld = (version: number, range: Range | null, edited?: boolean) =>
     sendProtocolMessage(
       ChangedEditorWithheldDiagnosticMessage.type.notification({
         textDocument: { uri: MAIN, version },
         range,
+        ...(range ? {} : { edited: !!edited }),
       }),
     );
 
@@ -131,7 +132,7 @@ describe("the app withholds the placeholder warning the editor withholds", () =>
   it("never flashes the old warning when the placeholder is replaced", () => {
     withheld(5, PLACEHOLDER);
     published(5, [placeholderWarning]);
-    withheld(6, null);
+    withheld(6, null, true);
     expect(problems.counts.value.problems).toBe(0);
     expect(heard.map((p) => messages(p.diagnostics))).not.toContainEqual([
       WARNING,
@@ -151,12 +152,34 @@ describe("the app withholds the placeholder warning the editor withholds", () =>
   it("drops the range at the release, so no later publish can stay hidden", () => {
     withheld(5, PLACEHOLDER);
     published(5, [placeholderWarning]);
-    withheld(6, null);
+    withheld(6, null, true);
     expect(problems.counts.value.problems).toBe(0);
     published(5, [placeholderWarning]);
     expect(recorded()).toEqual([WARNING]);
     expect(problems.counts.value.problems).toBe(1);
     expect(lastHeard()).toEqual([WARNING]);
+  });
+
+  it("shows the warning at once when the caret leaves during an edit elsewhere", () => {
+    withheld(5, PLACEHOLDER);
+    published(5, [placeholderWarning]);
+    withheld(6, null, false);
+    expect(recorded()).toEqual([WARNING]);
+    expect(problems.counts.value.problems).toBe(1);
+    expect(lastHeard()).toEqual([WARNING]);
+  });
+
+  it("keeps the published warning hidden while an edit elsewhere moves the live range", () => {
+    withheld(5, PLACEHOLDER);
+    published(5, [placeholderWarning]);
+    const moved = at(7, 2, 11);
+    withheld(6, moved);
+    expect(problems.counts.value.problems).toBe(0);
+    expect(lastHeard()).toEqual([]);
+    published(6, [{ ...placeholderWarning, range: moved }]);
+    expect(problems.counts.value.problems).toBe(0);
+    withheld(6, null, false);
+    expect(problems.counts.value.problems).toBe(1);
   });
 
   it("re-evaluates diagnostics already received when the range goes live", () => {
