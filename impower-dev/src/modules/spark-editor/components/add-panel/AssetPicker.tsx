@@ -9,13 +9,19 @@ import {
   Thumbnail,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { addMenuFolders } from "../../utils/addMenuFolders";
 import { assetEndings, assetTypeOf } from "../../utils/assetTypes";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import type { PickerRow } from "./addRows";
-import { lengthLabel, pickerItems, type PickerItem } from "./pickerItems";
+import {
+  lengthLabel,
+  pickerItems,
+  pickerLeftOut,
+  type PickerItem,
+} from "./pickerItems";
 import { intents } from "./workspaceIntents";
 
 export type AssetPickerProps = {
@@ -27,7 +33,9 @@ export type AssetPickerProps = {
 
 const THUMBNAIL_SECTION = "add-folder-preferences";
 
-function usePickerItems(row: PickerRow): PickerItem[] | null {
+type PickerChoices = { items: PickerItem[]; leftOut: number };
+
+function usePickerItems(row: PickerRow): PickerChoices | null {
   const projectId = workspace.signals.projectId.value;
   const listing = workspace.assetListing.value;
   const endings = assetEndings.value;
@@ -51,7 +59,49 @@ function usePickerItems(row: PickerRow): PickerItem[] | null {
     type: assetTypeOf(path, endings, facts.address),
     src: facts.src,
   }));
-  return pickerItems(row.picker.kind, files, addMenuFolders(projectSettings));
+  const folders = addMenuFolders(projectSettings);
+  return {
+    items: pickerItems(row.picker.kind, files, folders),
+    leftOut: pickerLeftOut(row.picker.kind, files, folders),
+  };
+}
+
+const openAssets = (row: PickerRow, onLeave: () => void) => () => {
+  onLeave();
+  void intents().then((Workspace) => {
+    Workspace.window.setListState({
+      assetsType: row.picker.audition === "sound" ? "audio" : "image",
+    });
+    Workspace.window.navigateTo("collection");
+  });
+};
+
+function LeftOut({
+  row,
+  count,
+  onLeave,
+}: {
+  row: PickerRow;
+  count: number;
+  onLeave: () => void;
+}) {
+  return (
+    <div
+      class="flex flex-none items-center justify-between gap-2 border-t border-edge px-3 py-1 text-[12px]/[1.5] text-muted"
+      data-picker-left-out
+    >
+      <p class="m-0 min-w-0">{row.picker.leftOut(count)}</p>
+      <Button
+        variant="quiet"
+        size="compact"
+        class="flex-none"
+        onClick={openAssets(row, onLeave)}
+      >
+        Open Assets
+        <ArrowIcon />
+      </Button>
+    </div>
+  );
 }
 
 function useLengths(row: PickerRow, items: PickerItem[] | null) {
@@ -60,7 +110,9 @@ function useLengths(row: PickerRow, items: PickerItem[] | null) {
   const key = sound && items ? items.map((item) => item.path).join("\n") : "";
   useEffect(() => {
     if (key) {
-      void intents().then((Workspace) => Workspace.assets.measureDurations(key.split("\n")));
+      void intents().then((Workspace) =>
+        Workspace.assets.measureDurations(key.split("\n")),
+      );
     }
   }, [key]);
   return (item: PickerItem) => {
@@ -69,37 +121,62 @@ function useLengths(row: PickerRow, items: PickerItem[] | null) {
   };
 }
 
-function Picture({ row, item, fill }: { row: PickerRow; item: PickerItem; fill: boolean }) {
+function Picture({
+  row,
+  item,
+  fill,
+}: {
+  row: PickerRow;
+  item: PickerItem;
+  fill: boolean;
+}) {
   const { preferences } = useSettings();
   const place = fill ? "h-0 min-h-0 flex-1" : undefined;
   if (row.picker.audition === "sound") {
-    return <Thumbnail size={fill ? "fill" : "card"} class={place} glyph={<row.Icon />} />;
+    return (
+      <Thumbnail
+        size={fill ? "fill" : "card"}
+        class={place}
+        glyph={<row.Icon />}
+      />
+    );
   }
   if (row.picker.kind === "portrait") {
-    return <PortraitThumbnail size={fill ? "fill" : "tile"} class={place} src={item.src} crop={preferences.portraitCrop} />;
+    return (
+      <PortraitThumbnail
+        size={fill ? "fill" : "tile"}
+        class={place}
+        src={item.src}
+        crop={preferences.portraitCrop}
+      />
+    );
   }
-  return <Thumbnail size={fill ? "fill" : "card"} class={place} src={item.src} />;
+  return (
+    <Thumbnail size={fill ? "fill" : "card"} class={place} src={item.src} />
+  );
 }
 
-function Empty({ row, onInsert, onLeave }: Pick<AssetPickerProps, "row" | "onInsert" | "onLeave">) {
+function Empty({
+  row,
+  leftOut,
+  onInsert,
+  onLeave,
+}: Pick<AssetPickerProps, "row" | "onInsert" | "onLeave"> & {
+  leftOut: number;
+}) {
   const { projectSettings } = useSettings();
   const folder = addMenuFolders(projectSettings)[row.picker.kind];
-  const openAssets = () => {
-    onLeave();
-    void intents().then((Workspace) => {
-      Workspace.window.setListState({ assetsType: row.picker.audition === "sound" ? "audio" : "image" });
-      Workspace.window.navigateTo("collection");
-    });
-  };
   return (
     <div
       class="flex min-h-45 flex-col items-center justify-center gap-3 px-4 py-7 text-center text-muted [&>svg]:size-8"
       data-picker-empty
     >
       <row.Icon />
-      <p class="m-0 text-[14px]/[1.5]">{row.picker.empty}</p>
+      <p class="m-0 text-[14px]/[1.5]" data-picker-empty-line>
+        {leftOut ? row.picker.leftOut(leftOut) : row.picker.empty}
+      </p>
       <p class="m-0 text-[12px]/[1.5]">{row.picker.emptyHelp(folder)}</p>
-      <Button variant="quiet" onClick={openAssets}>
+      <Button variant="quiet" onClick={openAssets(row, onLeave)}>
         Open Assets
         <ArrowIcon />
       </Button>
@@ -110,9 +187,15 @@ function Empty({ row, onInsert, onLeave }: Pick<AssetPickerProps, "row" | "onIns
   );
 }
 
-export default function AssetPicker({ filename, row, onInsert, onLeave }: AssetPickerProps) {
+export default function AssetPicker({
+  filename,
+  row,
+  onInsert,
+  onLeave,
+}: AssetPickerProps) {
   const phone = useLayout() === "phone";
-  const items = usePickerItems(row);
+  const choices = usePickerItems(row);
+  const items = choices?.items ?? null;
   const lengthOf = useLengths(row, items);
 
   const root = useRef<HTMLDivElement>(null);
@@ -128,7 +211,9 @@ export default function AssetPicker({ filename, row, onInsert, onLeave }: AssetP
   useEffect(() => {
     if (loaded) {
       root.current
-        ?.querySelector<HTMLElement>("[data-picker-item], [data-picker-empty] button")
+        ?.querySelector<HTMLElement>(
+          "[data-picker-item], [data-picker-empty] button",
+        )
         ?.focus({ preventScroll: true });
     }
   }, [loaded]);
@@ -138,7 +223,12 @@ export default function AssetPicker({ filename, row, onInsert, onLeave }: AssetP
       {!items ? (
         <div class="min-h-45" data-picker-loading />
       ) : !items.length ? (
-        <Empty row={row} onInsert={onInsert} onLeave={onLeave} />
+        <Empty
+          row={row}
+          leftOut={choices!.leftOut}
+          onInsert={onInsert}
+          onLeave={onLeave}
+        />
       ) : (
         <Cards
           filename={filename}
@@ -148,6 +238,11 @@ export default function AssetPicker({ filename, row, onInsert, onLeave }: AssetP
           phone={phone}
           onInsert={onInsert}
           onLeave={onLeave}
+          below={
+            choices!.leftOut > 0 && (
+              <LeftOut row={row} count={choices!.leftOut} onLeave={onLeave} />
+            )
+          }
         />
       )}
     </div>
@@ -162,17 +257,21 @@ function Cards({
   phone,
   onInsert,
   onLeave,
+  below,
 }: AssetPickerProps & {
   items: PickerItem[];
   lengthOf: (item: PickerItem) => string;
   phone: boolean;
+  below: ComponentChildren;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [position, setPosition] = useState(0);
   const picked = items.find((item) => item.id === selected) ?? null;
 
-  const captionOf = (item: PickerItem) => [lengthOf(item), item.caption].filter(Boolean).join(" · ");
-  const spoken = (item: PickerItem) => [item.name, captionOf(item)].filter(Boolean).join(", ");
+  const captionOf = (item: PickerItem) =>
+    [lengthOf(item), item.caption].filter(Boolean).join(" · ");
+  const spoken = (item: PickerItem) =>
+    [item.name, captionOf(item)].filter(Boolean).join(", ");
 
   const audition = (item: PickerItem) => {
     setSelected(item.id);
@@ -202,54 +301,70 @@ function Cards({
   if (phone) {
     const openPreference = () => {
       onLeave();
-      void intents().then((Workspace) => Workspace.window.navigateTo("project", THUMBNAIL_SECTION));
+      void intents().then((Workspace) =>
+        Workspace.window.navigateTo("project", THUMBNAIL_SECTION),
+      );
     };
     return (
-      <Carousel
-        class="min-h-0 flex-1"
-        label={row.picker.browse}
-        previousLabel={row.picker.previous}
-        nextLabel={row.picker.next}
-        index={position}
-        onIndexChange={setPosition}
-        trailing={
-          row.picker.thumbnailPreference ? (
-            <Button
-              variant="quiet"
-              size="glyph"
-              class="text-muted"
-              aria-label="Portrait thumbnail preferences"
-              title="Portrait thumbnail preferences"
-              onClick={openPreference}
+      <>
+        <Carousel
+          class="min-h-0 flex-1"
+          label={row.picker.browse}
+          previousLabel={row.picker.previous}
+          nextLabel={row.picker.next}
+          index={position}
+          onIndexChange={setPosition}
+          trailing={
+            row.picker.thumbnailPreference ? (
+              <Button
+                variant="quiet"
+                size="glyph"
+                class="text-muted"
+                aria-label="Portrait thumbnail preferences"
+                title="Portrait thumbnail preferences"
+                onClick={openPreference}
+              >
+                <SettingsIcon />
+              </Button>
+            ) : undefined
+          }
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              class="flex flex-col items-stretch text-left focus-inset"
+              aria-label={`Add ${spoken(item)}`}
+              data-picker-item={item.reference}
+              onClick={() => use(item)}
             >
-              <SettingsIcon />
-            </Button>
-          ) : undefined
-        }
-      >
-        {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            class="flex flex-col items-stretch text-left focus-inset"
-            aria-label={`Add ${spoken(item)}`}
-            data-picker-item={item.reference}
-            onClick={() => use(item)}
-          >
-            <Picture row={row} item={item} fill />
-            <span class="flex-none px-2.5 py-1.75">
-              <strong class="block truncate text-[13px]/[1.4] font-semibold">{item.name}</strong>
-              {captionOf(item) && <small class="block truncate text-[12px]/[1.4] text-muted">{captionOf(item)}</small>}
-            </span>
-          </button>
-        ))}
-      </Carousel>
+              <Picture row={row} item={item} fill />
+              <span class="flex-none px-2.5 py-1.75">
+                <strong class="block truncate text-[13px]/[1.4] font-semibold">
+                  {item.name}
+                </strong>
+                {captionOf(item) && (
+                  <small class="block truncate text-[12px]/[1.4] text-muted">
+                    {captionOf(item)}
+                  </small>
+                )}
+              </span>
+            </button>
+          ))}
+        </Carousel>
+        {below}
+      </>
     );
   }
 
   return (
     <>
-      <div role="group" aria-label={`${row.label} options`} class="min-h-0 flex-1 overflow-y-auto p-1.5" data-picker-list>
+      <div
+        role="group"
+        aria-label={`${row.label} options`}
+        class="min-h-0 flex-1 overflow-y-auto p-1.5"
+        data-picker-list
+      >
         {items.map((item) => (
           <ListRow
             key={item.id}
@@ -259,7 +374,11 @@ function Cards({
             icon={<Picture row={row} item={item} fill={false} />}
             label={<strong class="block font-semibold">{item.name}</strong>}
             description={captionOf(item) || undefined}
-            trailing={item.id === selected ? <CheckIcon class="text-accent!" /> : undefined}
+            trailing={
+              item.id === selected ? (
+                <CheckIcon class="text-accent!" />
+              ) : undefined
+            }
             aria-pressed={item.id === selected}
             aria-label={`Preview ${spoken(item)}`}
             data-picker-item={item.reference}
@@ -267,11 +386,16 @@ function Cards({
           />
         ))}
       </div>
+      {below}
       <footer class="flex min-h-14.5 flex-none items-center justify-between gap-2 border-t border-edge px-3 py-1.5">
         <span class="text-[11px]/[1.4] text-muted" data-picker-status>
           {picked ? row.picker.active : row.picker.idle}
         </span>
-        <Button variant="primary" disabled={!picked} onClick={() => picked && use(picked)}>
+        <Button
+          variant="primary"
+          disabled={!picked}
+          onClick={() => picked && use(picked)}
+        >
           {row.picker.use}
         </Button>
       </footer>

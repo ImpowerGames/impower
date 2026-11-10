@@ -7,8 +7,13 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { describe, expect, it } from "vitest";
-import { lengthLabel, pickerItems } from "../../src/modules/spark-editor/components/add-panel/pickerItems";
 import {
+  lengthLabel,
+  pickerItems,
+  pickerLeftOut,
+} from "../../src/modules/spark-editor/components/add-panel/pickerItems";
+import {
+  ADD_MENU_FILE_TYPES,
   ADD_MENU_KINDS,
   type AddMenuFolders,
   type AddMenuKind,
@@ -59,6 +64,44 @@ const NAMED_LIKE_KEYWORDS = KEYWORDS.flatMap((word) => [
   file(`assets/Music/${word}.mp3`, "audio"),
 ]);
 
+const NAME_FORMS = ["door-knock", "2door", "caf\u00e9", "\u30c6\u30e9\u30b9", "plaza.v2", "door knock", "with"];
+
+const OFFERED_FORMS: Record<AddMenuKind, string[]> = {
+  backdrop: ["caf\u00e9", "door-knock", "plaza.v2", "\u30c6\u30e9\u30b9"],
+  portrait: ["caf\u00e9", "door-knock", "plaza.v2", "\u30c6\u30e9\u30b9"],
+  sound: ["2door", "caf\u00e9", "door-knock", "\u30c6\u30e9\u30b9"],
+  music: ["2door", "caf\u00e9", "door-knock", "\u30c6\u30e9\u30b9"],
+};
+
+const FORM_FOLDERS: Record<AddMenuKind, [string, string, string]> = {
+  backdrop: ["assets/Backdrops/forms", "png", "image"],
+  portrait: ["assets/Portraits/forms", "png", "image"],
+  sound: ["assets/Sounds/forms", "wav", "audio"],
+  music: ["assets/Music/forms", "mp3", "audio"],
+};
+
+const formsFor = (kind: AddMenuKind) => {
+  const [folder, ending, type] = FORM_FOLDERS[kind];
+  return NAME_FORMS.map((name) => file(`${folder}/${name}.${ending}`, type));
+};
+
+const ODD_NAMES = [
+  file("assets/Backdrops/With.png"),
+  file("assets/Backdrops/AFTER.png"),
+  file("assets/Sounds/Show.wav", "audio"),
+  file("assets/Sounds/door-knock.wav", "audio"),
+  file("assets/Sounds/2door.wav", "audio"),
+  file("assets/Backdrops/café.png"),
+  file("assets/Backdrops/sea.png"),
+  file("assets/Backdrops/sea.jpg"),
+  file("assets/Backdrops/Sea.png"),
+  file("assets/Sounds/with/clang.wav", "audio"),
+  file("assets/Backdrops/show/hall.png"),
+  file("assets/Sounds/rain.wav", "audio"),
+  file("assets/Backdrops/rain.png"),
+  file("assets/Portraits/beach.png"),
+];
+
 const summary = (kind: AddMenuKind) =>
   pickerItems(kind, FILES, FOLDERS).map((item) => [item.reference, item.caption, item.src]);
 
@@ -67,12 +110,13 @@ describe("the pickers' cards", () => {
     expect(summary("backdrop")).toEqual([
       ["beach", "", "blob:assets/Backdrops/beach.png"],
       ["plaza", "city", "blob:assets/art/BACKDROPS/city/plaza.jpg"],
+      ["plaza.v2", "city", "blob:assets/art/backdrops/city/plaza.v2.jpg"],
     ]);
   });
 
   it("offer no alternate, no thing without a base picture, and no file whose name a script cannot write", () => {
     const references = ADD_MENU_KINDS.flatMap((kind) => pickerItems(kind, FILES, FOLDERS).map((item) => item.reference));
-    expect(references.filter((reference) => /[@~. ]|^(harbor|kai)$/.test(reference))).toEqual([]);
+    expect(references.filter((reference) => /[@~ ]|^(harbor|kai|click\.v2)$/.test(reference))).toEqual([]);
   });
 
   it("offer each portrait by its base name, without its layer options", () => {
@@ -88,6 +132,26 @@ describe("the pickers' cards", () => {
       ["click", "ui", "blob:assets/Sounds/ui/click.ogg"],
     ]);
     expect(summary("music")).toEqual([["theme", "", "blob:assets/Music/theme.mp3"]]);
+  });
+
+  it("offer no name that two pictures or two sounds of the project share, since the game draws only one of them", () => {
+    const shared = [
+      ...FILES,
+      file("assets/Backdrops/sea.png"),
+      file("assets/Backdrops/sea.jpg"),
+      file("assets/Backdrops/Sea.png"),
+      file("assets/Images/plaza.png"),
+      file("assets/Portraits/beach.png"),
+      file("assets/Backdrops/rain.png"),
+      file("assets/Sounds/rain.wav", "audio"),
+      file("assets/Music/door.mp3", "audio"),
+    ];
+    const references = (kind: AddMenuKind) =>
+      pickerItems(kind, shared, FOLDERS).map((item) => item.reference);
+    expect(references("backdrop")).toEqual(["rain", "Sea", "plaza.v2"]);
+    expect(references("portrait")).toEqual(["imani", "mia"]);
+    expect(references("sound")).toEqual(["rain", "click"]);
+    expect(references("music")).toEqual(["theme"]);
   });
 
   it("give every card its own id, and offer nothing from a folder the menu does not name", () => {
@@ -125,7 +189,7 @@ const inserted = (construct: InsertConstruct, name: string) => {
   return SCRIPT.slice(0, plan.from) + plan.insert + SCRIPT.slice(plan.to);
 };
 
-const diagnosticsOf = (text: string, files: readonly { path: string; type: string; src: string }[]) => {
+const compiled = (text: string, files: readonly { path: string; type: string; src: string }[]) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
@@ -143,25 +207,96 @@ const diagnosticsOf = (text: string, files: readonly { path: string; type: strin
   console.warn = console.error = console.log = () => {};
   try {
     const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
-    return (program.diagnostics?.[MAIN_URI] ?? []).map((diagnostic) =>
-      typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
-    );
+    return {
+      messages: (program.diagnostics?.[MAIN_URI] ?? []).map((diagnostic) =>
+        typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
+      ),
+      context: (program.context ?? {}) as Record<string, Record<string, { uri?: string }> | undefined>,
+    };
   } finally {
     Object.assign(console, { warn, error, log });
   }
 };
 
 describe("what the pickers insert", () => {
-  it("compiles with no diagnostic for every card the pickers offer", () => {
-    const files = [...FILES, ...NAMED_LIKE_KEYWORDS];
-    expect(diagnosticsOf(SCRIPT, files)).toEqual([]);
-    const problems = ADD_MENU_KINDS.flatMap((kind) =>
-      pickerItems(kind, files, FOLDERS).flatMap((item) => {
-        const text = inserted(CONSTRUCTS[kind], item.reference);
-        return diagnosticsOf(text, files).map((message) => `${kind} ${item.reference}: ${message}`);
-      }),
-    );
+  it("compiles with no diagnostic and draws the card's own file, for every card the pickers offer", () => {
+    const problems = ADD_MENU_KINDS.flatMap((kind) => {
+      const files = [...FILES, ...NAMED_LIKE_KEYWORDS, ...ODD_NAMES, ...formsFor(kind)];
+      expect(compiled(SCRIPT, files).messages).toEqual([]);
+      return pickerItems(kind, files, FOLDERS).flatMap((item) => {
+        const { messages, context } = compiled(inserted(CONSTRUCTS[kind], item.reference), files);
+        const drawn = context[ADD_MENU_FILE_TYPES[kind]]?.[item.reference]?.uri;
+        return [
+          ...messages.map((message) => `${kind} ${item.reference}: ${message}`),
+          ...(drawn === `file:///${item.path}` ? [] : [`${kind} ${item.reference}: draws ${drawn}`]),
+        ];
+      });
+    });
     expect(problems).toEqual([]);
+  });
+
+  it("offer every name a script can write in its slot: no space or clause word anywhere, no leading digit for a picture (Invalid syntax in [[show]]), no dot for a sound (it splits the name in (( )))", () => {
+    expect(
+      ADD_MENU_KINDS.map((kind) => [kind, pickerItems(kind, formsFor(kind), FOLDERS).map((item) => item.reference)]),
+    ).toEqual(ADD_MENU_KINDS.map((kind) => [kind, OFFERED_FORMS[kind]]));
+  });
+});
+
+describe("the files a picker leaves out", () => {
+  it.each([
+    ["sound", "an empty folder", [], 0],
+    ["sound", "only names a script can use", [file("assets/Sounds/door.wav", "audio")], 0],
+    [
+      "sound",
+      "a space, a clause word, a dot and a name another sound shares",
+      [
+        file("assets/Sounds/door.wav", "audio"),
+        file("assets/Sounds/door knock.wav", "audio"),
+        file("assets/Sounds/with.wav", "audio"),
+        file("assets/Sounds/click.v2.ogg", "audio"),
+        file("assets/Sounds/rain.wav", "audio"),
+        file("assets/Music/rain.mp3", "audio"),
+      ],
+      4,
+    ],
+    [
+      "music",
+      "a name a sound elsewhere shares counts in each picker that holds it",
+      [file("assets/Sounds/rain.wav", "audio"), file("assets/Music/rain.mp3", "audio")],
+      1,
+    ],
+    [
+      "backdrop",
+      "a leading digit and two pictures named alike, but not an alternate or a picture with no base",
+      [
+        file("assets/Backdrops/beach.png"),
+        file("assets/Backdrops/beach@night.png"),
+        file("assets/Backdrops/harbor@storm.png"),
+        file("assets/Backdrops/2nd.png"),
+        file("assets/Backdrops/sea.png"),
+        file("assets/Backdrops/sea.jpg"),
+      ],
+      3,
+    ],
+    [
+      "portrait",
+      "not a layer file, nor a layer with no base",
+      [
+        file("assets/Portraits/imani.png"),
+        file("assets/Portraits/imani~mood.happy.png"),
+        file("assets/Portraits/kai~eyes.closed.png"),
+      ],
+      0,
+    ],
+  ] as const)("%s picker with %s leaves out %#", (kind, _case, files, count) => {
+    expect(pickerLeftOut(kind as AddMenuKind, files, FOLDERS)).toBe(count);
+  });
+
+  it("counts only files the picker would otherwise offer, so offered and left out add up to its things", () => {
+    const things = ADD_MENU_KINDS.map(
+      (kind) => pickerItems(kind, FILES, FOLDERS).length + pickerLeftOut(kind, FILES, FOLDERS),
+    );
+    expect(things).toEqual([3, 2, 1, 4]);
   });
 });
 

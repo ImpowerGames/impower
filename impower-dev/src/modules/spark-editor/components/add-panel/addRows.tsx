@@ -17,6 +17,11 @@ import {
 
 import type { AddMenuKind } from "../../utils/addMenuFolders";
 
+const leftOut = (one: string, many: string) => (count: number) =>
+  count === 1
+    ? `1 ${one} here has a name a script can't use. Rename it in Assets.`
+    : `${count} ${many} here have names a script can't use. Rename them in Assets.`;
+
 export type PickerWording = {
   kind: AddMenuKind;
   audition: "picture" | "sound";
@@ -24,6 +29,7 @@ export type PickerWording = {
   use: string;
   empty: string;
   emptyHelp: (folder: string) => string;
+  leftOut: (count: number) => string;
   idle: string;
   active: string;
   browse: string;
@@ -84,6 +90,7 @@ export const ADD_ROWS: readonly AddRow[] = [
       use: "Use backdrop",
       empty: "No backdrops yet.",
       emptyHelp: (folder) => `Pictures in a folder called ${folder} are listed here.`,
+      leftOut: leftOut("backdrop", "backdrops"),
       idle: "Select to preview",
       active: "Previewing",
       browse: "Browse backdrop options",
@@ -103,6 +110,7 @@ export const ADD_ROWS: readonly AddRow[] = [
       use: "Use portrait",
       empty: "No portraits yet.",
       emptyHelp: (folder) => `Pictures in a folder called ${folder} are listed here.`,
+      leftOut: leftOut("portrait", "portraits"),
       idle: "Select to preview",
       active: "Previewing",
       browse: "Browse portrait options",
@@ -122,6 +130,7 @@ export const ADD_ROWS: readonly AddRow[] = [
       use: "Use sound",
       empty: "No sounds yet.",
       emptyHelp: (folder) => `Sounds in a folder called ${folder} are listed here.`,
+      leftOut: leftOut("sound", "sounds"),
       idle: "Select to listen",
       active: "Playing",
       browse: "Browse sound options",
@@ -141,6 +150,7 @@ export const ADD_ROWS: readonly AddRow[] = [
       use: "Use music",
       empty: "No music yet.",
       emptyHelp: (folder) => `Sounds in a folder called ${folder} are listed here.`,
+      leftOut: leftOut("piece of music", "pieces of music"),
       idle: "Select to listen",
       active: "Playing",
       browse: "Browse music options",

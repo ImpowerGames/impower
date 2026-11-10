@@ -453,3 +453,46 @@ describe("the pickers on a phone", () => {
     expect(panel()).toBeNull();
   });
 });
+
+describe("the files a picker leaves out", () => {
+  it("are counted under the list on desktop, with Open Assets", async () => {
+    listAssets([...FILES, "assets/Sounds/with.wav", "assets/Sounds/door knock.wav"]);
+    const picker = await openPicker("sound", "Sound");
+    expect(cards("Sound").map((card) => card.dataset["pickerItem"])).toEqual(["door", "click"]);
+    const line = picker.querySelector<HTMLElement>("[data-picker-left-out]")!;
+    expect(line.textContent).toContain("2 sounds here have names a script can't use. Rename them in Assets.");
+    expect(picker.querySelector("[data-picker-list]")!.nextElementSibling).toBe(line);
+    expect(line.nextElementSibling?.tagName).toBe("FOOTER");
+    await act(async () => line.querySelector("button")!.click());
+    await settle();
+    expect(calls.navigated).toEqual([
+      ["setListState", { assetsType: "audio" }],
+      ["navigateTo", "collection"],
+    ]);
+  });
+
+  it("are counted under the carousel on a phone", async () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    listAssets([...FILES, "assets/Backdrops/2nd.png"]);
+    await mount();
+    await setOpen(true);
+    await act(async () => row("backdrop").click());
+    await settle();
+    const line = pickerPanel("Backdrop")!.querySelector<HTMLElement>("[data-picker-left-out]")!;
+    expect(line.textContent).toContain("1 backdrop here has a name a script can't use. Rename it in Assets.");
+    expect(line.previousElementSibling?.hasAttribute("data-carousel")).toBe(true);
+  });
+
+  it("are counted in place of the empty sentence when the picker offers none, and the folder line stays", async () => {
+    listAssets(["assets/Music/with.wav", "assets/Music/after.wav"]);
+    const picker = await openPicker("music", "Music");
+    const empty = picker.querySelector<HTMLElement>("[data-picker-empty]")!;
+    expect(empty.querySelector("[data-picker-empty-line]")!.textContent!.trim()).toBe(
+      "2 pieces of music here have names a script can't use. Rename them in Assets.",
+    );
+    expect(empty.textContent).not.toContain("No music yet.");
+    expect(empty.textContent).toContain("Sounds in a folder called Music are listed here.");
+    expect(picker.querySelector("[data-picker-left-out]")).toBeNull();
+  });
+});
