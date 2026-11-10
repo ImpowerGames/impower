@@ -39,6 +39,7 @@ import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { findWorkspaceText } from "./utils/providers/findWorkspaceText";
 import { getFileReferences } from "./utils/providers/getFileReferences";
+import { getScriptReferences } from "./utils/providers/getScriptReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
@@ -401,6 +402,16 @@ try {
     profiled("lsp: onFindText", params.query, () =>
       findWorkspaceText(workspace.scriptTexts(), params),
     ),
+  );
+  connection.onRequest(
+    "sparkdown/scriptReferences",
+    (params: { uri: string }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      return getScriptReferences(
+        workspace,
+        workspace.program(mainUri ?? params.uri),
+      );
+    },
   );
   connection.onRequest(
     "sparkdown/offsetSourceLocation",

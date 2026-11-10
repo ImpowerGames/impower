@@ -71,25 +71,49 @@ describe("routeOfState and stateForRoute", () => {
     expect(routeOfState({ ...base(), pane: "share" })).toBe("share");
   });
 
-  it("reads the logic pane's scripts list as the scripts route, and an open script as write", () => {
+  it("reads the logic pane's Scripts page as the scripts route, and an open script as write", () => {
     const scripts = stateForRoute(base(), "scripts");
     expect(scripts.pane).toBe("logic");
-    expect(scripts.panes.logic.panel).toBe("scripts");
+    expect(scripts.panes.logic.view).toBe("scripts");
     expect(routeOfState(scripts)).toBe("scripts");
     const editing = {
       ...scripts,
       panes: {
         ...scripts.panes,
-        logic: { ...scripts.panes.logic, view: "logic-editor" },
+        logic: { ...scripts.panes.logic, view: "logic-editor", panel: "scripts" as const },
       },
     };
     expect(routeOfState(editing)).toBe("write");
     expect(stateForRoute(editing, "write").panes.logic.panel).toBe("scripts");
   });
 
-  it("goes back to the main script from the scripts list on write", () => {
+  it("goes back to the main script from the Scripts page when Main was the last open", () => {
     const scripts = stateForRoute(base(), "scripts");
-    expect(stateForRoute(scripts, "write").panes.logic.panel).toBe("main");
+    const write = stateForRoute(scripts, "write");
+    expect(write.panes.logic.panel).toBe("main");
+    expect(write.panes.logic.view).toBe("list");
+  });
+
+  it("goes back to the script that was open when the Scripts page was reached from it", () => {
+    const editing: WorkspaceCache = {
+      ...base(),
+      panes: {
+        ...base().panes,
+        logic: {
+          view: "logic-editor",
+          panel: "scripts",
+          panels: {
+            scripts: { activeEditor: { open: true, filename: "Scripts/intro.sd" } },
+          },
+        },
+      },
+    };
+    const scripts = stateForRoute(editing, "scripts");
+    expect(routeOfState(scripts)).toBe("scripts");
+    const write = stateForRoute(scripts, "write");
+    expect(write.panes.logic.view).toBe("logic-editor");
+    expect(write.panes.logic.panel).toBe("scripts");
+    expect(routeOfState(write)).toBe("write");
   });
 
   it("opens settings over the current pane and closes them on any other route", () => {

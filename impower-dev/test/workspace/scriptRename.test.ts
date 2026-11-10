@@ -197,9 +197,8 @@ describe("WorkspaceWindow.renameScript", () => {
     finishMove();
     await pending;
     const editor = workspace.current.panes.logic.panels.scripts?.activeEditor;
-    expect(editor?.open).toBe(false);
+    expect(workspace.current.panes.logic.view).toBe("scripts");
     expect(editor?.filename).toBe("scripts/Opening.sd");
-    expect(workspace.current.panes.logic.panel).toBe("scripts");
   });
 
   it("leaves another script the writer opened during the rename on screen", async () => {

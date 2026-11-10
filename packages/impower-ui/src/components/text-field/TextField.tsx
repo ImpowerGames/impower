@@ -6,14 +6,19 @@ import { cn } from "../../utils/cn";
 
 export const textFieldVariants = cva(
   [
-    "m-0 min-w-0 shrink-0",
-    "rounded-control border border-solid border-edge bg-bg text-ink control-wash",
+    "m-0 min-w-0 shrink-0 text-ink",
     "placeholder:text-placeholder",
-    "motion-safe:transition-[border-color] motion-safe:duration-140",
     "disabled:cursor-default disabled:opacity-40",
   ],
   {
     variants: {
+      frame: {
+        own: [
+          "rounded-control border border-solid border-edge bg-bg control-wash",
+          "motion-safe:transition-[border-color] motion-safe:duration-140",
+        ],
+        inset: "h-full border-0 bg-transparent outline-none",
+      },
       size: {
         default: "min-h-9 px-2.5 py-1.5 text-[13px]/[1.4]",
         tall: "h-14 px-3 py-2 text-[16px]/[1.5] compact:h-11 phone:h-11",
@@ -29,7 +34,14 @@ export const textFieldVariants = cva(
         mono: "font-mono",
       },
     },
+    compoundVariants: [
+      {
+        frame: "inset",
+        class: "min-h-0 w-auto flex-1 shrink p-0",
+      },
+    ],
     defaultVariants: {
+      frame: "own",
       size: "default",
       width: "default",
       font: "sans",
@@ -37,6 +49,7 @@ export const textFieldVariants = cva(
   },
 );
 
+export type TextFieldFrame = NonNullable<VariantProps<typeof textFieldVariants>["frame"]>;
 export type TextFieldSize = NonNullable<VariantProps<typeof textFieldVariants>["size"]>;
 export type TextFieldWidth = NonNullable<VariantProps<typeof textFieldVariants>["width"]>;
 export type TextFieldFont = NonNullable<VariantProps<typeof textFieldVariants>["font"]>;
@@ -57,6 +70,7 @@ export type TextFieldProps = Omit<
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
   {
+    frame,
     size,
     width,
     font,
@@ -98,7 +112,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
         }
       }}
       type={type}
-      class={cn(textFieldVariants({ size, width, font }), className)}
+      class={cn(textFieldVariants({ frame, size, width, font }), className)}
       autocomplete="off"
       spellcheck={false}
       {...rest}
