@@ -227,7 +227,7 @@ describe("capture patterns run through the line tokenizer", () => {
     const parser = new TextmateGrammarParser(structuredClone(captured(rootStop)));
     const emptyIds = new Set(
       (parser as any).grammar.nodes
-        .filter((node: any) => node?.props?.name === "empty.probe")
+        .filter((node: any) => node?.props?.name === "empty.probe") // not a node name
         .map((node: any) => node.typeIndex),
     );
     let count = 0;
