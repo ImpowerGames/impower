@@ -114,15 +114,20 @@ const completionsOf = (entries: readonly SnippetEntry[]): Completion[] =>
     apply: applySnippet(entry),
   }));
 
+const isWordChar = (c: string) => /[\p{L}\p{N}_]/u.test(c);
+
 const typedPrefixStart = (
   before: string,
   entries: readonly SnippetEntry[],
 ): number => {
-  const run = /\S*$/.exec(before)![0];
-  for (let i = 0; i < run.length; i++) {
-    const typed = run.slice(i).toLowerCase();
+  const longest = Math.max(...entries.map((e) => e.prefix.length));
+  for (let i = Math.max(0, before.length - longest); i < before.length; i++) {
+    if (i > 0 && isWordChar(before[i - 1]!) && isWordChar(before[i]!)) {
+      continue;
+    }
+    const typed = before.slice(i).toLowerCase();
     if (entries.some((e) => e.prefix.toLowerCase().startsWith(typed))) {
-      return before.length - run.length + i;
+      return i;
     }
   }
   return before.length;

@@ -139,6 +139,26 @@ describe("the snippet source offers the snippets of the language at the cursor",
     expect(snippetResult(state, pos)).toBeNull();
     expect(labels(snippetResult(state, pos, true))).toEqual(["storyfix"]);
   });
+
+  it("does not offer a snippet whose prefix starts in the middle of a word", () => {
+    const { state, pos } = stateAt(SCENE("xstoryf"), "xstoryf");
+    expect(snippetResult(state, pos)).toBeNull();
+  });
+
+  it("offers a snippet whose prefix holds a space, from the start of the typed text", () => {
+    const extension = languageExtension(SD_URI, {
+      [SPARKDOWN_LANGUAGE]: { Fade: { prefix: "fade to:", body: "FADE TO:" } },
+    });
+    const { state, pos } = stateAt(
+      SCENE("Then fade t"),
+      "fade t",
+      SD_URI,
+      extension,
+    );
+    const result = snippetResult(state, pos);
+    expect(labels(result)).toEqual(["fade to:"]);
+    expect(result!.from).toBe(pos - "fade t".length);
+  });
 });
 
 describe("a snippet is inserted with its tab stops", () => {
