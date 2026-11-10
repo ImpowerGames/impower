@@ -114,14 +114,13 @@ describe("the shortcuts the editor reports", () => {
     expect(keysOf(view, "selectPage", "win")).toContain("Shift-PageDown");
   });
 
-  it("lists Escape under every handler that receives it: Find's close, the suggestion list's, Go to line's, the extra carets' and the references panel's", () => {
+  it("lists Escape under every handler that receives it: Find's close, the suggestion list's, Go to line's and the extra carets'", () => {
     const view = liveEditor();
     const withEscape = editorKeybindings(view.state, "win")
       .filter((command) => command.keys.includes("Escape"))
       .map((command) => command.id);
     expect(withEscape.sort()).toEqual([
       "closeGotoLine",
-      "closeReferences",
       "closeSearch",
       "closeSuggestions",
       "simplifySelection",

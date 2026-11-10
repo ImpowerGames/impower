@@ -54,8 +54,6 @@
 
 @findReferences
 
-@closeReferencePanel
-
 @editorShortcuts
 
 @setEditorShortcuts

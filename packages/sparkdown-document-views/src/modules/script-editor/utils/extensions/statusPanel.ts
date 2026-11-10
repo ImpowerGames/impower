@@ -1,49 +1,10 @@
-import { closeLintPanel, Diagnostic, forEachDiagnostic } from "@codemirror/lint";
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
-import {
-  Command,
-  EditorView,
-  Panel,
-  PanelConstructor,
-  showPanel,
-  ViewUpdate,
-} from "@codemirror/view";
-import {
-  closeReferencePanel,
-  coarsePointer,
-  forEachReference,
-  isReferencePanelOpen,
-  ReferenceLocation,
-  setReferencePanel,
-} from "@impower/codemirror-vscode-lsp-client/src";
+import { Diagnostic, forEachDiagnostic } from "@codemirror/lint";
+import { EditorView, Panel, showPanel, ViewUpdate } from "@codemirror/view";
+import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
-
-
-type StatusPanelState = {
-  panel: PanelConstructor;
-};
-
-const statusPanelState = StateField.define<StatusPanelState | null>({
-  create() {
-    return null;
-  },
-  update(value, tr) {
-    for (let e of tr.effects) if (e.is(setStatusPanel)) return e.value;
-    return value;
-  },
-  provide: (f) => showPanel.from(f, (val) => (val ? val.panel : null)),
-});
-
-export const setStatusPanel = StateEffect.define<StatusPanelState | null>();
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
-
-  revealBottomPanelButton: HTMLElement;
-
-  revealBottomPanelIcon: HTMLSpanElement;
-
-  referencesLabel: HTMLSpanElement;
 
   diagnosticContextContainer: HTMLDivElement;
 
@@ -66,39 +27,6 @@ export class StatusPanel implements Panel {
   constructor(readonly view: EditorView) {
     this.dom = document.createElement("div");
     this.dom.className = "cm-toolbar cm-status";
-
-    this.revealBottomPanelButton = this.dom.appendChild(
-      document.createElement("button"),
-    );
-    this.revealBottomPanelButton.className = "cm-button cm-revealBottomPanel";
-    this.revealBottomPanelButton.setAttribute("name", "reveal");
-    this.revealBottomPanelButton.setAttribute("type", "button");
-    this.revealBottomPanelButton.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    this.revealBottomPanelButton.onmousedown = (e) => {
-      e.stopPropagation();
-    };
-    this.revealBottomPanelButton.ontouchstart = (e) => {
-      e.stopPropagation();
-    };
-    this.revealBottomPanelButton.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggleBottomPanel();
-    };
-
-    this.revealBottomPanelIcon = this.revealBottomPanelButton.appendChild(
-      document.createElement("span"),
-    );
-    this.revealBottomPanelIcon.className =
-      "cm-statusIcon cm-problemsToggleIcon";
-
-    this.referencesLabel = this.revealBottomPanelButton.appendChild(
-      document.createElement("span"),
-    );
-    this.referencesLabel.className = "cm-statusLabel cm-referencesLabel";
 
     this.diagnosticContextContainer = this.dom.appendChild(
       document.createElement("div"),
@@ -158,11 +86,6 @@ export class StatusPanel implements Panel {
     nextIcon.className = "cm-statusIcon cm-navRightIcon";
   }
 
-  toggleBottomPanel() {
-    closeReferencePanel(this.view);
-    this.view.focus();
-  }
-
   private getSortedDiagnostics(): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     forEachDiagnostic(this.view.state, (d) => diagnostics.push(d));
@@ -219,97 +142,65 @@ export class StatusPanel implements Panel {
   updateStatus(update: ViewUpdate) {
     const isContextualView = update.state.facet(coarsePointer) && update.view.hasFocus;
 
-    if (isReferencePanelOpen(update.state)) {
-      this.revealBottomPanelButton.style.display = "";
-      this.diagnosticContextContainer.style.display = "none";
+    const diagnostics = this.getSortedDiagnostics();
 
-      let referenceCount = 0;
-      const files = new Set<string>();
-      forEachReference(update.state, (ref: ReferenceLocation) => {
-        files.add(ref.file.uri);
-        referenceCount++;
-      });
-      const fileCount = files.size;
-      this.referencesLabel.textContent = update.state.phrase(
-        referenceCount === 1 && fileCount === 1
-          ? `$1 reference in $2 file`
-          : referenceCount !== 1 && fileCount !== 1
-            ? `$1 references in $2 files`
-            : referenceCount === 1 && fileCount !== 1
-              ? `$1 reference in $2 files`
-              : referenceCount !== 1 && fileCount === 1
-                ? `$1 references in $2 file`
-                : "",
-        referenceCount,
-        fileCount,
-      );
-      this.referencesLabel.hidden = false;
-      this.dom.hidden = false;
+    const cursorPos = update.state.selection.main.head;
+
+    const matches = diagnostics.filter(
+      (d) => cursorPos >= d.from && cursorPos <= d.to,
+    );
+
+    let activeDiagnostic: Diagnostic | undefined;
+    let activeIdx = -1;
+
+    if (matches.length > 0) {
+      activeIdx =
+        this.lastActiveIndex !== -1 &&
+        matches.includes(diagnostics[this.lastActiveIndex]!)
+          ? this.lastActiveIndex
+          : diagnostics.indexOf(matches[0]!);
+
+      activeDiagnostic = diagnostics[activeIdx];
+      this.lastActiveIndex = activeIdx;
     } else {
-      this.referencesLabel.hidden = true;
-
-      const diagnostics = this.getSortedDiagnostics();
-
-      const cursorPos = update.state.selection.main.head;
-
-      const matches = diagnostics.filter(
-        (d) => cursorPos >= d.from && cursorPos <= d.to,
-      );
-
-      let activeDiagnostic: Diagnostic | undefined;
-      let activeIdx = -1;
-
-      if (matches.length > 0) {
-        activeIdx =
-          this.lastActiveIndex !== -1 &&
-          matches.includes(diagnostics[this.lastActiveIndex]!)
-            ? this.lastActiveIndex
-            : diagnostics.indexOf(matches[0]!);
-
-        activeDiagnostic = diagnostics[activeIdx];
-        this.lastActiveIndex = activeIdx;
-      } else {
-        this.lastActiveIndex = -1;
-      }
-
-      if (isContextualView && activeDiagnostic) {
-        this.revealBottomPanelButton.style.display = "none";
-        this.diagnosticContextContainer.style.display = "flex";
-        this.activeDiagnosticMessage.textContent =
-          activeDiagnostic.message.split("\n")[0]!;
-        const severity = activeDiagnostic.severity || "info";
-        const activeDiagnosticIconImage =
-          severity === "error"
-            ? iconMasks["error"]
-            : severity === "warning"
-              ? iconMasks["warning"]
-              : iconMasks["info"];
-        this.activeDiagnosticIcon.style.maskImage = activeDiagnosticIconImage;
-        this.activeDiagnosticIcon.style.webkitMaskImage =
-          activeDiagnosticIconImage;
-        this.diagnosticContextContainer.classList.toggle("error", false);
-        this.diagnosticContextContainer.classList.toggle("warning", false);
-        this.diagnosticContextContainer.classList.toggle("info", false);
-        this.diagnosticContextContainer.classList.toggle(severity, true);
-
-        const hasMultipleTotal = diagnostics.length > 1;
-        this.diagnosticCounterLabel.textContent = `${activeIdx + 1}/${diagnostics.length}`;
-
-        this.prevDiagnosticButton.style.display = hasMultipleTotal
-          ? "flex"
-          : "none";
-        this.nextDiagnosticButton.style.display = hasMultipleTotal
-          ? "flex"
-          : "none";
-        this.diagnosticCounterLabel.style.display = hasMultipleTotal
-          ? "inline-block"
-          : "none";
-      } else {
-        this.diagnosticContextContainer.style.display = "none";
-      }
-      this.revealBottomPanelButton.style.display = "none";
-      this.dom.hidden = !(isContextualView && activeDiagnostic);
+      this.lastActiveIndex = -1;
     }
+
+    if (isContextualView && activeDiagnostic) {
+      this.diagnosticContextContainer.style.display = "flex";
+      this.activeDiagnosticMessage.textContent =
+        activeDiagnostic.message.split("\n")[0]!;
+      const severity = activeDiagnostic.severity || "info";
+      const activeDiagnosticIconImage =
+        severity === "error"
+          ? iconMasks["error"]
+          : severity === "warning"
+            ? iconMasks["warning"]
+            : iconMasks["info"];
+      this.activeDiagnosticIcon.style.maskImage = activeDiagnosticIconImage;
+      this.activeDiagnosticIcon.style.webkitMaskImage =
+        activeDiagnosticIconImage;
+      this.diagnosticContextContainer.classList.toggle("error", false);
+      this.diagnosticContextContainer.classList.toggle("warning", false);
+      this.diagnosticContextContainer.classList.toggle("info", false);
+      this.diagnosticContextContainer.classList.toggle(severity, true);
+
+      const hasMultipleTotal = diagnostics.length > 1;
+      this.diagnosticCounterLabel.textContent = `${activeIdx + 1}/${diagnostics.length}`;
+
+      this.prevDiagnosticButton.style.display = hasMultipleTotal
+        ? "flex"
+        : "none";
+      this.nextDiagnosticButton.style.display = hasMultipleTotal
+        ? "flex"
+        : "none";
+      this.diagnosticCounterLabel.style.display = hasMultipleTotal
+        ? "inline-block"
+        : "none";
+    } else {
+      this.diagnosticContextContainer.style.display = "none";
+    }
+    this.dom.hidden = !(isContextualView && activeDiagnostic);
   }
 
   update(update: ViewUpdate) {
@@ -387,19 +278,6 @@ const statusPanelTheme = EditorView.baseTheme({
     display: "inline-block",
     verticalAlign: "middle",
   },
-  "& .cm-problemsToggleIcon": {
-    marginRight: "3px",
-    backgroundColor: "currentColor",
-    maskImage: iconMasks["chevron-down"],
-    webkitMaskImage: iconMasks["chevron-down"],
-    maskSize: "contain",
-    webkitMaskSize: "contain",
-    maskRepeat: "no-repeat",
-    webkitMaskRepeat: "no-repeat",
-    maskPosition: "center",
-    webkitMaskPosition: "center",
-    transform: "rotate(-90deg)",
-  },
   "& .cm-diagnosticCounter": {
     fontSize: "12px",
     fontWeight: "bold",
@@ -463,18 +341,10 @@ const statusPanelTheme = EditorView.baseTheme({
     webkitMaskPosition: "center",
     transform: "rotate(-90deg)",
   },
-  "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-problemsToggleIcon":
-    {
-      transform: "rotate(0)",
-    },
   "& .cm-icon-button": {
     padding: "1px 4px",
     justifyContent: "center",
   },
-  "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
-    {
-      color: "var(--editor-ink)",
-    },
 
   "& .cm-button:active::after": {
     content: "''",
@@ -502,34 +372,6 @@ function createStatusPanel(view: EditorView) {
   return new StatusPanel(view);
 }
 
-export const openStatusPanel: Command = (view) => {
-  let data: StatusPanelState = { panel: createStatusPanel };
-  let effect =
-    view.state.field(statusPanelState, false) === undefined
-      ? StateEffect.appendConfig.of(statusPanelState.init(() => data))
-      : setStatusPanel.of(data);
-  view.dispatch({ effects: effect });
-  return true;
-};
-
-export function isStatusPanelOpen(state: EditorState) {
-  return Boolean(state.field(statusPanelState, false));
-}
-
-export const closeStatusPanel: Command = (view) => {
-  if (!view.state.field(statusPanelState, false)) return false;
-  view.dispatch({ effects: setReferencePanel.of(null) });
-  return true;
-};
-
 export const statusPanel = () => {
-  return [
-    showPanel.of(createStatusPanel),
-    statusPanelTheme,
-    EditorView.updateListener.of((update) => {
-      if (isReferencePanelOpen(update.state)) {
-        closeLintPanel(update.view);
-      }
-    }),
-  ];
+  return [showPanel.of(createStatusPanel), statusPanelTheme];
 };

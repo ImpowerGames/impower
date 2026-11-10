@@ -66,11 +66,9 @@ const maskRules = () =>
 const CHROME = [
   ["the go-to-line close", ".cm-gotoLine button[name='close']", "close"],
   ["the go-to-line submit", "button[name='submit']", "arrow"],
-  ["the problems toggle", ".cm-problemsToggleIcon", "chevron-down"],
   ["the previous problem", ".cm-navLeftIcon", "chevron-down"],
   ["the next problem", ".cm-navRightIcon", "chevron-down"],
   ["the fold arrows", ".cm-fold-arrow", "chevron-down"],
-  ["the references' collapse", ".cm-lsp-collapse-icon", "chevron-down"],
 ] as const;
 
 describe("the code editor's chrome icons", () => {
@@ -80,10 +78,10 @@ describe("the code editor's chrome icons", () => {
     expect(masks).toEqual([iconMasks[glyph]]);
   });
 
-  it("holds no mask in the go-to-line, status, menu, fold or references chrome that the map does not hold", () => {
+  it("holds no mask in the go-to-line, status, menu or fold chrome that the map does not hold", () => {
     mount();
     const chrome = maskRules().filter((rule) =>
-      /cm-gotoLine|cm-problemsToggleIcon|cm-navLeftIcon|cm-navRightIcon|cm-menu-|cm-fold-arrow|cm-lsp-collapse-icon|cm-toolbar-icon/.test(rule.selector),
+      /cm-gotoLine|cm-navLeftIcon|cm-navRightIcon|cm-menu-|cm-fold-arrow|cm-toolbar-icon/.test(rule.selector),
     );
     expect(chrome.length).toBeGreaterThan(0);
     expect(chrome.filter((rule) => !known.has(rule.mask))).toEqual([]);

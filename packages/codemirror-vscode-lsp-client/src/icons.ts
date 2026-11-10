@@ -15,6 +15,5 @@ const mask = (image: string) => ({
 export function lspIconTheme(icons: LSPClientIcons): Extension {
   return EditorView.baseTheme({
     "& .cm-foldGutter .cm-fold-arrow": mask(icons.chevronDown),
-    ".cm-lsp-collapse-icon": mask(icons.chevronDown),
   });
 }
