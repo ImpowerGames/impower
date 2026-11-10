@@ -32,6 +32,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "dialogVariants",
   "disclosureSummaryVariants",
   "disclosureVariants",
+  "dropdownLabelVariants",
   "dropdownRadioItemVariants",
   "HOLD_REPEAT_DELAY_MS",
   "HOLD_REPEAT_INTERVAL_MS",

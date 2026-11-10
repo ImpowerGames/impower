@@ -40,15 +40,32 @@ export function DropdownSeparator({ class: className }: { class?: string }) {
   );
 }
 
+export const dropdownLabelVariants = cva("px-3", {
+  variants: {
+    variant: {
+      default: "pt-2 pb-1.5 text-ink",
+      heading:
+        "pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted",
+    },
+  },
+  defaultVariants: { variant: "default" },
+});
+
+export type DropdownLabelVariant = NonNullable<
+  VariantProps<typeof dropdownLabelVariants>["variant"]
+>;
+
 export function DropdownLabel({
   class: className,
+  variant,
   children,
 }: {
   class?: string;
+  variant?: DropdownLabelVariant;
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
-  const classes = cn("px-3 pt-2 pb-1.5 text-ink", className);
+  const classes = cn(dropdownLabelVariants({ variant }), className);
   if (ctx.mode === "sheet") {
     return <div class={classes}>{children}</div>;
   }

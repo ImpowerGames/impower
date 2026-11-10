@@ -1,14 +1,27 @@
 import workspace from "../../workspace/WorkspaceStore";
-import LogicList from "../logic-list/LogicList";
+import { SCRIPT_EDITOR_VIEW, SCRIPTS_VIEW } from "../../workspace/routes";
+import LogicScriptEditor from "../logic-script-editor/LogicScriptEditor";
 import LogicScriptsEditor from "../logic-scripts-editor/LogicScriptsEditor";
+import ScriptsPage from "../scripts-page";
 
 export const propDefaults = {};
 export type LogicProps = Partial<typeof propDefaults>;
 
-type View = "list" | "logic-editor";
-
 export default function Logic(_props: LogicProps) {
-  const view = (workspace.state.value.panes?.logic?.view || "list") as View;
-  if (view === "logic-editor") return <LogicScriptsEditor />;
-  return <LogicList />;
+  const logic = workspace.state.value.panes?.logic;
+  if (logic?.view === SCRIPTS_VIEW) return <ScriptsPage />;
+  if (
+    logic?.view === SCRIPT_EDITOR_VIEW &&
+    logic.panels.scripts?.activeEditor?.open
+  ) {
+    return <LogicScriptsEditor />;
+  }
+  return (
+    <div
+      class="relative flex flex-1 flex-col min-h-0"
+      style="--loading-indicator-width:50%"
+    >
+      <LogicScriptEditor filename="main.sd" />
+    </div>
+  );
 }

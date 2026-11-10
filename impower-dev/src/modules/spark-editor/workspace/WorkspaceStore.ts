@@ -11,6 +11,8 @@ import type {
 } from "vscode-languageserver-protocol";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { ScriptListing } from "./scriptsListing";
+import type { Reference } from "../utils/fileListModel";
 import {
   INITIAL_SEARCH,
   INITIAL_SEARCH_POSITION,
@@ -144,6 +146,10 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly scriptListing = signal<ScriptListing | null>(null);
+
+  readonly scriptReferences = signal<readonly Reference[]>([]);
 
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
