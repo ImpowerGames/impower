@@ -668,34 +668,35 @@ export default class WorkspaceWindow {
 
   protected _installPrompt: InstallPromptEvent | null = null;
 
-  protected _storageReview: Promise<void> = Promise.resolve();
+  protected _recordQueues = new Map<string, Promise<unknown>>();
 
-  reviewDeviceStorage() {
-    this._storageReview = this._storageReview
-      .then(() => this.reviewStorageNow())
-      .catch((err) => console.error(err));
-    return this._storageReview;
+  protected withBackupRecord<T>(id: string, task: () => Promise<T>) {
+    const locks = globalThis.navigator?.locks;
+    if (locks) {
+      return locks.request(`impower-backup-record:${id}`, task);
+    }
+    const run = (this._recordQueues.get(id) ?? Promise.resolve()).then(task);
+    this._recordQueues.set(id, run.catch(() => undefined));
+    return run;
   }
 
-  protected async reviewStorageNow() {
-    await this.refreshDeviceStorage();
-    const id = this.store.project.id;
-    if (!id) {
-      return;
-    }
-    const remind = () =>
-      remindBackupIfDue({
-        local: id === WorkspaceConstants.LOCAL_PROJECT_ID,
-        persisted: workspace.deviceStorage.peek()?.persisted ?? false,
-        project: this.backupRecord(id),
-        now: Date.now(),
-        exportProject: downloadProjectZip,
-      });
-    const locks = globalThis.navigator?.locks;
+  async reviewDeviceStorage() {
     try {
-      await (locks
-        ? locks.request(`impower-backup-reminder:${id}`, remind)
-        : remind());
+      await this.refreshDeviceStorage();
+      const id = this.store.project.id;
+      if (!id) {
+        return;
+      }
+      await this.withBackupRecord(id, () =>
+        remindBackupIfDue({
+          local: id === WorkspaceConstants.LOCAL_PROJECT_ID,
+          persisted: workspace.deviceStorage.peek()?.persisted ?? false,
+          project: this.backupRecord(id),
+          now: Date.now(),
+          exportProject: downloadProjectZip,
+          visible: () => document.visibilityState !== "hidden",
+        }),
+      );
     } catch (err) {
       console.error(err);
     }
@@ -743,9 +744,9 @@ export default class WorkspaceWindow {
     const startedAt = Date.now();
     const backedUp = await backUp();
     if (backedUp && id) {
-      await recordBackup(this.backupRecord(id), startedAt).catch((err) =>
-        console.error(err),
-      );
+      await this.withBackupRecord(id, () =>
+        recordBackup(this.backupRecord(id), startedAt),
+      ).catch((err) => console.error(err));
     }
     return backedUp;
   }
@@ -776,7 +777,8 @@ export default class WorkspaceWindow {
         const trashed = (await fs.listTrash(id).catch(() => [])).map(
           (batch) => batch.deletedAt,
         );
-        const times = [...written, ...trashed];
+        const kept = Number(await fs.readStoredProjectMetadata(id, "deletedAt"));
+        const times = [...written, ...trashed, ...(kept > 0 ? [kept] : [])];
         return times.length > 0 ? Math.max(...times) : null;
       },
     };

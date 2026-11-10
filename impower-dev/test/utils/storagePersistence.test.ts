@@ -269,6 +269,7 @@ describe("the backup reminder", () => {
       persisted?: boolean;
       now?: number;
       exportProject?: () => Promise<boolean>;
+      visible?: () => boolean;
     } = {},
   ) =>
     remindBackupIfDue({
@@ -277,7 +278,17 @@ describe("the backup reminder", () => {
       project: record,
       now: options.now ?? NOW,
       exportProject: options.exportProject ?? vi.fn(async () => true),
+      visible: options.visible ?? (() => true),
     });
+
+  it("claims and shows nothing once the editor is hidden", async () => {
+    const { files, record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
+    edit(NOW - DAY_MS);
+    expect(await remind(record, { visible: () => false })).toBe(false);
+    expect(snackbar.value).toBeNull();
+    expect(files.has("remindedAt")).toBe(false);
+    expect(await remind(record)).toBe(true);
+  });
 
   it("shows nothing on load for a new project, and starts its clock", async () => {
     const { files, record } = project();

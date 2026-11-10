@@ -49,3 +49,42 @@ describe("reading a project's metadata as stored", () => {
     expect(await fs.readStoredProjectMetadata("drive-123", "backedUpAt")).toBe("");
   });
 });
+
+describe("removing batches from the trash", () => {
+  const steps: string[] = [];
+
+  beforeEach(() => {
+    steps.length = 0;
+    vi.spyOn(fs, "listTrash").mockResolvedValue([
+      { batchId: "a", deletedAt: 5_000, entries: [] },
+      { batchId: "b", deletedAt: 9_000, entries: [] },
+    ]);
+    vi.spyOn(fs, "writeProjectMetadata").mockImplementation(
+      async (_id, field, value) => {
+        steps.push(`keep ${field}=${value}`);
+      },
+    );
+    const requests = fs as unknown as {
+      sendRequest: (type: unknown, params: { action: string }) => Promise<unknown>;
+    };
+    vi.spyOn(requests, "sendRequest").mockImplementation(async (_type, params) => {
+      steps.push(`request ${params.action}`);
+      return {};
+    });
+  });
+
+  it.each<[string, (fs: WorkspaceFileSystemType) => Promise<void>, string]>([
+    ["emptying it", (fs) => fs.emptyTrash("local"), "empty"],
+    ["deleting one batch", (fs) => fs.deleteTrashBatch("local", "b"), "deleteBatch"],
+    ["purging expired batches", (fs) => fs.purgeExpiredTrash("local"), "purge"],
+  ])("keeps the newest deletion time before %s", async (_case, remove, action) => {
+    await remove(fs);
+    expect(steps).toEqual(["keep deletedAt=9000", `request ${action}`]);
+  });
+
+  it("never moves the kept deletion time back", async () => {
+    writeMemoryFile(root, "local/.deletedAt", new TextEncoder().encode("20000"));
+    await fs.emptyTrash("local");
+    expect(steps).toEqual(["request empty"]);
+  });
+});

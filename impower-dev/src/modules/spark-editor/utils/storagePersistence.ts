@@ -203,12 +203,14 @@ export const remindBackupIfDue = async ({
   project,
   now,
   exportProject,
+  visible,
 }: {
   local: boolean;
   persisted: boolean;
   project: ProjectBackupRecord;
   now: number;
   exportProject: () => Promise<boolean>;
+  visible: () => boolean;
 }): Promise<boolean> => {
   if (!local) {
     return false;
@@ -228,10 +230,9 @@ export const remindBackupIfDue = async ({
     ageMs: now - since,
     sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
   });
-  if (!due) {
+  if (!due || !visible()) {
     return false;
   }
-  await project.write("remindedAt", String(now));
   showSnackbar({
     message: backupReminderMessage(
       Math.floor((now - since) / DAY_MS),
@@ -243,5 +244,6 @@ export const remindBackupIfDue = async ({
       void exportBackup(exportProject);
     },
   });
+  await project.write("remindedAt", String(now));
   return true;
 };

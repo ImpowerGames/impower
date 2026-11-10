@@ -1024,7 +1024,18 @@ export default class WorkspaceFileSystem {
     return { files: result.restored ?? [], folders };
   }
 
+  protected async keepNewestDeletion(projectId: string) {
+    const deleted = (await this.listTrash(projectId)).map((b) => b.deletedAt);
+    const newest = Math.max(0, ...deleted);
+    const kept =
+      Number(await this.readStoredProjectMetadata(projectId, "deletedAt")) || 0;
+    if (newest > kept) {
+      await this.writeProjectMetadata(projectId, "deletedAt", String(newest));
+    }
+  }
+
   async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {
+    await this.keepNewestDeletion(projectId);
     await this.sendRequest(TrashFilesMessage.type, {
       projectId,
       action: "deleteBatch",
@@ -1033,6 +1044,7 @@ export default class WorkspaceFileSystem {
   }
 
   async emptyTrash(projectId: string): Promise<void> {
+    await this.keepNewestDeletion(projectId);
     await this.sendRequest(TrashFilesMessage.type, {
       projectId,
       action: "empty",
@@ -1043,6 +1055,7 @@ export default class WorkspaceFileSystem {
     projectId: string,
     retentionMs?: number,
   ): Promise<void> {
+    await this.keepNewestDeletion(projectId);
     await this.sendRequest(TrashFilesMessage.type, {
       projectId,
       action: "purge",

@@ -29,6 +29,7 @@ export type SyncStatus =
 export type ProjectMetadataField =
   | "backedUpAt"
   | "createdAt"
+  | "deletedAt"
   | "folders"
   | "layout"
   | "name"

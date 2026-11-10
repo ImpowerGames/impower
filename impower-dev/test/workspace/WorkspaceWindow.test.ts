@@ -698,6 +698,63 @@ describe("WorkspaceWindow store transitions", () => {
         ]);
       });
 
+      it("a deletion whose trash was emptied still leaves the project due for a reminder", async () => {
+        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
+          new Uint8Array([1]) as never,
+        );
+        await downloadProjectZip();
+        metadata.set("deletedAt", String(started + DAY_MS));
+        now = started + 9 * DAY_MS;
+        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
+          "9 days since your last backup.",
+        ]);
+      });
+
+      it("a review that finishes after the editor is hidden shows and claims nothing", async () => {
+        metadata.set("backedUpAt", String(started - 9 * DAY_MS));
+        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
+        let visibility: DocumentVisibilityState = "visible";
+        const state = vi
+          .spyOn(document, "visibilityState", "get")
+          .mockImplementation(() => visibility);
+        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => {
+          visibility = "hidden";
+          return [];
+        });
+        try {
+          expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([]);
+          expect(metadata.has("remindedAt")).toBe(false);
+        } finally {
+          state.mockRestore();
+        }
+      });
+
+      it("two exports finishing out of order keep the later backup time", async () => {
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let first = true;
+        vi.mocked(Workspace.fs.readStoredProjectMetadata).mockImplementation(
+          async (_id: string, field: string) => {
+            const value = metadata.get(field) ?? "";
+            if (field === "backedUpAt" && first) {
+              first = false;
+              await held;
+            }
+            return value;
+          },
+        );
+        const earlier = win.backUpProject(async () => true, "local");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        now = started + 1_000;
+        const later = win.backUpProject(async () => true, "local");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        release();
+        await Promise.all([earlier, later]);
+        expect(metadata.get("backedUpAt")).toBe(String(started + 1_000));
+      });
+
       it("a failed export records no backup", async () => {
         vi.spyOn(win, "exportLocalProject").mockResolvedValue(undefined);
         expect(await downloadProjectZip()).toBe(false);
