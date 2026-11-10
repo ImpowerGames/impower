@@ -521,3 +521,38 @@ end
     expect(created(h, "textstream_action")).toHaveLength(0);
   });
 });
+
+describe("both mount paths build the same page (#1990)", () => {
+  test("the AST mount and the static fallback send the same messages for the textstream layout, and both mark its scroll root to follow the end", async () => {
+    const source = `${OPEN_TEXTSTREAM}
+scene start
+  Hello.
+end
+`;
+    const staticH = createHarness(source, 0, { staticFallback: true });
+    const astH = createHarness(source);
+    await Promise.all([staticH.ready, astH.ready]);
+    const page = (h: UIHarness) => {
+      const flat = h.snapshotFiltered("ui/") as any[];
+      const at = flat.findIndex(
+        (m) => m.method === "ui/create" && m.params?.name === "layout_textstream",
+      );
+      expect(at).toBeGreaterThanOrEqual(0);
+      return flat.slice(at, at + 4);
+    };
+    expect(page(astH)).toEqual(page(staticH));
+    for (const h of [astH, staticH]) {
+      const flat = flattenMessages(h.messages);
+      const root = flat.find(
+        (m: any) => m.method === "ui/create" && m.params.name === "textstream paper ink",
+      );
+      const marked = flat.some(
+        (m: any) =>
+          (m.method === "ui/create" || m.method === "ui/update") &&
+          m.params.element === root?.params.element &&
+          m.params.attributes?.["data-follow"] === "end",
+      );
+      expect(marked).toBe(true);
+    }
+  });
+});

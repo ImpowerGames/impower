@@ -1208,6 +1208,9 @@ export default class UIManager extends Manager {
         if (params.attributes != undefined) {
           if (params.attributes) {
             applyAttributes(element, params.attributes);
+            if (element.getAttribute("data-follow") === "end") {
+              this.followEnd(element);
+            }
           } else {
             Array.from(element.attributes).forEach((attr) =>
               element.removeAttribute(attr.name),

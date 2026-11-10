@@ -2067,6 +2067,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
+      this.page.mounted();
+    }
     return uiEl;
   }
 
@@ -5205,6 +5208,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (column !== this._column) {
           this.forget();
           this._column = column;
+          if (column.parent) {
+            $.updateElement(column.parent, {
+              attributes: { "data-follow": "end" },
+            });
+          }
         }
         const page = $._state.page;
         const current = page?.current ?? 0;

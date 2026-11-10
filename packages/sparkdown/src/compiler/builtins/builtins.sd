@@ -3879,7 +3879,7 @@ layout textbox {
 }
 
 layout textstream {
-  textstream.paper.ink #data-follow="end" {
+  textstream.paper.ink {
     textstream_column
   }
 }

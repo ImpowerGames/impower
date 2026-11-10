@@ -4394,9 +4394,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "kind": "request",
           "method": "ui/create",
           "params": {
-            "attributes": {
-              "data-follow": "end",
-            },
+            "attributes": undefined,
             "breakpoints": {
               "lg": 1024,
               "md": 768,
@@ -4439,6 +4437,26 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "method": "ui/update",
           "params": {
             "attributes": {
+              "data-follow": "end",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-37",
+            "style": undefined,
+          },
+        },
+        {
+          "id": "req-41",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
               "text": null,
             },
             "breakpoints": {
@@ -4456,7 +4474,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-41",
+          "id": "req-42",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4474,7 +4492,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-42",
+          "id": "req-43",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4492,7 +4510,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-43",
+          "id": "req-44",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4510,7 +4528,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-44",
+          "id": "req-45",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4528,7 +4546,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-45",
+          "id": "req-46",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4549,7 +4567,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-46",
+    "id": "req-47",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4564,7 +4582,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-47",
+          "id": "req-48",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4589,7 +4607,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-48",
+    "id": "req-49",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4604,7 +4622,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-49",
+          "id": "req-50",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4629,7 +4647,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-50",
+    "id": "req-51",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4644,7 +4662,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-51",
+          "id": "req-52",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4669,7 +4687,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-52",
+    "id": "req-53",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4684,7 +4702,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-53",
+          "id": "req-54",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4709,7 +4727,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-54",
+    "id": "req-55",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4724,7 +4742,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-55",
+          "id": "req-56",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4747,7 +4765,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-56",
+    "id": "req-57",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4762,7 +4780,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-57",
+          "id": "req-58",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4785,7 +4803,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-58",
+    "id": "req-59",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4800,7 +4818,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-59",
+          "id": "req-60",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4823,7 +4841,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-60",
+    "id": "req-61",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4838,7 +4856,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-61",
+          "id": "req-62",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4861,7 +4879,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-62",
+    "id": "req-63",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4876,7 +4894,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-63",
+          "id": "req-64",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4899,7 +4917,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-64",
+    "id": "req-65",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
