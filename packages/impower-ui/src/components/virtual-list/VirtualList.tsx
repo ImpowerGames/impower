@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 import type { ComponentChildren, JSX, Ref } from "preact";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
@@ -33,6 +33,8 @@ export type VirtualListProps<T> = {
   size?: VirtualListSize;
   overscan?: number;
   revealIndex?: number;
+  revealRequest?: number;
+  itemHeight?: (item: T, index: number) => number;
   label?: string;
   class?: string;
   listRef?: Ref<HTMLDivElement>;
@@ -45,12 +47,37 @@ export default function VirtualList<T>({
   size = "default",
   overscan = 6,
   revealIndex,
+  revealRequest,
+  itemHeight,
   label,
   class: className,
   listRef,
   ...rest
 }: VirtualListProps<T>) {
   const rowHeight = VIRTUAL_LIST_ROW_HEIGHT[size];
+  const offsets = useMemo(() => {
+    const tops = new Array<number>(items.length + 1);
+    tops[0] = 0;
+    for (let index = 0; index < items.length; index += 1) {
+      tops[index + 1] =
+        tops[index]! + (itemHeight ? itemHeight(items[index]!, index) : rowHeight);
+    }
+    return tops;
+  }, [items, itemHeight, rowHeight]);
+  const topOf = (index: number) => offsets[index]!;
+  const indexAt = (offset: number) => {
+    let low = 0;
+    let high = items.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (offsets[middle + 1]! <= offset) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return low;
+  };
   const scroller = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState({ top: 0, height: 0 });
 
@@ -79,26 +106,37 @@ export default function VirtualList<T>({
   }, []);
 
   const hasViewport = view.height > 0;
+  const revealedRequest = useRef<number | undefined>(undefined);
 
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element || !hasViewport || revealIndex == null || revealIndex < 0) {
       return;
     }
-    const top = revealIndex * rowHeight;
-    const bottom = top + rowHeight;
+    if (revealIndex >= items.length) {
+      return;
+    }
+    if (revealRequest !== undefined) {
+      if (revealRequest === revealedRequest.current) {
+        return;
+      }
+      revealedRequest.current = revealRequest;
+    }
+    const top = topOf(revealIndex);
+    const bottom = topOf(revealIndex + 1);
     if (top < element.scrollTop) {
       element.scrollTop = top;
     } else if (bottom > element.scrollTop + element.clientHeight) {
       element.scrollTop = bottom - element.clientHeight;
     }
-  }, [revealIndex, rowHeight, hasViewport]);
+  }, [revealIndex, revealRequest, rowHeight, hasViewport]);
 
-  const visibleRows = view.height
-    ? Math.ceil(view.height / rowHeight)
-    : FIRST_PAINT_ROWS;
-  const start = Math.max(0, Math.floor(view.top / rowHeight) - overscan);
-  const end = Math.min(items.length, start + visibleRows + overscan * 2);
+  const first = indexAt(view.top);
+  const last = view.height
+    ? indexAt(view.top + view.height - 1)
+    : first + FIRST_PAINT_ROWS - 1;
+  const start = Math.max(0, first - overscan);
+  const end = Math.min(items.length, start + last - first + 1 + overscan * 2);
 
   const setRef = (element: HTMLDivElement | null) => {
     scroller.current = element;
@@ -119,7 +157,7 @@ export default function VirtualList<T>({
         aria-setsize={items.length}
         aria-posinset={index + 1}
         class={virtualListSlotVariants({ size })}
-        style={{ top: index * rowHeight, height: rowHeight }}
+        style={{ top: topOf(index), height: topOf(index + 1) - topOf(index) }}
       >
         {renderItem(item, index)}
       </div>,
@@ -136,7 +174,7 @@ export default function VirtualList<T>({
         role="list"
         aria-label={label}
         class="relative w-full"
-        style={{ height: items.length * rowHeight }}
+        style={{ height: topOf(items.length) }}
       >
         {rows}
       </div>

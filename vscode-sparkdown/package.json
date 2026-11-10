@@ -396,7 +396,7 @@
         "extensions": [
           ".luau"
         ],
-        "configuration": "./language/sparkdown.language-config.json",
+        "configuration": "./language/sparkdown-luau.language-config.json",
         "icon": {
           "light": "icon-lang.png",
           "dark": "icon-lang.png"
@@ -407,7 +407,11 @@
       {
         "language": "sparkdown",
         "scopeName": "text.source.sparkdown",
-        "path": "./language/sparkdown.language-grammar.json"
+        "path": "./language/sparkdown.language-grammar.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.luau": "sparkdown-luau",
+          "meta.embedded.line.luau": "sparkdown-luau"
+        }
       },
       {
         "language": "sparkdown-luau",
@@ -748,6 +752,11 @@
             "type": "boolean",
             "default": false,
             "description": "Print scene identifiers in screenplay"
+          },
+          "sparkdown.screenplay.markup.printBranchIdentifiers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print branch identifiers in screenplay"
           },
           "sparkdown.screenplay.markup.printKnotIdentifiers": {
             "type": "boolean",

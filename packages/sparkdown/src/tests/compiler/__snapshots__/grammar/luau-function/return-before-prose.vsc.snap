@@ -6,8 +6,9 @@ text.source.sparkdown [0..185]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [14..15]: "&"
  ├─ punctuation.whitespace.required.sd [15..16]: " "
- ├─ meta.function.luau [16..22]
- │   └─ keyword.control.luau [16..22]: "return"
+ ├─ meta.embedded.line.luau [16..22]
+ │   └─ meta.function.luau [16..22]
+ │       └─ keyword.control.luau [16..22]: "return"
  ├─ Newline [22..23]: "\n"
  ├─ punctuation.whitespace.optional.sd [23..25]: "  "
  ├─ string.display.text.chunk.sd [25..37]
@@ -26,8 +27,9 @@ text.source.sparkdown [0..185]
  ├─ punctuation.whitespace.optional.sd [51..53]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [53..54]: "&"
  ├─ punctuation.whitespace.required.sd [54..55]: " "
- ├─ meta.function.luau [55..61]
- │   └─ keyword.control.luau [55..61]: "return"
+ ├─ meta.embedded.line.luau [55..61]
+ │   └─ meta.function.luau [55..61]
+ │       └─ keyword.control.luau [55..61]: "return"
  ├─ Newline [61..62]: "\n"
  ├─ punctuation.whitespace.optional.sd [62..64]: "  "
  ├─ string.display.text.chunk.sd [64..76]
@@ -39,13 +41,14 @@ text.source.sparkdown [0..185]
  ├─ punctuation.whitespace.optional.sd [77..79]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [79..80]: "&"
  ├─ punctuation.whitespace.required.sd [80..81]: " "
- ├─ entity.name.function.luau [81..82]: "f"
- ├─ meta.parameter.luau [82..84]
- │   ├─ punctuation.definition.template-expression.begin.sd [82..83]: "("
- │   └─ punctuation.definition.template-expression.end.sd [83..84]: ")"
- ├─ meta.function.luau [84..91]
- │   ├─ punctuation.whitespace.optional.sd [84..85]: " "
- │   └─ keyword.control.luau [85..91]: "return"
+ ├─ meta.embedded.line.luau [81..91]
+ │   ├─ entity.name.function.luau [81..82]: "f"
+ │   ├─ meta.parameter.luau [82..84]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [82..83]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [83..84]: ")"
+ │   └─ meta.function.luau [84..91]
+ │       ├─ punctuation.whitespace.optional.sd [84..85]: " "
+ │       └─ keyword.control.luau [85..91]: "return"
  ├─ Newline [91..92]: "\n"
  ├─ punctuation.whitespace.optional.sd [92..94]: "  "
  ├─ string.display.text.chunk.sd [94..102]
@@ -55,16 +58,18 @@ text.source.sparkdown [0..185]
  ├─ punctuation.whitespace.optional.sd [103..105]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [105..106]: "&"
  ├─ punctuation.whitespace.required.sd [106..107]: " "
- ├─ storage.modifier.scope.luau [107..112]: "local"
- ├─ punctuation.whitespace.optional.sd [112..113]: " "
- ├─ variable.other.readwrite.luau [113..114]: "x"
- ├─ punctuation.whitespace.optional.sd [114..115]: " "
- ├─ keyword.operator.assignment.luau [115..116]: "="
- ├─ punctuation.whitespace.optional.sd [116..117]: " "
- ├─ constant.numeric.decimal.luau [117..118]: "5"
- ├─ meta.function.luau [118..125]
- │   ├─ punctuation.whitespace.optional.sd [118..119]: " "
- │   └─ keyword.control.luau [119..125]: "return"
+ ├─ meta.embedded.line.luau [107..125]
+ │   ├─ storage.modifier.scope.luau [107..112]: "local"
+ │   ├─ punctuation.whitespace.optional.sd [112..113]: " "
+ │   ├─ meta.embedded.line.luau [113..118]
+ │   │   ├─ variable.other.readwrite.luau [113..114]: "x"
+ │   │   ├─ punctuation.whitespace.optional.sd [114..115]: " "
+ │   │   ├─ keyword.operator.assignment.luau [115..116]: "="
+ │   │   ├─ punctuation.whitespace.optional.sd [116..117]: " "
+ │   │   └─ constant.numeric.decimal.luau [117..118]: "5"
+ │   └─ meta.function.luau [118..125]
+ │       ├─ punctuation.whitespace.optional.sd [118..119]: " "
+ │       └─ keyword.control.luau [119..125]: "return"
  ├─ Newline [125..126]: "\n"
  ├─ punctuation.whitespace.optional.sd [126..128]: "  "
  ├─ string.display.text.chunk.sd [128..136]
@@ -76,15 +81,17 @@ text.source.sparkdown [0..185]
  ├─ punctuation.whitespace.optional.sd [137..139]: "  "
  ├─ keyword.control.if.luau [139..141]: "if"
  ├─ punctuation.whitespace.optional.sd [141..142]: " "
- ├─ variable.other.readwrite.luau [142..143]: "x"
+ ├─ meta.embedded.line.luau [142..143]
+ │   └─ variable.other.readwrite.luau [142..143]: "x"
  ├─ punctuation.whitespace.optional.sd [143..144]: " "
  ├─ keyword.control.then.luau [144..148]: "then"
  ├─ Newline [148..149]: "\n"
  ├─ punctuation.whitespace.optional.sd [149..153]: "    "
  ├─ keyword.other.statement.explicit.luau.mark.sd [153..154]: "&"
  ├─ punctuation.whitespace.required.sd [154..155]: " "
- ├─ meta.function.luau [155..161]
- │   └─ keyword.control.luau [155..161]: "return"
+ ├─ meta.embedded.line.luau [155..161]
+ │   └─ meta.function.luau [155..161]
+ │       └─ keyword.control.luau [155..161]: "return"
  ├─ Newline [161..162]: "\n"
  ├─ punctuation.whitespace.optional.sd [162..166]: "    "
  ├─ string.display.text.chunk.sd [166..178]

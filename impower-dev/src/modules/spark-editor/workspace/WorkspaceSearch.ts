@@ -53,7 +53,6 @@ export interface SearchSources {
   setMatches: (uri: string, ranges: Range[]) => void;
   revealRail: () => void;
   autoRenameFiles: () => boolean;
-  phone: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
   onEditorTool: (listener: (tool: EditorTool) => void) => () => void;
@@ -237,14 +236,14 @@ export default class WorkspaceSearch {
         };
       }),
       sources.onEditorTool((tool) => {
-        const tools: Record<EditorTool, () => unknown> = {
+        const tools: Partial<Record<EditorTool, () => unknown>> = {
           find: () => this.openFindFromSelection(),
           findNext: () => this.stepOrOpen(false),
           findPrevious: () => this.stepOrOpen(true),
           rename: () => this.openRename(),
           references: () => this.openReferences(),
         };
-        void tools[tool]();
+        void tools[tool]?.();
       }),
       sources.onEditorLoaded(() => {
         this._published = "";
@@ -394,7 +393,7 @@ export default class WorkspaceSearch {
   }
 
   protected reading() {
-    return this._sources.phone() && workspace.scriptMode.peek() === "reading";
+    return workspace.effectiveScriptMode.peek() === "reading";
   }
 
   protected exclusive<T>(run: () => Promise<T>): Promise<T> {

@@ -7,12 +7,15 @@ import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
 import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
+import { filterChipGallery } from "./components/filter-chip/FilterChip.gallery";
 import { featureCardGallery } from "./components/feature-card/FeatureCard.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
 import { keysChipGallery } from "./components/keys-chip/KeysChip.gallery";
 import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
+import { messageEntryGallery } from "./components/message-entry/MessageEntry.gallery";
+import { panelCardGallery } from "./components/panel-card/PanelCard.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
@@ -27,6 +30,7 @@ import { sliderGallery } from "./components/slider/Slider.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
+import { tabbedPageGallery } from "./components/tabbed-page/TabbedPage.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
 import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
@@ -43,6 +47,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   dialogGallery,
   disclosureGallery,
   dropdownGallery,
+  filterChipGallery,
   featureCardGallery,
   iconGallery,
   jumpChipsGallery,
@@ -51,6 +56,8 @@ export const galleryEntries: readonly GalleryEntry[] = [
   liveRegionGallery,
   loadingBarGallery,
   madeWithSparkSplashGallery,
+  messageEntryGallery,
+  panelCardGallery,
   sparkLogoGallery,
   pageFrameGallery,
   popoverGallery,
@@ -63,6 +70,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   sliderGallery,
   splitPaneGallery,
   switchGallery,
+  tabbedPageGallery,
   tabsGallery,
   textFieldGallery,
   themeSwatchGallery,

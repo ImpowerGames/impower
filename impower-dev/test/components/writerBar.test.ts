@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,7 @@ const layout = vi.hoisted(() => ({ value: "desktop" }));
 
 vi.mock("@impower/impower-ui/layout", () => ({
   useLayout: () => layout.value,
+  layoutState: { current: () => layout.value, subscribe: () => () => {} },
   useCoarsePointer: () => false,
 }));
 
@@ -85,6 +87,7 @@ const labelled = (label: string) =>
 beforeEach(() => {
   calls.commands.length = 0;
   layout.value = "desktop";
+  workspace.layout.value = layout.value as Layout;
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local" },
@@ -137,6 +140,7 @@ describe("WriterBar tools by layout", () => {
 
   it("shows Indent, Dedent and Format on a compact layout and sends each to the editor", async () => {
     layout.value = "compact";
+    workspace.layout.value = layout.value as Layout;
     await mount("scripts/intro.sd");
     for (const label of ["Indent", "Dedent", "Format script"]) {
       await act(async () => labelled(label)!.click());
@@ -152,6 +156,7 @@ describe("WriterBar tools by layout", () => {
 
   it("keeps a phone's reading bar to the tools, the readout and Edit, which starts editing", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     await mount("scripts/intro.sd");
     expect(labelled("Indent")).toBeNull();
     expect(labelled("Format script")).toBeNull();
@@ -163,12 +168,10 @@ describe("WriterBar tools by layout", () => {
     expect(calls.started).toEqual(["scripts/intro.sd"]);
   });
 
-  it("keeps Add disabled with a tooltip until the Add panel exists", async () => {
+  it("offers Add at the end of the bar", async () => {
     await mount("main.sd");
-    const add = Array.from(host!.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "Add",
-    )!;
-    expect(add.disabled).toBe(true);
-    expect(add.parentElement!.getAttribute("title")).toMatch(/coming soon/);
+    const add = host!.querySelector<HTMLButtonElement>("[data-add-trigger]")!;
+    expect(add.textContent?.trim()).toBe("Add");
+    expect(add.disabled).toBe(false);
   });
 });

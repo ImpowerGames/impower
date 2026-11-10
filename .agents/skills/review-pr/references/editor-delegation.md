@@ -34,7 +34,7 @@ Each request reopens the browser from the session's persistent profile. The edit
 | `type` | `field`: `search`, `replace`, `line`; `text`: up to 4096 characters |
 | `click` | `value`: `next`, `prev`, `select`, `replace`, `replaceAll`, `close`, `submit` |
 | `toggle` | `value`: `case`, `re`, `word` |
-| `screen` | `value`: `logic`, `assets`, `share`, `main`, `scripts`, `files`, `urls`, `game`, `screenplay` |
+| `screen` | `value`: `logic`, `assets`, `share`, `main`, `scripts`, the Assets type tabs `image`, `audio`, `video`, `text`, `font` and `other`, `game`, `screenplay` |
 | `hover` | Positive `line` and `column`, each at most 100000; also reports the `diagnostics` at the position and the lint `diagnosticTooltip`, so a `hover` shot after it captures a diagnostic |
 | `complete` | Positive `line` and `column`, plus nonempty `text` up to 4096 characters; types into the script and reads completion |
 | `insert` | Positive `line` and `column`, plus nonempty `text` up to 4096 characters (a newline in `text` is a line break); inserts at the position as one edit, without auto-closing, and reports `textMatches` and `readBack`, failing when the document differs |

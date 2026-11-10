@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
+import { CheckIcon } from "../icon/icons.generated";
 
 export const listRowVariants = cva(
   [
@@ -22,12 +23,32 @@ export const listRowVariants = cva(
         ink: "",
         muted: "",
       },
+      selection: {
+        none: "",
+        available: "select-none [-webkit-touch-callout:none]",
+        active: "select-none [-webkit-touch-callout:none]",
+      },
+      selected: {
+        true: "bg-tint",
+        false: "",
+      },
+      dropTarget: {
+        true: "bg-tint ring-2 ring-inset ring-accent",
+        false: "",
+      },
     },
     compoundVariants: [
       { state: "current", nested: true, class: "before:opacity-0" },
       { state: "none", tone: "muted", class: "text-muted" },
     ],
-    defaultVariants: { state: "none", nested: false, tone: "ink" },
+    defaultVariants: {
+      state: "none",
+      nested: false,
+      tone: "ink",
+      selection: "none",
+      selected: false,
+      dropTarget: false,
+    },
   },
 );
 
@@ -44,13 +65,64 @@ export const listRowBodyVariants = cva(
           "min-h-[60px] gap-[13px] px-3 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px]",
         compact:
           "min-h-11 gap-2.5 px-2 py-1 text-[12px]/[1.4] [&>svg:first-child]:size-[18px]",
+        block:
+          "min-h-16 gap-3 px-2.5 py-2 text-[14px]/[1.4] [&>svg:first-child]:size-[22px]",
       },
       interactive: {
         true: "control-overlay cursor-pointer focus-inset",
         false: "",
       },
+      selection: {
+        none: "",
+        available:
+          "group-hover/row:[&>svg:first-child]:invisible group-has-[input:focus-visible]/row:[&>svg:first-child]:invisible",
+        active: "[&>svg:first-child]:invisible",
+      },
+      leading: {
+        true: "pl-0",
+        false: "",
+      },
     },
-    defaultVariants: { size: "default", interactive: true },
+    defaultVariants: { size: "default", interactive: true, selection: "none", leading: false },
+  },
+);
+
+export const listRowMarkVariants = cva(
+  [
+    "absolute top-1/2 z-10 flex -translate-y-1/2 cursor-pointer items-center justify-center",
+    "[&>span]:flex [&>span]:items-center [&>span]:justify-center [&>span]:rounded-full",
+    "[&>span]:border-[1.5px] [&>span]:border-muted [&>span]:text-transparent",
+    "has-checked:[&>span]:border-accent has-checked:[&>span]:bg-accent has-checked:[&>span]:text-accent-ink",
+    "has-focus-visible:[&>span]:outline-1 has-focus-visible:[&>span]:outline-offset-2 has-focus-visible:[&>span]:outline-accent",
+  ],
+  {
+    variants: {
+      size: {
+        default: "left-3 [&>span]:size-[21px] [&_svg]:size-3.5",
+        compact: "left-2 [&>span]:size-[18px] [&_svg]:size-3",
+        block: "left-2.5 [&>span]:size-[22px] [&_svg]:size-3.5",
+      },
+      selection: {
+        available:
+          "pointer-events-none opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 has-focus-visible:opacity-100",
+        active: "",
+      },
+    },
+    defaultVariants: { size: "default", selection: "active" },
+  },
+);
+
+export const listRowDescriptionVariants = cva(
+  "text-muted [--fade:24px] fade-edge",
+  {
+    variants: {
+      size: {
+        default: "text-[11px]/[1.4]",
+        compact: "text-[11px]/[1.4]",
+        block: "text-[12px]/[1.5]",
+      },
+    },
+    defaultVariants: { size: "default" },
   },
 );
 
@@ -76,10 +148,29 @@ export type ListRowTone = NonNullable<
 export type ListRowLabelOverflow = NonNullable<
   VariantProps<typeof listRowLabelVariants>["overflow"]
 >;
+export type ListRowSelection = NonNullable<
+  VariantProps<typeof listRowVariants>["selection"]
+>;
 
 export const LIST_ROW_INDENT = 18;
 
-export type ListRowProps = {
+type ListRowLeadingProps = {
+  leading?: ComponentChildren;
+  selection?: never;
+  selected?: never;
+  selectLabel?: never;
+  onSelectedChange?: never;
+};
+
+type ListRowSelectionProps = {
+  leading?: never;
+  selection?: ListRowSelection;
+  selected?: boolean;
+  selectLabel?: string;
+  onSelectedChange?: (selected: boolean) => void;
+};
+
+export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   icon?: ComponentChildren;
   label: ComponentChildren;
   description?: ComponentChildren;
@@ -91,6 +182,7 @@ export type ListRowProps = {
   size?: ListRowSize;
   overflow?: ListRowLabelOverflow;
   tone?: ListRowTone;
+  dropTarget?: boolean;
   class?: string;
   onClick?: (event: MouseEvent) => void;
 } & Omit<
@@ -123,6 +215,7 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
 }
 
 export default function ListRow({
+  leading,
   icon,
   label,
   description,
@@ -134,6 +227,11 @@ export default function ListRow({
   size,
   overflow,
   tone,
+  selection = "none",
+  selected = false,
+  selectLabel,
+  onSelectedChange,
+  dropTarget = false,
   class: className,
   onClick,
   ...rest
@@ -153,19 +251,52 @@ export default function ListRow({
         {label}
       </span>
       {description && (
-        <small class="text-[11px]/[1.4] text-muted [--fade:24px] fade-edge">
+        <small class={listRowDescriptionVariants({ size })}>
           {description}
         </small>
       )}
     </span>
   );
   const interactive = !!onClick;
-  const body = listRowBodyVariants({ size, interactive });
+  const body = listRowBodyVariants({
+    size,
+    interactive,
+    selection,
+    leading: !!leading,
+  });
   return (
     <div
-      class={cn(listRowVariants({ state, nested: depth > 0, tone }), className)}
+      class={cn(
+        listRowVariants({
+          state,
+          nested: depth > 0,
+          tone,
+          selection,
+          selected,
+          dropTarget,
+        }),
+        className,
+      )}
+      data-drop-target={dropTarget || undefined}
     >
       {depth > 0 && <Guides depth={depth} current={!!current} />}
+      {leading}
+      {selection !== "none" && (
+        <label class={listRowMarkVariants({ size, selection })}>
+          <input
+            type="checkbox"
+            class="sr-only"
+            aria-label={selectLabel}
+            checked={selected}
+            onChange={(event) =>
+              onSelectedChange?.(event.currentTarget.checked)
+            }
+          />
+          <span aria-hidden="true">
+            <CheckIcon />
+          </span>
+        </label>
+      )}
       {interactive ? (
         <button
           type="button"
@@ -173,6 +304,7 @@ export default function ListRow({
           aria-current={
             current === "location" ? "location" : current ? "true" : undefined
           }
+          aria-pressed={selection === "active" ? selected : undefined}
           onClick={onClick}
           {...rest}
         >
@@ -189,5 +321,55 @@ export default function ListRow({
       )}
       {actions}
     </div>
+  );
+}
+
+export const listRowBadgeVariants = cva(
+  "relative control-overlay flex h-full flex-none cursor-pointer items-center rounded-control focus-inset [&>svg]:flex-none",
+  {
+    variants: {
+      size: {
+        default: "w-[46px] pl-3 [&>svg]:size-[21px]",
+        compact: "w-9 pl-2 [&>svg]:size-[18px]",
+        block: "w-[46px] pl-2.5 [&>svg]:size-[22px]",
+      },
+    },
+    defaultVariants: { size: "default" },
+  },
+);
+
+export type ListRowBadgeProps = {
+  label: string;
+  title?: string;
+  icon: ComponentChildren;
+  size?: ListRowSize;
+  onClick: (event: MouseEvent) => void;
+  class?: string;
+} & Omit<
+  JSX.HTMLAttributes<HTMLButtonElement>,
+  "class" | "icon" | "label" | "onClick" | "size" | "title"
+>;
+
+export function ListRowBadge({
+  label,
+  title,
+  icon,
+  size,
+  onClick,
+  class: className,
+  ...rest
+}: ListRowBadgeProps) {
+  return (
+    <button
+      type="button"
+      data-list-row-badge
+      aria-label={label}
+      title={title ?? label}
+      class={cn(listRowBadgeVariants({ size }), className)}
+      onClick={onClick}
+      {...rest}
+    >
+      {icon}
+    </button>
   );
 }

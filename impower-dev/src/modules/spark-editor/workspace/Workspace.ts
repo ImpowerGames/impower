@@ -1,9 +1,13 @@
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { consoleToggleSource, runtimeErrorSource } from "./problems/gameSources";
+import problems from "./problems/ProblemsStore";
 import workspaceSettings from "./settings/WorkspaceSettings";
 import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
+import WorkspaceAssets from "./WorkspaceAssets";
 import WorkspaceScripts from "./WorkspaceScripts";
 import WorkspaceSearch from "./WorkspaceSearch";
 import { searchSources } from "./searchSources";
@@ -24,6 +28,12 @@ export namespace Workspace {
     configuration,
   );
   export const scripts = new WorkspaceScripts({ fs, ls, window });
+  export const assets = new WorkspaceAssets({
+    fs,
+    ls,
+    window,
+    autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+  });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
   export const search = new WorkspaceSearch(
@@ -41,6 +51,15 @@ export namespace Workspace {
 }
 
 registerWorkspaceProtocol(Workspace);
+problems.addPlayedSource(runtimeErrorSource);
+problems.addPanelSource(consoleToggleSource);
+if (typeof window !== "undefined") {
+  window.addEventListener(MessageProtocol.event, (event) => {
+    if (event instanceof CustomEvent) {
+      problems.receive(event.detail);
+    }
+  });
+}
 if (import.meta.env.DEV) {
   void import("./devProtocolBridge").then(({ installProtocolBridge }) => {
     const dispose = installProtocolBridge();

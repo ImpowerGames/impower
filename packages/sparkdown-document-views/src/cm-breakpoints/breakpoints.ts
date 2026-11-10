@@ -18,17 +18,25 @@ import { scriptModeField } from "../modules/script-editor/utils/extensions/scrip
 export interface BreakpointState {
   line: number;
   verified: boolean;
+  message?: string;
 }
 
-const UNPLACEABLE_TITLE = "No statement to stop at here.";
+const UNPLACED_FALLBACK_TITLE = "Breakpoint not placed.";
 
 class BreakpointMarker extends GutterMarker {
-  constructor(readonly verified: boolean) {
+  constructor(
+    readonly verified: boolean,
+    readonly message?: string,
+  ) {
     super();
   }
 
   override eq(other: GutterMarker) {
-    return other instanceof BreakpointMarker && other.verified === this.verified;
+    return (
+      other instanceof BreakpointMarker &&
+      other.verified === this.verified &&
+      other.message === this.message
+    );
   }
 
   override toDOM() {
@@ -37,14 +45,13 @@ class BreakpointMarker extends GutterMarker {
       ? "cm-breakpoint"
       : "cm-breakpoint cm-breakpoint-unverified";
     if (!this.verified) {
-      dot.title = UNPLACEABLE_TITLE;
+      dot.title = this.message ?? UNPLACED_FALLBACK_TITLE;
     }
     return dot;
   }
 }
 
 export const breakpointMarker = new BreakpointMarker(true);
-const unverifiedBreakpointMarker = new BreakpointMarker(false);
 
 const setBreakpointEffect = StateEffect.define<{ pos: number; on: boolean }>({
   map: (val, mapping) => ({ pos: mapping.mapPos(val.pos), on: val.on }),
@@ -94,12 +101,13 @@ export const breakpointsField = StateField.define<RangeSet<GutterMarker>>({
       if (e.is(setBreakpointStatesEffect)) {
         const doc = transaction.state.doc;
         const ranges: Range<GutterMarker>[] = [];
-        for (const { line, verified } of e.value) {
+        for (const { line, verified, message } of e.value) {
           if (line >= 1 && line <= doc.lines) {
             ranges.push(
-              (verified ? breakpointMarker : unverifiedBreakpointMarker).range(
-                doc.line(line).from,
-              ),
+              (verified
+                ? breakpointMarker
+                : new BreakpointMarker(false, message)
+              ).range(doc.line(line).from),
             );
           }
         }

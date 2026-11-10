@@ -519,6 +519,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     },
     dispose() {
       bar.unmount();
+      controller.dispose();
       setWorkspace(undefined as any);
       restore();
     },

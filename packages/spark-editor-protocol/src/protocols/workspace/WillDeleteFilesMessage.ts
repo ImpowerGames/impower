@@ -5,6 +5,7 @@ export type WillDeleteFilesMethod = typeof WillDeleteFilesMessage.method;
 
 export interface WillDeleteFilesParams extends DeleteFilesParams {
   mode?: "trash" | "permanent";
+  folders?: { uri: string }[];
 }
 
 export class WillDeleteFilesMessage {

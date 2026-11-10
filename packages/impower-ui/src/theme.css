@@ -91,23 +91,18 @@
 :root,
 [data-theme="midnight"],
 [data-theme="dusk"] {
-  --editor-ink: #cccccc;
   --editor-line-number: #2b83b7;
   --editor-line-number-active: #99d9ff;
   --editor-indent-guide: #1a293a;
   --editor-indent-guide-active: #4d5866;
   --editor-field-edge: hsl(210.6 30% 20%);
   --editor-field-edge-hover: hsl(210.6 30% 30%);
-  --editor-button-hover: rgb(43 17 17 / 0.05);
   --editor-focus: #0da2e7;
-  --editor-focus-edge: #007acc;
   --editor-selection-match: #62331599;
   --editor-panel-edge: hsl(210.6 70% 15%);
   --editor-toolbar-ink: hsl(211 24% 60%);
   --editor-status-ink: hsl(211 24% 42%);
   --editor-list-selected: #04395e;
-  --editor-toggle-on: rgb(36 137 219 / 0.51);
-  --editor-toggle-on-edge: #2488db;
   --editor-problem-range: #ffdd991a;
   --editor-problem-error: #f14c4c;
   --editor-problem-warning: #cca700;
@@ -117,7 +112,6 @@
   --editor-faint: #808080;
   --editor-placeholder: #888888;
   --editor-swatch-edge: #888888;
-  --editor-reference-line: #858585;
   --editor-lens-ink: #999999;
   --editor-link: #4e94ce;
   --editor-link-active: #4daafc;
@@ -133,7 +127,6 @@
   --editor-doc-quote-ink: #9198a1;
   --editor-doc-quote-edge: #3d444d;
   --editor-icon-ink: #ffffff;
-  --editor-icon-muted: #cccccc;
   --editor-icon-close: #315881;
   --editor-symbol-highlight: color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent);
   --editor-search-match: #00ffff8a;
@@ -545,23 +538,18 @@
   --error-strong: var(--error);
   --warning-strong: var(--warning);
 
-  --editor-ink: var(--ink);
   --editor-line-number: var(--muted);
   --editor-line-number-active: var(--ink);
   --editor-indent-guide: color-mix(in srgb, var(--muted) 22%, transparent);
   --editor-indent-guide-active: color-mix(in srgb, var(--accent) 55%, transparent);
   --editor-field-edge: var(--edge);
   --editor-field-edge-hover: var(--muted);
-  --editor-button-hover: var(--control-hover);
   --editor-focus: var(--accent);
-  --editor-focus-edge: var(--accent);
   --editor-selection-match: color-mix(in srgb, var(--accent) 25%, transparent);
   --editor-panel-edge: var(--edge);
   --editor-toolbar-ink: var(--muted);
   --editor-status-ink: var(--muted);
   --editor-list-selected: var(--tint);
-  --editor-toggle-on: var(--tint);
-  --editor-toggle-on-edge: var(--accent);
   --editor-problem-range: color-mix(in srgb, var(--warning) 10%, transparent);
   --editor-problem-error: var(--error);
   --editor-problem-warning: var(--warning);
@@ -571,7 +559,6 @@
   --editor-faint: var(--muted);
   --editor-placeholder: var(--muted);
   --editor-swatch-edge: var(--muted);
-  --editor-reference-line: var(--muted);
   --editor-lens-ink: var(--muted);
   --editor-link: var(--accent);
   --editor-link-active: var(--accent);
@@ -587,7 +574,6 @@
   --editor-doc-quote-ink: var(--muted);
   --editor-doc-quote-edge: var(--edge);
   --editor-icon-ink: var(--ink);
-  --editor-icon-muted: var(--muted);
   --editor-icon-close: var(--muted);
   --editor-symbol-highlight: color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent);
   --editor-search-match: color-mix(in srgb, var(--accent) 30%, transparent);

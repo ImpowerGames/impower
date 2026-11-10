@@ -77,7 +77,7 @@ import {
   undoSelection,
 } from "@codemirror/commands";
 import { foldAll, foldCode, unfoldAll, unfoldCode } from "@codemirror/language";
-import { nextDiagnostic, openLintPanel } from "@codemirror/lint";
+import { nextDiagnostic } from "@codemirror/lint";
 import {
   closeSearchPanel,
   gotoLine,
@@ -100,7 +100,6 @@ import {
 } from "@codemirror/view";
 import { jumpToDefinition } from "./definition";
 import { formatDocument } from "./formatting";
-import { closeReferencePanel, findReferences } from "./references";
 import { renameSymbol } from "./rename";
 import { noteEditorKeydown, noteShortcutHandled } from "./shortcutDispatch";
 import {
@@ -125,7 +124,13 @@ import {
   type ShortcutPrecedence,
 } from "./shortcutTable";
 import { nextSignature, prevSignature, showSignatureHelp } from "./signature";
-import { findNextMatch, findPreviousMatch, openFind } from "./tools";
+import {
+  findNextMatch,
+  findPreviousMatch,
+  findReferences,
+  openFind,
+  openProblems,
+} from "./tools";
 
 export type ShortcutCommand =
   | Command
@@ -175,7 +180,7 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   selectMatches: selectSelectionMatches,
   selectNextMatch: selectNextOccurrence,
   gotoLine,
-  problems: openLintPanel,
+  problems: openProblems,
   nextProblem: nextDiagnostic,
   signature: showSignatureHelp,
   previousSignature: prevSignature,
@@ -231,7 +236,6 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   macSplitLine: splitLine,
   macTranspose: transposeChars,
   macPageDown: cursorPageDown,
-  closeReferences: closeReferencePanel,
 };
 
 export interface EditorShortcutsState {

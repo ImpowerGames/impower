@@ -23,6 +23,10 @@ const { default: Outline } =
   await import("../../src/modules/spark-editor/components/outline/Outline");
 const { outlineRows } =
   await import("../../src/modules/spark-editor/components/outline/outlineRows");
+const { ProblemsDialog } =
+  await import("../../src/modules/spark-editor/components/problems");
+const { default: problems } =
+  await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
 
 const URI = "file://outline/main.sd";
 
@@ -125,17 +129,30 @@ const rowButtons = () =>
     host!.querySelectorAll<HTMLButtonElement>(
       '[role="listitem"] button[aria-label]',
     ),
-  ).filter((b) => !b.hasAttribute("aria-expanded"));
+  ).filter(
+    (b) =>
+      !b.hasAttribute("aria-expanded") && !b.hasAttribute("data-list-row-badge"),
+  );
 
 const row = (name: string) =>
   rowButtons().find((b) => b.getAttribute("aria-label")!.startsWith(name))!;
 
-const badge = (button: HTMLElement) =>
-  button.querySelector('svg[class*="text-error"]')
+const badgeOf = (button: HTMLElement) =>
+  button.parentElement!.querySelector<HTMLButtonElement>(
+    "[data-list-row-badge]",
+  );
+
+const badge = (button: HTMLElement) => {
+  const lead = badgeOf(button);
+  if (!lead) {
+    return button.querySelector("svg") ? "glyph" : "none";
+  }
+  return lead.querySelector('svg[class*="text-error"]')
     ? "error"
-    : button.querySelector('svg[class*="text-warning"]')
+    : lead.querySelector('svg[class*="text-warning"]')
       ? "warning"
-      : "glyph";
+      : "none";
+};
 
 beforeEach(() => {
   Object.values(intents).forEach((fn) => fn.mockClear());
@@ -334,7 +351,134 @@ describe("the Outline rail", () => {
   });
 });
 
+describe("an Outline badge", () => {
+  const dialog = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find(
+      (d) => d.textContent!.includes("Problems to fix"),
+    );
+  const context = () => dialog()!.querySelector("p")!.textContent;
+  const titles = () =>
+    Array.from(dialog()!.querySelectorAll("[data-message-entry] strong")).map(
+      (s) => s.textContent,
+    );
+
+  const mountWithDialog = async (diagnostics: Diagnostic[], source = SCRIPT) => {
+    await mount(diagnostics, source);
+    const dialogHost = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(ProblemsDialog, null), dialogHost));
+    return dialogHost;
+  };
+
+  afterEach(async () => {
+    await act(async () => problems.closeDialog());
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
+  it("opens Problems to fix for a scene's total, naming the scene, and returns focus to the badge", async () => {
+    const note: Diagnostic = { ...problem(1, 1), severity: 3, message: "To do: rock harder" };
+    const dialogHost = await mountWithDialog([STORM_ERROR, note, DOCK_WARNING]);
+    const harbor = badgeOf(row("Scene: harbor"))!;
+    expect(harbor.getAttribute("aria-label")).toBe(
+      "Scene total: 1 error, 1 note in harbor",
+    );
+    expect(harbor.getAttribute("aria-haspopup")).toBe("dialog");
+    harbor.focus();
+    await act(async () => harbor.click());
+    expect(context()).toBe("harbor · 1 error, 1 note");
+    expect(titles()).toEqual(["Note · To do: rock harder", "Error · broken"]);
+    const close = dialog()!.querySelector<HTMLButtonElement>(
+      '[aria-label="Close dialog"]',
+    )!;
+    await act(async () => close.click());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(dialog()).toBeUndefined();
+    expect(document.activeElement).toBe(harbor);
+    await act(async () => render(null, dialogHost));
+    dialogHost.remove();
+  });
+
+  const railBadge = () =>
+    host!.querySelector<HTMLButtonElement>('button[aria-label^="Outline:"]');
+
+  it("opens Problems for the open script from the collapsed rail's badge, without moving the caret", async () => {
+    const show = vi.spyOn(problems, "showProblems").mockImplementation(() => {});
+    try {
+      await mount([STORM_ERROR, DOCK_WARNING], SCRIPT, "file://outline/main.sd");
+      const badge = railBadge()!;
+      expect(badge.getAttribute("aria-label")).toBe(
+        "Outline: 1 error, 1 warning in main",
+      );
+      expect(badge.querySelector('svg[class*="text-error"]')).not.toBeNull();
+      await act(async () => badge.click());
+      expect(intents.openOutlineLocation).not.toHaveBeenCalled();
+      expect(show).toHaveBeenCalledTimes(1);
+      const [returnFocus, path] = show.mock.calls[0]!;
+      expect(path).toBe("main.sd");
+      expect(returnFocus!()).toBe(badge);
+    } finally {
+      show.mockRestore();
+    }
+  });
+
+  it("shows no rail badge when only another script has problems", async () => {
+    const other = "file://outline/chapter.sd";
+    problems.record({ uri: other, diagnostics: [STORM_ERROR, DOCK_WARNING] });
+    try {
+      expect(problems.counts.value.problems).toBeGreaterThan(0);
+      await mount([]);
+      expect(railBadge()).toBeNull();
+    } finally {
+      problems.record({ uri: other, diagnostics: [] });
+    }
+  });
+
+  it("scopes a branch's badge to its own lines", async () => {
+    const dialogHost = await mountWithDialog([STORM_ERROR, problem(1, 2)]);
+    await act(async () => badgeOf(row("Branch: storm"))!.click());
+    expect(context()).toBe("storm · 1 error");
+    expect(titles()).toEqual(["Error · broken"]);
+    await act(async () => render(null, dialogHost));
+    dialogHost.remove();
+  });
+
+  it("opens Script setup's problems from its row, notes included", async () => {
+    const note: Diagnostic = { ...problem(0, 1), severity: 3, message: "To do: tidy" };
+    const dialogHost = await mountWithDialog([note], `VAR = 1\n${SCRIPT}`);
+    const setup = row("Script setup");
+    expect(badgeOf(setup)).toBeNull();
+    expect(setup.getAttribute("aria-haspopup")).toBe("dialog");
+    await act(async () => setup.click());
+    expect(context()).toBe("Script setup · 1 note");
+    expect(intents.openOutlineLocation).not.toHaveBeenCalled();
+    await act(async () => render(null, dialogHost));
+    dialogHost.remove();
+  });
+});
+
 describe("outline rows", () => {
+  it("carries the problems each row counts: a scene's total, a branch's own and the setup lines'", () => {
+    const setupNote: Diagnostic = { ...problem(0, 1), severity: 3, message: "note" };
+    const { rows } = outlineRows({
+      symbols: symbolsOf(`VAR = 1\n${SCRIPT}`),
+      diagnostics: [setupNote, problem(9, 1), problem(4, 2)],
+      firstContentLine: 0,
+    });
+    expect(
+      rows.map((r) => [r.label, r.diagnostics.map((d) => d.range.start.line)]),
+    ).toEqual([
+      ["Script setup", [0]],
+      ["harbor", [9, 4]],
+      ["Where now?", [4]],
+      ["storm", [9]],
+      ["dock", []],
+    ]);
+  });
+
   it("opens with Script setup when lines precede the first scene, counting the problems there", () => {
     const source = `VAR = 1\n${SCRIPT}`;
     const { rows } = outlineRows({

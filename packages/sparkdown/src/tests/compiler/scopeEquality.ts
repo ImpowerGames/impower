@@ -51,7 +51,9 @@ export function treeScopeStackAt(tree: any, offset: number, options: EngineOptio
     n = n.parent;
   }
   const scopes: string[] = [rootScopeOf(options)];
-  for (const name of chain) {
+  for (let i = 0; i < chain.length; i++) {
+    const name = chain[i]!;
+    if (name === chain[i - 1]) continue;
     const sc = treeNodeScope(name);
     if (sc) {
       for (const part of sc.split(/\s+/)) {

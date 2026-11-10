@@ -6,7 +6,6 @@ import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 type Spec = { [key: string]: unknown };
 
 const coarse = EDITOR_THEME["@media (pointer: coarse)"] as Spec;
-const find = EDITOR_THEME["& .cm-panel.cm-search"] as Spec;
 const px = (value: unknown) => Number.parseFloat(String(value));
 
 const ruleFor = (part: string): Spec => {
@@ -31,17 +30,8 @@ describe("the code editor's controls on a coarse pointer", () => {
     expect(capsSize(EDITOR_THEME as Spec).filter((path) => /button/i.test(path))).toEqual([]);
   });
 
-  it("give the case, word and regex toggles, which are labels, a 44px square outside the field", () => {
-    const toggles = ruleFor("cm-search label:has(input[type='checkbox'])");
-    expect(px(toggles["width"])).toBeGreaterThanOrEqual(44);
-    expect(px(toggles["height"])).toBeGreaterThanOrEqual(44);
-    expect(toggles["position"]).toBe("relative");
-    expect(toggles["gridRow"]).toBe("2");
-  });
-
-  it("raise the find, replace and go-to-line fields, whose own theme sets a 32px minimum, to 44px", () => {
+  it("raise the go-to-line field, whose own theme sets a 32px minimum, to 44px", () => {
     expect(px((EDITOR_THEME["& .cm-textfield"] as Spec)["minHeight"])).toBe(32);
-    expect(px(ruleFor("cm-search .cm-textfield")["minHeight"])).toBeGreaterThanOrEqual(44);
     expect(px(ruleFor("cm-gotoLine .cm-textfield")["height"])).toBeGreaterThanOrEqual(44);
   });
 });
@@ -93,25 +83,6 @@ describe("the context menu and suggestion rows the shared rule reaches", () => {
   });
 });
 
-describe("focus drawn outside the shared :focus-visible rule", () => {
-  it("draws the selected problem's edge while the list has keyboard focus, in Highlight under forced colours", () => {
-    expect(EDITOR_THEME["& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"]).toEqual({
-      outline: "1px solid var(--accent)",
-      outlineOffset: "-1px",
-    });
-    const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
-    expect((forced[".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"] as Spec)["outlineColor"]).toBe("Highlight");
-  });
-});
-describe("the code editor's own scroll containers", () => {
-  it("keep a stable gutter on the find fields and the problems list", () => {
-    const fields = find["& [contenteditable][name='search'], & [contenteditable][name='replace']"] as Spec;
-    expect(fields["overflowY"]).toBe("auto");
-    expect(fields["scrollbarGutter"]).toBe("stable");
-    expect((EDITOR_THEME["& .cm-panel.cm-panel-lint ul"] as Spec)["scrollbarGutter"]).toBe("stable");
-  });
-});
-
 describe("the code editor's focus edge", () => {
   const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
   const forcedRuleFor = (selector: string): Spec => {
@@ -123,14 +94,6 @@ describe("the code editor's focus edge", () => {
   it("draws the accent on a button's own edge, and Highlight under forced colours", () => {
     expect(EDITOR_THEME["& button:focus-visible"]).toEqual({ outline: "1px solid var(--accent)", outlineOffset: "-1px" });
     expect(forcedRuleFor("button:focus-visible")["outlineColor"]).toBe("Highlight");
-  });
-
-  it("draws a find toggle's edge in the accent, and Highlight under forced colours", () => {
-    expect(EDITOR_THEME["& label:has(input[type='checkbox']:focus-visible)::before"]).toEqual({
-      outline: "1px solid var(--accent)",
-      outlineOffset: "-1px",
-    });
-    expect(forcedRuleFor("label:has(input[type='checkbox']:focus-visible)::before")["outlineColor"]).toBe("Highlight");
   });
 
   it("draws a field's edge as its border in the accent, and Highlight under forced colours in panels and tooltips", () => {
@@ -145,19 +108,15 @@ describe("the code editor's icons under forced colours", () => {
   const block = css.slice(css.indexOf("@media (forced-colors: active)"), css.indexOf("@media (prefers-reduced-motion: reduce)"));
 
   it.each([
-    ".cm-panel.cm-search button::after",
-    ".cm-panel.cm-search label::after",
     ".cm-panel.cm-gotoLine button::after",
     ".codicon::after",
     ".cm-activeDiagnosticIcon",
     ".cm-navLeftIcon",
     ".cm-navRightIcon",
-    ".cm-problemsToggleIcon",
     ".cm-toolbar-icon",
     ".cm-menu-back-icon",
     ".cm-menu-more-icon",
     ".cm-fold-arrow",
-    ".cm-lsp-collapse-icon",
   ])("keeps the masked icon %s painted in CanvasText", (selector) => {
     expect(block).toContain(`.sparkdown-script-editor-root ${selector}`);
     expect(block).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);

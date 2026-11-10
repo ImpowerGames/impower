@@ -973,10 +973,14 @@ export default class WorkspaceFileSystem {
         this.getRelativePath(projectId, uri).startsWith(`${folder}/`),
       )
       .map((uri) => ({ uri }));
+    const trashed =
+      mode === "trash"
+        ? folders.map((p) => ({ uri: this.getFileUri(projectId, p) }))
+        : [];
     const deleted =
-      toDelete.length === 0
+      toDelete.length === 0 && trashed.length === 0
         ? []
-        : await this.deleteFiles({ files: toDelete, mode });
+        : await this.deleteFiles({ files: toDelete, folders: trashed, mode });
     const removed = new Set(await this.deleteFolders(projectId, [folder]));
     return {
       files: deleted,
@@ -992,13 +996,18 @@ export default class WorkspaceFileSystem {
     return result.batches ?? [];
   }
 
-  async restoreTrash(projectId: string, batchId: string): Promise<FileData[]> {
+  async restoreTrash(
+    projectId: string,
+    batchId: string,
+  ): Promise<{ files: FileData[]; folders: string[] }> {
     const result = await this.sendRequest(TrashFilesMessage.type, {
       projectId,
       action: "restore",
       batchId,
     });
-    return result.restored ?? [];
+    const folders = result.restoredFolders ?? [];
+    this.addFolderUris(folders.map((f) => this.getFileUri(projectId, f)));
+    return { files: result.restored ?? [], folders };
   }
 
   async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {

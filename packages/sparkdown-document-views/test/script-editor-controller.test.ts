@@ -1,5 +1,4 @@
 import { history } from "@codemirror/commands";
-import { openSearchPanel } from "@codemirror/search";
 import { Compartment, EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import {
@@ -14,9 +13,8 @@ import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/proto
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   customGotoLinePanel,
-  customSearchPanel,
   openCustomGotoLinePanel,
-} from "../src/modules/script-editor/utils/extensions/customSearch";
+} from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import { getScrollableParent } from "../src/utils/getScrollableParent";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
@@ -44,7 +42,6 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
               EditorView.editable.of(true),
             ),
             history(),
-            customSearchPanel(),
             customGotoLinePanel(),
             EditorView.updateListener.of((update) =>
               config.onViewUpdate(update),
@@ -203,22 +200,6 @@ describe("ScriptEditorController panel focus", () => {
     return methods.includes("editor/unfocused");
   };
 
-  it("keeps the editor focused when focus moves into the find field", async () => {
-    const { host, view, config, methods } = await loadedEditor();
-    openPanel(view, config, openSearchPanel);
-    const find = field(host, ".cm-search [contenteditable][name='search']");
-    expect(unfocusedAfterMovingInto(methods, config, find)).toBe(false);
-  });
-
-  it("keeps the editor focused when focus moves into the replace field", async () => {
-    const { host, view, config, methods } = await loadedEditor();
-    openPanel(view, config, openSearchPanel);
-    const find = field(host, ".cm-search [contenteditable][name='search']");
-    find.dispatchEvent(new FocusEvent("blur"));
-    const replace = field(host, ".cm-search [contenteditable][name='replace']");
-    expect(unfocusedAfterMovingInto(methods, config, replace)).toBe(false);
-  });
-
   it("keeps the editor focused when focus moves into the go-to-line field", async () => {
     const { host, view, config, methods } = await loadedEditor();
     openPanel(view, config, openCustomGotoLinePanel);
@@ -226,37 +207,11 @@ describe("ScriptEditorController panel focus", () => {
     expect(unfocusedAfterMovingInto(methods, config, line)).toBe(false);
   });
 
-  it("keeps the editor focused when go-to-line replaces an open find panel", async () => {
-    const { host, view, config, methods } = await loadedEditor();
-    openPanel(view, config, openSearchPanel);
-    field(host, ".cm-search [contenteditable][name='search']").dispatchEvent(
-      new FocusEvent("blur"),
-    );
-    openCustomGotoLinePanel(view);
-    expect(host.querySelector(".cm-search")).toBeNull();
-    const line = field(host, ".cm-gotoLine [contenteditable]");
-    line.dispatchEvent(new FocusEvent("blur"));
-    expect(unfocusedAfterMovingInto(methods, config, line)).toBe(false);
-  });
-
-  it("keeps the editor focused when find replaces an open go-to-line panel", async () => {
+  it("reports the editor unfocused once focus leaves the go-to-line field", async () => {
     const { host, view, config, methods } = await loadedEditor();
     openPanel(view, config, openCustomGotoLinePanel);
-    field(host, ".cm-gotoLine [contenteditable]").dispatchEvent(
-      new FocusEvent("blur"),
-    );
-    openSearchPanel(view);
-    expect(host.querySelector(".cm-gotoLine")).toBeNull();
-    const find = field(host, ".cm-search [contenteditable][name='search']");
-    find.dispatchEvent(new FocusEvent("blur"));
-    expect(unfocusedAfterMovingInto(methods, config, find)).toBe(false);
-  });
-
-  it("reports the editor unfocused once focus leaves the find field", async () => {
-    const { host, view, config, methods } = await loadedEditor();
-    openPanel(view, config, openSearchPanel);
-    const find = field(host, ".cm-search [contenteditable][name='search']");
-    find.dispatchEvent(new FocusEvent("blur"));
+    const line = field(host, ".cm-gotoLine [contenteditable]");
+    line.dispatchEvent(new FocusEvent("blur"));
     config.onFocus();
     methods.length = 0;
     config.onBlur();
@@ -303,43 +258,6 @@ describe("ScriptEditorController select", () => {
     select(controller, 0);
     expect(events).toEqual(["select", undefined]);
     expect(view.state.selection.main.head).toBe(0);
-  });
-});
-
-describe("ScriptEditorController problems", () => {
-  const show = (controller: TestController, uri: string) =>
-    controller["handleExecuteEditorCommand"]({
-      ...ExecuteEditorCommandMessage.type.request({
-        textDocument: { uri },
-        command: "problems",
-      }),
-      id: `problems-${nextId++}`,
-    });
-
-  it("opens the problems panel for its own document", async () => {
-    const { controller, view } = await loadedEditor();
-    controller.reveal();
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
-    const response = show(controller, "file:///main.sd");
-    expect(response).toMatchObject({ result: { ran: true } });
-    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
-  });
-
-  it("waits for a hidden editor to be revealed before opening the panel", async () => {
-    const { controller, view, host } = await loadedEditor();
-    const editor = host.firstElementChild as HTMLElement;
-    editor.style.visibility = "hidden";
-    expect(show(controller, "file:///main.sd")).toMatchObject({ result: { ran: true } });
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
-    controller.reveal();
-    expect(editor.style.visibility).toBe("visible");
-    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
-  });
-
-  it("leaves another document's request unanswered", async () => {
-    const { controller, view } = await loadedEditor();
-    expect(show(controller, "file:///other.sd")).toBeUndefined();
-    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
   });
 });
 
@@ -554,20 +472,20 @@ describe("ScriptEditorController load handover", () => {
     }
   });
 
-  it("leaves focus in Find when the author opened it while the editor was loading", async () => {
+  it("leaves focus in Go to line when the author opened it while the editor was loading", async () => {
     const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const { controller, host, view } = await loadAt(1, undefined, true);
     controller.setup();
     try {
-      openSearchPanel(view);
-      const find = host.querySelector<HTMLElement>(
-        ".cm-search [contenteditable][name='search']",
+      openCustomGotoLinePanel(view);
+      const line = host.querySelector<HTMLElement>(
+        ".cm-gotoLine [contenteditable]",
       )!;
-      find.focus();
-      expect(document.activeElement).toBe(find);
+      line.focus();
+      expect(document.activeElement).toBe(line);
       controller["handleIdle"]();
       await new Promise((resolve) => setTimeout(resolve, 250));
-      expect(document.activeElement).toBe(find);
+      expect(document.activeElement).toBe(line);
     } finally {
       hasFocus.mockRestore();
       clearInterval(controller["_focusIntervalTimeout"]);
@@ -748,15 +666,11 @@ describe("ScriptEditorController commands", () => {
     expect(view.state.doc.line(1).text).toBe("hello world");
   });
 
-  it("opens Go to line, find and the problems panel inside the editor", async () => {
+  it("opens Go to line inside the editor", async () => {
     const { controller, host } = await loadedEditor();
     controller.reveal();
     run(controller, "gotoLine");
     expect(host.querySelector(".cm-gotoLine")).not.toBeNull();
-    run(controller, "search");
-    expect(host.querySelector(".cm-search")).not.toBeNull();
-    run(controller, "problems");
-    expect(host.querySelector(".cm-panel-lint")).not.toBeNull();
   });
 
   it("undoes and redoes the script's edits and reports what it can undo and redo", async () => {

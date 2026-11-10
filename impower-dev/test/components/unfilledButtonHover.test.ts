@@ -288,9 +288,6 @@ describe("default and quiet Button call sites", () => {
     expect(
       sites.filter(({ unresolved }) => unresolved.length > 0).map(({ location, unresolved }) => `${location}: ${unresolved.join(", ")}`),
     ).toEqual([]);
-    const options = sites.filter(({ location }) => location.includes("FileOptionsButton.tsx"));
-    expect(options.length).toBe(2);
-    expect(options.every(({ classText }) => classText.includes("text-muted"))).toBe(true);
   });
 
   it("leave no hover or press background in the merged classes", () => {

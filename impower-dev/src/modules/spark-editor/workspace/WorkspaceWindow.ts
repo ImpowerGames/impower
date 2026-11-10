@@ -3,6 +3,12 @@ import {
   lspColorOf,
   storyColors,
 } from "@impower/codemirror-vscode-lsp-client/src/colorValue";
+import {
+  insertContext,
+  sceneSpansOf,
+  type InsertConstruct,
+  type InsertContext,
+} from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -23,12 +29,12 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -86,21 +92,29 @@ import {
   WorkspaceCache,
   WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
-import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
-import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
-import { type ShowDocumentResult } from "vscode-languageserver-protocol";
+import {
+  type DocumentSymbol,
+  type ShowDocumentResult,
+} from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
-import { stepRefusals, type StepTraversal } from "./stepStates";
+import {
+  skipRefusal,
+  stepRefusals,
+  type SkipDirection,
+  type StepTraversal,
+} from "./stepStates";
+import type { RollDebugTarget } from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
+import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import {
   checkName,
   joinScriptPath,
@@ -160,8 +174,6 @@ import {
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { renameOrReport } from "../utils/renameOrReport";
 
-const SHOW_PROBLEMS_WAIT_MS = 10_000;
-
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this),
@@ -179,6 +191,7 @@ export default class WorkspaceWindow {
 
   readonly debug = new WorkspaceDebugClient({
     onStop: (position) => this.followStop(position),
+    onRoll: (restored) => this.followRoll(restored),
     onRefusal: (message) => showSnackbar({ message }),
   });
 
@@ -387,6 +400,7 @@ export default class WorkspaceWindow {
       screen: {
         ...this.store.screen,
         appMenuOpen: false,
+        addPanel: undefined,
         writingTools: { view, fromMenu: false },
       },
     });
@@ -415,12 +429,93 @@ export default class WorkspaceWindow {
     });
   }
 
+  openAddPanel() {
+    if (workspace.effectiveScriptMode.peek() === "reading") {
+      workspace.scriptMode.value = "editing";
+    }
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: undefined,
+        addPanel: true,
+      },
+    });
+  }
+
+  closeAddPanel() {
+    if (!this.store.screen.addPanel) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, addPanel: undefined },
+    });
+  }
+
+  async readInsertContext(filename: string): Promise<InsertContext | null> {
+    const projectId = this.store.project.id;
+    const ls = this._workspace.ls;
+    if (!projectId || !ls?.initialization || !ls.connection) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const editor = await this.requestEditor(ReadEditorMessage.type, {
+      textDocument: { uri },
+    });
+    if (!editor) {
+      return null;
+    }
+    await ls.initialization();
+    const symbols = await ls.connection
+      .sendRequest<DocumentSymbol[] | null>("textDocument/documentSymbol", {
+        textDocument: { uri },
+      })
+      .catch(() => undefined);
+    if (symbols === undefined) {
+      return null;
+    }
+    const { text } = editor.textDocument;
+    const { line, character } = editor.caret;
+    const offset = text
+      .split("\n")
+      .slice(0, line)
+      .reduce((total, row) => total + row.length + 1, character);
+    return insertContext(text, offset, sceneSpansOf(symbols));
+  }
+
+  async insertConstruct(
+    filename: string,
+    construct: InsertConstruct,
+  ): Promise<boolean> {
+    this.closeAddPanel();
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const result = await this.requestEditor(InsertEditorConstructMessage.type, {
+      textDocument: { uri },
+      construct,
+    });
+    if (!result?.inserted) {
+      showSnackbar({
+        message: "Couldn't add that here. Move to another line and try again.",
+      });
+    }
+    return !!result?.inserted;
+  }
+
   startEditing(filename: string) {
     workspace.scriptMode.value = "editing";
     this.executeEditorCommand(filename, "focus");
   }
 
   finishEditing() {
+    if (workspace.scriptMode.peek() !== "editing") {
+      return;
+    }
     workspace.scriptMode.value = "reading";
   }
 
@@ -554,6 +649,10 @@ export default class WorkspaceWindow {
     workspace.syncConflictOpen.value = false;
   }
 
+  openTrash() {
+    workspace.trashOpen.value = true;
+  }
+
   async resolveSyncConflict(keep: "device" | "drive") {
     this.closeSyncConflict();
     if (keep === "device") {
@@ -599,6 +698,7 @@ export default class WorkspaceWindow {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
     this.debug.end();
+    this.cacheProjectWorkspace.flush();
   }
 
   protected registerProtocolHandlers() {
@@ -841,10 +941,13 @@ export default class WorkspaceWindow {
 
   protected applyVerifiedBreakpoints(uri: string, verified: EditorBreakpoint[]) {
     const lines = [...new Set(verified.map((b) => b.line))].sort((a, b) => a - b);
-    const states = lines.map((line) => ({
-      line,
-      verified: verified.some((b) => b.line === line && b.verified),
-    }));
+    const states = lines.map((line): EditorBreakpoint => {
+      if (verified.some((b) => b.line === line && b.verified)) {
+        return { line, verified: true };
+      }
+      const message = verified.find((b) => b.line === line)?.message;
+      return message == null ? { line, verified: false } : { line, verified: false, message };
+    });
     this.setBreakpointLines(uri, lines);
     sendProtocolMessage(
       SetEditorBreakpointsMessage.type.request({
@@ -907,20 +1010,6 @@ export default class WorkspaceWindow {
       ...workspace.editorHistory.peek(),
       [this.relativePathOf(textDocument.uri)]: { canUndo, canRedo },
     };
-  }
-
-  recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
-    const summary = { ...this.store.debug.diagnosticsSummary };
-    delete summary[uri];
-    const counts = countDiagnostics(diagnostics);
-    this.update({
-      ...this.store,
-      debug: {
-        ...this.store.debug,
-        diagnosticsSummary:
-          diagnostics.length > 0 ? { ...summary, [uri]: counts } : summary,
-      },
-    });
   }
 
   protected handleCompiledProgram = (
@@ -1408,7 +1497,7 @@ export default class WorkspaceWindow {
     if (!editor) {
       return null;
     }
-    const position = editor.selection.end;
+    const position = editor.caret;
     const textDocument = { uri };
     await ls.initialization();
     const [highlights, definitions] = await Promise.all([
@@ -1914,36 +2003,6 @@ export default class WorkspaceWindow {
     return result;
   }
 
-  async showProblems(uri: string) {
-    await this.revealDocument(uri, undefined, false);
-    const request = () =>
-      ExecuteEditorCommandMessage.type.request({
-        textDocument: { uri },
-        command: "problems",
-      });
-    const first = request();
-    const stop = () => {
-      stopAnswer();
-      stopLoad();
-      clearTimeout(timer);
-    };
-    const stopAnswer = onProtocolMessage(
-      {
-        is: (message: unknown): message is ExecuteEditorCommandMessage.Response =>
-          ExecuteEditorCommandMessage.type.isResponse(message, first.id),
-      },
-      () => stop(),
-    );
-    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
-      if (message.params.textDocument.uri === uri) {
-        stop();
-        sendProtocolMessage(request());
-      }
-    });
-    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
-    sendProtocolMessage(first);
-  }
-
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
     if (!game.running || Boolean(game.paused) === paused) {
@@ -1973,9 +2032,25 @@ export default class WorkspaceWindow {
         : this.debug.stepOut();
   }
 
+  followRoll(restored: SettledBeat) {
+    this.syncGameChoosing(restored.choices.length > 0);
+    const location = restored.location;
+    if (location) {
+      this.followPosition({
+        uri: location.uri,
+        line: location.range.start.line,
+      });
+    }
+  }
+
+  followPosition(position: GamePosition) {
+    this.syncGamePosition(position);
+    const at = { line: position.line, character: 0 };
+    void this.showDocument(position.uri, { start: at, end: at }, false);
+  }
+
   followStop(position: GamePosition) {
     this.syncGamePaused(true);
-    this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];
     if (!lines.includes(position.line)) {
@@ -1984,8 +2059,7 @@ export default class WorkspaceWindow {
         [position.uri]: [...lines, position.line].sort((a, b) => a - b),
       });
     }
-    const at = { line: position.line, character: 0 };
-    void this.showDocument(position.uri, { start: at, end: at }, false);
+    this.followPosition(position);
   }
 
   continueGame() {
@@ -1995,7 +2069,17 @@ export default class WorkspaceWindow {
     }
   }
 
-  async skipBeat(direction: -1 | 1): Promise<boolean> {
+  async skipBeat(
+    direction: SkipDirection,
+    to: RollDebugTarget = "beat",
+  ): Promise<boolean> {
+    const game = this.store.preview.modes.game;
+    if (game.running) {
+      if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
+        return false;
+      }
+      return direction < 0 ? this.debug.rollBack(to) : this.debug.rollForward(to);
+    }
     const ls = this._workspace.ls;
     if (!ls) {
       return false;

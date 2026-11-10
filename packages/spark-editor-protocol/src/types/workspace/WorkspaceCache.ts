@@ -144,11 +144,20 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
+  addPanel?: boolean;
 }
 
 export interface ListsState {
   scriptsSort?: string;
   scriptsFolder?: string;
+  scriptsTab?: string;
+  scriptsQueries?: Record<string, string>;
+  scriptsScrolls?: Record<string, number>;
+  assetsSort?: string;
+  assetsType?: string;
+  assetsFolders?: Record<string, string>;
+  assetsQueries?: Record<string, string>;
+  assetsScrolls?: Record<string, number>;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
@@ -182,10 +191,6 @@ export interface DebugState {
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
   startingValues?: Record<string, Record<string, string>>;
-  diagnosticsSummary?: Record<
-    string,
-    { errors: number; warnings: number; infos: number }
-  >;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {

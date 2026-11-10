@@ -2042,7 +2042,7 @@ export async function openFileMenu(page, { timeout = 10_000 } = {}) {
 
 const SCREENS = {
   logic: `${SCRIPTS_PAGE_SELECTOR}, .sparkdown-script-editor-root .cm-content`,
-  assets: '[role="tab"][id$="-trigger-files"]',
+  assets: '[data-assets-action="add"]',
   share: "#share-page",
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
@@ -2207,6 +2207,39 @@ export function focusScriptName(page, { timeout = 10000 } = {}) {
   return focusNameField(page, "focus-script-name", SCRIPT_NAME_SELECTOR, "script name (Main's name is fixed, so open another script first)", timeout);
 }
 
+const ADD_PANEL_SELECTOR = '[role="dialog"][aria-label="Add to script"]';
+
+export async function openAddMenu(page, { timeout = 5000 } = {}) {
+  const desktop = page.locator("[data-add-trigger]").first();
+  let opened = "popover";
+  if (await desktop.isVisible().catch(() => false)) {
+    await desktop.click();
+  } else {
+    opened = "keyboard";
+    const edit = page.locator("[data-edit-script]").first();
+    if (await edit.isVisible().catch(() => false)) await edit.click();
+    const toolbarAdd = page.locator('.cm-keyboard-toolbar button[aria-label="Add"]').first();
+    try {
+      await toolbarAdd.waitFor({ state: "visible", timeout });
+    } catch {
+      return { step: "add-menu", ran: false, reason: "no Add button on screen: neither the writer's bar nor the keyboard toolbar shows one" };
+    }
+    await toolbarAdd.click();
+  }
+  try {
+    await page.locator(ADD_PANEL_SELECTOR).first().waitFor({ state: "visible", timeout });
+  } catch {
+    return { step: "add-menu", ran: false, reason: `the Add panel did not open within ${timeout / 1000} s of pressing Add` };
+  }
+  const rows = await page.evaluate(async (selector) => {
+    const panel = document.querySelector(selector);
+    await Promise.all((panel?.getAnimations({ subtree: true }) ?? []).map((animation) => animation.finished.catch(() => null)));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    return [...(panel?.querySelectorAll("[data-add-construct]") ?? [])].map((row) => ({ construct: row.getAttribute("data-add-construct"), disabled: row.getAttribute("aria-disabled") === "true" }));
+  }, ADD_PANEL_SELECTOR);
+  return { step: "add-menu", ran: true, opened, rows };
+}
+
 const PREVIEW_SETTINGS_SELECTOR = 'button[aria-label="Preview settings"]';
 
 export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
@@ -2224,6 +2257,34 @@ export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
     return [...document.querySelectorAll('[role="menu"] [role="menuitemcheckbox"]')].map((row) => ({ name: row.querySelector("strong")?.textContent ?? row.textContent, checked: row.getAttribute("aria-checked") === "true" }));
   });
   return { step: "preview-settings", ran: true, toggles };
+}
+
+const PROBLEMS_TOGGLE_SELECTOR = '[role="group"][aria-label="Problems and display"] > button:first-of-type';
+
+export async function openProblems(page, { timeout = 5000 } = {}) {
+  const toggle = page.locator(PROBLEMS_TOGGLE_SELECTOR).first();
+  if (!(await toggle.isVisible().catch(() => false))) return { step: "problems", ran: false, reason: "the problems toggle under the game is not on screen; the preview pane may be hidden" };
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  try {
+    await page.waitForFunction(() => {
+      const shown = (el) => !!el && el.getBoundingClientRect().height > 0;
+      return shown(document.getElementById("problems-panel")) || [...document.querySelectorAll('[role="dialog"]')].some((dialog) => shown(dialog) && dialog.textContent.includes("Problems to fix"));
+    }, null, { timeout });
+  } catch {
+    return { step: "problems", ran: false, reason: `neither the Problems panel nor the Problems to fix dialog opened within ${timeout / 1000} s of pressing the problems toggle` };
+  }
+  const opened = await page.evaluate(async () => {
+    const panel = document.getElementById("problems-panel");
+    const root = panel ?? [...document.querySelectorAll('[role="dialog"]')].find((dialog) => dialog.textContent.includes("Problems to fix"));
+    const settling = [root, root.closest('[role="presentation"], [data-state]')].filter(Boolean).flatMap((el) => el.getAnimations({ subtree: true }));
+    await Promise.all(settling.filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished.catch(() => null)));
+    return {
+      surface: panel ? "panel" : "dialog",
+      cards: [...root.querySelectorAll("[aria-expanded]")].filter((button) => button.closest("#problems-panel")).map((button) => ({ name: button.getAttribute("aria-label"), open: button.getAttribute("aria-expanded") === "true" })),
+      entries: root.querySelectorAll("[data-message-entry]").length,
+    };
+  });
+  return { step: "problems", ran: true, toggle: (await toggle.textContent())?.trim() ?? "", ...opened };
 }
 
 export async function openSettings(page, section, { timeout = 10000 } = {}) {
@@ -3539,8 +3600,16 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(await focusScriptName(page));
               continue;
             }
+            if (step.step === "add-menu") {
+              result.steps.push(await openAddMenu(page));
+              continue;
+            }
             if (step.step === "preview-settings") {
               result.steps.push(await openPreviewSettings(page));
+              continue;
+            }
+            if (step.step === "problems") {
+              result.steps.push(await openProblems(page));
               continue;
             }
             const ready = await requireEditor(page, "PLAY", stepNo);
@@ -3868,7 +3937,7 @@ switch (cmd) {
         "  --complete <line>:<col>=<text>  type real keystrokes and read completion plus its info panel",
         "  --project <dir-or-zip>  replace OPFS /local with this project's files, then reload",
         "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
-        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: files | urls | game | screenplay;",
+        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: image | audio | video | text | font | other (the Assets type tabs) | game | screenplay;",
         "                          main opens main.sd from the Scripts page; scripts goes to the Scripts page",
         "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
         "  --close <panel>         close it with Escape",

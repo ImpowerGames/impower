@@ -81,7 +81,7 @@ describe("breakpoints in the workspace", () => {
       breakpoints: {
         [MAIN]: [
           { line: 3, verified: true },
-          { line: 6, verified: false },
+          { line: 6, verified: false, message: "A declaration runs before the story starts" },
         ],
       },
     };
@@ -93,7 +93,7 @@ describe("breakpoints in the workspace", () => {
         textDocument: { uri: MAIN },
         breakpoints: [
           { line: 3, verified: true },
-          { line: 6, verified: false },
+          { line: 6, verified: false, message: "A declaration runs before the story starts" },
         ],
       },
     ]);

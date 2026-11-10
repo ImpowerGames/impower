@@ -30,18 +30,20 @@ export const formatConsoleTime = (time: number) => {
 export const consoleLocation = (entry: { path?: string; line?: number }) =>
   entry.path ? (entry.line != null ? `${entry.path}:${entry.line}` : entry.path) : "";
 
+export const formatConsoleStamp = (time: number) =>
+  new Date(time).toISOString();
+
 export const formatConsoleEntry = (entry: ConsoleEntry) =>
   [
-    entry.time != null ? `[${formatConsoleTime(entry.time)}]` : "",
-    entry.severity.toUpperCase(),
+    `${entry.time != null ? `[${formatConsoleStamp(entry.time)}] ` : ""}${entry.severity.toUpperCase()} · ${entry.title ?? entry.message}`,
+    entry.title ? entry.message : "",
     consoleLocation(entry),
-    entry.title ? `${entry.title}: ${entry.message}` : entry.message,
   ]
     .filter(Boolean)
-    .join(" ");
+    .join("\n");
 
 export const formatConsoleLog = (entries: readonly ConsoleEntry[]) =>
-  entries.map(formatConsoleEntry).join("\n");
+  entries.length ? `${entries.map(formatConsoleEntry).join("\n\n")}\n` : "";
 
 export const countBySeverity = (entries: readonly { severity: ConsoleSeverity }[]) => {
   const counts: Record<ConsoleSeverity, number> = { error: 0, warning: 0, info: 0 };

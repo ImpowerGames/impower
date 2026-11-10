@@ -1,16 +1,25 @@
-import { computed, effect, signal, type ReadonlySignal } from "@preact/signals";
+import {
+  computed,
+  effect,
+  signal,
+  type ReadonlySignal,
+  type Signal,
+} from "@preact/signals";
 import type {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { AssetListing } from "./assetsListing";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
 import {
@@ -37,14 +46,14 @@ export interface OutlineSnapshot {
 export interface DebugSessionState {
   stopped: DebugProtocol.StoppedEvent["body"] | null;
   stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
-  canStepOut: boolean;
+  history: GameHistory | null;
   breakpoints: Record<string, EditorBreakpoint[]>;
 }
 
 export const IDLE_DEBUG_SESSION: DebugSessionState = {
   stopped: null,
   stackTrace: null,
-  canStepOut: false,
+  history: null,
   breakpoints: {},
 };
 
@@ -111,7 +120,6 @@ export const cacheableWorkspaceState = (
   const copy = structuredClone(store);
   copy.screen = {};
   copy.sync = {};
-  copy.debug.diagnosticsSummary = {};
   copy.debug.pinpoints = {};
   copy.debug.highlights = {};
   copy.preview.modes.game = {};
@@ -151,11 +159,30 @@ class WorkspaceStore {
 
   readonly scriptReferences = signal<readonly Reference[]>([]);
 
+  readonly assetListing = signal<AssetListing | null>(null);
+
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
   readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
 
   readonly scriptMode = signal<ScriptMode>("reading");
+
+  private _layout: Signal<Layout> | undefined;
+
+  get layout(): Signal<Layout> {
+    if (!this._layout) {
+      const layout = signal<Layout>(layoutState.current());
+      layoutState.subscribe((next) => {
+        layout.value = next;
+      });
+      this._layout = layout;
+    }
+    return this._layout;
+  }
+
+  readonly effectiveScriptMode = computed<ScriptMode | undefined>(() =>
+    this.layout.value === "phone" ? this.scriptMode.value : undefined,
+  );
 
   readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
 

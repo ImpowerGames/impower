@@ -7,7 +7,7 @@ import {
   signal,
   type ReadonlySignal,
 } from "@preact/signals";
-import { setAssetFiles } from "../../utils/fileIcon";
+import { setAssetFiles } from "../../utils/assetTypes";
 import { setScriptFiles } from "../../utils/scriptFiles";
 import workspace from "../WorkspaceStore";
 import {
@@ -281,9 +281,9 @@ export class WorkspaceSettings {
 const workspaceSettings = new WorkspaceSettings(workspace.signals.projectId);
 
 effect(() => {
-  const { scriptFiles, imageFiles, audioFiles } = workspaceSettings.projectSettings.value;
+  const { scriptFiles, imageFiles, audioFiles, videoFiles, fontFiles } = workspaceSettings.projectSettings.value;
   setScriptFiles(scriptFiles);
-  setAssetFiles({ imageFiles, audioFiles });
+  setAssetFiles({ imageFiles, audioFiles, videoFiles, fontFiles });
 });
 
 export default workspaceSettings;

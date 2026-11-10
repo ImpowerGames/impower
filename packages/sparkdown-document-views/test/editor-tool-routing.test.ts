@@ -1,5 +1,9 @@
 import { runScopeHandlers, type EditorView } from "@codemirror/view";
-import type { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  findReferences,
+  openProblems,
+  type LSPClient,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCodemirrorWorkspace } from "../src/modules/script-editor/classes/SparkdownCodemirrorWorkspace";
 import createEditorView from "../src/modules/script-editor/utils/createEditorView";
@@ -16,11 +20,16 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+let sent: string[] = [];
+
 const mount = (withTools: boolean) => {
-  const tools = { find: vi.fn(), rename: vi.fn(), references: vi.fn() };
+  const tools = { find: vi.fn(), rename: vi.fn(), references: vi.fn(), problems: vi.fn() };
   const parent = document.body.appendChild(document.createElement("div"));
+  sent = [];
   const worker = Object.assign(new EventTarget(), {
-    postMessage: () => {},
+    postMessage: (message: { method?: string }) => {
+      if (message.method) sent.push(message.method);
+    },
   }) as unknown as Worker;
   [view] = createEditorView(parent, {
     ...(withTools ? { tools } : {}),
@@ -52,7 +61,31 @@ const mount = (withTools: boolean) => {
 const press = (key: string, shiftKey = false) =>
   runScopeHandlers(view, new KeyboardEvent("keydown", { key, shiftKey }), "editor");
 
+const pressProblems = () =>
+  runScopeHandlers(
+    view,
+    new KeyboardEvent("keydown", { key: "M", code: "KeyM", keyCode: 77, ctrlKey: true, shiftKey: true }),
+    "editor",
+  );
+
 describe("the editor's own name-tool keys", () => {
+  it("opens the host's Problems from Ctrl+Shift+M", () => {
+    const tools = mount(true);
+    expect(pressProblems()).toBe(true);
+    expect(tools.problems).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens nothing and asks the server for nothing from Ctrl+Shift+M where no host supplies Problems", async () => {
+    mount(false);
+    await new Promise((resolve) => setTimeout(resolve));
+    const before = sent.length;
+    pressProblems();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(sent.slice(before)).toEqual([]);
+    expect(view.dom.querySelector(".cm-panel:not(.cm-status)")).toBeNull();
+    expect(openProblems(view)).toBe(false);
+  });
+
   it("opens the host's Rename from F2", () => {
     const tools = mount(true);
     expect(press("F2")).toBe(true);
@@ -64,6 +97,14 @@ describe("the editor's own name-tool keys", () => {
     const tools = mount(true);
     expect(press("F12", true)).toBe(true);
     expect(tools.references).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the server for no references where no host supplies References", async () => {
+    mount(false);
+    press("F12", true);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(sent).not.toContain("textDocument/references");
+    expect(findReferences(view)).toBe(false);
   });
 
   it("keeps the editor's own Rename where no host supplies one", () => {

@@ -14,6 +14,7 @@ export interface TrashFilesParams {
 export interface TrashFilesResult {
   batches?: TrashBatch[];
   restored?: FileData[];
+  restoredFolders?: string[];
 }
 
 export class TrashFilesMessage {

@@ -10,12 +10,10 @@ import {
   TextIcon,
 } from "@impower/impower-ui/icons";
 import { describe, expect, it } from "vitest";
+import { setAssetFiles } from "../../src/modules/spark-editor/utils/assetTypes";
 import {
   extOf,
-  fileCategory,
   iconForPath,
-  isImagePath,
-  setAssetFiles,
 } from "../../src/modules/spark-editor/utils/fileIcon";
 
 describe("iconForPath", () => {
@@ -83,25 +81,6 @@ describe("iconForPath", () => {
   });
 });
 
-describe("isImagePath", () => {
-  it("is true for image extensions (case-insensitive, nested, multi-dot)", () => {
-    for (const ext of ["png", "jpg", "jpeg", "gif", "webp", "svg"]) {
-      expect(isImagePath(`art.${ext}`)).toBe(true);
-    }
-    expect(isImagePath("backgrounds/forest.PNG")).toBe(true);
-    expect(isImagePath("scene.backup.webp")).toBe(true);
-  });
-
-  it("is false for non-image files and folders' names", () => {
-    expect(isImagePath("main.sd")).toBe(false);
-    expect(isImagePath("song.mp3")).toBe(false);
-    expect(isImagePath("data.json")).toBe(false);
-    expect(isImagePath("LICENSE")).toBe(false);
-    expect(isImagePath("archive.tar.gz")).toBe(false);
-    expect(isImagePath("")).toBe(false);
-  });
-});
-
 describe("extOf", () => {
   it("returns the lowercased final extension", () => {
     expect(extOf("a/b.PNG")).toBe("png");
@@ -115,38 +94,20 @@ describe("extOf", () => {
   });
 });
 
-describe("fileCategory (Type filter)", () => {
-  it("maps extensions to coarse media categories", () => {
-    expect(fileCategory("art/forest.png")).toBe("image");
-    expect(fileCategory("song.ogg")).toBe("audio");
-    expect(fileCategory("beat.mid")).toBe("audio");
-    expect(fileCategory("clip.mp4")).toBe("video");
-    expect(fileCategory("notes.md")).toBe("text");
-    expect(fileCategory("main.sd")).toBe("text");
-  });
-
-  it("is 'other' for unmapped / missing extensions", () => {
-    expect(fileCategory("bundle.zip")).toBe("other");
-    expect(fileCategory("manual.pdf")).toBe("other");
-    expect(fileCategory("LICENSE")).toBe("other");
-  });
-});
-
 describe("the endings configured under File types", () => {
-  it("add an image or audio ending to the glyph, the thumbnail and the type filter, leaving the built-in endings", () => {
-    expect(isImagePath("assets/lighthouse.avif")).toBe(false);
+  const NONE = { imageFiles: "", audioFiles: "", videoFiles: "", fontFiles: "" };
+
+  it("add an image or audio ending to the glyph, leaving the built-in endings", () => {
+    expect(iconForPath("assets/lighthouse.avif", false)).toBe(TextIcon);
     try {
-      setAssetFiles({ imageFiles: "*.{png,avif}", audioFiles: "*.{ogg,weba}" });
-      expect(isImagePath("assets/lighthouse.avif")).toBe(true);
+      setAssetFiles({ ...NONE, imageFiles: "*.{png,avif}", audioFiles: "*.{ogg,weba}" });
       expect(iconForPath("assets/lighthouse.AVIF", false)).toBe(ImageIcon);
-      expect(fileCategory("assets/lighthouse.avif")).toBe("image");
       expect(iconForPath("assets/rain.weba", false)).toBe(MusicIcon);
-      expect(fileCategory("assets/rain.weba")).toBe("audio");
-      expect(fileCategory("assets/hero.jpg")).toBe("image");
-      expect(fileCategory("assets/theme.m4a")).toBe("audio");
+      expect(iconForPath("assets/hero.jpg", false)).toBe(ImageIcon);
+      expect(iconForPath("assets/theme.m4a", false)).toBe(MusicIcon);
     } finally {
-      setAssetFiles({ imageFiles: "", audioFiles: "" });
+      setAssetFiles(NONE);
     }
-    expect(fileCategory("assets/lighthouse.avif")).toBe("other");
+    expect(iconForPath("assets/lighthouse.avif", false)).toBe(TextIcon);
   });
 });

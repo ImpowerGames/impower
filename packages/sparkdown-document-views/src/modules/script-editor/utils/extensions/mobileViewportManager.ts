@@ -1,7 +1,5 @@
-import { closeLintPanel } from "@codemirror/lint";
 import { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import { closeReferencePanel } from "@impower/codemirror-vscode-lsp-client/src";
 import {
   closeKeyboardToolbar,
   hasScriptMode,
@@ -49,8 +47,6 @@ const viewportPlugin = ViewPlugin.fromClass(
         if (!hasScriptMode(this.view.state)) {
           openKeyboardToolbar(this.view);
         }
-        closeLintPanel(this.view);
-        closeReferencePanel(this.view);
       });
     }
 

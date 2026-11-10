@@ -30,6 +30,7 @@ import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/c
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
+import { GameToggledConsoleMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledConsoleMessage";
 import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { RuntimeDiagnosticsRun } from "./utils/RuntimeDiagnosticsRun";
@@ -49,6 +50,7 @@ import {
   GameResizedMessage,
   type GameResizedParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
@@ -80,6 +82,8 @@ import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
+import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
+import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
@@ -1422,6 +1426,12 @@ export class GamePlayerController {
     p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
     p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
     p.onRequest(StepGameMessage.type, this.handleStepGame, this.host);
+    p.onRequest(RollBackGameMessage.type, this.handleRollBackGame, this.host);
+    p.onRequest(
+      RollForwardGameMessage.type,
+      this.handleRollForwardGame,
+      this.host,
+    );
     p.onRequest(ContinueGameMessage.type, this.handleContinueGame, this.host);
     p.onRequest(
       GetGameScriptsMessage.type,
@@ -2309,6 +2319,37 @@ export class GamePlayerController {
     });
   };
 
+  protected handleRollBackGame = (message: RollBackGameMessage.Request) =>
+    this.rollGame(RollBackGameMessage.type, message);
+
+  protected handleRollForwardGame = (message: RollForwardGameMessage.Request) =>
+    this.rollGame(RollForwardGameMessage.type, message);
+
+  protected async rollGame(
+    type: typeof RollBackGameMessage.type | typeof RollForwardGameMessage.type,
+    message: RollBackGameMessage.Request | RollForwardGameMessage.Request,
+  ) {
+    const play = this._workerPlay;
+    const run = play?.run ?? null;
+    let answer: RollBackGameMessage.Response["result"] | undefined;
+    try {
+      answer = await this.askWorkerGame(type, message.params);
+    } catch (e) {
+      return type.error(message.id, toResponseError(e));
+    }
+    if (answer?.held && this._workerPlay === play) {
+      this.controlledApp?.pause();
+      this.updateLaunchStateIcon();
+    }
+    if (answer) {
+      return type.response(message.id, { ...answer, run });
+    }
+    return type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
+  }
+
   protected setStepping(stepping: boolean) {
     if (stepping !== this._stepping && !this._disposed) {
       this._stepping = stepping;
@@ -2930,6 +2971,19 @@ export class GamePlayerController {
     }
   }
 
+  protected releaseEndedPlay(owner: unknown) {
+    const play = this._workerPlay;
+    if (!play || play !== owner || !play.ended) {
+      return;
+    }
+    play.ended = undefined;
+    this.updateLaunchStateIcon();
+    this.setEndingStatus(null);
+    if (!this.refs.toolbar) {
+      this.hidePlayButton();
+    }
+  }
+
   protected setEndingStatus(ending: GameEnding | null) {
     if (ending !== this._ending) {
       this._ending = ending;
@@ -3202,6 +3256,12 @@ export class GamePlayerController {
           const message = msg.params.message;
           const location = msg.params.location;
           this.recordRuntimeError(owner, { message, type, location });
+          if (!this.displayingSpeculative) {
+            sendProtocolMessage(
+              GameEncounteredRuntimeErrorMessage.type.notification(msg.params),
+              this.host,
+            );
+          }
           if (type === ErrorType.Error) {
             console.error(message, location);
           } else if (type === ErrorType.Warning) {
@@ -3209,6 +3269,20 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
+        }
+      },
+    );
+    game.connection.outgoing.addListener(
+      GameToggledConsoleMessage.method,
+      (msg) => {
+        if (
+          GameToggledConsoleMessage.type.isNotification(msg) &&
+          !this.displayingSpeculative
+        ) {
+          sendProtocolMessage(
+            GameToggledConsoleMessage.type.notification(msg.params),
+            this.host,
+          );
         }
       },
     );
@@ -3269,6 +3343,18 @@ export class GamePlayerController {
       if (GameSteppedMessage.type.isNotification(msg)) {
         sendProtocolMessage(
           GameSteppedMessage.type.notification({
+            ...msg.params,
+            run: this.runOf(owner),
+          }),
+          this.host,
+        );
+      }
+    });
+    game.connection.outgoing.addListener(GameRolledMessage.method, (msg) => {
+      if (GameRolledMessage.type.isNotification(msg)) {
+        this.releaseEndedPlay(owner);
+        sendProtocolMessage(
+          GameRolledMessage.type.notification({
             ...msg.params,
             run: this.runOf(owner),
           }),

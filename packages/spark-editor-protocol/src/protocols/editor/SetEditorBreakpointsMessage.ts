@@ -8,6 +8,7 @@ export type SetEditorBreakpointsMethod = typeof SetEditorBreakpointsMessage.meth
 export interface EditorBreakpoint {
   line: number;
   verified: boolean;
+  message?: string;
 }
 
 export interface SetEditorBreakpointsParams {

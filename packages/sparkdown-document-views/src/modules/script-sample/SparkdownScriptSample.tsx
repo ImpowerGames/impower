@@ -2,8 +2,12 @@ import { indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
-import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
 import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
+import {
+  SPARKDOWN_EMBEDDED_LANGUAGES,
+  SPARKDOWN_LANGUAGE_CONFIGS,
+  sparkdownLanguageFor,
+} from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import { useEffect, useRef } from "preact/hooks";
 import { indentedLineWrapping } from "../../cm-indented-line-wrapping/indentedLineWrapping";
 import {
@@ -39,7 +43,9 @@ export const createScriptSampleState = (
       vscodeLanguage({
         name: "sparkdown",
         grammar: sparkdownGrammarFor(SAMPLE_URI),
-        config: CONFIG_DEFINITION as never,
+        language: sparkdownLanguageFor(SAMPLE_URI),
+        configs: SPARKDOWN_LANGUAGE_CONFIGS as never,
+        embeddedLanguages: SPARKDOWN_EMBEDDED_LANGUAGES,
       }),
       syntaxHighlighting(EDITOR_HIGHLIGHTS),
       lineNumbers(),

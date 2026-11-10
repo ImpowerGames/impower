@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { changeColor, documentColorAt } from "./color";
 import { jumpToDefinition } from "./definition";
 import { coarsePointer } from "./pointer";
-import { findReferences } from "./references";
+import { findReferences } from "./tools";
 import { renameSymbol } from "./rename";
 import type { EditorShortcutId } from "./shortcutTable";
 
