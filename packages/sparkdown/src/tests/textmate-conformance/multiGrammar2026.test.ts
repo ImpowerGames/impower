@@ -20,6 +20,7 @@ const OUTER = {
     { include: "#Hollow" },
     { include: "#Lack" },
     { include: "#Void" },
+    { include: "#Rooted" },
     { include: "#Word" },
     { include: "#Gap" },
   ],
@@ -46,6 +47,7 @@ const OUTER = {
       patterns: [{ include: "source.inner#Absent" }, { include: "#Absent" }, { include: "#Word" }, { include: "#Gap" }],
     },
     Void: { name: "void.outer", begin: "~", end: "~", patterns: [{ include: "source.inner#Absent" }] },
+    Rooted: { name: "rooted.outer", begin: "\\$", end: "\\$", patterns: [{ include: "source.inner#" }] },
     Word: { name: "word.outer", match: "[a-z]+" },
     Gap: { match: "\\s" },
   },
@@ -77,6 +79,7 @@ describe("includes that name a grammar scope as vscode-textmate does (I-2026)", 
     ["$base", "{ @ a [ 3 ] @ }\n", "3", "source.outer block.outer back.inner pick.outer number.inner"],
     ["an include of a scope that is not loaded", "a < b c > d\n", "c", "source.outer skip.outer word.outer"],
     ["an include of a rule that a grammar lacks", "a ^ b ^ c\n", "b", "source.outer lack.outer word.outer"],
+    ["scope.name# with no rule name", "a $ b 1 $ c\n", "b", "source.outer rooted.outer word.inner"],
   ])("%s", async (_, text, needle, expected) => {
     const vscode = await vscodeScopes(structuredClone(OUTER), text, [structuredClone(INNER)]);
     expect(scopesAt(vscode, text, needle)).toBe(expected);

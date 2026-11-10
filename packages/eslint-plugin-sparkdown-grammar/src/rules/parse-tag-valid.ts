@@ -8,6 +8,7 @@ import {
   type YAMLMapping,
   type YAMLScalar,
 } from "../utils/yaml-ast.ts";
+import { readTagModifier } from "../../../textmate-grammar-tree/src/grammar/utils/readTagModifier.ts";
 import { splitTag } from "../../../textmate-grammar-tree/src/grammar/utils/splitTag.ts";
 
 function validateTagExpression(expr: string): string | null {
@@ -40,6 +41,7 @@ const rule: Rule.RuleModule = {
         "`tag` value {{value}} does not match the parseTag syntax `(modifier?) expression`. See GRAMMAR.md §8.",
       invalidExpression:
         "`tag` value {{value}} is invalid: {{reason}}. See GRAMMAR.md §8.",
+      invalidModifier: "{{reason}}. See GRAMMAR.md §8.",
     },
   },
   create(context) {
@@ -68,6 +70,16 @@ const rule: Rule.RuleModule = {
             loc: scalar.loc,
             messageId: "malformed",
             data: { value: JSON.stringify(value) },
+          });
+          return;
+        }
+        try {
+          readTagModifier(split.modifier ?? "", value);
+        } catch (error) {
+          context.report({
+            loc: scalar.loc,
+            messageId: "invalidModifier",
+            data: { reason: (error as Error).message },
           });
           return;
         }

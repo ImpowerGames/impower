@@ -178,8 +178,8 @@ function loadGrammars(suiteDir: string, c: TestCase): { raw: any; path: string }
     const full = resolve(suiteDir, rel);
     try {
       loaded.push({ raw: parseRawGrammar(readFileSync(full, "utf8"), full), path: rel });
-    } catch {
-      continue;
+    } catch (error) {
+      throw new Error(`Could not load grammar ${rel}: ${(error as Error).message}`);
     }
   }
   return loaded;

@@ -226,7 +226,8 @@ export class GrammarRepository {
     if (!repository) {
       return [];
     }
-    return sharp < 0 ? [repository.self] : repository.rule(str.slice(sharp + 1));
+    const name = sharp < 0 ? "" : str.slice(sharp + 1);
+    return name ? repository.rule(name) : [repository.self];
   }
 
   rule(name: string): Rule[] {
