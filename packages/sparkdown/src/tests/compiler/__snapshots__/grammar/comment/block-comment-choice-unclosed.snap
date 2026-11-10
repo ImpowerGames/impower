@@ -1,0 +1,63 @@
+sparkdown [0..67]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ └─ LuauSparkdownChooseBlock [12..67]
+     ├─ LuauSparkdownChooseBlock_begin [12..20]
+     │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+     │   │   └─ OptionalWhitespace [12..14]: "  "
+     │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+     │   │   └─ LuauChooseKeyword [14..20]: "choose"
+     │   └─ LuauSparkdownChooseBlock_begin_c3 20
+     │       └─ LuauSparkdownChooseBlock_begin_c3 20
+     │           └─ OptionalWhitespace 20
+     └─ LuauSparkdownChooseBlock_content [20..67]
+         ├─ Newline [20..21]: "\n"
+         └─ Choice [21..67]
+             ├─ Choice_begin [21..27]
+             │   ├─ Choice_begin_c1 [21..25]
+             │   │   └─ OptionalWhitespace [21..25]: "    "
+             │   ├─ Choice_begin_c2 [25..27]
+             │   │   └─ ChoiceMark [25..27]: "+ "
+             │   ├─ Choice_begin_c3 27
+             │   ├─ Choice_begin_c4 27
+             │   ├─ Choice_begin_c5 27
+             │   ├─ Choice_begin_c6 27
+             │   └─ Choice_begin_c7 27
+             ├─ Choice_content [27..67]
+             │   ├─ ChoiceWithNoSuppressedText [27..29]
+             │   │   ├─ ChoiceWithNoSuppressedText_c1 [27..29]
+             │   │   │   └─ ChoicePlainText [27..29]
+             │   │   │       └─ ChoiceTextContent [27..29]
+             │   │   │           └─ ChoiceTextContent_c1 [27..29]
+             │   │   │               └─ Word [27..29]: "Go"
+             │   │   ├─ ChoiceWithNoSuppressedText_c2 29
+             │   │   ├─ ChoiceWithNoSuppressedText_c3 29
+             │   │   └─ ChoiceWithNoSuppressedText_c4 29
+             │   └─ SparkdownBlockComment [29..67]
+             │       ├─ SparkdownBlockComment_begin [29..32]
+             │       │   ├─ SparkdownBlockComment_begin_c1 [29..30]
+             │       │   │   └─ OptionalWhitespace [29..30]: " "
+             │       │   └─ SparkdownBlockComment_begin_c2 [30..32]: "/*"
+             │       └─ SparkdownBlockComment_content [32..67]
+             │           ├─ SparkdownBlockCommentContent [32..45]: " never closed"
+             │           ├─ Newline [45..46]: "\n"
+             │           ├─ SparkdownBlockCommentContent [46..56]: "      done"
+             │           ├─ Newline [56..57]: "\n"
+             │           ├─ SparkdownBlockCommentContent [57..62]: "  end"
+             │           ├─ Newline [62..63]: "\n"
+             │           ├─ SparkdownBlockCommentContent [63..66]: "end"
+             │           └─ Newline [66..67]: "\n"
+             └─ Choice_end 67

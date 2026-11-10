@@ -526,6 +526,9 @@
     "CHOICE_CLOSURE_PARENS": "(?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])",
     "CHOICE_UNREADABLE_CONDITION_OPEN": "(?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))",
     "CHOICE_HEADER_LINE_BREAK_TAKEN": "(?:\\G(?![\\s\\S]))",
+    "CHOICE_TEXT_UNIT": "(?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?:(?![*][/]).)*[*][/]|(?!{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}).)",
+    "CHOICE_TEXT_BEFORE_OPEN_COMMENT": "(?={{CHOICE_OPEN_COMMENT_ON_LINE}})",
+    "CHOICE_OPEN_COMMENT_ON_LINE": "(?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?!.*[*][/]))",
     "LUAU_ESCAPE_LINE_BREAK_TAKEN": "(?:\\G(?![\\s\\S]))",
     "LUAU_KEYWORD": "(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})",
     "LUAU_ALTERNATOR_CANDIDATE_AHEAD": "(?!{{WS}}*(?:{{LUAU_EXPRESSION_GOES_ON}}|{{LUAU_LINE_END_OR_COMMENT}}))",
@@ -1759,6 +1762,9 @@
           "include": "#ChoiceConditional"
         },
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#ChoiceWithSuppressedText"
         },
         {
@@ -1854,7 +1860,7 @@
       "match": "(.+)"
     },
     "ChoiceWithSuppressedText": {
-      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
+      "match": "((?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*?)(\\[)((?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*?)(\\])((?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>](?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*)(?:$|(?=(?:(?:[^\\S\\n\\r])*(?:[/][*])(?!.*[*][/]))))|(?=(?:(?:[^\\S\\n\\r])*(?:[/][*])(?!.*[*][/]))))",
       "captures": {
         "1": {
           "patterns": [
@@ -1909,7 +1915,7 @@
       }
     },
     "ChoiceWithNoSuppressedText": {
-      "match": "(?!(?:\\G(?![\\s\\S])))(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
+      "match": "(?!(?:\\G(?![\\s\\S])))((?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>](?:(?:[^\\S\\n\\r])*(?:[/][*])(?:(?![*][/]).)*[*][/]|(?!(?:[^\\S\\n\\r])*(?:[/][*])).)*)(?:$|(?=(?:(?:[^\\S\\n\\r])*(?:[/][*])(?!.*[*][/]))))|(?=(?:(?:[^\\S\\n\\r])*(?:[/][*])(?!.*[*][/]))))",
       "captures": {
         "1": {
           "patterns": [

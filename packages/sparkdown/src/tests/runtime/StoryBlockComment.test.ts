@@ -148,6 +148,50 @@ end
     expect(story.ContinueMaximally()).toBe("Go left\nHi there.\n");
   });
 
+  test("a comment that opens in choice text and closes on a later line leaves the text after it in the choice", () => {
+    const { result, errors } = compile(`scene start
+  choose
+    + Go /* draft
+      hidden */ left
+      Gone.
+      done
+    + [Wait /* [inner] */ here] /* open
+      still */ now
+      done
+  end
+end
+`);
+    expect(errors).toEqual([]);
+    const story = testStory(result.program.chunks);
+    story.Continue();
+    expect(story.currentChoices.map((c: any) => c.text)).toEqual([
+      "Go left",
+      "Wait here",
+    ]);
+    story.ChooseChoiceIndex(0);
+    expect(story.ContinueMaximally()).toBe("Go left\nGone.\n");
+    const second = testStory(result.program.chunks);
+    second.Continue();
+    second.ChooseChoiceIndex(1);
+    const out = second.ContinueMaximally();
+    expect(out).toContain("now");
+    expect(out).not.toMatch(/still|open|inner|Wait/);
+  });
+
+  test("an unclosed `/*` in choice text reports an error at the opener", () => {
+    const { errors } = compile(`scene start
+  choose
+    + Go /* never closed
+      done
+  end
+end
+`);
+    const unclosed = errors.filter((e) =>
+      JSON.stringify(e.message).includes("missing its closing `*/`"),
+    );
+    expect(unclosed.map((e) => [e.line, e.character])).toEqual([[2, 9]]);
+  });
+
   test("a comment after `end` is not read as a line of story text", () => {
     const { result } = compile(`scene start
   if true then

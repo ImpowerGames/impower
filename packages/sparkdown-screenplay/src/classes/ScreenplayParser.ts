@@ -63,11 +63,12 @@ export default class ScreenplayParser {
     };
 
     const continuesAfterComment = (node: SyntaxNode): boolean => {
-      const comment = node.prevSibling;
-      return (
-        comment?.name === "SparkdownBlockComment" &&
-        comment.prevSibling?.name === "TextChunk"
-      );
+      let before = node.prevSibling;
+      if (before?.name !== "SparkdownBlockComment") return false;
+      while (before?.name === "SparkdownBlockComment") {
+        before = before.prevSibling;
+      }
+      return before?.name === "TextChunk";
     };
     const appendLine = (lines: string, node: SyntaxNode, text: string) =>
       continuesAfterComment(node)

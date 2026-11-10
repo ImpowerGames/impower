@@ -22,6 +22,7 @@ const CHOOSE_KEYWORD = "LuauChooseKeyword";
 const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
+const COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
 const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
 const FALLBACK_NAME = "choose";
 
@@ -80,6 +81,23 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
+  const textWithoutComments = (node: SyntaxNode) => {
+    let result = "";
+    let pos = node.from;
+    const visit = (parent: SyntaxNode) => {
+      for (let child = parent.firstChild; child; child = child.nextSibling) {
+        if (COMMENTS.has(child.name)) {
+          result += text.slice(pos, child.from);
+          pos = child.to;
+        } else {
+          visit(child);
+        }
+      }
+    };
+    visit(node);
+    return result + text.slice(pos, node.to);
+  };
+
   const source = {
     read: (from: number, to: number) => text.slice(from, to),
     characterNumber: (pos: number) => document.positionAt(pos).character,
@@ -90,7 +108,7 @@ export const getChoiceMenus = (
     boundary: number,
   ): ChoiceMenuOption | undefined => {
     const content = choice.getChild(CHOICE_CONTENT);
-    const name = content ? oneLine(text.slice(content.from, content.to)) : "";
+    const name = content ? oneLine(textWithoutComments(content)) : "";
     if (!name) {
       return undefined;
     }

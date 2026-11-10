@@ -1,0 +1,94 @@
+text.source.sparkdown [0..215]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ keyword.control.choose.luau [14..20]: "choose"
+ ├─ Newline [20..21]: "\n"
+ ├─ entity.choice.sd [21..38]
+ │   ├─ punctuation.whitespace.optional.sd [21..25]: "    "
+ │   ├─ keyword.operator.expression.list.sd [25..27]: "+ "
+ │   ├─ string.choice.sd [27..29]
+ │   │   └─ markup.raw.text.sd [27..29]: "Go"
+ │   └─ comment.block.sd [29..38]
+ │       ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │       ├─ punctuation.definition.comment.begin.sd [30..32]: "/*"
+ │       └─ comment.block.content.sd [32..38]: " draft"
+ ├─ Newline [38..39]: "\n"
+ ├─ entity.choice.sd [39..59]
+ │   ├─ comment.block.sd [39..54]
+ │   │   ├─ comment.block.content.sd [39..52]: "      hidden "
+ │   │   └─ punctuation.definition.comment.end.sd [52..54]: "*/"
+ │   └─ string.choice.sd [54..59]
+ │       ├─ markup.raw.space.sd [54..55]: " "
+ │       └─ markup.raw.text.sd [55..59]: "left"
+ ├─ Newline [59..60]: "\n"
+ ├─ punctuation.whitespace.optional.sd [60..66]: "      "
+ ├─ keyword.control.divert.done.sd [66..70]: "done"
+ ├─ Newline [70..71]: "\n"
+ ├─ entity.choice.sd [71..110]
+ │   ├─ punctuation.whitespace.optional.sd [71..75]: "    "
+ │   ├─ keyword.operator.expression.list.sd [75..77]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [77..78]: "["
+ │   ├─ string.choice.sd [78..101]
+ │   │   ├─ markup.raw.text.sd [78..82]: "Wait"
+ │   │   ├─ comment.block.sd [82..96]
+ │   │   │   ├─ punctuation.whitespace.optional.sd [82..83]: " "
+ │   │   │   ├─ punctuation.definition.comment.begin.sd [83..85]: "/*"
+ │   │   │   ├─ comment.block.content.sd [85..94]: " [inner] "
+ │   │   │   └─ punctuation.definition.comment.end.sd [94..96]: "*/"
+ │   │   ├─ markup.raw.space.sd [96..97]: " "
+ │   │   └─ markup.raw.text.sd [97..101]: "here"
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [101..102]: "]"
+ │   └─ comment.block.sd [102..110]
+ │       ├─ punctuation.whitespace.optional.sd [102..103]: " "
+ │       ├─ punctuation.definition.comment.begin.sd [103..105]: "/*"
+ │       └─ comment.block.content.sd [105..110]: " open"
+ ├─ Newline [110..111]: "\n"
+ ├─ entity.choice.sd [111..129]
+ │   ├─ comment.block.sd [111..125]
+ │   │   ├─ comment.block.content.sd [111..123]: "      still "
+ │   │   └─ punctuation.definition.comment.end.sd [123..125]: "*/"
+ │   └─ string.choice.sd [125..129]
+ │       ├─ markup.raw.space.sd [125..126]: " "
+ │       └─ markup.raw.text.sd [126..129]: "now"
+ ├─ Newline [129..130]: "\n"
+ ├─ punctuation.whitespace.optional.sd [130..136]: "      "
+ ├─ keyword.control.divert.done.sd [136..140]: "done"
+ ├─ Newline [140..141]: "\n"
+ ├─ entity.choice.sd [141..165]
+ │   ├─ punctuation.whitespace.optional.sd [141..145]: "    "
+ │   ├─ keyword.operator.expression.list.sd [145..147]: "+ "
+ │   ├─ string.choice.sd [147..150]
+ │   │   └─ markup.raw.text.sd [147..150]: "Run"
+ │   ├─ punctuation.whitespace.required.sd [150..151]: " "
+ │   ├─ keyword.control.divert.mark.sd [151..153]: "->"
+ │   ├─ keyword.control.divert.path.sd [153..158]
+ │   │   ├─ punctuation.whitespace.optional.sd [153..154]: " "
+ │   │   └─ keyword.control.divert.path.sd [154..158]
+ │   │       └─ keyword.control.divert.path.sd [154..158]: "next"
+ │   └─ comment.block.sd [158..165]
+ │       ├─ punctuation.whitespace.optional.sd [158..159]: " "
+ │       ├─ punctuation.definition.comment.begin.sd [159..161]: "/*"
+ │       └─ comment.block.content.sd [161..165]: " why"
+ ├─ Newline [165..166]: "\n"
+ ├─ entity.choice.sd [166..182]
+ │   └─ comment.block.sd [166..182]
+ │       ├─ comment.block.content.sd [166..180]: "      because "
+ │       └─ punctuation.definition.comment.end.sd [180..182]: "*/"
+ ├─ Newline [182..183]: "\n"
+ ├─ punctuation.whitespace.optional.sd [183..185]: "  "
+ ├─ keyword.control.end.luau [185..188]: "end"
+ ├─ Newline [188..189]: "\n"
+ ├─ keyword.control.end.luau [189..192]: "end"
+ ├─ Newline [192..193]: "\n"
+ ├─ keyword.control.scene.sd [193..198]: "scene"
+ ├─ punctuation.whitespace.required.sd [198..199]: " "
+ ├─ keyword.control.section.sd [199..203]: "next"
+ ├─ Newline [203..204]: "\n"
+ ├─ punctuation.whitespace.optional.sd [204..206]: "  "
+ ├─ keyword.control.divert.done.sd [206..210]: "done"
+ ├─ Newline [210..211]: "\n"
+ ├─ keyword.control.end.luau [211..214]: "end"
+ └─ Newline [214..215]: "\n"

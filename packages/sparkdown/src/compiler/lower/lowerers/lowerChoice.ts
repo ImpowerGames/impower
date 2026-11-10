@@ -73,18 +73,36 @@ export function lowerChoice(
   const choiceOnlyContent = new ContentList();
   let innerContent = new ContentList();
 
-  const bracketed = getDescendent("ChoiceWithSuppressedText", nodeRef.node);
-  const unbracketed = getDescendent("ChoiceWithNoSuppressedText", nodeRef.node);
+  const segments = choiceTextSegments(nodeRef.node);
+  const bracketedIndex = segments.findIndex(
+    (segment) => segment.name === "ChoiceWithSuppressedText",
+  );
+  const bracketed = bracketedIndex >= 0 ? segments[bracketedIndex]! : null;
+  const appendStartText = (list: ContentList) => {
+    for (const segment of bracketed
+      ? segments.slice(0, bracketedIndex + 1)
+      : segments) {
+      appendTextFromCapture(
+        segment,
+        segment === bracketed ? "ChoiceStartText" : "ChoicePlainText",
+        ctx,
+        list,
+        true,
+      );
+    }
+  };
 
-  let hasWeaveStyleInlineBrackets = false;
+  const hasWeaveStyleInlineBrackets = !!bracketed;
 
+  appendStartText(startContent);
   if (bracketed) {
-    hasWeaveStyleInlineBrackets = true;
-    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent, true);
     appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
     appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
-  } else if (unbracketed) {
-    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent, true);
+    for (const segment of segments.slice(bracketedIndex + 1)) {
+      for (const capture of CHOICE_SEGMENT_TEXT_CAPTURES) {
+        appendTextFromCapture(segment, capture, ctx, innerContent);
+      }
+    }
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -124,11 +142,7 @@ export function lowerChoice(
     chosenTail,
     () => {
       const fresh = new ContentList();
-      if (bracketed) {
-        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh, true);
-      } else if (unbracketed) {
-        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh, true);
-      }
+      appendStartText(fresh);
       return fresh;
     },
     endsFlow,
@@ -286,6 +300,27 @@ function collectChoiceCondition(
   return lowerExpressionFromContainer(condCapture, ctx, "expression");
 }
 
+
+const CHOICE_TEXT_SEGMENTS: ReadonlySet<string> = nodeNameSet([
+  "ChoiceWithSuppressedText",
+  "ChoiceWithNoSuppressedText",
+]);
+
+const CHOICE_SEGMENT_TEXT_CAPTURES = [
+  "ChoicePlainText",
+  "ChoiceStartText",
+  "ChoiceOnlyText",
+  "ChoiceInnerText",
+];
+
+function choiceTextSegments(choice: SyntaxNode): SyntaxNode[] {
+  const content = choice.getChild("Choice_content");
+  const segments: SyntaxNode[] = [];
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (CHOICE_TEXT_SEGMENTS.has(child.name)) segments.push(child);
+  }
+  return segments;
+}
 
 function appendTextFromCapture(
   parent: SyntaxNode,
