@@ -223,6 +223,28 @@ describe("stepping stays at each statement", () => {
   });
 });
 
+describe("rolling back to a breakpoint", () => {
+  test("rolls back to the most recent earlier beat a breakpoint held, else to the run's first beat", async () => {
+    const h = play();
+    h.game.setBreakpoints([{ file: MAIN, line: lineOf("visits = add(visits, 10)") }]);
+    playTo(h, "The second beat.");
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(lineOf("visits = add(visits, 10)"));
+    h.game.continue();
+    expect(h.text()).toBe("The third beat.");
+    h.tap();
+    h.game.chosePathToContinue(0);
+    h.tap();
+    expect(h.text()).toBe("The end.");
+    const held = await h.game.rollBack("breakpoint");
+    expect(held.moved && held.restored.beat).toBe(1);
+    expect(h.text()).toBe("The second beat.");
+    const first = await h.game.rollBack("breakpoint");
+    expect(first.moved && first.restored.beat).toBe(0);
+    expect(h.text()).toBe("The first beat.");
+  });
+});
+
 describe("rolling a run back and forward", () => {
   test("Roll back after two beats restores the earlier beat, with the variable set between them as it was", async () => {
     const h = play();

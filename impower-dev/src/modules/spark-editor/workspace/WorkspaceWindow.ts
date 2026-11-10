@@ -97,7 +97,13 @@ import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
-import { stepRefusals, type StepTraversal } from "./stepStates";
+import {
+  skipRefusal,
+  stepRefusals,
+  type SkipDirection,
+  type StepTraversal,
+} from "./stepStates";
+import type { RollDebugTarget } from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
 import {
   checkName,
   joinScriptPath,
@@ -174,6 +180,7 @@ export default class WorkspaceWindow {
 
   readonly debug = new WorkspaceDebugClient({
     onStop: (position) => this.followStop(position),
+    onRoll: (position) => this.followPosition(position),
     onRefusal: (message) => showSnackbar({ message }),
   });
 
@@ -1924,9 +1931,14 @@ export default class WorkspaceWindow {
         : this.debug.stepOut();
   }
 
+  followPosition(position: GamePosition) {
+    this.syncGamePosition(position);
+    const at = { line: position.line, character: 0 };
+    void this.showDocument(position.uri, { start: at, end: at }, false);
+  }
+
   followStop(position: GamePosition) {
     this.syncGamePaused(true);
-    this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];
     if (!lines.includes(position.line)) {
@@ -1935,8 +1947,7 @@ export default class WorkspaceWindow {
         [position.uri]: [...lines, position.line].sort((a, b) => a - b),
       });
     }
-    const at = { line: position.line, character: 0 };
-    void this.showDocument(position.uri, { start: at, end: at }, false);
+    this.followPosition(position);
   }
 
   continueGame() {
@@ -1946,7 +1957,17 @@ export default class WorkspaceWindow {
     }
   }
 
-  async skipBeat(direction: -1 | 1): Promise<boolean> {
+  async skipBeat(
+    direction: SkipDirection,
+    to: RollDebugTarget = "beat",
+  ): Promise<boolean> {
+    const game = this.store.preview.modes.game;
+    if (game.running) {
+      if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
+        return false;
+      }
+      return direction < 0 ? this.debug.rollBack(to) : this.debug.rollForward(to);
+    }
     const ls = this._workspace.ls;
     if (!ls) {
       return false;

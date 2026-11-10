@@ -232,29 +232,84 @@ describe("the web editor's debug client", () => {
     expect(workspace.debugSession.value).toEqual({
       stopped: null,
       stackTrace: null,
-      canStepOut: false,
+      history: null,
       breakpoints: {},
     });
   });
 
-  it("takes Step Out's state from the engine's history on each stop and beat", async () => {
+  it("keeps the engine's history from each stop, beat and roll", async () => {
     const fake = fakeAdapter();
     const { debug } = client(fake);
     ending = debug;
     await debug.start(MAIN);
-    expect(workspace.debugSession.value.canStepOut).toBe(false);
+    expect(workspace.debugSession.value.history).toBe(null);
     sendProtocolMessage({
       jsonrpc: "2.0",
       method: "game/stepped",
       params: { location: { uri: MAIN, range: {} }, history: { canStepOut: true } },
     } as never);
-    expect(workspace.debugSession.value.canStepOut).toBe(true);
+    expect(workspace.debugSession.value.history).toEqual({ canStepOut: true });
     sendProtocolMessage({
       jsonrpc: "2.0",
       method: "game/executed",
       params: { conditions: [], choices: [], state: "running", history: { canStepOut: false } },
     } as never);
-    expect(workspace.debugSession.value.canStepOut).toBe(false);
+    expect(workspace.debugSession.value.history).toEqual({ canStepOut: false });
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "game/rolled",
+      params: { restored: { beat: 0, location: null }, history: { canRollBack: false } },
+    } as never);
+    expect(workspace.debugSession.value.history).toEqual({ canRollBack: false });
+  });
+
+  it("rolls the run back and forward by beat or by choice", async () => {
+    const fake = fakeAdapter();
+    const { debug } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    expect(await debug.rollBack("beat")).toBe(true);
+    expect(await debug.rollBack("choice")).toBe(true);
+    expect(await debug.rollForward("beat")).toBe(true);
+    expect(await debug.rollForward("choice")).toBe(true);
+    expect(fake.requests.slice(4).map((r) => [r.command, r.arguments])).toEqual([
+      ["sparkdown/rollBack", { to: "beat" }],
+      ["sparkdown/rollBack", { to: "choice" }],
+      ["sparkdown/rollForward", { to: "beat" }],
+      ["sparkdown/rollForward", { to: "choice" }],
+    ]);
+  });
+
+  it("shows the reason for a roll the run refuses", async () => {
+    const fake = fakeAdapter({ "sparkdown/rollBack": "Nothing to go back to." });
+    const { debug, onRefusal } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    expect(await debug.rollBack("beat")).toBe(false);
+    expect(onRefusal).toHaveBeenCalledWith("Nothing to go back to.");
+  });
+
+  it("follows a roll to its restored beat's line", async () => {
+    const onRoll = vi.fn();
+    const fake = fakeAdapter();
+    const debug = new WorkspaceDebugClient({
+      onRoll,
+      createAdapter: async () => fake.adapter,
+    });
+    ending = debug;
+    await debug.start(MAIN);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "game/rolled",
+      params: {
+        restored: {
+          beat: 1,
+          location: { uri: MAIN, range: { start: { line: 7, character: 2 }, end: { line: 7, character: 9 } } },
+        },
+        history: {},
+      },
+    } as never);
+    expect(onRoll).toHaveBeenCalledWith({ uri: MAIN, line: 7 });
   });
 });
 
@@ -330,5 +385,26 @@ describe("the web editor's debug client on the shared adapter", () => {
     await debug.start(MAIN);
     expect(await debug.stepIn()).toBe(false);
     expect(onRefusal).toHaveBeenCalledWith("no game loaded");
+  });
+
+  it("rolls the player's run back and forward through the adapter", async () => {
+    const { target, methods } = player();
+    const rolls: unknown[] = [];
+    target.addEventListener("jsonrpc", (e) => {
+      const message = (e as CustomEvent).detail;
+      if (message.method?.startsWith("game/roll") && "params" in message) {
+        rolls.push([message.method, message.params]);
+      }
+    });
+    const debug = new WorkspaceDebugClient({ target });
+    ending = debug;
+    await debug.start(MAIN);
+    expect(await debug.rollBack("choice")).toBe(true);
+    expect(await debug.rollForward("beat")).toBe(true);
+    expect(rolls).toEqual([
+      ["game/rollBack", { to: "choice" }],
+      ["game/rollForward", { to: "beat" }],
+    ]);
+    expect(methods).toContain("game/rollBack");
   });
 });

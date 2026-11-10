@@ -4,6 +4,12 @@
 
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { DidChangeGameStateMessage, GameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import {
+  RollBackDebugRequest,
+  RollForwardDebugRequest,
+  type RollDebugArguments,
+  type RollDebugResult,
+} from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -16,6 +22,7 @@ import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
@@ -38,7 +45,10 @@ import {
   RestartGameMessage,
   RestartGameParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
+import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
+import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
+import type { RollResult, RollTarget } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
@@ -204,6 +214,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
     if (GameHitBreakpointMessage.type.isNotification(message)) {
       await this.sendStoppedEvent("breakpoint", message.params.run);
+    }
+    if (GameRolledMessage.type.isNotification(message)) {
+      await this.sendStoppedEvent("step", message.params.run);
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
       if (this._host.syncCursorToExecution) {
@@ -417,6 +430,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
     response.body.supportsConfigurationDoneRequest = true;
     response.body.supportsRestartRequest = true;
+    response.body.supportsStepBack = true;
     response.body.supportSuspendDebuggee = true;
     response.body.supportTerminateDebuggee = true;
     response.body.supportsBreakpointLocationsRequest = true;
@@ -556,7 +570,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ReverseContinueResponse,
     _args: DebugProtocol.ReverseContinueArguments,
   ) {
-    this.sendResponse(response);
+    await this.roll(response, RollBackGameMessage.type, "breakpoint");
   }
 
   protected override async nextRequest(
@@ -600,6 +614,27 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepBackResponse,
     _args: DebugProtocol.StepBackArguments,
   ) {
+    await this.roll(response, RollBackGameMessage.type, "beat");
+  }
+
+  protected async roll(
+    response: DebugProtocol.Response,
+    type: typeof RollBackGameMessage.type | typeof RollForwardGameMessage.type,
+    to: RollTarget,
+  ) {
+    let result: RollResult;
+    try {
+      result = await this._connection.emit(type.request({ to }));
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
+    if (!result.moved && "reason" in result) {
+      this.sendRefusal(response, { message: result.reason });
+      return;
+    }
+    const body: RollDebugResult = { moved: result.moved };
+    response.body = body;
     this.sendResponse(response);
   }
 
@@ -1137,6 +1172,18 @@ export class SparkDebugSession extends LoggingDebugSession {
         this.sendEvent(new InvalidatedEvent(["variables"]));
       }
       this.sendResponse(response);
+    } else if (command === RollBackDebugRequest.command) {
+      void this.roll(
+        response,
+        RollBackGameMessage.type,
+        (args as RollDebugArguments).to,
+      );
+    } else if (command === RollForwardDebugRequest.command) {
+      void this.roll(
+        response,
+        RollForwardGameMessage.type,
+        (args as RollDebugArguments).to,
+      );
     } else {
       super.customRequest(command, response, args);
     }

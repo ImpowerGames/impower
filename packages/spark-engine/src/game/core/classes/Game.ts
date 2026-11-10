@@ -3785,6 +3785,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this._announcedStop = true;
+    this._run.markHeld();
     this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
