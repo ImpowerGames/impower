@@ -2,11 +2,17 @@ import {
   highlightingFor,
   language as languageFacet,
 } from "@codemirror/language";
-import { Facet } from "@codemirror/state";
+import {
+  type EditorState,
+  Facet,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
 import {
   closeHoverTooltips,
   EditorView,
   hasHoverTooltips,
+  showTooltip,
   Tooltip,
   ViewPlugin,
   hoverTooltip,
@@ -20,7 +26,7 @@ import { convertFromPosition } from "./pos";
 import { escHTML } from "./text";
 
 const hoverTheme = EditorView.baseTheme({
-  ".cm-tooltip.cm-tooltip-hover:has(> .cm-lsp-hover-card)": {
+  ".cm-tooltip:has(> .cm-lsp-hover-card)": {
     border: "1px solid var(--edge)",
     borderRadius: "var(--radius)",
     backgroundColor: "var(--popup)",
@@ -63,8 +69,24 @@ const hoverTheme = EditorView.baseTheme({
     color: "var(--ink)",
     overflowWrap: "anywhere",
   },
+  ".cm-lsp-hover-value": {
+    display: "block",
+    font: "13px / 1.4 var(--font-script, monospace)",
+    color: "var(--ink)",
+    overflowWrap: "anywhere",
+  },
+  ".cm-lsp-hover-value:not(:last-child)": {
+    paddingBottom: "8px",
+    marginBottom: "8px",
+    borderBottom: "1px solid var(--edge)",
+  },
+  ".cm-lsp-hover-picture > .cm-lsp-hover-value:not(:last-child)": {
+    paddingBottom: "0",
+    marginBottom: "0",
+    borderBottom: "none",
+  },
   "@media (prefers-reduced-motion: no-preference)": {
-    ".cm-tooltip.cm-tooltip-hover:has(> .cm-lsp-hover-card)": {
+    ".cm-tooltip:has(> .cm-lsp-hover-card)": {
       animation: "cm-lsp-hover-in 140ms ease",
     },
   },
@@ -78,17 +100,127 @@ export const hoverPreviews = Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
 
+export type HoverValueSource = (expression: string) => Promise<string | null>;
+
+export const hoverValues = Facet.define<
+  HoverValueSource,
+  HoverValueSource | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
+const NAME_CHARACTER = /[\p{L}\p{N}_]/u;
+
+export function hoverExpressionAt(
+  state: EditorState,
+  pos: number,
+): { from: number; to: number; text: string } | null {
+  const word = state.wordAt(pos);
+  if (!word) return null;
+  const text = state.sliceDoc(word.from, word.to);
+  if (!/^[\p{L}_]/u.test(text)) return null;
+  let from = word.from;
+  while (from > 0 && state.sliceDoc(from - 1, from) === ".") {
+    let start = from - 1;
+    while (start > 0 && NAME_CHARACTER.test(state.sliceDoc(start - 1, start))) {
+      start -= 1;
+    }
+    if (start === from - 1) break;
+    from = start;
+  }
+  return { from, to: word.to, text: state.sliceDoc(from, word.to) };
+}
+
+const hoverValue = (
+  state: EditorState,
+  pos: number,
+): Promise<{ from: number; to: number; line: string } | null> => {
+  const source = state.facet(hoverValues);
+  const expression = source ? hoverExpressionAt(state, pos) : null;
+  if (!source || !expression) return Promise.resolve(null);
+  return source(expression.text).then(
+    (value) =>
+      value == null
+        ? null
+        : {
+            from: expression.from,
+            to: expression.to,
+            line: `${expression.text} = ${value}`,
+          },
+    () => null,
+  );
+};
+
+const showTapValue = StateEffect.define<Tooltip | null>();
+
+const tapValueTooltip = StateField.define<Tooltip | null>({
+  create: () => null,
+  update(tooltip, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(showTapValue)) return effect.value;
+    }
+    return tr.docChanged || tr.selection ? null : tooltip;
+  },
+  provide: (field) => showTooltip.from(field),
+});
+
+const tapValues = ViewPlugin.define((view) => {
+  let asked = 0;
+  return {
+    update(update) {
+      const tapped = update.transactions.some(
+        (tr) => tr.isUserEvent("select.touch") || tr.isUserEvent("select.pointer"),
+      );
+      const selection = update.state.selection.main;
+      if (
+        !tapped ||
+        !update.state.facet(coarsePointer) ||
+        !selection.empty
+      ) {
+        return;
+      }
+      const ask = ++asked;
+      const state = update.state;
+      void hoverValue(state, selection.head).then((value) => {
+        if (
+          !value ||
+          ask !== asked ||
+          view.state.doc !== state.doc ||
+          !view.state.selection.main.eq(selection)
+        ) {
+          return;
+        }
+        view.dispatch({
+          effects: showTapValue.of({
+            pos: value.from,
+            end: value.to,
+            above: true,
+            create: () => ({ dom: renderHoverCard("", "", false, value.line) }),
+          }),
+        });
+      });
+    },
+  };
+});
+
 const pictureTooltips = new WeakMap<Tooltip, boolean>();
 
 export interface ServerHoversConfig {
   hoverTime?: number;
 }
 
-const closeHover = (view: EditorView) => {
-  if (!hasHoverTooltips(view.state)) {
+export const closeHoverCards = (view: EditorView) => {
+  const hovering = hasHoverTooltips(view.state);
+  const tapped = view.state.field(tapValueTooltip, false) != null;
+  if (!hovering && !tapped) {
     return false;
   }
-  view.dispatch({ effects: closeHoverTooltips });
+  view.dispatch({
+    effects: [
+      ...(hovering ? [closeHoverTooltips] : []),
+      ...(tapped ? [showTapValue.of(null)] : []),
+    ],
+  });
   return true;
 };
 
@@ -98,10 +230,10 @@ const hoverDismissal = [
       if (event.key !== "Escape") {
         return false;
       }
-      return closeHover(view);
+      return closeHoverCards(view);
     },
     blur(_event, view) {
-      closeHover(view);
+      closeHoverCards(view);
       return false;
     },
   }),
@@ -110,11 +242,11 @@ const hoverDismissal = [
       const target = event.target;
       if (
         target instanceof Element &&
-        target.closest(".cm-tooltip-hover")
+        target.closest(".cm-tooltip-hover, .cm-lsp-hover-card")
       ) {
         return;
       }
-      closeHover(view);
+      closeHoverCards(view);
     };
     window.addEventListener("scroll", onScroll, true);
     return {
@@ -139,6 +271,8 @@ export function serverHovers(
     editorExtension: [
       hoverTheme,
       hoverDismissal,
+      tapValueTooltip,
+      tapValues,
       hoverTooltip(lspTooltipSource, {
         hideOn: (tr, tooltip) =>
           tr.docChanged ||
@@ -171,21 +305,26 @@ function lspTooltipSource(
   if (view.state.facet(coarsePointer)) return Promise.resolve(null);
   const plugin = LSPPlugin.get(view);
   if (!plugin) return Promise.resolve(null);
-  return hoverRequest(plugin, pos).then((result) => {
-    if (!result) return null;
-    const from = result.range
+  return Promise.all([
+    hoverRequest(plugin, pos),
+    hoverValue(view.state, pos),
+  ]).then(([result, value]) => {
+    if (!result && !value) return null;
+    const from = result?.range
       ? convertFromPosition(view.state.doc, result.range.start)
-      : pos;
-    const to = result.range
+      : (value?.from ?? pos);
+    const to = result?.range
       ? convertFromPosition(view.state.doc, result.range.end)
-      : pos;
-    const html = renderTooltipContent(plugin, result.contents);
+      : (value?.to ?? pos);
+    const html = result ? renderTooltipContent(plugin, result.contents) : "";
     const previews = view.state.facet(hoverPreviews);
     const reference = view.state.sliceDoc(from, to);
     const tooltip: Tooltip = {
       pos: from,
       end: to,
-      create: () => ({ dom: renderHoverCard(html, reference, previews) }),
+      create: () => ({
+        dom: renderHoverCard(html, reference, previews, value?.line),
+      }),
       above: true,
     };
     if (/<img[\s>]/i.test(html)) {
@@ -199,8 +338,15 @@ function renderHoverCard(
   html: string,
   reference: string,
   previews: boolean,
+  valueLine?: string,
 ): HTMLElement {
   const card = document.createElement("div");
+  if (valueLine) {
+    const value = document.createElement("code");
+    value.className = "cm-lsp-hover-value";
+    value.textContent = valueLine;
+    card.appendChild(value);
+  }
   const content = document.createElement("template");
   content.innerHTML = html;
   const images = Array.from(content.content.querySelectorAll("img"));

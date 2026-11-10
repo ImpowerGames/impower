@@ -30,6 +30,7 @@ import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/c
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
+import { GameToggledConsoleMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledConsoleMessage";
 import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { RuntimeDiagnosticsRun } from "./utils/RuntimeDiagnosticsRun";
@@ -1994,7 +1995,7 @@ export class GamePlayerController {
     if (!play) {
       return true;
     }
-    if (play.state === "starting") {
+    if (this.startPending(play)) {
       if (type.method === StepGameClockMessage.method) {
         play.stepped += (params as { seconds: number }).seconds;
       }
@@ -2007,6 +2008,10 @@ export class GamePlayerController {
       console.error(e);
       return false;
     }
+  }
+
+  protected startPending(play: WorkerPlay | undefined): boolean {
+    return play?.state === "starting" && !play.startSent;
   }
 
   protected _appPlay?: WorkerPlay;
@@ -2267,12 +2272,14 @@ export class GamePlayerController {
   ) => {
     const { seconds } = message.params;
     const app = this.controlledApp;
-    app?.skip(seconds);
     const told =
       app &&
       (await this.tellWorkerPlay(StepGameClockMessage.type, {
         seconds,
       }));
+    if (told) {
+      app.skip(seconds);
+    }
     this.updateLaunchStateIcon();
     return told
       ? StepGameClockMessage.type.response(message.id, {})
@@ -2315,7 +2322,7 @@ export class GamePlayerController {
   }
 
   resumeGame() {
-    return this.handleUnpauseGame(UnpauseGameMessage.type.request({}));
+    return this.handleContinueGame(ContinueGameMessage.type.request({}));
   }
 
   stepGame(traversal: "in" | "out") {
@@ -2335,6 +2342,13 @@ export class GamePlayerController {
     message: ContinueGameMessage.Request,
   ) => {
     const run = this._workerPlay?.run ?? null;
+    const app = this.controlledApp;
+    const wasPaused = app?.paused;
+    app?.unpause();
+    if (this.startPending(this._workerPlay)) {
+      this.updateLaunchStateIcon();
+      return ContinueGameMessage.type.response(message.id, { done: false, run });
+    }
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(
@@ -2343,6 +2357,11 @@ export class GamePlayerController {
       );
     } catch (e) {
       return ContinueGameMessage.type.error(message.id, toResponseError(e));
+    } finally {
+      if (!answer && wasPaused) {
+        app?.pause();
+      }
+      this.updateLaunchStateIcon();
     }
     if (answer) {
       return ContinueGameMessage.type.response(message.id, { ...answer, run });
@@ -3184,6 +3203,12 @@ export class GamePlayerController {
           const message = msg.params.message;
           const location = msg.params.location;
           this.recordRuntimeError(owner, { message, type, location });
+          if (!this.displayingSpeculative) {
+            sendProtocolMessage(
+              GameEncounteredRuntimeErrorMessage.type.notification(msg.params),
+              this.host,
+            );
+          }
           if (type === ErrorType.Error) {
             console.error(message, location);
           } else if (type === ErrorType.Warning) {
@@ -3191,6 +3216,20 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
+        }
+      },
+    );
+    game.connection.outgoing.addListener(
+      GameToggledConsoleMessage.method,
+      (msg) => {
+        if (
+          GameToggledConsoleMessage.type.isNotification(msg) &&
+          !this.displayingSpeculative
+        ) {
+          sendProtocolMessage(
+            GameToggledConsoleMessage.type.notification(msg.params),
+            this.host,
+          );
         }
       },
     );

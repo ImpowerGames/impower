@@ -1,19 +1,13 @@
 import { useComputed } from "@preact/signals";
 import { isScriptPath } from "../utils/scriptFiles";
-import workspace from "./WorkspaceStore";
+import { projectPath } from "./problems/problemEntries";
+import problems from "./problems/ProblemsStore";
 
 const MAIN_SCRIPT = "main.sd";
 
-const projectPath = (uri: string) => {
-  const scheme = uri.indexOf("://");
-  const root = scheme < 0 ? -1 : uri.indexOf("/", scheme + 3);
-  return root < 0 ? undefined : uri.slice(root + 1);
-};
-
 export function useDiagnosticColor(filename?: string): string {
   return useComputed(() => {
-    const summary = workspace.state.value.debug?.diagnosticsSummary;
-    if (!summary) return "";
+    const summary = problems.summary.value;
     let errors = 0;
     let warnings = 0;
     for (const [uri, counts] of Object.entries(summary)) {

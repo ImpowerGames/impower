@@ -87,7 +87,12 @@ describe("the web editor's debug client", () => {
     const { debug } = client(fake);
     ending = debug;
     expect(await debug.start(MAIN)).toBe(true);
-    expect(fake.commands()).toEqual(["initialize", "launch", "configurationDone"]);
+    expect(fake.commands()).toEqual([
+      "initialize",
+      "launch",
+      "setBreakpoints",
+      "configurationDone",
+    ]);
     expect(fake.requests[0]!.arguments).toMatchObject({
       pathFormat: "path",
       linesStartAt1: false,
@@ -106,7 +111,7 @@ describe("the web editor's debug client", () => {
     expect(await debug.stepIn()).toBe(true);
     expect(await debug.stepOut()).toBe(true);
     expect(await debug.continue()).toBe(true);
-    expect(fake.commands().slice(3)).toEqual([
+    expect(fake.commands().slice(4)).toEqual([
       "pause",
       "next",
       "stepIn",
@@ -228,6 +233,7 @@ describe("the web editor's debug client", () => {
       stopped: null,
       stackTrace: null,
       canStepOut: false,
+      breakpoints: {},
     });
   });
 

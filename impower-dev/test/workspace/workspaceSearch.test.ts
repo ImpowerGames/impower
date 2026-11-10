@@ -136,6 +136,7 @@ const setup = (opened: string | undefined = MAIN) => {
     setMatches: vi.fn(),
     revealRail: vi.fn(),
     autoRenameFiles: () => autoRenameFiles.value,
+    phone: () => true,
     onTextChanged: (listener: () => void) => {
       textListeners.push(listener);
       return () => {};
@@ -163,6 +164,7 @@ let disposers: (() => void)[] = [];
 
 beforeEach(() => {
   workspace.search.value = INITIAL_SEARCH;
+  workspace.scriptMode.value = "editing";
 });
 
 afterEach(() => {
@@ -325,6 +327,57 @@ describe("Replace", () => {
     await search.replaceAll();
     expect(sources.applyEdit).not.toHaveBeenCalled();
     expect(workspace.search.value.status).toBe("Enter words to find first.");
+  });
+});
+
+describe("reading mode", () => {
+  const replaceReady = async () => {
+    const made = make(MAIN);
+    made.search.open("find");
+    await made.search.setTerm("rumour");
+    made.search.setReplacement("tale");
+    made.selection.value = range(1, 6, 12);
+    return made;
+  };
+
+  it("leaves every script as it is when Replace this match runs while reading", async () => {
+    const { search, sources } = await replaceReady();
+    workspace.scriptMode.value = "reading";
+    await search.replaceOne();
+    expect(sources.applyEdit).not.toHaveBeenCalled();
+    workspace.scriptMode.value = "editing";
+    await search.replaceOne();
+    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves every script as it is when Replace all runs while reading", async () => {
+    const { search, sources } = await replaceReady();
+    workspace.scriptMode.value = "reading";
+    await search.replaceAll();
+    expect(sources.applyEdit).not.toHaveBeenCalled();
+    workspace.scriptMode.value = "editing";
+    await search.replaceAll();
+    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves every script and file as it is when Rename runs while reading", async () => {
+    const { search, sources } = make(MAIN);
+    await search.openRename();
+    search.setRenameName("amara");
+    workspace.scriptMode.value = "reading";
+    expect(await search.rename()).toBe(false);
+    expect(sources.applyEdit).not.toHaveBeenCalled();
+    workspace.scriptMode.value = "editing";
+    expect(await search.rename()).toBe(true);
+    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces on desktop and tablet, where scripts have no reading mode", async () => {
+    const { search, sources } = await replaceReady();
+    sources.phone = () => false;
+    workspace.scriptMode.value = "reading";
+    await search.replaceAll();
+    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
   });
 });
 

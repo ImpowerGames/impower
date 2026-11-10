@@ -49,8 +49,12 @@ export const listRowBodyVariants = cva(
         true: "control-overlay cursor-pointer focus-inset",
         false: "",
       },
+      leading: {
+        true: "pl-0",
+        false: "",
+      },
     },
-    defaultVariants: { size: "default", interactive: true },
+    defaultVariants: { size: "default", interactive: true, leading: false },
   },
 );
 
@@ -80,6 +84,7 @@ export type ListRowLabelOverflow = NonNullable<
 export const LIST_ROW_INDENT = 18;
 
 export type ListRowProps = {
+  leading?: ComponentChildren;
   icon?: ComponentChildren;
   label: ComponentChildren;
   description?: ComponentChildren;
@@ -123,6 +128,7 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
 }
 
 export default function ListRow({
+  leading,
   icon,
   label,
   description,
@@ -160,12 +166,13 @@ export default function ListRow({
     </span>
   );
   const interactive = !!onClick;
-  const body = listRowBodyVariants({ size, interactive });
+  const body = listRowBodyVariants({ size, interactive, leading: !!leading });
   return (
     <div
       class={cn(listRowVariants({ state, nested: depth > 0, tone }), className)}
     >
       {depth > 0 && <Guides depth={depth} current={!!current} />}
+      {leading}
       {interactive ? (
         <button
           type="button"
@@ -189,5 +196,54 @@ export default function ListRow({
       )}
       {actions}
     </div>
+  );
+}
+
+export const listRowBadgeVariants = cva(
+  "relative control-overlay flex h-full flex-none cursor-pointer items-center rounded-control focus-inset [&>svg]:flex-none",
+  {
+    variants: {
+      size: {
+        default: "w-[46px] pl-3 [&>svg]:size-[21px]",
+        compact: "w-9 pl-2 [&>svg]:size-[18px]",
+      },
+    },
+    defaultVariants: { size: "default" },
+  },
+);
+
+export type ListRowBadgeProps = {
+  label: string;
+  title?: string;
+  icon: ComponentChildren;
+  size?: ListRowSize;
+  onClick: (event: MouseEvent) => void;
+  class?: string;
+} & Omit<
+  JSX.HTMLAttributes<HTMLButtonElement>,
+  "class" | "icon" | "label" | "onClick" | "size" | "title"
+>;
+
+export function ListRowBadge({
+  label,
+  title,
+  icon,
+  size,
+  onClick,
+  class: className,
+  ...rest
+}: ListRowBadgeProps) {
+  return (
+    <button
+      type="button"
+      data-list-row-badge
+      aria-label={label}
+      title={title ?? label}
+      class={cn(listRowBadgeVariants({ size }), className)}
+      onClick={onClick}
+      {...rest}
+    >
+      {icon}
+    </button>
   );
 }

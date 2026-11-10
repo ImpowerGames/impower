@@ -23,7 +23,6 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
@@ -38,6 +37,12 @@ import {
   SelectedEditorMethod,
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
+import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
+import {
+  type EditorBreakpoint,
+  SetEditorBreakpointsMessage,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
@@ -72,6 +77,7 @@ import {
   GamePosition,
   GameSize,
   GameState,
+  ListsState,
   PaneType,
   PanelType,
   Range,
@@ -79,9 +85,7 @@ import {
   WorkspaceCache,
   WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
-import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
-import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
@@ -151,8 +155,7 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
-
-const SHOW_PROBLEMS_WAIT_MS = 10_000;
+import { renameOrReport } from "../utils/renameOrReport";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -253,6 +256,27 @@ export default class WorkspaceWindow {
       }
     }
     transitionRoute(() => this.openRoute(route));
+  }
+
+  setListState(lists: Partial<ListsState>) {
+    this.update({
+      ...this.store,
+      lists: { ...this.store.lists, ...lists },
+    });
+  }
+
+  browseScripts() {
+    this.navigateTo("scripts");
+  }
+
+  openScript(filename: string) {
+    const panel = this.getPanelType(filename);
+    if (!panel) {
+      return;
+    }
+    this.openPanel("logic", panel);
+    this.openFileEditor(filename);
+    this.navigateTo("write");
   }
 
   closeSettings() {
@@ -597,6 +621,13 @@ export default class WorkspaceWindow {
       onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
         this.handleChangedEditorBreakpoints(m),
       ),
+      onProtocolRequest(EvaluateEditorHoverMessage.type, async (m) =>
+        EvaluateEditorHoverMessage.type.response(m.id, {
+          value: await this.debug.evaluate(m.params.expression),
+        }),
+      ),
+      this.followVerifiedBreakpoints(),
+      this.followStopEnds(),
       onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
         this.handleChangedEditorPinpoints(m),
       ),
@@ -759,17 +790,64 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, breakpointLines } = message.params;
     const uri = textDocument.uri;
+    this.setBreakpointLines(uri, breakpointLines);
+    void this.debug.setBreakpoints(uri, breakpointLines);
+  };
+
+  protected setBreakpointLines(uri: string, lines: number[]) {
     this.update({
       ...this.store,
       debug: {
         ...this.store.debug,
         breakpoints: {
           ...this.store.debug.breakpoints,
-          [uri]: breakpointLines,
+          [uri]: lines,
         },
       },
     });
-  };
+  }
+
+  protected followVerifiedBreakpoints() {
+    let followed = workspace.debugSession.peek().breakpoints;
+    return workspace.debugSession.subscribe(({ breakpoints }) => {
+      if (breakpoints === followed) {
+        return;
+      }
+      const previous = followed;
+      followed = breakpoints;
+      for (const [uri, verified] of Object.entries(breakpoints)) {
+        if (verified !== previous[uri]) {
+          this.applyVerifiedBreakpoints(uri, verified);
+        }
+      }
+    });
+  }
+
+  protected followStopEnds() {
+    let stopped = workspace.debugSession.peek().stopped;
+    return workspace.debugSession.subscribe((session) => {
+      const ended = stopped != null && session.stopped !== stopped;
+      stopped = session.stopped;
+      if (ended) {
+        sendProtocolMessage(HideEditorHoverValuesMessage.type.notification({}));
+      }
+    });
+  }
+
+  protected applyVerifiedBreakpoints(uri: string, verified: EditorBreakpoint[]) {
+    const lines = [...new Set(verified.map((b) => b.line))].sort((a, b) => a - b);
+    const states = lines.map((line) => ({
+      line,
+      verified: verified.some((b) => b.line === line && b.verified),
+    }));
+    this.setBreakpointLines(uri, lines);
+    sendProtocolMessage(
+      SetEditorBreakpointsMessage.type.request({
+        textDocument: { uri },
+        breakpoints: states,
+      }),
+    );
+  }
 
   protected handleChangedEditorStartingValueLines = (
     message: ChangedEditorStartingValueLinesMessage.Notification,
@@ -824,20 +902,6 @@ export default class WorkspaceWindow {
       ...workspace.editorHistory.peek(),
       [this.relativePathOf(textDocument.uri)]: { canUndo, canRedo },
     };
-  }
-
-  recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
-    const summary = { ...this.store.debug.diagnosticsSummary };
-    delete summary[uri];
-    const counts = countDiagnostics(diagnostics);
-    this.update({
-      ...this.store,
-      debug: {
-        ...this.store.debug,
-        diagnosticsSummary:
-          diagnostics.length > 0 ? { ...summary, [uri]: counts } : summary,
-      },
-    });
   }
 
   protected handleCompiledProgram = (
@@ -1422,31 +1486,6 @@ export default class WorkspaceWindow {
     });
   }
 
-  browseScripts() {
-    const logic = this.store.panes.logic;
-    const scripts = logic.panels.scripts;
-    this.update({
-      ...this.store,
-      panes: {
-        ...this.store.panes,
-        logic: {
-          ...logic,
-          view: "list",
-          panel: "scripts",
-          panels: {
-            ...logic.panels,
-            scripts: {
-              ...scripts,
-              activeEditor: scripts?.activeEditor
-                ? { ...scripts.activeEditor, open: false }
-                : scripts?.activeEditor,
-            },
-          },
-        },
-      },
-    });
-  }
-
   openFileEditor(filename: string, oldFilename?: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
@@ -1617,11 +1656,13 @@ export default class WorkspaceWindow {
       return check;
     }
     const newFilename = joinScriptPath(folder, check.name, ext);
-    const { referencesUpdated } = await fs.renameFileWithReferences(
-      projectId,
-      filename,
-      newFilename,
+    const rename = await renameOrReport(filename, newFilename, () =>
+      fs.renameFileWithReferences(projectId, filename, newFilename),
     );
+    if (!rename.renamed) {
+      return check;
+    }
+    const { referencesUpdated } = rename.result;
     await this.recordScriptChange();
     this.followRenamedScript(filename, newFilename);
     showSnackbar({
@@ -1854,36 +1895,6 @@ export default class WorkspaceWindow {
     return result;
   }
 
-  async showProblems(uri: string) {
-    await this.revealDocument(uri, undefined, false);
-    const request = () =>
-      ExecuteEditorCommandMessage.type.request({
-        textDocument: { uri },
-        command: "problems",
-      });
-    const first = request();
-    const stop = () => {
-      stopAnswer();
-      stopLoad();
-      clearTimeout(timer);
-    };
-    const stopAnswer = onProtocolMessage(
-      {
-        is: (message: unknown): message is ExecuteEditorCommandMessage.Response =>
-          ExecuteEditorCommandMessage.type.isResponse(message, first.id),
-      },
-      () => stop(),
-    );
-    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
-      if (message.params.textDocument.uri === uri) {
-        stop();
-        sendProtocolMessage(request());
-      }
-    });
-    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
-    sendProtocolMessage(first);
-  }
-
   syncGamePaused(paused: boolean) {
     const game = this.store.preview.modes.game;
     if (!game.running || Boolean(game.paused) === paused) {
@@ -1914,6 +1925,7 @@ export default class WorkspaceWindow {
   }
 
   followStop(position: GamePosition) {
+    this.syncGamePaused(true);
     this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];

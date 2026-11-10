@@ -144,6 +144,7 @@ import { imageParts, valueParts } from "../utils/imageParts";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
+import type { HeldStop } from "../types/HeldStop";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
 import type { SystemConfiguration } from "../types/SystemConfiguration";
@@ -411,6 +412,20 @@ export class Game<T extends M = {}> {
   }
 
   protected _announcedStop = false;
+
+  protected _stop: HeldStop | null = null;
+  get stop(): HeldStop | null {
+    return this.awaitingResume ? this._stop : null;
+  }
+
+  get awaitingResume(): boolean {
+    const stop = this._stop;
+    return (
+      stop !== null &&
+      stop.runMoves === this._run.moves &&
+      stop.address === this._positions.previous()
+    );
+  }
 
   protected _ending: GameEnding | null = null;
   get ending(): GameEnding | null {
@@ -2496,6 +2511,23 @@ export class Game<T extends M = {}> {
     }
   }
 
+  resume(): boolean {
+    const paused = this._paused;
+    const advances = !paused || this.awaitingResume;
+    this.unpause();
+    if (!advances) {
+      return false;
+    }
+    try {
+      return this.continue();
+    } catch (e) {
+      if (paused) {
+        this.pause();
+      }
+      throw e;
+    }
+  }
+
   skip(seconds: number): void {
     if (this._clock) {
       this._clock.adjustTime(seconds);
@@ -3753,6 +3785,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this._announcedStop = true;
+    this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4135,8 +4168,20 @@ export class Game<T extends M = {}> {
     this.connection.emit(GameExecutedMessage.type.notification(params));
   }
 
+  protected holdStop(reason: HeldStop["reason"]) {
+    this._stop = {
+      reason,
+      beat: this._run.current,
+      runMoves: this._run.moves,
+      address: this._positions.previous(),
+      location: this._executingLocation,
+      queued: this.module.interpreter.hasQueuedBeats,
+    };
+  }
+
   protected notifyStepped() {
     this._announcedStop = true;
+    this.holdStop("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),

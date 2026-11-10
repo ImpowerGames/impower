@@ -7,6 +7,7 @@ import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 import { choosePresenter } from "./presenters/choosePresenter";
+import { openInitialLayouts } from "./presenters/textLayouts";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
 
@@ -161,6 +162,11 @@ export class Coordinator<G extends Game> {
 
     const instant = options?.instant;
     const previewing = options?.preview;
+
+    openInitialLayouts(
+      game,
+      Boolean(instant) || Boolean(game.context.system.simulating),
+    );
 
     const presenter = choosePresenter(game, instructions, {
       instant,

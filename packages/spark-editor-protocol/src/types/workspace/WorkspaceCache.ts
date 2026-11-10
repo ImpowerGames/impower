@@ -146,6 +146,11 @@ export interface ScreenState {
   writingTools?: WritingToolsState;
 }
 
+export interface ListsState {
+  scriptsSort?: string;
+  scriptsFolder?: string;
+}
+
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
 
 export interface WritingToolsState {
@@ -177,15 +182,12 @@ export interface DebugState {
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
   startingValues?: Record<string, Record<string, string>>;
-  diagnosticsSummary?: Record<
-    string,
-    { errors: number; warnings: number; infos: number }
-  >;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  lists?: ListsState;
   outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;

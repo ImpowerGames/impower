@@ -25,6 +25,8 @@ import {
   completionPreview,
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
+  type HoverValueSource,
+  hoverValues,
   editorToolCommands,
   type EditorToolCommands,
   type ShortcutCombos,
@@ -43,6 +45,7 @@ import {
   breakpointMarker,
   breakpointsChanged,
   breakpointsField,
+  breakpointStatesSet,
   getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
@@ -161,6 +164,7 @@ interface EditorConfig {
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
   onHeightChanged?: () => void;
+  hoverValue?: HoverValueSource;
   onCompletionPreview?: (
     event: CompletionPreviewEvent,
     state: EditorState,
@@ -357,6 +361,7 @@ const createEditorView = (
           serverWorkspace,
         }),
         onCompletionPreview ? completionPreview(onCompletionPreview) : [],
+        config.hoverValue ? hoverValues.of(config.hoverValue) : [],
         EditorState.changeFilter.of(
           (tr: Transaction): boolean | readonly number[] => {
             if (changeFilter) {
@@ -407,7 +412,9 @@ const createEditorView = (
             const head = cursorRange?.head;
             onSelectionChanged?.(u, anchor, head);
           }
-          if (u.docChanged || breakpointsChanged(u)) {
+          if (breakpointStatesSet(u)) {
+            prevBreakpointLineNumbers = getBreakpointLineNumbers(u.view);
+          } else if (u.docChanged || breakpointsChanged(u)) {
             const currentBreakpointLineNumbers = getBreakpointLineNumbers(
               u.view,
             );

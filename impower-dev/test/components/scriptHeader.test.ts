@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const calls = vi.hoisted(() => ({
   renames: [] as [string, string][],
-  commands: [] as [string, string][],
   browsed: 0,
   result: { status: "renamed" } as { status: string },
 }));
@@ -14,6 +13,7 @@ const layout = vi.hoisted(() => ({ value: "desktop" }));
 vi.mock("@impower/impower-ui/layout", () => ({
   useLayout: () => layout.value,
   useCoarsePointer: () => false,
+  layoutState: { current: () => layout.value, subscribe: () => () => {} },
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -22,9 +22,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       renameScript: async (filename: string, draft: string) => {
         calls.renames.push([filename, draft]);
         return calls.result;
-      },
-      executeEditorCommand: (filename: string, command: string) => {
-        calls.commands.push([filename, command]);
       },
       browseScripts: () => {
         calls.browsed += 1;
@@ -37,6 +34,8 @@ const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: workspaceSettings, PREFERENCES_STORAGE_KEY, WorkspaceSettings } =
   await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
+const { default: problems } =
+  await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
 const { default: ScriptHeader } =
   await import("../../src/modules/spark-editor/components/script-header/ScriptHeader");
 
@@ -78,7 +77,6 @@ const button = (label: string) =>
 beforeEach(() => {
   localStorage.clear();
   calls.renames.length = 0;
-  calls.commands.length = 0;
   calls.browsed = 0;
   calls.result = { status: "renamed" };
   layout.value = "desktop";
@@ -86,8 +84,10 @@ beforeEach(() => {
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local" },
-    debug: { ...workspace.current.debug, diagnosticsSummary: {} },
   };
+  problems.diagnostics.value = {};
+  problems.dialog.value = null;
+  workspaceSettings.setProjectSetting("previewPanelHeight", 44);
 });
 
 afterEach(async () => {
@@ -195,33 +195,44 @@ describe("ScriptHeader rail toggle", () => {
 });
 
 describe("ScriptHeader status and Browse scripts", () => {
-  it("draws a clean script's book in the accent, and it still opens the problems panel", async () => {
+  it("draws a clean script's book in the accent, and it still opens the Problems panel", async () => {
     await mount({ filename: "scripts/intro.sd" });
     const status = button("Show problems")!;
     expect(status.getAttribute("data-script-status")).toBe("clean");
     expect(status.querySelector("svg")!.getAttribute("class")).toBe("text-accent");
     await act(async () => status.click());
     await settle();
-    expect(calls.commands).toEqual([["scripts/intro.sd", "problems"]]);
+    expect(workspaceSettings.projectSettings.value.previewPanelHeight).toBe(260);
+    expect(problems.dialog.value).toBeNull();
+  });
+
+  it("opens Problems to fix for its own script on a phone, returning focus to the book", async () => {
+    layout.value = "phone";
+    await mount({ filename: "scripts/intro.sd" });
+    const status = button("Show problems")!;
+    await act(async () => status.click());
+    expect(problems.dialog.value?.scope).toEqual({ kind: "script", path: "scripts/intro.sd" });
+    expect(problems.dialog.value?.returnFocus?.()).toBe(status);
+    expect(workspaceSettings.projectSettings.value.previewPanelHeight).toBe(44);
   });
 
   it("colours the book by the worst problem and opens the problems panel on press", async () => {
-    workspace.current = {
-      ...workspace.current,
-      debug: {
-        ...workspace.current.debug,
-        diagnosticsSummary: {
-          "file://local/scripts/intro.sd": { errors: 1, warnings: 2, infos: 0 },
-        },
-      },
-    } as typeof workspace.current;
+    const at = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
+    problems.record({
+      uri: "file://local/scripts/intro.sd",
+      diagnostics: [
+        { range: at, severity: 1, message: "a" },
+        { range: at, severity: 2, message: "b" },
+        { range: at, severity: 2, message: "c" },
+      ],
+    });
     await mount({ filename: "scripts/intro.sd" });
     const status = button("Show problems")!;
     expect(status.getAttribute("data-script-status")).toBe("problems");
     expect(status.querySelector("svg")!.getAttribute("class")).toBe("text-error-strong");
     await act(async () => status.click());
     await settle();
-    expect(calls.commands).toEqual([["scripts/intro.sd", "problems"]]);
+    expect(workspaceSettings.projectSettings.value.previewPanelHeight).toBe(260);
   });
 
   it("opens the script list from Browse scripts", async () => {

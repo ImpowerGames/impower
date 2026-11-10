@@ -77,7 +77,14 @@ export {
 export { formatDocument, serverFormatting } from "./formatting";
 export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { type LSPClientIcons } from "./icons";
-export { hoverPreviews, serverHovers } from "./hover";
+export {
+  closeHoverCards,
+  hoverExpressionAt,
+  hoverPreviews,
+  hoverValues,
+  serverHovers,
+  type HoverValueSource,
+} from "./hover";
 export {
   convertFromServerCodeLens,
   serverCodeLenses,
@@ -252,5 +259,6 @@ export {
   findNextMatch,
   findPreviousMatch,
   openFind,
+  openProblems,
   type EditorToolCommands,
 } from "./tools";

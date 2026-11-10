@@ -154,6 +154,43 @@ describe("SparkDebugSession in a browser page", () => {
     expect(emitted.find((m) => m.method === "game/stackTrace")?.params).toMatchObject({ threadId: 1 });
   });
 
+  it("keeps each script's breakpoints when another script's are set, and answers for the script asked", async () => {
+    const { request, emitted } = createSession({ syncCursorToExecution: false });
+    await request("initialize", {
+      adapterID: "sparkdown",
+      pathFormat: "path",
+      linesStartAt1: true,
+      columnsStartAt1: true,
+    });
+    const OTHER_PATH = "/project/other.sd";
+    await request("setBreakpoints", {
+      source: { path: MAIN_PATH },
+      breakpoints: [{ line: 3 }, { line: 8 }],
+    });
+    const other = await request<DebugProtocol.SetBreakpointsResponse>("setBreakpoints", {
+      source: { path: OTHER_PATH },
+      breakpoints: [{ line: 5 }],
+    });
+    const sets = emitted.filter((m) => m.method === "game/setBreakpoints");
+    expect(sets.at(-1)?.params).toEqual({
+      breakpoints: [
+        { file: MAIN_URI, line: 2 },
+        { file: MAIN_URI, line: 7 },
+        { file: "file:///project/other.sd", line: 4 },
+      ],
+    });
+    expect(other.body.breakpoints).toHaveLength(1);
+    expect(other.body.breakpoints[0]).toMatchObject({
+      verified: true,
+      line: 5,
+      source: { path: OTHER_PATH },
+    });
+    await request("setBreakpoints", { source: { path: MAIN_PATH }, breakpoints: [] });
+    expect(emitted.filter((m) => m.method === "game/setBreakpoints").at(-1)?.params).toEqual({
+      breakpoints: [{ file: "file:///project/other.sd", line: 4 }],
+    });
+  });
+
   it("reads syncCursorToExecution from the host each time the game awaits interaction", async () => {
     const host = { syncCursorToExecution: false };
     const { notify, emitted } = createSession(host);

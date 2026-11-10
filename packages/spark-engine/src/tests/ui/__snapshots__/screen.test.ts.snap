@@ -2625,6 +2625,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "pointer_events": "auto",
                   "text-weight": "400",
                 },
+                "layout_textbox": {
+                  "$name": "layout_textbox",
+                  "$type": "style",
+                  "z_index": "-1",
+                },
                 "layouts": {
                   "$name": "layouts",
                   "$type": "style",
@@ -2712,6 +2717,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                       "width": "1em",
                     },
                   },
+                  "isolation": "isolate",
                 },
                 "legend": {
                   "$name": "legend",
@@ -3262,6 +3268,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "flex_direction": "column",
                   "inset": "0",
                   "position": "absolute",
+                  "z_index": "-2",
                 },
                 "strikethrough": {
                   "$name": "strikethrough",

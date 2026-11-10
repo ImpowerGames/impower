@@ -17,8 +17,3 @@ export type {
   ConsoleJump,
   ConsoleSeverity,
 } from "./components/PlayerConsole/consoleEntries";
-export { default as ProblemsList } from "./components/ProblemsList/ProblemsList";
-export type {
-  Problem,
-  ProblemsListProps,
-} from "./components/ProblemsList/ProblemsList";

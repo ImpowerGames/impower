@@ -53,6 +53,7 @@ export interface SearchSources {
   setMatches: (uri: string, ranges: Range[]) => void;
   revealRail: () => void;
   autoRenameFiles: () => boolean;
+  phone: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
   onEditorTool: (listener: (tool: EditorTool) => void) => () => void;
@@ -236,14 +237,14 @@ export default class WorkspaceSearch {
         };
       }),
       sources.onEditorTool((tool) => {
-        const tools: Record<EditorTool, () => unknown> = {
+        const tools: Partial<Record<EditorTool, () => unknown>> = {
           find: () => this.openFindFromSelection(),
           findNext: () => this.stepOrOpen(false),
           findPrevious: () => this.stepOrOpen(true),
           rename: () => this.openRename(),
           references: () => this.openReferences(),
         };
-        void tools[tool]();
+        void tools[tool]?.();
       }),
       sources.onEditorLoaded(() => {
         this._published = "";
@@ -392,6 +393,10 @@ export default class WorkspaceSearch {
     }
   }
 
+  protected reading() {
+    return this._sources.phone() && workspace.scriptMode.peek() === "reading";
+  }
+
   protected exclusive<T>(run: () => Promise<T>): Promise<T> {
     const next = this._exclusive.then(run, run);
     this._exclusive = next.catch(() => undefined);
@@ -484,6 +489,9 @@ export default class WorkspaceSearch {
   }
 
   protected async runReplaceOne() {
+    if (this.reading()) {
+      return;
+    }
     if (!this.snapshot.term) {
       this.say("Enter words to find first.");
       return;
@@ -537,6 +545,9 @@ export default class WorkspaceSearch {
   }
 
   protected async runReplaceAll() {
+    if (this.reading()) {
+      return;
+    }
     const { term, replacement } = this.snapshot;
     if (!term) {
       this.say("Enter words to find first.");
@@ -699,6 +710,9 @@ export default class WorkspaceSearch {
   }
 
   protected async runRename() {
+    if (this.reading()) {
+      return false;
+    }
     const { subject, renameName } = this.snapshot;
     const newName = renameName.trim();
     if (!subject?.uri || !subject.position) {

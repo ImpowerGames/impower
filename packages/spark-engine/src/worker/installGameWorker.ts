@@ -355,7 +355,7 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        return { done: game.continue() };
+        return { done: game.resume() };
       });
       return;
     }
@@ -487,7 +487,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         const threads = game.getThreads();
-        return { threads };
+        return { threads, stopped: game.paused || game.awaitingResume };
       });
       return;
     }

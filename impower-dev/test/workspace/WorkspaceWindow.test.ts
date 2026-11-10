@@ -73,6 +73,10 @@ vi.mock("../../src/modules/spark-editor/components/preview-bar/PreviewBar", () =
   default: () => null,
 }));
 
+vi.mock("../../src/modules/spark-editor/components/problems", () => ({
+  ProblemsPanel: () => null,
+}));
+
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
@@ -308,6 +312,28 @@ describe("WorkspaceWindow store transitions", () => {
     void win.showDocument(`file://${projectId}/scripts/intro.sd`);
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.filename).toBe("scripts/intro.sd");
+  });
+
+  it("showDocument opens the script it shows, so going to a definition in an unopened script renders it", () => {
+    const projectId = workspace.current.project.id;
+    win.openRoute("write");
+    win.closeFileEditor("Scripts/never-opened.sd");
+    expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(false);
+    void win.showDocument(`file://${projectId}/Scripts/never-opened.sd`);
+    const logic = workspace.current.panes.logic;
+    expect(logic.view).toBe("logic-editor");
+    expect(logic.panels.scripts?.activeEditor).toMatchObject({
+      open: true,
+      filename: "Scripts/never-opened.sd",
+    });
+  });
+
+  it("treats only the project-root main.sd as Main, by path or uri", () => {
+    const projectId = workspace.current.project.id;
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPanelType(`file://${projectId}/main.sd`)).toBe("main");
+    expect(win.getPanelType("Scripts/main.sd")).toBe("scripts");
+    expect(win.getPanelType(`file://${projectId}/Scripts/main.sd`)).toBe("scripts");
   });
 
   it("showDocument keeps main.sd in the logic/main panel", () => {
@@ -591,9 +617,65 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#collection");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
-      win.openPanel("logic", "scripts");
+      win.openView("logic", "scripts");
       win.openPane("logic");
       expect(window.location.hash).toBe("#scripts");
+    });
+
+    it("opens a script from the Scripts page on write, and Main as the main editor", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      const logic = workspace.current.panes.logic;
+      expect(logic.view).toBe("logic-editor");
+      expect(logic.panel).toBe("scripts");
+      expect(logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+      win.navigateTo("scripts");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.panes.logic.view).toBe("list");
+      expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
+    it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
+      win.navigateTo("write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.navigateTo("write");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+    });
+
+    it("opens a nested script named main.sd as a script, not as the entry script", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/main.sd");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.filename).toBe(
+        "Scripts/main.sd",
+      );
+    });
+
+    it("keeps the Scripts page's sort and folder in the project's state", () => {
+      win.setListState({ scriptsSort: "modified-desc" });
+      win.setListState({ scriptsFolder: "Scripts/Drafts" });
+      expect(workspace.current.lists).toEqual({
+        scriptsSort: "modified-desc",
+        scriptsFolder: "Scripts/Drafts",
+      });
     });
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {
@@ -1796,31 +1878,13 @@ describe("the story's front matter", () => {
 
 describe("Revealing a script from the bar under the game", () => {
   let win: WorkspaceWindow;
-  let sent: { method?: string; id?: unknown; params?: any }[];
-  let stopListening: () => void;
-
-  const SHOW_PROBLEMS = "editor/executeCommand";
 
   beforeEach(() => {
     localStorage.clear();
     win = new WorkspaceWindow(Workspace);
-    sent = [];
-    const listener = (e: Event) => {
-      const message = (e as CustomEvent).detail;
-      if (
-        message?.method === SHOW_PROBLEMS &&
-        message.params?.command === "problems"
-      ) {
-        sent.push(message);
-      }
-    };
-    window.addEventListener(MessageProtocol.event, listener);
-    stopListening = () =>
-      window.removeEventListener(MessageProtocol.event, listener);
   });
 
   afterEach(() => {
-    stopListening();
     win.dispose();
     delete (document as { fullscreenElement?: Element }).fullscreenElement;
   });
@@ -1933,49 +1997,6 @@ describe("Revealing a script from the bar under the game", () => {
     ).toEqual(at(8));
   });
 
-  it("asks the script's editor for its problems once it is on screen", async () => {
-    win.navigateTo("collection");
-    const uri = uriOf("main.sd");
-    await win.showProblems(uri);
-    expect(workspace.current.pane).toBe("logic");
-    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri]);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri: uriOf("other.sd"), version: 1 } },
-    });
-    expect(sent).toHaveLength(1);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 1 } },
-    });
-    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri, uri]);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 2 } },
-    });
-    expect(sent).toHaveLength(2);
-  });
-
-  it("asks only once when the editor on screen answers", async () => {
-    const uri = uriOf("main.sd");
-    await win.showProblems(uri);
-    expect(sent).toHaveLength(1);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: SHOW_PROBLEMS,
-      id: sent[0]!.id,
-      result: {},
-    } as never);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 1 } },
-    });
-    expect(sent).toHaveLength(1);
-  });
 });
 
 describe("The preview's top bar", () => {
@@ -2132,7 +2153,7 @@ describe("The preview's top bar", () => {
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(false),
       );
-      expect(requests).toContain("game/unpause");
+      expect(requests).toContain("game/continue");
     } finally {
       window.removeEventListener(MessageProtocol.event, player);
     }

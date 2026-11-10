@@ -491,6 +491,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -743,8 +744,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -2833,6 +2838,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -3085,8 +3091,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -5141,6 +5151,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -5393,8 +5404,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -7567,6 +7582,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -7819,8 +7835,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -9856,6 +9876,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -10108,8 +10129,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -12129,6 +12154,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -12381,8 +12407,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -14446,6 +14476,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -14698,8 +14729,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -16223,6 +16258,268 @@ spark-web-player #game .end_mark {
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "character_name",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_name",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_parenthetical",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "character_info",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "title",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "heading",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "transitional",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "dialogue",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "dialogue",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "action",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
           ],
           "class": "layouts",
           "style": "position: absolute; inset: 0px; font-size: 1em; opacity: 0;",
@@ -16731,6 +17028,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -16983,8 +17281,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -18508,6 +18810,268 @@ spark-web-player #game .end_mark {
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "character_name",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_name",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_parenthetical",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "character_info",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "title",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "heading",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "transitional",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "dialogue",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "dialogue",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "action",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
           ],
           "class": "layouts",
           "style": "position: absolute; inset: 0px; font-size: 1em; opacity: 0;",
@@ -19016,6 +19580,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -19268,8 +19833,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -20793,6 +21362,268 @@ spark-web-player #game .end_mark {
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "character_name",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_name",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_parenthetical",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "character_info",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "title",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "heading",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "transitional",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "dialogue",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "dialogue",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "action",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
           ],
           "class": "layouts",
           "style": "position: absolute; inset: 0px; font-size: 1em; opacity: 0;",
@@ -21301,6 +22132,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -21553,8 +22385,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -23078,6 +23914,268 @@ spark-web-player #game .end_mark {
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "character_name",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_name",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_parenthetical",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "character_info",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "title",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "heading",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "transitional",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "dialogue",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "dialogue",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "action",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
           ],
           "class": "layouts",
           "style": "position: absolute; inset: 0px; font-size: 1em; opacity: 0;",
@@ -23586,6 +24684,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -23838,8 +24937,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -25360,6 +26463,268 @@ spark-web-player #game .end_mark {
                 },
               ],
               "class": "main",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "character_name",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_name",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-display-target": "character_parenthetical",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_parenthetical",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "character_info",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "title",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "title",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "heading",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "heading",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "transitional",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "transitional",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "dialogue",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "dialogue",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-display-target": "action",
+                          },
+                          "children": [
+                            {
+                              "class": "stroke",
+                              "tag": "div",
+                            },
+                            {
+                              "class": "text",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "action",
+                          "style": "display: none;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
