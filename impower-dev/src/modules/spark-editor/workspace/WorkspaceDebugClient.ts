@@ -16,6 +16,9 @@ import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import WorkspaceDebugInspection, {
+  type WorkspaceDebugInspectionOptions,
+} from "./WorkspaceDebugInspection";
 import workspace, { IDLE_DEBUG_SESSION, type DebugSessionState } from "./WorkspaceStore";
 
 export interface DebugAdapter {
@@ -30,6 +33,8 @@ export interface WorkspaceDebugClientOptions {
   onRefusal?: (message: string) => void;
   createAdapter?: (connection: Connection) => Promise<DebugAdapter>;
   target?: EventTarget;
+  saveWatch?: WorkspaceDebugInspectionOptions["saveWatch"];
+  source?: WorkspaceDebugInspectionOptions["source"];
 }
 
 const webFiles: FileAccessor = {
@@ -66,7 +71,18 @@ interface Session {
 export default class WorkspaceDebugClient {
   protected _session?: Session;
 
-  constructor(protected readonly _options: WorkspaceDebugClientOptions = {}) {}
+  readonly inspection: WorkspaceDebugInspection;
+
+  constructor(protected readonly _options: WorkspaceDebugClientOptions = {}) {
+    this.inspection = new WorkspaceDebugInspection({
+      request: (command, args) =>
+        this._session
+          ? this.request(this._session, command, args)
+          : Promise.resolve(null),
+      saveWatch: (expressions) => this._options.saveWatch?.(expressions),
+      source: _options.source,
+    });
+  }
 
   start(program: string) {
     this.end();
@@ -119,6 +135,7 @@ export default class WorkspaceDebugClient {
     };
     this._session = session;
     workspace.debugSession.value = IDLE_DEBUG_SESSION;
+    this.inspection.begin();
     session.ready = (async () => {
       let adapter: DebugAdapter;
       try {
@@ -171,6 +188,7 @@ export default class WorkspaceDebugClient {
     }
     session.pending.clear();
     workspace.debugSession.value = IDLE_DEBUG_SESSION;
+    this.inspection.end();
   }
 
   pause() {
@@ -184,6 +202,7 @@ export default class WorkspaceDebugClient {
     if (accepted && session && this._session === session && session.stops === stops) {
       session.stops += 1;
       this.update({ stopped: null, stackTrace: null });
+      this.inspection.resume();
     }
     return accepted;
   }
@@ -218,18 +237,8 @@ export default class WorkspaceDebugClient {
   }
 
   async evaluate(expression: string) {
-    const session = this._session;
-    const frameId =
-      workspace.debugSession.peek().stackTrace?.stackFrames[0]?.id;
-    if (!session || frameId == null || !workspace.debugSession.peek().stopped) {
-      return null;
-    }
-    const response = (await this.request(session, "evaluate", {
-      expression,
-      frameId,
-      context: "hover",
-    })) as DebugProtocol.EvaluateResponse | null;
-    return response?.success ? response.body.result : null;
+    const result = await this.inspection.evaluate(expression, "hover");
+    return result && "value" in result ? result.value : null;
   }
 
   protected async sendBreakpoints(
@@ -319,6 +328,7 @@ export default class WorkspaceDebugClient {
     if (event.event === "continued") {
       session.stops += 1;
       this.update({ stopped: null, stackTrace: null });
+      this.inspection.resume();
     }
   }
 
@@ -329,6 +339,7 @@ export default class WorkspaceDebugClient {
     session.stops += 1;
     const stop = session.stops;
     this.update({ stopped, stackTrace: null });
+    this.inspection.stopping();
     const response = (await this.request(session, "stackTrace", {
       threadId: stopped.threadId ?? 0,
     })) as DebugProtocol.StackTraceResponse | null;
@@ -337,9 +348,11 @@ export default class WorkspaceDebugClient {
     }
     if (!response.success) {
       this._options.onRefusal?.(response.message ?? "");
+      void this.inspection.stopped({ stackFrames: [] });
       return;
     }
     this.update({ stackTrace: response.body });
+    void this.inspection.stopped(response.body);
     const top = response.body.stackFrames[0];
     if (top?.source?.path) {
       this._options.onStop?.({ uri: top.source.path, line: top.line });
