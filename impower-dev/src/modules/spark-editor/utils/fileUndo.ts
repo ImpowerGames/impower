@@ -114,7 +114,8 @@ export async function renameFile(
   fromPath: string,
   toPath: string,
 ): Promise<{ referencesUpdated: number }> {
-  if (workspace.autoRenameFiles()) {
+  const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+  if (folderOf(fromPath) === folderOf(toPath) && workspace.autoRenameFiles()) {
     return workspace.fs.renameFileWithReferences(projectId, fromPath, toPath);
   }
   await workspace.fs.moveFile(projectId, fromPath, toPath);

@@ -44,8 +44,11 @@ Object.assign(fs, {
       });
       state.files.set(p, next);
     }
-    state.files.set(to, state.files.get(from)!);
-    state.files.delete(from);
+    const renamed = referencesUpdated > 0 ? from.slice(0, from.lastIndexOf("/") + 1) + to.split("/").pop() : to;
+    if (renamed !== from) {
+      state.files.set(renamed, state.files.get(from)!);
+      state.files.delete(from);
+    }
     return { referencesUpdated, scriptsAffected: referencesUpdated > 0 ? 1 : 0 };
   }),
 });
@@ -112,6 +115,21 @@ describe("undoing a rename after a script starts using the file", () => {
     expect(await undo()).toBe(true);
     expect(state.files.has("Scripts/intro.sd")).toBe(true);
     expect(stems()).toContain(referenced("main.sd", "include"));
+  });
+
+  it("moves a referenced script to another folder and back with the setting on", async () => {
+    state.files = new Map([
+      ["Scripts/intro.sd", "hello"],
+      ["main.sd", "include intro"],
+    ]);
+    const scripts = new WorkspaceScripts(deps);
+    await scripts.load();
+    expect(await scripts.move(["Scripts/intro.sd"], "Scripts/Drafts")).toEqual(["Scripts/Drafts/intro.sd"]);
+    expect(state.files.has("Scripts/Drafts/intro.sd")).toBe(true);
+    expect(state.files.has("Scripts/intro.sd")).toBe(false);
+    expect(await undo()).toBe(true);
+    expect(state.files.has("Scripts/intro.sd")).toBe(true);
+    expect(state.files.get("main.sd")).toBe("include intro");
   });
 
   it("still uses a plain move when the setting is off", async () => {
