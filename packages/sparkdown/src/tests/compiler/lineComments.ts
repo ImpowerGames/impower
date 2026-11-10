@@ -12,7 +12,6 @@ export type SkipReason =
   | "title page"
   | "comment"
   | "string"
-  | "choice label"
   | "closes an open Luau body";
 
 export interface LineCommentResult {
@@ -37,7 +36,6 @@ function skipReasonAt(
     return "closes an open Luau body";
   }
   for (let n: any = tree.resolveInner(lineStart, 1); n; n = n.parent) {
-    if (n.name === "Choice" && n.from < lineStart) return "choice label";
     const scope = treeNodeScope(n.name);
     if (!scope) continue;
     for (const part of scope.split(/\s+/)) {

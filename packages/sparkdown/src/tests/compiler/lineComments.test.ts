@@ -12,8 +12,6 @@ const SKIPPED_LINE_CLASSES: Record<SkipReason, string> = {
     "front matter is read by its own field rules, and a marker inside it changes the title page rather than commenting a line",
   comment: "the line starts inside an existing comment, where toggling removes a comment instead of adding one",
   string: "the line starts inside a string that an earlier line opened, so a marker there is string text",
-  "choice label":
-    "a choice whose header ends at the line break reads the next line as its label whatever it holds, and choice text has no line comment",
   "closes an open Luau body":
     "the line is a beat that ends a Luau body left open without its end or closing brace, so commenting it out puts the line back inside that body",
 };
