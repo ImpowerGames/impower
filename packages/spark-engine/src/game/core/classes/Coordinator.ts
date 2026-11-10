@@ -79,12 +79,12 @@ export class Coordinator<G extends Game> {
   constructor(
     game: G,
     instructions: Instructions,
-    options?: { settled?: boolean },
+    options?: { settled?: "restored" | "presented" },
   ) {
     this._game = game;
     this._instructions = instructions;
     if (options?.settled) {
-      this.onSettle();
+      this.onSettle(options.settled === "restored");
     } else if (game.context.system.previewing) {
       this.onPreview();
     } else {
@@ -96,9 +96,9 @@ export class Coordinator<G extends Game> {
     this.display({ instant: true, preview: true });
   }
 
-  onSettle() {
-    this._displayed = true;
-    this.display({ instant: true });
+  onSettle(restored: boolean) {
+    this._displayed = restored;
+    this.display({ instant: true, presented: !restored });
     this._startedExecution = true;
     this._onTick = () => {};
   }
@@ -277,6 +277,7 @@ export class Coordinator<G extends Game> {
   protected display(options?: {
     instant?: boolean;
     preview?: boolean;
+    presented?: boolean;
   }): ((deltaMS: number) => void) | undefined {
     const game = this._game;
     const instructions = this._instructions;
@@ -315,7 +316,7 @@ export class Coordinator<G extends Game> {
 
     const extended = Boolean(instructions.extended);
 
-    if (!instant && !extended) {
+    if ((!instant || options?.presented) && !extended) {
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
     }
@@ -354,7 +355,7 @@ export class Coordinator<G extends Game> {
       }
       presenter.present();
       handleFinished();
-      if (previewing && !simulating) {
+      if ((previewing || options?.presented) && !simulating) {
         game.module.ui.afterCompose(() => assets.onBeatDisplayed());
       }
       return;
