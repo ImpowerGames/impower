@@ -582,7 +582,16 @@ variables:
   # the anchor with nothing after it does.
   CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
   # lookaround: `SparkdownBlockComment` owns a comment in choice text and on a chained display line, and `LuauInterpolatedStringExpression` owns a `{…}` there, strings and all. A closed interpolation is read whole, so a `/*` in its strings opens no comment. A comment that closes on its line stays inside the text capture, read whole so a `[`, `]` or `\` in it is not a suppression bracket or a chain; one that does not close there is left to a begin/end rule (`Choice`, `ActionLineEnd`, `LineEnd`) that carries it across lines, because a capture cannot hold a scope past its own line. Reordering cannot split the line, since the text rules are single matches.
-  STORY_TEXT_UNIT: (?:{{LUAU_CLOSED_INTERPOLATION_ON_LINE}}|{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?:(?![*][/]).)*[*][/]|(?!{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}).)
+  STORY_TEXT_UNIT: (?:{{STORY_INTERPOLATION}}|{{STORY_UNREAD_INTERPOLATION}}|{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?:(?![*][/]).)*[*][/]|(?!{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|[{]).)
+  # lookaround: as `STORY_TEXT_UNIT`; a `{` is never one plain character, or a rule that fails with the interpolation read whole retries with its `{` as text and reads a `[` or `/*` inside it. A `{` too deep for `STORY_INTERPOLATION` is read to the line's last `}`, and one with no `}` after it is text.
+  STORY_UNREAD_INTERPOLATION: (?:[{].*[}]|[{](?!.*[}]))
+  # lookaround: as `STORY_TEXT_UNIT`; a `[` or `-` that opens a long bracket or a block comment must not also be one plain character, so a `/*` in either is read with it.
+  STORY_INTERPOLATION_PLAIN_CHAR: (?:[^{}"'`\[\r\n-]|\[(?!=*\[)|-(?!-\[=*\[))
+  STORY_INTERPOLATION_ATOM: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{CHOICE_CONDITION_BACKTICK_STRING}}|{{CHOICE_CONDITION_BLOCK_COMMENT}}|{{CHOICE_CONDITION_LONG_BRACKET}}|{{STORY_INTERPOLATION_PLAIN_CHAR}})
+  STORY_INTERPOLATION_1: (?:[{]{{STORY_INTERPOLATION_ATOM}}*[}])
+  STORY_INTERPOLATION_2: (?:[{](?:{{STORY_INTERPOLATION_ATOM}}|{{STORY_INTERPOLATION_1}})*[}])
+  STORY_INTERPOLATION_3: (?:[{](?:{{STORY_INTERPOLATION_ATOM}}|{{STORY_INTERPOLATION_2}})*[}])
+  STORY_INTERPOLATION: (?:[{](?:{{STORY_INTERPOLATION_ATOM}}|{{STORY_INTERPOLATION_3}})*[}])
   _CHOICE_TEXT_TAIL_: (?:({{WS}}*)$|({{WS}}*)([-][>]{{STORY_TEXT_UNIT}}*)(?:$|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})
   # lookaround: as `STORY_TEXT_UNIT`; the choice text rules end before a `/*` with no `*/` after it on its line, which `SparkdownBlockComment` in `Choice` reads.
   STORY_TEXT_BEFORE_OPEN_COMMENT: (?={{STORY_OPEN_COMMENT_ON_LINE}})

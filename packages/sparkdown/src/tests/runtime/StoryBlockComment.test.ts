@@ -248,6 +248,31 @@ end
     expect(story.currentChoices.map((c: any) => c.text)).toEqual(["Go /* home"]);
   });
 
+  test("a `/*` in a nested interpolation, a long string or a backtick string in choice text opens no comment", () => {
+    const { result, errors } = compile(`scene start
+  choose
+    + Go {if true then "/*" else tostring({})} home
+      done
+    + Go {[[/*]]} far
+      done
+    + Go {\`/*{1}\`} near
+      done
+    + Go {#{"/*"}} count
+      done
+  end
+end
+`);
+    expect(errors).toEqual([]);
+    const story = testStory(result.program.chunks);
+    story.Continue();
+    expect(story.currentChoices.map((c: any) => c.text)).toEqual([
+      "Go /* home",
+      "Go /* far",
+      "Go /*1 near",
+      "Go 1 count",
+    ]);
+  });
+
   test("an unclosed `/*` in choice text reports an error at the opener", () => {
     const { errors } = compile(`scene start
   choose
