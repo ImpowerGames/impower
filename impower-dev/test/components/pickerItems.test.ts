@@ -207,10 +207,13 @@ const compiled = (text: string, files: readonly { path: string; type: string; sr
   console.warn = console.error = console.log = () => {};
   try {
     const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
-    return {
-      messages: (program.diagnostics?.[MAIN_URI] ?? []).map((diagnostic) =>
+    const messagesOf = (uri: string) =>
+      (program.diagnostics?.[uri] ?? []).map((diagnostic) =>
         typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
-      ),
+      );
+    return {
+      messages: messagesOf(MAIN_URI),
+      messagesOf,
       context: (program.context ?? {}) as Record<string, Record<string, { uri?: string }> | undefined>,
     };
   } finally {
@@ -219,15 +222,16 @@ const compiled = (text: string, files: readonly { path: string; type: string; sr
 };
 
 describe("what the pickers insert", () => {
-  it("compiles with no diagnostic and draws the card's own file, for every card the pickers offer", () => {
+  it("compiles with no diagnostic on the script or the card's own file, and draws that file, for every card the pickers offer", () => {
     const problems = ADD_MENU_KINDS.flatMap((kind) => {
       const files = [...FILES, ...NAMED_LIKE_KEYWORDS, ...ODD_NAMES, ...formsFor(kind)];
       expect(compiled(SCRIPT, files).messages).toEqual([]);
       return pickerItems(kind, files, FOLDERS).flatMap((item) => {
-        const { messages, context } = compiled(inserted(CONSTRUCTS[kind], item.reference), files);
+        const { messages, messagesOf, context } = compiled(inserted(CONSTRUCTS[kind], item.reference), files);
         const drawn = context[ADD_MENU_FILE_TYPES[kind]]?.[item.reference]?.uri;
         return [
           ...messages.map((message) => `${kind} ${item.reference}: ${message}`),
+          ...messagesOf(`file:///${item.path}`).map((message) => `${kind} ${item.reference} file: ${message}`),
           ...(drawn === `file:///${item.path}` ? [] : [`${kind} ${item.reference}: draws ${drawn}`]),
         ];
       });
