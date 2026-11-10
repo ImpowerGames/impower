@@ -1,6 +1,7 @@
-export { default, RowIcon as OutlineRowIcon } from "./Outline";
+export { default } from "./Outline";
+export { default as OutlineListRow } from "./OutlineListRow";
 export {
   filterOutlineRows,
-  outlineRows,
   type OutlineRow,
 } from "./outlineRows";
+export { default as useOutlineModel } from "./useOutlineModel";
