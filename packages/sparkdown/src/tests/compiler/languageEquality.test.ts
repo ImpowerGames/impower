@@ -150,7 +150,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     });
   });
 
-  test("a keyword glued to a non-ASCII letter opens no Luau rule in either engine (I-2037)", async () => {
+  test("a keyword glued to a non-ASCII letter stays story text in both", async () => {
     const source = "function名 text\nHello\n";
     const { divergences } = await compareLanguages(source);
     expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
