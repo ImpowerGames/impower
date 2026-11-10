@@ -23,6 +23,10 @@ export class GrammarState {
 
   visited: CallFrame[] = [];
 
+  stopped = false;
+
+  emptyScopeMatched = false;
+
   str: string;
 
   next?: (absolutePos: number) => string;
@@ -115,6 +119,11 @@ export class GrammarState {
 
   get lineStart() {
     return this._lineStart;
+  }
+
+  lineEndAt(at: number) {
+    this.line(at);
+    return this._lineEnd;
   }
 
   get lineText() {

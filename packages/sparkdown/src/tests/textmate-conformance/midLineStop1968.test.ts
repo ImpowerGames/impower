@@ -4,15 +4,22 @@ import { type Tree, TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
-const grammarOf = (repository: Record<string, unknown>) => ({
+const ROOT = [{ include: "#Block" }, { include: "#Word" }, { include: "#Gap" }];
+
+const grammarOf = (repository: Record<string, unknown>, patterns: unknown[] = ROOT) => ({
   name: "mini",
   scopeName: "source.mini",
-  patterns: [{ include: "#Block" }, { include: "#Word" }, { include: "#Gap" }],
+  patterns,
   repository: {
     Word: { name: "word.mini", match: "[A-Za-z]+" },
     Gap: { match: "\\s" },
     ...repository,
   },
+});
+
+const inCapture = (grammar: ReturnType<typeof grammarOf>, name?: string) => ({
+  ...grammar,
+  patterns: [{ match: "^(?:-)(.+)", captures: { "1": { name, patterns: ROOT } } }, ...ROOT],
 });
 
 const GRAMMARS = {
@@ -57,6 +64,14 @@ const GRAMMARS = {
   }),
 };
 
+const CAPTURED = {
+  nonAdvancingMatchInCapture: inCapture(GRAMMARS.nonAdvancingMatch),
+  nonAdvancingMatchInNamedCapture: inCapture(GRAMMARS.nonAdvancingMatch, "cap.mini"),
+  nestedNonAdvancingMatchInCapture: inCapture(GRAMMARS.nestedNonAdvancingMatch, "cap.mini"),
+  recursiveEmptyBeginInCapture: inCapture(GRAMMARS.recursiveEmptyBegin),
+  recursiveEmptyBeginInNamedCapture: inCapture(GRAMMARS.recursiveEmptyBegin, "cap.mini"),
+};
+
 const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
   ["nonAdvancingMatch", "<abc> d\n", "d", "source.mini"],
   ["nonAdvancingMatch", "<abc> d\nef <g a> h\n", "ef", "source.mini word.mini"],
@@ -74,6 +89,23 @@ describe("textmate-grammar-tree pops a rule that does not advance mid-line and s
     const grammar = GRAMMARS[name];
     const vscode = await vscodeScopes(structuredClone(grammar), text);
     expect(vscode[text.lastIndexOf(probe)], "the case reaches the stopped line").toBe(scope);
+    expect(treeScopes(grammar, text)).toEqual(vscode);
+  });
+});
+
+const CAPTURE_CASES: [keyof typeof CAPTURED, string, string, string][] = [
+  ["nonAdvancingMatchInCapture", "-<abc> d\nef\n", "d", "source.mini"],
+  ["nonAdvancingMatchInNamedCapture", "-<abc> d\nef\n", "d", "source.mini cap.mini"],
+  ["nestedNonAdvancingMatchInCapture", "-<x [abc] y> z\nw\n", "y", "source.mini cap.mini block.mini"],
+  ["recursiveEmptyBeginInCapture", "-<abc> d\nef\n", "d", "source.mini block.mini"],
+  ["recursiveEmptyBeginInNamedCapture", "-<abc> d\nef\n", "d", "source.mini cap.mini block.mini"],
+];
+
+describe("a capture's patterns pop a rule that does not advance and stop at the capture's end, as vscode-textmate does (I-1968)", () => {
+  test.each(CAPTURE_CASES)("%s: %j at %j", async (name, text, probe, scope) => {
+    const grammar = CAPTURED[name];
+    const vscode = await vscodeScopes(structuredClone(grammar), text);
+    expect(vscode[text.lastIndexOf(probe)], "the case reaches the stopped capture").toBe(scope);
     expect(treeScopes(grammar, text)).toEqual(vscode);
   });
 });
