@@ -149,3 +149,11 @@ describe("[[clear LAYOUT]] (#1991)", () => {
     ]);
   });
 });
+
+describe("[[clear]] with no layout (#1991)", () => {
+  test("warns that only textstream has a page to clear", () => {
+    expect(diagnosticsFor(inStart("[[clear]]"))).toEqual([
+      "Only textstream has a page to clear.",
+    ]);
+  });
+});

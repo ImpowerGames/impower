@@ -1417,12 +1417,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const target = instruction
           ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
           : null;
-        if (target && this.read(target.from, target.to).trim() !== "textstream") {
+        const targetText = target
+          ? this.read(target.from, target.to).trim()
+          : "";
+        if (targetText !== "textstream") {
           annotations.push(
             SparkdownAnnotation.mark<Diagnostic>({
               message: "Only textstream has a page to clear.",
               severity: "warning",
-            }).range(target.from, target.to),
+            }).range(
+              targetText ? target!.from : nodeRef.from,
+              targetText ? target!.to : nodeRef.to,
+            ),
           );
         }
         return annotations;
