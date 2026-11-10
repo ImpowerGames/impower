@@ -12,19 +12,26 @@ const recorded = vi.hoisted(() => ({
   options: [] as PresentOptions[],
 }));
 
-vi.mock("./presenters/choosePresenter", () => ({
-  choosePresenter: (
-    _game: unknown,
-    instructions: Instructions,
-    options: PresentOptions,
-  ) => {
-    recorded.options.push(options);
-    return {
-      present: (time?: number) =>
-        recorded.calls.push(["present", instructions, time]),
-      finish: () => recorded.calls.push(["finish", instructions]),
-    };
+vi.mock("./presenters/VisualNovelPresenter", () => ({
+  writeBeatText: () => [],
+  VisualNovelPresenter: class {
+    instructions: Instructions;
+    constructor(_game: unknown, instructions: Instructions, options: PresentOptions) {
+      this.instructions = instructions;
+      recorded.options.push(options);
+    }
+    present(time?: number) {
+      recorded.calls.push(["present", this.instructions, time]);
+    }
+    finish() {
+      recorded.calls.push(["finish", this.instructions]);
+    }
   },
+}));
+
+vi.mock("./presenters/InteractiveFictionPresenter", () => ({
+  InteractiveFictionPresenter: class {},
+  textstreamOpenAfter: () => false,
 }));
 
 const NOW = 5000;
@@ -58,6 +65,8 @@ const createGame = (previewing?: boolean) => {
     image: recorder("image"),
     style: recorder("style"),
     initialLayoutsOpened: true,
+    openedLayoutsAfter: () => ["main", "textbox"],
+    layoutHolds: () => true,
     afterCompose: (work: () => void) => work(),
     getTransientTargets: () => {
       uiWrites.push("getTransientTargets");
