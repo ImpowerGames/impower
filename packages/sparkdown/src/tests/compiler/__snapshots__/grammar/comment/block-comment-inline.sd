@@ -7,6 +7,8 @@ scene start
   -> next /* why */
   + [Go /* inner */ on] You /* outer */ go. -> next
   * Plain /* note */ choice
+  * Twice /*one*//*two*/ choice
+  -> next /*one*//*two*/
   done
 scene next
   done

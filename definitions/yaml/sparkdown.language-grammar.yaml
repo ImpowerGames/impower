@@ -1160,11 +1160,11 @@ repository:
     match: ((?:[^*\r\n]|[*](?![/]))+)
 
   SparkdownBlockCommentOnLine:
-    # lookaround: SparkdownBlockComment reads the comment. Choice text, a divert and a chained display line are read inside single-line captures, which cannot carry a comment past their line, so there the comment is read only when its `*/` is on the same line; an open `/*` is text. Ordering cannot make that distinction, since both forms begin at the same `/*`.
-    begin: (?={{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}.*?[*][/])
-    patterns:
-      - { include: "#SparkdownBlockComment" }
-    end: (?<=[*][/])|$
+    match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}.*?[*][/])
+    captures:
+      1:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
 
   SparkdownOpenCommentText:
     tag: special(string)

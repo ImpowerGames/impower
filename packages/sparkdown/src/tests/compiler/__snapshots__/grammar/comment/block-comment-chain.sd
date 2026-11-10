@@ -3,5 +3,7 @@ scene start
   still */ after
   One /* a note */ two\
   three
+  Two /*one*//*two*/ notes\
+  four
   done
 end

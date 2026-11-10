@@ -283,6 +283,46 @@ end
 `),
       );
     });
+
+    test("adjacent comments that close on a choice line are all left out", () => {
+      const result = outcome(
+        choose("+ Go /*one*//*two*/ home", "  done", "+ Go /*one*/ /*two*/ /*three*/ home", "  done"),
+      );
+      expect(result.errors).toEqual([]);
+      expect(result.choices).toEqual(["Go home", "Go home"]);
+    });
+
+    test("adjacent comments that close on a chain line are all left out, and the line still chains", () => {
+      expect(
+        run(String.raw`scene start
+  One /*one*//*two*/ two \
+  three
+  done
+end
+`),
+      ).toBe(
+        run(String.raw`scene start
+  One two \
+  three
+  done
+end
+`),
+      );
+    });
+
+    test("adjacent comments after a divert are left out", () => {
+      expect(
+        run(`scene start
+  -> next /*one*//*two*/
+  done
+end
+scene next
+  Next.
+  done
+end
+`),
+      ).toBe("Next.\n");
+    });
   });
 
   test("a comment after `end` is not read as a line of story text", () => {

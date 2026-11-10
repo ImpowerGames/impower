@@ -1058,13 +1058,16 @@
       "match": "((?:[^*\\r\\n]|[*](?![/]))+)"
     },
     "SparkdownBlockCommentOnLine": {
-      "begin": "(?=(?:[^\\S\\n\\r])*(?:[/][*]).*?[*][/])",
-      "patterns": [
-        {
-          "include": "#SparkdownBlockComment"
+      "match": "((?:[^\\S\\n\\r])*(?:[/][*]).*?[*][/])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SparkdownBlockComment"
+            }
+          ]
         }
-      ],
-      "end": "(?<=[*][/])|$"
+      }
     },
     "SparkdownOpenCommentText": {
       "tag": "special(string)",
