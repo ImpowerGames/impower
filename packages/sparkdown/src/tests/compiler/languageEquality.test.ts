@@ -116,6 +116,39 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       expect(divergences.map((d) => d.lineCol)).toEqual(positions);
     });
 
+    const span = (line: number, from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, i) => `${line}:${from + i}`);
+
+    test.each([
+      ["Hello {x end}\nAfter\n", span(1, 9, 11)],
+      ["Hello {x then}\nAfter\n", span(1, 9, 12)],
+      ["Hello {x do}\nAfter\n", span(1, 9, 10)],
+      ["Hello {x until}\nAfter\n", span(1, 9, 13)],
+      ["Hello {x else}\nAfter\n", span(1, 9, 12)],
+      ["Hello {x elseif}\nAfter\n", span(1, 9, 14)],
+      ["Hello {{x end}}\nAfter\n", span(1, 10, 12)],
+      ["Hello {{x then}}\nAfter\n", span(1, 10, 13)],
+      ["Hello {{x do}}\nAfter\n", span(1, 10, 11)],
+      ["Hello {{x until}}\nAfter\n", span(1, 10, 14)],
+      ["Hello {{x else}}\nAfter\n", span(1, 10, 13)],
+      ["Hello {{x elseif}}\nAfter\n", span(1, 10, 15)],
+      ["if x do then\n  Hi.\nend\n", span(1, 5, 6)],
+      ["if x until then\n  Hi.\nend\n", span(1, 5, 9)],
+      ["if x else then\n  Hi.\nend\n", span(1, 5, 8)],
+      ["if x elseif then\n  Hi.\nend\n", span(1, 5, 10)],
+      ["while x then do\n  Hi.\nend\n", span(1, 8, 11)],
+      ["while x until do\n  Hi.\nend\n", span(1, 8, 12)],
+      ["while x else do\n  Hi.\nend\n", span(1, 8, 11)],
+      ["while x elseif do\n  Hi.\nend\n", span(1, 8, 13)],
+      ["for i = 1, x then do\n  Hi.\nend\n", span(1, 13, 16)],
+      ["for i = 1, x until do\n  Hi.\nend\n", span(1, 13, 17)],
+      ["for i = 1, x else do\n  Hi.\nend\n", span(1, 13, 16)],
+      ["for i = 1, x elseif do\n  Hi.\nend\n", span(1, 13, 18)],
+    ])("I-2048: a structural word inside a marked interpolation, shorthand or condition, %j", async (source, positions) => {
+      const { divergences } = await compareLanguages(source);
+      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
+    });
+
     test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {
       const { divergences } = await compareLanguages("function名 text\nHello\n");
       expect(divergences).toHaveLength(14);
