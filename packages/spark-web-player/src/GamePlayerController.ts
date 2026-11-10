@@ -81,6 +81,7 @@ import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
+import { SetGameVariableMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameVariableMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
 import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
@@ -1512,6 +1513,11 @@ export class GamePlayerController {
       this.host,
     );
     p.onRequest(
+      SetGameVariableMessage.type,
+      this.handleSetGameVariable,
+      this.host,
+    );
+    p.onRequest(
       GetGameThreadsMessage.type,
       this.handleGetGameThreads,
       this.host,
@@ -2525,6 +2531,30 @@ export class GamePlayerController {
       return GetGameStackTraceMessage.type.response(message.id, answer);
     }
     return GetGameStackTraceMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
+  };
+
+  protected handleSetGameVariable = async (
+    message: SetGameVariableMessage.Request,
+  ) => {
+    let answer;
+    try {
+      answer = await this.askWorkerGame(
+        SetGameVariableMessage.type,
+        message.params,
+      );
+    } catch (e) {
+      return SetGameVariableMessage.type.error(message.id, {
+        code: 1,
+        message: (e as { message?: string })?.message ?? String(e),
+      });
+    }
+    if (answer) {
+      return SetGameVariableMessage.type.response(message.id, answer);
+    }
+    return SetGameVariableMessage.type.error(message.id, {
       code: 1,
       message: "no game loaded",
     });

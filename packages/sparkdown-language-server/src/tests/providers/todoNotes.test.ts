@@ -61,8 +61,17 @@ describe("provider · todo notes", () => {
         "To do: block",
         DiagnosticSeverity.Information,
         "todo",
-        { start: { line: 6, character: 2 }, end: { line: 6, character: 15 } },
+        { start: { line: 6, character: 5 }, end: { line: 6, character: 15 } },
       ],
+    ]);
+  });
+
+  test("each note records the comment text its fix expects to remove", () => {
+    expect(notesOf(SCRIPT).map((d) => d.data)).toEqual([
+      { expect: "// TODO: fix this" },
+      { expect: "// todo later" },
+      { expect: "// Todo" },
+      { expect: "TODO block" },
     ]);
   });
 
@@ -82,7 +91,7 @@ describe("provider · todo notes", () => {
     ).toEqual([
       [
         "To do: first",
-        { start: { line: 1, character: 2 }, end: { line: 1, character: 16 } },
+        { start: { line: 1, character: 5 }, end: { line: 1, character: 16 } },
       ],
       [
         "To do: second",
@@ -90,7 +99,7 @@ describe("provider · todo notes", () => {
       ],
       [
         "To do: inline",
-        { start: { line: 4, character: 9 }, end: { line: 4, character: 23 } },
+        { start: { line: 4, character: 12 }, end: { line: 4, character: 23 } },
       ],
     ]);
   });

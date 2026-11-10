@@ -32,26 +32,20 @@ export const getTodoNotes = (
       severity: DiagnosticSeverity.Information,
       source: TODO_NOTE_SOURCE,
       message: rest ? `${TODO_NOTE_TITLE}: ${rest}` : TODO_NOTE_TITLE,
+      data: { expect: document.read(from, to) },
     });
   };
   const blockCommentNotes = (comment: SyntaxNode) => {
-    const opener = comment
-      .getChild(`${BLOCK_COMMENT_NAME}_begin`)
-      ?.getChild(`${BLOCK_COMMENT_NAME}_begin_c2`);
     const content = comment.getChild(`${BLOCK_COMMENT_NAME}_content`);
-    if (!opener || !content) return;
-    for (
-      let line = content.getChild(BLOCK_COMMENT_CONTENT_NAME);
-      line;
-      line = line.nextSibling
-    ) {
+    for (let line = content?.firstChild; line; line = line.nextSibling) {
       if (line.name !== BLOCK_COMMENT_CONTENT_NAME) continue;
-      const onOpenerLine = line.from === opener.to;
       const text = document.read(line.from, line.to);
-      const from = onOpenerLine
-        ? opener.from
-        : line.from + (text.length - text.trimStart().length);
-      note(from, line.from, line.to, line.from + text.trimEnd().length);
+      note(
+        line.from + (text.length - text.trimStart().length),
+        line.from,
+        line.to,
+        line.from + text.trimEnd().length,
+      );
     }
   };
   tree?.iterate({

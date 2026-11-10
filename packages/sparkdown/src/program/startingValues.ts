@@ -158,7 +158,7 @@ export const valueOfLiteral = (literal: Literal): AbstractValue => {
   return Value.Create(literal)!;
 };
 
-const globalsDeclaredBy = (root: ProgramRoot, chunk: ProgramChunk): string[] => {
+export const globalsDeclaredBy = (root: ProgramRoot, chunk: ProgramChunk): string[] => {
   const names: string[] = [];
   for (let at = 0; at < codeWords(chunk); at += 2) {
     const w0 = chunk[HEADER_WORDS + at]!;

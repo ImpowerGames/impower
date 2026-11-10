@@ -9,6 +9,14 @@ const intents = vi.hoisted(() => ({
   setStripHeight: vi.fn(),
 }));
 
+const inspection = vi.hoisted(() => ({
+  selectFrame: vi.fn(async () => {}),
+  frames: [] as unknown[],
+  get state() {
+    return { frames: inspection.frames };
+  },
+}));
+
 vi.mock("../../src/modules/spark-editor/components/preview-game/PreviewGame", () => ({
   default: () => h("div", { "data-stage": "game" }),
 }));
@@ -26,6 +34,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       getActiveEditorForPane: () => ({ uri: "file://local/main.sd" }),
       revealDocument: intents.revealDocument,
       setStripHeight: intents.setStripHeight,
+      debug: { inspection },
     },
     fs: { getUriFromPath: intents.getUriFromPath },
   },
@@ -57,7 +66,7 @@ beforeAll(() => {
   };
 });
 
-const { default: workspace } = await import(
+const { default: workspace, IDLE_DEBUG_INSPECTION } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
 const { default: workspaceSettings, PROJECT_SETTINGS_STORAGE_KEY_PREFIX } =
@@ -174,6 +183,12 @@ const empties = () =>
     (p) => p.textContent,
   );
 
+const DEBUG_NOTES = [
+  "Play the story to inspect it.",
+  "Add an expression to watch it.",
+  "Play the story to inspect it.",
+];
+
 const openPanel = async () => {
   await mount();
   await act(async () => toggle().click());
@@ -186,6 +201,11 @@ beforeEach(() => {
   workspaceSettings.setProjectSetting("previewPanelHeight", 44);
   workspaceSettings.setProjectSetting("problemsScriptCardOpen", true);
   workspaceSettings.setProjectSetting("problemsPlayedCardOpen", true);
+  workspaceSettings.setProjectSetting("problemsVariablesCardOpen", true);
+  workspaceSettings.setProjectSetting("problemsWatchCardOpen", true);
+  workspaceSettings.setProjectSetting("problemsCallStackCardOpen", true);
+  workspace.debugInspection.value = IDLE_DEBUG_INSPECTION;
+  inspection.selectFrame.mockClear();
   workspaceSettings.setPreference("previewMode", "game");
   problems.diagnostics.value = {};
   problems.played.value = [];
@@ -241,6 +261,7 @@ describe("the Problems panel", () => {
     );
     expect(empties()).toEqual([
       "Nothing yet. Play the story and logs will appear here.",
+      ...DEBUG_NOTES,
     ]);
   });
 
@@ -256,6 +277,7 @@ describe("the Problems panel", () => {
     expect(empties()).toEqual([
       "No problems.",
       "Nothing yet. Play the story and logs will appear here.",
+      ...DEBUG_NOTES,
     ]);
   });
 
@@ -533,6 +555,129 @@ describe("the Problems panel", () => {
       expect(problems.reveal.value).not.toBeNull();
       await act(async () => render(null, host!));
       expect(problems.reveal.value).toBeNull();
+    });
+  });
+
+  describe("while a run is paused", () => {
+    const frames = [
+      { id: 1, name: "shop", uri: CHAPTER, line: 11, character: 2, path: "scripts/chapter_1.sd", inProject: true },
+      { id: 0, name: "start", uri: MAIN, line: 3, character: 0, path: "main.sd", inProject: true },
+    ];
+    const scope = (name: string, value: { key: string; name: string; value: string }) => {
+      const row = { expandable: false, expanded: false, editable: true, breakable: true, breaking: false };
+      return {
+        ...row,
+        key: `scope-${name}`,
+        name,
+        value: "",
+        expandable: true,
+        expanded: true,
+        editable: false,
+        breakable: false,
+        children: [{ ...row, ...value }],
+      };
+    };
+    const pause = () => {
+      workspace.current = {
+        ...workspace.current,
+        debug: { ...workspace.current.debug, watch: ["gold", "silver"] },
+      };
+      inspection.frames = frames;
+      workspace.debugInspection.value = {
+        ...IDLE_DEBUG_INSPECTION,
+        status: "paused",
+        frames,
+        frameId: 1,
+        variables: [
+          scope("Vars", { key: "d3", name: "gold", value: "3" }),
+          scope("Temps", { key: "d4", name: "bag", value: "2" }),
+        ],
+        watch: new Map([
+          ["gold", { value: "3" }],
+          ["silver", { error: "not available in this frame" }],
+        ]),
+      };
+    };
+    const rows = () =>
+      Array.from(panel()!.querySelectorAll('[role="listitem"]'))
+        .map((row) => row.textContent!.trim())
+        .filter(Boolean);
+    const heads = () =>
+      Array.from(panel()!.querySelectorAll<HTMLButtonElement>("[aria-expanded][aria-label]"))
+        .filter((button) => button.closest(".pt-2"))
+        .map((button) => button.getAttribute("aria-label"));
+
+    it("lists the story's variables, the watches and the call stack in cards after Played", async () => {
+      pause();
+      await openPanel();
+      expect(heads()).toEqual(["In the script", "While playing", "Variables", "Watch", "Call stack"]);
+      const shown = rows();
+      const from = shown.indexOf("Variables");
+      expect(shown.slice(from)).toEqual([
+        "Variables",
+        "Vars",
+        "gold3",
+        "Temps",
+        "bag2",
+        "Watch",
+        "gold3",
+        "silvernot available in this frame",
+        "Call stack",
+        "shopscripts/chapter_1.sd:12",
+        "startmain.sd:4",
+      ]);
+    });
+
+    it("selects a tapped frame for the Variables card and opens its script at the frame's line", async () => {
+      pause();
+      await openPanel();
+      await act(async () =>
+        panel()!.querySelector<HTMLButtonElement>('[aria-label="Show start at main.sd:4"]')!.click(),
+      );
+      await settle();
+      expect(inspection.selectFrame).toHaveBeenCalledWith(0);
+      expect(intents.revealDocument).toHaveBeenCalledWith(MAIN, {
+        start: { line: 3, character: 0 },
+        end: { line: 3, character: 0 },
+      });
+    });
+
+    it("opens the script at the last tapped frame when an earlier tap's selection finishes later", async () => {
+      pause();
+      await openPanel();
+      let finishFirst: () => void = () => {};
+      inspection.selectFrame.mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finishFirst = resolve)),
+      );
+      await act(async () =>
+        panel()!.querySelector<HTMLButtonElement>('[aria-label="Show start at main.sd:4"]')!.click(),
+      );
+      await settle();
+      await act(async () =>
+        panel()!.querySelector<HTMLButtonElement>('[aria-label="Show shop at scripts/chapter_1.sd:12"]')!.click(),
+      );
+      await settle();
+      finishFirst();
+      await settle();
+      expect(intents.revealDocument.mock.calls.at(-1)).toEqual([
+        CHAPTER,
+        { start: { line: 11, character: 2 }, end: { line: 11, character: 2 } },
+      ]);
+    });
+
+    it("keeps each debugging card's open state in the project's settings", async () => {
+      pause();
+      await openPanel();
+      for (const [title, key] of [
+        ["Variables", "problemsVariablesCardOpen"],
+        ["Watch", "problemsWatchCardOpen"],
+        ["Call stack", "problemsCallStackCardOpen"],
+      ] as const) {
+        await act(async () => head(title).click());
+        expect(stored()[key]).toBe(false);
+        expect(head(title).getAttribute("aria-expanded")).toBe("false");
+      }
+      expect(rows().slice(-3)).toEqual(["Variables", "Watch", "Call stack"]);
     });
   });
 

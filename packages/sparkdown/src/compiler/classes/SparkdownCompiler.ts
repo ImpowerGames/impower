@@ -133,6 +133,7 @@ import {
 } from "../utils/ReferenceValidationCache";
 import type { Reference } from "./annotators/ReferenceAnnotator";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
+import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
 import { getContextEntry } from "../utils/getContextEntry";
 import { setContextEntry } from "../utils/setContextEntry";
@@ -5208,12 +5209,28 @@ export class SparkdownCompiler {
       outcomes: ReferenceOutcome[],
       reads: Reads,
     ) => {
-      const report = (severity: DiagnosticSeverity, message: string) => {
+      const report = (
+        severity: DiagnosticSeverity,
+        message: string,
+        data?: CloseMatchData,
+      ) => {
         outcomes.push({
           from: from - offset,
           to: to - offset,
-          diagnostic: { severity, message },
+          diagnostic: data ? { severity, message, data } : { severity, message },
         });
+      };
+      const closeMatchAmong = (name: string, types: readonly string[]) => {
+        const names = new Set<string>();
+        for (const type of types) {
+          readType(reads, type);
+          if (program.context && Object.hasOwn(program.context, type)) {
+            for (const candidate of Object.keys(program.context[type] ?? {})) {
+              names.add(candidate);
+            }
+          }
+        }
+        return closeMatchData(name, names);
       };
       if (reference.usage === "handler") {
         const name = reference.symbolIds?.[0];
@@ -5234,7 +5251,11 @@ export class SparkdownCompiler {
         if (declared && !typed) {
           outcomes.push({ from: from - offset, to: to - offset, declared: name });
         } else if (!declared && typed) {
-          report(DiagnosticSeverity.Warning, `Cannot find ${types[0]} named \`${name}\``);
+          report(
+            DiagnosticSeverity.Warning,
+            `Cannot find ${types[0]} named \`${name}\``,
+            closeMatchAmong(name, types),
+          );
         }
       }
       if (reference.symbolIds) {
@@ -5336,6 +5357,10 @@ export class SparkdownCompiler {
             expectedSelectorTypes[0];
           const invalidStylingStringIdentifier =
             reference.stylingStringIdentifier && !type;
+          const searched =
+            selector?.types && selector.types.length > 0
+              ? selector.types
+              : expectedSelectorTypes;
           report(
             invalidStylingStringIdentifier
               ? DiagnosticSeverity.Error
@@ -5343,6 +5368,11 @@ export class SparkdownCompiler {
             invalidStylingStringIdentifier
               ? `Invalid property value`
               : `Cannot find ${validDescription}`,
+            !invalidStylingStringIdentifier &&
+              selector?.name &&
+              !selector.name.includes(".")
+              ? closeMatchAmong(selector.name, searched)
+              : undefined,
           );
         }
       } else if (reference.assigned) {
@@ -5449,6 +5479,9 @@ export class SparkdownCompiler {
                 value: outcome.diagnostic.message,
                 kind: "markdown",
               },
+              ...(outcome.diagnostic.data
+                ? { data: outcome.diagnostic.data }
+                : {}),
               relatedInformation: [
                 {
                   location: { uri, range },
