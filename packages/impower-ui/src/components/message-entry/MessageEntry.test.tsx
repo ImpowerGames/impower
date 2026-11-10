@@ -49,6 +49,31 @@ describe("MessageEntry", () => {
     expect(onJump).toHaveBeenCalledTimes(1);
   });
 
+  it("activates from a click anywhere on the row but its own buttons, and is plain selectable text without onActivate", async () => {
+    const onActivate = vi.fn();
+    const onAction = vi.fn();
+    let entry = await mount(
+      <MessageEntry
+        severity="info"
+        title="Chose · Pay."
+        onActivate={onActivate}
+        actions={
+          <button type="button" aria-label="Go back" onClick={onAction} />
+        }
+      />,
+    );
+    expect(entry.hasAttribute("data-activatable")).toBe(true);
+    expect(entry.className).toContain("cursor-pointer");
+    await act(async () => entry.querySelector("strong")!.click());
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    await act(async () => entry.querySelector("button")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    entry = await mount(<MessageEntry severity="info" title="Chose · Pay." />);
+    expect(entry.hasAttribute("data-activatable")).toBe(false);
+    expect(entry.firstElementChild!.className).toContain("select-text");
+  });
+
   it("leaves out what it lacks, and shows a time and actions when given", async () => {
     let entry = await mount(<MessageEntry severity="info" title="To do" />);
     expect(entry.querySelector("strong + span")).toBeNull();

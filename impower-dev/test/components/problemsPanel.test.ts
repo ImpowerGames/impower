@@ -7,6 +7,7 @@ const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
   getUriFromPath: vi.fn((path: string) => `file://local/${path}`),
   setStripHeight: vi.fn(),
+  goBackToChoice: vi.fn(async () => true),
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview-game/PreviewGame", () => ({
@@ -26,6 +27,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       getActiveEditorForPane: () => ({ uri: "file://local/main.sd" }),
       revealDocument: intents.revealDocument,
       setStripHeight: intents.setStripHeight,
+      goBackToChoice: intents.goBackToChoice,
     },
     fs: { getUriFromPath: intents.getUriFromPath },
   },
@@ -326,6 +328,64 @@ describe("the Problems panel", () => {
       start: { line: 7, character: 0 },
       end: { line: 7, character: 0 },
     });
+  });
+
+  it("goes back to a choice the run still holds from its row or its button, and offers nothing on a dropped choice or a runtime error", async () => {
+    problems.run.value = 7;
+    problems.recordPlayed({ severity: "info", title: "Chose · Pay.", message: "", checkpoint: 1 });
+    problems.recordPlayed({ severity: "info", title: "Chose · Rest.", message: "", checkpoint: 3 });
+    problems.recordPlayed({ severity: "info", title: "Chose · Walk on.", message: "", checkpoint: 3 });
+    await openPanel();
+    await act(async () => {
+      problems.receive(runtimeError("Out of songs", 2, 7));
+    });
+    await settle();
+    expect(entries()).toEqual([
+      "Chose · Pay.",
+      "Chose · Rest.",
+      "Chose · Walk on.",
+      "Warning · Out of songs",
+    ]);
+    const rows = Array.from(
+      panel()!.querySelectorAll<HTMLElement>("[data-message-entry]"),
+    );
+    const buttons = rows.map((row) =>
+      row.querySelector<HTMLButtonElement>('button[aria-label="Go back to this choice"]'),
+    );
+    expect(buttons.map(Boolean)).toEqual([true, false, true, false]);
+    expect(buttons[0]!.className).toContain("pointer-coarse:size-11");
+    expect(rows.map((row) => row.hasAttribute("data-activatable"))).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
+    expect(head("While playing").getAttribute("aria-label")).toBe(
+      "While playing, 1 problem",
+    );
+    expect(chip("notes").textContent).toContain("0");
+    await act(async () => chip("notes").click());
+    await act(async () => chip("warning").click());
+    await settle();
+    expect(entries()).toEqual(["Chose · Pay.", "Chose · Rest.", "Chose · Walk on."]);
+    await act(async () => chip("notes").click());
+    await act(async () => chip("warning").click());
+    await settle();
+
+    await act(async () => buttons[0]!.click());
+    await settle();
+    expect(intents.goBackToChoice).toHaveBeenCalledTimes(1);
+    expect(intents.goBackToChoice).toHaveBeenLastCalledWith(1);
+
+    await act(async () => rows[2]!.querySelector("strong")!.click());
+    await settle();
+    expect(intents.goBackToChoice).toHaveBeenCalledTimes(2);
+    expect(intents.goBackToChoice).toHaveBeenLastCalledWith(3);
+
+    await act(async () => rows[1]!.querySelector("strong")!.click());
+    await act(async () => rows[3]!.querySelector("strong")!.click());
+    await settle();
+    expect(intents.goBackToChoice).toHaveBeenCalledTimes(2);
   });
 
   it("opens on In the script when the script editor asks for the problems (Ctrl+Shift+M)", async () => {

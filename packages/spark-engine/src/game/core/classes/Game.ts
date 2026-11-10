@@ -2655,7 +2655,17 @@ export class Game<T extends M = {}> {
     };
   }
 
-  async rollBack(to: RollTarget): Promise<RollResult> {
+  async rollBack(to: RollTarget, choice?: number): Promise<RollResult> {
+    if (choice != null) {
+      const target = this._run.backToChoice(choice);
+      return target === null
+        ? {
+            moved: false,
+            reason: HISTORY_REASONS.choiceGone,
+            history: this.history,
+          }
+        : this.rollTo(target);
+    }
     const target = this._run.backFrom(to);
     return target === null
       ? { moved: false, reason: HISTORY_REASONS.rollBack, history: this.history }
@@ -3766,7 +3776,12 @@ export class Game<T extends M = {}> {
       return;
     }
     const beat = this._run.current;
+    let made: { checkpoint: number; text: string } | null = null;
     if (beat?.shown.choices?.length) {
+      made = {
+        checkpoint: beat.checkpoint,
+        text: (this._story.currentChoices[index]?.text ?? "").trim(),
+      };
       if (this._run.behindLatest) {
         if (beat.chosen === index) {
           this.rollForwardOnTap();
@@ -3783,7 +3798,7 @@ export class Game<T extends M = {}> {
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.notifyChosePathToContinue(option);
+    this.notifyChosePathToContinue(option, made);
     this.continue();
   }
 
@@ -3872,11 +3887,15 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyChosePathToContinue(option: DocumentLocation | null) {
+  protected notifyChosePathToContinue(
+    option: DocumentLocation | null,
+    made: { checkpoint: number; text: string } | null,
+  ) {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
         ...(option ? { option } : {}),
+        ...(made ?? {}),
       }),
     );
   }

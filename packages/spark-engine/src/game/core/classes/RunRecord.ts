@@ -89,6 +89,16 @@ export class RunRecord {
     return this._at - 1;
   }
 
+  backToChoice(checkpoint: number): number | null {
+    for (let i = this._at - 1; i >= 0; i -= 1) {
+      const beat = this._beats[i]!;
+      if (beat.checkpoint === checkpoint) {
+        return TARGETS.choice(beat) ? i : null;
+      }
+    }
+    return null;
+  }
+
   forwardFrom(to: RollTarget): number | null {
     if (!this.canRollForward) {
       return null;

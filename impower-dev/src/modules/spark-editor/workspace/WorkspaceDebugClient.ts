@@ -200,8 +200,11 @@ export default class WorkspaceDebugClient {
     return this.command("stepOut");
   }
 
-  rollBack(to: RollDebugTarget) {
-    return this.command(RollBackDebugRequest.command, { to });
+  rollBack(to: RollDebugTarget, choice?: number) {
+    return this.command(
+      RollBackDebugRequest.command,
+      choice == null ? { to } : { to, choice },
+    );
   }
 
   rollForward(to: RollDebugTarget) {

@@ -620,10 +620,15 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.Response,
     type: typeof RollBackGameMessage.type | typeof RollForwardGameMessage.type,
     to: RollTarget,
+    choice?: number,
   ) {
     let result: RollBackGameResult;
     try {
-      result = await this._connection.emit(type.request({ to, hold: true }));
+      result = await this._connection.emit(
+        type.request(
+          choice == null ? { to, hold: true } : { to, choice, hold: true },
+        ),
+      );
     } catch (e) {
       this.sendRefusal(response, e);
       return;
@@ -1179,6 +1184,7 @@ export class SparkDebugSession extends LoggingDebugSession {
         response,
         RollBackGameMessage.type,
         (args as RollDebugArguments).to,
+        (args as RollDebugArguments).choice,
       );
     } else if (command === RollForwardDebugRequest.command) {
       void this.roll(
