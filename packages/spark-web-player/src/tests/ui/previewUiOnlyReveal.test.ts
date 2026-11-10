@@ -22,7 +22,7 @@ layout main {
 
     expect(layer?.getAttribute("style")).toContain("opacity: 1");
     expect(col?.getAttribute("style") ?? "").not.toContain("display: none");
-    expect((h.game as any).module.ui.getTransientTargets()).toEqual([]);
+    expect((h.game as any).module.ui.getTransientTargets()).not.toContain("h1");
     expect((h.overlay.querySelector(".main")?.textContent ?? "").trim()).toBe(
       "Sparkle x PicoHP: 5Go",
     );

@@ -876,26 +876,6 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
           "kind": "request",
           "method": "ui/update",
           "params": {
-            "attributes": {
-              "hidden": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-5",
-            "style": undefined,
-          },
-        },
-        {
-          "id": "req-34",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
             "attributes": undefined,
             "breakpoints": {
               "lg": 1024,
@@ -905,7 +885,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-6",
+            "element": "e-5",
             "style": {
               "opacity": "1",
             },

@@ -29,7 +29,7 @@ function regionsOf(h: any, index: number) {
 
 describe("anchorFor escaping a for-iteration", () => {
   test("a region in a non-last iteration anchors before the NEXT iteration", async () => {
-    const h = createDOMHarness(SOURCE, 0, { reactive: true });
+    const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     await flushMicrotasks(20);
 
@@ -46,7 +46,7 @@ describe("anchorFor escaping a for-iteration", () => {
   });
 
   test("a region in the LAST iteration still escalates past the loop", async () => {
-    const h = createDOMHarness(SOURCE, 0, { reactive: true });
+    const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     await flushMicrotasks(20);
 
@@ -56,7 +56,7 @@ describe("anchorFor escaping a for-iteration", () => {
   });
 
   test("a revealed row renders inside its own iteration", async () => {
-    const h = createDOMHarness(SOURCE, 0, { reactive: true });
+    const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     await flushMicrotasks(20);
 
