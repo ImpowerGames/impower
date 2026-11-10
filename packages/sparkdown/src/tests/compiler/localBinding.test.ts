@@ -199,6 +199,13 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
   });
 
+  test("a const in an event handler binds inside the handler", () => {
+    const { bindingOf, offset } = bindingsOf(
+      'layout form {\n  button "Go" @click={ const settings = 1 print(settings) }\n}\n',
+    );
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();

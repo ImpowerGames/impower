@@ -216,6 +216,7 @@ describe("provider · script references read access paths and bindings from the 
     ["a story loop's variable", "scene start\n  for settings = 1, 3 do\n    {settings}\n  end\nend\n"],
     ["a story repeat body's local", "scene start\n  repeat\n    local settings = 1\n  until settings > 0\nend\n"],
     ["a bare local", "function f()\n  local settings return settings\nend\n"],
+    ["an event handler's const", 'layout form {\n  button "Go" @click={ const settings = 1 print(settings) }\n}\n'],
   ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
   });

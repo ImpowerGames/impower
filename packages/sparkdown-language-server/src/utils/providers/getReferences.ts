@@ -157,9 +157,10 @@ export const collectReferencesForTarget = (
   resolvedSymbolIds.push(...targetIds, ...targetInterdependentIds);
   const bindingAt = referenceBindings(workspace);
   const targetBinding =
-    seedUri && symbolFrom != null && symbolReference?.root == null
+    seedUri && symbolFrom != null
       ? bindingAt(seedUri, symbolFrom, symbolReference)
       : undefined;
+  const targetPathIsLocal = targetBinding !== undefined && symbolReference?.root != null;
 
   const addMatchingSymbols = (
     uri: string,
@@ -167,7 +168,7 @@ export const collectReferencesForTarget = (
     refScopePath: string,
   ) => {
     const reference = r.value?.type;
-    if (!reference) {
+    if (!reference || targetPathIsLocal) {
       return;
     }
     if (targetBinding !== undefined) {

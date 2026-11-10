@@ -178,6 +178,32 @@ describe("provider · references through access paths and bindings (I-1969)", ()
     expect((references ?? []).map((r) => r.range.start)).toEqual([{ line: 0, character: 14 }]);
   });
 
+  test("a path rooted in a parameter does not reach a define with its path's name", () => {
+    const SHADOW = "file:///shadow.sd";
+    const source = "function show(character)\n  return character.raffles.name\nend\n";
+    const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+    for (const [uri, text] of Object.entries({ [CAST]: sources[CAST]!, [SHADOW]: source })) {
+      documents.set({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
+    }
+    const workspace = {
+      annotations: (uri: string) => documents.annotations(uri),
+      document: (uri: string) => documents.get(uri),
+      tree: (uri: string) => documents.tree(uri),
+      uris: () => [...documents.keys()],
+      compilerConfig: undefined,
+      findFiles: () => [],
+    } as any;
+    const at = posAt(source, "raffles");
+    const base = { searchOtherFiles: true, includeDeclaration: true, includeInterdependent: false, includeLinks: false };
+    const definitions = getReferences(documents.get(SHADOW), documents.tree(SHADOW), undefined, workspace, at, {
+      ...base,
+      excludeUses: true,
+    }).references;
+    const references = getReferences(documents.get(SHADOW), documents.tree(SHADOW), undefined, workspace, at, base).references;
+    expect((definitions ?? []).filter((r) => r.uri === CAST)).toEqual([]);
+    expect((references ?? []).filter((r) => r.uri === CAST)).toEqual([]);
+  });
+
   test("find-references on a parameter reaches its uses and not a local of the same name", () => {
     expect(referencesAt(HELPERS, "settings", 1)).toEqual([
       { uri: HELPERS, text: "settings", line: 0 },

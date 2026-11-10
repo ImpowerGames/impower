@@ -10,6 +10,7 @@ type Read = (from: number, to: number) => string;
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
 const FUNCTION_LIKE = nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition"]);
+const CONST_SCOPE = nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauSparkleHandlerClosure"]);
 const SECTION_HEADER = nodeNameSet(["Scene", "Branch"]);
 const PARAMETER_OWNER = nodeNameSet([
   "LuauFunctionDefinition",
@@ -106,7 +107,7 @@ export class LocalBindings {
   }
 
   private modifiers(node: SyntaxNode): ReadonlySet<string> {
-    return ancestorMatching(node, FUNCTION_LIKE, Infinity) ? LOCAL_OR_CONST : LOCAL_ONLY;
+    return ancestorMatching(node, CONST_SCOPE, Infinity) ? LOCAL_OR_CONST : LOCAL_ONLY;
   }
 
   private localScope(declaration: SyntaxNode, type: "var" | "function") {
