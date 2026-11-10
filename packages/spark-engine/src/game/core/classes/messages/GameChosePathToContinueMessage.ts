@@ -8,6 +8,8 @@ export type GameChosePathToContinueMethod =
 export interface GameChosePathToContinueParams {
   location: DocumentLocation;
   option?: DocumentLocation;
+  checkpoint?: number;
+  text?: string;
   run?: number;
 }
 
