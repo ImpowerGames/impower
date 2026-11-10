@@ -1,5 +1,6 @@
 import {
   type Completion,
+  nextSnippetField,
   CompletionContext,
   type CompletionResult,
   type CompletionSource,
@@ -8,7 +9,11 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
-import { convertSnippetToTemplate } from "@impower/codemirror-vscode-language/src/utils/convertSnippetToTemplate";
+import {
+  convertSnippetToTemplate,
+  SNIPPET_DEGRADATIONS,
+  type SnippetDegradation,
+} from "@impower/codemirror-vscode-language/src/utils/convertSnippetToTemplate";
 import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
 import {
   SPARKDOWN_EMBEDDED_LANGUAGES,
@@ -19,6 +24,10 @@ import {
   sparkdownLanguageFor,
 } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import { parseSource } from "@impower/sparkdown/src/tests/compiler/grammarSnapshot";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 if (!Range.prototype.getClientRects) {
@@ -199,7 +208,7 @@ describe("a snippet is inserted with its tab stops", () => {
     expect(view.state.selection.main.to).toBe(name + "name".length);
   });
 
-  const insertBody = (body: string, selected = "") => {
+  const insertView = (body: string, selected = "") => {
     const extension = languageExtension(SD_URI, {
       [SPARKDOWN_LANGUAGE]: { Body: { prefix: "bodyfix", body } },
     });
@@ -222,6 +231,10 @@ describe("a snippet is inserted with its tab stops", () => {
       result.from,
       pos,
     );
+    return view;
+  };
+
+  const readInsertion = (view: EditorView) => {
     const { main } = view.state.selection;
     return {
       inserted: view.state.sliceDoc(
@@ -232,9 +245,17 @@ describe("a snippet is inserted with its tab stops", () => {
     };
   };
 
+  const insertBody = (body: string, selected = "") =>
+    readInsertion(insertView(body, selected));
+
+  const nextField = (view: EditorView) => {
+    expect(nextSnippetField(view)).toBe(true);
+    return readInsertion(view);
+  };
+
   it.each([
     [
-      "mirrors a stop's placeholder at each occurrence",
+      "round 1 finding 1: mirrors a stop's placeholder at each occurrence",
       "local ${1:name} = 1; print($1)$0",
       "",
       "local name = 1; print(name)",
@@ -248,7 +269,7 @@ describe("a snippet is inserted with its tab stops", () => {
       [6, 10],
     ],
     [
-      "keeps braces inside the selected placeholder",
+      "round 1 finding 2: keeps braces inside the selected placeholder",
       "${1:${TM_SELECTED_TEXT}}$0",
       "{ value = 1 }",
       "{ value = 1 }",
@@ -262,7 +283,7 @@ describe("a snippet is inserted with its tab stops", () => {
       [2, 5],
     ],
     [
-      "keeps an escaped comma inside the first choice",
+      "round 1 finding 3: keeps an escaped comma inside the first choice",
       "${1|one\\,two,three|}$0",
       "",
       "one,two",
@@ -275,31 +296,23 @@ describe("a snippet is inserted with its tab stops", () => {
       "t = { x } $1",
       [6, 7],
     ],
-    [
-      "resolves a variable's default and names an unknown variable",
-      "${UNKNOWN_VAR:fallback} $UNKNOWN",
-      "",
-      "fallback UNKNOWN",
-      [16, 16],
-    ],
-    [
-      "flattens a nested placeholder into its outer stop",
-      "${1:outer ${2:inner}}",
-      "",
-      "outer inner",
-      [0, 11],
-    ],
     ["keeps a lone dollar sign", "$ alone", "", "$ alone", [7, 7]],
-    ["keeps a trailing literal backslash", "path\\", "", "path\\", [5, 5]],
     [
-      "keeps a CRLF placeholder inside its field",
+      "round 2 finding 3: keeps a trailing literal backslash",
+      "path\\",
+      "",
+      "path\\",
+      [5, 5],
+    ],
+    [
+      "round 2 finding 1: keeps a CRLF placeholder inside its field",
       "${1:a\r\nb}$0",
       "",
       "a\nb",
       [0, 3],
     ],
     [
-      "applies an identity variable transform",
+      "round 2 finding 2: applies an identity variable transform",
       "${TM_SELECTED_TEXT/foo/foo/} next",
       "foo",
       "foo next",
@@ -320,7 +333,7 @@ describe("a snippet is inserted with its tab stops", () => {
       [4, 4],
     ],
     [
-      "applies a conditional's else branch when the regex does not match",
+      "round 3 finding 1: applies a conditional's else branch when the regex does not match",
       "${TM_SELECTED_TEXT/(x)/${1:?has x:no x}/}",
       "abc",
       "no x",
@@ -341,29 +354,91 @@ describe("a snippet is inserted with its tab stops", () => {
       [3, 3],
     ],
     [
-      "keeps internal capitals in camelcase",
+      "round 3 finding 2: keeps internal capitals in camelcase",
       "${TM_SELECTED_TEXT/(.*)/${1:/camelcase}/}",
       "FooBar baz",
       "fooBarBaz",
       [9, 9],
     ],
     [
-      "keeps internal capitals in pascalcase",
+      "round 3 finding 2: keeps internal capitals in pascalcase",
       "${TM_SELECTED_TEXT/(.*)/${1:/pascalcase}/}",
       "fooBar_baz",
       "FooBarBaz",
       [9, 9],
     ],
-    [
-      "ends at the end when the final stop is nested",
-      "${1:outer $0} suffix",
-      "",
-      "outer  suffix",
-      [0, 6],
-    ],
   ] as const)("%s", (_name, body, selected, inserted, range) => {
     expect(insertBody(body, selected)).toEqual({ inserted, selected: range });
   });
+
+  const DEGRADATION_CASES: Record<SnippetDegradation, () => void> = {
+    "choice-first-option": () => {
+      const view = insertView("${1|left,right|} done");
+      expect(readInsertion(view)).toEqual({
+        inserted: "left done",
+        selected: [0, 4],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "left done",
+        selected: [9, 9],
+      });
+    },
+    "tab-stop-transform": () => {
+      const view = insertView("${1:name} ${1/(.*)/${1:/upcase}/}");
+      expect(readInsertion(view)).toEqual({
+        inserted: "name name",
+        selected: [0, 4],
+      });
+      expect(
+        view.state.selection.ranges.map((r) => [
+          r.from - LINE_START,
+          r.to - LINE_START,
+        ]),
+      ).toEqual([
+        [0, 4],
+        [5, 9],
+      ]);
+    },
+    "nested-placeholder": () => {
+      const view = insertView("${1:outer ${2:inner}} end");
+      expect(readInsertion(view)).toEqual({
+        inserted: "outer inner end",
+        selected: [0, 11],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "outer inner end",
+        selected: [15, 15],
+      });
+    },
+    "nested-final-tab-stop": () => {
+      const view = insertView("${1:outer $0} suffix");
+      expect(readInsertion(view)).toEqual({
+        inserted: "outer  suffix",
+        selected: [0, 6],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "outer  suffix",
+        selected: [13, 13],
+      });
+    },
+    "unsupported-variable": () => {
+      expect(
+        insertBody(
+          "${TM_FILENAME:fallback} $TM_FILENAME $UNKNOWN $TM_FILENAME",
+        ),
+      ).toEqual({
+        inserted: "fallback TM_FILENAME UNKNOWN TM_FILENAME",
+        selected: [9, 20],
+      });
+    },
+  };
+
+  it.each(Object.keys(SNIPPET_DEGRADATIONS) as SnippetDegradation[])(
+    "degrades as documented: %s",
+    (degradation) => {
+      DEGRADATION_CASES[degradation]();
+    },
+  );
 });
 
 const placeholderText = (body: string | string[]) => {
@@ -436,4 +511,38 @@ describe("the shipped story snippets pass the two checks", () => {
       }).toEqual({ typed: prose[i - 1], at: start + i, result: [] });
     }
   });
+});
+
+describe("the vendored VS Code snippet parser", () => {
+  const directory =
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../codemirror-vscode-language/src/vendor/vscode",
+    ) + path.sep;
+  const upstream = JSON.parse(
+    fs.readFileSync(directory + "UPSTREAM.json", "utf8"),
+  ) as {
+    files: {
+      path: string;
+      blobSha: string;
+      adjustments: { from: string; to: string }[];
+    }[];
+  };
+
+  it.each(upstream.files.map((file) => [file.path, file] as const))(
+    "%s matches its upstream blob once the listed adjustments are reversed",
+    (_path, file) => {
+      let content = fs.readFileSync(directory + file.path, "utf8");
+      for (const adjustment of [...file.adjustments].reverse()) {
+        expect(content.split(adjustment.to)).toHaveLength(2);
+        content = content.replace(adjustment.to, adjustment.from);
+      }
+      const bytes = Buffer.from(content, "utf8");
+      const blobSha = createHash("sha1")
+        .update(`blob ${bytes.length}\0`)
+        .update(bytes)
+        .digest("hex");
+      expect(blobSha).toBe(file.blobSha);
+    },
+  );
 });

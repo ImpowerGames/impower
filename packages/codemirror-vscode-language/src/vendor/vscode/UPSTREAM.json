@@ -1,0 +1,35 @@
+{
+  "repository": "https://github.com/microsoft/vscode",
+  "revision": "442300c583e6f6ac1afa4cb08ffb3e4aae560248",
+  "files": [
+    {
+      "path": "snippetParser.ts",
+      "upstreamPath": "src/vs/editor/contrib/snippet/browser/snippetParser.ts",
+      "blobSha": "8a76e164db6b0e5fcff3f639330db3cfc5e23fa4",
+      "adjustments": [
+        {
+          "reason": "import CharCode from the copy beside this file, without the .js extension the package's bundler resolution does not need",
+          "from": "import { CharCode } from '../../../../base/common/charCode.js';",
+          "to": "import { CharCode } from './charCode';"
+        },
+        {
+          "reason": "the package compiles with noUncheckedIndexedAccess, which upstream does not, and five upstream index reads fail it; the directive leaves every upstream line unchanged",
+          "from": "\n\nimport { CharCode } from './charCode';",
+          "to": "\n\n// @ts-nocheck\nimport { CharCode } from './charCode';"
+        }
+      ]
+    },
+    {
+      "path": "charCode.ts",
+      "upstreamPath": "src/vs/base/common/charCode.ts",
+      "blobSha": "de0a25badecd2a7694c303feddcfa555f8a46dab",
+      "adjustments": []
+    },
+    {
+      "path": "LICENSE.txt",
+      "upstreamPath": "LICENSE.txt",
+      "blobSha": "0ac28ee234d232ac0691f39cebf95bf6b2a763a5",
+      "adjustments": []
+    }
+  ]
+}
