@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
@@ -81,22 +82,12 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
-  const textWithoutComments = (node: SyntaxNode) => {
-    let result = "";
-    let pos = node.from;
-    const visit = (parent: SyntaxNode) => {
-      for (let child = parent.firstChild; child; child = child.nextSibling) {
-        if (COMMENTS.has(child.name)) {
-          result += text.slice(pos, child.from);
-          pos = child.to;
-        } else {
-          visit(child);
-        }
-      }
-    };
-    visit(node);
-    return result + text.slice(pos, node.to);
-  };
+  const textWithoutComments = (node: SyntaxNode) =>
+    readSkipping(
+      node,
+      (from, to) => text.slice(from, to),
+      (child) => COMMENTS.has(child.name),
+    );
 
   const source = {
     read: (from: number, to: number) => text.slice(from, to),

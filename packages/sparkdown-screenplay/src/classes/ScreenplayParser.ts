@@ -1,6 +1,7 @@
 import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
+import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { getDescendent } from "../../../textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ScreenplayToken } from "../types/ScreenplayToken";
@@ -41,20 +42,7 @@ export default class ScreenplayParser {
     const read = (from: number, to: number) => script.slice(from, to);
     let leading = false;
     const readWords = (node: SyntaxNode): string => {
-      let text = "";
-      let pos = node.from;
-      const visit = (parent: SyntaxNode) => {
-        for (let child = parent.firstChild; child; child = child.nextSibling) {
-          if (child.name === "Glue") {
-            text += read(pos, child.from);
-            pos = child.to;
-          } else {
-            visit(child);
-          }
-        }
-      };
-      visit(node);
-      text += read(pos, node.to);
+      const text = readSkipping(node, read, (child) => child.name === "Glue");
       if (leading) {
         leading = false;
         return text.trimStart();
@@ -74,22 +62,8 @@ export default class ScreenplayParser {
       continuesAfterComment(node)
         ? `${lines.replace(/\n$/, "")}${text}\n`
         : `${lines}${text}\n`;
-    const readWithoutComments = (node: SyntaxNode): string => {
-      let text = "";
-      let pos = node.from;
-      const visit = (parent: SyntaxNode) => {
-        for (let child = parent.firstChild; child; child = child.nextSibling) {
-          if (child.name === "SparkdownBlockComment") {
-            text += read(pos, child.from);
-            pos = child.to;
-          } else {
-            visit(child);
-          }
-        }
-      };
-      visit(node);
-      return text + read(pos, node.to);
-    };
+    const readWithoutComments = (node: SyntaxNode): string =>
+      readSkipping(node, read, (child) => child.name === "SparkdownBlockComment");
 
     const addSeparator = () => {
       if (tokens.at(-1)?.tag !== "separator") {

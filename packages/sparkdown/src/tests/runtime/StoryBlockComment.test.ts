@@ -178,6 +178,76 @@ end
     expect(out).not.toMatch(/still|open|inner|Wait/);
   });
 
+  test("a suppression bracket that spans a comment across lines keeps its meaning", () => {
+    const { result, errors } = compile(`scene start
+  choose
+    + [Wait /* draft
+      hidden */ here] now
+      done
+    + Go [left /* one
+      two */ /* three
+      four */ side] way
+      done
+  end
+end
+`);
+    expect(errors).toEqual([]);
+    const story = testStory(result.program.chunks);
+    story.Continue();
+    expect(story.currentChoices.map((c: any) => c.text)).toEqual([
+      "Wait here",
+      "Go left side",
+    ]);
+    const plain = compile(`scene start
+  choose
+    + [Wait here] now
+      done
+    + Go [left side] way
+      done
+  end
+end
+`).result.program.chunks;
+    const chosen = (chunks: any, index: number) => {
+      const s = testStory(chunks);
+      s.Continue();
+      s.ChooseChoiceIndex(index);
+      return s.ContinueMaximally();
+    };
+    expect(chosen(result.program.chunks, 0)).toBe(chosen(plain, 0));
+    expect(chosen(result.program.chunks, 1)).toBe(chosen(plain, 1));
+    expect(chosen(plain, 0)).toContain("now");
+    expect(chosen(plain, 1)).toContain("Go way");
+  });
+
+  test("a bracket left open across a comment is text", () => {
+    const { result, errors } = compile(`scene start
+  choose
+    + Go [left /* one
+      two */ way
+      done
+  end
+end
+`);
+    expect(errors).toEqual([]);
+    const story = testStory(result.program.chunks);
+    story.Continue();
+    expect(story.currentChoices.map((c: any) => c.text)).toEqual(["Go [left way"]);
+  });
+
+  test("a `/*` inside a string in choice text opens no comment", () => {
+    const { result, errors } = compile(`scene start
+  choose
+    + Go {"/*"} home
+      done
+  end
+end
+`);
+    expect(errors).toEqual([]);
+    const story = testStory(result.program.chunks);
+    story.Continue();
+    expect(story.currentChoices.map((c: any) => c.text)).toEqual(["Go /* home"]);
+  });
+
   test("an unclosed `/*` in choice text reports an error at the opener", () => {
     const { errors } = compile(`scene start
   choose

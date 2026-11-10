@@ -1,0 +1,276 @@
+sparkdown [0..250]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownChooseBlock [12..245]
+ │   ├─ LuauSparkdownChooseBlock_begin [12..20]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+ │   │   │   └─ LuauChooseKeyword [14..20]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │           └─ OptionalWhitespace 20
+ │   ├─ LuauSparkdownChooseBlock_content [20..240]
+ │   │   ├─ Newline [20..21]: "\n"
+ │   │   ├─ Choice [21..67]
+ │   │   │   ├─ Choice_begin [21..27]
+ │   │   │   │   ├─ Choice_begin_c1 [21..25]
+ │   │   │   │   │   └─ OptionalWhitespace [21..25]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [25..27]
+ │   │   │   │   │   └─ ChoiceMark [25..27]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 27
+ │   │   │   │   ├─ Choice_begin_c4 27
+ │   │   │   │   ├─ Choice_begin_c5 27
+ │   │   │   │   ├─ Choice_begin_c6 27
+ │   │   │   │   └─ Choice_begin_c7 27
+ │   │   │   ├─ Choice_content [27..67]
+ │   │   │   │   ├─ ChoiceOpenSuppressedText [27..32]
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c1 27
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c2 [27..28]: "["
+ │   │   │   │   │   └─ ChoiceOpenSuppressedText_c3 [28..32]
+ │   │   │   │   │       └─ ChoiceOnlyText [28..32]
+ │   │   │   │   │           └─ ChoiceTextContent [28..32]
+ │   │   │   │   │               └─ ChoiceTextContent_c1 [28..32]
+ │   │   │   │   │                   └─ Word [28..32]: "Wait"
+ │   │   │   │   ├─ SparkdownBlockComment [32..57]
+ │   │   │   │   │   ├─ SparkdownBlockComment_begin [32..35]
+ │   │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [32..33]
+ │   │   │   │   │   │   │   └─ OptionalWhitespace [32..33]: " "
+ │   │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [33..35]: "/*"
+ │   │   │   │   │   ├─ SparkdownBlockComment_content [35..55]
+ │   │   │   │   │   │   ├─ SparkdownBlockCommentContent [35..41]: " draft"
+ │   │   │   │   │   │   ├─ Newline [41..42]: "\n"
+ │   │   │   │   │   │   └─ SparkdownBlockCommentContent [42..55]: "      hidden "
+ │   │   │   │   │   └─ SparkdownBlockComment_end [55..57]
+ │   │   │   │   │       └─ SparkdownBlockComment_end_c1 [55..57]: "*/"
+ │   │   │   │   └─ ChoiceCloseSuppressedText [57..67]
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c1 [57..62]
+ │   │   │   │       │   └─ ChoiceOnlyText [57..62]
+ │   │   │   │       │       └─ ChoiceTextContent [57..62]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [57..62]
+ │   │   │   │       │               ├─ Space [57..58]: " "
+ │   │   │   │       │               └─ Word [58..62]: "here"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c2 [62..63]: "]"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c3 [63..67]
+ │   │   │   │       │   ├─ ChoiceInnerText [63..64]
+ │   │   │   │       │   │   └─ Space [63..64]: " "
+ │   │   │   │       │   └─ ChoiceInnerText [64..67]
+ │   │   │   │       │       └─ Word [64..67]: "now"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c4 67
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c5 67
+ │   │   │   │       └─ ChoiceCloseSuppressedText_c6 67
+ │   │   │   └─ Choice_end 67
+ │   │   ├─ Newline [67..68]: "\n"
+ │   │   ├─ DoneStatement [68..78]
+ │   │   │   ├─ DoneStatement_c1 [68..74]
+ │   │   │   │   └─ OptionalWhitespace [68..74]: "      "
+ │   │   │   ├─ DoneStatement_c2 [74..78]
+ │   │   │   │   └─ DoneKeyword [74..78]: "done"
+ │   │   │   └─ DoneStatement_c3 78
+ │   │   │       └─ OptionalWhitespace 78
+ │   │   ├─ Newline [78..79]: "\n"
+ │   │   ├─ Choice [79..146]
+ │   │   │   ├─ Choice_begin [79..85]
+ │   │   │   │   ├─ Choice_begin_c1 [79..83]
+ │   │   │   │   │   └─ OptionalWhitespace [79..83]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [83..85]
+ │   │   │   │   │   └─ ChoiceMark [83..85]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 85
+ │   │   │   │   ├─ Choice_begin_c4 85
+ │   │   │   │   ├─ Choice_begin_c5 85
+ │   │   │   │   ├─ Choice_begin_c6 85
+ │   │   │   │   └─ Choice_begin_c7 85
+ │   │   │   ├─ Choice_content [85..146]
+ │   │   │   │   ├─ ChoiceOpenSuppressedText [85..93]
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c1 [85..88]
+ │   │   │   │   │   │   └─ ChoiceStartText [85..88]
+ │   │   │   │   │   │       └─ ChoiceTextContent [85..88]
+ │   │   │   │   │   │           └─ ChoiceTextContent_c1 [85..88]
+ │   │   │   │   │   │               ├─ Word [85..87]: "Go"
+ │   │   │   │   │   │               └─ Space [87..88]: " "
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c2 [88..89]: "["
+ │   │   │   │   │   └─ ChoiceOpenSuppressedText_c3 [89..93]
+ │   │   │   │   │       └─ ChoiceOnlyText [89..93]
+ │   │   │   │   │           └─ ChoiceTextContent [89..93]
+ │   │   │   │   │               └─ ChoiceTextContent_c1 [89..93]
+ │   │   │   │   │                   └─ Word [89..93]: "left"
+ │   │   │   │   ├─ SparkdownBlockComment [93..113]
+ │   │   │   │   │   ├─ SparkdownBlockComment_begin [93..96]
+ │   │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [93..94]
+ │   │   │   │   │   │   │   └─ OptionalWhitespace [93..94]: " "
+ │   │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [94..96]: "/*"
+ │   │   │   │   │   ├─ SparkdownBlockComment_content [96..111]
+ │   │   │   │   │   │   ├─ SparkdownBlockCommentContent [96..100]: " one"
+ │   │   │   │   │   │   ├─ Newline [100..101]: "\n"
+ │   │   │   │   │   │   └─ SparkdownBlockCommentContent [101..111]: "      two "
+ │   │   │   │   │   └─ SparkdownBlockComment_end [111..113]
+ │   │   │   │   │       └─ SparkdownBlockComment_end_c1 [111..113]: "*/"
+ │   │   │   │   ├─ SparkdownBlockComment [113..136]
+ │   │   │   │   │   ├─ SparkdownBlockComment_begin [113..116]
+ │   │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [113..114]
+ │   │   │   │   │   │   │   └─ OptionalWhitespace [113..114]: " "
+ │   │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [114..116]: "/*"
+ │   │   │   │   │   ├─ SparkdownBlockComment_content [116..134]
+ │   │   │   │   │   │   ├─ SparkdownBlockCommentContent [116..122]: " three"
+ │   │   │   │   │   │   ├─ Newline [122..123]: "\n"
+ │   │   │   │   │   │   └─ SparkdownBlockCommentContent [123..134]: "      four "
+ │   │   │   │   │   └─ SparkdownBlockComment_end [134..136]
+ │   │   │   │   │       └─ SparkdownBlockComment_end_c1 [134..136]: "*/"
+ │   │   │   │   └─ ChoiceCloseSuppressedText [136..146]
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c1 [136..141]
+ │   │   │   │       │   └─ ChoiceOnlyText [136..141]
+ │   │   │   │       │       └─ ChoiceTextContent [136..141]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [136..141]
+ │   │   │   │       │               ├─ Space [136..137]: " "
+ │   │   │   │       │               └─ Word [137..141]: "side"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c2 [141..142]: "]"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c3 [142..146]
+ │   │   │   │       │   ├─ ChoiceInnerText [142..143]
+ │   │   │   │       │   │   └─ Space [142..143]: " "
+ │   │   │   │       │   └─ ChoiceInnerText [143..146]
+ │   │   │   │       │       └─ Word [143..146]: "way"
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c4 146
+ │   │   │   │       ├─ ChoiceCloseSuppressedText_c5 146
+ │   │   │   │       └─ ChoiceCloseSuppressedText_c6 146
+ │   │   │   └─ Choice_end 146
+ │   │   ├─ Newline [146..147]: "\n"
+ │   │   ├─ DoneStatement [147..157]
+ │   │   │   ├─ DoneStatement_c1 [147..153]
+ │   │   │   │   └─ OptionalWhitespace [147..153]: "      "
+ │   │   │   ├─ DoneStatement_c2 [153..157]
+ │   │   │   │   └─ DoneKeyword [153..157]: "done"
+ │   │   │   └─ DoneStatement_c3 157
+ │   │   │       └─ OptionalWhitespace 157
+ │   │   ├─ Newline [157..158]: "\n"
+ │   │   ├─ Choice [158..178]
+ │   │   │   ├─ Choice_begin [158..164]
+ │   │   │   │   ├─ Choice_begin_c1 [158..162]
+ │   │   │   │   │   └─ OptionalWhitespace [158..162]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [162..164]
+ │   │   │   │   │   └─ ChoiceMark [162..164]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 164
+ │   │   │   │   ├─ Choice_begin_c4 164
+ │   │   │   │   ├─ Choice_begin_c5 164
+ │   │   │   │   ├─ Choice_begin_c6 164
+ │   │   │   │   └─ Choice_begin_c7 164
+ │   │   │   ├─ Choice_content [164..178]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [164..178]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [164..178]
+ │   │   │   │       │   └─ ChoicePlainText [164..178]
+ │   │   │   │       │       └─ ChoiceTextContent [164..178]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [164..178]
+ │   │   │   │       │               ├─ Word [164..166]: "Go"
+ │   │   │   │       │               ├─ Space [166..167]: " "
+ │   │   │   │       │               ├─ LuauInterpolatedStringExpression [167..173]
+ │   │   │   │       │               │   ├─ LuauInterpolatedStringExpression_begin [167..168]
+ │   │   │   │       │               │   │   └─ LuauInterpolatedStringExpression_begin_c1 [167..168]
+ │   │   │   │       │               │   │       └─ PunctuationBraceOpen [167..168]: "{"
+ │   │   │   │       │               │   ├─ LuauInterpolatedStringExpression_content [168..172]
+ │   │   │   │       │               │   │   └─ LuauDoubleQuotedString [168..172]
+ │   │   │   │       │               │   │       ├─ LuauDoubleQuotedString_begin [168..169]
+ │   │   │   │       │               │   │       │   └─ LuauDoubleQuotedString_begin_c1 [168..169]
+ │   │   │   │       │               │   │       │       └─ PunctuationStringDoubleQuoteOpen [168..169]: "\""
+ │   │   │   │       │               │   │       ├─ LuauDoubleQuotedString_content [169..171]
+ │   │   │   │       │               │   │       │   ├─ Punctuation [169..170]: "/"
+ │   │   │   │       │               │   │       │   └─ Punctuation [170..171]: "*"
+ │   │   │   │       │               │   │       └─ LuauDoubleQuotedString_end [171..172]
+ │   │   │   │       │               │   │           ├─ LuauDoubleQuotedString_end_c1 [171..172]
+ │   │   │   │       │               │   │           │   └─ PunctuationStringDoubleQuoteClose [171..172]: "\""
+ │   │   │   │       │               │   │           └─ LuauDoubleQuotedString_end_c2 172
+ │   │   │   │       │               │   └─ LuauInterpolatedStringExpression_end [172..173]
+ │   │   │   │       │               │       └─ LuauInterpolatedStringExpression_end_c1 [172..173]
+ │   │   │   │       │               │           └─ PunctuationBraceClose [172..173]: "}"
+ │   │   │   │       │               ├─ Space [173..174]: " "
+ │   │   │   │       │               └─ Word [174..178]: "home"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 178
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 178
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 178
+ │   │   │   └─ Choice_end 178
+ │   │   ├─ Newline [178..179]: "\n"
+ │   │   ├─ DoneStatement [179..189]
+ │   │   │   ├─ DoneStatement_c1 [179..185]
+ │   │   │   │   └─ OptionalWhitespace [179..185]: "      "
+ │   │   │   ├─ DoneStatement_c2 [185..189]
+ │   │   │   │   └─ DoneKeyword [185..189]: "done"
+ │   │   │   └─ DoneStatement_c3 189
+ │   │   │       └─ OptionalWhitespace 189
+ │   │   ├─ Newline [189..190]: "\n"
+ │   │   ├─ Choice [190..228]
+ │   │   │   ├─ Choice_begin [190..196]
+ │   │   │   │   ├─ Choice_begin_c1 [190..194]
+ │   │   │   │   │   └─ OptionalWhitespace [190..194]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [194..196]
+ │   │   │   │   │   └─ ChoiceMark [194..196]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 196
+ │   │   │   │   ├─ Choice_begin_c4 196
+ │   │   │   │   ├─ Choice_begin_c5 196
+ │   │   │   │   ├─ Choice_begin_c6 196
+ │   │   │   │   └─ Choice_begin_c7 196
+ │   │   │   ├─ Choice_content [196..228]
+ │   │   │   │   ├─ ChoiceOpenSuppressedText [196..204]
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c1 [196..199]
+ │   │   │   │   │   │   └─ ChoiceStartText [196..199]
+ │   │   │   │   │   │       └─ ChoiceTextContent [196..199]
+ │   │   │   │   │   │           └─ ChoiceTextContent_c1 [196..199]
+ │   │   │   │   │   │               ├─ Word [196..198]: "Go"
+ │   │   │   │   │   │               └─ Space [198..199]: " "
+ │   │   │   │   │   ├─ ChoiceOpenSuppressedText_c2 [199..200]: "["
+ │   │   │   │   │   └─ ChoiceOpenSuppressedText_c3 [200..204]
+ │   │   │   │   │       └─ ChoiceOnlyText [200..204]
+ │   │   │   │   │           └─ ChoiceTextContent [200..204]
+ │   │   │   │   │               └─ ChoiceTextContent_c1 [200..204]
+ │   │   │   │   │                   └─ Word [200..204]: "left"
+ │   │   │   │   ├─ SparkdownBlockComment [204..224]
+ │   │   │   │   │   ├─ SparkdownBlockComment_begin [204..207]
+ │   │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [204..205]
+ │   │   │   │   │   │   │   └─ OptionalWhitespace [204..205]: " "
+ │   │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [205..207]: "/*"
+ │   │   │   │   │   ├─ SparkdownBlockComment_content [207..222]
+ │   │   │   │   │   │   ├─ SparkdownBlockCommentContent [207..211]: " one"
+ │   │   │   │   │   │   ├─ Newline [211..212]: "\n"
+ │   │   │   │   │   │   └─ SparkdownBlockCommentContent [212..222]: "      two "
+ │   │   │   │   │   └─ SparkdownBlockComment_end [222..224]
+ │   │   │   │   │       └─ SparkdownBlockComment_end_c1 [222..224]: "*/"
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [224..228]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [224..228]
+ │   │   │   │       │   └─ ChoicePlainText [224..228]
+ │   │   │   │       │       └─ ChoiceTextContent [224..228]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [224..228]
+ │   │   │   │       │               ├─ Space [224..225]: " "
+ │   │   │   │       │               └─ Word [225..228]: "way"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 228
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 228
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 228
+ │   │   │   └─ Choice_end 228
+ │   │   ├─ Newline [228..229]: "\n"
+ │   │   ├─ DoneStatement [229..239]
+ │   │   │   ├─ DoneStatement_c1 [229..235]
+ │   │   │   │   └─ OptionalWhitespace [229..235]: "      "
+ │   │   │   ├─ DoneStatement_c2 [235..239]
+ │   │   │   │   └─ DoneKeyword [235..239]: "done"
+ │   │   │   └─ DoneStatement_c3 239
+ │   │   │       └─ OptionalWhitespace 239
+ │   │   └─ Newline [239..240]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [240..245]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [240..242]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [240..242]
+ │       │       └─ OptionalWhitespace [240..242]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [242..245]
+ │       │   └─ LuauEndKeyword [242..245]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 245
+ ├─ Newline [245..246]: "\n"
+ ├─ LuauEndKeyword [246..249]: "end"
+ └─ Newline [249..250]: "\n"
