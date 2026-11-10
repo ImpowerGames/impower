@@ -29,8 +29,8 @@ const MODULE_VARIANTS = [
 ];
 
 const DRAWN_FOR_THE_EDITOR = [
-  "fast-forward", "filter", "folder-plus", "follow-off", "match-case",
-  "regex", "rewind", "sign-out", "step-over", "whole-word",
+  "fast-forward", "filter", "folder-plus", "follow-off", "rewind",
+  "sign-out", "step-over",
 ];
 
 const componentFor = (name: string) =>
