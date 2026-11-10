@@ -20,6 +20,7 @@ import { useMemo } from "preact/hooks";
 import type { Position, Range } from "vscode-languageserver-protocol";
 import {
   problemSummary as scopeSummary,
+  projectPath,
   severityOf,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
@@ -202,9 +203,6 @@ export default function Outline() {
   };
 
   const summary = problemSummary(model.problems);
-  const firstProblem = snapshot?.diagnostics.find(
-    (d) => (d.severity ?? 1) <= 2,
-  );
 
   return (
     <>
@@ -300,14 +298,17 @@ export default function Outline() {
           </>
         )}
       </nav>
-      {summary && uri && firstProblem ? (
+      {summary && uri ? (
         <div class="hidden justify-center pt-3 group-data-[sidebar=collapsed]/sidebar:flex">
           <Button
             variant="quiet"
             size="icon"
             aria-label={`Outline: ${summary} in ${scriptName(uri)}`}
             title={`${summary} in ${scriptName(uri)}`}
-            onClick={() => open(firstProblem.range)}
+            onClick={(event) => {
+              const trigger = event.currentTarget as HTMLElement;
+              problems.showProblems(() => trigger, projectPath(uri));
+            }}
           >
             {model.problems.errors ? (
               <ErrorIcon class="text-error" />
