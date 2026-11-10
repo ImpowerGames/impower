@@ -1,5 +1,7 @@
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
+import type { StartingDisplayMode } from "../messages/SetStartingDisplayModeMessage";
+import { TEXTSTREAM_LAYOUT } from "./InteractiveFictionPresenter";
 
 export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
   "textbox",
@@ -30,13 +32,33 @@ export function holdsPresentedText(
   return ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS);
 }
 
+export const TEXTBOX_LAYOUT = "textbox";
+
+export function startingLayouts(
+  configured: readonly unknown[],
+  mode: StartingDisplayMode,
+): unknown[] {
+  if (mode !== TEXTSTREAM_LAYOUT || !configured.includes(TEXTBOX_LAYOUT)) {
+    return [...configured];
+  }
+  const swapped = configured.map((name) =>
+    name === TEXTBOX_LAYOUT ? TEXTSTREAM_LAYOUT : name,
+  );
+  return swapped.filter(
+    (name, index) => name !== TEXTSTREAM_LAYOUT || swapped.indexOf(name) === index,
+  );
+}
+
 function configuredInitialLayouts(game: Game): unknown[] {
   const configured = game.context?.config?.["ui"]?.layouts_initial;
-  return Array.isArray(configured)
-    ? configured
-    : configured && typeof configured === "object"
-      ? Object.values(configured)
-      : [];
+  return startingLayouts(
+    Array.isArray(configured)
+      ? configured
+      : configured && typeof configured === "object"
+        ? Object.values(configured)
+        : [],
+    game.startingDisplayMode,
+  );
 }
 
 export function skippedInitialLayouts(

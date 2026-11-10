@@ -1,6 +1,10 @@
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { computed, signal, type ReadonlySignal } from "@preact/signals";
-import type { ProjectSettings } from "./settings/settingsSchema";
+import {
+  fillsPane,
+  type Preferences,
+  type ProjectSettings,
+} from "./settings/settingsSchema";
 
 export type PreviewAspectRatio = ProjectSettings["previewAspectRatio"];
 
@@ -22,11 +26,14 @@ layoutState.subscribe((next) => {
 
 export function previewAspectRatioFor(
   settings: ReadonlySignal<Pick<ProjectSettings, "previewAspectRatio">>,
+  preferences: ReadonlySignal<Pick<Preferences, "previewMode">>,
 ): ReadonlySignal<Pick<ProjectSettings, "previewAspectRatio">> {
   return computed(() => ({
     previewAspectRatio: effectiveAspectRatio(
       layout.value,
-      settings.value.previewAspectRatio,
+      fillsPane(preferences.value.previewMode)
+        ? "auto"
+        : settings.value.previewAspectRatio,
     ),
   }));
 }

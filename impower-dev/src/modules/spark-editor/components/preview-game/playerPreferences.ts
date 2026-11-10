@@ -9,6 +9,10 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import {
+  SetStartingDisplayModeMessage,
+  type StartingDisplayMode,
+} from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { SetPreviewThemeMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewThemeMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import { effect, type ReadonlySignal } from "@preact/signals";
@@ -16,7 +20,10 @@ import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValue
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
-import type { Preferences } from "../../workspace/settings/settingsSchema";
+import {
+  startingDisplayModeOf,
+  type Preferences,
+} from "../../workspace/settings/settingsSchema";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 
@@ -58,10 +65,13 @@ export const createPlayerPreferenceSync = (
         ? EnableGameDebugMessage.type.request({})
         : DisableGameDebugMessage.type.request({}),
     );
+  const sendDisplayMode = (mode: StartingDisplayMode) =>
+    post(SetStartingDisplayModeMessage.type.request({ mode }));
   const send = () => {
     sendTheme(theme.peek());
     sendIdleAnimations(preferences.peek().previewIdleAnimations);
     sendTypingPauses(preferences.peek().previewTypingPauses);
+    sendDisplayMode(startingDisplayModeOf(preferences.peek().previewMode));
     post(
       SetRouteTogglesMessage.type.request({
         toggles: storedRouteToggles(),
@@ -85,8 +95,14 @@ export const createPlayerPreferenceSync = (
   });
   let idleAnimations = preferences.peek().previewIdleAnimations;
   let typingPauses = preferences.peek().previewTypingPauses;
+  let displayMode = startingDisplayModeOf(preferences.peek().previewMode);
   const disposePreferences = effect(() => {
     const value = preferences.value;
+    const nextDisplayMode = startingDisplayModeOf(value.previewMode);
+    if (nextDisplayMode !== displayMode) {
+      displayMode = nextDisplayMode;
+      sendDisplayMode(displayMode);
+    }
     if (value.previewIdleAnimations !== idleAnimations) {
       idleAnimations = value.previewIdleAnimations;
       sendIdleAnimations(idleAnimations);

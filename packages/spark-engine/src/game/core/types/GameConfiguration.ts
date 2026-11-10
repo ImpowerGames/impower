@@ -1,4 +1,5 @@
 import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
+import type { StartingDisplayMode } from "../classes/messages/SetStartingDisplayModeMessage";
 
 export interface GameConfiguration {
   restarted?: boolean;
@@ -26,6 +27,7 @@ export interface GameConfiguration {
   functionBreakpoints?: { name: string }[];
   dataBreakpoints?: { dataId: string }[];
   startingValues?: StartingValues;
+  startingDisplayMode?: StartingDisplayMode;
   savesSceneEntries?: boolean;
   /** Beats between the checkpoints' keyframe images. Default 50. */
   checkpointBaseInterval?: number;

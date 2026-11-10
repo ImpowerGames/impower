@@ -21,6 +21,7 @@ import {
   StepOutIcon,
   StepOverIcon,
   StopIcon,
+  TextLinesIcon,
   useHoldRepeat,
   VisualIcon,
   type IconComponent,
@@ -67,6 +68,11 @@ export const VIEWING_MODES: Record<
     hint: "Play your game as a series of dialogue boxes and choice menus",
     icon: VisualIcon,
   },
+  textstream: {
+    name: "Interactive Fiction",
+    hint: "Play your game as a stream of text and choices",
+    icon: TextLinesIcon,
+  },
   screenplay: {
     name: "Screenplay",
     hint: "Read your story as text on a printed page",
@@ -109,6 +115,7 @@ export const PREVIEW_TOGGLES: Record<
 
 export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   game: ["previewFollowsCursor", "previewIdleAnimations", "previewTypingPauses"],
+  textstream: ["previewFollowsCursor"],
   screenplay: [
     "previewScreenplaySync",
     "screenplayPaper",

@@ -172,6 +172,8 @@ import { CheckpointStore, type StoredCheckpoint } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
+import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
+import { initialLayouts } from "./presenters/textLayouts";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -719,6 +721,8 @@ export class Game<T extends M = {}> {
 
   protected _startingValues: StartingValues = {};
 
+  protected _startingDisplayMode: StartingDisplayMode = "textbox";
+
   protected _scriptLineText?: (uri: string, line: number) => string | undefined;
 
   protected _plannedRouteStart?: string;
@@ -805,6 +809,7 @@ export class Game<T extends M = {}> {
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this._startingValues = options?.startingValues ?? {};
+    this._startingDisplayMode = options?.startingDisplayMode ?? "textbox";
     this._savesSceneEntries = options?.savesSceneEntries ?? false;
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
@@ -1333,6 +1338,47 @@ export class Game<T extends M = {}> {
     }
     this._startingValues = values;
     this._startPlans.clear();
+    return true;
+  }
+
+  get startingDisplayMode(): StartingDisplayMode {
+    return this._startingDisplayMode;
+  }
+
+  setStartingDisplayMode(mode: StartingDisplayMode): boolean {
+    if (mode === this._startingDisplayMode) {
+      return false;
+    }
+    const before = initialLayouts(this);
+    this._startingDisplayMode = mode;
+    const ui = this.module.ui;
+    if (!ui.initialLayoutsOpened) {
+      return true;
+    }
+    const after = initialLayouts(this);
+    const open = ui.openedLayoutsAfter([]);
+    const closing = before.filter(
+      (name) => !after.includes(name) && open.includes(name),
+    );
+    if (closing.length === 0) {
+      return true;
+    }
+    const opening = after.filter(
+      (name) => !before.includes(name) && !open.includes(name),
+    );
+    ui.composeWait(
+      ui.applyLayoutInstructions(
+        [
+          ...closing.map((name) => ({ control: "close" as const, name })),
+          ...opening.map((name) => ({ control: "open" as const, name })),
+        ],
+        true,
+      ),
+    );
+    const shown = this._shownBeatOnScreen;
+    if (shown && this._coordinator && !this._context.system.previewing) {
+      this._coordinator = new Coordinator(this, shown, { settled: "restored" });
+    }
     return true;
   }
 

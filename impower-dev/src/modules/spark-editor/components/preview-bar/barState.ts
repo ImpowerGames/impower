@@ -8,7 +8,11 @@ import {
 } from "@impower/spark-web-player/src/route/routeView";
 import type { HostedRouteView } from "@impower/spark-web-player/src/route/routeViewMessages";
 import { routeScriptName } from "../../workspace/route/RouteStore";
-import type { ProjectSettings } from "../../workspace/settings/settingsSchema";
+import {
+  fillsPane,
+  type PreviewMode,
+  type ProjectSettings,
+} from "../../workspace/settings/settingsSchema";
 
 export type AspectRatioChoice = ProjectSettings["previewAspectRatio"];
 
@@ -34,6 +38,11 @@ export const aspectRatioLabel = (
     ? `${name} · ${Math.round(size.width)}×${Math.round(size.height)}`
     : name;
 };
+
+export type SizeControl = "paper" | "aspectRatio" | null;
+
+export const sizeControl = (mode: PreviewMode): SizeControl =>
+  mode === "screenplay" ? "paper" : fillsPane(mode) ? null : "aspectRatio";
 
 export const PAPER_SIZE_LABELS: Record<
   ProjectSettings["screenplayPaperSize"],

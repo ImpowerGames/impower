@@ -2,6 +2,7 @@ import { useEffect } from "preact/hooks";
 import { isEditableFocus } from "../../utils/focusedElement";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { playsGame } from "../../workspace/settings/settingsSchema";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { STEP_SHORTCUTS, STEP_TRAVERSALS } from "../../workspace/stepStates";
 import workspace from "../../workspace/WorkspaceStore";
@@ -41,7 +42,7 @@ export function useWorkspaceSession(): void {
       if (workspaceShortcuts.matches(e, "playFromHere")) {
         const game = workspace.state.peek().preview?.modes?.game;
         e.preventDefault();
-        if (workspaceSettings.preferences.peek().previewMode !== "game" || game?.loading) {
+        if (!playsGame(workspaceSettings.preferences.peek().previewMode) || game?.loading) {
           return;
         }
         const { Workspace } = await import("../../workspace/Workspace");

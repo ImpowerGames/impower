@@ -100,6 +100,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "StepOutIcon",
     "StepOverIcon",
     "StopIcon",
+    "TextLinesIcon",
     "VisualIcon",
   ];
   return {
@@ -961,6 +962,19 @@ describe("Preview preferences", () => {
     expect(workspace.current.preview.modes.game.running).toBe(false);
   });
 
+  it("keeps a running game when the viewing mode moves between Visual Novel and Interactive Fiction", () => {
+    const win = load();
+    win.startGame();
+    win.setPreviewMode("textstream");
+    expect(workspaceSettings.preferences.value.previewMode).toBe("textstream");
+    expect(workspace.current.preview.modes.game.running).toBe(true);
+    win.setPreviewMode("game");
+    expect(workspace.current.preview.modes.game.running).toBe(true);
+    win.setPreviewMode("textstream");
+    win.setPreviewMode("screenplay");
+    expect(workspace.current.preview.modes.game.running).toBe(false);
+  });
+
   it("keeps the quick toggles across a reload", () => {
     workspaceSettings.setPreference("previewIdleAnimations", false);
     workspaceSettings.setPreference("previewTypingPauses", true);
@@ -996,6 +1010,23 @@ describe("Preview preferences", () => {
         "typing pauses on",
         "typing pauses off",
       ]);
+    });
+
+    it("hears the starting display mode when it connects, and each change between the game's modes", () => {
+      workspaceSettings.setPreference("previewMode", "textstream");
+      const posted: { method: string; params: any }[] = [];
+      const sync = createPlayerPreferenceSync((m) => posted.push(m as any));
+      const modes = () =>
+        posted
+          .filter((m) => m.method === "game/setStartingDisplayMode")
+          .map((m) => m.params.mode);
+      sync.received(connected("game"));
+      workspaceSettings.setPreference("previewMode", "game");
+      workspaceSettings.setPreference("previewMode", "screenplay");
+      workspaceSettings.setPreference("previewMode", "textstream");
+      sync.dispose();
+      workspaceSettings.setPreference("previewMode", "game");
+      expect(modes()).toEqual(["textstream", "textbox", "textstream"]);
     });
 
     it("hears the route list's toggles the author last chose, in every project", () => {
@@ -2412,9 +2443,25 @@ describe("The preview's top bar", () => {
       ]),
     ).toEqual([
       ["Visual Novel", "true"],
+      ["Interactive Fiction", "false"],
       ["Screenplay", "false"],
     ]);
+    expect(rows("menuitemradio")[1]!.querySelector("small")?.textContent).toBe(
+      "Play your game as a stream of text and choices",
+    );
+    expect(rows("menuitemradio")[1]!.querySelector("svg")).not.toBeNull();
     rows("menuitemradio")[1]!.click();
+    await vi.waitFor(() =>
+      expect(workspaceSettings.preferences.value.previewMode).toBe(
+        "textstream",
+      ),
+    );
+    render(h(PreviewTopBar, {}), container);
+    expect(control("Viewing mode")?.textContent).toBe("Interactive Fiction");
+    expect(
+      rows("menuitemradio").map((row) => row.getAttribute("aria-checked")),
+    ).toEqual(["false", "true", "false"]);
+    rows("menuitemradio")[2]!.click();
     await vi.waitFor(() =>
       expect(workspaceSettings.preferences.value.previewMode).toBe(
         "screenplay",
@@ -2472,6 +2519,9 @@ describe("The preview's top bar", () => {
       ["Show idle animations", "false"],
       ["Color typing pauses", "true"],
     ]);
+    workspaceSettings.setPreference("previewMode", "textstream");
+    render(h(PreviewTopBar, {}), container);
+    expect(names()).toEqual([["Game preview follows cursor", "false"]]);
     workspaceSettings.setPreference("previewMode", "screenplay");
     render(h(PreviewTopBar, {}), container);
     expect(names()).toEqual([

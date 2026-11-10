@@ -25,6 +25,7 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
+import { SetStartingDisplayModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
 import {
   TOP_LEVEL_START,
@@ -114,7 +115,10 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (SelectCompilerDocumentMessage.type.is(message)) {
       sendPreviewHint(message.params);
     }
-    if (SetGameStartingValuesMessage.type.isRequest(message)) {
+    if (
+      SetGameStartingValuesMessage.type.isRequest(message) ||
+      SetStartingDisplayModeMessage.type.isRequest(message)
+    ) {
       routeSearches.forget();
       for (const entry of displayable.values()) {
         entry.log.forget();

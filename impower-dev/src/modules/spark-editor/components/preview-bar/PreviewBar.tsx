@@ -25,6 +25,7 @@ import {
   aspectRatioLabel,
   barReadout,
   PAPER_SIZE_LABELS,
+  sizeControl,
 } from "./barState";
 
 export interface PreviewBarProps {
@@ -38,7 +39,7 @@ export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
 }: PreviewBarProps) {
-  const mode = workspaceSettings.preferences.value.previewMode;
+  const size = sizeControl(workspaceSettings.preferences.value.previewMode);
   return (
     <div
       role="group"
@@ -47,7 +48,8 @@ export default function PreviewBar({
     >
       <ProblemsToggle />
       <RouteReadout />
-      {mode === "screenplay" ? <PaperSizeLink /> : <AspectRatioMenu />}
+      {size === "paper" ? <PaperSizeLink /> : null}
+      {size === "aspectRatio" ? <AspectRatioMenu /> : null}
       <Button
         variant="quiet"
         size="icon"

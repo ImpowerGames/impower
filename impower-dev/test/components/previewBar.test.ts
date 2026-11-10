@@ -484,6 +484,37 @@ describe("the bar under the game", () => {
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
   });
 
+  it("hides the aspect-ratio picker in Interactive Fiction, where the page fills the pane", async () => {
+    workspaceSettings.setPreference("previewMode", "textstream");
+    await mount();
+    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(bar().querySelector('[aria-label="Screenplay settings"]')).toBeNull();
+    expect(bar().querySelector('[aria-label="Fullscreen preview"]')).not.toBeNull();
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(ratio()).not.toBeNull();
+  });
+
+  it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {
+    await mount();
+    const stage = document.querySelector('[data-stage="game"]')!;
+    const shown = (element: Element) =>
+      !element.parentElement!.classList.contains("hidden");
+    expect(shown(stage)).toBe(true);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(true);
+    expect(document.querySelector('[data-stage="screenplay"]')).toBeNull();
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "screenplay"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(false);
+  });
+
   it("leaves fullscreen before the paper-size link opens the settings", async () => {
     workspaceSettings.setPreference("previewMode", "screenplay");
     await mount();

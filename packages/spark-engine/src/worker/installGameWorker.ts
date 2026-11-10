@@ -28,6 +28,7 @@ import { RollBackGameMessage } from "../game/core/classes/messages/RollBackGameM
 import { RollForwardGameMessage } from "../game/core/classes/messages/RollForwardGameMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameStartingValuesMessage } from "../game/core/classes/messages/SetGameStartingValuesMessage";
+import { SetStartingDisplayModeMessage, type StartingDisplayMode } from "../game/core/classes/messages/SetStartingDisplayModeMessage";
 import { GetGameStartingValueListingMessage } from "../game/core/classes/messages/GetGameStartingValueListingMessage";
 import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { SetGameDataBreakpointsMessage } from "../game/core/classes/messages/SetGameDataBreakpointsMessage";
@@ -138,6 +139,7 @@ export function installGameWorker(connection: MessageConnection) {
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
     startingValues?: StartingValues;
+    startingDisplayMode?: StartingDisplayMode;
   } = {};
 
   const createGame = (
@@ -151,6 +153,8 @@ export function installGameWorker(connection: MessageConnection) {
         options.functionBreakpoints ?? pending.functionBreakpoints,
       dataBreakpoints: options.dataBreakpoints ?? pending.dataBreakpoints,
       startingValues: options.startingValues ?? pending.startingValues,
+      startingDisplayMode:
+        options.startingDisplayMode ?? pending.startingDisplayMode,
     });
     if (state.scriptLineText) {
       game.scriptLineText = state.scriptLineText;
@@ -406,6 +410,16 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameStartingValuesMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         setStartingValues(message.params.values);
+        return {};
+      });
+      return;
+    }
+    if (SetStartingDisplayModeMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        pending.startingDisplayMode = message.params.mode;
+        for (const game of games()) {
+          game.setStartingDisplayMode(message.params.mode);
+        }
         return {};
       });
       return;
