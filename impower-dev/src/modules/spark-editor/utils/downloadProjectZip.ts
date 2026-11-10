@@ -8,5 +8,6 @@ export const downloadProjectZip = async (): Promise<boolean> => {
   }
   const name = Workspace.window.store.project.name;
   downloadFile(`${name}.zip`, "application/x-zip", zip);
+  await Workspace.window.recordProjectBackup();
   return true;
 };

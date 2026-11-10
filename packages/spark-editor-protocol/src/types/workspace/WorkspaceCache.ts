@@ -27,9 +27,12 @@ export type SyncStatus =
   | "sync_conflict";
 
 export type ProjectMetadataField =
+  | "backedUpAt"
+  | "createdAt"
   | "folders"
   | "layout"
   | "name"
+  | "remindedAt"
   | "textRevisionId"
   | "textSynced"
   | "zipRevisionId"

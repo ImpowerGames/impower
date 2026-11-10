@@ -571,6 +571,28 @@ describe("WorkspaceWindow store transitions", () => {
         current.window = undefined;
       }
     });
+
+    it("an export records when the project was last backed up", async () => {
+      vi.spyOn(win, "exportLocalProject").mockResolvedValue(
+        new Uint8Array([1]) as never,
+      );
+      const write = vi.mocked(Workspace.fs.writeProjectMetadata);
+      write.mockClear();
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id: "local", name: "Story" },
+      };
+      current.window = win;
+      const now = Date.UTC(2026, 10, 10, 12, 0, 0);
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        expect(await downloadProjectZip()).toBe(true);
+        expect(write).toHaveBeenCalledWith("local", "backedUpAt", String(now));
+      } finally {
+        vi.mocked(Date.now).mockRestore();
+        current.window = undefined;
+      }
+    });
   });
 
   describe("the desktop shell", () => {

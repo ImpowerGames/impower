@@ -122,6 +122,19 @@ import {
   splitScriptPath,
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
+import { downloadProjectZip } from "../utils/downloadProjectZip";
+import { isProjectMetadata } from "../utils/fileTree";
+import {
+  installOfferOf,
+  keepOnDevice,
+  recordBackup,
+  remindBackupIfDue,
+  settleStorage,
+  type InstallPromptEvent,
+  type ProjectBackupRecord,
+  type StorageProbe,
+} from "../utils/storagePersistence";
+import { DEVICE_STORAGE_COPY } from "./saveStatus";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -637,6 +650,103 @@ export default class WorkspaceWindow {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  protected _installPrompt: InstallPromptEvent | null = null;
+
+  async reviewDeviceStorage() {
+    await this.refreshDeviceStorage();
+    const id = this.store.project.id;
+    if (!id) {
+      return;
+    }
+    try {
+      await remindBackupIfDue({
+        local: id === WorkspaceConstants.LOCAL_PROJECT_ID,
+        persisted: workspace.deviceStorage.peek()?.persisted ?? false,
+        project: this.backupRecord(id),
+        now: Date.now(),
+        exportProject: downloadProjectZip,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async refreshDeviceStorage() {
+    this.setDeviceStorage(
+      await settleStorage(navigator.storage, navigator.permissions),
+    );
+  }
+
+  async keepProjectOnDevice() {
+    const probe = await keepOnDevice(navigator.storage, navigator.permissions);
+    this.setDeviceStorage(probe);
+    if (!probe.persisted) {
+      showSnackbar({ message: DEVICE_STORAGE_COPY.keepRefused });
+    }
+  }
+
+  offerAppInstall(prompt: InstallPromptEvent | null) {
+    this._installPrompt = prompt;
+    const current = workspace.deviceStorage.peek();
+    if (current) {
+      this.setDeviceStorage(current);
+    }
+  }
+
+  async installApp() {
+    const prompt = this._installPrompt;
+    if (!prompt) {
+      return;
+    }
+    this.offerAppInstall(null);
+    try {
+      await prompt.prompt();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async recordProjectBackup(id = this.store.project.id) {
+    if (!id) {
+      return;
+    }
+    try {
+      await recordBackup(this.backupRecord(id), Date.now());
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  protected setDeviceStorage(probe: StorageProbe) {
+    const standalone = (navigator as { standalone?: boolean }).standalone;
+    workspace.deviceStorage.value = {
+      ...probe,
+      install: installOfferOf({
+        installed:
+          standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches,
+        promptReady: this._installPrompt !== null,
+        homeScreen: standalone === false,
+      }),
+    };
+  }
+
+  protected backupRecord(id: string): ProjectBackupRecord {
+    const fs = this._workspace.fs;
+    return {
+      read: (field) => fs.readProjectMetadata(id, field),
+      write: (field, value) => fs.writeProjectMetadata(id, field, value),
+      lastEditAt: async () =>
+        Object.values(await fs.getFiles(id)).reduce(
+          (latest, file) =>
+            isProjectMetadata(fs.getRelativePath(id, file.uri))
+              ? latest
+              : Math.max(latest, file.modified ?? 0),
+          0,
+        ),
+    };
   }
 
   openSyncConflict() {
@@ -2727,6 +2837,7 @@ export default class WorkspaceWindow {
               String(true),
             ),
           ]);
+          await this.recordProjectBackup(projectId);
           this.loadNewProject(projectFileId);
         } else {
           this.update({

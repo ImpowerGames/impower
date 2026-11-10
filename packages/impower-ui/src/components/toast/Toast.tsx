@@ -37,6 +37,7 @@ export type ToastProps = {
   actionLabel?: string;
   onAction?: () => void;
   onDismiss: () => void;
+  dismissLabel?: string;
   wrap?: boolean;
   class?: string;
 };
@@ -47,6 +48,7 @@ export default function Toast({
   actionLabel,
   onAction,
   onDismiss,
+  dismissLabel,
   wrap = false,
   class: className,
 }: ToastProps) {
@@ -65,6 +67,12 @@ export default function Toast({
   if (!mounted || typeof document === "undefined") {
     return null;
   }
+
+  const dismiss = () => {
+    if (open) {
+      onDismiss();
+    }
+  };
 
   const endSwipe = () => {
     if (swipeStart.current === null) {
@@ -117,19 +125,21 @@ export default function Toast({
             {actionLabel}
           </Button>
         )}
-        {!coarse && (
-          <Button
-            variant="quiet"
-            size="icon"
-            aria-label="Dismiss"
-            onClick={() => {
-              if (open) {
-                onDismiss();
-              }
-            }}
-          >
-            <CloseIcon />
+        {dismissLabel ? (
+          <Button variant="quiet" class="text-muted" onClick={dismiss}>
+            {dismissLabel}
           </Button>
+        ) : (
+          !coarse && (
+            <Button
+              variant="quiet"
+              size="icon"
+              aria-label="Dismiss"
+              onClick={dismiss}
+            >
+              <CloseIcon />
+            </Button>
+          )
         )}
       </div>
     </div>,

@@ -107,6 +107,14 @@ describe("the save status caption map", () => {
     );
   });
 
+  it("says a saved local project lives on this device", () => {
+    expect(saveStatusOf("cached", true)).toEqual({
+      text: "Saved on this device",
+      tone: "saved",
+      action: "menu",
+    });
+  });
+
   it.each(["load_error", "import_error"] as const)(
     "reads a local project's %s as a draft that is not saved, linking to Save & sync",
     (status) => {

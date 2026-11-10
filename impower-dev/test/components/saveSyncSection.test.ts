@@ -7,6 +7,7 @@ const actions = vi.hoisted(() => ({
   signOutOfGoogleDrive: vi.fn(),
   openProjectFromDrive: vi.fn(),
   exportLocalProject: vi.fn(),
+  recordProjectBackup: vi.fn(async () => {}),
   importLocalProject: vi.fn(),
   requestProjectReplace: vi.fn(),
   cancelProjectReplace: vi.fn(),
@@ -142,6 +143,7 @@ describe("the Save & sync section", () => {
     expect(downloads).toHaveBeenCalledTimes(1);
     expect(downloads.mock.calls[0]![0]).toBe("Raffles.zip");
     expect(downloads.mock.calls[0]![2]).toBe(zip);
+    expect(actions.recordProjectBackup).toHaveBeenCalledTimes(1);
     expect(row("save-backup").textContent).toContain("Every script and asset as a .zip");
   });
 

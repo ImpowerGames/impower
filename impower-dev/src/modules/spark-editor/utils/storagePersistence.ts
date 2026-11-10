@@ -1,68 +1,237 @@
-import { WorkspaceConstants } from "../workspace/WorkspaceConstants";
-import { dismissSnackbar, showSnackbar, type Snackbar } from "./snackbar";
+import type { ProjectMetadataField } from "@impower/spark-editor-protocol/src/types";
+import {
+  DEVICE_STORAGE_COPY,
+  backupReminderMessage,
+} from "../workspace/saveStatus";
+import { showSnackbar } from "./snackbar";
 
 export type PersistableStorage = Partial<
   Pick<StorageManager, "persist" | "persisted">
 >;
 
-export const STORAGE_NOT_PERSISTED_MESSAGE =
-  "This browser may delete your project. Export a backup.";
+export type PermissionQuery = Partial<Pick<Permissions, "query">>;
 
-export const isStoragePersisted = async (
+export type PersistencePermission =
+  | "granted"
+  | "prompt"
+  | "denied"
+  | "unsupported";
+
+export interface StorageProbe {
+  persisted: boolean;
+  permission: PersistencePermission;
+  canPersist: boolean;
+}
+
+export type PersistAsk = "none" | "silent" | "on-press";
+
+export const persistAskOf = ({
+  persisted,
+  permission,
+  canPersist,
+}: StorageProbe): PersistAsk => {
+  if (persisted || !canPersist || permission === "denied") {
+    return "none";
+  }
+  return permission === "granted" ? "silent" : "on-press";
+};
+
+const PERMISSION_STATES: readonly string[] = ["granted", "prompt", "denied"];
+
+const permissionOf = async (
+  permissions: PermissionQuery | undefined,
+): Promise<PersistencePermission> => {
+  try {
+    const status = await permissions?.query?.({ name: "persistent-storage" });
+    const state: string = status?.state ?? "";
+    return PERMISSION_STATES.includes(state)
+      ? (state as PersistencePermission)
+      : "unsupported";
+  } catch {
+    return "unsupported";
+  }
+};
+
+const persistedOf = async (
   storage: PersistableStorage | undefined,
 ): Promise<boolean> => {
   try {
-    if (await storage?.persisted?.()) {
-      return true;
-    }
-    return (await storage?.persist?.()) ?? false;
+    return (await storage?.persisted?.()) === true;
   } catch {
     return false;
   }
 };
 
-export const STORAGE_EXPORT_FAILED_MESSAGE =
-  "The project could not be exported. Try again.";
+export const probeStorage = async (
+  storage: PersistableStorage | undefined,
+  permissions: PermissionQuery | undefined,
+): Promise<StorageProbe> => ({
+  persisted: await persistedOf(storage),
+  permission: await permissionOf(permissions),
+  canPersist: typeof storage?.persist === "function",
+});
 
-export const warnIfStorageNotPersisted = async (options: {
-  storage: PersistableStorage | undefined;
-  projectId: string | undefined;
+const askToPersist = async (storage: PersistableStorage | undefined) => {
+  try {
+    await storage?.persist?.();
+  } catch {
+    return;
+  }
+};
+
+export const settleStorage = async (
+  storage: PersistableStorage | undefined,
+  permissions: PermissionQuery | undefined,
+): Promise<StorageProbe> => {
+  const probe = await probeStorage(storage, permissions);
+  if (persistAskOf(probe) !== "silent") {
+    return probe;
+  }
+  await askToPersist(storage);
+  return probeStorage(storage, permissions);
+};
+
+export const keepOnDevice = async (
+  storage: PersistableStorage | undefined,
+  permissions: PermissionQuery | undefined,
+): Promise<StorageProbe> => {
+  await askToPersist(storage);
+  return probeStorage(storage, permissions);
+};
+
+export type InstallOffer = "prompt" | "home-screen" | null;
+
+export interface InstallPromptEvent extends Event {
+  prompt: () => Promise<unknown>;
+}
+
+export const installOfferOf = ({
+  installed,
+  promptReady,
+  homeScreen,
+}: {
+  installed: boolean;
+  promptReady: boolean;
+  homeScreen: boolean;
+}): InstallOffer => {
+  if (installed) {
+    return null;
+  }
+  if (promptReady) {
+    return "prompt";
+  }
+  return homeScreen ? "home-screen" : null;
+};
+
+export const DAY_MS = 86_400_000;
+
+export const BACKUP_REMINDER_AFTER_MS = 7 * DAY_MS;
+
+export const BACKUP_REMINDER_SNOOZE_MS = 7 * DAY_MS;
+
+export interface BackupFacts {
+  local: boolean;
+  persistent: boolean;
+  changed: boolean;
+  ageMs: number;
+  sinceRemindedMs: number | null;
+}
+
+export const backupReminderDue = ({
+  local,
+  persistent,
+  changed,
+  ageMs,
+  sinceRemindedMs,
+}: BackupFacts): boolean =>
+  local &&
+  !persistent &&
+  changed &&
+  ageMs > BACKUP_REMINDER_AFTER_MS &&
+  (sinceRemindedMs === null || sinceRemindedMs >= BACKUP_REMINDER_SNOOZE_MS);
+
+export type BackupField = Extract<
+  ProjectMetadataField,
+  "backedUpAt" | "createdAt" | "remindedAt"
+>;
+
+export interface ProjectBackupRecord {
+  read: (field: BackupField) => Promise<string>;
+  write: (field: BackupField, value: string) => Promise<void>;
+  lastEditAt: () => Promise<number>;
+}
+
+const timeOf = async (
+  project: ProjectBackupRecord,
+  field: BackupField,
+): Promise<number | null> => {
+  const time = Number(await project.read(field));
+  return Number.isFinite(time) && time > 0 ? time : null;
+};
+
+export const recordBackup = (project: ProjectBackupRecord, now: number) =>
+  project.write("backedUpAt", String(now));
+
+export const exportBackup = async (
+  exportProject: () => Promise<boolean>,
+): Promise<boolean> => {
+  let exported = false;
+  try {
+    exported = await exportProject();
+  } catch {
+    exported = false;
+  }
+  if (!exported) {
+    showSnackbar({ message: DEVICE_STORAGE_COPY.exportFailed });
+  }
+  return exported;
+};
+
+export const remindBackupIfDue = async ({
+  local,
+  persisted,
+  project,
+  now,
+  exportProject,
+}: {
+  local: boolean;
+  persisted: boolean;
+  project: ProjectBackupRecord;
+  now: number;
   exportProject: () => Promise<boolean>;
 }): Promise<boolean> => {
-  if (await isStoragePersisted(options.storage)) {
+  if (!local) {
     return false;
   }
-  const projectId = options.projectId || WorkspaceConstants.LOCAL_PROJECT_ID;
-  if (projectId !== WorkspaceConstants.LOCAL_PROJECT_ID) {
+  let createdAt = await timeOf(project, "createdAt");
+  if (createdAt === null) {
+    createdAt = now;
+    await project.write("createdAt", String(now));
+  }
+  const backedUpAt = await timeOf(project, "backedUpAt");
+  const remindedAt = await timeOf(project, "remindedAt");
+  const since = backedUpAt ?? createdAt;
+  const due = backupReminderDue({
+    local,
+    persistent: persisted,
+    changed: (await project.lastEditAt()) > since,
+    ageMs: now - since,
+    sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
+  });
+  if (!due) {
     return false;
   }
-  let exporting = false;
-  const exportBackup = async () => {
-    if (exporting) {
-      return;
-    }
-    exporting = true;
-    let exported = false;
-    try {
-      exported = await options.exportProject();
-    } catch {
-      exported = false;
-    }
-    exporting = false;
-    if (exported) {
-      dismissSnackbar(warning);
-    } else {
-      showSnackbar({ message: STORAGE_EXPORT_FAILED_MESSAGE });
-    }
-  };
-  const warning: Snackbar = {
-    message: STORAGE_NOT_PERSISTED_MESSAGE,
-    actionLabel: "Export",
+  await project.write("remindedAt", String(now));
+  showSnackbar({
+    message: backupReminderMessage(
+      Math.floor((now - since) / DAY_MS),
+      backedUpAt !== null,
+    ),
+    actionLabel: DEVICE_STORAGE_COPY.exportAction,
+    dismissLabel: DEVICE_STORAGE_COPY.remindLater,
     onAction: () => {
-      void exportBackup();
+      void exportBackup(exportProject);
     },
-    persistent: true,
-  };
-  showSnackbar(warning);
+  });
   return true;
 };
