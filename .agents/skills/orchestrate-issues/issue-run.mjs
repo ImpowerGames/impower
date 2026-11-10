@@ -2010,7 +2010,8 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} has no recorded outcome; settle it with reconcile, and never resume again before it`);
     const s = ownerStatus(owner, {}, { host, identify, census });
     if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer whose turn has ended is resumed`);
-    if (args.includes("--resume")) throw new Error("The resume supplies --resume with the session the writer's stream names; drop --resume from --arg");
+    const chosen = args.find((a) => /^(-r|--resume|-c|--continue|--session-id|--fork-session)(=.*)?$/.test(a));
+    if (chosen) throw new Error(`The resume supplies --resume with the session the writer's stream names; drop ${chosen} from --arg`);
     checkLaunchArgs(args, owner);
     const sessionId = owner.sessionId ?? streamSession(owner.handle.launchDir, "resume");
     const id = randomUUID();

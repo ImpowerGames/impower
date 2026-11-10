@@ -280,8 +280,9 @@ try {
     const resumeArgs = (effort = "medium") => [standIn, "-p", "--model", "claude-opus-5-5", "--effort", effort, "--permission-mode", "bypassPermissions", "--stop", stop];
     const resumeIt = (args, spawner) => run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 371, executable: process.execPath, args, prompt: answerFile, ...(spawner && { spawner }) });
     const unchanged = JSON.stringify(run.readRecord(w.f.file));
-    for (const supplied of ["00000000-0000-4000-8000-000000000000", WRITER_SESSION]) {
-      assert.throws(() => resumeIt(["--resume", supplied, ...resumeArgs()]), /The resume supplies --resume with the session the writer's stream names; drop --resume from --arg/, "a caller-supplied --resume, stale or duplicate, is refused and never delivered");
+    const stale = "00000000-0000-4000-8000-000000000000";
+    for (const [flag, ...rest] of [["--resume", stale], ["--resume", WRITER_SESSION], ["-r", stale], [`--resume=${stale}`], ["-c"], ["--continue"], ["--session-id", stale], ["--fork-session"]]) {
+      assert.throws(() => resumeIt([flag, ...rest, ...resumeArgs()], () => assert.fail("nothing is started")), new RegExp(`The resume supplies --resume with the session the writer's stream names; drop ${flag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} from --arg`), `a caller-chosen session (${flag}) is refused and never delivered`);
     }
     assert.equal(JSON.stringify(run.readRecord(w.f.file)), unchanged, "a refused --resume records nothing");
     assert.throws(() => resumeIt(resumeArgs("high")), /--effort must be medium/, "the writer resumes at its own effort");
