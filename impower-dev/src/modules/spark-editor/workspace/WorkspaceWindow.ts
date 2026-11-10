@@ -958,10 +958,13 @@ export default class WorkspaceWindow {
 
   protected applyVerifiedBreakpoints(uri: string, verified: EditorBreakpoint[]) {
     const lines = [...new Set(verified.map((b) => b.line))].sort((a, b) => a - b);
-    const states = lines.map((line) => ({
-      line,
-      verified: verified.some((b) => b.line === line && b.verified),
-    }));
+    const states = lines.map((line): EditorBreakpoint => {
+      if (verified.some((b) => b.line === line && b.verified)) {
+        return { line, verified: true };
+      }
+      const message = verified.find((b) => b.line === line)?.message;
+      return message == null ? { line, verified: false } : { line, verified: false, message };
+    });
     this.setBreakpointLines(uri, lines);
     sendProtocolMessage(
       SetEditorBreakpointsMessage.type.request({

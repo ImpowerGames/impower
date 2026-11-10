@@ -1,4 +1,3 @@
-import { openLintPanel } from "@codemirror/lint";
 import { Facet } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
@@ -17,9 +16,9 @@ export const editorToolCommands = Facet.define<
 });
 
 export const editorTool =
-  (tool: keyof EditorToolCommands, fallback?: (view: EditorView) => unknown) =>
+  (tool: keyof EditorToolCommands) =>
   (view: EditorView) => {
-    const run = view.state.facet(editorToolCommands)[tool] ?? fallback;
+    const run = view.state.facet(editorToolCommands)[tool];
     if (!run) {
       return false;
     }
@@ -29,7 +28,7 @@ export const editorTool =
 
 export const openFind = editorTool("find");
 
-export const openProblems = editorTool("problems", openLintPanel);
+export const openProblems = editorTool("problems");
 
 export const findNextMatch = editorTool("findNext");
 

@@ -1,4 +1,6 @@
-import { useState } from "preact/hooks";
+import { useLayoutEffect, useState } from "preact/hooks";
+import { useStylesheet } from "../utils/useStylesheet";
+import routeListCss from "./route-list.css?inline";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type {
   PreviewRouteDecision,
@@ -42,7 +44,10 @@ export interface RouteButtonProps {
   onClose: () => void;
 }
 
+export const ROUTE_LIST_STYLESHEET_ID = "swp-route-list-css";
+
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
+  useStylesheet(ROUTE_LIST_STYLESHEET_ID, routeListCss);
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
   if (label === null || parts === null) {
@@ -155,6 +160,30 @@ export function RouteList({
   onPinLastRun,
 }: RouteListProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  useStylesheet(ROUTE_LIST_STYLESHEET_ID, routeListCss);
+  const drafts = state.values?.drafts;
+  useLayoutEffect(() => {
+    if (!state.open) {
+      return undefined;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) {
+        return;
+      }
+      const target = event.target;
+      const key =
+        target instanceof Element
+          ? target.closest(".sv-row")?.getAttribute("data-key")
+          : null;
+      if (key != null && drafts?.[key] !== undefined) {
+        return;
+      }
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [state.open, drafts, onClose]);
   if (!state.open) {
     return null;
   }

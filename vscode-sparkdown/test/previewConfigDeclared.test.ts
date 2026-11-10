@@ -29,7 +29,7 @@ vi.mock("../src/utils/getActiveSparkdownDocument", () => ({
 }));
 
 describe("getSparkdownPreviewConfig", () => {
-  it("reads only screenplay settings the extension declares", async () => {
+  it("reads only settings the extension declares", async () => {
     const { getSparkdownPreviewConfig } =
       await import("../src/utils/getSparkdownPreviewConfig");
     getSparkdownPreviewConfig();
@@ -43,7 +43,7 @@ describe("getSparkdownPreviewConfig", () => {
     );
     const leaves = [...read.paths].filter(
       (path) =>
-        path.startsWith("sparkdown.screenplay.") &&
+        path.startsWith("sparkdown.") &&
         ![...read.paths].some((other) => other.startsWith(`${path}.`)),
     );
     expect(leaves.length).toBeGreaterThan(0);

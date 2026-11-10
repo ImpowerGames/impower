@@ -63,6 +63,10 @@ import {
   pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
 import {
+  choiceMarkerActions,
+  type ChoiceMarkerHandler,
+} from "../../../cm-choice-markers/choiceMarkers";
+import {
   getRoutePins,
   routePins,
   setsRoutePins,
@@ -164,6 +168,7 @@ interface EditorConfig {
   ) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
+  onChoiceMark?: ChoiceMarkerHandler;
   onHeightChanged?: () => void;
   hoverValue?: HoverValueSource;
   onCompletionPreview?: (
@@ -353,6 +358,7 @@ const createEditorView = (
           return decorations;
         }),
         routePins(config?.routePins ?? [], initialText),
+        config.onChoiceMark ? choiceMarkerActions.of(config.onChoiceMark) : [],
         sparkdownLanguageExtension({
           textDocument,
           serverWorker,
@@ -465,17 +471,11 @@ const createEditorView = (
           }
           onViewUpdate?.(u);
           const snippet = Boolean(parent.querySelector(".cm-snippetField"));
-          const lint = Boolean(parent.querySelector(".cm-panel-lint"));
           if (parent) {
             if (snippet) {
               parent.classList.add("cm-snippet");
             } else {
               parent.classList.remove("cm-snippet");
-            }
-            if (lint) {
-              parent.classList.add("cm-lint");
-            } else {
-              parent.classList.remove("cm-lint");
             }
           }
           if (setEditorState) {

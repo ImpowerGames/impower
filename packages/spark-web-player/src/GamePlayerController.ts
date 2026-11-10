@@ -120,6 +120,11 @@ import { workerHangMessage } from "./utils/workerHangMessage";
 import { profile } from "./utils/profile";
 import { renderRouteViews } from "./route/renderRouteViews";
 import {
+  DidChangeRouteViewMessage,
+  RouteViewActionMessage,
+  type HostedValuesEvent,
+} from "./route/routeViewMessages";
+import {
   changedPins,
   LAST_RUN_CHANGED,
   lastRunChange,
@@ -469,14 +474,17 @@ export class GamePlayerController {
 
   protected readonly _resizable: boolean;
 
+  protected readonly _hostsRoute: boolean;
+
   constructor(
     host: HTMLElement,
     refs: GamePlayerRefs,
-    options: { resizable?: boolean } = {},
+    options: { resizable?: boolean; hostsRoute?: boolean } = {},
   ) {
     this.host = host;
     this.refs = refs;
     this._resizable = options.resizable ?? true;
+    this._hostsRoute = options.hostsRoute ?? false;
   }
 
   setup(): void {
@@ -525,7 +533,6 @@ export class GamePlayerController {
     this._mounted = false;
     this._disposed = true;
     this._stops += 1;
-    window.removeEventListener("keydown", this.handleRouteKeyDown, true);
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
     renderRouteViews(this.routeViewTargets(), null);
@@ -703,7 +710,7 @@ export class GamePlayerController {
     }
     const failed = params?.simulation === "fail";
     const shows =
-      button != null &&
+      (button != null || this._hostsRoute) &&
       params != null &&
       !this.playing &&
       this._workerGame != null &&
@@ -756,20 +763,24 @@ export class GamePlayerController {
   }
 
   protected routeViewTargets() {
-    return {
-      button: this.refs.routeButton ?? null,
-      list: this.refs.routeList ?? null,
-    };
+    return this._hostsRoute
+      ? { button: null, list: null }
+      : {
+          button: this.refs.routeButton ?? null,
+          list: this.refs.routeList ?? null,
+        };
   }
 
   protected renderRoute() {
-    if (this._disposed || !this.refs.routeButton) {
+    if (this._disposed || (!this.refs.routeButton && !this._hostsRoute)) {
       return;
     }
     const open = this._routeState.open;
-    this.refs.viewport.classList.toggle("route-open", open);
-    if (this.refs.routeList) {
-      this.refs.routeList.hidden = !open;
+    if (!this._hostsRoute) {
+      this.refs.viewport.classList.toggle("route-open", open);
+      if (this.refs.routeList) {
+        this.refs.routeList.hidden = !open;
+      }
     }
     const start = this.valuesStart();
     if (this._valuesShownStart !== start) {
@@ -830,6 +841,83 @@ export class GamePlayerController {
       onChangePins: this.handleRouteChangePins,
       onPinLastRun: this.handleRoutePinLastRun,
     });
+    if (this._hostsRoute) {
+      sendProtocolMessage(
+        DidChangeRouteViewMessage.type.notification({
+          view: this._barView.routeShown
+            ? {
+                ...this._routeState,
+                ...(values
+                  ? {
+                      load: {
+                        saves: this._saves.rows(),
+                        open: this._loadSaveOpen,
+                      },
+                    }
+                  : {}),
+              }
+            : null,
+        }),
+        this.host,
+      );
+    }
+  }
+
+  protected handleRouteViewAction = (
+    message: RouteViewActionMessage.Notification,
+  ) => {
+    const { action } = message.params;
+    switch (action.kind) {
+      case "open":
+      case "close":
+        this.setRouteOpen(action.kind === "open");
+        return;
+      case "toggle":
+        this.handleRouteToggle(action.routeKind, action.shown);
+        return;
+      case "changePins":
+        void this.handleRouteChangePins(action.change);
+        return;
+      case "pinLastRun":
+        void this.handleRoutePinLastRun();
+        return;
+      case "tab":
+        this.handleRouteTab(action.tab);
+        return;
+      case "values":
+        this.handleHostedValues(action.event);
+        return;
+    }
+  };
+
+  protected handleHostedValues(event: HostedValuesEvent) {
+    switch (event.kind) {
+      case "set":
+        this.valuesEvents.onSet(event.key, event.value);
+        return;
+      case "clear":
+        this.valuesEvents.onClear(event.key);
+        return;
+      case "draft":
+        this.valuesEvents.onDraft(event.key, event.text);
+        return;
+      case "resetAll":
+        this.valuesEvents.onResetAll();
+        return;
+      case "search":
+        this.valuesEvents.onSearch(event.search);
+        return;
+      case "undoLoad":
+        this.undoLoad();
+        return;
+      case "loadOpen":
+        this._loadSaveOpen = event.open;
+        this.renderRoute();
+        return;
+      case "loadPick":
+        void this.loadSave(event.id);
+        return;
+    }
   }
 
   protected valuesStart(): string | undefined {
@@ -1018,23 +1106,10 @@ export class GamePlayerController {
     ) {
       this._saves.events.onOpen(false);
     }
-    if (
-      this._loadSaveOpen &&
-      !(target instanceof Element && target.closest(".sv-load"))
-    ) {
-      this._loadSaveOpen = false;
-      this.renderRoute();
-    }
   };
 
   protected handleSavesKeyDown = (e: KeyboardEvent) => {
     if (e.key !== "Escape") {
-      return;
-    }
-    if (this._loadSaveOpen) {
-      e.stopImmediatePropagation();
-      this._loadSaveOpen = false;
-      this.renderRoute();
       return;
     }
     if (this._saves.open) {
@@ -1089,31 +1164,8 @@ export class GamePlayerController {
       return;
     }
     this._routeState = { ...this._routeState, open };
-    if (open) {
-      window.addEventListener("keydown", this.handleRouteKeyDown, true);
-    } else {
-      window.removeEventListener("keydown", this.handleRouteKeyDown, true);
-    }
     this.renderRoute();
   }
-
-  protected handleRouteKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && this._routeState.open) {
-      const field = (e.target as Element | null)?.closest?.(".sv-row");
-      const key = field?.getAttribute("data-key");
-      const start = this.valuesStart();
-      if (
-        key != null &&
-        start !== undefined &&
-        fieldsView(this._valueFields, start, this.firstValueOf).drafts[key] !==
-          undefined
-      ) {
-        return;
-      }
-      e.stopPropagation();
-      this.setRouteOpen(false);
-    }
-  };
 
   protected handleRouteToggle = (kind: RouteKind, shown: boolean) => {
     const toggles = { ...this._routeState.toggles, [kind]: shown };
@@ -1373,6 +1425,7 @@ export class GamePlayerController {
       this.handleRemovedCompilerFile,
     );
     p.onNotification(CompiledProgramMessage.type, this.handleCompiledProgram);
+    p.onNotification(RouteViewActionMessage.type, this.handleRouteViewAction);
     p.onNotification(
       PreviewCompletionMessage.type,
       this.handlePreviewCompletion,

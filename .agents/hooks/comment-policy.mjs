@@ -30,7 +30,7 @@ const reviewerGeneratedReason = "This file is a generated reviewer definition. E
 export function generatedFileReason(file) {
   if (typeof file !== "string") return null;
   const rel = posix(file);
-  if (/(?:^|\/)language\/sparkdown\.language-(?:grammar|config|snippets)\.json$/i.test(rel)) return generatedReason;
+  if (/(?:^|\/)language\/sparkdown(?:-luau)?\.language-(?:grammar|config|snippets)\.json$/i.test(rel)) return generatedReason;
   if (/(?:^|\/)\.claude\/agents\/reviewer-[^/]*\.md$/i.test(rel)) return reviewerGeneratedReason;
   return null;
 }

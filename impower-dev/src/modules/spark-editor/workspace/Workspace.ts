@@ -1,6 +1,7 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { consoleToggleSource, runtimeErrorSource } from "./problems/gameSources";
 import problems from "./problems/ProblemsStore";
+import route from "./route/RouteStore";
 import workspaceSettings from "./settings/WorkspaceSettings";
 import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
@@ -57,6 +58,7 @@ if (typeof window !== "undefined") {
   window.addEventListener(MessageProtocol.event, (event) => {
     if (event instanceof CustomEvent) {
       problems.receive(event.detail);
+      route.receive(event.detail);
     }
   });
 }

@@ -83,22 +83,6 @@ describe("the context menu and suggestion rows the shared rule reaches", () => {
   });
 });
 
-describe("focus drawn outside the shared :focus-visible rule", () => {
-  it("draws the selected problem's edge while the list has keyboard focus, in Highlight under forced colours", () => {
-    expect(EDITOR_THEME["& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"]).toEqual({
-      outline: "1px solid var(--accent)",
-      outlineOffset: "-1px",
-    });
-    const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
-    expect((forced[".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"] as Spec)["outlineColor"]).toBe("Highlight");
-  });
-});
-describe("the code editor's own scroll containers", () => {
-  it("keep a stable gutter on the problems list", () => {
-    expect((EDITOR_THEME["& .cm-panel.cm-panel-lint ul"] as Spec)["scrollbarGutter"]).toBe("stable");
-  });
-});
-
 describe("the code editor's focus edge", () => {
   const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
   const forcedRuleFor = (selector: string): Spec => {

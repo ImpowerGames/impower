@@ -8,8 +8,12 @@ import {
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
 import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
+import {
+  SPARKDOWN_EMBEDDED_LANGUAGES,
+  SPARKDOWN_LANGUAGE_CONFIGS,
+  sparkdownLanguageFor,
+} from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import {
   type InitializeParams,
   type InitializeResult,
@@ -36,7 +40,9 @@ export const sparkdownLanguageExtension = (config: {
   const languageSupport = vscodeLanguage({
     name: "sparkdown",
     grammar: sparkdownGrammarFor(textDocument.uri),
-    config: CONFIG_DEFINITION,
+    language: sparkdownLanguageFor(textDocument.uri),
+    configs: SPARKDOWN_LANGUAGE_CONFIGS,
+    embeddedLanguages: SPARKDOWN_EMBEDDED_LANGUAGES,
   });
 
   let client = new LSPClient({

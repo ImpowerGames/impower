@@ -74,4 +74,5 @@ export interface PreviewRoute {
   tunnelEnds?: true;
   /** The pins whose line holds no option, which the route ignored. */
   unresolvedPins?: RoutePin[];
+  forcedLines?: Record<string, number[]>;
 }

@@ -174,7 +174,7 @@ variables:
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
-  LAYOUT_CONTROL_KEYWORDS: ["open", "close", "navigate"]
+  LAYOUT_CONTROL_KEYWORDS: ["open", "close", "navigate", "clear"]
   LOAD_CONTROL_KEYWORDS: ["load"]
   MOVIE_CONTROL_KEYWORDS: ["play"]
 

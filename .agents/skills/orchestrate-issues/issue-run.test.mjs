@@ -247,7 +247,7 @@ function writerAccountingChecks() {
   let spawned = 0;
   const resume = (observe, extra = {}) => run.resumeWriter(resumeFile, {
     coordinator: ids.coordinator, expectRevision: run.readRecord(resumeFile).revision,
-    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared],
+    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions"],
     prompt: resumePrompt, identify: () => null, census: () => [], observe,
     spawner: () => { spawned++; return { started: false, reason: "fixture" }; }, ...extra,
   });
@@ -280,7 +280,7 @@ console.log(process.pid); const end = Date.now() + 15000;
 const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || Date.now() > end) {
   clearInterval(timer); fs.writeFileSync(${JSON.stringify(done)}, JSON.stringify({pid:process.pid}));
 } }, 100);`);
-    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared] });
+    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions"] });
     assert.equal(real.started, true, real.reason);
     const liveOwner = run.readRecord(resumeFile).tickets[101].owner;
     let child;

@@ -1,6 +1,7 @@
 import { runScopeHandlers, type EditorView } from "@codemirror/view";
 import {
   findReferences,
+  openProblems,
   type LSPClient,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,7 +23,7 @@ afterEach(() => {
 let sent: string[] = [];
 
 const mount = (withTools: boolean) => {
-  const tools = { find: vi.fn(), rename: vi.fn(), references: vi.fn() };
+  const tools = { find: vi.fn(), rename: vi.fn(), references: vi.fn(), problems: vi.fn() };
   const parent = document.body.appendChild(document.createElement("div"));
   sent = [];
   const worker = Object.assign(new EventTarget(), {
@@ -60,7 +61,31 @@ const mount = (withTools: boolean) => {
 const press = (key: string, shiftKey = false) =>
   runScopeHandlers(view, new KeyboardEvent("keydown", { key, shiftKey }), "editor");
 
+const pressProblems = () =>
+  runScopeHandlers(
+    view,
+    new KeyboardEvent("keydown", { key: "M", code: "KeyM", keyCode: 77, ctrlKey: true, shiftKey: true }),
+    "editor",
+  );
+
 describe("the editor's own name-tool keys", () => {
+  it("opens the host's Problems from Ctrl+Shift+M", () => {
+    const tools = mount(true);
+    expect(pressProblems()).toBe(true);
+    expect(tools.problems).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens nothing and asks the server for nothing from Ctrl+Shift+M where no host supplies Problems", async () => {
+    mount(false);
+    await new Promise((resolve) => setTimeout(resolve));
+    const before = sent.length;
+    pressProblems();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(sent.slice(before)).toEqual([]);
+    expect(view.dom.querySelector(".cm-panel:not(.cm-status)")).toBeNull();
+    expect(openProblems(view)).toBe(false);
+  });
+
   it("opens the host's Rename from F2", () => {
     const tools = mount(true);
     expect(press("F2")).toBe(true);

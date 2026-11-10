@@ -153,7 +153,7 @@ describe("the script editor's breakpoint gutter", () => {
     expect(getBreakpointLineNumbers(view)).toEqual([5]);
   });
 
-  it("moves a dot to the line the debugger verified, and draws an unplaceable one hollow with its reason", () => {
+  it("moves a dot to the line the debugger verified, and draws an unplaceable one hollow", () => {
     const { view } = mount();
     pressGutterAt(view, 4);
     pressGutterAt(view, 6);
@@ -162,10 +162,52 @@ describe("the script editor's breakpoint gutter", () => {
       { line: 6, verified: false },
     ]);
     expect(getBreakpointLineNumbers(view)).toEqual([5, 6]);
+    expect(view.dom.querySelectorAll(".cm-breakpoint-unverified")).toHaveLength(1);
+    expect(markers(view)).toHaveLength(2);
+  });
+
+  it("titles a hollow dot on a declaration line with the adapter's declaration reason", () => {
+    const { view } = mount();
+    setBreakpointStates(view, [
+      { line: 2, verified: false, message: "A declaration runs before the story starts" },
+    ]);
+    const hollow = view.dom.querySelectorAll(".cm-breakpoint-unverified");
+    expect(hollow).toHaveLength(1);
+    expect(hollow[0]!.getAttribute("title")).toBe("A declaration runs before the story starts");
+  });
+
+  it("titles a hollow dot on a line with no statement with the adapter's no-statement reason", () => {
+    const { view } = mount();
+    setBreakpointStates(view, [
+      { line: 3, verified: false, message: "No statement to stop at here." },
+    ]);
     const hollow = view.dom.querySelectorAll(".cm-breakpoint-unverified");
     expect(hollow).toHaveLength(1);
     expect(hollow[0]!.getAttribute("title")).toBe("No statement to stop at here.");
-    expect(markers(view)).toHaveLength(2);
+  });
+
+  it("gives each hollow dot its own reason and a placed dot none", () => {
+    const { view } = mount();
+    setBreakpointStates(view, [
+      { line: 2, verified: false, message: "A declaration runs before the story starts" },
+      { line: 3, verified: false, message: "No statement to stop at here." },
+      { line: 5, verified: true },
+    ]);
+    const titles = [...view.dom.querySelectorAll(".cm-breakpoint")].map((dot) =>
+      dot.getAttribute("title"),
+    );
+    expect(titles).toEqual([
+      "A declaration runs before the story starts",
+      "No statement to stop at here.",
+      null,
+    ]);
+  });
+
+  it("titles a hollow dot whose answer carries no reason with a neutral fallback", () => {
+    const { view } = mount();
+    setBreakpointStates(view, [{ line: 3, verified: false }]);
+    const hollow = view.dom.querySelectorAll(".cm-breakpoint-unverified");
+    expect(hollow[0]!.getAttribute("title")).toBe("Breakpoint not placed.");
   });
 
   it("shows its column while the script holds a breakpoint, even with line numbers off", () => {
