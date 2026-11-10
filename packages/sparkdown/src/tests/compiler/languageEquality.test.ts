@@ -65,6 +65,21 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     }
   });
 
+  describe("known differences, each tracked by its ticket", () => {
+    test("I-2038: a declaration or reassignment followed by an `&` statement on its line", async () => {
+      const { divergences } = await compareLanguages(
+        "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
+      );
+      expect(divergences.map((d) => d.lineCol)).toEqual(["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"]);
+    });
+
+    test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {
+      const { divergences } = await compareLanguages("function名 text\nHello\n");
+      expect(divergences).toHaveLength(14);
+      expect(divergences.every((d) => d.vscode === STORY && d.tree === LUAU)).toBe(true);
+    });
+  });
+
   test("a cursor before a CRLF line break reads the line as before an LF one", () => {
     const lf = "function f()\n  return 1\nend\nHello\n";
     const crlf = lf.replace(/\n/g, "\r\n");
