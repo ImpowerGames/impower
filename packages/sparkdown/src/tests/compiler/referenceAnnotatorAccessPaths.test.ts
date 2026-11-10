@@ -140,6 +140,16 @@ describe("ReferenceAnnotator · a use's root resolves to the binding in scope (I
     expect(at(refs, source, "settings", 3)?.bound).toBeUndefined();
   });
 
+  test("a local in one branch of an if binds later statements of that branch only", () => {
+    const source =
+      "function show()\n  if a then\n    local settings = 1\n    x = settings\n  elseif b then\n    local other = 2\n    x = settings.score\n  else\n    y = settings.score + other\n  end\nend\n";
+    const refs = collect(source);
+    expect(at(refs, source, "settings", 2)?.bound).toBe(true);
+    expect(at(refs, source, "settings", 3)?.bound).toBeUndefined();
+    expect(at(refs, source, "settings", 4)?.bound).toBeUndefined();
+    expect(at(refs, source, "other", 2)?.bound).toBeUndefined();
+  });
+
   test("a local in one function does not bind the name in another", () => {
     const source =
       "function show()\n  local settings = 1\n  return settings\nend\nfunction other()\n  return settings.score\nend\n";

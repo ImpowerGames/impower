@@ -117,6 +117,7 @@ const VARIABLE_NAME = nodeNameSet(["LuauVariableName"]);
 const FUNCTION_NAME = nodeNameSet(["LuauFunctionName"]);
 const SCOPE_MODIFIER = nodeNameSet(["LuauScopeModifier"]);
 const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
+const BRANCH_BLOCK = nodeNameSet(["LuauElseifBlock", "LuauElseBlock"]);
 
 function isTrivia(node: SyntaxNode): boolean {
   return node.name.endsWith("Whitespace") || node.name.endsWith("Comment");
@@ -386,6 +387,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         if (parameter) return parameter;
         if (scope === outermost) return null;
       }
+      if (BRANCH_BLOCK.has(child.name)) continue;
       for (let statement = child.prevSibling; statement; statement = statement.prevSibling) {
         const local = this.localNamed(statement, name);
         if (local) return local;
