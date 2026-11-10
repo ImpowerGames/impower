@@ -281,7 +281,7 @@ try {
     const resumeIt = (args, spawner) => run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 371, executable: process.execPath, args, prompt: answerFile, ...(spawner && { spawner }) });
     const unchanged = JSON.stringify(run.readRecord(w.f.file));
     const stale = "00000000-0000-4000-8000-000000000000";
-    for (const [flag, ...rest] of [["--resume", stale], ["--resume", WRITER_SESSION], ["-r", stale], [`--resume=${stale}`], ["-c"], ["--continue"], ["--session-id", stale], ["--fork-session"]]) {
+    for (const [flag, ...rest] of [["--resume", stale], ["--resume", WRITER_SESSION], ["-r", stale], [`--resume=${stale}`], ["-c"], ["--continue"], ["--session-id", stale], ["--fork-session"], ["--from-pr", "123"], ["--from-pr=123"], ["--teleport", stale], ["--cloud", stale], ["--environment", "env_1"], ["--bg"], ["--background"], ["--remote-control"], ["--no-session-persistence"]]) {
       assert.throws(() => resumeIt([flag, ...rest, ...resumeArgs()], () => assert.fail("nothing is started")), new RegExp(`The resume supplies --resume with the session the writer's stream names; drop ${flag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} from --arg`), `a caller-chosen session (${flag}) is refused and never delivered`);
     }
     assert.equal(JSON.stringify(run.readRecord(w.f.file)), unchanged, "a refused --resume records nothing");
