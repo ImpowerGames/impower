@@ -6,10 +6,10 @@ Total cases: 95
 
 - pass: 4
 - mismatch: 1
-- incomplete: 17
+- incomplete: 15
 - capture-model: 0
-- while-rule: 18
-- regex-invalid: 53
+- while-rule: 24
+- regex-invalid: 49
 - throw-other: 2
 - load-error: 0
 
@@ -24,7 +24,7 @@ Total cases: 95
 ### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
-### incomplete (17)
+### incomplete (15)
 - first-mate#0 [fixtures/hello.json] TEST #3 — tokens matched but tree has error nodes
 - first-mate#3 [fixtures/text.json] TEST #6 — line 1 "abc def": token[0] ("abc def") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#11 [fixtures/text.json] TEST #14 — line 1 "hoo": token[0] ("hoo") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
@@ -38,12 +38,10 @@ Total cases: 95
 - first-mate#31 [fixtures/multiline.json] TEST #34 — line 1 "Xy\\": token[1] value got "y\\" want "y"
 - first-mate#35 [fixtures/infinite-loop.json] TEST #38 — line 1 "abc": token[0] value got "abc" want "a"
 - first-mate#63 [fixtures/loops.json] TEST #74 — tokens matched but tree has error nodes
-- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — line 1 "This is a paragraph": token[0] ("This is a paragraph") scopes got ["text.html.markdown"] want ["text.html.markdown","meta.paragraph.markdown"]
 - suite1#9 [fixtures/testlang12.plist] Issue #12 — line 1 "[test]|": token[0] ("[test]|") scopes got ["text.testlang"] want ["text.testlang","string.unquoted.verbatim.youki"]
-- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — line 1 "Toggle preview `Shift+CMD+V`": token[0] value got "Toggle preview `Shift+CMD+V`" want "Toggle preview "
 - suite1#16 [fixtures/105.grammarA.json] Issue #105 — line 3 "some test pattern": token[0] ("some test pattern") scopes got ["source.test"] want ["source.test","test.name"]
 
-### while-rule (18)
+### while-rule (24)
 - first-mate#1 [fixtures/coffee-script.json] TEST #4 — Invalid RegExp: (?x)
 				\b(?<![\.\$])(
 					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
@@ -98,6 +96,12 @@ Total cases: 95
 					then|throw|try|unless|when|while|until|loop|do|(?<=for)\s+own
 				)(?!\s*:)\b
 			
+- first-mate#44 [fixtures/makefile.json] TEST #50 — while rules are not currently supported
+- first-mate#45 [fixtures/makefile.json] TEST #51 — while rules are not currently supported
+- first-mate#46 [fixtures/makefile.json] TEST #53 — while rules are not currently supported
+- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — while rules are not currently supported
+- suite1#8 [fixtures/Makefile.plist] Issue #8 — while rules are not currently supported
+- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — while rules are not currently supported
 - suite1#0 [fixtures/whileLang.plist] While should match begin and stop on next line if while condition fails — while rules are not currently supported
 - suite1#1 [fixtures/whileLang.plist] While should match multiple lines while condition holds — while rules are not currently supported
 - suite1#2 [fixtures/whileLang.plist] While condition can match anywhere in line — while rules are not currently supported
@@ -108,7 +112,7 @@ Total cases: 95
 - suite1#7 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported
 - suite1#8 [fixtures/whileLang.plist] Should Correctly handle anchor in while rule — while rules are not currently supported
 
-### regex-invalid (53)
+### regex-invalid (49)
 - first-mate#17 [fixtures/ruby.json] TEST #20 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
 - first-mate#20 [fixtures/coffee-script.json] TEST #23 — Invalid RegExp: \#\{
 - first-mate#22 [fixtures/ruby.json] TEST #25 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
@@ -162,9 +166,6 @@ Total cases: 95
 			
 - first-mate#41 [fixtures/javascript.json] TEST #47 — Invalid RegExp: !|\$|%|&|\*|\-\-|\-|\+\+|\+|~|===|==|=|!=|!==|<=|>=|<<=|>>=|>>>=|<>|<|>|!|&&|\|\||\?\:|\*=|(?<!\()/=|%=|\+=|\-=|&=|\^=
 - first-mate#43 [fixtures/ruby.json] TEST #49 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
-- first-mate#44 [fixtures/makefile.json] TEST #50 — Invalid RegExp: ^(?!\t)([^:]*)(:)(?!\=)
-- first-mate#45 [fixtures/makefile.json] TEST #51 — Invalid RegExp: ^(?!\t)([^:]*)(:)(?!\=)
-- first-mate#46 [fixtures/makefile.json] TEST #53 — Invalid RegExp: ^(?!\t)([^:]*)(:)(?!\=)
 - first-mate#47 [fixtures/git-commit.json] TEST #54 — Invalid RegExp: \A(?!#)
 - first-mate#48 [fixtures/git-commit.json] TEST #55 — Invalid RegExp: \A(?!#)
 - first-mate#49 [fixtures/c-plus-plus.json] TEST #56 — Invalid RegExp: \b(namespace)\b\s*([_A-Za-z][_A-Za-z0-9]*\b)?+
@@ -222,7 +223,6 @@ Total cases: 95
 - suite1#5 [fixtures/Jade.tmLanguage] Jade — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
 - suite1#6 [fixtures/Perl.plist] Perl — Invalid RegExp: ([\$\@\%](#)?)([a-zA-Zx7f-xff\$]|::)([a-zA-Z0-9_x7f-xff\$]|::)*\b
 - suite1#7 [fixtures/Ruby.plist] Ruby — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
-- suite1#8 [fixtures/Makefile.plist] Issue #8 — Invalid RegExp: ^(?!\t)([^:]*)(:)(?!\=)
 - suite1#10 [fixtures/Jade.json] Issue #17 — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
 - suite1#12 [fixtures/html2.json] Issue #46 — Invalid RegExp: ^(///)\s*(?=<(reference|amd-dependency|amd-module)(\s+(path|types|no-default-lib|name)\s*=\s*((\'[^']*\')|(\"[^"]*\")))+\s*/>\s*$)
 - suite1#13 [fixtures/Jade22.json] Issue #22 — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
