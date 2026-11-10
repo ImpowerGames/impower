@@ -36,9 +36,9 @@ const entry = (p, n) => p.tickets.find((t) => t.number === n);
 
 const CRITERIA = ["The header's old link is gone", "Targets are 44px"];
 const github = (body = `## Acceptance criteria\n\n${CRITERIA.map((c) => `- [ ] ${c}`).join("\n")}\n`) => {
-  const gh = { state: "open", comments: [], calls: [] };
+  const gh = { state: "open", comments: [], calls: [], body };
   gh.client = {
-    issue: () => ({ state: gh.state, title: "container", body }),
+    issue: () => ({ state: gh.state, title: "container", body: gh.body }),
     comments: () => gh.comments,
     createComment: (n, text) => { gh.calls.push("comment"); const c = { id: gh.comments.length + 1, body: text, url: "u" }; gh.comments.push(c); return c; },
     getComment: (id) => gh.comments.find((c) => c.id === id),
@@ -138,6 +138,24 @@ try {
     retry.comments.push({ id: 7, url: "u", body: ig.containerComment(CONTAINER, [{ status: "met", criterion: CRITERIA[0], evidence: ["checked on main"] }, { status: "moved", criterion: CRITERIA[1], movedTo: BLOCKED, reason: moved.reason }], MAIN, COORD) });
     const again = closeWith(reused, retry, [met(CRITERIA[0]), moved]);
     assert.deepEqual([again.comment.reused, retry.calls], [true, ["close"]], "a retry reuses the identical comment");
+  }
+  {
+    const added = `${github().body}- [ ] A third criterion nobody checked\n`;
+    const early = newRecord(), ghEarly = github();
+    const a = closeWith(early, ghEarly, [met(CRITERIA[0]), met(CRITERIA[1])], { afterIntent: () => { ghEarly.body = added; } });
+    assert.deepEqual([a.closed, a.state, ghEarly.calls], [false, "failed", []], "criteria added while the intent is saved stop the comment");
+    assert.match(a.evidence, /acceptance criteria changed after they were checked/);
+    const late = newRecord(), ghLate = github();
+    const create = ghLate.client.createComment;
+    ghLate.client.createComment = (n, text) => { const c = create(n, text); ghLate.body = added; return c; };
+    const b = closeWith(late, ghLate, [met(CRITERIA[0]), met(CRITERIA[1])]);
+    assert.deepEqual([b.closed, ghLate.calls, ghLate.state], [false, ["comment"], "open"], "criteria added after the comment stop the close");
+
+    const gone = newRecord(), ghGone = github();
+    let snapshot = open();
+    const c = closeWith(gone, ghGone, [met(CRITERIA[0]), moved], { snapshot, takeSnapshot: () => snapshot, readScope: () => run.snapshotScope(snapshot), afterIntent: () => { snapshot = snapshotOf(open().tickets.map((t) => (t.number === BLOCKED ? { ...t, state: "closed" } : t))); } });
+    assert.deepEqual([c.closed, ghGone.calls], [false, []], "a moved criterion's destination that closes stops the comment");
+    assert.match(c.evidence, /#300, which was to own criterion 2, is no longer an open ticket that #200 blocks/);
   }
   {
     const file = newRecord(), gh = github("no criteria here");

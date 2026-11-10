@@ -445,33 +445,39 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
   let existing;
   try { existing = client.comments(record.issue).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
   catch (error) { notRun(`the parent issue's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
-  const report = gated(() => existing ?? client.createComment(record.issue, v.report));
-  if (!report.called && report.error) { notRun(`the verification could not be checked again after the intent was saved: ${report.error.message}`); throw report.error; }
-  if (!report.called) {
-    notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the parent issue again`);
-    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${report.blockers.join("; ")}`, comment: null };
-  }
+  return closeWithComment(file, { coordinator, planned, op, client, number: record.issue, body: v.report, existing, gated, notRun, text: {
+    report: "the report",
+    recheck: (when, error) => `the verification could not be checked again ${when === "post" ? "after the intent was saved" : "before the close call"}: ${error.message}`,
+    stop: (blockers, comment) => (comment ? `after the report was posted in comment ${comment.id}, ${blockers.join("; ")}; that report's verification no longer holds, so verify the parent issue again` : `while the intent was saved, ${blockers.join("; ")}; verify the parent issue again`),
+    notPosted: "the final report was not posted",
+    subject: "the parent issue",
+    evidence: ({ issue, comment, problem, called, state }) => (issue?.state === "closed" ? `Issue #${record.issue} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Issue #${record.issue} reads back ${issue.state}` : "the parent issue was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`),
+  } });
+}
+
+function closeWithComment(file, { coordinator, planned, op, client, number, body, existing, gated, notRun, text }) {
+  const stopped = (result, comment) => { notRun(text.stop(result.blockers, comment)); return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${result.blockers.join("; ")}`, comment }; };
+  const posted = gated(() => existing ?? client.createComment(number, body));
+  if (!posted.called && posted.error) { notRun(text.recheck("post", posted.error)); throw posted.error; }
+  if (!posted.called) return stopped(posted, null);
   let comment = null, problem = null, called = false, refused = false;
   try {
-    if (report.error) throw report.error;
-    const back = client.getComment(report.value.id);
-    if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${report.value.id} does not read back as the report`);
+    if (posted.error) throw posted.error;
+    const back = client.getComment(posted.value.id);
+    if (norm(back.body) !== norm(body)) throw new Error(`comment ${posted.value.id} does not read back as ${text.report}`);
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
-  } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
+  } catch (error) { problem = `${text.notPosted}, so the close was not called: ${error.message}`; }
   if (comment) {
-    const close = gated(() => client.closeIssue(record.issue));
-    if (!close.called && close.error) { notRun(`the verification could not be checked again before the close call: ${close.error.message}`); throw close.error; }
-    if (!close.called) {
-      notRun(`after the report was posted in comment ${comment.id}, ${close.blockers.join("; ")}; that report's verification no longer holds, so verify the parent issue again`);
-      return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${close.blockers.join("; ")}`, comment };
-    }
+    const close = gated(() => client.closeIssue(number));
+    if (!close.called && close.error) { notRun(text.recheck("close", close.error)); throw close.error; }
+    if (!close.called) return stopped(close, comment);
     called = true;
     if (close.error) { refused = GITHUB_REFUSAL.test(`${close.error.stderr ?? ""} ${close.error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${close.error.message}`; }
   }
   let issue = null;
-  try { issue = client.issue(record.issue); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the parent issue could not be read back: ${error.message}`; }
+  try { issue = client.issue(number); } catch (error) { problem = `${problem ? `${problem}; ` : ""}${text.subject} could not be read back: ${error.message}`; }
   const state = issue?.state === "closed" ? "confirmed" : !called || refused ? "failed" : "uncertain";
-  const evidence = issue?.state === "closed" ? `Issue #${record.issue} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Issue #${record.issue} reads back ${issue.state}` : "the parent issue was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
+  const evidence = text.evidence({ issue, comment, problem, called, state });
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
@@ -558,34 +564,27 @@ export function closeContainer(file, { coordinator, expectRevision, ticket, evid
   const notRun = (reason) => updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); });
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
-  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: mainSha, premises: (rec, snap) => ({ blockers: containerProblems(rec, snap, ticket, op.id) }), call });
-  const stopped = (result, comment) => { const reason = result.blockers.join("; "); notRun(reason); return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${reason}`, comment }; };
+  const checked = (rec, snap) => {
+    const now = parseCriteria(client.issue(ticket).body).map((c) => norm(c.text));
+    const then = rows.map((r) => norm(r.criterion));
+    return [
+      ...containerProblems(rec, snap, ticket, op.id),
+      ...(now.length !== then.length || now.some((t, i) => t !== then[i]) ? [`#${ticket}'s acceptance criteria changed after they were checked; check them again`] : []),
+      ...rows.filter((r) => r.status === "moved").filter((r) => { const owner = snap.tickets.find((t) => t.number === r.movedTo); return !owner || owner.state === "closed" || !(owner.blockers ?? []).some((b) => b.number === ticket); }).map((r) => `#${r.movedTo}, which was to own criterion ${r.index}, is no longer an open ticket that #${ticket} blocks`),
+    ];
+  };
+  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: mainSha, premises: (rec, snap) => ({ blockers: checked(rec, snap) }), call });
   let existing;
   try { existing = client.comments(ticket).find((c) => norm(c.body) === norm(body)) ?? null; }
   catch (error) { notRun(`the container's comments could not be read: ${error.message}`); throw error; }
-  const posted = gated(() => existing ?? client.createComment(ticket, body));
-  if (!posted.called && posted.error) { notRun(posted.error.message); throw posted.error; }
-  if (!posted.called) return stopped(posted, null);
-  let comment = null, problem = null, called = false, refused = false;
-  try {
-    if (posted.error) throw posted.error;
-    const back = client.getComment(posted.value.id);
-    if (norm(back.body) !== norm(body)) throw new Error(`comment ${posted.value.id} does not read back as the closure comment`);
-    comment = { id: back.id, url: back.url, reused: Boolean(existing) };
-  } catch (error) { problem = `the closure comment was not posted, so the close was not called: ${error.message}`; }
-  if (comment) {
-    const close = gated(() => client.closeIssue(ticket));
-    if (!close.called && close.error) { notRun(close.error.message); throw close.error; }
-    if (!close.called) return stopped(close, comment);
-    called = true;
-    if (close.error) { refused = GITHUB_REFUSAL.test(`${close.error.stderr ?? ""} ${close.error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${close.error.message}`; }
-  }
-  let issue = null;
-  try { issue = client.issue(ticket); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the container could not be read back: ${error.message}`; }
-  const state = issue?.state === "closed" ? "confirmed" : !called || refused ? "failed" : "uncertain";
-  const said = issue?.state === "closed" ? `#${ticket} reads back closed, with comment ${comment?.id}` : `#${ticket} ${issue ? `reads back ${issue.state}` : "was not read back"}${problem ? `: ${problem}` : ""}`;
-  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence: said }); if (comment) o.comment = comment; });
-  return { closed: state === "confirmed", operation: op.id, state, evidence: said, comment, revision: settled.record.revision };
+  return closeWithComment(file, { coordinator, planned, op, client, number: ticket, body, existing, gated, notRun, text: {
+    report: "the closure comment",
+    recheck: (_, error) => error.message,
+    stop: (blockers) => blockers.join("; "),
+    notPosted: "the closure comment was not posted",
+    subject: "the container",
+    evidence: ({ issue, comment, problem }) => (issue?.state === "closed" ? `#${ticket} reads back closed, with comment ${comment?.id}` : `#${ticket} ${issue ? `reads back ${issue.state}` : "was not read back"}${problem ? `: ${problem}` : ""}`),
+  } });
 }
 
 const OPEN_STATES = new Set(["intent", "uncertain"]);
