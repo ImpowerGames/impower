@@ -2966,6 +2966,19 @@ export class GamePlayerController {
     }
   }
 
+  protected releaseEndedPlay(owner: unknown) {
+    const play = this._workerPlay;
+    if (!play || play !== owner || !play.ended) {
+      return;
+    }
+    play.ended = undefined;
+    this.updateLaunchStateIcon();
+    this.setEndingStatus(null);
+    if (!this.refs.toolbar) {
+      this.hidePlayButton();
+    }
+  }
+
   protected setEndingStatus(ending: GameEnding | null) {
     if (ending !== this._ending) {
       this._ending = ending;
@@ -3334,6 +3347,7 @@ export class GamePlayerController {
     });
     game.connection.outgoing.addListener(GameRolledMessage.method, (msg) => {
       if (GameRolledMessage.type.isNotification(msg)) {
+        this.releaseEndedPlay(owner);
         sendProtocolMessage(
           GameRolledMessage.type.notification({
             ...msg.params,

@@ -113,6 +113,36 @@ describe("a beat the player restores by rollback", () => {
     }
   }, 120_000);
 
+  it("leaves the ended state when a roll takes an ended story back, and ends again when it plays on", async () => {
+    const { h, c, tap, shown } = await playing();
+    try {
+      await tap();
+      await tap();
+      await tap();
+      expect(c.getGameState()).toMatchObject({ launchState: "ended" });
+      expect(c.getGameState().ending).not.toBe(null);
+
+      const back = await c.handleRollBackGame(
+        RollBackGameMessage.type.request({ to: "beat" }),
+      );
+      await settle(20);
+      expect(back.result).toMatchObject({ moved: true });
+      expect(shown()).toContain(SECOND);
+      expect(c.getGameState()).toMatchObject({ launchState: "play", ending: null });
+      expect(
+        h.toEditor
+          .filter((m: any) => m.method === "preview/didChangeGameState")
+          .at(-1)?.params,
+      ).toMatchObject({ launchState: "play", ending: null });
+
+      await tap();
+      await tap();
+      expect(c.getGameState()).toMatchObject({ launchState: "ended" });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("answers a roll it cannot make with the run's reason", async () => {
     const { h, c } = await playing();
     try {
