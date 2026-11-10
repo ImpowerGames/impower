@@ -100,6 +100,7 @@ export const listRowMarkVariants = cva(
       size: {
         default: "left-3 [&>span]:size-[21px] [&_svg]:size-3.5",
         compact: "left-2 [&>span]:size-[18px] [&_svg]:size-3",
+        block: "left-2.5 [&>span]:size-[22px] [&_svg]:size-3.5",
       },
       selection: {
         available:

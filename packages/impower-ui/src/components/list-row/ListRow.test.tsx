@@ -219,4 +219,13 @@ describe("ListRow", () => {
     expect(badge.className).toContain("[&>svg]:size-[22px]");
     expect(badge.className).toContain("pl-2.5");
   });
+
+  it("sizes a block row's selection mark to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRow size="block" selection="active" selectLabel="Select Scene" label="Scene" onClick={() => {}} />,
+    );
+    const mark = root.querySelector("input")!.closest("label")!.className.split(/\s+/);
+    expect(mark).toContain("[&>span]:size-[22px]");
+    expect(mark).toContain("left-2.5");
+  });
 });
