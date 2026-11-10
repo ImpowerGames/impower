@@ -413,7 +413,10 @@ function templateOf(
     case "portrait":
       return named((ref) => `[[show portrait ${ref}]]`, "portrait_name");
     case "sound":
-      return named((ref) => `((${ref}))`, "sound_name");
+      return named(
+        (ref) => (name === undefined ? `((${ref}))` : `((play sound ${ref}))`),
+        "sound_name",
+      );
     case "music":
       return named((ref) => `((play music ${ref} loop))`, "music_name");
     default:

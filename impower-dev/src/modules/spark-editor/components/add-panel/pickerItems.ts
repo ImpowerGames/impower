@@ -5,6 +5,7 @@ import {
   type AddMenuKind,
   ADD_MENU_FILE_TYPES,
 } from "../../utils/addMenuFolders";
+import GRAMMAR from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { imageStacks, stemOf } from "../../utils/imageStacks";
 
 export interface PickerFile {
@@ -27,8 +28,19 @@ const compare = (a: string, b: string) =>
 
 const REFERENCE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const referable = (path: string) =>
-  REFERENCE.test(stemOf(path)) ? [{ name: stemOf(path), path }] : [];
+const GRAMMAR_VARIABLES = GRAMMAR.variables as unknown as Record<string, unknown>;
+
+const CLAUSE_WORDS = new Set(
+  ["IMAGE_CLAUSE_KEYWORDS", "AUDIO_CLAUSE_KEYWORDS"].flatMap((key) => {
+    const words = GRAMMAR_VARIABLES[key];
+    return Array.isArray(words) ? words.map(String) : [];
+  }),
+);
+
+const referable = (path: string) => {
+  const name = stemOf(path);
+  return REFERENCE.test(name) && !CLAUSE_WORDS.has(name) ? [{ name, path }] : [];
+};
 
 const basePictures = (paths: readonly string[]) =>
   imageStacks(paths).flatMap((stack) => {

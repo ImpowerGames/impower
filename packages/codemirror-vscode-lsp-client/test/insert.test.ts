@@ -1302,7 +1302,7 @@ describe("insertConstruct command", () => {
       [
         ["backdrop", "beach@night", "[[show backdrop beach@night]]"],
         ["portrait", "imani:happy", "[[show portrait imani:happy]]"],
-        ["sound", "door", "((door))"],
+        ["sound", "door", "((play sound door))"],
         ["music", "theme", "((play music theme loop))"],
       ] as const
     ).map(([construct, name, line]) => {
@@ -1317,7 +1317,7 @@ describe("insertConstruct command", () => {
     expect(written).toEqual(Array(4).fill([true, true, true]));
     const editor = mount(source, caret);
     expect(insertConstruct("sound", structureOf(source), "door")(editor)).toBe(true);
-    expect(editor.state.doc.toString()).toContain(lines("  Hello.", "  ((door))"));
+    expect(editor.state.doc.toString()).toContain(lines("  Hello.", "  ((play sound door))"));
   });
 
   it("does nothing outside a scene or in a read-only script", () => {

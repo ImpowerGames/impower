@@ -45,6 +45,20 @@ const FILES = [
   file("assets/Backdrops/notes.txt", "text"),
 ];
 
+const KEYWORDS = [
+  "show", "hide", "play", "stop", "fade", "queue", "await", "animate", "set",
+  "music", "sound", "backdrop", "portrait", "loop", "with", "after", "over", "now", "wait", "ease",
+  "to", "once", "mute", "unmute", "open", "close", "navigate", "clear", "load", "write",
+  "and", "or", "not", "if", "then", "else", "end", "true", "false", "nil", "local", "function", "return",
+];
+
+const NAMED_LIKE_KEYWORDS = KEYWORDS.flatMap((word) => [
+  file(`assets/Backdrops/${word}.png`),
+  file(`assets/Portraits/${word}.png`),
+  file(`assets/Sounds/${word}.wav`, "audio"),
+  file(`assets/Music/${word}.mp3`, "audio"),
+]);
+
 const summary = (kind: AddMenuKind) =>
   pickerItems(kind, FILES, FOLDERS).map((item) => [item.reference, item.caption, item.src]);
 
@@ -111,12 +125,12 @@ const inserted = (construct: InsertConstruct, name: string) => {
   return SCRIPT.slice(0, plan.from) + plan.insert + SCRIPT.slice(plan.to);
 };
 
-const diagnosticsOf = (text: string) => {
+const diagnosticsOf = (text: string, files: readonly { path: string; type: string; src: string }[]) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: MAIN_URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
-      ...FILES.filter(({ type }) => type === "image" || type === "audio").map(({ path, type, src }) => ({
+      ...files.filter(({ type }) => type === "image" || type === "audio").map(({ path, type, src }) => ({
         uri: `file:///${path}`,
         type,
         name: getName(path),
@@ -139,11 +153,12 @@ const diagnosticsOf = (text: string) => {
 
 describe("what the pickers insert", () => {
   it("compiles with no diagnostic for every card the pickers offer", () => {
-    expect(diagnosticsOf(SCRIPT)).toEqual([]);
+    const files = [...FILES, ...NAMED_LIKE_KEYWORDS];
+    expect(diagnosticsOf(SCRIPT, files)).toEqual([]);
     const problems = ADD_MENU_KINDS.flatMap((kind) =>
-      pickerItems(kind, FILES, FOLDERS).flatMap((item) => {
+      pickerItems(kind, files, FOLDERS).flatMap((item) => {
         const text = inserted(CONSTRUCTS[kind], item.reference);
-        return diagnosticsOf(text).map((message) => `${kind} ${item.reference}: ${message}`);
+        return diagnosticsOf(text, files).map((message) => `${kind} ${item.reference}: ${message}`);
       }),
     );
     expect(problems).toEqual([]);
