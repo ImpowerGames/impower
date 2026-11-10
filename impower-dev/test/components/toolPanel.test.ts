@@ -84,3 +84,53 @@ describe("ToolPanel chrome", () => {
     },
   );
 });
+
+describe("the bar presentation", () => {
+  const mountBar = async (open: boolean, onClose = vi.fn()) => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        h(
+          ToolPanelRoot,
+          { presentation: "bar", open, onOpen: () => {}, onClose },
+          h(
+            ToolPanel,
+            { open, title: "Search", chrome: "none", onClose },
+            h("input", { "aria-label": "Words to find" }),
+          ),
+        ),
+        host!,
+      ),
+    );
+    return onClose;
+  };
+
+  it("stays in the page's flow, names itself and leaves the rest of the page usable", async () => {
+    layout.value = "phone";
+    await mountBar(true);
+    expect(panel()).toBeNull();
+    const bar = host!.querySelector<HTMLElement>('section[aria-label="Search"]')!;
+    expect(bar.querySelector('[aria-label="Words to find"]')).not.toBeNull();
+    expect(document.body.hasAttribute("data-scroll-locked")).toBe(false);
+    expect(host!.getAttribute("aria-hidden")).toBeNull();
+  });
+
+  it("closes with Escape", async () => {
+    layout.value = "phone";
+    const onClose = await mountBar(true);
+    await act(async () => {
+      host!
+        .querySelector('[aria-label="Words to find"]')!
+        .dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+        );
+    });
+    expect(onClose).toHaveBeenCalledWith("escape");
+  });
+
+  it("draws nothing while closed", async () => {
+    layout.value = "phone";
+    await mountBar(false);
+    expect(host!.querySelector("section")).toBeNull();
+  });
+});

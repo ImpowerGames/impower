@@ -4,6 +4,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
@@ -44,6 +45,14 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       return current.window;
     },
   },
+}));
+
+const layoutMock = vi.hoisted(() => ({
+  value: "desktop" as "phone" | "compact" | "desktop",
+}));
+vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
+  useLayout: () => layoutMock.value,
 }));
 
 const screenplayProps = vi.hoisted(() => [] as Record<string, unknown>[]);
@@ -89,6 +98,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "ScreenplayIcon",
     "StepIntoIcon",
     "StepOutIcon",
+    "StepOverIcon",
     "StopIcon",
     "VisualIcon",
   ];
@@ -99,6 +109,12 @@ vi.mock("@impower/impower-ui/components", async () => {
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
+    DropdownItem: ({ disabled, onSelect, children, ...props }: any) =>
+      h(
+        "button",
+        { ...props, role: "menuitem", disabled, onClick: () => onSelect?.(new Event("select")) },
+        children,
+      ),
     DropdownCheckboxItem: ({ checked, onCheckedChange, onSelect: _s, children, ...props }: any) =>
       h(
         "button",
@@ -140,6 +156,7 @@ vi.mock("@impower/impower-ui/components", async () => {
 const channels = vi.hoisted(() => ({
   all: [] as {
     posted: unknown[];
+    sent: [unknown, unknown][];
     responses: [unknown, unknown][];
     listeners: ((e: { data: unknown }) => void)[];
     receive: (message: unknown) => void;
@@ -167,7 +184,9 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
     postMessage(message: unknown) {
       this.posted.push(message);
     }
-    async sendRequest() {
+    sent: [unknown, unknown][] = [];
+    async sendRequest(type: unknown, params: unknown) {
+      this.sent.push([type, params]);
       return {};
     }
     sendResponse(message: unknown, result: unknown) {
@@ -293,6 +312,28 @@ describe("WorkspaceWindow store transitions", () => {
     void win.showDocument(`file://${projectId}/scripts/intro.sd`);
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.filename).toBe("scripts/intro.sd");
+  });
+
+  it("showDocument opens the script it shows, so going to a definition in an unopened script renders it", () => {
+    const projectId = workspace.current.project.id;
+    win.openRoute("write");
+    win.closeFileEditor("Scripts/never-opened.sd");
+    expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(false);
+    void win.showDocument(`file://${projectId}/Scripts/never-opened.sd`);
+    const logic = workspace.current.panes.logic;
+    expect(logic.view).toBe("logic-editor");
+    expect(logic.panels.scripts?.activeEditor).toMatchObject({
+      open: true,
+      filename: "Scripts/never-opened.sd",
+    });
+  });
+
+  it("treats only the project-root main.sd as Main, by path or uri", () => {
+    const projectId = workspace.current.project.id;
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPanelType(`file://${projectId}/main.sd`)).toBe("main");
+    expect(win.getPanelType("Scripts/main.sd")).toBe("scripts");
+    expect(win.getPanelType(`file://${projectId}/Scripts/main.sd`)).toBe("scripts");
   });
 
   it("showDocument keeps main.sd in the logic/main panel", () => {
@@ -523,14 +564,12 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.shell?.railWidth).toBeUndefined();
     });
 
-    it("keeps each script's collapsed outline scenes across a reload, and the outline's search swap only for the session", async () => {
+    it("keeps each script's collapsed outline scenes across a reload", async () => {
       const uri = "file://outline/main.sd";
       win.setOutlineSceneCollapsed(uri, "harbor#0", true);
       win.setOutlineSceneCollapsed(uri, "harbor#0", true);
       win.setOutlineSceneCollapsed("file://outline/other.sd", "dock#0", true);
       expect(workspace.current.outline?.collapsed?.[uri]).toEqual(["harbor#0"]);
-      win.setOutlineSearch(true);
-      expect(workspace.current.screen.outlineSearch).toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 350));
       localStorage.setItem(
         WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
@@ -541,8 +580,6 @@ describe("WorkspaceWindow store transitions", () => {
         [uri]: ["harbor#0"],
         "file://outline/other.sd": ["dock#0"],
       });
-      expect(reloaded.screen.outlineSearch).toBeUndefined();
-      win.setOutlineSearch(false);
       win.setOutlineSceneCollapsed(uri, "harbor#0", false);
       expect(workspace.current.outline?.collapsed).toEqual({
         "file://outline/other.sd": ["dock#0"],
@@ -580,9 +617,65 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#collection");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
-      win.openPanel("logic", "scripts");
+      win.openView("logic", "scripts");
       win.openPane("logic");
       expect(window.location.hash).toBe("#scripts");
+    });
+
+    it("opens a script from the Scripts page on write, and Main as the main editor", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      const logic = workspace.current.panes.logic;
+      expect(logic.view).toBe("logic-editor");
+      expect(logic.panel).toBe("scripts");
+      expect(logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+      win.navigateTo("scripts");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.panes.logic.view).toBe("list");
+      expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
+    it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
+      win.navigateTo("write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.navigateTo("write");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+    });
+
+    it("opens a nested script named main.sd as a script, not as the entry script", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/main.sd");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.filename).toBe(
+        "Scripts/main.sd",
+      );
+    });
+
+    it("keeps the Scripts page's sort and folder in the project's state", () => {
+      win.setListState({ scriptsSort: "modified-desc" });
+      win.setListState({ scriptsFolder: "Scripts/Drafts" });
+      expect(workspace.current.lists).toEqual({
+        scriptsSort: "modified-desc",
+        scriptsFolder: "Scripts/Drafts",
+      });
     });
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {
@@ -629,6 +722,30 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.screen.writingTools).toBeUndefined();
     });
 
+    it("reads by default, edits from Edit and reads again from Done", () => {
+      const commands = vi.spyOn(win, "executeEditorCommand");
+      expect(workspace.scriptMode.value).toBe("reading");
+
+      win.startEditing("main.sd");
+      expect(workspace.scriptMode.value).toBe("editing");
+      expect(commands).toHaveBeenCalledWith("main.sd", "focus");
+
+      win.finishEditing();
+      expect(workspace.scriptMode.value).toBe("reading");
+    });
+
+    it("counts each panel standing in the keyboard's place while it is registered", () => {
+      const removeTools = workspace.addKeyboardPanel({ heading: true });
+      const removeSearch = workspace.addKeyboardPanel({ heading: false });
+      expect(workspace.keyboardPanels.value).toHaveLength(2);
+      expect(workspace.keyboardPanels.value.some((p) => p.heading)).toBe(true);
+
+      removeTools();
+      expect(workspace.keyboardPanels.value).toEqual([{ heading: false }]);
+      removeSearch();
+      expect(workspace.keyboardPanels.value).toEqual([]);
+    });
+
     it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
       win.navigateTo("collection");
       win.openSparkdownGuide();
@@ -653,6 +770,101 @@ describe("WorkspaceWindow store transitions", () => {
       win = new WorkspaceWindow(Workspace);
       expect(workspace.current.screen.settingsOpen).toBe(true);
       expect(window.location.hash).toBe("#project?section=save-settings");
+    });
+
+    it("navigates to a settings section, telling an open settings page to land on it", () => {
+      const landed = vi.fn();
+      window.addEventListener("hashchange", landed);
+      try {
+        win.closeSettings();
+        win.navigateTo("project", "save-settings");
+        expect(workspace.current.screen.settingsOpen).toBe(true);
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).not.toHaveBeenCalled();
+        window.history.replaceState(null, "", "#project");
+        win.navigateTo("project", "save-settings");
+        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(landed).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener("hashchange", landed);
+      }
+    });
+  });
+
+  describe("replacing the project from a backup", () => {
+    const fs = Workspace.fs as unknown as Record<string, unknown>;
+    let project: typeof workspace.current.project;
+
+    beforeEach(() => {
+      project = workspace.current.project;
+      const id = workspace.current.project.id || "local";
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id, name: "Raffles" },
+      };
+      fs.getFiles = vi.fn(async () =>
+        Object.fromEntries(
+          [
+            ".name",
+            ".folders",
+            ".vscode/settings.json",
+            "main.sd",
+            "scripts/act1.sd",
+            "scripts/util.luau",
+            "images/cover.png",
+            "audio/theme.mp3",
+            ".layout",
+            ".drafts/scene.sd",
+            ".images/cover.png",
+          ].map((path) => [`file://${id}/${path}`, { uri: `file://${id}/${path}` }]),
+        ),
+      );
+    });
+
+    afterEach(() => {
+      delete fs.getFiles;
+      workspace.replaceProject.value = null;
+      workspace.current = { ...workspace.current, project };
+    });
+
+    it("asks before importing, counting every script and asset the replace removes, dot folders included", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      expect(workspace.replaceProject.value).toEqual({
+        fileName: "backup.zip",
+        projectName: "Raffles",
+        scripts: 4,
+        assets: 3,
+      });
+      expect(importing).not.toHaveBeenCalled();
+    });
+
+    it("imports the chosen backup only once the writer confirms", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      const file = Object.assign(new File(["zip"], "backup.zip"), {
+        arrayBuffer: async () => new TextEncoder().encode("zip").buffer,
+      });
+      await win.requestProjectReplace(file);
+      await win.confirmProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      expect(importing).toHaveBeenCalledTimes(1);
+      expect(importing.mock.calls[0]![0]).toBe("backup.zip");
+      expect(new TextDecoder().decode(importing.mock.calls[0]![1])).toBe("zip");
+    });
+
+    it("drops the chosen backup on cancel, so a later confirm imports nothing", async () => {
+      const importing = vi
+        .spyOn(win, "importLocalProject")
+        .mockResolvedValue(undefined);
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      win.cancelProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+      await win.confirmProjectReplace();
+      expect(importing).not.toHaveBeenCalled();
     });
   });
 });
@@ -854,6 +1066,53 @@ describe("Preview preferences", () => {
         render(null, container);
         container.remove();
         current.window = undefined;
+      }
+    }, 30000);
+
+    it("starts the player in the script open when it initializes, not the one open when it read the files", async () => {
+      const before = workspace.current;
+      const win = load();
+      current.window = win;
+      const uriOf = (path: string) =>
+        `file://${workspace.current.project.id}/${path}`;
+      win.openPane("logic");
+      await win.showDocument(uriOf("main.sd"));
+      let answer: ((uri: string) => void) | undefined;
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: () =>
+          new Promise<string>((resolve) => (answer = resolve)),
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      const initialized = (sent: [unknown, unknown][]) =>
+        sent
+          .map(([, params]) => params as { initializationOptions?: { uri?: string } })
+          .filter((params) => params?.initializationOptions)
+          .map((params) => params.initializationOptions!.uri);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        await vi.waitFor(() => expect(answer).toBeDefined());
+        await win.showDocument(uriOf("scripts/intro.sd"));
+        answer!("file://local");
+        await vi.waitFor(() =>
+          expect(initialized(channels.all[0]!.sent)).toEqual([
+            uriOf("scripts/intro.sd"),
+          ]),
+        );
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+        workspace.current = before;
       }
     }, 30000);
 
@@ -1703,6 +1962,41 @@ describe("Revealing a script from the bar under the game", () => {
     await win.revealDocument(uriOf("main.sd"));
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the selection the script's editor reported while fullscreen was closing", async () => {
+    const at = (line: number) => ({
+      start: { line, character: 0 },
+      end: { line, character: 0 },
+    });
+    await win.revealDocument(uriOf("main.sd"), at(2));
+    let exited: () => void = () => {};
+    document.exitFullscreen = () =>
+      new Promise<void>((resolve) => {
+        exited = () => {
+          delete (document as { fullscreenElement?: Element }).fullscreenElement;
+          resolve();
+        };
+      });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    const revealing = win.revealDocument(uriOf("main.sd"));
+    win["handleSelectedEditor"](
+      SelectedEditorMessage.type.notification({
+        textDocument: { uri: uriOf("main.sd") },
+        selectedRange: at(8),
+        docChanged: false,
+        hasFocus: true,
+      }),
+    );
+    exited();
+    await revealing;
+    expect(
+      workspace.current.panes.logic.panels.main!.activeEditor?.selectedRange,
+    ).toEqual(at(8));
+  });
+
 });
 
 describe("The preview's top bar", () => {
@@ -1769,11 +2063,140 @@ describe("The preview's top bar", () => {
     ]);
   });
 
-  it("adds Pause and the Step buttons while playing, the Steps usable only while paused", async () => {
-    show({ running: true });
+  it("pauses, steps and resumes through the debug client while playing, each step's refusal on its button", async () => {
+    const uri = "file://local/main.sd";
+    let depth = 1;
+    const player = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (!message || !("id" in message) || !("params" in message)) {
+        return;
+      }
+      if (!message.method.startsWith("game/") && message.method !== "preview/gameState") {
+        return;
+      }
+      const at = { start: { line: depth === 1 ? 3 : 9, character: 2 }, end: { line: 3, character: 9 } };
+      const results: Record<string, unknown> = {
+        "preview/gameState": { launchState: "play", paused: false, run: 1 },
+        "game/threads": { threads: [{ id: 0, name: "main" }], run: 1 },
+        "game/stackTrace": {
+          stackFrames: [{ id: 0, name: "main", location: { uri, range: at } }],
+          totalFrames: depth,
+        },
+        "game/pause": { run: 1 },
+        "game/step": { done: true, run: 1 },
+      };
+      queueMicrotask(() =>
+        sendProtocolMessage({
+          jsonrpc: "2.0",
+          method: message.method,
+          id: message.id,
+          result: results[message.method] ?? {},
+        } as never),
+      );
+    };
+    window.addEventListener(MessageProtocol.event, player);
+    try {
+      win.startGame();
+      show(workspace.current.preview.modes.game);
+      expect(labels()).toEqual([
+        "Viewing mode",
+        "Pause",
+        "Step Over",
+        "Step Into",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Step Out",
+        "Preview settings",
+      ]);
+      for (const step of ["Step Over", "Step Into", "Step Out"]) {
+        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+        expect(control(step)?.title).toBe("Pause the story to step through it");
+      }
+      control("Pause")!.click();
+      await vi.waitFor(() =>
+        expect(workspace.current.preview.modes.game.paused).toBe(true),
+      );
+      expect(requests).toContain("game/pause");
+      await vi.waitFor(() =>
+        expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(1),
+      );
+      expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 3 });
+      show(workspace.current.preview.modes.game);
+      expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
+      expect(control("Step Over")?.hasAttribute("aria-disabled")).toBe(false);
+      expect(control("Step Over")?.title).toBe("Step Over (F10)");
+      expect(control("Step Into")?.hasAttribute("aria-disabled")).toBe(false);
+      expect(control("Step Out")?.getAttribute("aria-disabled")).toBe("true");
+      expect(control("Step Out")?.title).toBe(
+        "Nothing is calling, so there is nothing to step out of.",
+      );
+      control("Step Into")!.click();
+      await vi.waitFor(() => expect(requests).toContain("game/step"));
+      depth = 2;
+      sendProtocolMessage({
+        jsonrpc: "2.0",
+        method: "game/stepped",
+        params: { location: { uri, range: {} }, run: 1, history: { canStepOut: true } },
+      } as never);
+      await vi.waitFor(() =>
+        expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(2),
+      );
+      expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 9 });
+      show(workspace.current.preview.modes.game);
+      expect(control("Step Out")?.hasAttribute("aria-disabled")).toBe(false);
+      control("Step Out")!.click();
+      await vi.waitFor(() =>
+        expect(requests.filter((method) => method === "game/step")).toHaveLength(2),
+      );
+      control("Resume")!.click();
+      await vi.waitFor(() =>
+        expect(workspace.current.preview.modes.game.paused).toBe(false),
+      );
+      expect(requests).toContain("game/unpause");
+    } finally {
+      window.removeEventListener(MessageProtocol.event, player);
+    }
+  });
+
+  it("puts the steps in one Step menu on phones, each with its refusal", async () => {
+    layoutMock.value = "phone";
+    try {
+      show({ running: true, paused: true });
+      expect(labels()).toEqual([
+        "Viewing mode",
+        "Resume",
+        "Step",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Preview settings",
+      ]);
+      expect(
+        rows("menuitem").map((row) => [
+          row.querySelector("strong")?.textContent,
+          row.querySelector("small")?.textContent ?? null,
+          (row as HTMLButtonElement).disabled,
+        ]),
+      ).toEqual([
+        ["Step Over", null, false],
+        ["Step Into", null, false],
+        ["Step Out", "Nothing is calling, so there is nothing to step out of.", true],
+      ]);
+      const stepGame = vi.spyOn(win, "stepGame").mockResolvedValue(true);
+      rows("menuitem")[0]!.click();
+      await vi.waitFor(() => expect(stepGame).toHaveBeenCalledWith("over"));
+    } finally {
+      layoutMock.value = "desktop";
+    }
+  });
+
+  it("offers Play Again instead of Pause once the story has ended, with the Steps disabled", () => {
+    show({ running: true, ended: true });
     expect(labels()).toEqual([
       "Viewing mode",
-      "Pause",
+      "Play Again",
+      "Step Over",
       "Step Into",
       "Skip back",
       "Stop",
@@ -1781,34 +2204,38 @@ describe("The preview's top bar", () => {
       "Step Out",
       "Preview settings",
     ]);
-    expect(control("Step Into")?.disabled).toBe(true);
-    control("Pause")!.click();
-    await vi.waitFor(() =>
-      expect(workspace.current.preview.modes.game.paused).toBe(true),
-    );
-    expect(requests).toContain("game/pause");
-    show(workspace.current.preview.modes.game);
-    expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
-    expect(control("Step Into")?.disabled).toBe(false);
-    control("Step Out")!.click();
-    await vi.waitFor(() => expect(requests).toContain("game/step"));
-    control("Resume")!.click();
-    await vi.waitFor(() =>
-      expect(workspace.current.preview.modes.game.paused).toBe(false),
-    );
-    expect(requests).toContain("game/unpause");
+    for (const step of ["Step Over", "Step Into", "Step Out"]) {
+      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+      expect(control(step)?.title).toBe(
+        "The story is over, so there is nothing to step to.",
+      );
+    }
   });
 
-  it("offers Play Again instead of Pause and the Steps once the story has ended", () => {
+  it("runs no step the bar refuses, so a key cannot get past a disabled button", async () => {
+    const stepOut = vi.spyOn(win.debug, "stepOut").mockResolvedValue(true);
+    const next = vi.spyOn(win.debug, "next").mockResolvedValue(true);
+    show({ running: true, paused: true });
+    expect(await win.stepGame("out")).toBe(false);
+    show({ running: true, paused: true, choosing: true });
+    expect(await win.stepGame("over")).toBe(false);
     show({ running: true, ended: true });
-    expect(labels()).toEqual([
-      "Viewing mode",
-      "Play Again",
-      "Skip back",
-      "Stop",
-      "Skip forward",
-      "Preview settings",
-    ]);
+    expect(await win.stepGame("over")).toBe(false);
+    show({ running: true });
+    expect(await win.stepGame("over")).toBe(false);
+    expect(stepOut).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    show({ running: true, paused: true });
+    expect(await win.stepGame("over")).toBe(true);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables every step at a choice menu", () => {
+    show({ running: true, paused: true, choosing: true });
+    for (const step of ["Step Over", "Step Into", "Step Out"]) {
+      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+      expect(control(step)?.title).toBe("Make a choice to step on.");
+    }
   });
 
   it("skips by beat from both skip buttons", async () => {
@@ -1855,6 +2282,7 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode",
       "Pause",
+      "Step Over",
       "Step Into",
       "Skip back",
       "Stop",

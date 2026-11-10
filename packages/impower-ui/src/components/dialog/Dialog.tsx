@@ -1,9 +1,10 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX, RefObject } from "preact";
-import { useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
+import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
@@ -117,6 +118,10 @@ function Modal({
   card: (visible: boolean) => string;
 }) {
   const { mounted, visible } = useMountTransition(open, DIALOG_TRANSITION_MS);
+  useEffect(
+    () => (open && placement === "bottom" ? holdSheetOpen() : undefined),
+    [open, placement],
+  );
   const content = useRef<HTMLDivElement | null>(null);
   const returnFocus = useRef<() => HTMLElement | null>(() => null);
   const wasOpen = useRef(false);

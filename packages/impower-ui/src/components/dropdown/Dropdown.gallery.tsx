@@ -44,6 +44,7 @@ function MenuItems() {
         Minimap {minimap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
       <DropdownSeparator />
+      <DropdownLabel variant="heading">Heading variant</DropdownLabel>
       <RadioItems indicator="start" />
     </>
   );

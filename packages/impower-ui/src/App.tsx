@@ -2,6 +2,8 @@ import Button from "./components/button/Button";
 import { actionSheetGallery } from "./components/action-sheet/ActionSheet.gallery";
 import { buttonGallery } from "./components/button/Button.gallery";
 import { choiceGroupGallery } from "./components/choice-group/ChoiceGroup.gallery";
+import { colorChipsGallery } from "./components/color-chips/ColorChips.gallery";
+import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
 import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
@@ -9,6 +11,7 @@ import { filterChipGallery } from "./components/filter-chip/FilterChip.gallery";
 import { featureCardGallery } from "./components/feature-card/FeatureCard.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { jumpChipsGallery } from "./components/jump-chips/JumpChips.gallery";
+import { keysChipGallery } from "./components/keys-chip/KeysChip.gallery";
 import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { liveRegionGallery } from "./components/live-region/LiveRegion.gallery";
 import { messageEntryGallery } from "./components/message-entry/MessageEntry.gallery";
@@ -38,6 +41,8 @@ export const galleryEntries: readonly GalleryEntry[] = [
   actionSheetGallery,
   buttonGallery,
   choiceGroupGallery,
+  colorChipsGallery,
+  colorWellGallery,
   dialogGallery,
   disclosureGallery,
   dropdownGallery,
@@ -45,6 +50,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   featureCardGallery,
   iconGallery,
   jumpChipsGallery,
+  keysChipGallery,
   listRowGallery,
   liveRegionGallery,
   loadingBarGallery,

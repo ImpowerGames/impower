@@ -1,3 +1,5 @@
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -119,6 +121,21 @@ describe("WorkspaceWindow.renameScript", () => {
     expect(snackbar.value?.message).toBe("A script named Outro already exists.");
   });
 
+  it("says the target exists when the workspace refuses the move, and keeps the editor where it was", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fs.renameFileWithReferences.mockRejectedValueOnce({
+      code: -32603,
+      message: "Cannot rename intro to Opening: Opening already exists",
+    });
+    await win.renameScript("scripts/intro.sd", "Opening");
+    expect(snackbar.value?.message).toBe(
+      "Couldn't rename intro.sd: Opening.sd already exists.",
+    );
+    expect(win.recordScriptChange).not.toHaveBeenCalled();
+    expect(openFilename()).toBe("scripts/intro.sd");
+  });
+
   it("allows a name a script in another folder already has", async () => {
     open(["scripts/intro.sd", "scripts/act1/outro.sd"], "scripts/intro.sd");
     await win.renameScript("scripts/intro.sd", "outro");
@@ -195,9 +212,8 @@ describe("WorkspaceWindow.renameScript", () => {
     finishMove();
     await pending;
     const editor = workspace.current.panes.logic.panels.scripts?.activeEditor;
-    expect(editor?.open).toBe(false);
+    expect(workspace.current.panes.logic.view).toBe("scripts");
     expect(editor?.filename).toBe("scripts/Opening.sd");
-    expect(workspace.current.panes.logic.panel).toBe("scripts");
   });
 
   it("leaves another script the writer opened during the rename on screen", async () => {
@@ -216,6 +232,46 @@ describe("WorkspaceWindow.renameScript", () => {
     await pending;
     expect(openFilename()).toBe("scripts/outro.sd");
     expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(true);
+  });
+
+  it("follows the renamed script with the selection and scroll its editor reported during the rename", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    const at = (line: number) => ({
+      start: { line, character: 0 },
+      end: { line, character: 0 },
+    });
+    let finishMove = () => {};
+    fs.renameFileWithReferences.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishMove = () => resolve({ referencesUpdated: 0, scriptsAffected: 0 });
+        }),
+    );
+    const pending = win.renameScript("scripts/intro.sd", "Opening");
+    await vi.waitFor(() => expect(fs.renameFileWithReferences).toHaveBeenCalled());
+    const textDocument = { uri: `${ROOT}scripts/intro.sd` };
+    win["handleSelectedEditor"](
+      SelectedEditorMessage.type.notification({
+        textDocument,
+        selectedRange: at(6),
+        docChanged: false,
+        hasFocus: true,
+      }),
+    );
+    win["handleScrolledEditor"](
+      ScrolledEditorMessage.type.notification({
+        textDocument,
+        visibleRange: at(4),
+        target: "element",
+      }),
+    );
+    finishMove();
+    await pending;
+    const editor = workspace.current.panes.logic.panels.scripts?.activeEditor;
+    expect(editor?.filename).toBe("scripts/Opening.sd");
+    expect(editor?.selectedRange).toEqual(at(6));
+    expect(editor?.visibleRange).toEqual(at(4));
+    expect(editor?.focused).toBe(true);
   });
 
   it("never renames Main", async () => {

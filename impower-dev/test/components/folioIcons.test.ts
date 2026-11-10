@@ -30,7 +30,7 @@ const MODULE_VARIANTS = [
 
 const DRAWN_FOR_THE_EDITOR = [
   "fast-forward", "filter", "folder-plus", "follow-off", "match-case",
-  "regex", "rewind", "sign-out", "whole-word",
+  "regex", "rewind", "sign-out", "step-over", "whole-word",
 ];
 
 const componentFor = (name: string) =>
@@ -104,10 +104,6 @@ describe("the Folio icon set", () => {
   it("keeps the old names only as aliases of Folio components, for the shell files #995 rewrites", () => {
     const aliases = values.filter(({ name }) => generated.has(kit[name as keyof typeof kit]) && !(name in icons));
     expect([...new Set(aliases.map(({ file }) => file.split("/").slice(0, -1).join("/")))].sort()).toEqual([
-      "modules/spark-editor/components/account",
-      "modules/spark-editor/components/header-menu-button",
-      "modules/spark-editor/components/header-navigation",
-      "modules/spark-editor/components/main-window",
     ]);
   });
 

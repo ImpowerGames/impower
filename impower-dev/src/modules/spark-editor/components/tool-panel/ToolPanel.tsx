@@ -17,14 +17,18 @@ import {
   type ComponentChildren,
   type VNode,
 } from "preact";
-import { useContext, useRef } from "preact/hooks";
+import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import workspace from "../../workspace/WorkspaceStore";
 
 export type ToolPanelCloseReason = "close" | "escape" | "dismiss";
 
-export type ToolPanelPresentation = "popover" | "sheet";
+export type ToolPanelPresentation = "popover" | "sheet" | "keyboard" | "bar";
 
 type PanelContext = {
   sheet: boolean;
+  keyboard: boolean;
+  bar: boolean;
   open: boolean;
   onOpen: () => void;
   onClose: (reason: ToolPanelCloseReason) => void;
@@ -32,6 +36,8 @@ type PanelContext = {
 
 const Context = createContext<PanelContext>({
   sheet: false,
+  keyboard: false,
+  bar: false,
   open: false,
   onOpen: () => {},
   onClose: () => {},
@@ -53,10 +59,12 @@ export function ToolPanelRoot({
   children,
 }: ToolPanelRootProps) {
   const layout = useLayout();
-  const sheet =
-    (presentation ?? (layout === "phone" ? "sheet" : "popover")) === "sheet";
-  const value = { sheet, open, onOpen, onClose };
-  if (sheet) {
+  const resolved = presentation ?? (layout === "phone" ? "sheet" : "popover");
+  const sheet = resolved === "sheet";
+  const keyboard = resolved === "keyboard";
+  const bar = resolved === "bar";
+  const value = { sheet, keyboard, bar, open, onOpen, onClose };
+  if (sheet || keyboard || bar) {
     return <Context.Provider value={value}>{children}</Context.Provider>;
   }
   return (
@@ -73,18 +81,20 @@ export function ToolPanelRoot({
 }
 
 export function ToolPanelAnchor({ children }: { children?: ComponentChildren }) {
-  const { sheet } = useContext(Context);
-  if (sheet) return <>{children}</>;
+  const { sheet, keyboard, bar } = useContext(Context);
+  if (sheet || keyboard || bar) return <>{children}</>;
   return <PopoverAnchor asChild>{children}</PopoverAnchor>;
 }
 
 export function ToolPanelTrigger({ children }: { children?: ComponentChildren }) {
-  const { sheet, open, onOpen, onClose } = useContext(Context);
-  if (!sheet) return <PopoverTrigger asChild>{children}</PopoverTrigger>;
+  const { sheet, keyboard, bar, open, onOpen, onClose } = useContext(Context);
+  if (!sheet && !keyboard && !bar) {
+    return <PopoverTrigger asChild>{children}</PopoverTrigger>;
+  }
   if (!isValidElement(children)) return <>{children}</>;
   const child = children as VNode<{ onClick?: (event: MouseEvent) => void }>;
   return cloneElement(child, {
-    "aria-haspopup": "dialog",
+    "aria-haspopup": sheet ? "dialog" : undefined,
     onClick: (event: MouseEvent) => {
       child.props.onClick?.(event);
       if (open) onClose("dismiss");
@@ -99,6 +109,7 @@ export type ToolPanelProps = {
   open: boolean;
   title: string;
   chrome?: ToolPanelChrome;
+  closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
   onBack?: () => void;
   closeOnOutside?: boolean;
@@ -111,12 +122,20 @@ const keepFocus = (event: PointerEvent) => event.preventDefault();
 
 function Heading({
   title,
+  closeLabel,
   onBack,
   onClose,
-}: Pick<ToolPanelProps, "title" | "onBack"> & { onClose: () => void }) {
-  const { sheet } = useContext(Context);
+}: Pick<ToolPanelProps, "title" | "closeLabel" | "onBack"> & {
+  onClose: () => void;
+}) {
+  const { sheet, keyboard } = useContext(Context);
   return (
-    <header class="flex min-h-[52px] flex-none items-center gap-1 border-b border-edge py-1 pl-2.5 pr-2.5">
+    <header
+      class={cn(
+        "flex min-h-[52px] flex-none items-center gap-1 border-b border-edge py-1 pl-2.5 pr-2.5",
+        keyboard && "absolute inset-x-0 bottom-full h-[52px] bg-panel",
+      )}
+    >
       {onBack && (
         <Button
           variant="quiet"
@@ -141,7 +160,7 @@ function Heading({
       <Button
         variant="quiet"
         size="icon"
-        aria-label="Close writing tools"
+        aria-label={closeLabel}
         class="text-muted"
         onPointerDown={keepFocus}
         onClick={onClose}
@@ -152,10 +171,85 @@ function Heading({
   );
 }
 
+const textFieldActive = (active: Element | null): active is HTMLElement =>
+  active instanceof HTMLElement &&
+  (active.matches("input, textarea") || active.isContentEditable);
+
+function KeyboardPanel({
+  title,
+  heading,
+  close,
+  restoresFocus,
+  closeOnOutside,
+  keepOpenOn,
+  returnFocus,
+  children,
+}: {
+  title: string;
+  heading: boolean;
+  close: (why: ToolPanelCloseReason) => void;
+  restoresFocus: (why: ToolPanelCloseReason) => boolean;
+  closeOnOutside: boolean;
+  keepOpenOn?: (target: Element) => boolean;
+  returnFocus?: () => HTMLElement | null;
+  children?: ComponentChildren;
+}) {
+  const panel = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => workspace.addKeyboardPanel({ heading }), [heading]);
+
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (textFieldActive(active)) active.blur();
+  }, []);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        panel.current?.contains(target) ||
+        !closeOnOutside ||
+        keepOpenOn?.(target)
+      ) {
+        return;
+      }
+      close("dismiss");
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close("escape");
+      if (restoresFocus("escape")) {
+        returnFocus?.()?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [close, restoresFocus, closeOnOutside, keepOpenOn, returnFocus]);
+
+  return (
+    <section
+      ref={panel}
+      role="dialog"
+      aria-label={title}
+      data-keyboard-panel
+      class="relative z-[301] flex h-[var(--keyboard-height,min(264px,42dvh))] flex-none flex-col bg-panel"
+    >
+      {children}
+    </section>
+  );
+}
+
 export function ToolPanel({
   open,
   title,
   chrome = "heading",
+  closeLabel = "Close writing tools",
   onClose,
   onBack,
   closeOnOutside = true,
@@ -163,7 +257,7 @@ export function ToolPanel({
   returnFocus,
   children,
 }: ToolPanelProps) {
-  const { sheet } = useContext(Context);
+  const { sheet, keyboard, bar } = useContext(Context);
   const reason = useRef<ToolPanelCloseReason>("dismiss");
   const close = (why: ToolPanelCloseReason) => {
     reason.current = why;
@@ -179,13 +273,52 @@ export function ToolPanel({
   const body = (
     <>
       {chrome === "heading" ? (
-        <Heading title={title} onBack={onBack} onClose={() => close("close")} />
+        <Heading
+          title={title}
+          closeLabel={closeLabel}
+          onBack={onBack}
+          onClose={() => {
+            close("close");
+            if (keyboard) returnFocus?.()?.focus({ preventScroll: true });
+          }}
+        />
       ) : (
         sheet && <DialogTitle class="sr-only">{title}</DialogTitle>
       )}
       <div class="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </>
   );
+  if (bar) {
+    return open ? (
+      <section
+        aria-label={title}
+        class="flex-none"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close("escape");
+          }
+        }}
+      >
+        {children}
+      </section>
+    ) : null;
+  }
+  if (keyboard) {
+    return open ? (
+      <KeyboardPanel
+        title={title}
+        heading={chrome === "heading"}
+        close={close}
+        restoresFocus={restoresFocus}
+        closeOnOutside={closeOnOutside}
+        keepOpenOn={keepOpenOn}
+        returnFocus={returnFocus}
+      >
+        {body}
+      </KeyboardPanel>
+    ) : null;
+  }
   if (sheet) {
     return (
       <Sheet

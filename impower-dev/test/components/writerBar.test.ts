@@ -2,7 +2,10 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const calls = vi.hoisted(() => ({ commands: [] as [string, string][] }));
+const calls = vi.hoisted(() => ({
+  commands: [] as [string, string][],
+  started: [] as string[],
+}));
 const layout = vi.hoisted(() => ({ value: "desktop" }));
 
 vi.mock("@impower/impower-ui/layout", () => ({
@@ -15,6 +18,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       executeEditorCommand: (filename: string, command: string) => {
         calls.commands.push([filename, command]);
+      },
+      startEditing: (filename: string) => {
+        calls.started.push(filename);
       },
     },
   },
@@ -129,23 +135,33 @@ describe("WriterBar tools by layout", () => {
     expect(labelled("Writing tools")).not.toBeNull();
   });
 
-  it.each(["compact", "phone"])(
-    "shows Indent, Dedent and Format on %s and sends each to the editor",
-    async (value) => {
-      layout.value = value;
-      await mount("scripts/intro.sd");
-      for (const label of ["Indent", "Dedent", "Format script"]) {
-        await act(async () => labelled(label)!.click());
-      }
-      await settle();
-      expect(calls.commands).toEqual([
-        ["scripts/intro.sd", "indent"],
-        ["scripts/intro.sd", "dedent"],
-        ["scripts/intro.sd", "format"],
-      ]);
-      expect(host!.querySelector('[role="group"][aria-label="Indentation"]')).not.toBeNull();
-    },
-  );
+  it("shows Indent, Dedent and Format on a compact layout and sends each to the editor", async () => {
+    layout.value = "compact";
+    await mount("scripts/intro.sd");
+    for (const label of ["Indent", "Dedent", "Format script"]) {
+      await act(async () => labelled(label)!.click());
+    }
+    await settle();
+    expect(calls.commands).toEqual([
+      ["scripts/intro.sd", "indent"],
+      ["scripts/intro.sd", "dedent"],
+      ["scripts/intro.sd", "format"],
+    ]);
+    expect(host!.querySelector('[role="group"][aria-label="Indentation"]')).not.toBeNull();
+  });
+
+  it("keeps a phone's reading bar to the tools, the readout and Edit, which starts editing", async () => {
+    layout.value = "phone";
+    await mount("scripts/intro.sd");
+    expect(labelled("Indent")).toBeNull();
+    expect(labelled("Format script")).toBeNull();
+    expect(labelled("Writing tools")).not.toBeNull();
+    const edit = host!.querySelector<HTMLButtonElement>("[data-edit-script]")!;
+    expect(edit.textContent).toContain("Edit");
+    await act(async () => edit.click());
+    await settle();
+    expect(calls.started).toEqual(["scripts/intro.sd"]);
+  });
 
   it("keeps Add disabled with a tooltip until the Add panel exists", async () => {
     await mount("main.sd");

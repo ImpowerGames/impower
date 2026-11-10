@@ -11,19 +11,16 @@ import {
   ShareIcon,
 } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
+import { backToStory } from "../../workspace/backToStory";
 import { screenplaySummary } from "../../workspace/settings/screenplaySettings";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import { downloadFile } from "../../utils/downloadFile";
+import { settingsSectionHref } from "../settings";
 
 const MARKETPLACE_URL = "https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown";
 
 type ExportFormat = "pdf" | "html";
-
-const backToStory = async () => {
-  const { Workspace } = await import("../../workspace/Workspace");
-  Workspace.window.navigateTo("write");
-};
 
 function ScreenplayExport() {
   const { projectSettings } = useSettings();
@@ -66,7 +63,7 @@ function ScreenplayExport() {
         {screenplaySummary(projectSettings)}
       </p>
       <Button asChild variant="quiet" class="mt-1.5 -ml-3">
-        <a href="#project?section=screenplay-settings">
+        <a href={settingsSectionHref("screenplay-settings")}>
           Screenplay settings
           <ArrowIcon />
         </a>

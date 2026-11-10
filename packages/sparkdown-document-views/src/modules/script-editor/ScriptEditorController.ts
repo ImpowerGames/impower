@@ -2,18 +2,22 @@ import {
   copyLineDown,
   indentLess,
   indentMore,
+  isolateHistory,
   moveLineDown,
   moveLineUp,
   redo,
+  redoDepth,
   selectAll,
   selectLine,
   toggleComment,
   undo,
+  undoDepth,
 } from "@codemirror/commands";
-import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
+import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  applyDocumentColor,
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
@@ -24,11 +28,25 @@ import {
   type ContextMenuPresenter,
   LSPClient,
   LSPPlugin,
+  openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
+import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
+import {
+  RequestedEditorToolMessage,
+  type EditorTool,
+} from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
+import { SetEditorFindMatchesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorFindMatchesMessage";
+import {
+  ApplyEditorColorMessage,
+  ApplyEditorColorMethod,
+  ApplyEditorColorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import {
@@ -108,6 +126,7 @@ import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocol
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
+  Color,
   MessageConnection,
   Range,
   TextDocumentItem,
@@ -124,7 +143,9 @@ import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
 import { getVisibleRange } from "../../utils/getVisibleRange";
 import { scrollY } from "../../utils/scrollY";
+import { sharedEditorHistory } from "./classes/EditorHistoryCache";
 import { SparkdownCodemirrorWorkspace } from "./classes/SparkdownCodemirrorWorkspace";
+import { setFindMatchesEffect } from "./utils/extensions/findMatches";
 import createEditorView, {
   editableConfig,
   readOnlyConfig,
@@ -133,9 +154,19 @@ import {
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
 } from "./utils/extensions/customSearch";
+import {
+  setKeyboardToolbarHold,
+  type KeyboardToolbarHold,
+  type KeyboardToolbarTool,
+} from "./utils/extensions/keyboardToolbar";
+import { setScriptMode, type ScriptModeValue } from "./utils/extensions/scriptMode";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
+import {
+  setEditorShortcuts,
+  type ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
 export interface ScriptEditorRefs {
@@ -148,8 +179,14 @@ export interface ScriptEditorRefs {
 export interface ScriptEditorOptions {
   readonly?: boolean;
   coarsePointer?: boolean;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
+  onChangeColor?: (range: Range, value: string, color: Color) => void;
   onPasteRefused?: () => void;
   scrollMargin?: string;
   top?: string;
@@ -176,6 +213,9 @@ export class ScriptEditorController {
     | "center";
   protected _initialSelectedRange?: Range;
   protected _selectionMoved = false;
+  protected _viewScrolled = false;
+  protected _focusLeft = false;
+  protected _focusWhenEditable = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -203,6 +243,7 @@ export class ScriptEditorController {
   protected _revealTimeout = 0;
 
   protected _protocols = new ProtocolObserver();
+  protected _historyCache = sharedEditorHistory;
 
   constructor(
     host: HTMLElement,
@@ -224,6 +265,17 @@ export class ScriptEditorController {
     this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
+    this.host.addEventListener("wheel", this.handleAuthorScroll, {
+      passive: true,
+    });
+    this.host.addEventListener("touchmove", this.handleAuthorScroll, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("pointerdown", this.handleScrollbarPointerDown, {
+      passive: true,
+    });
+    document.addEventListener("focusin", this.handleDocumentFocusIn);
     this.registerProtocolHandlers();
     sendProtocolMessage(
       ConnectedEditorMessage.type.notification({}),
@@ -248,7 +300,18 @@ export class ScriptEditorController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
+    this.host.removeEventListener("wheel", this.handleAuthorScroll);
+    this.host.removeEventListener("touchmove", this.handleAuthorScroll, true);
+    document.removeEventListener(
+      "pointerdown",
+      this.handleScrollbarPointerDown,
+    );
+    document.removeEventListener("focusin", this.handleDocumentFocusIn);
     this._protocols.dispose();
+    if (this._view && this._textDocument) {
+      this._historyCache.save(this._textDocument.uri, this._view.state);
+    }
+    this._historyCache.holdOpen(this, undefined);
     if (this._textDocument) {
       if (this._editing) {
         sendProtocolMessage(
@@ -268,6 +331,39 @@ export class ScriptEditorController {
   setReadonly(readonly: boolean): void {
     this.options.readonly = readonly;
     this.allowEditing(!readonly);
+    if (!readonly && this._focusWhenEditable) {
+      this._focusWhenEditable = false;
+      this.focusAtCaret();
+    }
+  }
+
+  setScriptMode(mode: ScriptModeValue | null): void {
+    this.options.scriptMode = mode;
+    if (mode === "reading") {
+      this._focusWhenEditable = false;
+    }
+    const view = this._view;
+    if (!view) return;
+    view.dispatch({ effects: setScriptMode.of(mode) });
+    if (mode === "reading" && view.hasFocus) {
+      view.contentDOM.blur();
+    }
+  }
+
+  setKeyboardHold(hold: KeyboardToolbarHold): void {
+    this.options.keyboardHold = hold;
+    this._view?.dispatch({ effects: setKeyboardToolbarHold.of(hold) });
+  }
+
+  protected focusAtCaret() {
+    const view = this._view;
+    if (!view) return;
+    view.focus();
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.selection.main, {
+        y: "nearest",
+      }),
+    });
   }
 
   setCoarsePointer(coarse: boolean): void {
@@ -282,6 +378,13 @@ export class ScriptEditorController {
     this.options.appearance = appearance;
     if (this._view) {
       setScriptAppearance(this._view, previous, appearance);
+    }
+  }
+
+  setShortcuts(shortcuts: ShortcutCombos): void {
+    this.options.shortcuts = shortcuts;
+    if (this._view) {
+      setEditorShortcuts(this._view, shortcuts);
     }
   }
 
@@ -356,6 +459,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      ApplyEditorColorMessage.type,
+      (m) => this.handleApplyEditorColor(m),
+      this.host,
+    );
+    p.onRequest(
       ShowEditorStatusBarMessage.type,
       (m) => this.handleShowEditorStatusBar(m),
       this.host,
@@ -385,6 +493,16 @@ export class ScriptEditorController {
       (m) => this.handleSetEditorRoutePins(m),
       this.host,
     );
+    p.onRequest(
+      SetEditorFindMatchesMessage.type,
+      (m) => this.handleSetEditorFindMatches(m),
+      this.host,
+    );
+    p.onRequest(
+      ApplyEditorEditMessage.type,
+      (m) => this.handleApplyEditorEdit(m),
+      this.host,
+    );
   }
 
   protected bindView(view: EditorView) {
@@ -392,6 +510,28 @@ export class ScriptEditorController {
     this._scroller = getScrollableParent(view.scrollDOM);
     this._scroller?.addEventListener("scroll", this.handlePointerScroll);
   }
+
+  protected handleAuthorScroll = () => {
+    this._viewScrolled = true;
+  };
+
+  protected handleScrollbarPointerDown = (e: PointerEvent) => {
+    const view = this._view;
+    if (view && e.target === getScrollableParent(view.scrollDOM)) {
+      this._viewScrolled = true;
+    }
+  };
+
+  protected handleDocumentFocusIn = (e: FocusEvent) => {
+    const target = e.target;
+    if (
+      target instanceof Node &&
+      target !== this.host &&
+      !this._view?.contentDOM.contains(target)
+    ) {
+      this._focusLeft = true;
+    }
+  };
 
   protected unbindView(view: EditorView) {
     this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
@@ -423,6 +563,9 @@ export class ScriptEditorController {
       DidCollapsePreviewPaneParams
     >,
   ) => {
+    if (this._loaded && this._visibleRange) {
+      this._viewScrolled = true;
+    }
     this.scrollToRange(this._visibleRange);
   };
 
@@ -442,18 +585,24 @@ export class ScriptEditorController {
   protected handleScrolledPreview = (
     message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>,
   ) => {
-    if (this._loaded) {
-      this._userInitiatedScroll = false;
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.visibleRange;
-      const target = params.target;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.cacheVisibleRange(range);
-        if (target === "element") {
-          this.scrollToRange(range);
-        }
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.visibleRange;
+    const target = params.target;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      return;
+    }
+    if (!this._loaded) {
+      if (target === "element") {
+        this._initialVisibleRange = range;
       }
+      return;
+    }
+    this._userInitiatedScroll = false;
+    this.cacheVisibleRange(range);
+    if (target === "element") {
+      this._viewScrolled = true;
+      this.scrollToRange(range);
     }
   };
 
@@ -488,8 +637,35 @@ export class ScriptEditorController {
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
 
+  protected handleApplyEditorColor = async (
+    message: RequestMessage<ApplyEditorColorMethod, ApplyEditorColorParams>,
+  ) => {
+    const { textDocument, range, text, color } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const { doc } = view.state;
+    const from = convertFromPosition(doc, range.start);
+    const to = convertFromPosition(doc, range.end);
+    const applied =
+      doc.sliceString(from, to) === text &&
+      (await applyDocumentColor(view, { from, to }, color));
+    return ApplyEditorColorMessage.type.response(message.id, {
+      applied,
+      ...(!applied && view.state.readOnly ? { readOnly: true } : {}),
+    });
+  };
+
   protected executeCommand(view: EditorView, command: EditorCommand) {
     switch (command) {
+      case "focus":
+        if (view.state.facet(EditorView.editable)) {
+          this.focusAtCaret();
+        } else {
+          this._focusWhenEditable = true;
+        }
+        return true;
       case "indent":
         view.focus();
         return indentMore(view);
@@ -501,7 +677,7 @@ export class ScriptEditorController {
       case "gotoLine":
         return openCustomGotoLinePanel(view);
       case "search":
-        return openSearchPanel(view);
+        return openFind(view);
       case "undo":
         return undo(view);
       case "redo":
@@ -528,6 +704,32 @@ export class ScriptEditorController {
       case "definition":
         return jumpToDefinition(view);
     }
+  }
+
+  protected _history: { uri?: string; canUndo: boolean; canRedo: boolean } =
+    { canUndo: false, canRedo: false };
+
+  protected publishHistory(state: EditorState) {
+    const uri = this._textDocument?.uri;
+    const canUndo = undoDepth(state) > 0;
+    const canRedo = redoDepth(state) > 0;
+    if (
+      !uri ||
+      (uri === this._history.uri &&
+        canUndo === this._history.canUndo &&
+        canRedo === this._history.canRedo)
+    ) {
+      return;
+    }
+    this._history = { uri, canUndo, canRedo };
+    sendProtocolMessage(
+      ChangedEditorHistoryMessage.type.notification({
+        textDocument: { uri },
+        canUndo,
+        canRedo,
+      }),
+      this.host,
+    );
   }
 
   protected handleShowEditorStatusBar = (
@@ -633,6 +835,103 @@ export class ScriptEditorController {
     return SetEditorRoutePinsMessage.type.response(message.id, {});
   };
 
+  protected handleSetEditorFindMatches = (
+    message: SetEditorFindMatchesMessage.Request,
+  ) => {
+    const { textDocument, ranges } = message.params;
+    const view = this._view;
+    if (view && textDocument.uri === this._textDocument?.uri) {
+      const doc = view.state.doc;
+      view.dispatch({
+        effects: setFindMatchesEffect.of(
+          ranges.map((range) => ({
+            from: convertFromPosition(doc, range.start),
+            to: convertFromPosition(doc, range.end),
+          })),
+        ),
+      });
+    }
+    return SetEditorFindMatchesMessage.type.response(message.id, {});
+  };
+
+  protected handleApplyEditorEdit = async (
+    message: ApplyEditorEditMessage.Request,
+  ) => {
+    const { edit, closedTexts } = message.params;
+    const view = this._view;
+    const uri = this._textDocument?.uri;
+    const applied: string[] = [];
+    const textEdits = edit.documentChanges
+      ? edit.documentChanges.flatMap((change) =>
+          "textDocument" in change
+            ? [{ uri: change.textDocument.uri, edits: change.edits }]
+            : [],
+        )
+      : Object.entries(edit.changes ?? {}).map(([uri, edits]) => ({
+          uri,
+          edits,
+        }));
+    if (view && uri && textEdits.some((change) => change.uri === uri)) {
+      sendProtocolMessage(
+        ClaimedEditorEditMessage.type.notification({
+          request: message.id,
+          uri,
+        }),
+        this.host,
+      );
+    }
+    for (const change of textEdits) {
+      const edits = change.edits.filter((e) => "newText" in e);
+      if (!edits.length) {
+        continue;
+      }
+      if (view && change.uri === uri) {
+        const dispatch = (
+          offsetOf: (position: Range["start"]) => number,
+        ) =>
+          view.dispatch({
+            changes: edits.map((e) => ({
+              from: offsetOf(e.range.start),
+              to: offsetOf(e.range.end),
+              insert: e.newText,
+            })),
+            userEvent: "input.replace.all",
+            annotations: isolateHistory.of("full"),
+          });
+        const plugin = LSPPlugin.get(view);
+        if (plugin) {
+          await plugin.client.withMapping(async (mapping) =>
+            dispatch((position) => mapping.mapPosition(change.uri, position)),
+          );
+        } else {
+          dispatch((position) => convertFromPosition(view.state.doc, position));
+        }
+        applied.push(change.uri);
+        continue;
+      }
+      const before = closedTexts?.[change.uri];
+      if (before != null) {
+        this._historyCache.record(change.uri, before, edits, message.id);
+      }
+    }
+    return ApplyEditorEditMessage.type.response(message.id, { applied });
+  };
+
+  protected requestEditorTool(tool: EditorTool) {
+    sendProtocolMessage(
+      RequestedEditorToolMessage.type.notification({ tool }),
+      this.host,
+    );
+  }
+
+  protected cachedEditorState(textDocument: TextDocumentItem) {
+    const restored = this._historyCache.restore(
+      textDocument.uri,
+      textDocument.text,
+    );
+    return restored ? { ...restored, folded: [] } : undefined;
+  }
+
   protected handleFocusFindInput = () => {
     this._searchInputFocused = true;
   };
@@ -674,6 +973,7 @@ export class ScriptEditorController {
     } = params;
     if (preserveEditor && this._view) {
       this._textDocument = textDocument;
+      this._historyCache.holdOpen(this, textDocument.uri);
       const uri = textDocument.uri;
       const plugin = LSPPlugin.get(this._view);
       if (plugin) {
@@ -701,6 +1001,7 @@ export class ScriptEditorController {
         SelectedEditorMessage.type.notification(params),
         this.host,
       );
+      this.publishHistory(state);
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";
@@ -711,6 +1012,13 @@ export class ScriptEditorController {
         this.revealEditor,
         LOAD_REVEAL_TIMEOUT_MS,
       );
+      if (this._view && this._textDocument) {
+        this._historyCache.save(this._textDocument.uri, this._view.state);
+      }
+      this._historyCache.useRoot(
+        languageServerInitializeParams?.rootUri ?? undefined,
+      );
+      this._historyCache.holdOpen(this, textDocument.uri);
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();
@@ -731,8 +1039,35 @@ export class ScriptEditorController {
         this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
+          readonly: this.options.readonly,
+          scriptMode: this.options.scriptMode,
+          keyboardHold: this.options.keyboardHold,
+          onReadingDoubleTap: this.options.onReadingDoubleTap,
+          onToolbarTool: this.options.onToolbarTool,
           appearance: this.options.appearance,
+          shortcuts: this.options.shortcuts,
           onContextMenu: this.options.onContextMenu,
+          tools: {
+            find: () => this.requestEditorTool("find"),
+            findNext: () => this.requestEditorTool("findNext"),
+            findPrevious: () => this.requestEditorTool("findPrevious"),
+            rename: () => this.requestEditorTool("rename"),
+            references: () => this.requestEditorTool("references"),
+          },
+          onChangeColor: this.options.onChangeColor
+            ? ({ from, to, text, color }) => {
+                const doc = this._view?.state.doc;
+                if (!doc) return;
+                this.options.onChangeColor?.(
+                  {
+                    start: convertToPosition(doc, from),
+                    end: convertToPosition(doc, to),
+                  },
+                  text,
+                  color,
+                );
+              }
+            : undefined,
           onPasteRefused: this.options.onPasteRefused,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,
@@ -790,10 +1125,11 @@ export class ScriptEditorController {
                 this.allowEditing(false);
               },
               onDidApplyWorkspaceEdit: () => {
-                this.allowEditing(true);
+                this.allowEditing(!this.options.readonly);
               },
             }),
           textDocument: this._textDocument,
+          defaultState: this.cachedEditorState(textDocument),
           scrollMargin: this._scrollMargin,
           top: this._top,
           bottom: this._bottom,
@@ -1024,6 +1360,7 @@ export class ScriptEditorController {
             );
           },
           onViewUpdate: (update) => {
+            this.publishHistory(update.state);
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }
@@ -1050,6 +1387,8 @@ export class ScriptEditorController {
           },
         });
         this._selectionMoved = false;
+        this._viewScrolled = false;
+        this._focusLeft = false;
       }
     }
     sendProtocolMessage(
@@ -1220,7 +1559,9 @@ export class ScriptEditorController {
         typeof this._initialVisibleRange === "string"
           ? this._initialVisibleRange
           : undefined;
-      this.scrollToRange(initialVisibleRange, scrollStrategy);
+      if (!this._selectionMoved && !this._viewScrolled) {
+        this.scrollToRange(initialVisibleRange, scrollStrategy);
+      }
       if (initialSelectedRange) {
         this.settleSelection(initialSelectedRange, false);
       }
@@ -1235,18 +1576,17 @@ export class ScriptEditorController {
             this._view.hasFocus ||
             !initialSelectedRange ||
             this._selectionMoved ||
+            this._viewScrolled ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
-          if (initialSelectedRange) {
-            this.settleSelection(
-              initialSelectedRange,
-              scrollStrategy ?? false,
-              initialFocused,
-            );
-          }
+          this.settleSelection(
+            initialSelectedRange,
+            scrollStrategy ?? false,
+            initialFocused && !this._focusLeft,
+          );
         }, 100);
       }
       if (this._textDocument) {

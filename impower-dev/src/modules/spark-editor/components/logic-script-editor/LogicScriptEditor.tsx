@@ -5,10 +5,21 @@ import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
-import { useScriptReadonly } from "../../workspace/useActiveEditor";
+import { editorAtSend } from "../../workspace/editorAtSend";
+import { useScriptMode, useScriptReadonly } from "../../workspace/useActiveEditor";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
+
+type WorkspaceWindow =
+  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
+
+const withWindow = (act: (win: WorkspaceWindow) => void) => {
+  void import("../../workspace/Workspace").then(({ Workspace }) =>
+    act(Workspace.window),
+  );
+};
 
 export const propDefaults = {
   filename: "",
@@ -43,7 +54,32 @@ export default function LogicScriptEditor({
 
   const appearance = workspaceSettings.scriptAppearance.value;
 
-  const readonly = useScriptReadonly();
+  const shortcuts = workspaceShortcuts.editorCombos.value;
+
+  const scriptBusy = useScriptReadonly();
+  const scriptMode = useScriptMode();
+  const readonly = scriptBusy || scriptMode === "reading";
+  const held = useComputed(() => workspace.keyboardPanels.value.length > 0)
+    .value;
+  const headed = useComputed(() =>
+    workspace.keyboardPanels.value.some((panel) => panel.heading),
+  ).value;
+
+  const startEditing = () => {
+    if (!scriptBusy) {
+      withWindow((win) => win.startEditing(filenameRef.current || "main.sd"));
+    }
+  };
+
+  const openTool = (tool: "writingTools" | "add") => {
+    if (tool === "writingTools") {
+      withWindow((win) =>
+        workspace.state.peek().screen?.writingTools
+          ? win.closeWritingTools()
+          : win.openWritingTools(),
+      );
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -113,21 +149,22 @@ export default function LogicScriptEditor({
         versionRef.current = version;
         textRef.current = text;
 
-        const latest = Workspace.window.getActiveEditorForFile(fn);
-        const current = latest?.uri === uri ? latest : editor;
+        const current =
+          editorAtSend(uri, () => Workspace.window.getActiveEditorForFile(fn)) ??
+          editor;
         const detail = LoadEditorMessage.type.request({
           textDocument: { uri, languageId, version, text },
           focused: current.focused,
           visibleRange: current.visibleRange,
           selectedRange: current.selectedRange,
-          breakpointLines: editor.breakpointLines,
-          pinpointLines: editor.pinpointLines,
-          highlightLines: editor.highlightLines,
-          startingValueLines: editor.startingValueLines,
-          routePins: editor.routePins,
+          breakpointLines: current.breakpointLines,
+          pinpointLines: current.pinpointLines,
+          highlightLines: current.highlightLines,
+          startingValueLines: current.startingValueLines,
+          routePins: current.routePins,
           languageServerInitializeParams,
           languageServerInitializeResult,
-          preserveEditor: Boolean(editor.originalFilename),
+          preserveEditor: Boolean(current.originalFilename),
         });
         sentOnConnection = connection;
         sendProtocolMessage(detail);
@@ -227,9 +264,20 @@ export default function LogicScriptEditor({
           readonly={readonly}
           coarsePointer={coarsePointer}
           appearance={appearance}
+          shortcuts={shortcuts}
           top="0px"
           bottom="60px"
           onPasteRefused={showPasteRefused}
+          scriptMode={scriptMode ?? null}
+          keyboardHold={{ held, headed }}
+          onReadingDoubleTap={startEditing}
+          onToolbarTool={openTool}
+          onChangeColor={(range, value, color) => {
+            if (readonly) return;
+            void import("../../workspace/Workspace").then(({ Workspace }) =>
+              Workspace.window.openChangeColor(filename || "main.sd", range, value, color),
+            );
+          }}
         />
       </div>
       <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />

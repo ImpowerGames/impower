@@ -491,6 +491,7 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   color: var(--theme-color-slate_80);
 }
 spark-web-player #game .layouts {
+  isolation: isolate;
   & :where([data-ui-handler]) {
     &:where(:not([data-widget-control])) {
       pointer-events: auto;
@@ -743,8 +744,12 @@ spark-web-player #game .screen {
 spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
+  z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .layout_textbox {
+  z-index: -1;
 }
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
@@ -2275,6 +2280,23 @@ spark-web-player #game .end_mark {
                 {
                   "children": [
                     {
+                      "class": "animation",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "screen",
+                  "tag": "div",
+                },
+              ],
+              "class": "main",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
                       "attrs": {
                         "data-display-target": "choice",
                       },
@@ -3008,18 +3030,8 @@ spark-web-player #game .end_mark {
                   "class": "textbox",
                   "tag": "div",
                 },
-                {
-                  "children": [
-                    {
-                      "class": "animation",
-                      "tag": "div",
-                    },
-                  ],
-                  "class": "screen",
-                  "tag": "div",
-                },
               ],
-              "class": "main",
+              "class": "layout_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

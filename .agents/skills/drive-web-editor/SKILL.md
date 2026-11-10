@@ -49,7 +49,7 @@ One-time setup, done outside the repository: Android Studio with its platform-to
 
 ## Named steps
 
-`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device: `app-menu`, `dialog` (open one and dismiss it), `drawer` (the drawer or rail), `file-menu` (a file row's menu), `asset-inspector`, `add-menu`, `preview-settings`, `play`, `problems`, `settings=<section>`, `focus-project-name` and `focus-script-name`. `play` presses the preview's Play as `--play start` does. Every other step fails with `not built yet`, naming the ticket that builds its surface; that slice gives the step its body in `steps.mjs` and the driver.
+`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device: `app-menu`, `dialog` (open one and dismiss it), `drawer` (the drawer or rail), `file-menu` (the Scripts page's first non-Main row menu, reported as `row`), `asset-inspector`, `add-menu`, `preview-settings`, `play`, `problems`, `settings=<section>`, `focus-project-name` and `focus-script-name`. `play` presses the preview's Play as `--play start` does. A step not built yet fails with `not built yet`, naming the ticket that builds its surface; that slice gives the step its body in `steps.mjs` and the driver.
 
 ## Evidence gate
 

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { isScriptUri, type NameAtCaret } from "../../workspace/nameAtCaret";
 import { useCaretPosition } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
+import { openFind, withSearch } from "../find-references-rename";
 import {
   ToolPanel,
   ToolPanelAnchor,
@@ -15,6 +16,7 @@ import {
   ToolPanelTrigger,
   type ToolPanelCloseReason,
 } from "../tool-panel";
+import { ChangeColorView } from "./ChangeColor";
 import ShortcutsSheet from "./ShortcutsSheet";
 import { shortcutSections } from "./shortcuts";
 import SparkdownGuide from "./SparkdownGuide";
@@ -37,6 +39,7 @@ const TITLES: Record<WritingToolsView, string> = {
   menu: "Writing tools",
   guide: "Sparkdown guide",
   shortcuts: "Keyboard shortcuts",
+  color: "Change color",
 };
 
 const deepActiveElement = (): HTMLElement | null => {
@@ -146,6 +149,19 @@ export default function WritingTools({
     };
   }, [open, view, filename]);
 
+  const colorTarget = state?.color;
+  const [storyColors, setStoryColors] = useState<string[]>([]);
+  useEffect(() => {
+    if (!colorTarget) return;
+    let current = true;
+    void withWindow((win) => win.readStoryColors()).then((found) => {
+      if (current) setStoryColors(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [colorTarget]);
+
   const close = (_reason?: ToolPanelCloseReason) =>
     void withWindow((win) => win.closeWritingTools());
   const show = (next: WritingToolsView) =>
@@ -159,22 +175,32 @@ export default function WritingTools({
       win.closeWritingTools();
       if (asset) {
         void win.showDocument(asset);
-      } else {
+      } else if (action === "definition") {
         win.executeEditorCommand(filename, action);
       }
     });
+    if (name && action !== "definition") {
+      withSearch((search) =>
+        action === "rename" ? search.openRename(name) : search.openReferences(name),
+      );
+    }
   };
 
   const onCommand = (row: CommandRow) =>
     void withWindow((win) => {
       if (row.closes) win.closeWritingTools();
-      win.executeEditorCommand(filename, row.command);
+      if (row.command === "search") {
+        openFind();
+      } else {
+        win.executeEditorCommand(filename, row.command);
+      }
     });
 
   const trigger = <WritingToolsTrigger />;
 
   return (
     <ToolPanelRoot
+      presentation={phone ? "keyboard" : undefined}
       open={open}
       onOpen={() => void withWindow((win) => win.openWritingTools())}
       onClose={close}
@@ -185,7 +211,9 @@ export default function WritingTools({
         title={TITLES[view]}
         onClose={close}
         onBack={state?.fromMenu ? () => show("menu") : undefined}
-        keepOpenOn={(target) => !!target.closest("[data-writer-bar]")}
+        keepOpenOn={(target) =>
+          !!target.closest("[data-writer-bar], .cm-keyboard-toolbar")
+        }
         returnFocus={() => returnTo.current}
       >
         {view === "menu" ? (
@@ -197,6 +225,15 @@ export default function WritingTools({
             onView={show}
             onName={onName}
             onCommand={onCommand}
+          />
+        ) : view === "color" && colorTarget ? (
+          <ChangeColorView
+            key={`${colorTarget.filename}:${colorTarget.range.start.line}:${colorTarget.range.start.character}:${colorTarget.value}`}
+            value={colorTarget.value}
+            color={colorTarget.color}
+            colors={storyColors}
+            canEdit={canEdit}
+            onUse={(value) => withWindow((win) => win.applyChangeColor(value))}
           />
         ) : view === "guide" ? (
           <SparkdownGuide />

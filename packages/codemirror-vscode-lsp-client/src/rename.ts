@@ -2,14 +2,13 @@ import { StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
-  KeyBinding,
-  keymap,
   showTooltip,
   Tooltip,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
+import { editorToolCommands } from "./tools";
 
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
@@ -185,6 +184,11 @@ function createRenameTooltip(spec: {
 }
 
 export const renameSymbol: Command = (view) => {
+  const tool = view.state.facet(editorToolCommands).rename;
+  if (tool) {
+    tool(view);
+    return true;
+  }
   const plugin = LSPPlugin.get(view);
 
   if (!plugin || !plugin.client.hasCapability("renameProvider")) {
@@ -281,10 +285,6 @@ const doRename = async (view: EditorView, newName: string, pos: number) => {
   return true;
 };
 
-export const renameKeymap: readonly KeyBinding[] = [
-  { key: "F2", run: renameSymbol, preventDefault: true },
-];
-
 export function serverRenaming(): LSPClientExtension {
   return {
     clientCapabilities: {
@@ -294,6 +294,6 @@ export function serverRenaming(): LSPClientExtension {
         },
       },
     },
-    editorExtension: [renameTheme, renameField, keymap.of([...renameKeymap])],
+    editorExtension: [renameTheme, renameField],
   };
 }

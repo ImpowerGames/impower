@@ -7,6 +7,8 @@ const calls = vi.hoisted(() => ({
   documents: [] as string[],
   name: null as unknown,
   keys: null as unknown,
+  names: [] as [string, unknown][],
+  finds: 0,
 }));
 const layout = vi.hoisted(() => ({ value: "desktop", coarse: false }));
 
@@ -28,6 +30,14 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
   };
   return {
     Workspace: {
+      search: {
+        openRename: (name: unknown) => calls.names.push(["rename", name]),
+        openReferences: (name: unknown) =>
+          calls.names.push(["references", name]),
+        openFindFromSelection: () => {
+          calls.finds += 1;
+        },
+      },
       window: {
         executeEditorCommand: (filename: string, command: string) => {
           calls.commands.push([filename, command]);
@@ -113,6 +123,8 @@ beforeEach(() => {
   calls.documents.length = 0;
   calls.name = null;
   calls.keys = null;
+  calls.names.length = 0;
+  calls.finds = 0;
   layout.value = "desktop";
   layout.coarse = false;
   workspace.current = {
@@ -157,8 +169,20 @@ describe("Writing tools menu", () => {
     expect(row("Go to definition for IMANI")?.textContent).toContain("Show the character.");
     await act(async () => row("Find references to IMANI")!.click());
     await settle();
-    await until(() => calls.commands.length);
-    expect(calls.commands).toEqual([["main.sd", "references"]]);
+    await until(() => calls.names.length);
+    expect(calls.names).toEqual([["references", imani]]);
+    expect(calls.commands).toEqual([]);
+    expect(workspace.current.screen.writingTools).toBeUndefined();
+  });
+
+  it("opens Rename on the name the menu was showing", async () => {
+    calls.name = imani;
+    await mount();
+    await open();
+    await until(() => row("Rename IMANI"));
+    await act(async () => row("Rename IMANI")!.click());
+    await until(() => calls.names.length);
+    expect(calls.names).toEqual([["rename", imani]]);
     expect(workspace.current.screen.writingTools).toBeUndefined();
   });
 
@@ -196,6 +220,7 @@ describe("Writing tools menu", () => {
     expect(rename.textContent).toContain("Tap Edit to rename.");
     await act(async () => rename.click());
     expect(calls.commands).toEqual([]);
+    expect(calls.names).toEqual([]);
     expect(row("Undo")?.getAttribute("aria-disabled")).toBe("true");
     expect(row("Select all")?.getAttribute("aria-disabled")).toBeNull();
   });
@@ -217,7 +242,15 @@ describe("Writing tools menu", () => {
     layout.value = "phone";
     await mount();
     await open();
-    const labels = ["Find and replace", "Undo", "Redo", "Select all", "Select line", "Move line up", "Move line down", "Duplicate line", "Toggle comment"];
+    await until(() => row("Find and replace"));
+    await act(async () => row("Find and replace")!.click());
+    await until(() => calls.finds);
+    expect(calls.finds).toBe(1);
+    await settle(250);
+    if (!workspace.current.screen.writingTools) {
+      await open();
+    }
+    const labels = ["Undo", "Redo", "Select all", "Select line", "Move line up", "Move line down", "Duplicate line", "Toggle comment"];
     for (const label of labels) {
       await until(() => row(label));
       await act(async () => row(label)!.click());
@@ -228,7 +261,7 @@ describe("Writing tools menu", () => {
       }
     }
     expect(calls.commands.map(([, command]) => command)).toEqual([
-      "search", "undo", "redo", "selectAll", "selectLine", "moveLineUp", "moveLineDown", "duplicateLine", "toggleComment",
+      "undo", "redo", "selectAll", "selectLine", "moveLineUp", "moveLineDown", "duplicateLine", "toggleComment",
     ]);
   });
 });
@@ -363,23 +396,33 @@ describe("Writing tools focus", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("on a phone, gives focus back on Escape but not when the backdrop closes the sheet", async () => {
+  it("on a phone, stands in the keyboard's place and registers while it is open", async () => {
     layout.value = "phone";
     layout.coarse = true;
     await mount();
     const input = field();
     await open();
-    expect(panel()!.contains(document.activeElement)).toBe(true);
-    await key(document.activeElement!, "Escape");
+    expect(panel()!.hasAttribute("data-keyboard-panel")).toBe(true);
+    expect(panel()!.className).toContain("h-[var(--keyboard-height,");
+    expect(panel()!.className).not.toContain("max-h-");
+    expect(workspace.keyboardPanels.value).toEqual([{ heading: true }]);
+    expect(document.activeElement).not.toBe(input);
+    await key(document, "Escape");
     await until(() => !panel());
     await settle(50);
     expect(document.activeElement).toBe(input);
+    expect(workspace.keyboardPanels.value).toEqual([]);
+  });
 
+  it("on a phone, closes on a press outside without giving focus back", async () => {
+    layout.value = "phone";
+    layout.coarse = true;
+    await mount();
+    const input = field();
     await open();
-    const backdrop = panel()!.parentElement!;
+    const outside = document.body.appendChild(document.createElement("div"));
     await act(async () => {
-      backdrop.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
-      backdrop.click();
+      outside.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
     });
     await until(() => !panel());
     await settle(50);

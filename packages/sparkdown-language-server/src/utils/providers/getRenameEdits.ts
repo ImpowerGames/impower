@@ -4,6 +4,8 @@ import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOpe
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,
+  ErrorCodes,
+  ResponseError,
   type CreateFile,
   type DeleteFile,
   type Position,
@@ -18,8 +20,12 @@ import {
 } from "vscode-languageserver-textdocument";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
-import { getReferences } from "./getReferences";
+import { getReferences, linkedTypes } from "./getReferences";
+import { getRenameRefusal } from "./getRenameRefusal";
 import { getSymbol } from "./getSymbol";
+
+const RUN_FILE_NAME =
+  /^[^\s./\\"'\p{C}\p{Zl}\p{Zp}](?:[^./\\"'\p{C}\p{Zl}\p{Zp}]*[^\s./\\"'\p{C}\p{Zl}\p{Zp}])?$/u;
 
 export const getRenameEdits = (
   settings: SparkdownConfiguration | undefined,
@@ -68,6 +74,19 @@ export const getRenameEdits = (
 
   const currentName = document?.getText(nameRange) || "";
 
+  if (symbol.name !== "RunContent") {
+    const refusal = getRenameRefusal(
+      workspace,
+      program,
+      currentName,
+      newName,
+      resolvedSymbolIds,
+    );
+    if (refusal) {
+      throw new ResponseError(ErrorCodes.InvalidRequest, refusal);
+    }
+  }
+
   const renameSymbol = (uri: string, range: Range) => {
     changes[uri] ??= [];
     changes[uri].push({
@@ -104,17 +123,19 @@ export const getRenameEdits = (
   }
 
   if (settings?.editor?.autoRenameFiles) {
-    if (resolvedSymbolIds?.includes(`image.${currentName}`)) {
-      renameFileByType("image");
+    const types = new Set<string>();
+    for (const id of resolvedSymbolIds ?? []) {
+      const dot = id.indexOf(".");
+      if (dot > 0 && id.slice(dot + 1) === currentName) {
+        const type = id.slice(0, dot);
+        types.add(type);
+        linkedTypes(program, type).forEach((linked) => types.add(linked));
+      }
     }
-    if (resolvedSymbolIds?.includes(`audio.${currentName}`)) {
-      renameFileByType("audio");
-    }
-    if (resolvedSymbolIds?.includes(`video.${currentName}`)) {
-      renameFileByType("video");
-    }
-    if (resolvedSymbolIds?.includes(`font.${currentName}`)) {
-      renameFileByType("font");
+    for (const type of ["image", "audio", "video", "font"]) {
+      if (types.has(type)) {
+        renameFileByType(type);
+      }
     }
   }
 
@@ -128,6 +149,19 @@ export const getRenameEdits = (
       const folder = oldUri.slice(0, oldUri.lastIndexOf("/") + 1);
       const file = oldUri.slice(folder.length);
       const newUri = folder + newName + file.slice(file.indexOf("."));
+      const refuse = (reason: string) =>
+        new ResponseError(ErrorCodes.InvalidRequest, reason);
+      const invalid = `${newName || "An empty name"} is not a valid script name.`;
+      if (!RUN_FILE_NAME.test(newName)) {
+        throw refuse(invalid);
+      }
+      if (
+        newUri !== oldUri &&
+        (workspace.hasFile(newUri) ||
+          workspace.runNameTaken(document.uri, newName, oldUri))
+      ) {
+        throw refuse(`${newName} is already a script in this story.`);
+      }
       for (const uri of workspace.uris()) {
         const script = workspace.document(uri);
         const links = workspace.annotations(uri)?.links.iter();

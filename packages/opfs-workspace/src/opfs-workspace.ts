@@ -1,3 +1,4 @@
+import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
@@ -32,6 +33,7 @@ import {
   FileCreate,
   FileData,
   FileEvent,
+  RenameFileOptions,
   TextDocumentEdit,
   TextEdit,
 } from "@impower/spark-editor-protocol/src/types";
@@ -43,10 +45,7 @@ import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams"
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { unzipSync, zipSync } from "fflate";
-import {
-  TextDocument,
-  TextDocumentContentChangeEvent,
-} from "vscode-languageserver-textdocument";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
 import {
   allocateCommit,
@@ -97,16 +96,6 @@ const THUMBNAILS_SUPPORTED =
   typeof OffscreenCanvas === "function" &&
   typeof caches !== "undefined";
 
-const globToRegex = (glob: string) => {
-  return RegExp(
-    glob
-      .replace(/[.]/g, "[.]")
-      .replace(/[*]/g, ".*")
-      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i",
-  );
-};
-
 interface WriteResult {
   file: FileData;
   created: boolean;
@@ -125,6 +114,7 @@ interface DeleteResult {
 interface RenameOutcome {
   oldUri: string;
   newUri: string;
+  options?: RenameFileOptions;
   file?: FileData;
   write?: WriteResult;
   deleted?: DeleteResult;
@@ -1441,25 +1431,17 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         );
         State.documents.set(td.uri, syncedDocument);
       }
-      const beforeVersion = syncedDocument.version;
-      const normalizedChanges: TextDocumentContentChangeEvent[] = [];
-      for (const c of changes) {
-        const normalizedText = c.newText.replace(NEWLINE_REGEX, "\n");
-        if ("range" in c) {
-          normalizedChanges.push({
-            range: c.range,
-            text: normalizedText,
-          });
-        } else {
-          normalizedChanges.push({
-            text: normalizedText,
-          });
-        }
-      }
       const afterVersion = syncedDocument.version + 1;
+      const edited = TextDocument.applyEdits(
+        syncedDocument,
+        changes.map((c) => ({
+          range: c.range,
+          newText: c.newText.replace(NEWLINE_REGEX, "\n"),
+        })),
+      );
       syncedDocument = TextDocument.update(
         syncedDocument,
-        normalizedChanges,
+        [{ text: edited }],
         afterVersion,
       );
       const content = syncedDocument.getText();
@@ -1966,6 +1948,17 @@ const moveFile = async (move: RenameOutcome) => {
     move.file = State.files.get(move.oldUri);
     return;
   }
+  if (!move.options?.overwrite) {
+    await drainWrites(move.newUri);
+    if (await findFileHandle(move.newUri)) {
+      if (move.options?.ignoreIfExists) {
+        return;
+      }
+      throw new Error(
+        `Cannot rename ${move.oldUri} to ${move.newUri}: ${move.newUri} already exists`,
+      );
+    }
+  }
   move.deleted = await copyThenRemove(move.oldUri, move.newUri, (write) => {
     move.write = write;
     move.file = write?.file;
@@ -1993,11 +1986,12 @@ const copyThenRemove = async (
 };
 
 const renameFiles = async (
-  files: { oldUri: string; newUri: string }[],
+  files: { oldUri: string; newUri: string; options?: RenameFileOptions }[],
 ): Promise<RenameOutcome[]> => {
   const outcomes: RenameOutcome[] = files.map((f) => ({
     oldUri: f.oldUri,
     newUri: f.newUri,
+    options: f.options,
   }));
   const targets = new Set<string>();
   for (const o of outcomes) {

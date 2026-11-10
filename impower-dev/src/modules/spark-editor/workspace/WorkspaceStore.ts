@@ -3,12 +3,28 @@ import type {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import type { DebugProtocol } from "@vscode/debugprotocol";
 import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
+import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { ScriptListing } from "./scriptsListing";
+import type { Reference } from "../utils/fileListModel";
+import {
+  INITIAL_SEARCH,
+  INITIAL_SEARCH_POSITION,
+  type SearchPosition,
+  type SearchSnapshot,
+} from "./searchState";
 import { WorkspaceConstants } from "./WorkspaceConstants";
+
+export type ScriptMode = "reading" | "editing";
+
+export interface KeyboardPanel {
+  heading: boolean;
+}
 
 export interface OutlineSnapshot {
   uri: string;
@@ -16,6 +32,18 @@ export interface OutlineSnapshot {
   diagnostics: readonly Diagnostic[];
   firstContentLine: number | undefined;
 }
+
+export interface DebugSessionState {
+  stopped: DebugProtocol.StoppedEvent["body"] | null;
+  stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
+  canStepOut: boolean;
+}
+
+export const IDLE_DEBUG_SESSION: DebugSessionState = {
+  stopped: null,
+  stackTrace: null,
+  canStepOut: false,
+};
 
 const defaults: WorkspaceCache = {
   project: { id: "" },
@@ -115,13 +143,42 @@ class WorkspaceStore {
 
   readonly trashOpen = signal<boolean>(false);
 
+  readonly scriptListing = signal<ScriptListing | null>(null);
+
+  readonly scriptReferences = signal<readonly Reference[]>([]);
+
+  readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
+
+  readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
+
+  readonly scriptMode = signal<ScriptMode>("reading");
+
+  readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
+
+  addKeyboardPanel(panel: KeyboardPanel): () => void {
+    this.keyboardPanels.value = [...this.keyboardPanels.peek(), panel];
+    return () => {
+      this.keyboardPanels.value = this.keyboardPanels
+        .peek()
+        .filter((entry) => entry !== panel);
+    };
+  }
+
+  readonly editorHistory = signal<
+    Record<string, { canUndo: boolean; canRedo: boolean }>
+  >({});
+
   readonly outline = signal<OutlineSnapshot | null>(null);
 
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
 
+  readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
+
   readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
+
+  readonly debugSession = signal<DebugSessionState>(IDLE_DEBUG_SESSION);
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

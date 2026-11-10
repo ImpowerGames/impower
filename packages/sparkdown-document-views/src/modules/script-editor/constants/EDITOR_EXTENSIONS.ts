@@ -1,13 +1,5 @@
-import { completionKeymap } from "@codemirror/autocomplete";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-} from "@codemirror/commands";
+import { history } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
-import { lintKeymap } from "@codemirror/lint";
-import { searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -15,7 +7,6 @@ import {
   drawSelection,
   dropCursor,
   highlightActiveLineGutter,
-  keymap,
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
@@ -25,6 +16,7 @@ import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indente
 import { lineBands } from "../../../cm-line-bands/lineBands";
 import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 import { problemMarks } from "../../../cm-problem-marks/problemMarks";
+import { findMatches } from "../utils/extensions/findMatches";
 
 const carriesFiles = (event: DragEvent) =>
   Array.from(event.dataTransfer?.types ?? []).includes("Files");
@@ -55,20 +47,13 @@ const EDITOR_EXTENSIONS = [
   drawSelection(),
   lineBands(),
   problemMarks(),
+  findMatches(),
   dropCursor(),
   crosshairCursor(),
   rectangularSelection(),
   highlightActiveLineGutter(),
   highlightExtraWhitespace(),
   highlightLines({ isGap: isExecutionGap }),
-  keymap.of([
-    indentWithTab,
-    ...defaultKeymap,
-    ...searchKeymap,
-    ...historyKeymap,
-    ...completionKeymap,
-    ...lintKeymap,
-  ]),
   EditorView.lineWrapping,
   EditorState.allowMultipleSelections.of(true),
   EditorState.phrases.of({ "No diagnostics": "No problems" }),

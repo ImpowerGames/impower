@@ -53,10 +53,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -246,10 +242,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -427,10 +419,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -623,10 +611,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -829,10 +813,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -1016,10 +996,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -1191,10 +1167,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1383,10 +1355,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",
@@ -1583,10 +1551,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -1770,10 +1734,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     },
   ],
   [
-    "ui.showLayout",
-    "main",
-  ],
-  [
     "ui.reveal",
   ],
   [
@@ -1955,10 +1915,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "extended": "[undefined]",
       "image": "[undefined]",
     },
-  ],
-  [
-    "ui.showLayout",
-    "main",
   ],
   [
     "ui.reveal",

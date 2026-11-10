@@ -7,6 +7,7 @@ export type ExecuteEditorCommandMethod =
   typeof ExecuteEditorCommandMessage.method;
 
 export const EDITOR_COMMANDS = [
+  "focus",
   "indent",
   "dedent",
   "format",

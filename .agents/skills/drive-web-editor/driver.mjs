@@ -1677,9 +1677,9 @@ function programWarning(program, budget = PROGRAM_BUDGET_MS) {
   return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub has no program to land on and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
 }
 
-function scriptsViewWarning({ projectPath, sdPath }) {
+function otherScriptWarning({ projectPath, sdPath, uri }) {
   const which = projectPath ? "the seeded project's main.sd" : sdPath ? "the main.sd --sd wrote" : "the project's main.sd";
-  return `the logic pane is showing its fullscreen scripts view (another file is open), so the file on screen is not ${which}, and the scrub reads the file on screen. Close that file in the editor before trusting this run.`;
+  return `another script (${uri}) is open in the script editor and switching back to main.sd did not take, so the file on screen is not ${which}, and the scrub reads the file on screen. Run \`ui --screen main\` before trusting this run.`;
 }
 
 async function waitForPreviewSettle(page, { timeout = 30_000, quiet = 2500 } = {}) {
@@ -1773,10 +1773,9 @@ async function verify(args, deps = liveDeps) {
         return result;
       }
       result.editorSettled = shell.settled;
-      result.editorView = await page.evaluate(() =>
-        document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
-      );
-      if (result.editorView === "scripts-view") result.editorWarning = scriptsViewWarning({ projectPath, sdPath });
+      const shown = await readEditorView(page);
+      result.editorView = shown.view;
+      if (shown.view === "scripts-view") result.editorWarning = otherScriptWarning({ projectPath, sdPath, uri: shown.uri });
       const gameObservable = await page
         .waitForFunction(() => window.__preview != null, null, { timeout: 5_000 })
         .then(() => true, () => false);
@@ -1828,10 +1827,9 @@ async function verify(args, deps = liveDeps) {
           return result;
         }
         result.editorSettled = again.settled;
-        result.editorView = await page.evaluate(() =>
-          document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
-        );
-        if (result.editorView === "scripts-view") result.editorWarning = scriptsViewWarning({ projectPath, sdPath });
+        const reloaded = await readEditorView(page);
+        result.editorView = reloaded.view;
+        if (reloaded.view === "scripts-view") result.editorWarning = otherScriptWarning({ projectPath, sdPath, uri: reloaded.uri });
         else delete result.editorWarning;
       }
 
@@ -1923,6 +1921,7 @@ async function verify(args, deps = liveDeps) {
         if (!(await deps.editorPainted(page, paintBudget))) {
           result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
         }
+        await settleViewTransitions(page);
         if (device) {
           await device.screenshot(out);
           result.screenshotOf = "screen";
@@ -1950,10 +1949,10 @@ async function verify(args, deps = liveDeps) {
 
 const SURFACES = {
   find: {
-    selector: ".sparkdown-script-editor-root .cm-search",
+    selector: ':is(section[data-view="find"], form[data-find-bar])',
     open: "Control+f",
-    fields: { search: "[name=search]", replace: "[name=replace]" },
-    buttons: ["next", "prev", "select", "replace", "replaceAll", "close"],
+    fields: { search: "input[name=search]", replace: "input[name=replace]" },
+    buttons: ["next", "prev", "replace", "replaceAll", "close"],
     toggles: ["case", "re", "word"],
   },
   goto: {
@@ -1965,8 +1964,84 @@ const SURFACES = {
   },
 };
 
+const SCRIPTS_PAGE_SELECTOR = 'section[aria-label="Scripts"]';
+const MAIN_ROW_SELECTOR = 'button[aria-label="Open script Main"], button[aria-label^="Open script Main,"]';
+const ROW_MENU_SELECTOR = 'button[aria-label^="Options for "]';
+const SCRIPTS_ROOT_SELECTOR = 'section[aria-label="Scripts"] nav[aria-label="Folder path"] button[aria-label="Scripts"]';
+const MAIN_SCRIPT_URI = /^[^:/]+:\/\/[^/]*\/main\.sd$/;
+
+export function editorViewOf(uri) {
+  if (uri == null) return null;
+  return MAIN_SCRIPT_URI.test(uri) ? "main" : "scripts-view";
+}
+
+export async function readEditorView(page, timeout = 1_000) {
+  const editor = await protocolRequest(page, "editor/read", {}, timeout).catch(() => null);
+  const uri = editor?.textDocument?.uri ?? null;
+  return { view: editorViewOf(uri), uri, editor };
+}
+
+async function onScriptsPage(page) {
+  return page.evaluate(() => /^#scripts(?:[?&]|$)/i.test(location.hash));
+}
+
+async function showScriptsPage(page, { timeout = 10_000 } = {}) {
+  if (!(await onScriptsPage(page))) await page.evaluate(() => { location.hash = "#scripts"; });
+  return page.locator(SCRIPTS_PAGE_SELECTOR).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
+}
+
+async function openMainScript(page, { timeout = 10_000 } = {}) {
+  if ((await activeScreen(page)) === "logic" && !(await onScriptsPage(page)) && (await readEditorView(page)).view === "main") return { opened: false };
+  if (!(await showScriptsPage(page, { timeout }))) {
+    return { opened: false, reason: `the Scripts page (${SCRIPTS_PAGE_SELECTOR}) did not appear within ${seconds(timeout)} of going to #scripts` };
+  }
+  await page.locator(`${MAIN_ROW_SELECTOR}, ${SCRIPTS_ROOT_SELECTOR}`).first().waitFor({ state: "visible", timeout }).catch(() => {});
+  const root = page.locator(SCRIPTS_ROOT_SELECTOR).first();
+  if (await root.isVisible().catch(() => false)) await root.click();
+  const row = page.locator(MAIN_ROW_SELECTOR).first();
+  try {
+    await row.waitFor({ state: "visible", timeout });
+  } catch {
+    return { opened: false, reason: `the Scripts page showed no Main row (Open script Main) within ${seconds(timeout)}` };
+  }
+  await row.click();
+  const left = await page
+    .waitForFunction(() => !/^#scripts(?:[?&]|$)/i.test(location.hash), null, { timeout })
+    .then(() => true, () => false);
+  if (!left) return { opened: true, reason: `pressing the Main row did not leave the Scripts page within ${seconds(timeout)}` };
+  return { opened: true };
+}
+
+export async function openFileMenu(page, { timeout = 10_000 } = {}) {
+  if (!(await showScriptsPage(page, { timeout }))) {
+    return { step: "file-menu", ran: false, reason: `the Scripts page did not appear within ${timeout / 1000} s of going to #scripts` };
+  }
+  const buttons = page.locator(ROW_MENU_SELECTOR);
+  try {
+    await buttons.first().waitFor({ state: "visible", timeout });
+  } catch {
+    return { step: "file-menu", ran: false, reason: `no row menu button (Options for …) on the Scripts page within ${timeout / 1000} s` };
+  }
+  const names = await buttons.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label").replace(/^Options for /, "")));
+  const index = Math.max(0, names.findIndex((name) => name !== "Main"));
+  const row = names[index];
+  await buttons.nth(index).click();
+  const menu = page.locator('[role="menu"]').first();
+  try {
+    await menu.waitFor({ state: "visible", timeout });
+  } catch {
+    return { step: "file-menu", ran: false, row, reason: `the menu for ${row} did not open within ${timeout / 1000} s of pressing Options for ${row}` };
+  }
+  await menu.evaluate((el) => Promise.all(
+    document.getAnimations()
+      .filter((a) => a.effect?.target && (a.effect.target.contains(el) || el.contains(a.effect.target)) && a.effect.getTiming().iterations !== Infinity)
+      .map((a) => a.finished.catch(() => {})),
+  )).catch(() => {});
+  return { step: "file-menu", ran: true, row };
+}
+
 const SCREENS = {
-  logic: '[role="tab"][id$="-trigger-main"], .sparkdown-script-editor-root .cm-content',
+  logic: `${SCRIPTS_PAGE_SELECTOR}, .sparkdown-script-editor-root .cm-content`,
   assets: '[role="tab"][id$="-trigger-files"]',
   share: "#share-page",
 };
@@ -2055,6 +2130,33 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
 
 const RAIL_SELECTOR = 'aside[aria-label="Sidebar"]';
 const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
+const APP_MENU_BUTTON_SELECTOR = 'button[aria-label="App menu"], aside[aria-label="Sidebar"] button[aria-haspopup="menu"]';
+const APP_MENU_SELECTOR = '[role="menu"]';
+
+export async function openAppMenu(page, { timeout = 5000 } = {}) {
+  const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
+  if (!(await button.count())) return { step: "app-menu", ran: false, reason: "no app menu button on the page: neither the title bar's App menu nor the rail's footer" };
+  await button.click();
+  try {
+    await page.locator(APP_MENU_SELECTOR).first().waitFor({ state: "visible", timeout });
+    await page.waitForFunction(
+      (selector) => {
+        const menu = document.querySelector(selector);
+        const sheet = menu?.closest('[role="dialog"]');
+        const root = sheet?.parentElement ?? menu;
+        if (!root || getComputedStyle(root).opacity !== "1") return false;
+        if (sheet && Math.abs(sheet.getBoundingClientRect().bottom - window.innerHeight) > 1) return false;
+        return root.getAnimations({ subtree: true }).every((animation) => animation.playState !== "running");
+      },
+      APP_MENU_SELECTOR,
+      { timeout },
+    );
+  } catch {
+    return { step: "app-menu", ran: false, reason: `the app menu did not open within ${timeout / 1000} s of pressing its button` };
+  }
+  const sheet = await page.evaluate((selector) => !!document.querySelector(selector)?.closest('[role="dialog"]'), APP_MENU_SELECTOR);
+  return { step: "app-menu", ran: true, opened: sheet ? "sheet" : "popover" };
+}
 const PROJECT_NAME_SELECTOR = 'input[aria-label="Project name"], input[aria-label="Project Name"]';
 const SCRIPT_NAME_SELECTOR = 'input[data-script-name]';
 
@@ -2067,7 +2169,11 @@ export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   }, RAIL_SELECTOR);
   if (rail) return { step: "drawer", ran: true, opened: "rail", rail };
   const button = page.locator(DRAWER_BUTTON_SELECTOR).first();
-  if (!(await button.count())) return { step: "drawer", ran: false, reason: "neither the desktop rail nor the drawer's Open Menu button is on the page" };
+  if (!(await button.count())) {
+    const menu = await openAppMenu(page, { timeout });
+    if (menu.ran) return { step: "drawer", ran: true, opened: "app-menu", menu: menu.opened };
+    return { step: "drawer", ran: false, reason: `neither the desktop rail, the drawer's Open Menu button nor the phone's app menu is on the page (${menu.reason})` };
+  }
   await button.click();
   try {
     await page.waitForFunction(() => {
@@ -2354,27 +2460,29 @@ async function activeScreen(page) {
 
 async function scriptEditorPresent(page, timeout = 10_000) {
   const screenNow = await activeScreen(page);
-  const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
+  const elsewhere = (screenNow != null && screenNow !== "logic") || (await onScriptsPage(page));
+  const budget = elsewhere ? 500 : timeout;
   try {
     await waitForEditor(page, budget);
     return { present: true };
   } catch {
     const screen = await activeScreen(page);
+    const scriptsPage = await onScriptsPage(page);
     const panelTab = await page.evaluate(() =>
       [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].map((t) => t.id.replace(/^.*-trigger-/, "")).find((v) => !["logic", "assets", "share"].includes(v)) ?? null,
     );
-    return { present: false, ...editorAbsentReason({ screen, panelTab, budgetMs: budget }) };
+    return { present: false, ...editorAbsentReason({ screen, panelTab, scriptsPage, budgetMs: budget }) };
   }
 }
 
-export function editorAbsentReason({ screen, panelTab, budgetMs }) {
-  const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""})`;
-  const navigational =
-    screen === "logic" && panelTab && panelTab !== "main"
-      ? "put --screen main before this step"
-      : screen != null && screen !== "logic"
-        ? "put --screen logic before this step"
-        : null;
+export function editorAbsentReason({ screen, panelTab = null, scriptsPage = false, budgetMs }) {
+  const within = scriptsPage ? ", page: scripts" : panelTab ? `, tab: ${panelTab}` : "";
+  const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${within})`;
+  const navigational = scriptsPage
+    ? "put --screen main before this step"
+    : screen != null && screen !== "logic"
+      ? "put --screen logic before this step"
+      : null;
   const advice = navigational ?? `the editor did not mount within ${seconds(budgetMs)}; the machine may be saturated, re-run`;
   return { reason: `${where}; ${advice}`, where, advice, navigational };
 }
@@ -2385,10 +2493,7 @@ async function editorExpectedHere(page) {
   const screen = await activeScreen(page);
   if (screen == null) return null;
   if (screen !== "logic") return false;
-  return page.evaluate(() => {
-    const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
-    return main == null || main.getAttribute("aria-selected") === "true";
-  });
+  return !(await onScriptsPage(page));
 }
 
 const MOUNT_BUDGET_MS = 20_000;
@@ -2468,21 +2573,15 @@ async function ensureScriptEditor(page) {
   await waitForApp(page);
   let switched = false;
   let first = await scriptEditorPresent(page, 10_000);
-  if (!first.present) {
-    const clickIfNeeded = async (value, needed) => {
-      const tab = page.locator(tabSelector(value)).first();
-      if (!(await tab.isVisible().catch(() => false))) return false;
-      if (!(await needed(tab))) return false;
-      await tab.click();
-      await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-      return true;
-    };
-    const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
-    const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
+  let openReason = null;
+  if (!first.present || (await readEditorView(page)).view !== "main") {
+    const main = await openMainScript(page);
+    switched = main.opened;
+    openReason = main.reason ?? null;
+    if (switched) await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
     first = await scriptEditorPresent(page, 45_000);
-    switched = clickedLogic || clickedMain;
   }
-  if (!first.present) return { present: false, switched, reason: first.reason };
+  if (!first.present) return { present: false, switched, reason: openReason ? `${first.reason} (${openReason})` : first.reason };
   const settled = await settleEditor(page);
   return { present: true, switched, settled };
 }
@@ -2514,7 +2613,7 @@ async function openSurface(page, name, { settled = false } = {}) {
       surface: name,
       open: false,
       pressed: key.combo,
-      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused; another panel may hold the focus (\`--close\` it), or the run may be off the logic screen's main tab (put \`--screen logic --screen main\` first) — if the editor is up and it still fails, the binding itself changed: check customSearch.ts's keymap`,
+      reason: `${s.selector} did not appear within 10s of pressing ${key.combo} with the editor focused; another panel may hold the focus (\`--close\` it), or the run may be off main.sd's script editor (put \`--screen main\` first) — if the editor is up and it still fails, the binding itself changed: check ${name === "find" ? "find-references-rename/useFindShortcut.ts" : "customSearch.ts's keymap"}`,
     };
   }
   return { surface: name, open: true, pressed: key.combo };
@@ -2550,7 +2649,7 @@ function fieldLocator(page, field) {
 async function readField(page, field) {
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) return null;
-  return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
+  return loc.evaluate((el) => (el instanceof HTMLInputElement ? el.value : el.innerText.replace(/\n$/, "")));
 }
 
 async function typeInto(page, field, text, { settled = false } = {}) {
@@ -2605,13 +2704,14 @@ async function toggleSurfaceOption(page, name) {
   const { owners, open } = await openSurfacesOwning(page, "toggles", name);
   if (open.length === 0) return { toggle: name, toggled: false, reason: `no panel with a "${name}" toggle is open (${owners.join(" or ")})` };
   const surface = open[0];
-  const box = page.locator(`${SURFACES[surface].selector} input[name=${name}]`).first();
-  const before = await box.isChecked();
+  const control = page.locator(`${SURFACES[surface].selector} [name=${name}]`).first();
+  const pressed = () => control.evaluate((el) => (el instanceof HTMLInputElement ? el.checked : el.getAttribute("aria-pressed") === "true"));
+  const before = await pressed();
   const label = page.locator(`${SURFACES[surface].selector} label:has(input[name=${name}])`).first();
   if ((await label.count()) > 0) await label.click();
-  else await box.click({ force: true });
+  else await control.click({ force: true });
   await waitForDomQuiet(page, { quiet: 300, timeout: 4_000 });
-  const after = await box.isChecked();
+  const after = await pressed();
   return {
     toggle: name,
     surface,
@@ -2622,58 +2722,69 @@ async function toggleSurfaceOption(page, name) {
 }
 
 async function switchScreen(page, name, { followedByMain = false } = {}) {
-  const tab = page.locator(tabSelector(name)).first();
-  try {
-    await tab.waitFor({ state: "visible", timeout: 10_000 });
-  } catch {
-    const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
-    const inScriptsView = !known.includes("main") && await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
-    if (inScriptsView && (name === "main" || name === "scripts")) {
-      return { screen: name, active: false, reason: `the logic pane is in its fullscreen scripts view (another file is open), which has no tab row; close that file with the view's own header button, then re-run` };
+  if (name === "scripts") {
+    if (!(await showScriptsPage(page))) {
+      return { screen: name, active: false, reason: `the Scripts page (${SCRIPTS_PAGE_SELECTOR}) did not appear within 10s of going to #scripts` };
     }
-    return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
+    return { screen: name, active: true, settled: await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 }) };
   }
-  await tab.click();
-  const isMain = name in SCREENS;
-  try {
-    if (isMain) {
-      await page.waitForFunction((selector) => document.querySelector(selector) != null, SCREENS[name], { timeout: 10_000 });
-    } else {
-      await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+  const opened = {};
+  if (name === "main") {
+    const main = await openMainScript(page);
+    if (main.reason) return { screen: name, active: false, reason: main.reason };
+    if (main.opened) opened.opened = true;
+  } else {
+    const tab = page.locator(tabSelector(name)).first();
+    try {
+      await tab.waitFor({ state: "visible", timeout: 10_000 });
+    } catch {
+      const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
+      return { screen: name, active: false, reason: `no tab named "${name}" on the page (tabs present: ${known.join(", ")})` };
     }
-  } catch {
-    return {
-      screen: name,
-      active: false,
-      reason: isMain ? `the ${name} screen's content never mounted after the click` : `the ${name} tab never reported itself selected after the click`,
-    };
+    await tab.click();
+    const isMain = name in SCREENS;
+    try {
+      if (isMain) {
+        await page.waitForFunction((selector) => document.querySelector(selector) != null, SCREENS[name], { timeout: 10_000 });
+      } else {
+        await page.locator(`${tabSelector(name)}[aria-selected="true"]`).first().waitFor({ state: "attached", timeout: 10_000 });
+      }
+    } catch {
+      return {
+        screen: name,
+        active: false,
+        reason: isMain ? `the ${name} screen's content never mounted after the click` : `the ${name} tab never reported itself selected after the click`,
+      };
+    }
   }
   let settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-  const mainTabSelectedOrAbsent = await page.evaluate(() => {
-    const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
-    return main == null || main.getAttribute("aria-selected") === "true";
-  });
-  const landsOnEditor = name === "main" || (name === "logic" && mainTabSelectedOrAbsent);
-  if (name === "logic" && !mainTabSelectedOrAbsent) {
-    return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
+  if (name === "logic" && (await onScriptsPage(page))) {
+    return { screen: name, active: true, settled, editorHere: false, note: "the logic screen is showing the Scripts page, so no script editor is on screen; use --screen main to reach it" };
   }
+  const landsOnEditor = name === "main" || name === "logic";
   const mountBudget = MOUNT_BUDGET_MS;
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, mountBudget)).present
     : await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
+  const what = name === "main" ? "main.sd was opened" : `the ${name} tab is up`;
   if (landsOnEditor && !editorHere) {
-    const text = `the ${name} tab is up but no script editor mounted within ${seconds(mountBudget)}`;
-    if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
-    return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
+    const text = `${what} but no script editor mounted within ${seconds(mountBudget)}`;
+    if (name === "logic" && followedByMain) return { screen: name, active: true, ...opened, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
+    return { screen: name, active: true, ...opened, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
     const settleBudget = SETTLE_BUDGET_MS;
     const editorSettled = await settleEditor(page, settleBudget);
     settled = editorSettled && settled;
+    const shown = landsOnEditor ? await readEditorView(page) : null;
+    const view = shown ? { editorView: shown.view } : {};
     if (!editorSettled) {
-      return { screen: name, active: true, settled, editorHere: true, editorSettled: false, reason: `the ${name} tab is up but its script editor never settled within ${seconds(settleBudget)}; later steps may have run without settled diagnostics` };
+      return { screen: name, active: true, ...opened, settled, editorHere: true, ...view, editorSettled: false, reason: `${what} but its script editor never settled within ${seconds(settleBudget)}; later steps may have run without settled diagnostics` };
     }
-    return { screen: name, active: true, settled, editorHere: true, editorSettled: true };
+    if (name === "main" && shown.view !== "main") {
+      return { screen: name, active: true, ...opened, settled, editorHere: true, ...view, editorSettled: true, reason: `pressing the Main row left ${shown.uri ?? "no document"} in the script editor, not main.sd` };
+    }
+    return { screen: name, active: true, ...opened, settled, editorHere: true, ...view, editorSettled: true };
   }
   return { screen: name, active: true, settled };
 }
@@ -2689,18 +2800,23 @@ async function readSurfaces(page) {
   );
   out.screen = await activeScreen(page);
   out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
-  const editor = await protocolRequest(page, "editor/read", {}, 500).catch(() => null);
-  out.editorView = editor ? await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view") : null;
+  out.route = await page.evaluate(() => location.hash.replace(/^#/, "").split(/[?&]/)[0] || null);
+  const { view, editor } = await readEditorView(page, 500);
+  out.editorView = view;
 
   if (await surfaceOpen(page, "find")) {
     out.find = {
       open: true,
       search: await readField(page, "search"),
       replace: await readField(page, "replace"),
-      matches: await page.locator(".sparkdown-script-editor-root .cm-search .cm-search-matches-label").first().innerText().catch(() => ""),
-      toggles: await page.evaluate(() =>
-        Object.fromEntries([...document.querySelectorAll('.sparkdown-script-editor-root .cm-search input[type="checkbox"]')].map((c) => [c.name, c.checked])),
-      ),
+      matches: await page.evaluate((selector) => {
+        const view = document.querySelector(selector);
+        const count = view?.querySelector("[data-find-summary]") ?? view?.querySelector('[role="status"]');
+        return count?.textContent?.trim() ?? "";
+      }, SURFACES.find.selector),
+      toggles: await page.evaluate((selector) =>
+        Object.fromEntries([...document.querySelectorAll(`${selector} [role="group"] button[name]`)].map((b) => [b.getAttribute("name"), b.getAttribute("aria-pressed") === "true"])),
+      SURFACES.find.selector),
     };
   }
   if (await surfaceOpen(page, "goto")) {
@@ -2844,8 +2960,8 @@ export async function languageSurface(page, kind, position, text, { place = plac
   out.caret = caret;
   if (!caret.placed) return { ...out, reason: caret.reason };
   if (kind === "completion") {
-    out.editorView = await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view");
-    if (out.editorView !== "main") return { ...out, reason: "completion typing requires main.sd on screen; return with the fullscreen scripts view's header button before retrying" };
+    out.editorView = (await readEditorView(page)).view;
+    if (out.editorView !== "main") return { ...out, reason: "completion typing requires main.sd in the script editor; put --screen main before this step" };
     const before = await documentLines(page);
     await page.keyboard.type(text);
     const after = await documentLines(page);
@@ -2914,11 +3030,32 @@ export async function languageSurface(page, kind, position, text, { place = plac
   return out;
 }
 
+export async function settleViewTransitions(page, { timeout = 3000 } = {}) {
+  return Promise.resolve()
+    .then(() => page.evaluate(async (ms) => {
+      const pending = [
+        document.activeViewTransition?.finished,
+        ...document
+          .getAnimations()
+          .filter((animation) => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))
+          .map((animation) => animation.finished),
+      ].filter(Boolean);
+      if (!pending.length) return 0;
+      const settled = await Promise.race([
+        Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => true),
+        new Promise((resolve) => setTimeout(() => resolve(false), ms)),
+      ]);
+      return settled ? pending.length : -1;
+    }, timeout))
+    .catch(() => 0);
+}
+
 async function shotOf(page, what, out) {
   if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
   if (!out) throw new Error(`--shot-of ${what} needs an output path`);
   const target = path.resolve(out);
   fs.mkdirSync(path.dirname(target), { recursive: true });
+  await settleViewTransitions(page);
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
   } else if (what === "hover") {
@@ -3246,7 +3383,7 @@ async function ui(args, deps = liveDeps) {
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
       if (expectedAtStart === false) {
-        if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
+        if (result.startedOn === "logic") result.startNote = "the run started on the Scripts page, where there is no script editor; --screen main reaches it";
       } else {
         const mountBudget = MOUNT_BUDGET_MS;
         const here = await deps.scriptEditorPresent(page, mountBudget);
@@ -3345,9 +3482,10 @@ async function ui(args, deps = liveDeps) {
                 const settleReason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have run without settled diagnostics`;
                 out.reason = out.reason ? `${out.reason}; also ${settleReason}` : settleReason;
               }
-              out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
-              if (out.editorView === "scripts-view") {
-                const viewReason = `the logic pane is showing its fullscreen scripts view (another file is open); ${wrote} is not the file on screen. Close that file in the editor and re-run`;
+              const shown = await readEditorView(page);
+              out.editorView = shown.view;
+              if (shown.view === "scripts-view") {
+                const viewReason = `another script (${shown.uri}) is open in the script editor; ${wrote} is not the file on screen. Put --screen main before this step and re-run`;
                 out.reason = out.reason ? `${out.reason}; also ${viewReason}` : viewReason;
               }
             } else {
@@ -3409,8 +3547,16 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(await openDrawerOrRail(page));
               continue;
             }
+            if (step.step === "app-menu") {
+              result.steps.push(await openAppMenu(page));
+              continue;
+            }
             if (step.step === "focus-project-name") {
               result.steps.push(await focusProjectName(page));
+              continue;
+            }
+            if (step.step === "file-menu") {
+              result.steps.push(await openFileMenu(page));
               continue;
             }
             if (step.step === "settings") {
@@ -3572,6 +3718,7 @@ export {
   scriptEditorPresent,
   editorExpectedHere,
   editorGate,
+  openMainScript,
   activeScreen,
   waitForDomQuiet,
   focusEditor,
@@ -3753,12 +3900,13 @@ switch (cmd) {
         "  --complete <line>:<col>=<text>  type real keystrokes and read completion plus its info panel",
         "  --project <dir-or-zip>  replace OPFS /local with this project's files, then reload",
         "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
-        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: main | scripts | files | urls | game | screenplay",
+        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: files | urls | game | screenplay;",
+        "                          main opens main.sd from the Scripts page; scripts goes to the Scripts page",
         "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
         "  --close <panel>         close it with Escape",
         "  --type <field>=<text>   real keystrokes into search | replace | line; \\n = Ctrl+Enter",
         "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
-        "  --click <button>        a panel button: next prev select replace replaceAll close submit",
+        "  --click <button>        a panel button: next prev replace replaceAll close submit",
         "  --toggle <option>       flip a find-panel checkbox: case | re | word",
         "  --shot <out.png>        screenshot the page (with --device android: the whole device screen, keyboard included)",
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page | screen (device only)",

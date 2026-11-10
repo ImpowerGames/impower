@@ -2,8 +2,6 @@ import { EditorState, StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
-  KeyBinding,
-  keymap,
   Panel,
   PanelConstructor,
   showPanel,
@@ -12,6 +10,7 @@ import {
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension, WorkspaceMapping } from "./client";
 import { LSPPlugin } from "./plugin";
+import { editorToolCommands } from "./tools";
 import { WorkspaceFile } from "./workspace";
 
 export const referencesTheme = EditorView.baseTheme({
@@ -150,6 +149,11 @@ export interface ReferenceLocation {
 }
 
 export const findReferences: Command = (view) => {
+  const tool = view.state.facet(editorToolCommands).references;
+  if (tool) {
+    tool(view);
+    return true;
+  }
   return requestReferences(view, view.state.selection.main.head);
 };
 
@@ -471,11 +475,6 @@ export function forEachReference(
   }
 }
 
-export const findReferencesKeymap: readonly KeyBinding[] = [
-  { key: "Shift-F12", run: findReferences, preventDefault: true },
-  { key: "Escape", run: closeReferencePanel },
-];
-
 export function updateDocumentReferences(client: LSPClient) {
   for (const file of client.workspace.files) {
     const view = file.getView();
@@ -508,6 +507,6 @@ export function serverReferences(): LSPClientExtension {
         updateDocumentReferences(client);
       },
     },
-    editorExtension: [referencesTheme, keymap.of([...findReferencesKeymap])],
+    editorExtension: [referencesTheme],
   };
 }

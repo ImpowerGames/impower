@@ -10,6 +10,7 @@ import {
   type AssetItem,
 } from "../../../game/modules/assets/types/AssetItem";
 import { cloneMessage } from "../../harness/cloneMessage";
+import { openEveryLayout } from "../../harness/openEveryLayout";
 
 export const MAIN_URI = "inmemory:///main.sd";
 
@@ -147,7 +148,9 @@ export function createHarness(
     }) as any,
   } as any);
 
-  (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
+  if (opts?.autoOpenAll ?? true) {
+    openEveryLayout(game);
+  }
 
   opts?.beforeConnect?.(game);
 

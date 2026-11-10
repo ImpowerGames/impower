@@ -5,6 +5,7 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
+import { openEveryLayout } from "@impower/spark-engine/src/tests/harness/openEveryLayout";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
 import { AudioClock } from "../../app/AudioClock";
@@ -261,7 +262,9 @@ export function createDOMHarness(
     if (opts?.reactive) {
       (g.module.ui as any)._reactive = true;
     }
-    (g.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
+    if (opts?.autoOpenAll ?? true) {
+      openEveryLayout(g);
+    }
     return g;
   };
 

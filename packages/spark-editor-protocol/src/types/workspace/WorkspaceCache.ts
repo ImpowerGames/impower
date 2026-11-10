@@ -1,4 +1,4 @@
-import { type Range } from "vscode-languageserver-protocol";
+import { type Color, type Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
@@ -144,14 +144,26 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
-  outlineSearch?: boolean;
 }
 
-export type WritingToolsView = "menu" | "guide" | "shortcuts";
+export interface ListsState {
+  scriptsSort?: string;
+  scriptsFolder?: string;
+}
+
+export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
 
 export interface WritingToolsState {
   view: WritingToolsView;
   fromMenu: boolean;
+  color?: ChangeColorState;
+}
+
+export interface ChangeColorState {
+  filename: string;
+  range: Range;
+  value: string;
+  color: Color;
 }
 
 export interface ShellState {
@@ -175,6 +187,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  lists?: ListsState;
   outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;

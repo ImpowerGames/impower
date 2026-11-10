@@ -39,7 +39,16 @@ beforeAll(() => {
   HTMLElement.prototype.scrollTo = vi.fn() as unknown as HTMLElement["scrollTo"];
 });
 
-const { LiveRegion, SettingsList, SettingsSection, SwitchRow } = await import("@impower/impower-ui/components");
+const {
+  LiveRegion,
+  pageFrameBackVariants,
+  pageFrameInnerVariants,
+  pageFrameIntroVariants,
+  pageFrameTitleVariants,
+  SettingsList,
+  SettingsSection,
+  SwitchRow,
+} = await import("@impower/impower-ui/components");
 const { SettingsIndex, SettingsPage, SETTINGS_SECTION_IDS, useSectionReset } = await import(
   "../../src/modules/spark-editor/components/settings"
 );
@@ -192,16 +201,39 @@ describe("the Settings page", () => {
           ![
             "theme-preferences",
             "editor-preferences",
+            "shortcut-preferences",
             "preview-preferences",
             "story-details",
             "screenplay-settings",
             "add-folder-preferences",
             "file-types",
+            "save-settings",
           ].includes(id),
       ),
     );
-    expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
+    expect(document.getElementById("save-settings")!.querySelector("[data-settings-placeholder]")).toBeNull();
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
+    await act(async () => back.click());
+    await pause(0);
+    expect(navigation.routes).toEqual(["write"]);
+  });
+
+  it("takes its frame, heading, intro and Back to story action from PageFrame", async () => {
+    await mount(h(SettingsPage, null));
+    const page = document.getElementById("settings-page")!;
+    expect(page.getAttribute("aria-label")).toBe("Settings");
+    expect(page.firstElementChild!.className).toBe(pageFrameInnerVariants());
+    const heading = page.querySelector("h1")!;
+    expect(heading.textContent).toBe("Settings");
+    expect(heading.className).toBe(pageFrameTitleVariants());
+    const intro = heading.parentElement!;
+    expect(intro.parentElement!.className).toBe(pageFrameIntroVariants());
+    expect(intro.firstElementChild!.textContent).toBe("Editor & project preferences");
+    expect(heading.nextElementSibling!.textContent).toBe(
+      "Customize the look and behavior of the editor and adjust your project settings.",
+    );
+    const back = [...page.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
+    expect(back.parentElement!.className).toBe(pageFrameBackVariants());
     await act(async () => back.click());
     await pause(0);
     expect(navigation.routes).toEqual(["write"]);

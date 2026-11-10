@@ -1,4 +1,10 @@
+import {
+  colorValueOf,
+  lspColorOf,
+  storyColors,
+} from "@impower/codemirror-vscode-lsp-client/src/colorValue";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
+import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
   onProtocolMessage,
   onProtocolRequest,
@@ -10,6 +16,7 @@ import {
   ChangedEditorBreakpointsParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import {
   ScrolledEditorMessage,
@@ -58,10 +65,13 @@ import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/proto
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
+  Color,
+  ColorInformation,
   EditorState,
   GamePosition,
   GameSize,
   GameState,
+  ListsState,
   PaneType,
   PanelType,
   Range,
@@ -71,18 +81,17 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
-import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
-import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
+import WorkspaceDebugClient from "./WorkspaceDebugClient";
+import { stepRefusals, type StepTraversal } from "./stepStates";
 import {
   checkName,
   joinScriptPath,
@@ -95,7 +104,7 @@ import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 
 type WorkspaceLanguageServerAccess = PreviewBeatSkipperDeps["ls"] &
-  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection">>;
+  Partial<Pick<WorkspaceLanguageServer, "initialization" | "connection" | "getProgram">>;
 import {
   definitionOf,
   isCue,
@@ -118,6 +127,7 @@ import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
+import { countProjectFiles } from "./replaceProject";
 import {
   loadExtensionDefaults,
   projectSettingsFromJson,
@@ -139,6 +149,7 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+import { renameOrReport } from "../utils/renameOrReport";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -154,6 +165,11 @@ export default class WorkspaceWindow {
   };
 
   protected _skipBeat?: (direction: -1 | 1) => Promise<boolean>;
+
+  readonly debug = new WorkspaceDebugClient({
+    onStop: (position) => this.followStop(position),
+    onRefusal: (message) => showSnackbar({ message }),
+  });
 
   constructor(workspace: {
     fs: WorkspaceFileSystem;
@@ -221,16 +237,40 @@ export default class WorkspaceWindow {
     this.update(stateForRoute(this.store, route));
   }
 
-  navigateTo(route: Route) {
+  navigateTo(route: Route, section?: string) {
     if (typeof window === "undefined") {
       this.openRoute(route);
       return;
     }
-    const hash = hashOfRoute(route);
+    const hash = hashOfRoute(route, section);
     if (window.location.hash !== hash) {
       window.history.pushState(window.history.state, "", hash);
+      if (section && routeOfState(this.store) === route) {
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      }
     }
     transitionRoute(() => this.openRoute(route));
+  }
+
+  setListState(lists: Partial<ListsState>) {
+    this.update({
+      ...this.store,
+      lists: { ...this.store.lists, ...lists },
+    });
+  }
+
+  browseScripts() {
+    this.navigateTo("scripts");
+  }
+
+  openScript(filename: string) {
+    const panel = this.getPanelType(filename);
+    if (!panel) {
+      return;
+    }
+    this.openPanel("logic", panel);
+    this.openFileEditor(filename);
+    this.navigateTo("write");
   }
 
   closeSettings() {
@@ -241,6 +281,83 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, settingsOpen: false },
     });
+  }
+
+  openChangeColor(filename: string, range: Range, value: string, color: Color) {
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: {
+          view: "color",
+          fromMenu: true,
+          color: { filename, range, value, color },
+        },
+      },
+    });
+  }
+
+  async applyChangeColor(
+    value: string,
+  ): Promise<"applied" | "invalid" | "moved" | "locked"> {
+    const target = this.store.screen.writingTools?.color;
+    const projectId = this.store.project.id;
+    const color = colorValueOf(value);
+    if (!color) {
+      return "invalid";
+    }
+    if (!target || !projectId) {
+      return "moved";
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, target.filename);
+    const result = await this.requestEditor(ApplyEditorColorMessage.type, {
+      textDocument: { uri },
+      range: target.range,
+      text: target.value,
+      color: lspColorOf(color),
+    });
+    if (!result?.applied) {
+      return result?.readOnly ? "locked" : "moved";
+    }
+    if (this.store.screen.writingTools?.color === target) {
+      this.closeWritingTools();
+    }
+    return "applied";
+  }
+
+  async readStoryColors(): Promise<string[]> {
+    const ls = this._workspace.ls;
+    const connection = ls?.connection;
+    if (!connection || !ls.getProgram) {
+      return [];
+    }
+    const program = await ls.getProgram().catch((error: unknown) => {
+      console.error("Story colors: no program to read scripts from", error);
+      return null;
+    });
+    const uris = Object.keys(program?.scripts ?? {});
+    const documents = await Promise.all(
+      uris.map(async (uri) => {
+        const infos = await connection
+          .sendRequest<ColorInformation[] | null>(
+            "textDocument/documentColor",
+            { textDocument: { uri } },
+          )
+          .catch((error: unknown) => {
+            console.error(`Story colors: documentColor failed for ${uri}`, error);
+            return null;
+          });
+        return [...(infos ?? [])]
+          .sort(
+            (a, b) =>
+              a.range.start.line - b.range.start.line ||
+              a.range.start.character - b.range.start.character,
+          )
+          .map((info) => info.color);
+      }),
+    );
+    return storyColors(documents);
   }
 
   setAppMenuOpen(open: boolean) {
@@ -287,6 +404,15 @@ export default class WorkspaceWindow {
     });
   }
 
+  startEditing(filename: string) {
+    workspace.scriptMode.value = "editing";
+    this.executeEditorCommand(filename, "focus");
+  }
+
+  finishEditing() {
+    workspace.scriptMode.value = "reading";
+  }
+
   openSparkdownGuide() {
     if (this._route !== "write") {
       this.navigateTo("write");
@@ -317,22 +443,6 @@ export default class WorkspaceWindow {
         collapsed: scenes.length ? { ...others, [uri]: scenes } : others,
       },
     });
-  }
-
-  setOutlineSearch(open: boolean) {
-    if (!!this.store.screen.outlineSearch === open) {
-      return;
-    }
-    this.update({
-      ...this.store,
-      screen: { ...this.store.screen, outlineSearch: open },
-    });
-    const filename = open
-      ? this.getActiveEditorForPane("logic")?.filename
-      : undefined;
-    if (filename) {
-      this.executeEditorCommand(filename, "search");
-    }
   }
 
   async openOutlineLocation(uri: string, range: Range) {
@@ -442,9 +552,42 @@ export default class WorkspaceWindow {
     }
   }
 
+  protected _replacementFile?: File;
+
+  async requestProjectReplace(file: File) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const fs = this._workspace.fs;
+    const files = await fs.getFiles(projectId);
+    this._replacementFile = file;
+    workspace.replaceProject.value = {
+      fileName: file.name,
+      projectName: this.store.project.name || "this project",
+      ...countProjectFiles(
+        Object.keys(files).map((uri) => fs.getRelativePath(projectId, uri)),
+      ),
+    };
+  }
+
+  cancelProjectReplace() {
+    this._replacementFile = undefined;
+    workspace.replaceProject.value = null;
+  }
+
+  async confirmProjectReplace() {
+    const file = this._replacementFile;
+    this.cancelProjectReplace();
+    if (file) {
+      await this.importLocalProject(file.name, await file.arrayBuffer());
+    }
+  }
+
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
+    this.debug.end();
   }
 
   protected registerProtocolHandlers() {
@@ -480,6 +623,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
+      ),
+      onProtocolMessage(ChangedEditorHistoryMessage.type, (m) =>
+        this.handleChangedEditorHistory(m),
       ),
       onProtocolMessage(ChangedEditorStartingValueLinesMessage.type, (m) =>
         this.handleChangedEditorStartingValueLines(m),
@@ -687,6 +833,16 @@ export default class WorkspaceWindow {
       },
     });
   };
+
+  protected handleChangedEditorHistory(
+    message: ChangedEditorHistoryMessage.Notification,
+  ) {
+    const { textDocument, canUndo, canRedo } = message.params;
+    workspace.editorHistory.value = {
+      ...workspace.editorHistory.peek(),
+      [this.relativePathOf(textDocument.uri)]: { canUndo, canRedo },
+    };
+  }
 
   protected handleCompiledProgram = (
     message: CompiledProgramMessage.Notification,
@@ -1198,6 +1354,8 @@ export default class WorkspaceWindow {
     const definition = definitionOf(definitions);
     if (!definition) {
       return {
+        uri,
+        position,
         name,
         kind: isCue(lineOf(text, position.line), name) ? "character" : "name",
         definition: null,
@@ -1210,6 +1368,8 @@ export default class WorkspaceWindow {
           ? await this._workspace.fs.getFileText(definition.uri)
           : "";
     return {
+      uri,
+      position,
       name,
       kind: kindOfDefinition(
         definition.uri,
@@ -1261,31 +1421,6 @@ export default class WorkspaceWindow {
         [pane]: {
           ...this.store.panes[pane],
           view,
-        },
-      },
-    });
-  }
-
-  browseScripts() {
-    const logic = this.store.panes.logic;
-    const scripts = logic.panels.scripts;
-    this.update({
-      ...this.store,
-      panes: {
-        ...this.store.panes,
-        logic: {
-          ...logic,
-          view: "list",
-          panel: "scripts",
-          panels: {
-            ...logic.panels,
-            scripts: {
-              ...scripts,
-              activeEditor: scripts?.activeEditor
-                ? { ...scripts.activeEditor, open: false }
-                : scripts?.activeEditor,
-            },
-          },
         },
       },
     });
@@ -1461,11 +1596,13 @@ export default class WorkspaceWindow {
       return check;
     }
     const newFilename = joinScriptPath(folder, check.name, ext);
-    const { referencesUpdated } = await fs.renameFileWithReferences(
-      projectId,
-      filename,
-      newFilename,
+    const rename = await renameOrReport(filename, newFilename, () =>
+      fs.renameFileWithReferences(projectId, filename, newFilename),
     );
+    if (!rename.renamed) {
+      return check;
+    }
+    const { referencesUpdated } = rename.result;
     await this.recordScriptChange();
     this.followRenamedScript(filename, newFilename);
     showSnackbar({
@@ -1535,6 +1672,7 @@ export default class WorkspaceWindow {
               ...this.store.preview.modes.game,
               loading: false,
               running: true,
+              paused: false,
               picks: {},
             },
           },
@@ -1543,9 +1681,7 @@ export default class WorkspaceWindow {
       const request = StartGameMessage.type.request({});
       this._startGameRequestId = request.id;
       sendProtocolMessage(request);
-      if (this.store.preview.modes.game.paused) {
-        this.unpauseGame();
-      }
+      void this.debug.start(this.getOpenedDocumentUri() ?? "");
     }
   }
 
@@ -1568,6 +1704,7 @@ export default class WorkspaceWindow {
           },
         },
       });
+      this.debug.end();
     }
   }
 
@@ -1613,41 +1750,16 @@ export default class WorkspaceWindow {
     }
   }
 
-  pauseGame() {
-    if (!this.store.preview.modes.game.paused) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              paused: true,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(PauseGameMessage.type.request({}));
+  async pauseGame() {
+    const game = this.store.preview.modes.game;
+    if (game.running && !game.paused && (await this.debug.pause())) {
+      this.syncGamePaused(true);
     }
   }
 
-  unpauseGame() {
-    if (this.store.preview.modes.game.paused) {
-      this.update({
-        ...this.store,
-        preview: {
-          ...this.store.preview,
-          modes: {
-            ...this.store.preview.modes,
-            game: {
-              ...this.store.preview.modes.game,
-              paused: false,
-            },
-          },
-        },
-      });
-      sendProtocolMessage(UnpauseGameMessage.type.request({}));
+  async unpauseGame() {
+    if (this.store.preview.modes.game.paused && (await this.debug.continue())) {
+      this.syncGamePaused(false);
     }
   }
 
@@ -1740,11 +1852,30 @@ export default class WorkspaceWindow {
     });
   }
 
-  stepGame(traversal: "in" | "out") {
+  async stepGame(traversal: StepTraversal) {
     const game = this.store.preview.modes.game;
-    if (game.running && game.paused) {
-      sendProtocolMessage(StepGameMessage.type.request({ traversal }));
+    if (!game.running || stepRefusals(game, workspace.debugSession.peek())[traversal]) {
+      return false;
     }
+    return traversal === "over"
+      ? this.debug.next()
+      : traversal === "in"
+        ? this.debug.stepIn()
+        : this.debug.stepOut();
+  }
+
+  followStop(position: GamePosition) {
+    this.syncGamePosition(position);
+    const highlights = this.store.debug.highlights ?? {};
+    const lines = highlights[position.uri] ?? [];
+    if (!lines.includes(position.line)) {
+      this.setHighlights({
+        ...highlights,
+        [position.uri]: [...lines, position.line].sort((a, b) => a - b),
+      });
+    }
+    const at = { line: position.line, character: 0 };
+    void this.showDocument(position.uri, { start: at, end: at }, false);
   }
 
   continueGame() {

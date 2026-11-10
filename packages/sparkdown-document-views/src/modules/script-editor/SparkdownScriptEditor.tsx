@@ -1,15 +1,24 @@
-import type { ContextMenuModel } from "@impower/codemirror-vscode-lsp-client/src";
+import type {
+  ContextMenuModel,
+  ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import {
   ActionSheet,
   type ActionSheetItem,
 } from "@impower/impower-ui/action-sheet";
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef, useState } from "preact/hooks";
+import type { Color, Range } from "@impower/spark-editor-protocol/src/types";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 import type {
   ScriptEditorController as ScriptEditorControllerType,
   ScriptEditorOptions,
 } from "./ScriptEditorController";
+import type {
+  KeyboardToolbarHold,
+  KeyboardToolbarTool,
+} from "./utils/extensions/keyboardToolbar";
+import type { ScriptModeValue } from "./utils/extensions/scriptMode";
 import cssText from "./sparkdown-script-editor.css?raw";
 
 export const propDefaults = {
@@ -22,7 +31,13 @@ export const propDefaults = {
 
 export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onPasteRefused?: () => void;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
+  onChangeColor?: (range: Range, value: string, color: Color) => void;
 };
 
 let languageServerWorker: Worker | undefined;
@@ -42,14 +57,33 @@ export default function SparkdownScriptEditor({
   readonly,
   coarsePointer,
   appearance,
+  shortcuts,
   scrollMargin,
   top,
   bottom,
   onPasteRefused,
+  scriptMode = null,
+  keyboardHold,
+  onReadingDoubleTap,
+  onToolbarTool,
+  onChangeColor,
 }: SparkdownScriptEditorProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuModel | null>(null);
   const onPasteRefusedRef = useRef(onPasteRefused);
   onPasteRefusedRef.current = onPasteRefused;
+  const onReadingDoubleTapRef = useRef(onReadingDoubleTap);
+  onReadingDoubleTapRef.current = onReadingDoubleTap;
+  const onToolbarToolRef = useRef(onToolbarTool);
+  onToolbarToolRef.current = onToolbarTool;
+  const readonlyRef = useRef(!!readonly);
+  readonlyRef.current = !!readonly;
+  const scriptModeRef = useRef(scriptMode);
+  scriptModeRef.current = scriptMode;
+  const keyboardHoldRef = useRef(keyboardHold);
+  keyboardHoldRef.current = keyboardHold;
+  const onChangeColorRef = useRef(onChangeColor);
+  onChangeColorRef.current = onChangeColor;
+  const hostsColorView = !!onChangeColor;
   const rootRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -60,6 +94,8 @@ export default function SparkdownScriptEditor({
   coarsePointerRef.current = !!coarsePointer;
   const appearanceRef = useRef(appearance);
   appearanceRef.current = appearance;
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -88,11 +124,20 @@ export default function SparkdownScriptEditor({
         realHost,
         { editor, loading, placeholder, main },
         {
-          readonly: !!readonly,
+          readonly: readonlyRef.current,
           coarsePointer: coarsePointerRef.current,
+          scriptMode: scriptModeRef.current,
+          keyboardHold: keyboardHoldRef.current,
+          onReadingDoubleTap: () => onReadingDoubleTapRef.current?.(),
+          onToolbarTool: (tool) => onToolbarToolRef.current?.(tool),
           appearance: appearanceRef.current,
+          shortcuts: shortcutsRef.current,
           onContextMenu: setContextMenu,
           onPasteRefused: () => onPasteRefusedRef.current?.(),
+          onChangeColor: hostsColorView
+            ? (range, value, color) =>
+                onChangeColorRef.current?.(range, value, color)
+            : undefined,
           scrollMargin: scrollMargin ?? "",
           top: top ?? "",
           bottom: bottom ?? "",
@@ -110,11 +155,21 @@ export default function SparkdownScriptEditor({
       controllerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollMargin, top, bottom]);
+  }, [scrollMargin, top, bottom, hostsColorView]);
 
   useEffect(() => {
     controllerRef.current?.setReadonly(!!readonly);
   }, [readonly]);
+
+  useEffect(() => {
+    controllerRef.current?.setScriptMode(scriptMode);
+  }, [scriptMode]);
+
+  useEffect(() => {
+    if (keyboardHold) {
+      controllerRef.current?.setKeyboardHold(keyboardHold);
+    }
+  }, [keyboardHold?.held, keyboardHold?.headed]);
 
   useEffect(() => {
     controllerRef.current?.setCoarsePointer(!!coarsePointer);
@@ -123,6 +178,12 @@ export default function SparkdownScriptEditor({
   useEffect(() => {
     controllerRef.current?.setAppearance(appearance);
   }, [appearance]);
+
+  useEffect(() => {
+    if (shortcuts) {
+      controllerRef.current?.setShortcuts(shortcuts);
+    }
+  }, [shortcuts]);
 
   return (
     <div class="sparkdown-script-editor-root" ref={rootRef}>

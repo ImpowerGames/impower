@@ -82,6 +82,8 @@ function imageStore() {
       durableExecuted: (executed) => executed,
       snapshotRuntime: () => live.state.snapshotFull(),
       drainRuntime: () => live.state.drainDeltas(),
+      imageParts: () => ({ bytes: 0, roots: [], refs: [] }),
+      valueParts: () => ({ bytes: 0, children: [] }),
     },
     { baseInterval: 10 },
   );

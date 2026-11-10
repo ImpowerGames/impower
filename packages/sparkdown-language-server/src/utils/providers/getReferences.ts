@@ -30,6 +30,11 @@ const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
   return keys;
 };
 
+export const linkedTypes = (
+  program: SparkProgram | undefined,
+  type: string,
+): string[] => recursivelyGetKeys(program?.context?.[type]?.["$default"]?.["$link"]);
+
 export interface ReferenceTarget {
   symbolName: string | undefined;
   symbolIds: string[] | undefined;
@@ -166,15 +171,10 @@ export const collectReferencesForTarget = (
                       if (resolvedSymbolId.includes(".")) {
                         const [type, name] = resolvedSymbolId.split(".");
                         if (type) {
-                          const link =
-                            program?.context?.[type]?.["$default"]?.["$link"];
-                          if (link) {
-                            const keys = [];
-                            for (const linkedType of recursivelyGetKeys(link)) {
-                              const linkedId = linkedType + "." + name;
-                              if (fullyResolvedRefId === linkedId) {
-                                addSymbol(uri, r);
-                              }
+                          for (const linkedType of linkedTypes(program, type)) {
+                            const linkedId = linkedType + "." + name;
+                            if (fullyResolvedRefId === linkedId) {
+                              addSymbol(uri, r);
                             }
                           }
                         }
@@ -241,52 +241,63 @@ export const collectReferencesForTarget = (
       : [];
 
   for (const uri of searchUris) {
-    const document = workspace.document(uri);
-    const annotations = workspace.annotations(uri);
-    if (document && annotations) {
-      let scopePathParts: {
-        kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
-        name: string;
-      }[] = [];
-      let scopeKind: "" | "function" | "scene" | "branch" | "knot" | "stitch" =
-        "";
-      const r = annotations.references.iter();
-      while (r.value) {
-        if (r.value.type.declaration === "function") {
-          scopePathParts = [];
-          scopeKind = "function";
-        }
-        if (r.value.type.declaration === "scene") {
-          scopePathParts = [];
-          scopeKind = "scene";
-        }
-        if (r.value.type.declaration === "branch") {
-          const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "branch" || prevKind === "stitch") {
-            scopePathParts.pop();
-          }
-          scopeKind = "branch";
-        }
-        if (document.read(r.from, r.to) === symbolName) {
-          const refScopePath = scopePathParts.map((p) => p.name).join(".");
-          addMatchingSymbols(uri, r, refScopePath);
-        }
-        if (
-          r.value.type.declaration === "function" ||
-          r.value.type.declaration === "scene" ||
-          r.value.type.declaration === "branch"
-        ) {
-          scopePathParts.push({
-            kind: scopeKind,
-            name: document.read(r.from, r.to),
-          });
-        }
-        r.next();
+    walkReferences(workspace, uri, (r, refScopePath, text) => {
+      if (text === symbolName) {
+        addMatchingSymbols(uri, r, refScopePath);
       }
-    }
+    });
   }
 
   return { references, resolvedSymbolIds };
+};
+
+export const walkReferences = (
+  workspace: Pick<SparkdownLanguageServerWorkspace, "document" | "annotations">,
+  uri: string,
+  visit: (
+    r: RangeCursor<SparkdownAnnotation<Reference>>,
+    scopePath: string,
+    text: string,
+  ) => void,
+): void => {
+  const document = workspace.document(uri);
+  const annotations = workspace.annotations(uri);
+  if (!document || !annotations) {
+    return;
+  }
+  let scopePathParts: {
+    kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+    name: string;
+  }[] = [];
+  let scopeKind: "" | "function" | "scene" | "branch" | "knot" | "stitch" = "";
+  const r = annotations.references.iter();
+  while (r.value) {
+    if (r.value.type.declaration === "function") {
+      scopePathParts = [];
+      scopeKind = "function";
+    }
+    if (r.value.type.declaration === "scene") {
+      scopePathParts = [];
+      scopeKind = "scene";
+    }
+    if (r.value.type.declaration === "branch") {
+      const prevKind = scopePathParts.at(-1)?.kind || "";
+      if (prevKind === "branch" || prevKind === "stitch") {
+        scopePathParts.pop();
+      }
+      scopeKind = "branch";
+    }
+    const text = document.read(r.from, r.to);
+    visit(r, scopePathParts.map((p) => p.name).join("."), text);
+    if (
+      r.value.type.declaration === "function" ||
+      r.value.type.declaration === "scene" ||
+      r.value.type.declaration === "branch"
+    ) {
+      scopePathParts.push({ kind: scopeKind, name: text });
+    }
+    r.next();
+  }
 };
 
 export const getReferences = (

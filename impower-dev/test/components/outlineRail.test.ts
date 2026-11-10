@@ -8,10 +8,13 @@ import type { Diagnostic } from "vscode-languageserver-protocol";
 const intents = vi.hoisted(() => ({
   openOutlineLocation: vi.fn(),
   setOutlineSceneCollapsed: vi.fn(),
-  setOutlineSearch: vi.fn(),
+}));
+const search = vi.hoisted(() => ({
+  openFindFromSelection: vi.fn(),
+  close: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { window: intents },
+  Workspace: { window: intents, search },
 }));
 
 const { default: workspace } =
@@ -103,11 +106,10 @@ const setCaret = (line: number) => {
   };
 };
 
-const setLayout = (collapsed: string[] | undefined, search = false) => {
+const setLayout = (collapsed: string[] | undefined) => {
   workspace.current = {
     ...workspace.current,
     outline: collapsed ? { collapsed: { [URI]: collapsed } } : {},
-    screen: { ...workspace.current.screen, outlineSearch: search },
   };
 };
 
@@ -289,22 +291,22 @@ describe("the Outline rail", () => {
         .click(),
     );
     await vi.waitFor(() =>
-      expect(intents.setOutlineSearch).toHaveBeenCalledWith(true),
+      expect(search.openFindFromSelection).toHaveBeenCalledTimes(1),
     );
-    setLayout(undefined, true);
-    await act(async () => {});
+    await act(async () => {
+      workspace.search.value = {
+        ...workspace.search.value,
+        open: true,
+        view: "find",
+      };
+    });
     expect(host!.querySelector("h2")!.textContent).toBe("Search");
     expect(host!.querySelector('[role="listitem"]')).toBeNull();
-    await act(async () =>
-      host!
-        .querySelector<HTMLButtonElement>(
-          'button[aria-label="Back to outline"]',
-        )!
-        .click(),
-    );
-    await vi.waitFor(() =>
-      expect(intents.setOutlineSearch).toHaveBeenCalledWith(false),
-    );
+    await act(async () => {
+      workspace.search.value = { ...workspace.search.value, open: false };
+    });
+    expect(host!.querySelector("h2")?.textContent).not.toBe("Search");
+    expect(host!.querySelector('[role="listitem"]')).not.toBeNull();
   });
 
   it("invites a writer to add scenes when the script has none", async () => {

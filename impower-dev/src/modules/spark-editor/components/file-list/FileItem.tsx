@@ -36,8 +36,7 @@ import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileMenuItems from "./FileMenuItems";
 import { openRowMenu } from "./openRowMenu";
 import FileOptionsButton from "./FileOptionsButton";
-import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
-import RenameReferencesDialog from "./RenameReferencesDialog";
+import { renameOrReport } from "../../utils/renameOrReport";
 
 export const INDENT_PER_DEPTH = 16;
 export const BASE_INDENT = 12;
@@ -111,18 +110,6 @@ function FileItem({
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [committedName, setCommittedName] = useState<string | null>(null);
-  const [renameConfirm, setRenameConfirm] = useState<{
-    oldPath: string;
-    newPath: string;
-    fromName: string;
-    toName: string;
-    referenceCount: number;
-    scriptCount: number;
-  } | null>(null);
-  const [usages, setUsages] = useState<{
-    assetName: string;
-    locations: UsageLocation[];
-  } | null>(null);
   const [thumbFailed, setThumbFailed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -141,7 +128,6 @@ function FileItem({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const optionsRef = useRef<HTMLButtonElement | null>(null);
-  const rowFocusTarget = () => optionsRef.current;
 
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -276,8 +262,11 @@ function FileItem({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const renamed = await Workspace.fs.moveFile(projectId, oldPath, newPath);
-    if (renamed.some((d) => d.type === "script")) {
+    const move = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.moveFile(projectId, oldPath, newPath),
+    );
+    if (!move.renamed) return;
+    if (move.result.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
       await Workspace.window.recordAssetChange();
@@ -297,56 +286,45 @@ function FileItem({
     } catch {
       refs = [];
     }
-    if (refs.length === 0) {
+    if (
+      refs.length === 0 ||
+      !(
+        isScriptExtension(ext) ||
+        Workspace.settings.preferences.peek().autoRenameFiles
+      )
+    ) {
       await plainMove(oldPath, newPath);
       return;
     }
-    setRenameConfirm({
-      oldPath,
-      newPath,
-      fromName: oldPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? oldPath,
-      toName: newPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? newPath,
-      referenceCount: refs.length,
-      scriptCount: new Set(refs.map((r) => r.uri)).size,
-    });
+    await renameWithReferences(oldPath, newPath);
   }
 
   async function renameWithReferences(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    await Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath);
+    const rename = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath),
+    );
+    if (!rename.renamed) return;
     await Workspace.window.recordScriptChange();
     await Workspace.window.recordAssetChange();
     recordReferenceRename(projectId, oldPath, newPath);
   }
 
   async function openUsages() {
-    const projectId = workspace.signals.projectId.value;
-    if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    let refs: { uri: string; range: UsageLocation["range"] }[] = [];
-    try {
-      refs = await Workspace.ls.getFileReferences(
-        Workspace.fs.getFileUri(projectId, path),
-      );
-    } catch {
-      refs = [];
-    }
-    const locations: UsageLocation[] = refs.map((r) => ({
-      uri: r.uri,
-      label: Workspace.fs.getRelativePath(projectId, r.uri),
-      line: r.range.start.line + 1,
-      range: r.range,
-    }));
-    setUsages({ assetName: name, locations });
+    await Workspace.search.openReferences({ name, character: false });
   }
 
   async function renameFolder(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId || !canMoveFolder(oldPath, newPath)) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    await Workspace.fs.moveFolder(projectId, oldPath, newPath);
+    const move = await renameOrReport(oldPath, newPath, () =>
+      Workspace.fs.moveFolder(projectId, oldPath, newPath),
+    );
+    if (!move.renamed) return;
     onFolderRenamed?.(oldPath, newPath);
     await Workspace.window.recordAssetChange();
     recordMove(projectId, oldPath, newPath, true);
@@ -644,42 +622,6 @@ function FileItem({
           </DropdownRoot>,
           document.body,
         )}
-      {renameConfirm && (
-        <RenameReferencesDialog
-          open
-          returnFocus={rowFocusTarget}
-          fromName={renameConfirm.fromName}
-          toName={renameConfirm.toName}
-          referenceCount={renameConfirm.referenceCount}
-          scriptCount={renameConfirm.scriptCount}
-          onUpdateAndRename={() => {
-            const c = renameConfirm;
-            setRenameConfirm(null);
-            void renameWithReferences(c.oldPath, c.newPath);
-          }}
-          onRenameOnly={() => {
-            const c = renameConfirm;
-            setRenameConfirm(null);
-            void plainMove(c.oldPath, c.newPath);
-          }}
-          onCancel={() => setRenameConfirm(null)}
-        />
-      )}
-      {usages && (
-        <FileUsagesPanel
-          open
-          returnFocus={rowFocusTarget}
-          assetName={usages.assetName}
-          locations={usages.locations}
-          onJump={(uri, range) => {
-            void (async () => {
-              const { Workspace } = await import("../../workspace/Workspace");
-              await Workspace.window.revealDocument(uri, range);
-            })();
-          }}
-          onClose={() => setUsages(null)}
-        />
-      )}
     </div>
   );
 }

@@ -38,6 +38,7 @@ export function ActionSheet({
       <div
         role="menu"
         aria-label={title}
+        data-action-sheet
         class="flex flex-col p-2 pb-[max(8px,env(safe-area-inset-bottom))]"
       >
         {shown.map((item, index) =>

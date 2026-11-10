@@ -1,14 +1,13 @@
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { closeBrackets } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
 import {
   EditorSelection,
   EditorState,
   Facet,
-  Prec,
   combineConfig,
   type Extension,
 } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { Tag, getStyleTags } from "@lezer/highlight";
 
@@ -138,6 +137,5 @@ export function vscodeCloseBrackets(
     closeBracketsState,
     vscodeCloseBracketsConfig.of(config),
     vscodeCloseBracketsInputHandler,
-    Prec.high(keymap.of([...closeBracketsKeymap])),
   ];
 }

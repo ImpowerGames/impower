@@ -1,19 +1,23 @@
+import { history } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
-import { EditorState, StateEffect, Transaction } from "@codemirror/state";
+import { Compartment, EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   customGotoLinePanel,
   customSearchPanel,
   openCustomGotoLinePanel,
 } from "../src/modules/script-editor/utils/extensions/customSearch";
+import { getScrollableParent } from "../src/utils/getScrollableParent";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
 type Callbacks = {
@@ -33,6 +37,13 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
         state: EditorState.create({
           doc: "hello world\n",
           extensions: [
+            (actual["readOnlyConfig"] as Compartment).of(
+              EditorState.readOnly.of(false),
+            ),
+            (actual["editableConfig"] as Compartment).of(
+              EditorView.editable.of(true),
+            ),
+            history(),
             customSearchPanel(),
             customGotoLinePanel(),
             EditorView.updateListener.of((update) =>
@@ -60,6 +71,22 @@ if (!Range.prototype.getClientRects) {
 
 class TestController extends ScriptEditorController {
   loaded: string[] = [];
+  scrolls: unknown[] = [];
+  settles = 0;
+
+  protected override settleSelection(
+    ...args: Parameters<InstanceType<typeof ScriptEditorController>["settleSelection"]>
+  ) {
+    this.settles += 1;
+    super.settleSelection(...args);
+  }
+
+  protected override scrollToRange(
+    ...args: Parameters<InstanceType<typeof ScriptEditorController>["scrollToRange"]>
+  ) {
+    this.scrolls.push(args[0]);
+    super.scrollToRange(...args);
+  }
 
   override loadTextDocument(
     params: LoadEditorMessage.Request["params"],
@@ -371,6 +398,267 @@ describe("ScriptEditorController initial selection after newer moves", () => {
   });
 });
 
+describe("ScriptEditorController load handover", () => {
+  const at = (line: number) => ({
+    start: { line, character: 0 },
+    end: { line, character: 0 },
+  });
+
+  const loadAt = async (
+    line: number,
+    visibleRange?: ReturnType<typeof at>,
+    focused?: boolean,
+  ) => {
+    const mounted = mount();
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: at(line),
+        visibleRange,
+        focused,
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    return { ...mounted, view };
+  };
+
+  const jump = (controller: TestController, line: number) =>
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: at(line),
+        scrollIntoView: "center",
+      }),
+    );
+
+  it("keeps a jump that arrived while the editor waited for its fonts", async () => {
+    const fonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    let ready: () => void = () => {};
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { status: "loading", ready: new Promise<void>((resolve) => (ready = resolve)) },
+    });
+    try {
+      const { controller, view } = await loadAt(1);
+      controller["handleViewportParsed"]();
+      jump(controller, 3);
+      ready();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller["_loaded"]).toBe(true);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+    } finally {
+      if (fonts) Object.defineProperty(document, "fonts", fonts);
+      else delete (document as { fonts?: unknown }).fonts;
+    }
+  });
+
+  it("keeps the scroll of a jump that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(1, at(1));
+    jump(controller, 3);
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([]);
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+  });
+
+  it("keeps a wheel scroll the author made before the editor settled", async () => {
+    const { controller, host, view } = await loadAt(1, at(1));
+    controller.setup();
+    try {
+      view.contentDOM.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+      controller["handleIdle"]();
+      expect(controller.scrolls).toEqual([]);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+    } finally {
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("keeps a scrollbar drag the author made before the editor settled", async () => {
+    const { controller, host, view } = await loadAt(1, at(1));
+    host.style.overflowY = "auto";
+    controller.setup();
+    try {
+      getScrollableParent(view.scrollDOM).dispatchEvent(
+        new Event("pointerdown", { bubbles: true }),
+      );
+      controller["handleIdle"]();
+      expect(controller.scrolls).toEqual([]);
+    } finally {
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("leaves focus where the author moved it while the editor was loading", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    const input = document.body.appendChild(document.createElement("input"));
+    try {
+      input.focus();
+      controller["handleIdle"]();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(document.activeElement).toBe(input);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      input.remove();
+      host.remove();
+    }
+  });
+
+  it("leaves focus in Find when the author opened it while the editor was loading", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    try {
+      openSearchPanel(view);
+      const find = host.querySelector<HTMLElement>(
+        ".cm-search [contenteditable][name='search']",
+      )!;
+      find.focus();
+      expect(document.activeElement).toBe(find);
+      controller["handleIdle"]();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(document.activeElement).toBe(find);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("scrolls to where the screenplay preview scrolled while the editor was loading", async () => {
+    const { controller } = await loadAt(1, at(1));
+    controller["handleScrolledPreview"](
+      ScrolledPreviewMessage.type.notification({
+        type: "screenplay",
+        textDocument: { uri: "file:///main.sd" },
+        visibleRange: at(3),
+        target: "element",
+      }),
+    );
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([at(3)]);
+  });
+
+  const retriesAfter = async (
+    act: (controller: TestController) => void,
+  ) => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const mounted = mount();
+    const at1 = at(1);
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: at1,
+        visibleRange: "center",
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    const { controller } = mounted;
+    try {
+      controller["handleIdle"]();
+      await vi.waitFor(() => expect(controller.settles).toBeGreaterThan(1), {
+        timeout: 5_000,
+        interval: 20,
+      });
+      act(controller);
+      const settled = controller.settles;
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      return controller.settles - settled;
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+    }
+  };
+
+  it("stops the caret retry once the screenplay preview scrolls the settled editor", async () => {
+    const retries = await retriesAfter((controller) =>
+      controller["handleScrolledPreview"](
+        ScrolledPreviewMessage.type.notification({
+          type: "screenplay",
+          textDocument: { uri: "file:///main.sd" },
+          visibleRange: at(3),
+          target: "element",
+        }),
+      ),
+    );
+    expect(retries).toBe(0);
+  });
+
+  it("stops the caret retry once collapsing the preview restores the editor's scroll", async () => {
+    const retries = await retriesAfter((controller) => {
+      controller["_visibleRange"] = at(3);
+      controller["handleDidCollapsePreviewPane"]({} as never);
+    });
+    expect(retries).toBe(0);
+  });
+
+  it("keeps retrying the caret while nothing newer arrives", async () => {
+    const retries = await retriesAfter(() => {});
+    expect(retries).toBeGreaterThan(0);
+  });
+
+  it("still takes focus at the caret it loaded with when focus stayed put", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, host, view } = await loadAt(1, undefined, true);
+    controller.setup();
+    try {
+      controller["handleIdle"]();
+      await vi.waitFor(() => expect(view.hasFocus).toBe(true), {
+        timeout: 5_000,
+        interval: 20,
+      });
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+      controller.dispose();
+      host.remove();
+    }
+  });
+
+  it("still scrolls to the visible range it loaded with when nothing moved", async () => {
+    const { controller } = await loadAt(1, at(2));
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([at(2)]);
+  });
+
+  it("stops putting the caret back once the author moves it after the editor settled", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, view } = await loadAt(1);
+    try {
+      controller["handleIdle"]();
+      expect(controller["_focusIntervalTimeout"]).not.toBe(0);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+      const clicked = view.state.doc.line(3).from;
+      view.dispatch({ selection: { anchor: clicked }, userEvent: "select.pointer" });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(view.state.selection.main.head).toBe(clicked);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+    }
+  });
+});
+
 describe("ScriptEditorController commands", () => {
   const run = (
     controller: TestController,
@@ -384,6 +672,36 @@ describe("ScriptEditorController commands", () => {
       }),
       id: `command-${nextId++}`,
     });
+
+  it("focuses the script at once when it is editable", async () => {
+    const { controller, view } = await loadedEditor();
+    const focus = vi.spyOn(view, "focus");
+    expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("waits to focus a read-only script until it can be edited, for Edit's round trip", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setReadonly(true);
+    const focus = vi.spyOn(view, "focus");
+    expect(run(controller, "focus")).toMatchObject({ result: { ran: true } });
+    expect(focus).not.toHaveBeenCalled();
+
+    controller.setReadonly(false);
+    expect(view.state.facet(EditorView.editable)).toBe(true);
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
+  it("drops a waiting focus when the script returns to reading", async () => {
+    const { controller, view } = await loadedEditor();
+    controller.setReadonly(true);
+    run(controller, "focus");
+    controller.setScriptMode("reading");
+    const focus = vi.spyOn(view, "focus");
+
+    controller.setReadonly(false);
+    expect(focus).not.toHaveBeenCalled();
+  });
 
   it("indents and dedents the caret's line for the writer's bar", async () => {
     const { controller, view } = await loadedEditor();
@@ -400,6 +718,73 @@ describe("ScriptEditorController commands", () => {
     expect(host.querySelector(".cm-gotoLine")).not.toBeNull();
     run(controller, "search");
     expect(host.querySelector(".cm-search")).not.toBeNull();
+  });
+
+  it("undoes and redoes the script's edits and reports what it can undo and redo", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported: [string, boolean, boolean][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorHistoryMessage.type.is(message)) {
+        const { textDocument, canUndo, canRedo } = message.params;
+        reported.push([textDocument.uri, canUndo, canRedo]);
+      }
+    });
+    view.dispatch({
+      changes: { from: 0, insert: "> " },
+      userEvent: "input.type",
+    });
+    expect(reported).toEqual([["file:///main.sd", true, false]]);
+    expect(run(controller, "undo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", false, true]);
+    expect(run(controller, "redo")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("> hello world");
+    expect(reported.at(-1)).toEqual(["file:///main.sd", true, false]);
+    expect(reported).toHaveLength(3);
+  });
+
+  const historyReports = (host: HTMLElement) => {
+    const reported: [string, boolean, boolean][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorHistoryMessage.type.is(message)) {
+        const { textDocument, canUndo, canRedo } = message.params;
+        reported.push([textDocument.uri, canUndo, canRedo]);
+      }
+    });
+    return reported;
+  };
+
+  it("reports the kept history under a renamed script's new name", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported = historyReports(host);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///opening.sd", languageId: "sparkdown", version: 1, text: "" },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+        preserveEditor: true,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    expect(created[created.length - 1]!.view).toBe(view);
+    expect(reported.at(-1)).toEqual(["file:///opening.sd", true, false]);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported.at(-1)).toEqual(["file:///opening.sd", true, false]);
+  });
+
+  it("reports the first edit of the next script the same editor loads", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const reported = historyReports(host);
+    view.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported).toEqual([["file:///main.sd", true, false]]);
+    await load(controller, "file:///other.sd");
+    const next = created[created.length - 1]!.view;
+    expect(next).not.toBe(view);
+    next.dispatch({ changes: { from: 0, insert: "> " }, userEvent: "input.type" });
+    expect(reported.at(-1)).toEqual(["file:///other.sd", true, false]);
   });
 
   it("leaves a command for another document to that document's editor", async () => {

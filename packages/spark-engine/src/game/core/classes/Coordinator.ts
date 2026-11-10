@@ -7,6 +7,7 @@ import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 import { choosePresenter } from "./presenters/choosePresenter";
+import { openInitialLayouts } from "./presenters/textLayouts";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
 
@@ -29,10 +30,16 @@ export class Coordinator<G extends Game> {
 
   protected _onTick?: (deltaMS: number) => void;
 
-  constructor(game: G, instructions: Instructions) {
+  constructor(
+    game: G,
+    instructions: Instructions,
+    options?: { settled?: boolean },
+  ) {
     this._game = game;
     this._instructions = instructions;
-    if (game.context.system.previewing) {
+    if (options?.settled) {
+      this.onSettle();
+    } else if (game.context.system.previewing) {
       this.onPreview();
     } else {
       this.onExecute();
@@ -41,6 +48,12 @@ export class Coordinator<G extends Game> {
 
   onPreview() {
     this.display({ instant: true, preview: true });
+  }
+
+  onSettle() {
+    this.display({ instant: true });
+    this._startedExecution = true;
+    this._onTick = () => {};
   }
 
   onExecute() {
@@ -149,6 +162,11 @@ export class Coordinator<G extends Game> {
 
     const instant = options?.instant;
     const previewing = options?.preview;
+
+    openInitialLayouts(
+      game,
+      Boolean(instant) || Boolean(game.context.system.simulating),
+    );
 
     const presenter = choosePresenter(game, instructions, {
       instant,

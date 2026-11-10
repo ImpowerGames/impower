@@ -6,6 +6,11 @@
   --script-leading: 1.5;
   --script-margin: 20px;
   --script-gutter: 36px;
+  --swatch-edge: rgb(128 128 128 / 0.4);
+  --checker-dark: #cfcfcf;
+  --checker-light: #ffffff;
+  --slider-thumb: #ffffff;
+  --slider-thumb-shadow: 0 0 0 1px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
 }
 
 :root[data-layout="desktop"] {

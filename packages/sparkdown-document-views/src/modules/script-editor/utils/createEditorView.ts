@@ -21,11 +21,16 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import {
+  type ColorPickerPresenter,
   completionPreview,
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
+  editorToolCommands,
+  type EditorToolCommands,
+  type ShortcutCombos,
   LSPClient,
   onPasteRefused,
+  presentColorPicker,
   presentContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -78,7 +83,17 @@ import {
   customGotoLinePanel,
   customSearchPanel,
 } from "./extensions/customSearch";
-import { keyboardToolbar } from "./extensions/keyboardToolbar";
+import {
+  keyboardToolbar,
+  type KeyboardToolbarHold,
+  type KeyboardToolbarTool,
+} from "./extensions/keyboardToolbar";
+import { scriptEditorShortcuts } from "./extensions/scriptEditorShortcuts";
+import {
+  onReadingDoubleTap,
+  scriptMode,
+  type ScriptModeValue,
+} from "./extensions/scriptMode";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { statusPanel } from "./extensions/statusPanel";
@@ -115,8 +130,16 @@ interface EditorConfig {
   startingValueLines?: number[];
   routePins?: DocumentRoutePin[];
   coarsePointer: boolean;
+  readonly?: boolean;
+  scriptMode?: ScriptModeValue | null;
+  keyboardHold?: KeyboardToolbarHold;
+  onReadingDoubleTap?: () => void;
+  onToolbarTool?: (tool: KeyboardToolbarTool) => void;
   appearance: ScriptAppearance;
+  shortcuts?: ShortcutCombos;
   onContextMenu?: ContextMenuPresenter;
+  tools?: EditorToolCommands;
+  onChangeColor?: ColorPickerPresenter;
   onPasteRefused?: () => void;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
@@ -259,13 +282,19 @@ const createEditorView = (
       extensions: [
         ...restoredExtensions,
         EDITOR_EXTENSIONS,
+        scriptEditorShortcuts(config.shortcuts),
         scriptAppearance(config.appearance),
         customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),
-        keyboardToolbar(),
-        readOnlyConfig.of(EditorState.readOnly.of(false)),
-        editableConfig.of(EditorView.editable.of(true)),
+        scriptMode(config.scriptMode ?? null),
+        onReadingDoubleTap.of(() => config.onReadingDoubleTap?.()),
+        keyboardToolbar({
+          onTool: config.onToolbarTool,
+          hold: config.keyboardHold,
+        }),
+        readOnlyConfig.of(EditorState.readOnly.of(!!config.readonly)),
+        editableConfig.of(EditorView.editable.of(!config.readonly)),
         breakpointsField.init(() => {
           const gutterMarkers: Range<GutterMarker>[] =
             breakpointLineNumbers
@@ -495,6 +524,8 @@ const createEditorView = (
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
+        config.tools ? editorToolCommands.of(config.tools) : [],
+        config.onChangeColor ? presentColorPicker(config.onChangeColor) : [],
         config.onPasteRefused ? onPasteRefused(config.onPasteRefused) : [],
         EditorView.theme(EDITOR_THEME, { dark: true }),
       ],

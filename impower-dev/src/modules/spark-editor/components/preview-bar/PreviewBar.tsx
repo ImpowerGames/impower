@@ -13,6 +13,7 @@ import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { ProblemsToggle } from "../problems";
+import { settingsSectionHref } from "../settings";
 import {
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
@@ -138,7 +139,7 @@ function PaperSizeLink() {
       class={`gap-1.5 px-2.5 text-muted ${BAR_TEXT}`}
     >
       <a
-        href="#project?section=screenplay"
+        href={settingsSectionHref("screenplay-settings")}
         aria-label="Screenplay settings"
         title="Screenplay settings"
         onClick={() => {
