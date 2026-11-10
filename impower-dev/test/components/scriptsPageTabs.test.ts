@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -139,6 +140,7 @@ const type = async (input: HTMLInputElement, value: string) => {
 
 beforeEach(() => {
   layout.value = "phone";
+  workspace.layout.value = layout.value as Layout;
   calls.length = 0;
   vi.clearAllMocks();
   window.setListState.mockImplementation((lists) => {
@@ -303,6 +305,7 @@ describe("the In this script tab's rows", () => {
 describe("the Scripts page off the phone", () => {
   it("has no tabs and shows All scripts", async () => {
     layout.value = "compact";
+    workspace.layout.value = layout.value as Layout;
     workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
     await mount();
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
