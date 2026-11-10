@@ -38,11 +38,11 @@ import {
   assetLevel,
   assetSearch,
   assetSort,
-  assetsHome,
+  assetTrail,
   type AssetListing,
   type AssetRow,
 } from "../../workspace/assetsListing";
-import { isInside, parentOf } from "../../workspace/scriptsListing";
+import { parentOf } from "../../workspace/scriptsListing";
 import workspace from "../../workspace/WorkspaceStore";
 import type { PreviewItem } from "../file-preview/FilePreviewOverlay";
 import {
@@ -53,7 +53,6 @@ import {
   Trail,
   useSavedScroll,
   useTabQuery,
-  type TrailCrumb,
 } from "../library-page";
 import AddUrlDialog from "./AddUrlDialog";
 import { useAssetPreview } from "./AssetPreview";
@@ -118,20 +117,6 @@ const stemAndExtension = (name: string) => {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const crumbsOf = (folder: string, root: string, home: string): TrailCrumb[] => {
-  if (folder === root) {
-    return [];
-  }
-  const base = isInside(folder, root) ? root : home;
-  const parts = folder.slice(base.length + 1).split("/");
-  return parts.map((name, i) => ({ name, path: `${base}/${parts.slice(0, i + 1).join("/")}` }));
-};
-
-const parentFolder = (folder: string, root: string, home: string): string => {
-  const parent = parentOf(folder);
-  return isInside(parent, root) || parent !== home ? parent : root;
-};
-
 const previewItemOf = (listing: AssetListing, row: AssetRow): PreviewItem => {
   const facts = listing.files[row.path];
   const kind = row.type === "image" || row.type === "audio" || row.type === "video" ? row.type : "text";
@@ -193,7 +178,6 @@ function AssetsBrowser() {
   const folders = lists?.assetsFolders ?? {};
   const sort = assetSort(lists?.assetsSort);
   const searching = !!query.trim();
-  const home = assetsHome(listing);
   const level = assetLevel({ listing, type, folder: folders[type], sort, endings });
   const groups = searching ? assetSearch({ listing, query, sort, endings }) : [];
   const items: Item[] = searching
@@ -290,6 +274,7 @@ function AssetsBrowser() {
   };
 
   const TypeGlyph = TYPE_ICONS[type];
+  const trail = assetTrail(listing, level.root, level.folder);
   const atRoot = level.folder === level.root;
   const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
   const uploadAction = (
@@ -350,9 +335,9 @@ function AssetsBrowser() {
               label={assetTypeSpec(type).title}
               icon={<TypeGlyph />}
               summary={plural(level.files, "file")}
-              crumbs={crumbsOf(level.folder, level.root, home)}
+              crumbs={trail.crumbs}
               root={level.root}
-              parent={parentFolder(level.folder, level.root, home)}
+              parent={trail.parent}
               onOpen={openFolder}
             />
           )}

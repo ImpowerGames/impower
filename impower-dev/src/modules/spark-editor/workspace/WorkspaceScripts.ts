@@ -2,7 +2,7 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
-import { recordMove, recordTrashDeletion } from "../utils/fileUndo";
+import { recordMove } from "../utils/fileUndo";
 import {
   availableName,
   copyName,
@@ -27,6 +27,7 @@ import {
   scriptsHome,
   type ScriptListing,
 } from "./scriptsListing";
+import { moveToTrash } from "./moveToTrash";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
@@ -324,27 +325,13 @@ export default class WorkspaceScripts {
     if (items.includes(MAIN_SCRIPT)) {
       throw new NameError(MAIN_STAYS);
     }
-    const projectId = this.projectId!;
-    const { fs } = this._workspace;
-    const since = Date.now();
-    const folders = items.filter((p) => this.kindOf(p) === "folder");
-    const uris = items
-      .filter((p) => this.kindOf(p) === "file")
-      .map((p) => fs.getFileUri(projectId, p));
-    if (uris.length) {
-      await fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash" });
-    }
-    const deletedFolders: string[] = [];
-    for (const folder of folders) {
-      const deleted = await fs.deleteFolder(projectId, folder, "trash");
-      uris.push(...deleted.files.map((d) => d.uri));
-      deletedFolders.push(...deleted.folders);
-    }
+    const trashed = items.map((path) => ({ path, folder: this.kindOf(path) === "folder" }));
+    const folders = trashed.some((item) => item.folder);
     const label =
       items.length === 1
         ? nameOf(items[0]!)
-        : plural(items.length, folders.length ? "item" : "script");
-    await recordTrashDeletion(projectId, uris, label, since, deletedFolders);
-    await this.changed(folders.length ? "folder" : "file");
+        : plural(items.length, folders ? "item" : "script");
+    await moveToTrash(this._workspace.fs, this.projectId!, trashed, label);
+    await this.changed(folders ? "folder" : "file");
   }
 }

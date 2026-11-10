@@ -4,18 +4,14 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural } from "../utils/fileListModel";
 import { canMoveFolder } from "../utils/fileTree";
-import {
-  recordCreate,
-  recordMove,
-  recordReferenceRename,
-  recordTrashDeletion,
-} from "../utils/fileUndo";
+import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameOrReport } from "../utils/renameOrReport";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
-import { assetsHome, landingFolder, type AssetListing } from "./assetsListing";
+import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
+import { moveToTrash } from "./moveToTrash";
 import { isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -91,10 +87,11 @@ export default class WorkspaceAssets {
     const byPath = new Map(
       Object.entries(all).map(([uri, file]) => [fs.getRelativePath(projectId, uri), file]),
     );
-    const home = assetsHome({ files: Object.fromEntries(byPath), folders });
+    const homes = assetHomes({ files: Object.fromEntries(byPath), folders });
     const files: AssetListing["files"] = {};
     for (const [path, file] of byPath) {
-      if (!isInside(path, home) || nameOf(path).startsWith(".") || isScriptPath(path)) {
+      const inHome = homes.some((home) => isInside(path, home) && path !== home);
+      if (!inHome || nameOf(path).startsWith(".") || isScriptPath(path)) {
         continue;
       }
       files[path] = {
@@ -197,13 +194,15 @@ export default class WorkspaceAssets {
       return this.moveFolder(projectId, path, to);
     }
     const { fs, ls, window } = this._workspace;
-    let references: unknown[] = [];
-    try {
-      references = await ls.getFileReferences(fs.getFileUri(projectId, path));
-    } catch {
-      references = [];
+    let referenced = false;
+    if (this._workspace.autoRenameFiles()) {
+      try {
+        referenced = (await ls.getFileReferences(fs.getFileUri(projectId, path))).length > 0;
+      } catch {
+        referenced = true;
+      }
     }
-    if (references.length > 0 && this._workspace.autoRenameFiles()) {
+    if (referenced) {
       const renamed = await renameOrReport(path, to, () =>
         fs.renameFileWithReferences(projectId, path, to),
       );
@@ -243,28 +242,14 @@ export default class WorkspaceAssets {
 
   async remove(paths: readonly string[]): Promise<void> {
     const projectId = this.requireProject();
-    const { fs, window } = this._workspace;
     const items = outermost(paths);
-    const since = Date.now();
-    const folders = items.filter((p) => this.kindOf(p) === "folder");
-    const uris = items
-      .filter((p) => this.kindOf(p) === "file")
-      .map((p) => fs.getFileUri(projectId, p));
-    if (uris.length) {
-      await fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash" });
-    }
-    const deletedFolders: string[] = [];
-    for (const folder of folders) {
-      const deleted = await fs.deleteFolder(projectId, folder, "trash");
-      uris.push(...deleted.files.map((d) => d.uri));
-      deletedFolders.push(...deleted.folders);
-    }
-    await window.recordAssetChange();
+    const trashed = items.map((path) => ({ path, folder: this.kindOf(path) === "folder" }));
     const label =
       items.length === 1
         ? nameOf(items[0]!)
-        : plural(items.length, folders.length ? "item" : "file");
-    await recordTrashDeletion(projectId, uris, label, since, deletedFolders);
+        : plural(items.length, trashed.some((item) => item.folder) ? "item" : "file");
+    await moveToTrash(this._workspace.fs, projectId, trashed, label);
+    await this._workspace.window.recordAssetChange();
     await this.load();
   }
 }

@@ -107,6 +107,26 @@ describe("the Assets page's file intents", () => {
     expect(workspace.assetListing.value).toBe(listing);
   });
 
+  it("lists files under every spelling of the assets folder", async () => {
+    const { assets } = fakeWorkspace({ "Assets/Images/bunny.png": "png", "assets/Audio/theme.wav": "wav" }, [
+      "Assets",
+      "Assets/Images",
+      "assets",
+      "assets/Audio",
+    ]);
+    const listing = (await assets.load())!;
+    expect(Object.keys(listing.files).sort()).toEqual(["Assets/Images/bunny.png", "assets/Audio/theme.wav"]);
+  });
+
+  it("keeps a rename reference-aware when the reference lookup fails", async () => {
+    const { assets, fs, ls } = fakeWorkspace({ "Assets/Audio/theme.wav": "wav" });
+    await assets.load();
+    ls.getFileReferences.mockRejectedValueOnce(new Error("language server busy"));
+    expect(await assets.rename("Assets/Audio/theme.wav", "sea")).toBe("Assets/Audio/sea.wav");
+    expect(fs.renameFileWithReferences).toHaveBeenCalledWith(PROJECT, "Assets/Audio/theme.wav", "Assets/Audio/sea.wav");
+    expect(fs.moveFile).not.toHaveBeenCalled();
+  });
+
   it("creates Assets/Fonts when the first font is added to a new project", async () => {
     const { assets } = fakeWorkspace({ "main.sd": "x" });
     await assets.load();

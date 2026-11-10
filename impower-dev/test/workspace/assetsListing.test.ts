@@ -10,6 +10,7 @@ import {
   assetSearch,
   assetSort,
   assetsHome,
+  assetTrail,
   landingFolder,
   typeFolder,
   type AssetListing,
@@ -188,6 +189,36 @@ describe("a tab's level", () => {
     expect(paths(images.rows)).toEqual(["Assets/Images/Harbor/dock.png"]);
   });
 
+  it("reads every spelling of the assets folder when a project has more than one", () => {
+    const both = listing(
+      { "Assets/Images/bunny.png": 600, "assets/Audio/theme.wav": 2048, "assets/rain.wav": 1024, "assets/dock.png": 300 },
+      ["Assets", "Assets/Images", "assets", "assets/Audio"],
+    );
+    const audio = assetLevel({ listing: both, type: "audio", sort: "name-asc", endings: ENDINGS });
+    expect(audio.root).toBe("Assets/Audio");
+    expect(audio.rows.map((row) => [row.path, row.location])).toEqual([
+      ["assets/Audio", "assets"],
+      ["assets/rain.wav", "assets"],
+    ]);
+    expect(audio.files).toBe(2);
+    const inside = assetLevel({ listing: both, type: "audio", folder: "assets/Audio", sort: "", endings: ENDINGS });
+    expect(paths(inside.rows)).toEqual(["assets/Audio/theme.wav"]);
+    const images = assetLevel({ listing: both, type: "image", sort: "name-asc", endings: ENDINGS });
+    expect(paths(images.rows)).toEqual(["Assets/Images/bunny.png", "assets/dock.png"]);
+    expect(assetSearch({ listing: both, query: "theme", sort: "", endings: ENDINGS }).map((g) => paths(g.rows))).toEqual([
+      ["assets/Audio/theme.wav"],
+    ]);
+  });
+
+  it("shows nested empty folders outside the type folders under Other, at every level", () => {
+    const empty = listing({ "Assets/Images/bunny.png": 1 }, ["assets", "assets/misc", "assets/misc/empty"]);
+    const root = assetLevel({ listing: empty, type: "other", sort: "", endings: ENDINGS });
+    expect(root.rows.map((row) => [row.path, row.holdings])).toEqual([["assets/misc", "1 folder"]]);
+    const misc = assetLevel({ listing: empty, type: "other", folder: "assets/misc", sort: "", endings: ENDINGS });
+    expect(paths(misc.rows)).toEqual(["assets/misc/empty"]);
+    expect(paths(assetLevel({ listing: empty, type: "audio", sort: "", endings: ENDINGS }).rows)).toEqual([]);
+  });
+
   it("lists a link under the type its address names", () => {
     const links = listing({
       "assets/urls/ferry_horn.url": { size: 40, address: "https://example.com/sounds/ferry_horn.mp3" },
@@ -207,6 +238,32 @@ describe("a tab's level", () => {
     const withEmpty = listing({ "Assets/Audio/theme.wav": 10 }, ["Assets/Audio/Ambience"]);
     const level = assetLevel({ listing: withEmpty, type: "audio", folder: "Assets/Audio/Ambience", sort: "", endings: ENDINGS });
     expect(level).toMatchObject({ folder: "Assets/Audio/Ambience", empty: true, none: false });
+  });
+});
+
+describe("the trail", () => {
+  const both = listing({ "Assets/Audio/Music/a.wav": 1, "assets/music/old/b.wav": 1 }, ["Assets", "assets"]);
+
+  it("is empty at the type folder and leads back to it", () => {
+    expect(assetTrail(both, "Assets/Audio", "Assets/Audio")).toEqual({ crumbs: [], parent: "Assets/Audio" });
+  });
+
+  it("names the folders below the type folder", () => {
+    expect(assetTrail(both, "Assets/Audio", "Assets/Audio/Music")).toEqual({
+      crumbs: [{ name: "Music", path: "Assets/Audio/Music" }],
+      parent: "Assets/Audio",
+    });
+  });
+
+  it("names a folder outside the type folder by its path below its own assets folder, and leads back to the tab", () => {
+    expect(assetTrail(both, "Assets/Audio", "assets/music/old")).toEqual({
+      crumbs: [
+        { name: "music", path: "assets/music" },
+        { name: "old", path: "assets/music/old" },
+      ],
+      parent: "assets/music",
+    });
+    expect(assetTrail(both, "Assets/Audio", "assets/music").parent).toBe("Assets/Audio");
   });
 });
 
