@@ -2680,6 +2680,7 @@ export class Game<T extends M = {}> {
       rollForwardRefusal: canRollForward ? null : HISTORY_REASONS.rollForward,
       stepRefusal: behindLatest ? HISTORY_REASONS.step : null,
       stepOutRefusal: canStepOut ? null : HISTORY_REASONS.stepOut,
+      heldChoices: run.heldChoices,
     };
   }
 

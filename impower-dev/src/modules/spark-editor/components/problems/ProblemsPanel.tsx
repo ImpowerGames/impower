@@ -140,8 +140,9 @@ function PlayedRow({
 }) {
   const location = consoleLocation(entry);
   const run = useComputed(() => problems.run.value).value;
+  const held = useComputed(() => problems.heldChoices.value).value;
   const goBack =
-    entry.checkpoint != null && isChoiceLive(entry, played, run)
+    entry.checkpoint != null && isChoiceLive(entry, played, run, held)
       ? () => void problems.goBackToChoice(entry.checkpoint!)
       : undefined;
   return (

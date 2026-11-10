@@ -236,6 +236,12 @@ describe("choices in the Played log", () => {
     expect(isChoiceLive(choice, forkedAt3, run)).toBe(held);
   });
 
+  it("drops a choice the engine's history no longer holds, and trusts the log when no history is known", () => {
+    expect(isChoiceLive(forkedAt3[0]!, forkedAt3, 2, [3])).toBe(false);
+    expect(isChoiceLive(forkedAt3[3]!, forkedAt3, 2, [3])).toBe(true);
+    expect(isChoiceLive(forkedAt3[0]!, forkedAt3, 2, null)).toBe(true);
+  });
+
   it("derives whether a choice is still held from the run and later choices", () => {
     problems.receive(started());
     problems.receive(chose(1, "Pay."));

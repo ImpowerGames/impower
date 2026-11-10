@@ -410,6 +410,30 @@ describe("the Problems panel", () => {
     expect(intents.goBackToChoice).toHaveBeenCalledTimes(2);
   });
 
+  it("takes the action off a choice the engine's history no longer holds", async () => {
+    problems.run.value = 8;
+    problems.recordPlayed({ severity: "info", title: "Chose · Pay.", message: "", checkpoint: 1 });
+    problems.recordPlayed({ severity: "info", title: "Chose · Rest.", message: "", checkpoint: 3 });
+    await openPanel();
+    const actions = () =>
+      Array.from(panel()!.querySelectorAll("[data-message-entry]")).map(
+        (row) => !!row.querySelector('button[aria-label="Go back to this choice"]'),
+      );
+    expect(actions()).toEqual([true, true]);
+    const idle = workspace.debugSession.value;
+    await act(async () => {
+      workspace.debugSession.value = {
+        ...idle,
+        history: { heldChoices: [3] } as never,
+      };
+    });
+    await settle();
+    expect(actions()).toEqual([false, true]);
+    await act(async () => {
+      workspace.debugSession.value = idle;
+    });
+  });
+
   it("opens on In the script when the script editor asks for the problems (Ctrl+Shift+M)", async () => {
     problems.record({ uri: MAIN, diagnostics: [diagnostic(1, 1, "Broken")] });
     workspaceSettings.setProjectSetting("problemsScriptCardOpen", false);

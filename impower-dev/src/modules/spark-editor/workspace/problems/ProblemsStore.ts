@@ -65,6 +65,10 @@ export class ProblemsStore {
 
   readonly run = signal(0);
 
+  readonly heldChoices = computed(
+    () => workspace.debugSession.value.history?.heldChoices ?? null,
+  );
+
   readonly shown = signal<Readonly<Record<ConsoleSeverity, boolean>>>({
     error: true,
     warning: true,

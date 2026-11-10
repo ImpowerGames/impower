@@ -89,6 +89,10 @@ export class RunRecord {
     return this._at - 1;
   }
 
+  get heldChoices(): number[] {
+    return this._beats.filter(TARGETS.choice).map((beat) => beat.checkpoint);
+  }
+
   backToChoice(checkpoint: number): number | null {
     for (let i = this._at; i >= 0; i -= 1) {
       const beat = this._beats[i]!;

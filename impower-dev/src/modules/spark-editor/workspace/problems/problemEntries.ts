@@ -248,8 +248,12 @@ export function isChoiceLive(
   entry: Pick<PlayedEntry, "id" | "run" | "checkpoint">,
   played: readonly Pick<PlayedEntry, "id" | "run" | "checkpoint">[],
   run: number,
+  held?: readonly number[] | null,
 ) {
   if (entry.checkpoint == null || entry.run !== run) {
+    return false;
+  }
+  if (held && !held.includes(entry.checkpoint)) {
     return false;
   }
   return !played.some(

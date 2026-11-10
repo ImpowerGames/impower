@@ -148,6 +148,45 @@ describe("rolling back to a named choice", () => {
     expect(h.text()).toBe("Climbed.");
   });
 
+  test("the history lists the choices the record still holds, and drops one the checkpoint budget folds away", async () => {
+    const lines = ["scene start", "  The gate.", "  choose", "    * [Pay.]", "    * [Climb.]", "  end"];
+    for (let i = 0; i < 300; i += 1) {
+      lines.push(`  Beat number ${i} on the long road.`);
+    }
+    lines.push("end", "");
+    const game = new Game({
+      now: () => 0,
+      setTimeout: (() => 0) as never,
+      resolve: (path: string) => path,
+      fetch: async () => "",
+      log: () => {},
+      program: compile(lines.join("\n")),
+      checkpointByteBudget: 1,
+    } as never);
+    const chosen: any[] = [];
+    game.connection.outgoing.addListener("*", (message: any) => {
+      if (message.method === "game/chosePathToContinue") {
+        chosen.push(message.params);
+      }
+    });
+    game.start();
+    for (let i = 0; i < 8 && !game.story.currentChoices.length; i += 1) {
+      game.clickedToContinue();
+    }
+    game.chosePathToContinue(0);
+    const choice = chosen[0].checkpoint;
+    expect(game.history.heldChoices).toEqual([choice]);
+    for (let i = 0; i < 300; i += 1) {
+      game.clickedToContinue();
+    }
+    expect(game.checkpoints.stats.folded).toBeGreaterThan(0);
+    expect(game.history.heldChoices).toEqual([]);
+    expect(await game.rollBack("choice", choice)).toMatchObject({
+      moved: false,
+      reason: HISTORY_REASONS.choiceGone,
+    });
+  });
+
   test("a choice on the story's last menu, with no beat shown after it, rolls back to that menu", async () => {
     const h = play(LAST_MENU);
     h.game.start();
