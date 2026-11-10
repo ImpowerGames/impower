@@ -55,6 +55,10 @@ function span(tree: Tree): number {
   return reparsed!.to - reparsed!.from;
 }
 
+function reuses(tree: Tree, base: Tree): boolean {
+  return tree.prop(cachedCompilerProp) === base.prop(cachedCompilerProp);
+}
+
 function expectCold(tree: Tree, text: string) {
   expect(printTree(tree, text)).toBe(printTree(getParser().parse(text), text));
 }
@@ -68,7 +72,7 @@ describe("incremental fragment reuse (#2028)", () => {
     const base = getParser().parse(TEXT);
     parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
     const second = parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "x" });
-    expect(second.tree.prop(cachedCompilerProp)).toBe(base.prop(cachedCompilerProp));
+    expect(reuses(second.tree, base), "the second state reuses the base's compiler").toBe(true);
     expect(span(second.tree)).toBeLessThan(BOUND);
     expectCold(second.tree, second.next);
   });
@@ -77,7 +81,7 @@ describe("incremental fragment reuse (#2028)", () => {
     const base = getParser().parse(TEXT);
     parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "discarded" });
     const adopted = parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
-    expect(adopted.tree.prop(cachedCompilerProp)).toBe(base.prop(cachedCompilerProp));
+    expect(reuses(adopted.tree, base), "the next parse reuses the base's compiler").toBe(true);
     expect(span(adopted.tree)).toBeLessThan(BOUND);
     expectCold(adopted.tree, adopted.next);
     const shifted = TYPED + CUE.length;
@@ -111,7 +115,7 @@ describe("incremental fragment reuse (#2028)", () => {
     const shifted = TYPED + CUE.length;
     parseEdit(child.tree, child.next, { from: shifted, to: shifted, insert: "y" });
     const stale = parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "z" });
-    expect(stale.tree.prop(cachedCompilerProp)).not.toBe(base.prop(cachedCompilerProp));
+    expect(reuses(stale.tree, base), "the stale base parses with a new compiler").toBe(false);
     expectCold(stale.tree, stale.next);
   });
 });
