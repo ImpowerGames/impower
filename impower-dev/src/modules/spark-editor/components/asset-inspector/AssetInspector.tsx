@@ -236,7 +236,7 @@ export default function AssetInspector({
     },
   });
 
-  const uses = facts?.uses ?? null;
+  const uses = facts?.uses;
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
   const problems = facts?.problems ?? [];
 
@@ -344,11 +344,15 @@ export default function AssetInspector({
           <DetailList rows={rows} />
         </Section>
         <Section
-          title={uses == null ? "Uses" : lines ? `Used in ${plural(lines, "line")}` : "Not used yet"}
+          title={!uses ? "Uses" : lines ? `Used in ${plural(lines, "line")}` : "Not used yet"}
           label="Uses"
         >
-          {uses == null ? (
+          {uses === undefined ? (
             <p class="m-0 text-[12px]/[1.5] text-muted">Looking for uses…</p>
+          ) : uses === null ? (
+            <p class="m-0 text-[12px]/[1.5] text-muted" data-uses-failed>
+              Where it is used could not be looked up. Edit a script to try again.
+            </p>
           ) : lines ? (
             <div class="-mx-2 -mt-2.5">
               <UsesList

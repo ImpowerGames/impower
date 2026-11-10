@@ -62,7 +62,7 @@ const extensionOf = (path: string) => {
 const MEASURE_BATCH = 8;
 
 export interface InspectorFacts {
-  uses: SearchGroup[];
+  uses: SearchGroup[] | null;
   problems: SparkDiagnostic[];
 }
 
@@ -328,7 +328,7 @@ export default class WorkspaceAssets {
     }
     const { fs, ls } = this._workspace;
     const found = await Promise.all(
-      paths.map((path) => ls.getFileReferences(fs.getFileUri(projectId, path)).catch(() => [])),
+      paths.map((path) => ls.getFileReferences(fs.getFileUri(projectId, path))),
     );
     return groupLocations(found.flat(), (uri) => fs.getFileText(uri));
   }
@@ -355,7 +355,7 @@ export default class WorkspaceAssets {
     const refresh = async () => {
       const mine = ++request;
       const [uses, problems] = await Promise.all([
-        this.uses(paths).catch((): SearchGroup[] => []),
+        this.uses(paths).catch(() => null),
         this.problems(paths).catch((): SparkDiagnostic[] => []),
       ]);
       if (alive && mine === request) {

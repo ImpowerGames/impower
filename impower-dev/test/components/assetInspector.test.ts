@@ -10,9 +10,9 @@ vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   useLayout: () => layout.value,
 }));
 
-type Listener = (facts: { uses: unknown[]; problems: unknown[] }) => void;
+type Listener = (facts: { uses: unknown[] | null; problems: unknown[] }) => void;
 
-const facts = vi.hoisted(() => ({ uses: [] as unknown[], problems: [] as unknown[], listeners: [] as Listener[] }));
+const facts = vi.hoisted(() => ({ uses: [] as unknown[] | null, problems: [] as unknown[], listeners: [] as Listener[] }));
 const assets = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
   upload: vi.fn(async (): Promise<string[]> => []),
@@ -373,6 +373,17 @@ describe("the asset inspector", () => {
     expect(region()!.textContent).toContain("Nothing plays it yet.");
   });
 
+  it("says where it is used could not be looked up when the lookup failed, rather than Not used yet", async () => {
+    facts.uses = null;
+    await mount();
+    await open("door_chime");
+    expect(sectionTitles()).toContain("Uses");
+    expect(sectionTitles()).not.toContain("Not used yet");
+    expect(region()!.querySelector("[data-uses-failed]")!.textContent).toBe(
+      "Where it is used could not be looked up. Edit a script to try again.",
+    );
+  });
+
   it("shows the file's problems when there are any", async () => {
     facts.problems = [{ severity: 2, message: "Malformed condition face..bad" }];
     await mount();
@@ -416,7 +427,9 @@ describe("the asset inspector", () => {
     await open("courier_prime");
     const specimen = region()!.querySelector("[data-font-specimen]")!;
     expect(specimen.textContent).toContain("courier_prime");
-    expect(specimen.querySelectorAll("p")).toHaveLength(4);
+    const samples = [...specimen.querySelectorAll("p")].slice(1);
+    expect(samples.map((sample) => sample.className)).toEqual(["text-[28px]/[1.2]", "text-[18px]/[1.3]", "text-[13px]/[1.4]"]);
+    expect(samples.every((sample) => sample.parentElement!.className.includes("[&>p]:fade-edge"))).toBe(true);
     await key(closeButton(), "Escape");
 
     await act(async () => lists({ assetsType: "text" }));
@@ -431,6 +444,29 @@ describe("the asset inspector", () => {
     await rerender();
     await open("bell");
     expect(region()!.querySelector("[data-zoom-frame]")).toBeNull();
+  });
+
+  it("says a font that cannot be loaded cannot be shown, instead of leaving its frame blank", async () => {
+    const original = (globalThis as { FontFace?: unknown }).FontFace;
+    (globalThis as { FontFace?: unknown }).FontFace = class {
+      load() {
+        return Promise.reject(new Error("bad font"));
+      }
+    };
+    try {
+      lists({ assetsType: "font", assetsFolders: {} });
+      await mount();
+      await open("courier_prime");
+      await settle();
+      const specimen = region()!.querySelector("[data-font-specimen]")!;
+      expect(specimen.hasAttribute("data-ready")).toBe(true);
+      expect(specimen.querySelector("[data-font-failed]")!.textContent).toBe(
+        "This font could not be read, so it cannot be shown here.",
+      );
+      expect(specimen.textContent).not.toContain("The quick brown fox");
+    } finally {
+      (globalThis as { FontFace?: unknown }).FontFace = original;
+    }
   });
 
   it("replaces the file with the one picked, says why a refused one is refused, and downloads", async () => {

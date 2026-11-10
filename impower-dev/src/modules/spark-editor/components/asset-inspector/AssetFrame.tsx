@@ -20,40 +20,52 @@ const loadFace = (src: string): Promise<string> => {
   return loading;
 };
 
-function useFontFamily(src: string | undefined) {
-  const [family, setFamily] = useState<string | null>(null);
+type FontFamily = { family: string } | { failed: true } | null;
+
+function useFontFamily(src: string | undefined): FontFamily {
+  const [loaded, setLoaded] = useState<FontFamily>(null);
   useEffect(() => {
-    setFamily(null);
+    setLoaded(null);
     if (!src || typeof FontFace === "undefined" || typeof document === "undefined") {
+      setLoaded(src ? null : { failed: true });
       return;
     }
     let alive = true;
     loadFace(src).then(
-      (loaded) => alive && setFamily(loaded),
-      () => {},
+      (family) => alive && setLoaded({ family }),
+      () => alive && setLoaded({ failed: true }),
     );
     return () => {
       alive = false;
     };
   }, [src]);
-  return family;
+  return loaded;
 }
 
 function FontSpecimen({ asset }: { asset: InspectedAsset }) {
-  const family = useFontFamily(asset.src);
+  const loaded = useFontFamily(asset.src);
   return (
     <ZoomFrame label={`${asset.name} specimen`} surface="sheet">
       <div
         class="absolute inset-0 flex flex-col gap-2 overflow-hidden p-4 text-ink opacity-0 data-[ready]:opacity-100 motion-safe:transition-opacity motion-safe:duration-200"
-        data-ready={family ? "" : undefined}
+        data-ready={loaded ? "" : undefined}
         data-font-specimen
       >
         <p class="m-0 text-[12px]/[1.4] text-muted">{asset.name}</p>
-        <div class="flex min-h-0 flex-col gap-2 font-(family-name:--specimen-font)" style={{ "--specimen-font": family ? `"${family}"` : "inherit" }}>
-          <p class="m-0 text-[28px]/[1.2]">{SPECIMEN}</p>
-          <p class="m-0 text-[18px]/[1.3]">{SPECIMEN}</p>
-          <p class="m-0 text-[13px]/[1.4]">{SPECIMEN}</p>
-        </div>
+        {loaded && "failed" in loaded ? (
+          <p class="m-0 text-[13px]/[1.5] text-muted" data-font-failed>
+            This font could not be read, so it cannot be shown here.
+          </p>
+        ) : (
+          <div
+            class="flex min-w-0 flex-col gap-2 font-(family-name:--specimen-font) [&>p]:m-0 [&>p]:fade-edge"
+            style={{ "--specimen-font": loaded ? `"${loaded.family}"` : "inherit" }}
+          >
+            <p class="text-[28px]/[1.2]">{SPECIMEN}</p>
+            <p class="text-[18px]/[1.3]">{SPECIMEN}</p>
+            <p class="text-[13px]/[1.4]">{SPECIMEN}</p>
+          </div>
+        )}
       </div>
     </ZoomFrame>
   );
