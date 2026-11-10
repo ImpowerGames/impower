@@ -263,8 +263,16 @@ export class GrammarRepository {
 
   private nestedId(owner: string, name: string) {
     const local = `${this.local(owner)}#${name}`;
+    const taken = (id: string) => {
+      for (const existing of this.map.keys()) {
+        if (existing.startsWith(id)) {
+          return true;
+        }
+      }
+      return false;
+    };
     let id = nodeName(this.prefix, local);
-    for (let n = 1; this.map.has(id); n++) {
+    for (let n = 1; taken(id); n++) {
       id = nodeName(this.prefix, `${local}#${n}`);
     }
     return id;

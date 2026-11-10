@@ -146,6 +146,35 @@ describe("a rule-level repository resolves as vscode-textmate resolves it (I-206
     expect(scopesOf(grammar, text)).toEqual(vscode);
   });
 
+  test.each(["_begin", "_end", "_content", "_content-p0", "_begin_c1"])(
+    "a top-level rule named like a nested rule's generated %s id stays distinct",
+    async (suffix) => {
+      const grammar = {
+        scopeName: "source.probe",
+        repository: {
+          Owner: {
+            repository: {
+              Inner: {
+                begin: "([(])",
+                end: "[)]",
+                name: "block",
+                beginCaptures: { 1: { name: "open" } },
+                patterns: [{ name: "nested", match: "a" }],
+              },
+            },
+            patterns: [{ include: "#Inner" }],
+          },
+          [`Owner#Inner${suffix}`]: { name: "unrelated", match: "z" },
+        },
+        patterns: [{ include: "#Owner" }, { include: `#Owner#Inner${suffix}` }],
+      };
+      const text = "(a) z";
+      const vscode = await vscodeScopes(structuredClone(grammar), text);
+      expect(vscode[1]).toBe("source.probe block nested");
+      expect(scopesOf(grammar, text)).toEqual(vscode);
+    },
+  );
+
   test("a rule included from another grammar binds before that grammar's root patterns", async () => {
     const outer = { scopeName: "source.outer", patterns: [{ include: "source.inner#Shared" }] };
     const inner = {
