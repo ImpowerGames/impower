@@ -4,6 +4,7 @@ import type { FakeVscode } from "./fakeVscode";
 const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
   debug: { activeDebugSession: undefined as unknown },
+  shown: [] as string[],
 }));
 
 vi.mock("vscode", async () => {
@@ -23,6 +24,10 @@ vi.mock("vscode", async () => {
     window: {
       ...state.vscode.window,
       showErrorMessage: () => Promise.resolve(undefined),
+      showInformationMessage: (message: string) => {
+        state.shown.push(message);
+        return Promise.resolve(undefined);
+      },
     },
   };
 });
@@ -142,6 +147,7 @@ const activate = (run: unknown) => {
 describe("the Game Preview's skip buttons during a debug run", () => {
   beforeEach(() => {
     activate(undefined);
+    state.shown = [];
   });
 
   it("stay off and leave a skip unanswered with no debug session", async () => {
@@ -176,7 +182,7 @@ describe("the Game Preview's skip buttons during a debug run", () => {
     ]);
   });
 
-  it("answer moved false when the session refuses the roll", async () => {
+  it("answer moved false and show the reason when the session refuses the roll", async () => {
     const preview = await open();
     activate(
       session("s1", async () => {
@@ -185,6 +191,7 @@ describe("the Game Preview's skip buttons during a debug run", () => {
     );
     preview.manager.syncDebugSession();
     expect((await preview.skip(-1))?.result).toEqual({ moved: false });
+    expect(state.shown).toEqual(["Nothing to go back to."]);
   });
 
   it("roll the session the author selects, not the last one started", async () => {
