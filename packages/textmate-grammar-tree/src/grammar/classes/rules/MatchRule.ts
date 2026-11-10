@@ -213,7 +213,16 @@ export class MatchRule implements Rule {
         matched.offset(pos + i);
         children.push(matched);
         i += matched.length;
-      } else {
+      }
+      if (state.stopped) {
+        if (i < resultStrLength) {
+          children.push(
+            new Matched(GrammarNode.None, pos + i, resultStrLength - i),
+          );
+        }
+        break;
+      }
+      if (!matched?.length) {
         const noneMatched = Matched.create(
           GrammarNode.Unrecognized,
           pos + i,

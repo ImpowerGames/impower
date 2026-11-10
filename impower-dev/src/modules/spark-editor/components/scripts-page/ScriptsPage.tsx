@@ -3,7 +3,6 @@ import {
   BookIcon,
   Button,
   ChevronIcon,
-  CloseIcon,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
@@ -15,10 +14,11 @@ import {
   PlusIcon,
   RootIcon,
   SearchIcon,
-  TextField,
+  TabbedPage,
   TrashIcon,
   VirtualList,
 } from "@impower/impower-ui/components";
+import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -39,8 +39,11 @@ import workspace from "../../workspace/WorkspaceStore";
 import DeleteDialog from "./DeleteDialog";
 import MoveDialog from "./MoveDialog";
 import NameRow from "./NameRow";
+import { useSavedScroll, useTabQuery } from "./pageState";
 import RowMenu, { type RowAction } from "./RowMenu";
 import SelectionBar, { type SelectionAction } from "./SelectionBar";
+import ScriptOutlineTab, { OUTLINE_TAB } from "./ScriptOutlineTab";
+import SearchBox from "./SearchBox";
 import SortMenu from "./SortMenu";
 import { DROP_FOLDER, useScriptsDrag } from "./useScriptsDrag";
 
@@ -160,7 +163,9 @@ function Trail({
   );
 }
 
-export default function ScriptsPage() {
+const ALL_TAB = "all";
+
+function AllScripts() {
   const projectId = workspace.signals.projectId.value;
   const current = workspace.scriptListing.value;
   const loaded = current?.projectId === projectId ? current : null;
@@ -174,7 +179,8 @@ export default function ScriptsPage() {
       ? editor.filename
       : MAIN_SCRIPT;
   }).value;
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useTabQuery(ALL_TAB);
+  const scroller = useSavedScroll(ALL_TAB);
   const [creating, setCreating] = useState<"script" | "folder" | null>(null);
   const [fromMenu, setFromMenu] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -352,48 +358,11 @@ export default function ScriptsPage() {
   };
 
   return (
-    <section aria-label="Scripts" class="flex min-h-0 flex-1 flex-col bg-bg [:root[data-layout=desktop]_&]:bg-paper" {...drag.area}>
-      <header class="flex h-12 flex-none items-center gap-2.5 border-b border-edge px-4 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:px-[18px]">
-        <BookIcon class="size-5 flex-none text-accent" />
-        <h1 class="min-w-0 flex-1 text-[14px] font-semibold [:root[data-layout=desktop]_&]:text-[17px]">
-          Scripts
-        </h1>
-        <Button
-          variant="quiet"
-          size="compact"
-          class="text-accent"
-          onClick={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
-        >
-          <BackIcon />
-          Back to story
-        </Button>
-      </header>
+    <div class="flex min-h-0 flex-1 flex-col" {...drag.area}>
       <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
         <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
           <div class="flex flex-none items-center gap-2.5 pt-4 pb-2">
-            <label class="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-control border border-edge pl-3 focus-within:border-accent">
-              <SearchIcon class="size-[18px] flex-none text-muted" />
-              <TextField
-                frame="inset"
-                type="search"
-                aria-label="Search scripts"
-                placeholder="Search scripts"
-                value={query}
-                class="text-[16px] [:root[data-layout=desktop]_&]:text-[13px] [&::-webkit-search-cancel-button]:hidden"
-                onValueChange={setQuery}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && query) {
-                    e.preventDefault();
-                    setQuery("");
-                  }
-                }}
-              />
-              {query && (
-                <Button variant="quiet" size="icon" aria-label="Clear search" class="text-muted" onClick={() => setQuery("")}>
-                  <CloseIcon />
-                </Button>
-              )}
-            </label>
+            <SearchBox label="Search scripts" value={query} onChange={setQuery} />
             <DropdownRoot>
               <DropdownTrigger asChild>
                 <Button class="bg-transparent text-accent">
@@ -465,6 +434,7 @@ export default function ScriptsPage() {
           )}
           {rows.length ? (
             <VirtualList
+              listRef={scroller}
               label={query.trim() ? "Search results" : "Scripts and folders"}
               class="-mr-4 flex-1 pt-2 pr-4 pb-5"
               items={rows}
@@ -511,7 +481,27 @@ export default function ScriptsPage() {
           remove(paths);
         }}
       />
-    </section>
+    </div>
   );
 }
 
+export default function ScriptsPage() {
+  const phone = useLayout() === "phone";
+  const tab = useComputed(() => workspace.state.value.lists?.scriptsTab).value;
+  return (
+    <TabbedPage
+      title="Scripts"
+      icon={<BookIcon class="size-5 flex-none text-accent" />}
+      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
+      showTabs={phone}
+      value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
+      onValueChange={(next) =>
+        void intents().then((Workspace) => Workspace.window.setListState({ scriptsTab: next }))
+      }
+      tabs={[
+        { value: ALL_TAB, label: "All scripts", content: <AllScripts /> },
+        { value: OUTLINE_TAB, label: "In this script", content: <ScriptOutlineTab /> },
+      ]}
+    />
+  );
+}

@@ -144,11 +144,15 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
+  addPanel?: boolean;
 }
 
 export interface ListsState {
   scriptsSort?: string;
   scriptsFolder?: string;
+  scriptsTab?: string;
+  scriptsQueries?: Record<string, string>;
+  scriptsScrolls?: Record<string, number>;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";

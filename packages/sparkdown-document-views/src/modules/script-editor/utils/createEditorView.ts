@@ -18,6 +18,7 @@ import {
   DecorationSet,
   EditorView,
   GutterMarker,
+  ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
 import {
@@ -388,6 +389,7 @@ const createEditorView = (
             return null;
           },
         ),
+        ViewPlugin.define(() => ({ destroy: debouncedIdle.cancel })),
         EditorView.updateListener.of((u) => {
           const parsing = syntaxParserRunning(u.view);
           if (!parsing) {

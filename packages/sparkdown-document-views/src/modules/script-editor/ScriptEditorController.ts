@@ -23,6 +23,8 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
+  insertConstructFromServer,
+  isInsertConstruct,
   jumpToDefinition,
   type ContextMenuPresenter,
   LSPClient,
@@ -30,6 +32,7 @@ import {
   openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
@@ -54,6 +57,11 @@ import {
   ExecuteEditorCommandMethod,
   ExecuteEditorCommandParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import {
+  InsertEditorConstructMessage,
+  type InsertEditorConstructMethod,
+  type InsertEditorConstructParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
@@ -444,6 +452,7 @@ export class ScriptEditorController {
       return ReadEditorMessage.type.response(message.id, {
         textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
         selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
+        caret: convertToPosition(view.state.doc, view.state.selection.main.head),
         coordinates,
       });
     }, this.host);
@@ -465,6 +474,11 @@ export class ScriptEditorController {
     p.onRequest(
       ExecuteEditorCommandMessage.type,
       (m) => this.handleExecuteEditorCommand(m),
+      this.host,
+    );
+    p.onRequest(
+      InsertEditorConstructMessage.type,
+      (m) => this.handleInsertEditorConstruct(m),
       this.host,
     );
     p.onRequest(
@@ -649,6 +663,26 @@ export class ScriptEditorController {
     }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
+  };
+
+  protected handleInsertEditorConstruct = async (
+    message: RequestMessage<
+      InsertEditorConstructMethod,
+      InsertEditorConstructParams
+    >,
+  ) => {
+    const { textDocument, construct } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const inserted =
+      isInsertConstruct(construct) &&
+      (await insertConstructFromServer(view, construct, endsDialogueBlock));
+    if (inserted && this._view === view) {
+      this.focusAtCaret();
+    }
+    return InsertEditorConstructMessage.type.response(message.id, { inserted });
   };
 
   protected handleApplyEditorColor = async (

@@ -16,6 +16,7 @@ const tabsContainer = cva("relative flex w-full", {
       default: "",
       rail: "@container",
       bar: "",
+      page: "",
     },
   },
   defaultVariants: { orientation: "horizontal", variant: "default" },
@@ -31,6 +32,7 @@ const tabsList = cva("flex w-full", {
       default: "",
       rail: "",
       bar: "items-center justify-evenly",
+      page: "",
     },
   },
   defaultVariants: { orientation: "horizontal", variant: "default" },
@@ -60,6 +62,7 @@ const tabTrigger = cva(
           "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
         ],
         bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[10px]/none font-normal",
+        page: "min-h-12 rounded-none px-4 text-[14px] font-semibold",
       },
     },
     defaultVariants: {
@@ -190,7 +193,8 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    "pointer-events-none absolute bg-tab-ink motion-safe:transition-transform motion-safe:duration-150",
+                    "pointer-events-none absolute motion-safe:transition-transform motion-safe:duration-150",
+                    variant === "page" ? "bg-accent" : "bg-tab-ink",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",

@@ -88,8 +88,6 @@ export const KEYBOARD_TOOLBAR_TABLE: readonly ToolbarEntry[] = [
         icon: "plus",
         tool: "add",
         text: true,
-        disabled: true,
-        title: "Adding scenes, branches and characters is coming soon",
       },
     ],
   },
