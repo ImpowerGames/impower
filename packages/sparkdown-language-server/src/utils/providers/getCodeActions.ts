@@ -1,3 +1,7 @@
+import {
+  closeMatchOf,
+  expectedTextOf,
+} from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
   TOP_LEVEL_STATEMENT_MESSAGE,
@@ -22,10 +26,20 @@ import {
   type TextEdit,
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
+import { TODO_NOTE_SOURCE } from "./getTodoNotes";
 
 export type ActionableDiagnostic = Omit<Diagnostic, "message"> & {
   message: string | MarkupContent;
 };
+
+export interface DiagnosticAction {
+  name: string;
+  done: string;
+  expect?: string;
+  changes: { from: number; to: number; insert: string }[];
+}
+
+type QuickFixData = Pick<DiagnosticAction, "done" | "expect">;
 
 const QUICK_FIXES = new Map<
   string,
@@ -38,7 +52,7 @@ const QUICK_FIXES = new Map<
   [
     INCLUDE_LINE_MESSAGE,
     (document, diagnostic) => [
-      quickFix("Delete this line", document, diagnostic, [
+      quickFix("Delete this line", "Line deleted.", document, diagnostic, [
         deleteLine(document, diagnostic.range.start.line),
       ]),
     ],
@@ -50,9 +64,13 @@ const QUICK_FIXES = new Map<
       return assignment === undefined
         ? []
         : [
-            quickFix("Change to an assignment", document, diagnostic, [
-              { range: diagnostic.range, newText: assignment },
-            ]),
+            quickFix(
+              "Change to an assignment",
+              "Changed to an assignment.",
+              document,
+              diagnostic,
+              [{ range: diagnostic.range, newText: assignment }],
+            ),
           ];
     },
   ],
@@ -63,7 +81,15 @@ const QUICK_FIXES = new Map<
         startSceneMissingIn &&
         wrapInStartScene(document, startSceneMissingIn, diagnostic);
       return wrap
-        ? [quickFix("Wrap in scene start", document, diagnostic, [wrap])]
+        ? [
+            quickFix(
+              "Wrap in scene start",
+              "Wrapped in scene start.",
+              document,
+              diagnostic,
+              [wrap],
+            ),
+          ]
         : [];
     },
   ],
@@ -77,23 +103,55 @@ export const getCodeActions = (
   if (!document) {
     return [];
   }
-  return diagnostics.flatMap(
-    (diagnostic) =>
-      QUICK_FIXES.get(messageOf(diagnostic))?.(
-        document,
-        diagnostic,
-        startSceneMissingIn,
-      ) ?? runQuickFixes(document, diagnostic),
-  );
+  return diagnostics.flatMap((diagnostic) => {
+    const expected = expectedTextOf(diagnostic.data);
+    if (
+      expected !== undefined &&
+      document.getText(diagnostic.range) !== expected
+    ) {
+      return [];
+    }
+    const byMessage = QUICK_FIXES.get(messageOf(diagnostic));
+    if (byMessage) {
+      return byMessage(document, diagnostic, startSceneMissingIn);
+    }
+    if (diagnostic.source === TODO_NOTE_SOURCE) {
+      const removal = removeNote(document, diagnostic);
+      return removal
+        ? [
+            quickFix("Remove the note", "Note removed.", document, diagnostic, [
+              removal,
+            ]),
+          ]
+        : [];
+    }
+    const close = closeMatchOf(diagnostic.data);
+    if (close) {
+      if (continuesName(document, diagnostic.range)) {
+        return [];
+      }
+      return [
+        quickFix(
+          `Use ${close.match} instead`,
+          `Changed to ${close.match}.`,
+          document,
+          diagnostic,
+          [{ range: diagnostic.range, newText: close.match }],
+        ),
+      ];
+    }
+    return runQuickFixes(document, diagnostic);
+  });
 };
 
 export const getDiagnosticActions = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
   startSceneMissingIn?: SyntaxNode,
-): { name: string; changes: { from: number; to: number; insert: string }[] }[] =>
+): DiagnosticAction[] =>
   getCodeActions(document, [diagnostic], startSceneMissingIn).map((action) => ({
     name: action.title,
+    ...(action.data as QuickFixData),
     changes: (action.edit?.changes?.[document.uri] ?? []).map((edit) => ({
       from: document.offsetAt(edit.range.start),
       to: document.offsetAt(edit.range.end),
@@ -108,17 +166,23 @@ const messageOf = (diagnostic: ActionableDiagnostic): string =>
 
 const quickFix = (
   title: string,
+  done: string,
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
   edits: TextEdit[],
   isPreferred = true,
-): CodeAction => ({
-  title,
-  kind: CodeActionKind.QuickFix,
-  diagnostics: [diagnostic as Diagnostic],
-  isPreferred,
-  edit: { changes: { [document.uri]: edits } },
-});
+): CodeAction => {
+  const expect = expectedTextOf(diagnostic.data);
+  const data: QuickFixData = expect === undefined ? { done } : { done, expect };
+  return {
+    title,
+    kind: CodeActionKind.QuickFix,
+    diagnostics: [diagnostic as Diagnostic],
+    isPreferred,
+    edit: { changes: { [document.uri]: edits } },
+    data,
+  };
+};
 
 const runQuickFixes = (
   document: TextDocument,
@@ -126,10 +190,11 @@ const runQuickFixes = (
 ): CodeAction[] => {
   const message = messageOf(diagnostic);
   const operand = document.getText(diagnostic.range);
-  const fixes = (choices: RunFix[]) =>
+  const fixes = (choices: RunFix[], done?: string) =>
     choices.map(({ title, newText }) =>
       quickFix(
         title,
+        done ?? `Changed to ${newText}.`,
         document,
         diagnostic,
         [{ range: diagnostic.range, newText }],
@@ -137,12 +202,64 @@ const runQuickFixes = (
       ),
     );
   if (message === quotePathMessage(operand)) {
-    return fixes([{ title: "Quote the path", newText: `"${operand}"` }]);
+    return fixes(
+      [{ title: "Quote the path", newText: `"${operand}"` }],
+      "Path quoted.",
+    );
   }
   if (operand && message === closeQuoteMessage(operand)) {
-    return fixes([{ title: "Close the quote", newText: operand + operand[0] }]);
+    return fixes(
+      [{ title: "Close the quote", newText: operand + operand[0] }],
+      "Quote closed.",
+    );
   }
   return fixes(runFixesOf(diagnostic.data));
+};
+
+const removeNote = (
+  document: TextDocument,
+  diagnostic: ActionableDiagnostic,
+): TextEdit | undefined => {
+  const { start, end } = diagnostic.range;
+  const before = document.getText({
+    start: { line: start.line, character: 0 },
+    end: start,
+  });
+  const lineEnd = document.positionAt(
+    document.offsetAt({ line: end.line, character: Number.MAX_SAFE_INTEGER }),
+  );
+  if (document.getText({ start: end, end: lineEnd }).trim()) {
+    return undefined;
+  }
+  if (!before.trim()) {
+    return deleteLine(document, start.line);
+  }
+  return {
+    range: {
+      start: { line: start.line, character: before.trimEnd().length },
+      end: lineEnd,
+    },
+    newText: "",
+  };
+};
+
+const NAME_CHARACTER = /[\p{L}\p{N}_-]/u;
+
+const continuesName = (
+  document: TextDocument,
+  range: ActionableDiagnostic["range"],
+): boolean => {
+  const characterAt = (offset: number) =>
+    offset < 0
+      ? ""
+      : document.getText({
+          start: document.positionAt(offset),
+          end: document.positionAt(offset + 1),
+        });
+  return (
+    NAME_CHARACTER.test(characterAt(document.offsetAt(range.start) - 1)) ||
+    NAME_CHARACTER.test(characterAt(document.offsetAt(range.end)))
+  );
 };
 
 const wrapInStartScene = (
