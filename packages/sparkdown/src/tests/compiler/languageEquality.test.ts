@@ -126,7 +126,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       Array.from({ length: to - from + 1 }, (_, i) => `${line}:${from + i}`);
 
     test.each([
-      ["Hello {x end}\nAfter\n", span(1, 8, 11)],
+      ["Hello {x end}\nAfter\n", span(1, 9, 11)],
       ["Hello {x then}\nAfter\n", span(1, 9, 12)],
       ["Hello {x do}\nAfter\n", span(1, 9, 10)],
       ["Hello {x until}\nAfter\n", span(1, 9, 13)],
