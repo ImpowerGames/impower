@@ -101,8 +101,6 @@ const ACCEPTED_BY: Record<InsertConstruct, readonly BodyKind[]> = {
 
 const newlineOf = (source: string) => (source.includes("\r\n") ? "\r\n" : "\n");
 
-const widthOf = (indent: string) => indent.replace(/\t/g, STEP).length;
-
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
@@ -485,9 +483,31 @@ function planCharacter(
   };
 }
 
-function absorbs(lines: SourceLine[], statement: Statement, indent: string) {
-  const line = lines[statement.startLine]!;
-  return line.text.startsWith("//") || widthOf(line.indent) > widthOf(indent);
+const ENDS_DIALOGUE = new RegExp(
+  String.raw`^(?:[*+](?:$|[^\S\r\n]+|(?=:|#+(?:$|[^\S\r\n])|--))|->|[&%$^]|(?:scene|branch|function|define|const|store|local)\b)`,
+);
+
+const continuesDialogue = (line: SourceLine, indent: string) =>
+  line.text.startsWith(indent) &&
+  /^[^\S\r\n]/.test(line.text.slice(indent.length)) &&
+  !ENDS_DIALOGUE.test(line.content);
+
+function settleCue(lines: SourceLine[], placement: Placement): Placement {
+  const after =
+    placement.mode === "before" ? placement.line - 1 : placement.line;
+  let { mode, line, indent } = placement;
+  for (let next = after + 1; next < lines.length; next++) {
+    const candidate = lines[next]!;
+    if (!candidate.content) continue;
+    if (candidate.text.startsWith("//")) {
+      mode = "after";
+      line = next;
+      continue;
+    }
+    if (continuesDialogue(candidate, indent)) indent = candidate.indent;
+    break;
+  }
+  return { mode, line, indent };
 }
 
 function planStoryBlock(
@@ -517,12 +537,8 @@ function planStoryBlock(
         ? { mode: "replace", line: index, indent }
         : { mode: "after", line: index, indent };
   }
-  if (construct === "dialogue" && placement.mode !== "before") {
-    for (const next of body.statements) {
-      if (next.startLine <= placement.line) continue;
-      if (!absorbs(lines, next, indent)) break;
-      placement = { mode: "after", line: next.endLine, indent };
-    }
+  if (construct === "dialogue") {
+    placement = settleCue(lines, placement);
   }
   const lastLine = lineIndexAt(lines, structure.tree.length);
   if (placement.line > lastLine && structure.tree.length < source.length) {

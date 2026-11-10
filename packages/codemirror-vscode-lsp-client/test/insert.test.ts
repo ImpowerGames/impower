@@ -655,8 +655,13 @@ describe("structure read from the language server", () => {
     const dialogue = apply(source, caretAt(source, "IMANI: //"), "dialogue")!;
     expect(dialogue.text).toBe(
       source.replace(
-        "    Second." + LF,
-        lines("    Second.", "  IMANI:", "    What do they say?", ""),
+        "  IMANI: // speaker note" + LF,
+        lines(
+          "  IMANI: // speaker note",
+          "    IMANI:",
+          "      What do they say?",
+          "",
+        ),
       ),
     );
     expect(dialogue.selected).toBe("What do they say?");
@@ -1132,6 +1137,85 @@ describe("placement inside the construct at the caret", () => {
     expect(branch.text).toContain(lines("    Again.", "  branch new_branch"));
     expect(diagnosticsOf(dialogue.text)).toEqual([]);
     expect(diagnosticsOf(branch.text)).toEqual([]);
+  });
+});
+
+describe("a new cue and the lines after it", () => {
+  const CUE = (indent: string) =>
+    lines(`${indent}CHARACTER:`, `${indent}  What do they say?`);
+
+  it("never takes a deeper-indented closing end of the scene", () => {
+    const source = lines("scene start", "  Before.", "    end", "");
+    expect(diagnosticsOf(source)).toEqual([]);
+    for (const marker of ["Before.", "    end"]) {
+      const dialogue = apply(source, caretAt(source, marker), "dialogue")!;
+      expect(dialogue.text, marker).toBe(
+        lines("scene start", "  Before.", CUE("    "), "    end", ""),
+      );
+      expect(diagnosticsOf(dialogue.text), marker).toEqual([
+        "Cannot find character named `CHARACTER`",
+      ]);
+    }
+  });
+
+  it("never takes a deeper-indented closing end of a branch", () => {
+    const source = lines(
+      "scene start",
+      "  branch hall",
+      "    Dark.",
+      "      end",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "Dark."), "dialogue")!;
+    expect(dialogue.text).toBe(
+      lines(
+        "scene start",
+        "  branch hall",
+        "    Dark.",
+        CUE("      "),
+        "      end",
+        "end",
+        "",
+      ),
+    );
+    expect(diagnosticsOf(dialogue.text)).toEqual([
+      "Cannot find character named `CHARACTER`",
+    ]);
+  });
+
+  it("stays right after the caret's statement when the next line ends a cue anyway", () => {
+    const source = lines(
+      "store x = 0",
+      "scene start",
+      "  Before.",
+      "    & x = 1",
+      "  Later.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "Before."), "dialogue")!;
+    expect(dialogue.text).toBe(
+      source.replace("  Before." + LF, lines("  Before.", CUE("  "), "")),
+    );
+  });
+
+  it("stays right after the caret's statement and leaves deeper display text alone", () => {
+    const source = lines(
+      "scene start",
+      "  Before.",
+      "    Deeper narration.",
+      "  Later.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "Before."), "dialogue")!;
+    expect(dialogue.text).toBe(
+      source.replace("  Before." + LF, lines("  Before.", CUE("    "), "")),
+    );
   });
 });
 
