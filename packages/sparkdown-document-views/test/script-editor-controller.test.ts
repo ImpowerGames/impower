@@ -6,6 +6,15 @@ import {
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
+import { ChangedEditorWithheldDiagnosticMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorWithheldDiagnosticMessage";
+import {
+  serverDiagnostics,
+  withholdDiagnostic,
+} from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
+import {
+  getDocumentVersion,
+  versioning,
+} from "@impower/codemirror-vscode-lsp-client/src/version";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -746,5 +755,77 @@ describe("ScriptEditorController commands", () => {
     expect(run(controller, "gotoLine", "file:///other.sd")).toBeUndefined();
     expect(view.state.doc.line(1).text).toBe("hello world");
     expect(host.querySelector(".cm-gotoLine")).toBeNull();
+  });
+});
+
+describe("ScriptEditorController withheld diagnostic", () => {
+  const withheldReports = (host: HTMLElement) => {
+    const reported: ChangedEditorWithheldDiagnosticMessage.Notification["params"][] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorWithheldDiagnosticMessage.type.is(message)) {
+        reported.push(message.params);
+      }
+    });
+    return reported;
+  };
+
+  const HELLO = {
+    start: { line: 0, character: 0 },
+    end: { line: 0, character: 5 },
+  };
+
+  it("tells the app the range it withholds, then releases it when the caret leaves", async () => {
+    const { view, host } = await loadedEditor();
+    view.dispatch({
+      effects: StateEffect.appendConfig.of([
+        versioning(4),
+        serverDiagnostics().editorExtension!,
+      ]),
+    });
+    const reported = withheldReports(host);
+    view.dispatch({
+      selection: { anchor: 0, head: 5 },
+      effects: withholdDiagnostic.of({ from: 0, to: 5 }),
+    });
+    const version = getDocumentVersion(view.state);
+    const textDocument = { uri: "file:///main.sd", version };
+    expect(reported).toEqual([{ textDocument, range: HELLO }]);
+    view.dispatch({ selection: { anchor: 0, head: 5 } });
+    expect(reported).toHaveLength(1);
+    view.dispatch({ selection: { anchor: 8 } });
+    expect(reported).toEqual([
+      { textDocument, range: HELLO },
+      { textDocument, range: null },
+    ]);
+  });
+
+  it("releases with the edited version when the placeholder is typed over", async () => {
+    const { view, host } = await loadedEditor();
+    view.dispatch({
+      effects: StateEffect.appendConfig.of([
+        versioning(4),
+        serverDiagnostics().editorExtension!,
+      ]),
+    });
+    const reported = withheldReports(host);
+    view.dispatch({
+      selection: { anchor: 0, head: 5 },
+      effects: withholdDiagnostic.of({ from: 0, to: 5 }),
+    });
+    const before = getDocumentVersion(view.state);
+    view.dispatch({
+      changes: { from: 0, to: 5, insert: "IMANI" },
+      selection: { anchor: 5 },
+      userEvent: "input.type",
+    });
+    expect(getDocumentVersion(view.state)).toBeGreaterThan(before);
+    expect(reported.at(-1)).toEqual({
+      textDocument: {
+        uri: "file:///main.sd",
+        version: getDocumentVersion(view.state),
+      },
+      range: null,
+    });
   });
 });

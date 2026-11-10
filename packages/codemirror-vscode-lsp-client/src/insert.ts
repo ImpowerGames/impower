@@ -3,7 +3,9 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import type { Command, EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type * as lsp from "vscode-languageserver-protocol";
+import { withholdDiagnostic } from "./diagnostics";
 import { LSPPlugin } from "./plugin";
+import { SPEAKER_PLACEHOLDER } from "./withheldDiagnostic";
 
 export const INSERT_CONSTRUCTS = [
   "character",
@@ -394,8 +396,11 @@ function templateOf(
       };
     case "dialogue":
       return {
-        lines: [`${speaker ?? "CHARACTER"}:`, `${STEP}What do they say?`],
-        placeholder: speaker ? "What do they say?" : "CHARACTER",
+        lines: [
+          `${speaker ?? SPEAKER_PLACEHOLDER}:`,
+          `${STEP}What do they say?`,
+        ],
+        placeholder: speaker ? "What do they say?" : SPEAKER_PLACEHOLDER,
       };
     case "backdrop":
       return {
@@ -659,9 +664,17 @@ export const insertConstruct =
       structure,
     );
     if (!plan) return false;
+    const selected = plan.insert.slice(
+      plan.anchor - plan.from,
+      plan.head - plan.from,
+    );
     view.dispatch({
       changes: { from: plan.from, to: plan.to, insert: plan.insert },
       selection: { anchor: plan.anchor, head: plan.head },
+      effects:
+        construct === "dialogue" && selected === SPEAKER_PLACEHOLDER
+          ? withholdDiagnostic.of({ from: plan.anchor, to: plan.head })
+          : [],
       scrollIntoView: true,
       userEvent: "input",
       annotations: isolateHistory.of("full"),

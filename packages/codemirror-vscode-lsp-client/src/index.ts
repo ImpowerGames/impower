@@ -60,9 +60,9 @@ export {
   serverDefinitions,
 } from "./definition";
 export {
-  convertFromServerDiagnostics,
   serverDiagnostics,
   updateDocumentDiagnostics,
+  withheldDiagnosticField,
 } from "./diagnostics";
 export {
   convertFromServerFoldingRanges,

@@ -19,7 +19,15 @@ import type {
   Position,
   Range,
 } from "vscode-languageserver-protocol";
-import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  ChangedEditorWithheldDiagnosticMessage,
+  type ChangedEditorWithheldDiagnosticParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorWithheldDiagnosticMessage";
+import {
+  onProtocolMessage,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { isWithheldDiagnostic } from "@impower/codemirror-vscode-lsp-client/src/withheldDiagnostic";
 import {
   PublishDiagnosticsMessage,
   type PublishDiagnosticsParams,
@@ -203,6 +211,15 @@ export default class WorkspaceLanguageServer {
     (params: PublishDiagnosticsParams) => void
   >();
 
+  protected readonly _published = new Map<string, PublishDiagnosticsParams>();
+
+  protected readonly _withheld = new Map<
+    string,
+    { range: Range; until?: number }
+  >();
+
+  protected readonly _disposeWithheldListener: () => void;
+
   onPublishedDiagnostics(listener: (params: PublishDiagnosticsParams) => void) {
     this._publishedDiagnosticsListeners.add(listener);
     return () => {
@@ -261,11 +278,20 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       PublishDiagnosticsMessage.method,
       (params: PublishDiagnosticsParams) => {
-        problems.record(params);
-        for (const listener of this._publishedDiagnosticsListeners) {
-          listener(params);
+        this._published.set(params.uri, params);
+        const withheld = this._withheld.get(params.uri);
+        if (
+          withheld?.until != null &&
+          (params.version ?? Infinity) >= withheld.until
+        ) {
+          this._withheld.delete(params.uri);
         }
+        this.showPublishedDiagnostics(params.uri);
       },
+    );
+    this._disposeWithheldListener = onProtocolMessage(
+      ChangedEditorWithheldDiagnosticMessage.type,
+      (m) => this.handleChangedEditorWithheldDiagnostic(m.params),
     );
     this._connection.onClose(() => {
       this.stop();
@@ -481,7 +507,57 @@ export default class WorkspaceLanguageServer {
   }
 
   stop() {
+    this._disposeWithheldListener();
     this._connection.dispose();
+  }
+
+  protected handleChangedEditorWithheldDiagnostic({
+    textDocument: { uri, version },
+    range,
+  }: ChangedEditorWithheldDiagnosticParams) {
+    const previous = this._withheld.get(uri);
+    if (range) {
+      this._withheld.set(uri, { range });
+    } else if (!previous) {
+      return;
+    } else {
+      const published = this._published.get(uri)?.version;
+      if (published != null && published < version) {
+        this._withheld.set(uri, { range: previous.range, until: version });
+        return;
+      }
+      this._withheld.delete(uri);
+    }
+    const affected = this._published
+      .get(uri)
+      ?.diagnostics.some(
+        (d) =>
+          isWithheldDiagnostic(d, previous?.range) ||
+          isWithheldDiagnostic(d, range),
+      );
+    if (affected) {
+      this.showPublishedDiagnostics(uri);
+    }
+  }
+
+  protected showPublishedDiagnostics(uri: string) {
+    const published = this._published.get(uri);
+    if (!published) {
+      return;
+    }
+    const withheld = this._withheld.get(uri)?.range;
+    const params = withheld
+      ? {
+          ...published,
+          diagnostics: published.diagnostics.filter(
+            (d) => !isWithheldDiagnostic(d, withheld),
+          ),
+        }
+      : published;
+    problems.record(params);
+    for (const listener of this._publishedDiagnosticsListeners) {
+      listener(params);
+    }
   }
 
   updateProgram(program: SparkProgram | undefined) {

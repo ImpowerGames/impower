@@ -31,6 +31,7 @@ import {
   LSPPlugin,
   openFind,
   renameSymbol,
+  withheldDiagnosticField,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
@@ -49,6 +50,7 @@ import {
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
 import { ChangedEditorHistoryMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHistoryMessage";
+import { ChangedEditorWithheldDiagnosticMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorWithheldDiagnosticMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import {
@@ -804,6 +806,55 @@ export class ScriptEditorController {
     );
   }
 
+  protected _withheld: {
+    uri: string;
+    version: number;
+    from: number;
+    to: number;
+  } | null = null;
+
+  protected publishWithheld(state: EditorState) {
+    const uri = this._textDocument?.uri;
+    const range = uri ? state.field(withheldDiagnosticField, false) : null;
+    const last = this._withheld;
+    if (
+      (!last && !range) ||
+      (last &&
+        range &&
+        last.uri === uri &&
+        last.from === range.from &&
+        last.to === range.to)
+    ) {
+      return;
+    }
+    const version = getDocumentVersion(state);
+    if (last && (last.uri !== uri || !range)) {
+      sendProtocolMessage(
+        ChangedEditorWithheldDiagnosticMessage.type.notification({
+          textDocument: {
+            uri: last.uri,
+            version: last.uri === uri ? version : last.version,
+          },
+          range: null,
+        }),
+        this.host,
+      );
+    }
+    this._withheld = uri && range ? { uri, version, ...range } : null;
+    if (uri && range) {
+      sendProtocolMessage(
+        ChangedEditorWithheldDiagnosticMessage.type.notification({
+          textDocument: { uri, version },
+          range: {
+            start: convertToPosition(state.doc, range.from),
+            end: convertToPosition(state.doc, range.to),
+          },
+        }),
+        this.host,
+      );
+    }
+  }
+
   protected handleShowEditorStatusBar = (
     message: RequestMessage<
       ShowEditorStatusBarMethod,
@@ -1170,6 +1221,7 @@ export class ScriptEditorController {
         this.host,
       );
       this.publishHistory(state);
+      this.publishWithheld(state);
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";
@@ -1501,6 +1553,7 @@ export class ScriptEditorController {
           },
           onViewUpdate: (update) => {
             this.publishHistory(update.state);
+            this.publishWithheld(update.state);
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }
