@@ -1,15 +1,8 @@
-import { useEffect } from "preact/hooks";
-import route from "../../workspace/route/RouteStore";
 import RouteListView from "./RouteListView";
 
 export const ROUTE_PANEL_ID = "route-panel";
 
 export default function RoutePanel() {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => route.dismiss(event);
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
   return (
     <section
       id={ROUTE_PANEL_ID}

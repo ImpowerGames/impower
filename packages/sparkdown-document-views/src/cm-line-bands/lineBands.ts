@@ -7,7 +7,10 @@ import {
   type Range,
 } from "@codemirror/state";
 import { EditorView, LayerMarker, layer } from "@codemirror/view";
-import { highlightsField } from "../cm-highlight-lines/highlightLines";
+import {
+  highlightsConfig,
+  highlightsField,
+} from "../cm-highlight-lines/highlightLines";
 
 export const CURRENT_LINE_CLASS_NAME = "cm-current-line-band";
 export const ROUTE_CLASS_NAME = "cm-route-rule";
@@ -69,10 +72,15 @@ export interface RouteRuleSegment {
 
 export const getRouteRuleSegments = (state: EditorState): RouteRuleSegment[] => {
   const forced = forcedLineNumbers(state);
+  const { isGap } = state.facet(highlightsConfig);
   const segments: RouteRuleSegment[] = [];
   for (const [first, last] of getRouteLineRuns(state)) {
     for (let line = first; line <= last; line++) {
-      const isForced = forced.has(line);
+      let owner = line;
+      while (owner < last && isGap(state.doc.line(owner).text)) {
+        owner += 1;
+      }
+      const isForced = forced.has(owner);
       const previous = segments[segments.length - 1];
       if (previous && previous.last === line - 1 && previous.forced === isForced) {
         previous.last = line;

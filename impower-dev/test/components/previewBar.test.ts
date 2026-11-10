@@ -77,6 +77,9 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
+const { ROUTE_LIST_STYLESHEET_ID } = await import(
+  "@impower/spark-web-player/src/route/RouteViews"
+);
 const { RouteSheet } = await import(
   "../../src/modules/spark-editor/components/preview-route"
 );
@@ -323,74 +326,19 @@ describe("the bar under the game", () => {
     expect(stored().previewPanelHeight).toBe(44);
   });
 
-  it("closes the route list on Escape, unless Escape is leaving a starting value's draft", async () => {
+  it("mounts the player's own route list, which closes the panel on Escape and brings its own stylesheets", async () => {
     await mount();
     await act(() => {
-      route.view.value = {
-        ...forcedRoute,
-        values: { values: {}, drafts: { trust: "2" }, unsaved: {}, search: "" },
-      };
+      route.view.value = forcedRoute;
     });
     await act(async () => route.toggle());
     await settle();
-    const row = document.body.appendChild(document.createElement("div"));
-    row.className = "sv-row";
-    row.dataset["key"] = "trust";
-    await key(row, "Escape");
-    await settle();
-    expect(document.getElementById("route-panel")).not.toBeNull();
-    row.remove();
+    expect(document.querySelector("#route-panel swp-route-view > section.route-list")).not.toBeNull();
+    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
     await key(document.body, "Escape");
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
     expect(stored().previewPanelHeight).toBe(44);
-  });
-
-  it("closes the Load a save menu on an outside press or Escape, keeping the route list open, and styles it as the player does", async () => {
-    const sent: unknown[] = [];
-    const listen = (event: Event) => sent.push((event as CustomEvent).detail);
-    window.addEventListener("jsonrpc", listen);
-    const closeMenu = expect.objectContaining({
-      method: "preview/routeViewAction",
-      params: { action: { kind: "values", event: { kind: "loadOpen", open: false } } },
-    });
-    try {
-      await mount();
-      await act(() => {
-        route.view.value = {
-          ...forcedRoute,
-          tab: "values",
-          values: { start: "interrogation", values: {}, drafts: {}, unsaved: {}, search: "" },
-          load: {
-            saves: [
-              { id: "s1", kind: "saved", name: "Before the trial", scene: "start", line: 4, time: 0, gone: false },
-            ],
-            open: true,
-          },
-        };
-      });
-      await act(async () => route.toggle());
-      await settle();
-      const menu = document.querySelector<HTMLElement>("#route-panel .sv-load-menu");
-      expect(menu).not.toBeNull();
-      menu!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-      expect(sent).not.toContainEqual(closeMenu);
-      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-      expect(sent).toContainEqual(closeMenu);
-      sent.length = 0;
-      await key(document.body, "Escape");
-      await settle();
-      expect(sent).toContainEqual(closeMenu);
-      expect(document.getElementById("route-panel")).not.toBeNull();
-      const { readFileSync } = await import("node:fs");
-      const savesCss = readFileSync(
-        "../packages/spark-web-player/src/saves/saves.css",
-        "utf8",
-      );
-      expect(savesCss).toContain(":is(spark-web-player, swp-route-view) .sv-load-menu {");
-    } finally {
-      window.removeEventListener("jsonrpc", listen);
-    }
   });
 
   it("keeps the Starting values tab in the route list and sends its tab and value changes to the player", async () => {

@@ -5,7 +5,6 @@ import type {
   PreviewRoute,
   ScriptSource,
 } from "../../game/core/types/PreviewRoute";
-import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
@@ -109,123 +108,6 @@ describe("the route the preview reports", () => {
     expect(condition!.verdict).toBe(true);
     expect(loop!.verdict).toBe(false);
     expect(loop!.passes).toBe(count);
-  }, 120_000);
-
-  test("the lines the example ran only because its condition was forced are lines 16 to 21", () => {
-    const { route } = preview(interrogation, 21);
-    expect(
-      Object.entries(route.forcedLines ?? {}).map(([uri, ranges]) => [
-        uri,
-        expandLineRanges(ranges).map((line) => line + 1),
-      ]),
-    ).toEqual([[URI, [16, 17, 18, 19, 20, 21]]]);
-  }, 120_000);
-
-  test("a function the forced branch calls is forced too, though it is written above the branch", () => {
-    const { route, count } = preview(
-      [
-        "store flag = false",
-        "store count = 0",
-        "function g()",
-        "  if true then",
-        "    return 1",
-        "  end",
-        "  return 2",
-        "end",
-        "",
-        "scene start",
-        "  for i = 1, 3 do",
-        "    if flag then",
-        "      count += g()",
-        "      Target {count}.",
-        "    end",
-        "  end",
-        "end",
-        "",
-      ],
-      14,
-      "count",
-    );
-    expect(count).toBe(1);
-    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
-      (line) => line + 1,
-    );
-    expect(forced).toContain(5);
-    expect(forced).toEqual(expect.arrayContaining([13, 14]));
-    expect(forced).not.toContain(12);
-  }, 120_000);
-
-  test("a function written below the scene is forced only where the forced branch calls it", () => {
-    const { route, count } = preview(
-      [
-        "store flag = false",
-        "store count = 0",
-        "scene start",
-        "  count += earlier()",
-        "  choose",
-        "    * [Continue.]",
-        "      count += 0",
-        "  end",
-        "  if flag then",
-        "    count += forced()",
-        "    Target {count}.",
-        "  end",
-        "end",
-        "",
-        "function earlier()",
-        "  return 10",
-        "end",
-        "",
-        "function forced()",
-        "  return 1",
-        "end",
-        "",
-      ],
-      11,
-      "count",
-    );
-    expect(count).toBe(11);
-    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
-      (line) => line + 1,
-    );
-    expect(forced).toEqual(expect.arrayContaining([10, 11, 20]));
-    expect(forced).not.toContain(16);
-    expect(forced).not.toContain(9);
-    expect(forced).not.toContain(4);
-  }, 120_000);
-
-  test("a branch forced inside a forced branch is forced from the outer verdict", () => {
-    const { route } = preview(
-      [
-        "store a = false",
-        "store b = false",
-        "",
-        "scene start",
-        "  Before.",
-        "  if a then",
-        "    Outer.",
-        "    if b then",
-        "      Inner.",
-        "    end",
-        "  end",
-        "end",
-        "",
-      ],
-      9,
-    );
-    expect(route.decisions.filter((d) => d.kind === "forced")).toHaveLength(2);
-    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
-      (line) => line + 1,
-    );
-    expect(forced).toEqual(expect.arrayContaining([7, 8, 9]));
-    expect(forced).not.toContain(5);
-    expect(forced).not.toContain(6);
-  }, 120_000);
-
-  test("a route that forced nothing reports no forced lines", () => {
-    const { route } = preview(interrogation, 9);
-    expect(route.decisions.some((d) => d.kind === "forced")).toBe(false);
-    expect(route.forcedLines).toBeUndefined();
   }, 120_000);
 
   test("a loop the search leaves part way inside a forced branch is clipped after the passes it ran", () => {

@@ -117,6 +117,23 @@ describe("the route rule's gaps and dashes", () => {
     ]);
   });
 
+  it("dashes a speaker cue with the forced dialogue under it", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    view = new EditorView({
+      state: EditorState.create({
+        doc: ["  if trust > 3 then", "    INSPECTOR:", "      I believe you.", "  end"].join("\n"),
+        extensions: [highlightLines({ isGap: isExecutionGap }), lineBands()],
+      }),
+      parent,
+    });
+    setHighlights(view, [1, 3]);
+    setForcedLines(view, [3]);
+    expect(getRouteRuleSegments(view.state)).toEqual([
+      { first: 1, last: 1, forced: false },
+      { first: 2, last: 3, forced: true },
+    ]);
+  });
+
   it("keeps the dashes on their lines through an edit above them", () => {
     mount();
     setHighlights(view!, [8, 9, 10]);

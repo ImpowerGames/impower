@@ -529,7 +529,6 @@ export class GamePlayerController {
     this._mounted = false;
     this._disposed = true;
     this._stops += 1;
-    window.removeEventListener("keydown", this.handleRouteKeyDown, true);
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
     renderRouteViews(this.routeViewTargets(), null);
@@ -1103,23 +1102,10 @@ export class GamePlayerController {
     ) {
       this._saves.events.onOpen(false);
     }
-    if (
-      this._loadSaveOpen &&
-      !(target instanceof Element && target.closest(".sv-load"))
-    ) {
-      this._loadSaveOpen = false;
-      this.renderRoute();
-    }
   };
 
   protected handleSavesKeyDown = (e: KeyboardEvent) => {
     if (e.key !== "Escape") {
-      return;
-    }
-    if (this._loadSaveOpen) {
-      e.stopImmediatePropagation();
-      this._loadSaveOpen = false;
-      this.renderRoute();
       return;
     }
     if (this._saves.open) {
@@ -1174,31 +1160,8 @@ export class GamePlayerController {
       return;
     }
     this._routeState = { ...this._routeState, open };
-    if (open && !this._hostsRoute) {
-      window.addEventListener("keydown", this.handleRouteKeyDown, true);
-    } else {
-      window.removeEventListener("keydown", this.handleRouteKeyDown, true);
-    }
     this.renderRoute();
   }
-
-  protected handleRouteKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && this._routeState.open) {
-      const field = (e.target as Element | null)?.closest?.(".sv-row");
-      const key = field?.getAttribute("data-key");
-      const start = this.valuesStart();
-      if (
-        key != null &&
-        start !== undefined &&
-        fieldsView(this._valueFields, start, this.firstValueOf).drafts[key] !==
-          undefined
-      ) {
-        return;
-      }
-      e.stopPropagation();
-      this.setRouteOpen(false);
-    }
-  };
 
   protected handleRouteToggle = (kind: RouteKind, shown: boolean) => {
     const toggles = { ...this._routeState.toggles, [kind]: shown };

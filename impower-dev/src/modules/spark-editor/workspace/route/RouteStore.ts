@@ -87,44 +87,6 @@ export class RouteStore {
     }
   }
 
-  dismissLoadMenu(event: KeyboardEvent | PointerEvent) {
-    if (!this.view.peek()?.load?.open) {
-      return;
-    }
-    if (event instanceof KeyboardEvent) {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    } else if (
-      event.target instanceof Element &&
-      event.target.closest(".sv-load")
-    ) {
-      return;
-    }
-    this.act({ kind: "values", event: { kind: "loadOpen", open: false } });
-  }
-
-  dismiss(event: KeyboardEvent) {
-    if (
-      event.key !== "Escape" ||
-      event.defaultPrevented ||
-      !problems.routeShown.peek()
-    ) {
-      return;
-    }
-    const target = event.target;
-    const key =
-      target instanceof Element
-        ? target.closest(".sv-row")?.getAttribute("data-key")
-        : null;
-    if (key != null && this.view.peek()?.values?.drafts[key] !== undefined) {
-      return;
-    }
-    this.close();
-  }
-
   act(action: RouteViewAction) {
     sendProtocolMessage(RouteViewActionMessage.type.notification({ action }));
   }

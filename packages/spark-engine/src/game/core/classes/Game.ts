@@ -4003,10 +4003,9 @@ export class Game<T extends M = {}> {
     const pinned = this.pinnedOptions;
     const decisions: PreviewRouteDecision[] = [];
     const reported = routeDecisions(route, lineOf, structureOf, pinned);
-    const forcedLines = this.linesRunAfter(
+    const forcedLines = this.forcedLinesOf(
       route,
       reported.find((decision) => decision.kind === "forced")?.override,
-      structureOf,
     );
     for (const decision of reported) {
       const location = decision.loop
@@ -4081,70 +4080,47 @@ export class Game<T extends M = {}> {
     };
   }
 
-  protected linesRunAfter(
+  protected forcedLinesOf(
     route: RoutePlan,
     override: number | undefined,
-    structureOf?: (script: number) => ScriptStructure,
   ): Record<string, number[]> | undefined {
     const decision = override === undefined ? undefined : route.decisions[override];
-    const verdict = decision && this.scriptLocationOf(decision.site);
-    if (override === undefined || !verdict) {
+    if (override === undefined || !decision) {
       return undefined;
     }
-    const lines = new Map<number, Set<number>>();
-    const add = (script: number, from: number, to: number) => {
-      let set = lines.get(script);
-      if (!set) {
-        set = new Set();
-        lines.set(script, set);
+    const lineKeys = (address: ProgramAddress): string[] => {
+      const at = this.scriptLocationOf(address);
+      const keys: string[] = [];
+      for (let line = at?.[1] ?? 0; at && line <= at[3]; line++) {
+        keys.push(`${at[0]}:${line}`);
       }
-      for (let line = from; line <= to; line++) {
-        set.add(line);
-      }
+      return keys;
     };
-    const bodyOf = (script: number, line: number) => {
-      let found: { start: number; end: number } | undefined;
-      for (const body of structureOf?.(script).bodies ?? []) {
-        if (
-          body.start <= line &&
-          line <= body.end &&
-          (!found || body.start >= found.start)
-        ) {
-          found = body;
-        }
-      }
-      return found;
-    };
-    const verdictBody = bodyOf(verdict[0], verdict[1]);
-    let branchEnd = verdict[3];
+    const before = new Set<string>(lineKeys(decision.site));
+    const after = new Set<string>();
     for (const step of route.steps) {
-      if (step.decision < override) {
-        continue;
-      }
-      const at = this.scriptLocationOf(step.address);
-      if (!at) {
-        continue;
-      }
-      if (at[0] === verdict[0] && at[1] <= verdict[3] && at[3] >= verdict[1]) {
-        continue;
-      }
-      add(at[0], at[1], at[3]);
-      if (
-        at[0] === verdict[0] &&
-        at[1] > verdict[3] &&
-        bodyOf(at[0], at[1]) === verdictBody
-      ) {
-        branchEnd = Math.max(branchEnd, at[3]);
+      for (const key of lineKeys(step.address)) {
+        (step.decision < override ? before : after).add(key);
       }
     }
-    add(verdict[0], verdict[3] + 1, branchEnd);
+    const lines = new Map<number, number[]>();
+    for (const key of after) {
+      if (before.has(key)) {
+        continue;
+      }
+      const [script, line] = key.split(":").map(Number) as [number, number];
+      const list = lines.get(script) ?? [];
+      list.push(line);
+      lines.set(script, list);
+    }
+    if (lines.size === 0) {
+      return undefined;
+    }
     const ranges: Record<string, number[]> = {};
-    for (const [script, set] of lines) {
-      if (set.size > 0) {
-        ranges[this.scriptUri(script)] = lineRanges(set);
-      }
+    for (const [script, list] of lines) {
+      ranges[this.scriptUri(script)] = lineRanges(list);
     }
-    return Object.keys(ranges).length > 0 ? ranges : undefined;
+    return ranges;
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {
