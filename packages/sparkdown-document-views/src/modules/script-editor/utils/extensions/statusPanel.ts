@@ -1,16 +1,5 @@
-import {
-  closeLintPanel,
-  Diagnostic,
-  forEachDiagnostic,
-  linter,
-  openLintPanel,
-} from "@codemirror/lint";
-import {
-  EditorState,
-  Extension,
-  StateEffect,
-  StateField,
-} from "@codemirror/state";
+import { closeLintPanel, Diagnostic, forEachDiagnostic } from "@codemirror/lint";
+import { EditorState, StateEffect, StateField } from "@codemirror/state";
 import {
   Command,
   EditorView,
@@ -53,12 +42,6 @@ export class StatusPanel implements Panel {
   revealBottomPanelButton: HTMLElement;
 
   revealBottomPanelIcon: HTMLSpanElement;
-
-  errorsLabel: HTMLSpanElement;
-
-  warningsLabel: HTMLSpanElement;
-
-  infosLabel: HTMLSpanElement;
 
   referencesLabel: HTMLSpanElement;
 
@@ -111,21 +94,6 @@ export class StatusPanel implements Panel {
     );
     this.revealBottomPanelIcon.className =
       "cm-statusIcon cm-problemsToggleIcon";
-
-    this.errorsLabel = this.revealBottomPanelButton.appendChild(
-      document.createElement("span"),
-    );
-    this.errorsLabel.className = "cm-statusLabel cm-errorsLabel";
-
-    this.warningsLabel = this.revealBottomPanelButton.appendChild(
-      document.createElement("span"),
-    );
-    this.warningsLabel.className = "cm-statusLabel cm-warningsLabel";
-
-    this.infosLabel = this.revealBottomPanelButton.appendChild(
-      document.createElement("span"),
-    );
-    this.infosLabel.className = "cm-statusLabel cm-infosLabel";
 
     this.referencesLabel = this.revealBottomPanelButton.appendChild(
       document.createElement("span"),
@@ -191,16 +159,8 @@ export class StatusPanel implements Panel {
   }
 
   toggleBottomPanel() {
-    if (
-      this.view.hasFocus ||
-      (!isReferencePanelOpen(this.view.state) &&
-        !isLintPanelOpen(this.view.state))
-    ) {
-      openLintPanel(this.view);
-    } else {
-      closeReferencePanel(this.view);
-      this.view.focus();
-    }
+    closeReferencePanel(this.view);
+    this.view.focus();
   }
 
   private getSortedDiagnostics(): Diagnostic[] {
@@ -284,22 +244,11 @@ export class StatusPanel implements Panel {
         fileCount,
       );
       this.referencesLabel.hidden = false;
-      this.errorsLabel.hidden = true;
-      this.warningsLabel.hidden = true;
-      this.infosLabel.hidden = true;
+      this.dom.hidden = false;
     } else {
       this.referencesLabel.hidden = true;
 
-      let errorCount = 0;
-      let warningCount = 0;
-      let infoCount = 0;
       const diagnostics = this.getSortedDiagnostics();
-
-      diagnostics.forEach((d) => {
-        if (d.severity === "error") errorCount++;
-        else if (d.severity === "warning") warningCount++;
-        else if (d.severity === "info") infoCount++;
-      });
 
       const cursorPos = update.state.selection.main.head;
 
@@ -356,41 +305,10 @@ export class StatusPanel implements Panel {
           ? "inline-block"
           : "none";
       } else {
-        this.revealBottomPanelButton.style.display = "";
         this.diagnosticContextContainer.style.display = "none";
       }
-
-      if (errorCount > 0) {
-        const separator = warningCount > 0 ? update.state.phrase(",") : "";
-        this.errorsLabel.textContent =
-          update.state.phrase(
-            errorCount === 1 ? `$1 Error` : `$1 Errors`,
-            errorCount,
-          ) + separator;
-        this.errorsLabel.hidden = false;
-      } else {
-        this.errorsLabel.hidden = true;
-      }
-      if (warningCount > 0) {
-        const separator = infoCount > 0 ? update.state.phrase(",") : "";
-        this.warningsLabel.textContent =
-          update.state.phrase(
-            warningCount === 1 ? `$1 Warning` : `$1 Warnings`,
-            warningCount,
-          ) + separator;
-        this.warningsLabel.hidden = false;
-      } else {
-        this.warningsLabel.hidden = true;
-      }
-      if (infoCount > 0) {
-        this.infosLabel.textContent = update.state.phrase(
-          infoCount === 1 ? `$1 Info` : `$1 Infos`,
-          infoCount,
-        );
-        this.infosLabel.hidden = false;
-      } else {
-        this.infosLabel.hidden = true;
-      }
+      this.revealBottomPanelButton.style.display = "none";
+      this.dom.hidden = !(isContextualView && activeDiagnostic);
     }
   }
 
@@ -579,13 +497,6 @@ const statusPanelTheme = EditorView.baseTheme({
     },
   },
 });
-
-export function isLintPanelOpen(state: EditorState) {
-  const lintState = (
-    (linter(() => []) as Extension[]).at(-1) as Extension[]
-  )[0] as StateField<{ panel?: Panel }>;
-  return state.field(lintState, false)?.panel != null;
-}
 
 function createStatusPanel(view: EditorView) {
   return new StatusPanel(view);

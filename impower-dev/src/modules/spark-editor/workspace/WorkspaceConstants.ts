@@ -5,4 +5,10 @@ export class WorkspaceConstants {
   static readonly WORKSPACE_STATE_STORAGE_KEY_PREFIX = "workspace/";
   static readonly ROUTE_TOGGLES_STORAGE_KEY = "preferences/routeToggles";
   static readonly ROUTE_TAB_STORAGE_KEY = "preferences/routeTab";
+  static readonly PREVIEW_STRIP_HEIGHT = {
+    default: 280,
+    min: 200,
+    collapsed: 48,
+    reserve: 240,
+  } as const;
 }

@@ -65,8 +65,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
     Promise.all([
       import("@impower/jsonrpc/src/browser/classes/IFrameMessageConnection"),
       import("@impower/jsonrpc/src/browser/classes/Port1MessageConnection"),
-      import("@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage"),
-      import("@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
@@ -101,8 +99,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
       async ([
         { IFrameMessageConnection },
         { Port1MessageConnection },
-        { ChangedEditorBreakpointsMessage },
-        { ChangedEditorPinpointsMessage },
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
@@ -421,10 +417,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
                   }
                 : {}),
             });
-          }
-          if (ChangedEditorBreakpointsMessage.type.is(message)) {
-          }
-          if (ChangedEditorPinpointsMessage.type.is(message)) {
           }
         };
 

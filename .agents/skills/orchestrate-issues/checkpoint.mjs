@@ -796,8 +796,8 @@ export function reconcileOperations(record, { snapshot, firstParent }) {
     const pr = prs.get(op.pr);
     let state = "uncertain", retry = false, evidence = `PR #${op.pr} is not in the snapshot of ${snapshot.observedAt}`, landed = {};
     if (op.kind === "close") {
-      const issue = snapshot.issue?.number === op.pr ? snapshot.issue : null;
-      if (!issue) evidence = `Issue #${op.pr} is not the snapshot's parent issue`;
+      const issue = snapshot.issue?.number === op.pr ? snapshot.issue : snapshot.tickets.find((t) => t.number === op.pr && t.container) ?? null;
+      if (!issue) evidence = `Issue #${op.pr} is neither the snapshot's parent issue nor a container in its tree`;
       else if (issue.state === "closed") { state = "confirmed"; evidence = `Issue #${op.pr} is closed`; }
       else { state = "not-applied"; retry = true; evidence = `Issue #${op.pr} is still ${issue.state}`; }
     } else if (pr && op.kind === "merge") {

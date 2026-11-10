@@ -108,6 +108,41 @@ describe("runtime diagnostics", () => {
     }
   }, 120_000);
 
+  it("reach the editor as the game's own message during PLAY, and not from a scrubbed preview", async () => {
+    const text = ["scene start", "  A", "  B", '  {error("boom")} C', "  D", "end", ""].join("\n");
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text }],
+      startFrom: { file: MAIN_URI, line: 4 },
+    });
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    const error = console.error;
+    console.error = () => {};
+    const forwarded = () =>
+      h.toEditor
+        .filter((m) => m.method === GameEncounteredRuntimeErrorMessage.method)
+        .map((m) => [m.params.message, m.params.state, m.params.location.range.start.line]);
+    try {
+      await h.compile();
+      await h.select(4);
+      await settle(20);
+      expect(lastReported(h.toEditor)).toEqual([[3, 1, "boom", "runtime"]]);
+      expect(forwarded()).toEqual([]);
+      await h.select(1);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(20);
+      for (let i = 0; i < 5 && !forwarded().length; i++) {
+        h.playing()?.continue();
+        await settle(10);
+      }
+      expect(forwarded()).toEqual([["boom", "running", 3]]);
+    } finally {
+      console.error = error;
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+
   it("of the program an edit during PLAY compiled replace PLAY's at STOP", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],

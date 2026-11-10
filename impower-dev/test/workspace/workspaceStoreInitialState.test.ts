@@ -17,7 +17,7 @@ const savedLayout = (id: string, pane: string) => ({
   preview: { modes: { game: { running: true } } },
   screen: { editingName: true },
   sync: { status: "syncing" },
-  debug: { diagnosticsSummary: { "main.sd": {} }, pinpoints: {}, highlights: {} },
+  debug: { pinpoints: { "main.sd": [3] }, highlights: {} },
 });
 
 describe("the workspace store's first state", () => {
@@ -40,7 +40,7 @@ describe("the workspace store's first state", () => {
     expect(workspace.current.preview.modes.game).toEqual({});
     expect(workspace.current.screen).toEqual({});
     expect(workspace.current.sync).toEqual({});
-    expect(workspace.current.debug.diagnosticsSummary).toEqual({});
+    expect(workspace.current.debug.pinpoints).toEqual({});
   });
 
   it("reads the local project's layout when no project was loaded", async () => {

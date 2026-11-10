@@ -25,7 +25,10 @@ import {
   GetGameStackTraceMessage,
   type GetGameStackTraceResult,
 } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
-import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
+import {
+  GetGameThreadsMessage,
+  type GetGameThreadsResult,
+} from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
 import {
   PauseGameMessage,
@@ -40,7 +43,6 @@ import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/co
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import {
   ContinuedEvent,
   ExitedEvent,
@@ -87,6 +89,8 @@ interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 
 interface IAttachRequestArguments extends ILaunchRequestArguments {}
 
+const HELD_STOPS = new Set(["pause", "step", "breakpoint"]);
+
 export class SparkDebugSession extends LoggingDebugSession {
   private _fileAccessor: FileAccessor;
 
@@ -102,6 +106,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _frames = new Map<number, { threadId: number; frameId: number }>();
   private _frameIds = new Map<string, number>();
+  private _lineBreakpoints = new Map<string, { file: string; line: number }[]>();
 
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
@@ -117,10 +122,6 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _firstRead: Promise<void> | undefined;
 
   private _endStop: { run: number | null | undefined } | undefined;
-
-  private _continueAdvances = true;
-
-  private _continues = 0;
 
   private _resuming: Promise<void> | undefined;
 
@@ -318,16 +319,22 @@ export class SparkDebugSession extends LoggingDebugSession {
     run: number | null | undefined = this._run,
     once = false,
   ) {
-    const announceable = this._continues + (this._resuming ? 1 : 0);
-    const answer = await this._connection.emit(
-      GetGameThreadsMessage.type.request({}),
-    );
-    if (this._firstRead) {
-      await this._firstRead;
-    }
-    await this._resuming;
+    let answer: GetGameThreadsResult;
+    let resuming: Promise<void> | undefined;
+    do {
+      resuming = this._resuming;
+      if (resuming) {
+        await resuming;
+      }
+      answer = await this._connection.emit(
+        GetGameThreadsMessage.type.request({}),
+      );
+      if (this._firstRead) {
+        await this._firstRead;
+      }
+    } while (resuming !== this._resuming);
     if (
-      this._continues > announceable ||
+      (answer.stopped === false && HELD_STOPS.has(reason)) ||
       !this.answersRun(answer.run, run) ||
       !this.isCurrentStop(reason, run)
     ) {
@@ -340,7 +347,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       this._endStop = { run };
     }
     const { threads } = answer;
-    this._continueAdvances = reason !== "pause";
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
       this.sendEvent(new StoppedEvent(reason, thread.id));
@@ -509,7 +515,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendRefusal(response, e);
       return;
     }
-    this._continueAdvances = false;
     this.sendResponse(response);
     if (this.answersRun(answer.run, run)) {
       await this.sendStoppedEvent("pause", run);
@@ -527,24 +532,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._resuming = new Promise((resolve) => {
       settle = resolve;
     });
-    let unpaused = false;
     try {
-      await this._connection.emit(UnpauseGameMessage.type.request({}));
-      unpaused = true;
-      if (this._continueAdvances) {
-        await this._connection.emit(ContinueGameMessage.type.request({}));
-      }
-      this._continues += 1;
+      await this._connection.emit(ContinueGameMessage.type.request({}));
     } catch (e) {
-      if (unpaused) {
-        await this._connection
-          .emit(PauseGameMessage.type.request({}))
-          .catch(() => undefined);
-      }
       this.sendRefusal(response, e);
       return;
     } finally {
-      this._resuming = undefined;
       settle();
     }
     this.sendResponse(response);
@@ -600,7 +593,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendRefusal(response, e);
       return;
     }
-    this._continueAdvances = true;
     this.sendResponse(response);
   }
 
@@ -637,29 +629,25 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments,
   ): Promise<void> {
-
-    const setBreakpoints: {
-      file: string;
-      line: number;
-    }[] = [];
-
-    if (args.breakpoints) {
-      for (const b of args.breakpoints) {
-        setBreakpoints.push({
-          file: this._fileAccessor.pathToUri(args.source.path || ""),
-          line: this.convertClientLineToDebugger(b.line),
-        });
-      }
+    const file = this._fileAccessor.pathToUri(args.source.path || "");
+    const requested = (args.breakpoints ?? []).map((b) => ({
+      file,
+      line: this.convertClientLineToDebugger(b.line),
+    }));
+    this._lineBreakpoints.delete(file);
+    const others = [...this._lineBreakpoints.values()].flat();
+    if (requested.length > 0) {
+      this._lineBreakpoints.set(file, requested);
     }
 
     const { breakpoints } = await this._connection.emit(
       SetGameBreakpointsMessage.type.request({
-        breakpoints: setBreakpoints,
+        breakpoints: [...others, ...requested],
       }),
     );
 
     response.body = {
-      breakpoints: (breakpoints || []).map((b) => ({
+      breakpoints: (breakpoints || []).slice(others.length).map((b) => ({
         ...b,
         source:
           b.location != null
