@@ -37,6 +37,13 @@ const UNREADABLE: Record<string, string> = {
   "function f()\n  local x = 1 + y名\nend\n": "名",
   "store x = ~1\n": "~1",
   "Hello {|1}\n": "|1",
+  "store x = [1\nHello\n": "[1",
+  "Hello {x,1}\nAfter\n": ",1",
+  "if x; then\nHello\nend\n": ";",
+};
+
+const INCOMPLETE_HEADERS: Record<string, string> = {
+  "define Person\n\nend\nHello\n": "Hello",
 };
 
 function withoutLuauMarks(ruleName: string) {
@@ -65,22 +72,23 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     }
   });
 
+  describe("after a header left incomplete while typing", () => {
+    for (const [source, story] of Object.entries(INCOMPLETE_HEADERS)) {
+      test(JSON.stringify(source), async () => {
+        const { divergences } = await compareLanguages(source);
+        expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
+        const from = source.indexOf(story);
+        expect(treeLanguagesPerPosition(source).slice(from, from + story.length)).toEqual([...story].map(() => STORY));
+      });
+    }
+  });
+
   describe("known differences, each tracked by its ticket", () => {
     test("I-2038: a declaration or reassignment followed by an `&` statement on its line", async () => {
       const { divergences } = await compareLanguages(
         "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
       );
       expect(divergences.map((d) => d.lineCol)).toEqual(["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"]);
-    });
-
-    test.each([
-      ["an unclosed `[` in a declaration", "store x = [1\nHello\n", ["1:10", "1:11", "1:12"]],
-      ["a `,` in an interpolation", "Hello {x,1}\nAfter\n", ["1:8", "1:9"]],
-      ["a `;` in a narrative condition", "if x; then\nHello\nend\n", ["1:4"]],
-      ["a define header without `with`", "define Person\n\nend\nHello\n", ["4:0", "4:1", "4:2", "4:3", "4:4", "4:5", "5:0"]],
-    ])("I-2043: %s closes the rule incomplete only in the tree", async (_name, source, positions) => {
-      const { divergences } = await compareLanguages(source);
-      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
     });
 
     test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {

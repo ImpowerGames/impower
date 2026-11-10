@@ -107,7 +107,7 @@
     "LUAU_GLUED_KEYWORD": "(?:(?:then|do|end|else|elseif|until){{LUAU_NAME_END}})",
     "LUAU_NAME_END": "(?![a-zA-Z0-9_])",
     "LUAU_UNREAD_SYMBOL": "(?:\\.\\.\\.|\\.\\.=|//=|\\.\\.|::|==|~=|<=|>=|\\+=|-=|\\*=|/=|%=|\\^=|->|//|&&|\\|\\||!=)",
-    "LUAU_UNREADABLE_CHARACTER": "(?:[$!?%^|~\\\\]|@(?![\\[a-zA-Z_])|[^\\x00-\\x7F])",
+    "LUAU_UNREADABLE_CHARACTER": "(?:[$!?%^|~\\[\\\\]|@(?![\\[a-zA-Z_])|[^\\x00-\\x7F])",
     "IMAGE_CONTROL_KEYWORDS": [
       "show",
       "hide",
@@ -6067,7 +6067,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b|$",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -12046,7 +12046,7 @@
       "match": "(?!\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)(?:(?:\\.\\.\\.|\\.\\.=|//=|\\.\\.|::|==|~=|<=|>=|\\+=|-=|\\*=|/=|%=|\\^=|->|//|&&|\\|\\||!=)|[^\\s])"
     },
     "LuauUnreadableCharacter": {
-      "match": "(?:[$!?%^|~\\\\]|@(?![\\[a-zA-Z_])|[^\\x00-\\x7F])"
+      "match": "(?:[$!?%^|~\\[\\\\]|@(?![\\[a-zA-Z_])|[^\\x00-\\x7F])"
     },
     "LuauStrayCloser": {
       "tag": "invalid",
@@ -12728,6 +12728,9 @@
         },
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#LuauSemicolonSeparator"
         },
         {
           "include": "#LuauUnreadableCharacter"
@@ -18654,6 +18657,9 @@
           "include": "#ExtraWhitespace"
         },
         {
+          "include": "#LuauCommaSeparator"
+        },
+        {
           "include": "#LuauUnreadableCharacter"
         }
       ],
@@ -18694,6 +18700,9 @@
           "include": "#Newline"
         },
         {
+          "include": "#LuauCommaSeparator"
+        },
+        {
           "include": "#LuauUnreadableCharacter"
         }
       ],
@@ -18732,6 +18741,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#LuauCommaSeparator"
         },
         {
           "include": "#LuauUnreadableCharacter"
