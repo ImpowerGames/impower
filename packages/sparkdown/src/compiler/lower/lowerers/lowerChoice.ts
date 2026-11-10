@@ -324,9 +324,14 @@ function appendNodeContent(
 ): boolean {
   type Marker =
     | { kind: "tag"; node: SyntaxNode }
-    | { kind: "expr"; node: SyntaxNode };
+    | { kind: "expr"; node: SyntaxNode }
+    | { kind: "comment"; node: SyntaxNode };
   const markers: Marker[] = [];
   const walk = (node: SyntaxNode): void => {
+    if (isExplicitRuleName(node.name, "SparkdownInlineComment")) {
+      markers.push({ kind: "comment", node });
+      return;
+    }
     if (isExplicitRuleName(node.name, "Tag")) {
       markers.push({ kind: "tag", node });
       return;
@@ -371,7 +376,7 @@ function appendNodeContent(
         list.AddContent(expr);
         appended = true;
       }
-    } else {
+    } else if (m.kind === "tag") {
       const tagContent = getDescendent(["TagContent", "SparkdownExplicitTagContent"], m.node);
       list.AddContent(new Tag(true, true));
       if (tagContent) {
