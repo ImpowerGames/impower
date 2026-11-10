@@ -1,8 +1,9 @@
+import { Compiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
 import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
 const OUTER = {
@@ -13,6 +14,8 @@ const OUTER = {
     { include: "#Pick" },
     { include: "#Skip" },
     { include: "#Hollow" },
+    { include: "#Lack" },
+    { include: "#Void" },
     { include: "#Word" },
     { include: "#Gap" },
   ],
@@ -32,6 +35,13 @@ const OUTER = {
     },
     Hollow: { name: "hollow.outer", begin: "%", end: "%", patterns: [{ include: "#Empty" }] },
     Empty: { name: "empty.outer", begin: "!", end: "!", patterns: [{ include: "source.missing" }] },
+    Lack: {
+      name: "lack.outer",
+      begin: "\\^",
+      end: "\\^",
+      patterns: [{ include: "source.inner#Absent" }, { include: "#Absent" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Void: { name: "void.outer", begin: "~", end: "~", patterns: [{ include: "source.inner#Absent" }] },
     Word: { name: "word.outer", match: "[a-z]+" },
     Gap: { match: "\\s" },
   },
@@ -62,6 +72,7 @@ describe("includes that name a grammar scope as vscode-textmate does (I-2026)", 
     ["$self", "{ ( b ( 2 ) ) }\n", "2", "source.outer block.outer group.inner group.inner number.inner"],
     ["$base", "{ @ a [ 3 ] @ }\n", "3", "source.outer block.outer back.inner pick.outer number.inner"],
     ["an include of a scope that is not loaded", "a < b c > d\n", "c", "source.outer skip.outer word.outer"],
+    ["an include of a rule that a grammar lacks", "a ^ b ^ c\n", "b", "source.outer lack.outer word.outer"],
   ])("%s", async (_, text, needle, expected) => {
     const vscode = await vscodeScopes(structuredClone(OUTER), text, [structuredClone(INNER)]);
     expect(scopesAt(vscode, text, needle)).toBe(expected);
@@ -99,16 +110,34 @@ describe("includes that name a grammar scope as vscode-textmate does (I-2026)", 
   });
 
   test("a rule whose patterns are all missing includes is skipped, and so is a rule that includes only it", async () => {
-    const text = "a %% ! b ! c\n";
+    const text = "a %% ! b ! ~~ c\n";
     const vscode = await vscodeScopes(structuredClone(OUTER), text, [structuredClone(INNER)]);
     expect(scopesAt(vscode, text, "%")).toBe("source.outer");
     expect(scopesAt(vscode, text, "!")).toBe("source.outer");
+    expect(scopesAt(vscode, text, "~")).toBe("source.outer");
     expect(treeScopes(OUTER, text, [INNER])).toEqual(vscode);
   });
 
   test("a grammar alone still parses when its includes name a scope it does not hold", async () => {
     const text = "a {} c\n";
     expect(treeScopes(OUTER, text)).toEqual(await vscodeScopes(structuredClone(OUTER), text));
+  });
+
+  test("a grammar with no repository skips its rule includes, alone or included", async () => {
+    const bare = {
+      name: "bare",
+      scopeName: "source.inner",
+      patterns: [{ include: "#Absent" }, { name: "word.bare", match: "[a-z]+" }, { match: "\\s" }],
+    };
+    const alone = "a b\n";
+    const vscodeAlone = await vscodeScopes(structuredClone(bare), alone);
+    expect(scopesAt(vscodeAlone, alone, "b")).toBe("source.inner word.bare");
+    expect(treeScopes(bare, alone)).toEqual(vscodeAlone);
+
+    const included = "a { b } c\n";
+    const vscodeIncluded = await vscodeScopes(structuredClone(OUTER), included, [structuredClone(bare)]);
+    expect(scopesAt(vscodeIncluded, included, "b")).toBe("source.outer block.outer word.bare");
+    expect(treeScopes(OUTER, included, [bare])).toEqual(vscodeIncluded);
   });
 });
 
@@ -118,10 +147,26 @@ describe("node types across grammars (I-2026)", () => {
     const names = parser.nodeSet.types.map((type) => type.name);
     expect(new Set(names).size).toBe(names.length);
     parser.nodeSet.types.forEach((type, i) => expect(type.id).toBe(i));
-    const outerWord = parser.nodeSet.types.find((type) => type.name === "Word")!;
-    const innerWord = parser.nodeSet.types.find((type) => type.name === "source.inner#Word")!;
-    expect(outerWord.id).not.toBe(innerWord.id);
+    const outerWord = names.indexOf("Word");
+    const innerWord = names.indexOf("source.inner#Word");
+    expect(outerWord).toBeGreaterThan(0);
+    expect(innerWord).toBeGreaterThan(0);
+    expect(outerWord).not.toBe(innerWord);
 
+    const text = "a { b }\n";
+    const tree = parser.parse(text);
+    expect(tree.resolveInner(text.indexOf("a"), 1).name).toBe("Word");
+    expect(tree.resolveInner(text.indexOf("b"), 1).name).toBe("source.inner#Word");
+  });
+
+  test("a rule whose definition carries an id is still named and found for its own grammar", () => {
+    const inner = {
+      ...structuredClone(INNER),
+      repository: { ...structuredClone(INNER.repository), Word: { id: "Word", name: "word.inner", match: "[a-z]+" } },
+    };
+    const parser = new TextmateGrammarParser(new GrammarRegistry([structuredClone(OUTER), inner]));
+    const names = parser.nodeSet.types.map((type) => type.name);
+    expect(new Set(names).size).toBe(names.length);
     const text = "a { b }\n";
     const tree = parser.parse(text);
     expect(tree.resolveInner(text.indexOf("a"), 1).name).toBe("Word");
@@ -161,16 +206,27 @@ describe("an incremental reparse across a boundary between grammars (I-2026)", (
     ["opening a block", (at: number) => [at, at, "{ "] as const],
     ["closing a block", (at: number) => [at, at, " }"] as const],
   ])("%s at every position of a middle line gives the cold parse's tree", (_, change) => {
-    const before = parser.parse(TEXT);
     const lineStart = LINE.length * 20;
+    const reuse = vi.spyOn(Compiler.prototype, "reuse");
     const mismatches: number[] = [];
-    for (let at = lineStart; at < lineStart + LINE.length; at++) {
-      const [from, to, insert] = change(at);
-      const { next, tree } = edit(TEXT, before, from, to, insert);
-      if (printTree(tree, next) !== printTree(parser.parse(next), next)) {
-        mismatches.push(at - lineStart);
+    const cold: number[] = [];
+    try {
+      for (let at = lineStart; at < lineStart + LINE.length; at++) {
+        const before = parser.parse(TEXT);
+        const [from, to, insert] = change(at);
+        const calls = reuse.mock.calls.length;
+        const { next, tree } = edit(TEXT, before, from, to, insert);
+        if (reuse.mock.calls.length === calls) {
+          cold.push(at - lineStart);
+        }
+        if (printTree(tree, next) !== printTree(parser.parse(next), next)) {
+          mismatches.push(at - lineStart);
+        }
       }
+    } finally {
+      reuse.mockRestore();
     }
+    expect(cold, "every edit reparses from the earlier tree").toEqual([]);
     expect(mismatches).toEqual([]);
   });
 });

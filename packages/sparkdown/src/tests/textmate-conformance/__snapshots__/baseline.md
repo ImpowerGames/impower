@@ -6,11 +6,11 @@ Total cases: 95
 
 - pass: 3
 - mismatch: 1
-- incomplete: 16
+- incomplete: 18
 - capture-model: 0
 - while-rule: 18
-- regex-invalid: 52
-- throw-other: 5
+- regex-invalid: 53
+- throw-other: 2
 - load-error: 0
 
 ## Per-case
@@ -23,7 +23,7 @@ Total cases: 95
 ### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
-### incomplete (16)
+### incomplete (18)
 - first-mate#0 [fixtures/hello.json] TEST #3 — tokens matched but tree has error nodes
 - first-mate#3 [fixtures/text.json] TEST #6 — line 1 "abc def": token[0] ("abc def") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#11 [fixtures/text.json] TEST #14 — line 1 "hoo": token[0] ("hoo") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
@@ -38,7 +38,9 @@ Total cases: 95
 - first-mate#35 [fixtures/infinite-loop.json] TEST #38 — line 1 "abc": token[0] value got "abc" want "a"
 - first-mate#42 [fixtures/forever.json] TEST #48 — line 1 "forever and ever": token[0] ("forever and ever") scopes got ["source.forever"] want ["source.forever","text"]
 - first-mate#63 [fixtures/loops.json] TEST #74 — tokens matched but tree has error nodes
+- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — line 1 "This is a paragraph": token[0] ("This is a paragraph") scopes got ["text.html.markdown"] want ["text.html.markdown","meta.paragraph.markdown"]
 - suite1#9 [fixtures/testlang12.plist] Issue #12 — line 1 "[test]|": token[0] ("[test]|") scopes got ["text.testlang"] want ["text.testlang","string.unquoted.verbatim.youki"]
+- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — line 1 "Toggle preview `Shift+CMD+V`": token[0] value got "Toggle preview `Shift+CMD+V`" want "Toggle preview "
 - suite1#16 [fixtures/105.grammarA.json] Issue #105 — line 3 "some test pattern": token[0] ("some test pattern") scopes got ["source.test"] want ["source.test","test.name"]
 
 ### while-rule (18)
@@ -106,7 +108,7 @@ Total cases: 95
 - suite1#7 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported
 - suite1#8 [fixtures/whileLang.plist] Should Correctly handle anchor in while rule — while rules are not currently supported
 
-### regex-invalid (52)
+### regex-invalid (53)
 - first-mate#17 [fixtures/ruby.json] TEST #20 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
 - first-mate#20 [fixtures/coffee-script.json] TEST #23 — Invalid RegExp: \#\{
 - first-mate#22 [fixtures/ruby.json] TEST #25 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
@@ -213,6 +215,7 @@ Total cases: 95
 				(\{)												# Opening Bracket
 				
 - first-mate#62 [fixtures/thrift.json] TEST #73 — Invalid RegExp: (?<!\S)(include)(?!\S)(?:\s+((['"])(?>.*?(\3))))?
+- suite1#0 [fixtures/groovy.json] Groovy — Invalid RegExp: }
 - suite1#2 [fixtures/aspvbnet.plist] asp — Invalid RegExp: (?i:((?<=(\+|=|-|\&|\\|/|<|>|\(|,))\s*\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?!(\(|\.))|\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?=\s*(\+|=|-|\&|\\|/|<|>|\(|\)))))
 - suite1#3 [fixtures/aspvbnet.plist] asp2 — Invalid RegExp: (?i:((?<=(\+|=|-|\&|\\|/|<|>|\(|,))\s*\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?!(\(|\.))|\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?=\s*(\+|=|-|\&|\\|/|<|>|\(|\)))))
 - suite1#4 [fixtures/php.plist] Injections in PHP — Invalid RegExp: (<)([a-zA-Z0-9:]++)(?=[^>]*></\2>)
@@ -229,10 +232,7 @@ Total cases: 95
 - suite1#21 [fixtures/239.tmLanguage.json] Issue #239 Wrong backreference escaping — Invalid RegExp: (?x)\1
 [\2]+
 
-### throw-other (5)
-- suite1#0 [fixtures/groovy.json] Groovy — methods not found in repository
-- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — separator not found in repository
-- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — separator not found in repository
+### throw-other (2)
 - suite1#15 [fixtures/66.plist] Issue #66 — Cannot set properties of undefined (setting 'backReferences')
 - suite1#20 [fixtures/251.tmLanguage.json] Issue #251 empty `end` match immediately — Cannot set properties of undefined (setting 'backReferences')
 

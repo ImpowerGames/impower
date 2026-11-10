@@ -125,7 +125,7 @@ export class GrammarRepository {
     id?: string,
     isRepositoryRule?: boolean,
   ): GrammarNode | Rule {
-    const ruleId = this.ids.get(obj) || obj.id || id;
+    const ruleId = this.ids.get(obj) || id || obj.id;
     if (ruleId) {
       this.ids.set(obj, ruleId);
       const existing = this.map.get(ruleId);
@@ -178,16 +178,6 @@ export class GrammarRepository {
     return node;
   }
 
-  get(key: string) {
-    const result = this.map.get(key);
-
-    if (!result) {
-      throw new Error(`${key} not found in repository`);
-    }
-
-    return result;
-  }
-
   include(str: string): Rule[] {
     if (str === "$self") {
       return [this.self];
@@ -209,10 +199,11 @@ export class GrammarRepository {
   }
 
   rule(name: string): Rule[] {
-    if (!this.definition.repository) {
-      throw new Error("no includes defined");
+    const repository = this.definition.repository;
+    if (!repository || !Object.hasOwn(repository, name)) {
+      return [];
     }
-    const includedRule = this.get(this.prefix + name);
+    const includedRule = this.map.get(this.prefix + name);
     if (
       includedRule instanceof MatchRule ||
       includedRule instanceof ScopedRule ||
