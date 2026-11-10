@@ -82,9 +82,12 @@ export class ScopedRule implements Rule {
 
   match(state: GrammarState, from: number) {
     if (state.possibleStackOverflow(this.id, from)) {
+      if (this.beginRule.match(state, from)?.length === 0) {
+        state.stopped = true;
+      }
       return null;
     }
-    state.enter(this.id, from);
+    state.enter(this.id, from, true);
     const wrappedBeginChildren: Matched[] = [];
     let wrappedContentChildren: Matched[] = [];
     const wrappedEndChildren: Matched[] = [];
@@ -110,8 +113,30 @@ export class ScopedRule implements Rule {
     let emptyMatchCount = 0;
 
     while (!endMatched && pos < state.str.length) {
+      state.emptyScopeMatched = false;
       const patternMatched = this.content(state, pos);
+      if (state.stopped) {
+        if (patternMatched) {
+          contentChildren.push(patternMatched);
+          pos += patternMatched.length;
+          totalLength += patternMatched.length;
+        }
+        const lineEnd = state.lineEndAt(pos);
+        if (lineEnd > pos) {
+          contentChildren.push(
+            new Matched(GrammarNode.None, pos, lineEnd - pos),
+          );
+          totalLength += lineEnd - pos;
+          pos = lineEnd;
+        }
+        break;
+      }
       if (patternMatched) {
+        if (patternMatched.length === 0 && !state.emptyScopeMatched) {
+          contentChildren.push(patternMatched);
+          state.stopped = true;
+          break;
+        }
         if (patternMatched.length === 0) {
           emptyMatchCount++;
           if (emptyMatchCount >= EMPTY_MATCH_LIMIT) {
@@ -142,10 +167,11 @@ export class ScopedRule implements Rule {
         break;
       }
     }
-    if (!endMatched && pos >= state.str.length) {
+    if (!endMatched && !state.stopped && pos >= state.str.length) {
       endMatched = this.end(state, pos);
     }
-    const closedAtEof = !endMatched && pos >= state.str.length;
+    const closedCleanly =
+      !endMatched && (state.stopped || pos >= state.str.length);
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
         this.contentRule.node,
@@ -173,12 +199,13 @@ export class ScopedRule implements Rule {
       wrappedContentChildren = wrapped;
     }
 
-    if (endMatched || closedAtEof) {
+    if (endMatched || closedCleanly) {
       if (endMatched) {
         wrappedEndChildren.push(endMatched.children?.[0]!);
         totalLength += endMatched.length;
       }
       state.exit(this.id, from);
+      state.emptyScopeMatched = totalLength === 0;
       return Matched.create(this.node, from, totalLength, [
         ...wrappedBeginChildren,
         ...wrappedContentChildren,
@@ -197,6 +224,7 @@ export class ScopedRule implements Rule {
         incompleteMarker,
       ]);
       state.exit(this.id, from);
+      state.emptyScopeMatched = totalLength === 0;
       return incompleteNode;
     }
   }
