@@ -1,3 +1,4 @@
+import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -9,15 +10,16 @@ const { Registry, INITIAL } = vstm;
 
 let wasm: Promise<void> | undefined;
 
-export async function vscodeScopes(grammar: any, text: string): Promise<string[]> {
+export async function vscodeScopes(grammar: any, text: string, others: any[] = []): Promise<string[]> {
   wasm ??= loadWASM(readFileSync(createRequire(import.meta.url).resolve("vscode-oniguruma/release/onig.wasm")));
   await wasm;
+  const grammars = [grammar, ...others];
   const registry = new Registry({
     onigLib: Promise.resolve({
       createOnigScanner: (patterns: string[]) => new OnigScanner(patterns),
       createOnigString: (s: string) => new OnigString(s),
     }),
-    loadGrammar: async () => grammar,
+    loadGrammar: async (scopeName: string) => grammars.find((g) => g.scopeName === scopeName) ?? null,
   });
   const loaded = (await registry.loadGrammar(grammar.scopeName))!;
   const scopes: string[] = new Array(text.length).fill("");
@@ -36,8 +38,13 @@ export async function vscodeScopes(grammar: any, text: string): Promise<string[]
   return scopes;
 }
 
-export function treeScopes(grammar: any, text: string): string[] {
-  const parser = new TextmateGrammarParser(structuredClone(grammar));
+export function treeScopes(grammar: any, text: string, others: any[] = [], home: any = grammar): string[] {
+  const grammars = [grammar, ...others].map((g) => structuredClone(g));
+  const homeIndex = [grammar, ...others].indexOf(home);
+  const ordered = [grammars[homeIndex], ...grammars.filter((_, i) => i !== homeIndex)];
+  const parser = new TextmateGrammarParser(
+    others.length === 0 ? grammars[0] : new GrammarRegistry(ordered, grammar.scopeName),
+  );
   const names = new Map<number, string>();
   for (const node of (parser as any).grammar.nodes) {
     if (node?.props?.name) names.set(node.typeIndex, node.props.name);
