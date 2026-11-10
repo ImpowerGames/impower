@@ -2329,12 +2329,17 @@ export class GamePlayerController {
     type: typeof RollBackGameMessage.type | typeof RollForwardGameMessage.type,
     message: RollBackGameMessage.Request | RollForwardGameMessage.Request,
   ) {
-    const run = this._workerPlay?.run ?? null;
+    const play = this._workerPlay;
+    const run = play?.run ?? null;
     let answer: RollBackGameMessage.Response["result"] | undefined;
     try {
       answer = await this.askWorkerGame(type, message.params);
     } catch (e) {
       return type.error(message.id, toResponseError(e));
+    }
+    if (answer?.held && this._workerPlay === play) {
+      this.controlledApp?.pause();
+      this.updateLaunchStateIcon();
     }
     if (answer) {
       return type.response(message.id, { ...answer, run });

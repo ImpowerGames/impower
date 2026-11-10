@@ -622,24 +622,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     to: RollTarget,
   ) {
     let result: RollBackGameResult;
-    let held = false;
     try {
-      const ended = this._launchState === "ended";
-      const threads = await this._connection.emit(
-        GetGameThreadsMessage.type.request({}),
-      );
-      result = await this._connection.emit(type.request({ to }));
-      if (
-        result.moved &&
-        (ended || threads.stopped) &&
-        this.answersRun(threads.run, result.run) &&
-        this.answersRun(result.run, this._run)
-      ) {
-        const paused = await this._connection.emit(
-          PauseGameMessage.type.request({}),
-        );
-        held = this.answersRun(paused.run, result.run);
-      }
+      result = await this._connection.emit(type.request({ to, hold: true }));
     } catch (e) {
       this.sendRefusal(response, e);
       return;
@@ -651,7 +635,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     const body: RollDebugResult = { moved: result.moved };
     response.body = body;
     this.sendResponse(response);
-    if (held) {
+    if (result.held) {
       await this.sendStoppedEvent("step", result.run);
     }
   }

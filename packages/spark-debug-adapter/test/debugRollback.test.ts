@@ -4,27 +4,19 @@ import { SparkDebugSession } from "../src/SparkDebugSession";
 
 const NOTHING_BEFORE = "Nothing to go back to.";
 
-const moved = (beat: number) => ({
+const moved = (beat: number, held: boolean, run = 1) => ({
   moved: true,
   restored: { beat, location: { uri: "main.sd", range: {} } },
   history: {},
+  held,
+  run,
 });
 
-const session = (
-  rolls: Record<string, unknown> = {},
-  player = { stopped: true, ended: false },
-) => {
+const session = (answers: Record<string, unknown> = {}) => {
   const sent: { method: string; params: unknown }[] = [];
   const events: { event: string; body?: any }[] = [];
   const responses: any[] = [];
-  let debug: any;
-  const state = (launchState: string) =>
-    debug.onReceiveNotification({
-      jsonrpc: "2.0",
-      method: "preview/didChangeGameState",
-      params: { launchState, run: 1 },
-    });
-  debug = new SparkDebugSession(
+  const debug: any = new SparkDebugSession(
     {
       isWindows: false,
       uriToPath: (uri: string) => uri,
@@ -36,25 +28,21 @@ const session = (
       emit: async (message: { method: string; params: unknown }) => {
         sent.push({ method: message.method, params: message.params });
         if (message.method === "game/threads") {
-          return { threads: [{ id: 0, name: "main" }], stopped: player.stopped, run: 1 };
+          return { threads: [{ id: 0, name: "main" }], stopped: true, run: 1 };
         }
-        if (message.method === "game/pause") {
-          player.stopped = true;
-          await state("pause");
-          return { run: 1 };
-        }
-        const answer = rolls[message.method] ?? moved(0);
-        if (player.ended && (answer as { moved: boolean }).moved) {
-          player.ended = false;
-          await state("play");
-        }
-        return answer;
+        return answers[message.method] ?? moved(0, true);
       },
     } as any,
     { syncCursorToExecution: false },
   );
   debug.sendResponse = (response: any) => responses.push(response);
   debug.sendEvent = (event: any) => events.push(event);
+  const following = () =>
+    debug.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "preview/didChangeGameState",
+      params: { launchState: "pause", run: 1 },
+    });
   const response = (command: string) => ({
     seq: 0,
     type: "response",
@@ -67,13 +55,10 @@ const session = (
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   };
-  const methods = () =>
-    sent.map((m) => m.method).filter((m) => m !== "game/threads");
-  const rolls_ = () =>
-    sent.filter((m) => m.method === "game/rollBack" || m.method === "game/rollForward");
+  const requests = () => sent.filter((m) => m.method !== "game/threads");
   const stops = () =>
     events.filter((e) => e.event === "stopped").map((e) => e.body.reason);
-  return { debug, state, response, responses, settle, methods, rolls: rolls_, stops };
+  return { debug, following, response, responses, settle, requests, stops };
 };
 
 describe("rolling a debug run back and forward", () => {
@@ -83,40 +68,34 @@ describe("rolling a debug run back and forward", () => {
     expect(responses[0].body.supportsStepBack).toBe(true);
   });
 
-  it("rolls a held run back one beat on Step Back, keeps it held and stops at the restored beat", async () => {
-    const { debug, response, responses, methods, rolls, stops } = session();
+  it("asks for one held roll back one beat on Step Back, and stops at the restored beat when the run stays held", async () => {
+    const { debug, following, response, responses, requests, stops } = session();
+    await following();
     await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
-    expect(rolls()).toEqual([{ method: "game/rollBack", params: { to: "beat" } }]);
-    expect(methods()).toEqual(["game/rollBack", "game/pause"]);
-    expect(responses.map((r) => r.success)).toEqual([true]);
+    expect(requests()).toEqual([
+      { method: "game/rollBack", params: { to: "beat", hold: true } },
+    ]);
+    expect(responses.map((r) => [r.success, r.body])).toEqual([[true, { moved: true }]]);
     expect(stops()).toEqual(["step"]);
   });
 
-  it("holds and stops a run rolled back from its end", async () => {
-    const { debug, state, response, methods, stops } = session({}, {
-      stopped: false,
-      ended: true,
-    });
-    await state("ended");
-    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
-    expect(methods()).toEqual(["game/rollBack", "game/pause"]);
-    expect(stops()).toEqual(["step"]);
-  });
-
-  it("rolls back to the last beat a breakpoint held on Reverse Continue", async () => {
-    const { debug, response, responses, rolls, stops } = session();
+  it("asks for one held roll back to the last beat a breakpoint held on Reverse Continue", async () => {
+    const { debug, following, response, requests, stops } = session();
+    await following();
     await debug.reverseContinueRequest(response("reverseContinue"), {
       threadId: 0,
     });
-    expect(rolls()).toEqual([
-      { method: "game/rollBack", params: { to: "breakpoint" } },
+    expect(requests()).toEqual([
+      { method: "game/rollBack", params: { to: "breakpoint", hold: true } },
     ]);
-    expect(responses.map((r) => r.success)).toEqual([true]);
     expect(stops()).toEqual(["step"]);
   });
 
   it("carries the bar's Skip and Shift+Skip as sparkdown/rollBack and sparkdown/rollForward", async () => {
-    const { debug, response, responses, settle, rolls } = session();
+    const { debug, response, responses, settle, requests } = session({
+      "game/rollBack": moved(0, false),
+      "game/rollForward": moved(1, false),
+    });
     debug.customRequest("sparkdown/rollBack", response("sparkdown/rollBack"), {
       to: "choice",
     });
@@ -127,9 +106,9 @@ describe("rolling a debug run back and forward", () => {
       { to: "beat" },
     );
     await settle();
-    expect(rolls()).toEqual([
-      { method: "game/rollBack", params: { to: "choice" } },
-      { method: "game/rollForward", params: { to: "beat" } },
+    expect(requests()).toEqual([
+      { method: "game/rollBack", params: { to: "choice", hold: true } },
+      { method: "game/rollForward", params: { to: "beat", hold: true } },
     ]);
     expect(responses.map((r) => [r.command, r.success, r.body])).toEqual([
       ["sparkdown/rollBack", true, { moved: true }],
@@ -137,21 +116,21 @@ describe("rolling a debug run back and forward", () => {
     ]);
   });
 
-  it("answers a roll the run refuses with its reason, and neither pauses nor stops", async () => {
-    const { debug, response, responses, methods, stops } = session({
-      "game/rollBack": { moved: false, reason: NOTHING_BEFORE, history: {} },
+  it("answers a roll the run refuses with its reason, and does not stop", async () => {
+    const { debug, following, response, responses, stops } = session({
+      "game/rollBack": { moved: false, reason: NOTHING_BEFORE, history: {}, held: false },
     });
+    await following();
     await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
     expect(responses.map((r) => [r.success, r.message])).toEqual([
       [false, NOTHING_BEFORE],
     ]);
-    expect(methods()).toEqual(["game/rollBack"]);
     expect(stops()).toEqual([]);
   });
 
   it("answers a roll a later one superseded without a refusal", async () => {
-    const { debug, response, responses, settle, methods } = session({
-      "game/rollBack": { moved: false, superseded: true, history: {} },
+    const { debug, response, responses, settle } = session({
+      "game/rollBack": { moved: false, superseded: true, history: {}, held: false },
     });
     debug.customRequest("sparkdown/rollBack", response("sparkdown/rollBack"), {
       to: "beat",
@@ -160,35 +139,33 @@ describe("rolling a debug run back and forward", () => {
     expect(responses.map((r) => [r.success, r.body])).toEqual([
       [true, { moved: false }],
     ]);
-    expect(methods()).toEqual(["game/rollBack"]);
   });
 
-  it("neither pauses nor stops a playing run that a roll moved", async () => {
-    const { debug, response, methods, stops } = session({}, {
-      stopped: false,
-      ended: false,
+  it("does not stop a playing run that a roll moved", async () => {
+    const { debug, following, response, stops } = session({
+      "game/rollBack": moved(0, false),
     });
+    await following();
     await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
-    expect(methods()).toEqual(["game/rollBack"]);
     expect(stops()).toEqual([]);
   });
 
-  it("neither pauses nor stops a later run when the roll answered for an earlier one", async () => {
-    const { debug, state, response, methods, stops } = session({
-      "game/rollBack": { ...moved(0), run: 0 },
+  it("does not stop the run it follows for a roll held for an earlier run", async () => {
+    const { debug, following, response, stops } = session({
+      "game/rollBack": moved(0, true, 0),
     });
-    await state("pause");
+    await following();
     await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
-    expect(methods()).toEqual(["game/rollBack"]);
     expect(stops()).toEqual([]);
   });
 
   it("does not stop on the engine's roll notification", async () => {
-    const { debug, stops } = session();
+    const { debug, following, stops } = session();
+    await following();
     await debug.onReceiveNotification({
       jsonrpc: "2.0",
       method: "game/rolled",
-      params: moved(1),
+      params: moved(1, true),
     });
     expect(stops()).toEqual([]);
   });

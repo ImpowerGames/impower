@@ -493,43 +493,47 @@ describe("resuming behind the latest beat", () => {
 });
 
 describe("the worker game", () => {
+  const workerGame = async () => {
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const answers: unknown[] = [];
+    const state = installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) => {
+        try {
+          answers.push(
+            typeof result === "function" ? await result() : result,
+          );
+        } catch (error) {
+          answers.push({ error });
+        }
+      },
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const ask = async (message: unknown) => {
+      const asked = answers.length;
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+      for (let i = 0; i < 50 && answers.length === asked; i += 1) {
+        await settle();
+      }
+      return answers.at(-1) as any;
+    };
+    await ask(CreateGameMessage.type.request({ program: compile(FIXTURE) }));
+    const game = state.game!;
+    game.start();
+    game.clickedToContinue();
+    expect((game.story.currentText ?? "").trim()).toBe("The second beat.");
+    return { game, ask };
+  };
+
   test("answers game/rollBack and game/rollForward, and refuses a step behind the latest beat with its reason", async () => {
     vi.stubGlobal("self", { setTimeout: () => 0, clearTimeout: () => {} });
     try {
-      const listeners: ((e: MessageEvent) => void)[] = [];
-      const answers: unknown[] = [];
-      const state = installGameWorker({
-        addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
-          listeners.push(listener);
-        },
-        sendResponse: async (_message: unknown, result: unknown) => {
-          try {
-            answers.push(
-              typeof result === "function" ? await result() : result,
-            );
-          } catch (error) {
-            answers.push({ error });
-          }
-        },
-        sendNotification() {},
-        postMessage() {},
-      } as any);
-      const ask = async (message: unknown) => {
-        const asked = answers.length;
-        for (const listener of listeners) {
-          listener({ data: message } as MessageEvent);
-        }
-        for (let i = 0; i < 50 && answers.length === asked; i += 1) {
-          await settle();
-        }
-        return answers.at(-1) as any;
-      };
-      await ask(CreateGameMessage.type.request({ program: compile(FIXTURE) }));
-      const game = state.game!;
-      game.start();
-      game.clickedToContinue();
-      expect((game.story.currentText ?? "").trim()).toBe("The second beat.");
-
+      const { ask } = await workerGame();
       const back = await ask(RollBackGameMessage.type.request({ to: "beat" }));
       expect(back).toMatchObject({
         moved: true,
@@ -554,6 +558,28 @@ describe("the worker game", () => {
         moved: false,
         reason: "No later played beat. Continue the story to play more.",
       });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test("keeps a held run held through a roll asked to hold it, and leaves a playing run playing", async () => {
+    vi.stubGlobal("self", { setTimeout: () => 0, clearTimeout: () => {} });
+    try {
+      const held = await workerGame();
+      held.game.pause();
+      expect(
+        await held.ask(RollBackGameMessage.type.request({ to: "beat", hold: true })),
+      ).toMatchObject({ moved: true, held: true });
+      expect(held.game.paused).toBe(true);
+
+      const playing = await workerGame();
+      expect(
+        await playing.ask(
+          RollBackGameMessage.type.request({ to: "beat", hold: true }),
+        ),
+      ).toMatchObject({ moved: true, held: false });
+      expect(playing.game.paused).toBe(false);
     } finally {
       vi.unstubAllGlobals();
     }

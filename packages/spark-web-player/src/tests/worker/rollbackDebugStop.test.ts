@@ -45,7 +45,11 @@ const playing = async () => {
   return { h, c, onward };
 };
 
-const attach = (c: any, rollAnswered: () => Promise<void> = async () => {}) => {
+const attach = (
+  c: any,
+  rollAnswered: () => Promise<void> = async () => {},
+  beforeHandling: (method: string) => Promise<void> = async () => {},
+) => {
   const handlers: Record<string, string> = {
     "game/rollBack": "handleRollBackGame",
     "game/rollForward": "handleRollForwardGame",
@@ -61,12 +65,14 @@ const attach = (c: any, rollAnswered: () => Promise<void> = async () => {}) => {
           throw new Error(`Unhandled ${m.method}`);
         }
         sent.push(m.method);
-        void Promise.resolve(c[handler](m)).then(async (r) => {
-          if (m.method === "game/rollBack") {
-            await rollAnswered();
-          }
-          connection.receive(r);
-        });
+        void beforeHandling(m.method)
+          .then(() => c[handler](m))
+          .then(async (r) => {
+            if (m.method === "game/rollBack") {
+              await rollAnswered();
+            }
+            connection.receive(r);
+          });
       }
     },
   });
@@ -186,6 +192,44 @@ describe("a roll of a run the debugger holds", () => {
       expect(session.stops()).toEqual([]);
     } finally {
       release();
+      session?.dispose();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keeps the run a restart started playing when it lands after the roll is answered and before the run is held", async () => {
+    const { h, c } = await playing();
+    let session: ReturnType<typeof attach> | undefined;
+    let answered = false;
+    let restarted = false;
+    const restart = async () => {
+      restarted = true;
+      expect(await c.restartGame(true)).toBe(true);
+      await settle(30);
+    };
+    try {
+      await c.handlePauseGame(PauseGameMessage.type.request({}));
+      const before = c.getGameState().run;
+      session = attach(
+        c,
+        async () => {
+          answered = true;
+        },
+        async (method) => {
+          if (answered && !restarted && method !== "game/threads") {
+            await restart();
+          }
+        },
+      );
+      await session.debug.stepBackRequest(request("stepBack"), { threadId: 0 });
+      await settle(20);
+      if (!restarted) {
+        await restart();
+      }
+      await settle(20);
+      expect(c.getGameState().run).not.toBe(before);
+      expect(c.getGameState()).toMatchObject({ launchState: "play", paused: false });
+    } finally {
       session?.dispose();
       h.dispose();
     }

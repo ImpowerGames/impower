@@ -402,8 +402,8 @@ describe("the web editor's debug client on the shared adapter", () => {
     expect(await debug.rollBack("choice")).toBe(true);
     expect(await debug.rollForward("beat")).toBe(true);
     expect(rolls).toEqual([
-      ["game/rollBack", { to: "choice" }],
-      ["game/rollForward", { to: "beat" }],
+      ["game/rollBack", { to: "choice", hold: true }],
+      ["game/rollForward", { to: "beat", hold: true }],
     ]);
     expect(methods).toContain("game/rollBack");
   });
