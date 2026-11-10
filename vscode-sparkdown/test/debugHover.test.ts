@@ -46,6 +46,7 @@ vi.mock("vscode", () => {
       registerDebugAdapterDescriptorFactory: () => disposable,
       onDidStartDebugSession: () => disposable,
       onDidTerminateDebugSession: () => disposable,
+      onDidChangeActiveDebugSession: () => disposable,
     },
     languages: {
       registerEvaluatableExpressionProvider: (_: string, provider: any) => {

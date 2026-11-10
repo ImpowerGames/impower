@@ -188,16 +188,19 @@ export class SparkdownPreviewGamePanelManager {
     );
   }
 
-  attachDebugSession(session: vscode.DebugSession) {
-    this._debugSession = session;
-    this.sendControls();
-  }
-
-  detachDebugSession(session: vscode.DebugSession) {
-    if (this._debugSession?.id !== session.id) {
+  syncDebugSession(ended?: vscode.DebugSession) {
+    const active = vscode.debug.activeDebugSession;
+    const session =
+      active &&
+      active.id !== ended?.id &&
+      active.type === "game" &&
+      !active.configuration["noDebug"]
+        ? active
+        : undefined;
+    if (session?.id === this._debugSession?.id) {
       return;
     }
-    this._debugSession = undefined;
+    this._debugSession = session;
     this.sendControls();
   }
 

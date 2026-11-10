@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FakeVscode } from "./fakeVscode";
 
 const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
+  debug: { activeDebugSession: undefined as unknown },
 }));
 
 vi.mock("vscode", async () => {
@@ -18,7 +19,7 @@ vi.mock("vscode", async () => {
         return { path, toString: () => `file://${path}` };
       },
     },
-    debug: { activeDebugSession: undefined },
+    debug: state.debug,
     window: {
       ...state.vscode.window,
       showErrorMessage: () => Promise.resolve(undefined),
@@ -51,14 +52,17 @@ const memento = () => {
 
 const session = (
   id: string,
-  answer: (command: string, args: unknown) => Promise<unknown>,
+  answer: (command: string, args: unknown) => Promise<unknown> = async () => ({
+    moved: true,
+  }),
+  { type = "game", noDebug = false } = {},
 ) => {
   const requests: [string, unknown][] = [];
   return {
     id,
-    type: "game",
+    type,
     name: "Debug File",
-    configuration: {},
+    configuration: noDebug ? { noDebug } : {},
     requests,
     customRequest: (command: string, args: unknown) => {
       requests.push([command, args]);
@@ -131,7 +135,15 @@ const open = async () => {
   return { manager, posted, receive: (m: unknown) => receive(m), skip, controls };
 };
 
+const activate = (run: unknown) => {
+  state.debug.activeDebugSession = run;
+};
+
 describe("the Game Preview's skip buttons during a debug run", () => {
+  beforeEach(() => {
+    activate(undefined);
+  });
+
   it("stay off and leave a skip unanswered with no debug session", async () => {
     const preview = await open();
     await preview.receive(CONNECTED);
@@ -139,10 +151,11 @@ describe("the Game Preview's skip buttons during a debug run", () => {
     expect(await preview.skip(-1)).toBeUndefined();
   });
 
-  it("turn on when a debug session starts and roll that session's run", async () => {
+  it("turn on for the active debug session and roll its run", async () => {
     const preview = await open();
-    const run = session("s1", async () => ({ moved: true }));
-    preview.manager.attachDebugSession(run as any);
+    const run = session("s1");
+    activate(run);
+    preview.manager.syncDebugSession();
     expect(preview.controls()).toEqual([{ skipButtons: true }]);
     expect((await preview.skip(-1))?.result).toEqual({ moved: true });
     expect((await preview.skip(1))?.result).toEqual({ moved: true });
@@ -154,7 +167,8 @@ describe("the Game Preview's skip buttons during a debug run", () => {
 
   it("are restated to a preview that reconnects mid-run", async () => {
     const preview = await open();
-    preview.manager.attachDebugSession(session("s1", async () => ({})) as any);
+    activate(session("s1"));
+    preview.manager.syncDebugSession();
     await preview.receive(CONNECTED);
     expect(preview.controls()).toEqual([
       { skipButtons: true },
@@ -164,21 +178,64 @@ describe("the Game Preview's skip buttons during a debug run", () => {
 
   it("answer moved false when the session refuses the roll", async () => {
     const preview = await open();
-    preview.manager.attachDebugSession(
+    activate(
       session("s1", async () => {
         throw new Error("Nothing to go back to.");
-      }) as any,
+      }),
     );
+    preview.manager.syncDebugSession();
     expect((await preview.skip(-1))?.result).toEqual({ moved: false });
   });
 
-  it("turn off when that session ends, and the next skip goes unanswered", async () => {
+  it("roll the session the author selects, not the last one started", async () => {
     const preview = await open();
-    const run = session("s1", async () => ({ moved: true }));
-    preview.manager.attachDebugSession(run as any);
-    preview.manager.detachDebugSession(session("s2", async () => ({})) as any);
+    const first = session("s1");
+    const second = session("s2");
+    activate(first);
+    preview.manager.syncDebugSession();
+    activate(second);
+    preview.manager.syncDebugSession();
+    activate(first);
+    preview.manager.syncDebugSession();
+    await preview.skip(-1);
+    expect(first.requests).toEqual([["sparkdown/rollBack", { to: "beat" }]]);
+    expect(second.requests).toEqual([]);
+  });
+
+  it("stay on when another session ends and the debugged run is still active", async () => {
+    const preview = await open();
+    const first = session("s1");
+    activate(first);
+    preview.manager.syncDebugSession();
+    preview.manager.syncDebugSession(session("s2") as any);
     expect(preview.controls()).toEqual([{ skipButtons: true }]);
-    preview.manager.detachDebugSession(run as any);
+    expect((await preview.skip(1))?.result).toEqual({ moved: true });
+  });
+
+  it("turn off when the active session is a run without debugging or another debugger's", async () => {
+    const preview = await open();
+    const debugged = session("s1");
+    activate(debugged);
+    preview.manager.syncDebugSession();
+    activate(session("s2", undefined, { noDebug: true }));
+    preview.manager.syncDebugSession();
+    expect(preview.controls()).toEqual([
+      { skipButtons: true },
+      { skipButtons: false },
+    ]);
+    expect(await preview.skip(-1)).toBeUndefined();
+    activate(session("s3", undefined, { type: "node" }));
+    preview.manager.syncDebugSession();
+    expect(await preview.skip(-1)).toBeUndefined();
+    expect(debugged.requests).toEqual([]);
+  });
+
+  it("turn off when the active session ends, and the next skip goes unanswered", async () => {
+    const preview = await open();
+    const run = session("s1");
+    activate(run);
+    preview.manager.syncDebugSession();
+    preview.manager.syncDebugSession(run as any);
     expect(preview.controls()).toEqual([
       { skipButtons: true },
       { skipButtons: false },
