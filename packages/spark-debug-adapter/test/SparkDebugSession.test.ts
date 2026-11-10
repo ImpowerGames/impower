@@ -1,4 +1,6 @@
 import type { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { compileProgram } from "@impower/spark-engine/src/tests/harness/compileProgram";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,6 +10,7 @@ import {
 } from "../src/index";
 
 const MAIN_URI = "file:///project/main.sd";
+const GAME_URI = "inmemory:///main.sd";
 const MAIN_PATH = "/project/main.sd";
 
 const range = (line: number, start: number, end: number) => ({
@@ -30,7 +33,7 @@ const fileAccessor: FileAccessor = {
 
 const createSession = (
   host: SparkDebugSessionHost,
-  refusals: Record<number, string> = {},
+  answerBreakpoints?: (breakpoints: { file: string; line: number }[]) => unknown[],
 ) => {
   const emitted: { method: string; params: any }[] = [];
   let receive: ((msg: any) => Promise<unknown>) | undefined;
@@ -43,15 +46,14 @@ const createSession = (
       switch (message.method) {
         case "game/setBreakpoints":
           return {
-            breakpoints: message.params.breakpoints.map(
-              (b: { file: string; line: number }) =>
-                refusals[b.line] != null
-                  ? { verified: false, message: refusals[b.line] }
-                  : {
-                      verified: true,
-                      location: { uri: b.file, range: range(b.line, 2, 8) },
-                    },
-            ),
+            breakpoints: answerBreakpoints
+              ? answerBreakpoints(message.params.breakpoints)
+              : message.params.breakpoints.map(
+                  (b: { file: string; line: number }) => ({
+                    verified: true,
+                    location: { uri: b.file, range: range(b.line, 2, 8) },
+                  }),
+                ),
           };
         case "game/threads":
           return { threads: [{ id: 1, name: "main" }] };
@@ -198,10 +200,17 @@ describe("SparkDebugSession in a browser page", () => {
   });
 
   it.each([
-    ["a declaration line", "A declaration runs before the story starts"],
-    ["a line with no statement", "No statement to stop at here."],
-  ])("answers a breakpoint the engine refuses on %s with the engine's reason", async (_, reason) => {
-    const { request } = createSession({ syncCursorToExecution: false }, { 1: reason });
+    ["a declaration line", 1, "A declaration runs before the story starts"],
+    ["a line with no statement", 7, "No statement to stop at here."],
+  ])("answers a breakpoint the engine refuses on %s with the engine's reason", async (_, line, reason) => {
+    const game = new Game({
+      program: compileProgram(
+        "define companion as character with\n  store trust = 0\nend\n\nscene start\n  Hello there.\nend\n",
+      ),
+    } as never);
+    const { request } = createSession({ syncCursorToExecution: false }, (breakpoints) =>
+      game.setBreakpoints(breakpoints.map((b) => ({ ...b, file: GAME_URI }))),
+    );
     await request("initialize", {
       adapterID: "sparkdown",
       pathFormat: "path",
@@ -210,10 +219,10 @@ describe("SparkDebugSession in a browser page", () => {
     });
     const answer = await request<DebugProtocol.SetBreakpointsResponse>("setBreakpoints", {
       source: { path: MAIN_PATH },
-      breakpoints: [{ line: 2 }, { line: 3 }],
+      breakpoints: [{ line }, { line: 6 }],
     });
     expect(answer.body.breakpoints[0]).toMatchObject({ verified: false, message: reason });
-    expect(answer.body.breakpoints[1]).toMatchObject({ verified: true, line: 3 });
+    expect(answer.body.breakpoints[1]).toMatchObject({ verified: true, line: 6 });
     expect(answer.body.breakpoints[1]!.message).toBeUndefined();
   });
 
