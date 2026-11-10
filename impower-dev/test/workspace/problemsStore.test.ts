@@ -4,7 +4,9 @@ import type { Diagnostic } from "vscode-languageserver-protocol";
 
 const {
   headCount,
+  isChoiceLive,
   panelRows,
+  playedMessages,
   playedFromRuntimeError,
   problemSummary,
   scopeContext,
@@ -16,6 +18,19 @@ const {
 );
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+);
+
+const { choiceMadeSource, runStartSource } = await import(
+  "../../src/modules/spark-editor/workspace/problems/gameSources"
+);
+const { default: workspaceSettings } = await import(
+  "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings"
+);
+const { GameChosePathToContinueMessage } = await import(
+  "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage"
+);
+const { GameStartedMessage } = await import(
+  "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"
 );
 
 const MAIN = "file://local/main.sd";
@@ -146,5 +161,98 @@ describe("the problems model", () => {
     problems.record({ uri: MAIN, diagnostics: [] });
     expect(problems.diagnostics.value).toEqual({});
     expect(problems.counts.value).toEqual({ errors: 0, problems: 0, notes: 0 });
+  });
+});
+
+describe("choices in the Played log", () => {
+  const chose = (checkpoint: number, text: string) =>
+    GameChosePathToContinueMessage.type.notification({
+      location: {
+        uri: MAIN,
+        range: { start: { line: 3, character: 0 }, end: { line: 3, character: 1 } },
+      },
+      checkpoint,
+      text,
+    });
+  const started = () => GameStartedMessage.type.notification({});
+  const choices = () =>
+    problems.played.value.filter((entry) => entry.checkpoint != null);
+  const live = () =>
+    choices().map((entry) =>
+      isChoiceLive(entry, problems.played.value, problems.run.value),
+    );
+
+  beforeEach(() => {
+    problems.addPlayedSource(choiceMadeSource);
+    problems.addRunSource(runStartSource);
+  });
+
+  it("records each choice made as a played note naming the chosen option on one line, with no script link", () => {
+    problems.receive(started());
+    problems.receive(chose(3, "  Rest by the fire.\nThen sleep.  "));
+    expect(choices()).toEqual([
+      expect.objectContaining({
+        severity: "info",
+        title: "Chose · Rest by the fire.",
+        checkpoint: 3,
+        run: problems.run.value,
+      }),
+    ]);
+    expect(choices()[0]!.path).toBeUndefined();
+    expect(choices()[0]!.message).toBe("");
+  });
+
+  it("never counts a choice as a problem or a note, and never opens the panel", () => {
+    const opened = workspaceSettings.projectSettings.value.previewPanelHeight;
+    problems.receive(started());
+    problems.receive(chose(1, "Pay."));
+    problems.receive(chose(3, "Rest."));
+    expect(problems.counts.value).toEqual({ errors: 0, problems: 0, notes: 0 });
+    expect(problems.problems.value).toEqual([]);
+    expect(scopedProblems({ kind: "story" }, problems.problems.value)).toEqual([]);
+    expect(problems.summary.value).toEqual({});
+    expect(headCount(playedMessages(problems.played.value)).text).toBe("");
+    expect(workspaceSettings.projectSettings.value.previewPanelHeight).toBe(opened);
+    expect(problems.panelOpen.value).toBe(false);
+  });
+
+  const entry = (id: number, run: number, checkpoint: number) => ({
+    id,
+    run,
+    checkpoint,
+    time: 0,
+    severity: "info" as const,
+    message: "",
+  });
+  const forkedAt3 = [entry(1, 2, 1), entry(2, 2, 3), entry(3, 2, 5), entry(4, 2, 3)];
+
+  it.each([
+    ["the current run before the point it forked from", forkedAt3[0]!, 2, true],
+    ["the current run at the point it forked from", forkedAt3[1]!, 2, false],
+    ["the current run after the point it forked from", forkedAt3[2]!, 2, false],
+    ["the choice it forked with", forkedAt3[3]!, 2, true],
+    ["an earlier run", forkedAt3[0]!, 3, false],
+  ] as const)("holds a choice made in %s", (_case, choice, run, held) => {
+    expect(isChoiceLive(choice, forkedAt3, run)).toBe(held);
+  });
+
+  it("drops a choice the engine's history no longer holds, and trusts the log when no history is known", () => {
+    expect(isChoiceLive(forkedAt3[0]!, forkedAt3, 2, [3])).toBe(false);
+    expect(isChoiceLive(forkedAt3[3]!, forkedAt3, 2, [3])).toBe(true);
+    expect(isChoiceLive(forkedAt3[0]!, forkedAt3, 2, null)).toBe(true);
+  });
+
+  it("derives whether a choice is still held from the run and later choices", () => {
+    problems.receive(started());
+    problems.receive(chose(1, "Pay."));
+    problems.receive(chose(3, "Rest."));
+    problems.receive(chose(5, "Sleep."));
+    expect(live()).toEqual([true, true, true]);
+    problems.receive(chose(3, "Walk on."));
+    expect(live()).toEqual([true, false, false, true]);
+    problems.receive(started());
+    expect(live()).toEqual([false, false, false, false]);
+    problems.receive(chose(1, "Climb."));
+    expect(live()).toEqual([false, false, false, false, true]);
   });
 });

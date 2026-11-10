@@ -418,6 +418,7 @@ describe("rolling a run back and forward", () => {
       rollForwardRefusal: HISTORY_REASONS.rollForward,
       stepRefusal: null,
       stepOutRefusal: HISTORY_REASONS.stepOut,
+      heldChoices: [],
     });
   });
 });

@@ -2,6 +2,7 @@ export type RollDebugTarget = "beat" | "choice";
 
 export interface RollDebugArguments {
   to: RollDebugTarget;
+  choice?: number;
 }
 
 export interface RollDebugResult {
