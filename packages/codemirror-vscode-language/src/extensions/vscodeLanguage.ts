@@ -7,6 +7,7 @@ import {
 import { VSCodeLanguageSupport } from "../classes/VSCodeLanguageSupport";
 import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { type VSCodeSnippetsDefinition } from "../types/VSCodeSnippetDefinition";
 import { convertConfigToLanguageData } from "../utils/convertConfigToLanguageData";
 import { convertGrammarToLanguageData } from "../utils/convertGrammarToLanguageData";
 import { vscodeBracketMatching } from "./vscodeBracketMatching";
@@ -14,6 +15,7 @@ import { vscodeCloseBrackets } from "./vscodeCloseBrackets";
 import { vscodeCommentTokens } from "./vscodeCommentTokens";
 import { vscodeIndentationRules } from "./vscodeIndentationRules";
 import { vscodeOnEnterRules } from "./vscodeOnEnterRules";
+import { vscodeSnippets } from "./vscodeSnippets";
 import { vscodeSurroundBrackets } from "./vscodeSurroundBrackets";
 
 export interface VSCodeLanguageFeaturesConfig {
@@ -28,6 +30,8 @@ export interface VSCodeLanguageFeaturesConfig {
   configs?: Readonly<Record<string, VSCodeConfigDefinition>>;
 
   embeddedLanguages?: EmbeddedLanguages;
+
+  snippets?: Readonly<Record<string, VSCodeSnippetsDefinition>>;
 }
 
 export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
@@ -38,6 +42,7 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
     language = name,
     configs = {},
     embeddedLanguages = {},
+    snippets = {},
   } = options;
   const config = configs[language] ?? {};
 
@@ -63,17 +68,17 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
     name,
     grammar,
     vscodeLanguageData,
-    (grammarTree) => [
-      vscodeCommentTokens(
-        createLanguageReader(grammarTree, embeddedLanguages),
-        language,
-        configs,
-      ),
-      vscodeBracketMatching(config),
-      vscodeSurroundBrackets(config),
-      vscodeCloseBrackets(config),
-      vscodeOnEnterRules(config),
-      vscodeIndentationRules(config),
-    ],
+    (grammarTree) => {
+      const reader = createLanguageReader(grammarTree, embeddedLanguages);
+      return [
+        vscodeCommentTokens(reader, language, configs),
+        vscodeSnippets(reader, language, snippets),
+        vscodeBracketMatching(config),
+        vscodeSurroundBrackets(config),
+        vscodeCloseBrackets(config),
+        vscodeOnEnterRules(config),
+        vscodeIndentationRules(config),
+      ];
+    },
   );
 };

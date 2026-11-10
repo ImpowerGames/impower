@@ -12,15 +12,16 @@ vanishes:
 | `packages/sparkdown/language/sparkdown.language-config.json`        | `definitions/yaml/sparkdown.language-config.yaml`        |
 | `packages/sparkdown/language/sparkdown-luau.language-config.json`   | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
 | `packages/sparkdown/language/sparkdown.language-snippets.json`      | `definitions/yaml/sparkdown.language-snippets.yaml`      |
+| `packages/sparkdown/language/sparkdown-luau.language-snippets.json` | `definitions/yaml/sparkdown-luau.language-snippets.yaml` |
 | `vscode-sparkdown/language/sparkdown.language-grammar.json`         | `definitions/yaml/sparkdown.language-grammar.yaml`       |
 | `vscode-sparkdown/language/sparkdown-luau.language-grammar.json`    | `definitions/yaml/sparkdown.language-grammar.yaml`       |
 | `vscode-sparkdown/language/sparkdown.language-config.json`          | `definitions/yaml/sparkdown.language-config.yaml`        |
 | `vscode-sparkdown/language/sparkdown-luau.language-config.json`     | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
 | `vscode-sparkdown/language/sparkdown.language-snippets.json`        | `definitions/yaml/sparkdown.language-snippets.yaml`      |
+| `vscode-sparkdown/language/sparkdown-luau.language-snippets.json`   | `definitions/yaml/sparkdown-luau.language-snippets.yaml` |
 
 (Each YAML source propagates to both `packages/sparkdown/language/` and
-`vscode-sparkdown/language/`; `definitions/yaml/sparkdown.language-completions.yaml`
-exists but is not currently propagated.)
+`vscode-sparkdown/language/`.)
 
 The sources are easy to miss: they live under `definitions/yaml/` at the repo
 root, NOT under `packages/`, and a grep for a rule's expanded regex won't find

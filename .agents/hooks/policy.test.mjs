@@ -646,6 +646,7 @@ const checks = [
   [event("Write", { file_path: "C:\\repo\\packages\\sparkdown\\language\\sparkdown-luau.language-config.json" }), true],
   [event("Edit", { file_path: "vscode-sparkdown/language/sparkdown-luau.language-config.json" }), true],
   [event("Edit", { file_path: "packages/sparkdown/language/sparkdown-luau.language-grammar.json" }), true],
+  [event("Edit", { file_path: "vscode-sparkdown/language/sparkdown-luau.language-snippets.json" }), true],
   [event("Edit", { file_path: "definitions/yaml/sparkdown-luau.language-config.yaml" }), false],
   [event("apply_patch", { command: "*** Begin Patch\n*** Update File: ordinary.txt\n@@\n-a\n+b\n*** Add File: packages/sparkdown/language/sparkdown.language-config.json\n+{}\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\r\n*** Update File: plain.txt\r\n*** Move to: vscode-sparkdown/language/sparkdown.language-snippets.json\r\n@@\r\n-a\r\n+b\r\n*** End Patch" }), true],
