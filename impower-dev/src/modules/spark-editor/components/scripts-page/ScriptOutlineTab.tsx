@@ -1,7 +1,6 @@
-import { Button, ListRow, SearchIcon, VirtualList } from "@impower/impower-ui/components";
+import { Button, SearchIcon, VirtualList } from "@impower/impower-ui/components";
 import { useMemo } from "preact/hooks";
-import workspace from "../../workspace/WorkspaceStore";
-import { filterOutlineRows, OutlineRowIcon, outlineRows, type OutlineRow } from "../outline";
+import { filterOutlineRows, OutlineListRow, useOutlineModel, type OutlineRow } from "../outline";
 import { useSavedScroll, useTabQuery } from "./pageState";
 import SearchBox from "./SearchBox";
 
@@ -14,21 +13,11 @@ const reveal = (uri: string, row: OutlineRow) =>
   });
 
 export default function ScriptOutlineTab() {
-  const snapshot = workspace.outline.value;
-  const uri = snapshot?.uri;
   const [query, setQuery] = useTabQuery(OUTLINE_TAB);
   const scroller = useSavedScroll(OUTLINE_TAB);
-  const all = useMemo(
-    () =>
-      outlineRows({
-        symbols: snapshot?.symbols ?? [],
-        diagnostics: snapshot?.diagnostics ?? [],
-        firstContentLine: snapshot?.firstContentLine,
-      }).rows,
-    [snapshot],
-  );
-  const rows = useMemo(() => filterOutlineRows(all, query), [all, query]);
   const searching = !!query.trim();
+  const { uri, model } = useOutlineModel({ collapsible: !searching });
+  const rows = useMemo(() => filterOutlineRows(model.rows, query), [model.rows, query]);
 
   return (
     <div class="flex min-h-0 flex-1 flex-col px-4">
@@ -43,13 +32,7 @@ export default function ScriptOutlineTab() {
           items={rows}
           getKey={(row) => row.key}
           renderItem={(row) => (
-            <ListRow
-              depth={row.depth}
-              icon={<OutlineRowIcon row={row} />}
-              label={row.label}
-              aria-label={row.accessibleName}
-              onClick={() => reveal(uri, row)}
-            />
+            <OutlineListRow uri={uri} row={row} collapsible={!searching} onOpen={(row) => reveal(uri, row)} />
           )}
         />
       ) : (
