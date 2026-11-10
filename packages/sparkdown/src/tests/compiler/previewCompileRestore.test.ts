@@ -264,7 +264,7 @@ describe("a preview compile", () => {
     expect(digest(compiler) === before, "the compiler's digest after an in-block preview").toBe(true);
   });
 
-  it("in long blocks a cold parse left whole splits each once, and every later preview there reparses a few lines", () => {
+  it("in long blocks a preview parses at most twice the first time, and every later preview there reparses a few lines", () => {
     const L: string[] = [];
     for (const name of ["first", "second"]) {
       L.push(`scene ${name}`, "  The hall is quiet.", "", "  choose", "    + [Go on]", "      The door opens.", "", "    + [Wait]", "      Nothing happens.", "  then", "");
