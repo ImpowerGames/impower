@@ -1093,12 +1093,18 @@ export class ScriptEditorController {
         }),
         this.host,
       );
-      const done = fix
-        ? applyEditorFix(view, fix, message.id)
-        : undoEditorFix(view, undoFix!.fix);
+      if (fix) {
+        const revert = applyEditorFix(view, fix, message.id);
+        return ApplyEditorEditMessage.type.response(
+          message.id,
+          revert ? { applied: [uri], revert } : { applied: [], refused: [uri] },
+        );
+      }
       return ApplyEditorEditMessage.type.response(
         message.id,
-        done ? { applied: [uri] } : { applied: [], refused: [uri] },
+        undoEditorFix(view, undoFix!)
+          ? { applied: [uri] }
+          : { applied: [], refused: [uri] },
       );
     }
     const applied: string[] = [];

@@ -11,13 +11,14 @@ import {
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch";
-import type { EditorFix } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import type {
+  EditorFix,
+  EditorFixRevert,
+  EditorFixText,
+  EditorFixUndo,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 
-interface InsertedText {
-  from: number;
-  to: number;
-  text: string;
-}
+type InsertedText = EditorFixText;
 
 interface AppliedFix {
   id: number | string;
@@ -91,14 +92,22 @@ const dispatchFix = (
   });
 };
 
+const revertOf = (inverse: ChangeSet, inserted: InsertedText[]): EditorFixRevert => {
+  const changes: EditorFixRevert["changes"] = [];
+  inverse.iterChanges((from, to, _fromB, _toB, text) => {
+    changes.push({ from, to, insert: text.toString() });
+  });
+  return { changes, inserted };
+};
+
 export const applyEditorFix = (
   view: EditorView,
   fix: EditorFix,
   id: number | string,
-): boolean => {
+): EditorFixRevert | null => {
   const current = currentChanges(view, fix);
   if (!current) {
-    return false;
+    return null;
   }
   const { base, toNow } = current;
   const length = base.length;
@@ -108,7 +117,7 @@ export const applyEditorFix = (
     fix.range.end.line >= base.lines ||
     !fix.changes.every((c) => inBase(c.from) && inBase(c.to) && c.from <= c.to)
   ) {
-    return false;
+    return null;
   }
   if (fix.expect !== undefined) {
     const from = toNow(convertFromPosition(base, fix.range.start), 1);
@@ -122,7 +131,7 @@ export const applyEditorFix = (
         fix.kind,
       )
     ) {
-      return false;
+      return null;
     }
   }
   const changes = ChangeSet.of(
@@ -133,23 +142,43 @@ export const applyEditorFix = (
     view.state.doc.length,
   );
   const inverse = changes.invert(view.state.doc);
-  dispatchFix(view, changes, {
-    id,
-    inverse,
-    inserted: insertedTexts(changes),
-  });
-  return true;
+  const inserted = insertedTexts(changes);
+  dispatchFix(view, changes, { id, inverse, inserted });
+  return revertOf(inverse, inserted);
 };
 
-const stillInserted = (state: EditorState, fix: AppliedFix) =>
+const stillInserted = (
+  state: EditorState,
+  fix: Pick<AppliedFix, "inserted">,
+) =>
   fix.inserted.every(
     ({ from, to, text }) =>
       from <= to && to <= state.doc.length && state.sliceDoc(from, to) === text,
   );
 
-export const undoEditorFix = (view: EditorView, id: number | string) => {
-  const fix = view.state.field(appliedFixField, false);
-  if (!fix || fix.id !== id || !stillInserted(view.state, fix)) {
+const recordedRevert = (
+  state: EditorState,
+  { fix: id, revert }: EditorFixUndo,
+): Pick<AppliedFix, "inverse" | "inserted"> | null => {
+  const fix = state.field(appliedFixField, false);
+  if (fix && id !== undefined && fix.id === id) {
+    return fix;
+  }
+  const length = state.doc.length;
+  const inBounds = ({ from, to }: { from: number; to: number }) =>
+    0 <= from && from <= to && to <= length;
+  if (!revert.changes.every(inBounds) || !revert.inserted.every(inBounds)) {
+    return null;
+  }
+  return {
+    inverse: ChangeSet.of(revert.changes, length),
+    inserted: revert.inserted,
+  };
+};
+
+export const undoEditorFix = (view: EditorView, undo: EditorFixUndo) => {
+  const fix = recordedRevert(view.state, undo);
+  if (!fix || !stillInserted(view.state, fix)) {
     return false;
   }
   dispatchFix(view, fix.inverse, null);

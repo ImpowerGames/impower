@@ -92,12 +92,18 @@ const openEditor = (text: string) => {
       sendProtocolMessage(
         ClaimedEditorEditMessage.type.notification({ request: message.id, uri: URI }),
       );
-      const done = fix
-        ? applyEditorFix(view, fix, message.id)
-        : undoEditorFix(view, undoFix!.fix);
+      if (fix) {
+        const revert = applyEditorFix(view, fix, message.id);
+        return ApplyEditorEditMessage.type.response(
+          message.id,
+          revert ? { applied: [URI], revert } : { applied: [], refused: [URI] },
+        );
+      }
       return ApplyEditorEditMessage.type.response(
         message.id,
-        done ? { applied: [URI] } : { applied: [], refused: [URI] },
+        undoEditorFix(view, undoFix!)
+          ? { applied: [URI] }
+          : { applied: [], refused: [URI] },
       );
     }),
     () => view.destroy(),
@@ -124,6 +130,29 @@ describe("applying a fix from a problem", () => {
     await vi.waitFor(() =>
       expect(view.state.doc.toString()).toBe("// top" + NEWLINE + SCRIPT),
     );
+  });
+
+  it("still undoes from the toast after the author opens another script, through the saved file", async () => {
+    const view = openEditor(SCRIPT);
+    const script = closedScript("unused");
+    await applyFix(script.deps, useAlice());
+    script.edit(view.state.doc.toString());
+    disposers.splice(0).forEach((dispose) => dispose());
+    snackbar.value!.onAction!();
+    await vi.waitFor(() => expect(script.text()).toBe(SCRIPT));
+    expect(snackbar.value?.message).not.toBe(FIX_REFUSED);
+  });
+
+  it("still undoes from the toast after the author comes back to the script in a new editor", async () => {
+    const first = openEditor(SCRIPT);
+    const script = closedScript("unused");
+    await applyFix(script.deps, useAlice());
+    const fixed = first.state.doc.toString();
+    disposers.splice(0).forEach((dispose) => dispose());
+    const reopened = openEditor(fixed);
+    snackbar.value!.onAction!();
+    await vi.waitFor(() => expect(reopened.state.doc.toString()).toBe(SCRIPT));
+    expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
   });
 
   it("in a closed script, writes the file, says what it did, and Undo restores the text", async () => {

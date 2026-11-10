@@ -3,6 +3,8 @@ import {
   type ApplyEditorEditParams,
   type EditorFix,
   type EditorFixChange,
+  type EditorFixRevert,
+  type EditorFixText,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import {
@@ -91,17 +93,21 @@ const EDITOR_FIX_TIMEOUT = 3000;
 const requestEditorFix = (
   uri: string,
   params: FixRequest,
-): Promise<{ outcome: EditorFixOutcome; id: number | string }> => {
+): Promise<{
+  outcome: EditorFixOutcome;
+  id: number | string;
+  revert?: EditorFixRevert;
+}> => {
   const request = ApplyEditorEditMessage.type.request({
     ...params,
     edit: {},
   });
   let claimed = false;
   return new Promise((resolve) => {
-    const finish = (outcome: EditorFixOutcome) => {
+    const finish = (outcome: EditorFixOutcome, revert?: EditorFixRevert) => {
       clearTimeout(timer);
       stopResponse();
-      resolve({ outcome, id: request.id });
+      resolve({ outcome, id: request.id, revert });
     };
     const timer = setTimeout(() => finish("refused"), EDITOR_FIX_TIMEOUT);
     const stopResponse = onProtocolMessage(
@@ -112,7 +118,7 @@ const requestEditorFix = (
       (message) => {
         const result = "result" in message ? message.result : undefined;
         if (result?.applied.includes(uri)) {
-          finish("applied");
+          finish("applied", result.revert);
         } else if (result?.refused?.includes(uri)) {
           finish("refused");
         }
@@ -168,7 +174,10 @@ const positionAt = (starts: number[], offset: number): Position => {
   return { line, character: offset - starts[line]! };
 };
 
-const inBounds = (text: string, changes: readonly EditorFixChange[]) =>
+const inBounds = (
+  text: string,
+  changes: readonly { from: number; to: number }[],
+) =>
   changes.every((c) => 0 <= c.from && c.from <= c.to && c.to <= text.length);
 
 const sortedChanges = (changes: readonly EditorFixChange[]) =>
@@ -185,13 +194,24 @@ const textEditsOf = (
   }));
 };
 
-const inverseOf = (text: string, changes: readonly EditorFixChange[]) => {
+const revertOf = (
+  text: string,
+  changes: readonly EditorFixChange[],
+): EditorFixRevert => {
   let delta = 0;
-  return sortedChanges(changes).map((c) => {
+  const reverted: EditorFixChange[] = [];
+  const inserted: EditorFixText[] = [];
+  for (const c of sortedChanges(changes)) {
     const from = c.from + delta;
     delta += c.insert.length - (c.to - c.from);
-    return { from, to: from + c.insert.length, insert: text.slice(c.from, c.to) };
-  });
+    reverted.push({
+      from,
+      to: from + c.insert.length,
+      insert: text.slice(c.from, c.to),
+    });
+    inserted.push({ from, to: from + c.insert.length, text: c.insert });
+  }
+  return { changes: reverted, inserted };
 };
 
 const applyClosedChanges = async (
@@ -207,6 +227,31 @@ const applyClosedChanges = async (
     label,
   );
   return outcome.applied;
+};
+
+const undoFix = async (
+  files: EditorEditFiles,
+  uri: string,
+  label: string,
+  revert: EditorFixRevert,
+  fix?: number | string,
+) => {
+  const editor = await requestEditorFix(uri, {
+    label,
+    undoFix: { uri, fix, revert },
+  });
+  if (editor.outcome !== "unclaimed") {
+    return editor.outcome === "applied";
+  }
+  const text = await files.getFileText(uri);
+  if (
+    !inBounds(text, revert.changes) ||
+    !inBounds(text, revert.inserted) ||
+    revert.inserted.some((i) => text.slice(i.from, i.to) !== i.text)
+  ) {
+    return false;
+  }
+  return applyClosedChanges(files, uri, text, revert.changes, label);
 };
 
 export interface EditorFixResult {
@@ -227,16 +272,13 @@ export const applyEditorFix = async (
   const { uri } = fix;
   const editor = await requestEditorFix(uri, { label, fix });
   if (editor.outcome === "applied") {
-    return {
-      applied: true,
-      undo: async () =>
-        (
-          await requestEditorFix(uri, {
-            label,
-            undoFix: { uri, fix: editor.id },
-          })
-        ).outcome === "applied",
-    };
+    const { revert } = editor;
+    return revert
+      ? {
+          applied: true,
+          undo: () => undoFix(files, uri, label, revert, editor.id),
+        }
+      : { applied: true, undo: async () => false };
   }
   if (editor.outcome === "refused") {
     return REFUSED;
@@ -257,19 +299,9 @@ export const applyEditorFix = async (
   if (!(await applyClosedChanges(files, uri, text, fix.changes, label))) {
     return REFUSED;
   }
-  const inverse = inverseOf(text, fix.changes);
-  const inserted = sortedChanges(fix.changes).map((c) => c.insert);
+  const revert = revertOf(text, fix.changes);
   return {
     applied: true,
-    undo: async () => {
-      const now = await files.getFileText(uri);
-      if (
-        !inBounds(now, inverse) ||
-        inverse.some((c, i) => now.slice(c.from, c.to) !== inserted[i])
-      ) {
-        return false;
-      }
-      return applyClosedChanges(files, uri, now, inverse, label);
-    },
+    undo: () => undoFix(files, uri, label, revert),
   };
 };

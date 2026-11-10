@@ -90,7 +90,7 @@ describe("a fix applied in the open editor", () => {
         }),
         1,
       );
-      expect(applied).toBe(testCase.still);
+      expect(applied !== null).toBe(testCase.still);
       expect(view.state.doc.toString()).toBe(
         testCase.still
           ? testCase.after.slice(0, from) + "FIXED" + testCase.after.slice(to)
@@ -107,35 +107,43 @@ describe("a fix applied in the open editor", () => {
         fixFor("show alcie", 5, 10, "alice", { expect: "alcie", kind: "name" }),
         1,
       ),
-    ).toBe(true);
+    ).not.toBeNull();
     expect(view.state.doc.toString()).toBe("show alice");
     undo(view);
     expect(view.state.doc.toString()).toBe("show alcie");
   });
 
-  it("undoes exactly that fix after later typing elsewhere", () => {
-    const view = editor("show alcie");
+  const useAlice = (view: EditorView, id: number) =>
     applyEditorFix(
       view,
       fixFor("show alcie", 5, 10, "alice", { expect: "alcie", kind: "name" }),
-      7,
-    );
+      id,
+    )!;
+
+  it("undoes exactly that fix after later typing elsewhere", () => {
+    const view = editor("show alcie");
+    const revert = useAlice(view, 7);
     view.dispatch({ changes: { from: 0, insert: "Hi. " } });
-    expect(undoEditorFix(view, 7)).toBe(true);
+    expect(undoEditorFix(view, { uri: URI, fix: 7, revert })).toBe(true);
     expect(view.state.doc.toString()).toBe("Hi. show alcie");
   });
 
-  it("refuses to undo once the fixed text was edited, or for another fix", () => {
+  it("refuses to undo once the fixed text was edited", () => {
     const view = editor("show alcie");
-    applyEditorFix(
-      view,
-      fixFor("show alcie", 5, 10, "alice", { expect: "alcie", kind: "name" }),
-      7,
-    );
-    expect(undoEditorFix(view, 8)).toBe(false);
+    const revert = useAlice(view, 7);
     view.dispatch({ changes: { from: 10, insert: "x" } });
-    expect(undoEditorFix(view, 7)).toBe(false);
+    expect(undoEditorFix(view, { uri: URI, fix: 7, revert })).toBe(false);
     expect(view.state.doc.toString()).toBe("show alicex");
+  });
+
+  it("undoes the fix in a reopened editor that never saw it, while the fixed text is still where it was put", () => {
+    const revert = useAlice(editor("show alcie"), 7);
+    const reopened = editor("show alice");
+    expect(undoEditorFix(reopened, { uri: URI, fix: 7, revert })).toBe(true);
+    expect(reopened.state.doc.toString()).toBe("show alcie");
+    const edited = editor("show alicia");
+    expect(undoEditorFix(edited, { uri: URI, fix: 7, revert })).toBe(false);
+    expect(edited.state.doc.toString()).toBe("show alicia");
   });
 });
 

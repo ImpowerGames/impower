@@ -20,9 +20,21 @@ export interface EditorFix {
   kind?: "name" | "note";
 }
 
+export interface EditorFixText {
+  from: number;
+  to: number;
+  text: string;
+}
+
+export interface EditorFixRevert {
+  changes: EditorFixChange[];
+  inserted: EditorFixText[];
+}
+
 export interface EditorFixUndo {
   uri: string;
-  fix: number | string;
+  fix?: number | string;
+  revert: EditorFixRevert;
 }
 
 export interface ApplyEditorEditParams {
@@ -36,6 +48,7 @@ export interface ApplyEditorEditParams {
 export interface ApplyEditorEditResult {
   applied: string[];
   refused?: string[];
+  revert?: EditorFixRevert;
 }
 
 export class ApplyEditorEditMessage {
