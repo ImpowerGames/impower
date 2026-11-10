@@ -11,5 +11,7 @@ export interface Rule {
 
   node: GrammarNode;
 
+  readonly skipped: boolean;
+
   match: (state: GrammarState, pos: number) => Matched | null;
 }

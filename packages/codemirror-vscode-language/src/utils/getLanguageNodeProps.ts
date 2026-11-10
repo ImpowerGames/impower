@@ -8,11 +8,12 @@ import { parseTag } from "./parseTag";
 export const getLanguageNodeProps = (
   typeId: string,
   def: RuleDefinition,
+  namespace = "",
 ): NodePropSource[] => {
   const { tag, openedBy, closedBy, group } = def;
   const props = [];
   if (tag) {
-    props.push(styleTags(parseTag(typeId + "/...", tag)));
+    props.push(styleTags(parseTag(typeId, tag, namespace)));
   }
   if (openedBy) {
     props.push(NodeProp.openedBy.add({ [typeId]: [openedBy].flat() }));

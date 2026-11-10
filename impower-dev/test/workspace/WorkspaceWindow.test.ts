@@ -2,6 +2,8 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
+import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
@@ -87,6 +89,7 @@ vi.mock("@impower/impower-ui/components", async () => {
       h(tag, props);
   const Radio = createContext<{ value?: string; onValueChange?: (value: string) => void }>({});
   const icons = [
+    "BreakpointIcon",
     "CheckIcon",
     "ChevronDownIcon",
     "CogIcon",
@@ -110,6 +113,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
+    DropdownSeparator: element("hr"),
     DropdownItem: ({ disabled, onSelect, children, ...props }: any) =>
       h(
         "button",
@@ -2230,6 +2234,7 @@ describe("The preview's top bar", () => {
         "Stop",
         "Skip forward",
         "Step Out",
+        "Toggle breakpoint",
         "Preview settings",
       ]);
       for (const step of ["Step Over", "Step Into", "Step Out"]) {
@@ -2296,7 +2301,7 @@ describe("The preview's top bar", () => {
         "Preview settings",
       ]);
       expect(
-        rows("menuitem").map((row) => [
+        rows("menuitem").slice(0, 3).map((row) => [
           row.querySelector("strong")?.textContent,
           row.querySelector("small")?.textContent ?? null,
           (row as HTMLButtonElement).disabled,
@@ -2325,6 +2330,7 @@ describe("The preview's top bar", () => {
       "Stop",
       "Skip forward",
       "Step Out",
+      "Toggle breakpoint",
       "Preview settings",
     ]);
     for (const step of ["Step Over", "Step Into", "Step Out"]) {
@@ -2536,6 +2542,7 @@ describe("The preview's top bar", () => {
       "Stop",
       "Skip forward",
       "Step Out",
+      "Toggle breakpoint",
       "Preview settings",
     ]);
   });
@@ -2589,6 +2596,142 @@ describe("The preview's top bar", () => {
     ]);
     rows("menuitemcheckbox")[1]!.click();
     expect(workspaceSettings.preferences.value.screenplayPaper).toBe("paper");
+  });
+
+  describe("Toggle breakpoint", () => {
+    const at = (line: number) => ({
+      start: { line, character: 2 },
+      end: { line, character: 2 },
+    });
+
+    const caretIn = (filename: string | undefined, line?: number) => {
+      workspace.current = {
+        ...workspace.current,
+        pane: "logic",
+        panes: {
+          ...workspace.current.panes,
+          logic: {
+            ...workspace.current.panes.logic,
+            view: undefined,
+            panel: "main",
+            panels: {
+              ...workspace.current.panes.logic.panels,
+              main: {
+                ...workspace.current.panes.logic.panels.main,
+                activeEditor: {
+                  filename,
+                  ...(line == null ? {} : { selectedRange: at(line) }),
+                },
+              },
+            },
+          },
+        },
+      };
+    };
+
+    const answerAsEditor = () => {
+      const asked: string[] = [];
+      let lines: number[] = [];
+      const editor = (e: Event) => {
+        const message = (e as CustomEvent).detail;
+        if (!ToggleEditorBreakpointMessage.type.is(message)) {
+          return;
+        }
+        const uri = message.params.textDocument.uri;
+        asked.push(uri);
+        const line =
+          workspace.current.panes.logic.panels.main!.activeEditor!.selectedRange!
+            .start.line;
+        lines = lines.includes(line)
+          ? lines.filter((l) => l !== line)
+          : [...lines, line];
+        queueMicrotask(() => {
+          sendProtocolMessage(
+            ChangedEditorBreakpointsMessage.type.notification({
+              textDocument: { uri },
+              breakpointLines: lines,
+            }),
+          );
+          sendProtocolMessage(
+            ToggleEditorBreakpointMessage.type.response(message.id, { line }),
+          );
+        });
+      };
+      window.addEventListener(MessageProtocol.event, editor);
+      return {
+        asked,
+        stop: () => window.removeEventListener(MessageProtocol.event, editor),
+      };
+    };
+
+    const mainUri = () => `file://${workspace.current.project.id}/main.sd`;
+
+    it("asks the active script's editor to toggle the caret line, and the store follows the editor's report", async () => {
+      const editor = answerAsEditor();
+      vi.spyOn(win.debug, "setBreakpoints").mockResolvedValue(undefined as never);
+      try {
+        caretIn("main.sd", 4);
+        show({ running: true, paused: true });
+        const button = control("Toggle breakpoint")!;
+        expect(button.hasAttribute("aria-disabled")).toBe(false);
+        button.click();
+        await vi.waitFor(() =>
+          expect(workspace.current.debug.breakpoints[mainUri()]).toEqual([4]),
+        );
+        expect(editor.asked).toEqual([mainUri()]);
+        control("Toggle breakpoint")!.click();
+        await vi.waitFor(() =>
+          expect(workspace.current.debug.breakpoints[mainUri()]).toEqual([]),
+        );
+        expect(editor.asked).toEqual([mainUri(), mainUri()]);
+      } finally {
+        editor.stop();
+      }
+    });
+
+    it("is disabled, asking nothing, while no script has a caret", async () => {
+      const toggle = vi.spyOn(win, "toggleBreakpointAtCaret");
+      caretIn(undefined);
+      show({ running: true, paused: true });
+      const button = control("Toggle breakpoint")!;
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      expect(button.title).toBe(
+        "Put the caret on a script line to toggle its breakpoint.",
+      );
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(toggle).not.toHaveBeenCalled();
+      expect(requests).not.toContain(ToggleEditorBreakpointMessage.method);
+    });
+
+    it("sits in the Step menu on phones, so the bar does not grow, and runs the same toggle", async () => {
+      layoutMock.value = "phone";
+      const toggle = vi
+        .spyOn(win, "toggleBreakpointAtCaret")
+        .mockResolvedValue();
+      try {
+        caretIn("main.sd", 2);
+        show({ running: true, paused: true });
+        expect(labels()).not.toContain("Toggle breakpoint");
+        const row = rows("menuitem").find(
+          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
+        );
+        expect((row as HTMLButtonElement).disabled).toBe(false);
+        row!.click();
+        await vi.waitFor(() => expect(toggle).toHaveBeenCalledWith("main.sd"));
+        caretIn("main.sd");
+        show({ running: true, paused: true });
+        const refused = rows("menuitem").find(
+          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
+        );
+        expect((refused as HTMLButtonElement).disabled).toBe(true);
+        expect(refused!.querySelector("small")?.textContent).toBe(
+          "Put the caret on a script line to toggle its breakpoint.",
+        );
+      } finally {
+        layoutMock.value = "desktop";
+      }
+    });
   });
 });
 

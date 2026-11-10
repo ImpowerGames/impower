@@ -3,6 +3,7 @@ import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural } from "../utils/fileListModel";
+import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { canMoveFolder } from "../utils/fileTree";
 import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
@@ -50,10 +51,27 @@ const extensionOf = (path: string) => {
   return dot > 0 ? name.slice(dot) : "";
 };
 
+const MEASURE_BATCH = 8;
+
+const readImageSize = async (src: string): Promise<ImageSize | null> => {
+  try {
+    const response = await fetch(src, { headers: { Range: `bytes=0-${IMAGE_HEADER_BYTES - 1}` } });
+    if (!response.ok) {
+      return null;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return imageSizeOf(bytes.subarray(0, IMAGE_HEADER_BYTES)) ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export default class WorkspaceAssets {
   protected readonly _workspace: Deps;
 
   protected _generation = 0;
+
+  protected readonly _measuring = new Set<string>();
 
   constructor(deps: Deps) {
     this._workspace = deps;
@@ -222,6 +240,33 @@ export default class WorkspaceAssets {
     }
     await this.load();
     return to;
+  }
+
+  async measureImages(paths: readonly string[]): Promise<void> {
+    const files = this.listing.files;
+    const known = workspace.assetSizes.peek();
+    const wanted = [
+      ...new Set(
+        paths
+          .filter((path) => !isLinkPath(path))
+          .map((path) => files[path]?.src)
+          .filter((src): src is string => !!src && !Object.hasOwn(known, src) && !this._measuring.has(src)),
+      ),
+    ];
+    if (!wanted.length) {
+      return;
+    }
+    for (const src of wanted) this._measuring.add(src);
+    const measured: Record<string, ImageSize | null> = {};
+    for (let at = 0; at < wanted.length; at += MEASURE_BATCH) {
+      await Promise.all(
+        wanted.slice(at, at + MEASURE_BATCH).map(async (src) => {
+          measured[src] = await readImageSize(src);
+        }),
+      );
+    }
+    for (const src of wanted) this._measuring.delete(src);
+    workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
   }
 
   protected async moveFolder(projectId: string, from: string, to: string): Promise<string> {

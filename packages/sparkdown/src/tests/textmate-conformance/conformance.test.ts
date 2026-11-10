@@ -45,7 +45,6 @@ const AXIS_ORDER: Axis[] = [
   "while-rule",
   "regex-invalid",
   "throw-other",
-  "external-includes",
   "load-error",
 ];
 
@@ -89,6 +88,16 @@ describe("textmate-conformance baseline", () => {
     await expect(lines.join("\n") + "\n").toMatchFileSnapshot(
       "./__snapshots__/baseline.md",
     );
+  });
+
+  test("a grammar a case lists that cannot be loaded is a load error naming it", () => {
+    const result = runCase("first-mate", suiteDirFor(import.meta.url, "first-mate"), 0, {
+      grammarPath: "fixtures/hello.json",
+      grammars: ["fixtures/missing.json"],
+      lines: [],
+    });
+    expect(result.axis).toBe("load-error");
+    expect(result.detail).toContain("fixtures/missing.json");
   });
 
   test("pass rate is recorded (non-gating)", () => {

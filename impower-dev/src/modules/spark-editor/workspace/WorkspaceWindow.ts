@@ -35,6 +35,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
+import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -520,6 +521,17 @@ export default class WorkspaceWindow {
       });
     }
     return !!result?.inserted;
+  }
+
+  async toggleBreakpointAtCaret(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    await this.requestEditor(ToggleEditorBreakpointMessage.type, {
+      textDocument: { uri },
+    });
   }
 
   startEditing(filename: string) {
