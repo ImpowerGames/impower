@@ -60,6 +60,14 @@ describe("provider · todo notes", () => {
     ]);
   });
 
+  test("each note records the comment text its fix expects to remove", () => {
+    expect(notesOf(SCRIPT).map((d) => d.data)).toEqual([
+      { expect: "// TODO: fix this" },
+      { expect: "// todo later" },
+      { expect: "// Todo" },
+    ]);
+  });
+
   test("a block comment, a string, a longer or shorter word and a mid-comment todo are not notes", () => {
     expect(
       notesOf(

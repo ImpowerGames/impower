@@ -1,6 +1,7 @@
 import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import { referenceBindings } from "../annotations/referenceBindings";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { walkReferences } from "./getReferences";
@@ -20,11 +21,9 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "define_variable_name",
 ]);
 
-const BINDS_LOCALLY = new Set<Reference["declaration"]>(["var", "const", "param"]);
-
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
-  "document" | "annotations" | "uris" | "compilerConfig"
+  "document" | "annotations" | "uris" | "compilerConfig" | "tree"
 >;
 
 export const getScriptReferences = (
@@ -48,6 +47,10 @@ export const getScriptReferences = (
       })
       .filter((id): id is string => !!id);
 
+  const bindingAt = referenceBindings(workspace);
+  const isBound = (uri: string, from: number, reference: Reference) =>
+    bindingAt(uri, from, reference) !== undefined;
+
   const lineOf = (uri: string, offset: number) =>
     workspace.document(uri)?.positionAt(offset).line ?? -1;
   const variableLines = new Map<string, Set<number>>();
@@ -66,21 +69,15 @@ export const getScriptReferences = (
 
   const declaredIn = new Map<string, string[]>();
   const ownIn = new Map<string, Set<string>>();
-  const boundIn = new Map<string, Set<string>>();
   for (const uri of uris) {
     const own = new Set<string>();
-    const bound = new Set<string>();
     ownIn.set(uri, own);
-    boundIn.set(uri, bound);
-    walkReferences(workspace, uri, (r, scopePath, text) => {
+    walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (BINDS_LOCALLY.has(reference.declaration)) {
-        bound.add(text.trim());
-        return;
-      }
       if (
         !DECLARED_BY_SCRIPT.has(reference.declaration) ||
-        isTypeUse(uri, reference, r.from)
+        isTypeUse(uri, reference, r.from) ||
+        (reference.declaration === "function" && isBound(uri, r.from, reference))
       ) {
         return;
       }
@@ -98,13 +95,9 @@ export const getScriptReferences = (
   const seen = new Set<string>();
   for (const uri of uris) {
     const own = ownIn.get(uri)!;
-    const bound = boundIn.get(uri)!;
-    walkReferences(workspace, uri, (r, scopePath, text) => {
+    walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
-        return;
-      }
-      if (reference.usage !== "divert" && bound.has(text.trim())) {
         return;
       }
       const ids = resolvedIds(reference, scopePath);
@@ -116,6 +109,9 @@ export const getScriptReferences = (
         const declarers = declaredIn.get(id);
         if (!declarers) {
           continue;
+        }
+        if (isBound(uri, r.from, reference)) {
+          return;
         }
         for (const to of declarers) {
           const key = `${uri}\n${to}\n${divert}`;

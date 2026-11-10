@@ -23,6 +23,7 @@ const referencesOf = () => {
   const workspace = {
     document: (uri: string) => documents.get(uri),
     annotations: (uri: string) => documents.annotations(uri),
+    tree: (uri: string) => documents.tree(uri),
     uris: () => documents.keys(),
     compilerConfig: undefined,
   } as Parameters<typeof getScriptReferences>[0];

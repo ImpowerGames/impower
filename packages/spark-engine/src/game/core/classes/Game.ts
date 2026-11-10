@@ -243,6 +243,14 @@ const sameLocation = (
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
 
+const drawsSettled = (beat: Instructions): boolean =>
+  !beat.load?.length &&
+  !beat.cutscene?.length &&
+  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
+  Object.entries(beat.audio ?? {}).every(
+    ([target, events]) => target === "typewriter" || events.length === 0,
+  );
+
 interface Stage {
   text: string[];
   image: string[];
@@ -2728,7 +2736,9 @@ export class Game<T extends M = {}> {
     }
     this.noteShownChoices(beat.shown);
     this._shownBeatOnScreen = beat.shown;
-    this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    this._coordinator = new Coordinator(this, beat.shown, {
+      settled: "restored",
+    });
     this.connection.emit(
       GameRolledMessage.type.notification({ restored, history }),
     );
@@ -3506,48 +3516,16 @@ export class Game<T extends M = {}> {
       }
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
+        if (traversal !== "continue" && this.presentsAtStop()) {
+          this.notifyStepped();
+          return true;
+        }
         const instructions = this.module.interpreter.flush();
         if (this._holdingFlush) {
           this._held = { instructions: instructions ?? null };
           return true;
         }
-        const ending = this.storyEnding(instructions ?? null);
-        if (instructions) {
-          this._coordinator = new Coordinator(this, instructions);
-          if (this._simulation !== "simulating") {
-            this.noteShownChoices(instructions);
-            this._shownBeatOnScreen = instructions;
-          } else {
-            this._shownBeat = instructions;
-          }
-          if (
-            !ending &&
-            !this._coordinator.shouldContinue() &&
-            this._simulation !== "simulating" &&
-            (!(instructions.load || instructions.cutscene) ||
-              (instructions.choices?.length ?? 0) > 0)
-          ) {
-            this.notifyAwaitingInteraction(
-              (instructions.choices?.length ?? 0) > 0,
-            );
-          }
-        }
-        if (instructions || this._simulation !== "simulating") {
-          this.checkpoint();
-        }
-        if (instructions && this.recordsRun()) {
-          this.recordBeat(instructions);
-        }
-        if (
-          instructions &&
-          this._sceneSaveDue !== null &&
-          this._simulation !== "simulating"
-        ) {
-          this.writeSceneSave();
-        }
-        if (ending) {
-          this.endStory(ending);
-        }
+        this.showBeat(instructions ?? null, false);
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
@@ -3701,6 +3679,68 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected showBeat(instructions: Instructions | null, settled: boolean) {
+    const ending = this.storyEnding(instructions);
+    if (instructions) {
+      this._coordinator = new Coordinator(this, instructions, {
+        settled: settled ? "presented" : undefined,
+      });
+      if (this._simulation !== "simulating") {
+        this.noteShownChoices(instructions);
+        this._shownBeatOnScreen = instructions;
+      } else {
+        this._shownBeat = instructions;
+      }
+      if (
+        !ending &&
+        !this._coordinator.shouldContinue() &&
+        this._simulation !== "simulating" &&
+        (!(instructions.load || instructions.cutscene) ||
+          (instructions.choices?.length ?? 0) > 0)
+      ) {
+        this.notifyAwaitingInteraction(
+          (instructions.choices?.length ?? 0) > 0,
+        );
+      }
+    }
+    if (instructions || this._simulation !== "simulating") {
+      this.checkpoint();
+    }
+    if (instructions && this.recordsRun()) {
+      this.recordBeat(instructions);
+    }
+    if (
+      instructions &&
+      this._sceneSaveDue !== null &&
+      this._simulation !== "simulating"
+    ) {
+      this.writeSceneSave();
+    }
+    if (ending) {
+      this.endStory(ending);
+    }
+  }
+
+  protected presentsAtStop(): boolean {
+    return (
+      this._state === "running" &&
+      this._simulation !== "simulating" &&
+      !this._holdingFlush &&
+      !this._run.behindLatest &&
+      this.module.interpreter.hasQueuedBeats
+    );
+  }
+
+  protected stopAt(reason: HeldStop["reason"]) {
+    this._announcedStop = true;
+    this.holdStop(reason);
+    if (this.presentsAtStop()) {
+      const beat = this.module.interpreter.flush()!;
+      this.showBeat(beat, drawsSettled(beat));
+      this.pause();
+    }
+  }
+
   autoAdvancedToContinue() {
     if (this._ending || this._run.behindLatest) {
       return;
@@ -3795,9 +3835,8 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyHitBreakpoint() {
-    this._announcedStop = true;
+    this.stopAt("breakpoint");
     this._run.markHeld();
-    this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4236,8 +4275,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStepped() {
-    this._announcedStop = true;
-    this.holdStop("step");
+    this.stopAt("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
