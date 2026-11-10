@@ -5,7 +5,13 @@ import {
   snippet,
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
-import { EditorState, type Extension } from "@codemirror/state";
+import {
+  EditorState,
+  type Extension,
+  Text,
+  type Transaction,
+  type TransactionSpec,
+} from "@codemirror/state";
 import { type EditorView } from "@codemirror/view";
 import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
 
@@ -56,12 +62,43 @@ const applySnippet =
   (view: EditorView, completion: Completion, from: number, to: number) => {
     const selection = view.state.selection.main;
     const selectedText = view.state.sliceDoc(selection.from, selection.to);
-    const template = convertSnippetToTemplate(entry.body, {
+    const { template, standIns } = convertSnippetToTemplate(entry.body, {
       TM_SELECTED_TEXT: selectedText,
       SELECTION: selectedText,
     });
+    const restore = (text: string) =>
+      [...text].map((c) => standIns.get(c) ?? c).join("");
+    const state = view.state;
+    const editor = {
+      state: new Proxy(state, {
+        get(target, property) {
+          if (property === "update") {
+            return (...specs: TransactionSpec[]) =>
+              target.update(
+                ...specs.map((spec) => {
+                  const changes = spec.changes as
+                    { from: number; to?: number; insert?: Text } | undefined;
+                  if (!changes?.insert) return spec;
+                  return {
+                    ...spec,
+                    changes: {
+                      ...changes,
+                      insert: Text.of(
+                        restore(changes.insert.toString()).split("\n"),
+                      ),
+                    },
+                  };
+                }),
+              );
+          }
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+      dispatch: (tr: Transaction) => view.dispatch(tr),
+    };
     snippet(template)(
-      view,
+      editor,
       completion,
       Math.min(from, selection.from),
       Math.max(to, selection.to),

@@ -101,6 +101,7 @@ const labels = (result: CompletionResult | null) =>
   result?.options.map((option) => option.label) ?? [];
 
 const SCENE = (line: string) => `scene start()\n  ${line}\nend\n`;
+const LINE_START = SCENE("").indexOf("\nend");
 const FUNCTION = (line: string) => `function greet(name)\n  ${line}\nend\n`;
 
 describe("the snippet source offers the snippets of the language at the cursor", () => {
@@ -177,30 +178,114 @@ describe("a snippet is inserted with its tab stops", () => {
     expect(view.state.selection.main.from).toBe(name);
     expect(view.state.selection.main.to).toBe(name + "name".length);
   });
-});
 
-describe("converting a VS Code snippet body to a CodeMirror template", () => {
-  it.each([
-    ["$1 and $0", "${1} and ${0}"],
-    ["${1:a} ${2}", "${1:a} ${2}"],
-    ["${1:${TM_SELECTED_TEXT}}", "${1:picked}"],
-    ["${1:outer ${2:inner}}", "${1:outer inner}"],
-    ["${1|one,two|}", "${1:one}"],
-    ["${UNKNOWN_VAR:fallback} $UNKNOWN", "fallback UNKNOWN"],
-    ["literal {braces} and \\$1", "literal \\{braces\\} and $1"],
-    ["$ alone", "$ alone"],
-  ])("%s", (body, template) => {
-    expect(convertSnippetToTemplate(body, { TM_SELECTED_TEXT: "picked" })).toBe(
-      template,
+  const insertBody = (body: string, selected = "") => {
+    const extension = languageExtension(SD_URI, {
+      [SPARKDOWN_LANGUAGE]: { Body: { prefix: "bodyfix", body } },
+    });
+    const doc = SCENE(selected);
+    const from = LINE_START;
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.range(from, from + selected.length),
+      extensions: extension,
+    });
+    expect(ensureSyntaxTree(state, state.doc.length, 10_000)).not.toBeNull();
+    const pos = state.selection.main.head;
+    const result = snippetResult(state, pos, true)!;
+    const option = result.options.find((o) => o.label === "bodyfix")!;
+    const view = new EditorView({ state, parent: document.body });
+    views.push(view);
+    (option.apply as Exclude<Completion["apply"], string | undefined>)(
+      view,
+      option,
+      result.from,
+      pos,
     );
+    const { main } = view.state.selection;
+    return {
+      inserted: view.state.sliceDoc(
+        LINE_START,
+        view.state.doc.length - "\nend\n".length,
+      ),
+      selected: [main.from - LINE_START, main.to - LINE_START],
+    };
+  };
+
+  it.each([
+    [
+      "mirrors a stop's placeholder at each occurrence",
+      "local ${1:name} = 1; print($1)$0",
+      "",
+      "local name = 1; print(name)",
+      [6, 10],
+    ],
+    [
+      "mirrors a placeholder declared after a bare occurrence",
+      "print($1) ${1:name}",
+      "",
+      "print(name) name",
+      [6, 10],
+    ],
+    [
+      "keeps braces inside the selected placeholder",
+      "${1:${TM_SELECTED_TEXT}}$0",
+      "{ value = 1 }",
+      "{ value = 1 }",
+      [0, 13],
+    ],
+    [
+      "keeps a multi-line selection inside its placeholder",
+      "f(${1:${TM_SELECTED_TEXT}})",
+      "a\nb",
+      "f(a\nb)",
+      [2, 5],
+    ],
+    [
+      "keeps an escaped comma inside the first choice",
+      "${1|one\\,two,three|}$0",
+      "",
+      "one,two",
+      [0, 7],
+    ],
+    [
+      "keeps literal braces and an escaped dollar",
+      "t = { ${1:x} } \\$1",
+      "",
+      "t = { x } $1",
+      [6, 7],
+    ],
+    [
+      "resolves a variable's default and names an unknown variable",
+      "${UNKNOWN_VAR:fallback} $UNKNOWN",
+      "",
+      "fallback UNKNOWN",
+      [16, 16],
+    ],
+    [
+      "flattens a nested placeholder into its outer stop",
+      "${1:outer ${2:inner}}",
+      "",
+      "outer inner",
+      [0, 11],
+    ],
+    ["keeps a lone dollar sign", "$ alone", "", "$ alone", [7, 7]],
+  ] as const)("%s", (_name, body, selected, inserted, range) => {
+    expect(insertBody(body, selected)).toEqual({ inserted, selected: range });
   });
 });
 
-const placeholderText = (body: string | string[]) =>
-  convertSnippetToTemplate(body)
-    .replace(/\$\{\d+:([^{}]*)\}/g, "$1")
-    .replace(/\$\{\d+\}/g, "")
-    .replace(/\\([{}])/g, "$1");
+const placeholderText = (body: string | string[]) => {
+  const { template, standIns } = convertSnippetToTemplate(body);
+  return [
+    ...template
+      .replace(/\$\{\d+:([^{}]*)\}/g, "$1")
+      .replace(/\$\{\d+\}/g, "")
+      .replace(/\\([{}])/g, "$1"),
+  ]
+    .map((c) => standIns.get(c) ?? c)
+    .join("");
+};
 
 const shippedStorySnippets = Object.entries(
   SPARKDOWN_LANGUAGE_SNIPPETS[SPARKDOWN_LANGUAGE]!,
