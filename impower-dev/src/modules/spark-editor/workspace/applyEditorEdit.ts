@@ -4,7 +4,6 @@ import {
   type EditorFix,
   type EditorFixChange,
   type EditorFixRevert,
-  type EditorFixText,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import {
@@ -12,6 +11,7 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import { textFingerprint } from "@impower/spark-editor-protocol/src/utils/textFingerprint";
 import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import type { Position, TextEdit } from "vscode-languageserver-protocol";
 
@@ -194,13 +194,22 @@ const textEditsOf = (
   }));
 };
 
+const applyChanges = (text: string, changes: readonly EditorFixChange[]) => {
+  let result = "";
+  let at = 0;
+  for (const c of sortedChanges(changes)) {
+    result += text.slice(at, c.from) + c.insert;
+    at = c.to;
+  }
+  return result + text.slice(at);
+};
+
 const revertOf = (
   text: string,
   changes: readonly EditorFixChange[],
 ): EditorFixRevert => {
   let delta = 0;
   const reverted: EditorFixChange[] = [];
-  const inserted: EditorFixText[] = [];
   for (const c of sortedChanges(changes)) {
     const from = c.from + delta;
     delta += c.insert.length - (c.to - c.from);
@@ -209,9 +218,11 @@ const revertOf = (
       to: from + c.insert.length,
       insert: text.slice(c.from, c.to),
     });
-    inserted.push({ from, to: from + c.insert.length, text: c.insert });
   }
-  return { changes: reverted, inserted };
+  return {
+    changes: reverted,
+    after: textFingerprint(applyChanges(text, changes)),
+  };
 };
 
 const applyClosedChanges = async (
@@ -229,8 +240,12 @@ const applyClosedChanges = async (
   return outcome.applied;
 };
 
+export interface EditorFixFiles extends EditorEditFiles {
+  getFileVersion: (uri: string) => Promise<number | undefined>;
+}
+
 const undoFix = async (
-  files: EditorEditFiles,
+  files: EditorFixFiles,
   uri: string,
   label: string,
   revert: EditorFixRevert,
@@ -244,11 +259,7 @@ const undoFix = async (
     return editor.outcome === "applied";
   }
   const text = await files.getFileText(uri);
-  if (
-    !inBounds(text, revert.changes) ||
-    !inBounds(text, revert.inserted) ||
-    revert.inserted.some((i) => text.slice(i.from, i.to) !== i.text)
-  ) {
+  if (textFingerprint(text) !== revert.after) {
     return false;
   }
   return applyClosedChanges(files, uri, text, revert.changes, label);
@@ -265,7 +276,7 @@ const REFUSED: EditorFixResult = {
 };
 
 export const applyEditorFix = async (
-  files: EditorEditFiles,
+  files: EditorFixFiles,
   fix: EditorFix,
   label: string,
 ): Promise<EditorFixResult> => {
@@ -280,7 +291,11 @@ export const applyEditorFix = async (
         }
       : { applied: true, undo: async () => false };
   }
-  if (editor.outcome === "refused") {
+  if (
+    editor.outcome === "refused" ||
+    (fix.version != null &&
+      (await files.getFileVersion(uri)) !== fix.version)
+  ) {
     return REFUSED;
   }
   const text = await files.getFileText(uri);

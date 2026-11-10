@@ -356,10 +356,26 @@ export type ProblemsScope =
       diagnostics: ReadonlySignal<readonly Diagnostic[]>;
     };
 
+export interface PublishedDiagnostics {
+  diagnostics: Readonly<Record<string, readonly Diagnostic[]>>;
+  versions: Readonly<Record<string, number>>;
+}
+
+const publishedVersion = (
+  uri: string,
+  diagnostics: readonly Diagnostic[],
+  published?: PublishedDiagnostics,
+) => {
+  const current = new Set(published?.diagnostics[uri] ?? []);
+  return diagnostics.every((diagnostic) => current.has(diagnostic))
+    ? published?.versions[uri]
+    : undefined;
+};
+
 export function scopedProblems(
   scope: ProblemsScope,
   all: readonly Problem[],
-  versions: Readonly<Record<string, number>> = {},
+  published?: PublishedDiagnostics,
 ): readonly Problem[] {
   if (scope.kind === "story") {
     return all;
@@ -367,7 +383,12 @@ export function scopedProblems(
   if (scope.kind === "script") {
     return all.filter((problem) => problem.path === scope.path);
   }
-  return toProblems({ [scope.uri]: scope.diagnostics.value }, versions);
+  const diagnostics = scope.diagnostics.value;
+  const version = publishedVersion(scope.uri, diagnostics, published);
+  return toProblems(
+    { [scope.uri]: diagnostics },
+    version === undefined ? {} : { [scope.uri]: version },
+  );
 }
 
 export function scopeContext(scope: ProblemsScope) {

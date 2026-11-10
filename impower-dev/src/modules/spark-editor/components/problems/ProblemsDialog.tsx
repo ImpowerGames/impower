@@ -32,7 +32,10 @@ export default function ProblemsDialog() {
   last.current = state;
   const all = useComputed(() => problems.problems.value).value;
   const versions = useComputed(() => problems.versions.value).value;
-  const listed = state ? scopedProblems(state.scope, all, versions) : [];
+  const diagnostics = useComputed(() => problems.diagnostics.value).value;
+  const listed = state
+    ? scopedProblems(state.scope, all, { diagnostics, versions })
+    : [];
   const navigating = useRef(false);
 
   const returnFocus = () => {

@@ -1,7 +1,8 @@
 import { history, undo } from "@codemirror/commands";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { EditorState } from "@codemirror/state";
+import { ChangeSet, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { LSPPlugin } from "@impower/codemirror-vscode-lsp-client/src";
 import type { EditorFix } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import {
   STILL_EXPECTED_CASES,
@@ -47,6 +48,7 @@ afterEach(() => {
     view.dom.remove();
   });
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 const editor = (doc: string, extensions = [history(), editorFixes()]) => {
@@ -144,6 +146,72 @@ describe("a fix applied in the open editor", () => {
     const edited = editor("show alicia");
     expect(undoEditorFix(edited, { uri: URI, fix: 7, revert })).toBe(false);
     expect(edited.state.doc.toString()).toBe("show alicia");
+  });
+
+  it("refuses to restore a removed note in a reopened editor once the script was typed in, rather than at a moved offset", () => {
+    const NEWLINE = String.fromCharCode(10);
+    const text = ["Hello.", "// TODO: tidy", "Bye."].join(NEWLINE);
+    const at = text.indexOf("// TODO");
+    const revert = applyEditorFix(
+      editor(text),
+      {
+        ...fixFor(text, at, at + 13, "", { expect: "// TODO: tidy", kind: "note" }),
+        changes: [{ from: at, to: at + 14, insert: "" }],
+      },
+      7,
+    )!;
+    expect(revert).not.toBeNull();
+    const typed = "Intro. " + ["Hello.", "Bye."].join(NEWLINE);
+    const reopened = editor(typed);
+    expect(undoEditorFix(reopened, { uri: URI, fix: 7, revert })).toBe(false);
+    expect(reopened.state.doc.toString()).toBe(typed);
+  });
+});
+
+describe("a fix applied over typing the server has not seen yet", () => {
+  const NEWLINE = String.fromCharCode(10);
+
+  const typedSince = (view: EditorView, version: number, change: { from: number; to?: number; insert: string }) => {
+    const synced = view.state.doc;
+    const unsynced = ChangeSet.of(change, synced.length);
+    view.dispatch({ changes: unsynced });
+    vi.spyOn(LSPPlugin, "get").mockReturnValue({
+      syncedDoc: synced,
+      unsyncedChanges: unsynced,
+      client: { workspace: { getFile: () => ({ version }) } },
+    } as unknown as LSPPlugin);
+  };
+
+  it("maps a name fix over typing earlier in the script, and refuses one from another version", () => {
+    const view = editor("show alcie");
+    typedSince(view, 4, { from: 0, insert: "Hi. " });
+    const fix = fixFor("show alcie", 5, 10, "alice", { expect: "alcie", kind: "name" });
+    expect(applyEditorFix(view, { ...fix, version: 3 }, 1)).toBeNull();
+    expect(view.state.doc.toString()).toBe("Hi. show alcie");
+    expect(applyEditorFix(view, { ...fix, version: 4 }, 2)).not.toBeNull();
+    expect(view.state.doc.toString()).toBe("Hi. show alice");
+  });
+
+  it("refuses to remove a note line whose indentation the author has since typed into", () => {
+    const text = "  // TODO: tidy" + NEWLINE + "Hello.";
+    const view = editor(text);
+    typedSince(view, 2, { from: 1, insert: "Hi." });
+    const fix = {
+      ...fixFor(text, 0, 16, "", { expect: "// TODO: tidy", kind: "note" as const }),
+      version: 2,
+      range: { start: { line: 0, character: 2 }, end: { line: 0, character: 15 } },
+    };
+    expect(applyEditorFix(view, fix, 1)).toBeNull();
+    expect(view.state.doc.toString()).toBe(" Hi. // TODO: tidy" + NEWLINE + "Hello.");
+  });
+
+  it("refuses a fix that carries no expected text once typing replaced what it would delete", () => {
+    const text = "include scripts/defs.sd" + NEWLINE + "Gold.";
+    const view = editor(text);
+    typedSince(view, 2, { from: 0, to: 23, insert: "I wrote this story." });
+    const fix = { ...fixFor(text, 0, 24, ""), version: 2 };
+    expect(applyEditorFix(view, fix, 1)).toBeNull();
+    expect(view.state.doc.toString()).toBe("I wrote this story." + NEWLINE + "Gold.");
   });
 });
 

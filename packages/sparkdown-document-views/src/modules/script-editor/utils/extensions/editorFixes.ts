@@ -14,11 +14,15 @@ import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch"
 import type {
   EditorFix,
   EditorFixRevert,
-  EditorFixText,
   EditorFixUndo,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { textFingerprint } from "@impower/spark-editor-protocol/src/utils/textFingerprint";
 
-type InsertedText = EditorFixText;
+interface InsertedText {
+  from: number;
+  to: number;
+  text: string;
+}
 
 interface AppliedFix {
   id: number | string;
@@ -68,6 +72,8 @@ const currentChanges = (view: EditorView, fix: EditorFix) => {
     base: plugin?.syncedDoc ?? view.state.doc,
     toNow: (offset: number, assoc = -1) =>
       plugin ? plugin.unsyncedChanges.mapPos(offset, assoc) : offset,
+    touched: (from: number, to: number) =>
+      plugin ? plugin.unsyncedChanges.touchesRange(from, to) !== false : false,
   };
 };
 
@@ -92,12 +98,12 @@ const dispatchFix = (
   });
 };
 
-const revertOf = (inverse: ChangeSet, inserted: InsertedText[]): EditorFixRevert => {
+const revertOf = (inverse: ChangeSet, after: string): EditorFixRevert => {
   const changes: EditorFixRevert["changes"] = [];
   inverse.iterChanges((from, to, _fromB, _toB, text) => {
     changes.push({ from, to, insert: text.toString() });
   });
-  return { changes, inserted };
+  return { changes, after: textFingerprint(after) };
 };
 
 export const applyEditorFix = (
@@ -109,13 +115,16 @@ export const applyEditorFix = (
   if (!current) {
     return null;
   }
-  const { base, toNow } = current;
+  const { base, toNow, touched } = current;
   const length = base.length;
   const inBase = (offset: number) => offset >= 0 && offset <= length;
   if (
     fix.range.start.line >= base.lines ||
     fix.range.end.line >= base.lines ||
-    !fix.changes.every((c) => inBase(c.from) && inBase(c.to) && c.from <= c.to)
+    !fix.changes.every(
+      (c) => inBase(c.from) && inBase(c.to) && c.from <= c.to,
+    ) ||
+    fix.changes.some((c) => touched(c.from, c.to))
   ) {
     return null;
   }
@@ -144,7 +153,7 @@ export const applyEditorFix = (
   const inverse = changes.invert(view.state.doc);
   const inserted = insertedTexts(changes);
   dispatchFix(view, changes, { id, inverse, inserted });
-  return revertOf(inverse, inserted);
+  return revertOf(inverse, view.state.doc.toString());
 };
 
 const stillInserted = (
@@ -164,15 +173,12 @@ const recordedRevert = (
   if (fix && id !== undefined && fix.id === id) {
     return fix;
   }
-  const length = state.doc.length;
-  const inBounds = ({ from, to }: { from: number; to: number }) =>
-    0 <= from && from <= to && to <= length;
-  if (!revert.changes.every(inBounds) || !revert.inserted.every(inBounds)) {
+  if (textFingerprint(state.doc.toString()) !== revert.after) {
     return null;
   }
   return {
-    inverse: ChangeSet.of(revert.changes, length),
-    inserted: revert.inserted,
+    inverse: ChangeSet.of(revert.changes, state.doc.length),
+    inserted: [],
   };
 };
 

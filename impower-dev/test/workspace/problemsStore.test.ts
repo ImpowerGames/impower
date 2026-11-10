@@ -157,6 +157,24 @@ describe("the problems model", () => {
     expect(scopedProblems(setup, all)).toEqual([]);
   });
 
+  it("gives an outline row's problems the published version only while the outline holds that publish's diagnostics", () => {
+    const published = [diagnostic(0, 2, "Cannot find alcie"), diagnostic(3, 3)];
+    const row = signal<readonly Diagnostic[]>([published[0]!]);
+    const scope = { kind: "outline" as const, uri: MAIN, label: "start", diagnostics: row };
+    const versions = { [MAIN]: 2 };
+    expect(
+      scopedProblems(scope, [], { diagnostics: { [MAIN]: published }, versions }).map(
+        (p) => p.version,
+      ),
+    ).toEqual([2]);
+    const republished = [diagnostic(0, 2, "Cannot find alcie")];
+    expect(
+      scopedProblems(scope, [], { diagnostics: { [MAIN]: republished }, versions }).map(
+        (p) => p.version,
+      ),
+    ).toEqual([undefined]);
+  });
+
   it("maps a game's runtime error to a played entry at its script's line", () => {
     expect(
       playedFromRuntimeError({

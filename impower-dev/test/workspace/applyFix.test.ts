@@ -28,7 +28,7 @@ const NEWLINE = String.fromCharCode(10);
 const SCRIPT = ["scene start", "  show alcie", "end", ""].join(NEWLINE);
 const AT = SCRIPT.indexOf("alcie");
 
-const useAlice = (version?: number): FixChoice => ({
+const useAlice = (version = 1): FixChoice => ({
   fix: {
     uri: URI,
     version,
@@ -52,7 +52,7 @@ afterEach(() => {
   snackbar.value = null;
 });
 
-const closedScript = (initial: string) => {
+const closedScript = (initial: string, version = 1) => {
   let text = initial;
   return {
     text: () => text,
@@ -61,6 +61,7 @@ const closedScript = (initial: string) => {
     },
     deps: {
       getFileText: vi.fn(async () => text),
+      getFileVersion: vi.fn(async () => version),
       applyWorkspaceEdit: vi.fn(
         async (edit: {
           documentChanges?: { edits: TextEdit[] }[];
@@ -188,6 +189,49 @@ describe("applying a fix from a problem", () => {
     expect(view.state.doc.toString()).toBe(SCRIPT.replace("alcie", "alciex"));
     expect(script.text()).toBe(SCRIPT);
     expect(snackbar.value?.message).toBe(FIX_REFUSED);
+  });
+
+  it("applies a fix the server reported for a script never opened, which carries no version", async () => {
+    const script = closedScript(SCRIPT, 0);
+    const choice = useAlice();
+    delete choice.fix.version;
+    expect(await applyFix(script.deps, choice)).toBe(true);
+    expect(script.text()).toBe(SCRIPT.replace("alcie", "alice"));
+  });
+
+  it("changes nothing in a closed script saved since the problem was reported, though the name still sits at the same line and column", async () => {
+    const edited = SCRIPT.replace("scene start", "scene start here");
+    const script = closedScript(edited, 2);
+    expect(await applyFix(script.deps, useAlice(1))).toBe(false);
+    expect(script.text()).toBe(edited);
+    expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
+    expect(snackbar.value?.message).toBe(FIX_REFUSED);
+  });
+
+  it("refuses Undo after the author leaves a script they typed in since the fix, rather than reverting at moved offsets", async () => {
+    const NOTE = ["Hello.", "// TODO: tidy", "Bye.", ""].join(NEWLINE);
+    const view = openEditor(NOTE);
+    const script = closedScript("unused");
+    const at = NOTE.indexOf("// TODO");
+    await applyFix(script.deps, {
+      fix: {
+        uri: URI,
+        version: 1,
+        range: { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } },
+        changes: [{ from: at, to: at + 14, insert: "" }],
+        expect: "// TODO: tidy",
+        kind: "note",
+      },
+      name: "Remove the note",
+      done: "Note removed.",
+    });
+    view.dispatch({ changes: { from: 0, insert: "Intro. " } });
+    script.edit(view.state.doc.toString());
+    disposers.splice(0).forEach((dispose) => dispose());
+    expect(snackbar.value?.message).toBe("Note removed.");
+    snackbar.value!.onAction!();
+    await vi.waitFor(() => expect(snackbar.value?.message).toBe(FIX_REFUSED));
+    expect(script.text()).toBe(["Intro. Hello.", "Bye.", ""].join(NEWLINE));
   });
 
   it("says the line changed when Undo finds the fixed text edited", async () => {

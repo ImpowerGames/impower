@@ -349,6 +349,7 @@ export class ProblemsStore {
     return applyFix(
       {
         getFileText: (uri) => Workspace.fs.getFileText(uri),
+        getFileVersion: (uri) => Workspace.fs.getFileVersion(uri),
         applyWorkspaceEdit: (edit, label, metadata) =>
           Workspace.fs.applyWorkspaceEdit(edit, label, metadata),
         recordScriptChange: () => Workspace.window.recordScriptChange(),

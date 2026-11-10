@@ -20,15 +20,9 @@ export interface EditorFix {
   kind?: "name" | "note";
 }
 
-export interface EditorFixText {
-  from: number;
-  to: number;
-  text: string;
-}
-
 export interface EditorFixRevert {
   changes: EditorFixChange[];
-  inserted: EditorFixText[];
+  after: string;
 }
 
 export interface EditorFixUndo {

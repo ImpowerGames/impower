@@ -1,6 +1,6 @@
 import type { ChoseEditorFixParams } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { showSnackbar } from "../../utils/snackbar";
-import { applyEditorFix, type EditorEditFiles } from "../applyEditorEdit";
+import { applyEditorFix, type EditorFixFiles } from "../applyEditorEdit";
 
 export const FIX_REFUSED = "That line changed; nothing was done.";
 
@@ -8,7 +8,7 @@ export const FIX_UNDO_LABEL = "Undo";
 
 export type FixChoice = ChoseEditorFixParams;
 
-export interface FixDeps extends EditorEditFiles {
+export interface FixDeps extends EditorFixFiles {
   refreshDiagnostics: (uri: string) => Promise<void>;
   recordScriptChange: () => Promise<void>;
 }
