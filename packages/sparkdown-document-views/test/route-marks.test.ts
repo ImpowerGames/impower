@@ -155,6 +155,16 @@ describe("choice markers", () => {
     ]);
   });
 
+  it("are buttons assistive technology can reach, with their labels", async () => {
+    mount();
+    setChoiceMarkers(view!, [choice(3, "pinned")]);
+    await nextFrame();
+    const mark = view!.dom.querySelector<HTMLButtonElement>(".cm-choice-marker")!;
+    expect(mark.tagName).toBe("BUTTON");
+    expect(mark.getAttribute("aria-label")).toBe("Pinned choice on line 3");
+    expect(mark.closest("[aria-hidden=true]")).toBeNull();
+  });
+
   it("move with their lines through edits and go with a deleted line", () => {
     mount();
     setChoiceMarkers(view!, [choice(3, "pinned"), choice(5, "auto")]);

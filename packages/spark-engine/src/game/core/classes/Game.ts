@@ -4089,7 +4089,18 @@ export class Game<T extends M = {}> {
     if (override === undefined || !verdict) {
       return undefined;
     }
-    const spans = new Map<number, [number, number]>();
+    const lines = new Map<number, Set<number>>();
+    const add = (script: number, from: number, to: number) => {
+      let set = lines.get(script);
+      if (!set) {
+        set = new Set();
+        lines.set(script, set);
+      }
+      for (let line = from; line <= to; line++) {
+        set.add(line);
+      }
+    };
+    let branchEnd = verdict[3];
     for (const step of route.steps) {
       if (step.decision < override) {
         continue;
@@ -4098,27 +4109,22 @@ export class Game<T extends M = {}> {
       if (!at) {
         continue;
       }
-      const after = at[0] === verdict[0] ? verdict[3] + 1 : undefined;
-      const from = after ?? at[1];
-      if (at[3] < from) {
+      if (at[0] === verdict[0] && at[1] <= verdict[3] && at[3] >= verdict[1]) {
         continue;
       }
-      const span = spans.get(at[0]);
-      spans.set(
-        at[0],
-        span
-          ? [Math.min(span[0], from), Math.max(span[1], at[3])]
-          : [from, at[3]],
-      );
+      add(at[0], at[1], at[3]);
+      if (at[0] === verdict[0] && at[1] > verdict[3]) {
+        branchEnd = Math.max(branchEnd, at[3]);
+      }
     }
-    if (spans.size === 0) {
-      return undefined;
-    }
+    add(verdict[0], verdict[3] + 1, branchEnd);
     const ranges: Record<string, number[]> = {};
-    for (const [script, [from, to]] of spans) {
-      ranges[this.scriptUri(script)] = [from, to];
+    for (const [script, set] of lines) {
+      if (set.size > 0) {
+        ranges[this.scriptUri(script)] = lineRanges(set);
+      }
     }
-    return ranges;
+    return Object.keys(ranges).length > 0 ? ranges : undefined;
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {

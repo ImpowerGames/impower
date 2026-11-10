@@ -114,6 +114,35 @@ describe("a route view the host shows", () => {
     expect(p.views.at(-1)!.tab).toBe("route");
   });
 
+  test("hands the host starting-value events to the player handlers", () => {
+    const p = hostedPlayer();
+    p.report({ route: route() });
+    const calls: unknown[][] = [];
+    const events = (p.controller as any).valuesEvents;
+    (p.controller as any).valuesEvents = {
+      ...events,
+      onSet: (...args: unknown[]) => calls.push(["set", ...args]),
+      onClear: (...args: unknown[]) => calls.push(["clear", ...args]),
+      onDraft: (...args: unknown[]) => calls.push(["draft", ...args]),
+      onResetAll: () => calls.push(["resetAll"]),
+      onSearch: (...args: unknown[]) => calls.push(["search", ...args]),
+    };
+    p.act({ kind: "values", event: { kind: "set", key: "trust", value: "2" } });
+    p.act({ kind: "values", event: { kind: "clear", key: "trust" } });
+    p.act({ kind: "values", event: { kind: "draft", key: "trust", text: "3" } });
+    p.act({ kind: "values", event: { kind: "resetAll" } });
+    p.act({ kind: "values", event: { kind: "search", search: "tr" } });
+    expect(calls).toEqual([
+      ["set", "trust", "2"],
+      ["clear", "trust"],
+      ["draft", "trust", "3"],
+      ["resetAll"],
+      ["search", "tr"],
+    ]);
+    p.act({ kind: "values", event: { kind: "loadOpen", open: true } });
+    expect((p.controller as any)._loadSaveOpen).toBe(true);
+  });
+
   test("is withdrawn while the game plays", () => {
     const p = hostedPlayer();
     p.report({ route: route() });

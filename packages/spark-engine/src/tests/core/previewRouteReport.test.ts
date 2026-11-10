@@ -121,6 +121,40 @@ describe("the route the preview reports", () => {
     ).toEqual([[URI, [16, 17, 18, 19, 20, 21]]]);
   }, 120_000);
 
+  test("a function the forced branch calls is forced too, though it is written above the branch", () => {
+    const { route, count } = preview(
+      [
+        "store flag = false",
+        "store count = 0",
+        "function g()",
+        "  if true then",
+        "    return 1",
+        "  end",
+        "  return 2",
+        "end",
+        "",
+        "scene start",
+        "  for i = 1, 3 do",
+        "    if flag then",
+        "      count += g()",
+        "      Target {count}.",
+        "    end",
+        "  end",
+        "end",
+        "",
+      ],
+      14,
+      "count",
+    );
+    expect(count).toBe(1);
+    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
+      (line) => line + 1,
+    );
+    expect(forced).toContain(5);
+    expect(forced).toEqual(expect.arrayContaining([13, 14]));
+    expect(forced).not.toContain(12);
+  }, 120_000);
+
   test("a route that forced nothing reports no forced lines", () => {
     const { route } = preview(interrogation, 9);
     expect(route.decisions.some((d) => d.kind === "forced")).toBe(false);

@@ -355,7 +355,13 @@ describe("the bar under the game", () => {
       await act(() => {
         route.view.value = {
           ...forcedRoute,
-          values: { start: "interrogation", values: {}, drafts: {}, unsaved: {}, search: "" },
+          values: {
+            start: "interrogation",
+            values: { trust: "2" },
+            drafts: {},
+            unsaved: {},
+            search: "",
+          },
         };
       });
       await act(async () => route.toggle());
@@ -370,6 +376,19 @@ describe("the bar under the game", () => {
         expect.objectContaining({
           method: "preview/routeViewAction",
           params: { action: { kind: "tab", tab: "values" } },
+        }),
+      );
+      await act(() => {
+        route.view.value = { ...route.view.value!, tab: "values" };
+      });
+      const reset = document.querySelector<HTMLButtonElement>("#route-panel .sv-reset");
+      expect(reset?.disabled).toBe(false);
+      await act(async () => reset!.click());
+      await settle();
+      expect(sent).toContainEqual(
+        expect.objectContaining({
+          method: "preview/routeViewAction",
+          params: { action: { kind: "values", event: { kind: "resetAll" } } },
         }),
       );
     } finally {

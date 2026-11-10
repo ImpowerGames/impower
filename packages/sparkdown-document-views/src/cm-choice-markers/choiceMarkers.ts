@@ -542,6 +542,7 @@ export const choiceMarkers = () => [
   layer({
     above: true,
     class: "cm-choice-markers",
+    mount: (dom) => dom.removeAttribute("aria-hidden"),
     markers: markerElements,
     update: (update) =>
       update.docChanged ||
