@@ -119,6 +119,7 @@ describe("the include line's quick fix", () => {
     expect(include?.data).toEqual([
       {
         name: "Delete this line",
+        done: "Line deleted.",
         changes: [{ from: start, to: text.indexOf("Gold"), insert: "" }],
       },
     ]);

@@ -53,6 +53,10 @@ import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/c
 import type { RollTarget } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
+import {
+  SetGameVariableMessage,
+  type SetGameVariableResult,
+} from "@impower/spark-engine/src/game/core/classes/messages/SetGameVariableMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import {
@@ -111,7 +115,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _host: SparkDebugSessionHost;
 
   private _variableHandles = new Handles<{
-    scope: "temps" | "vars" | "defines";
+    scope: "temps" | "vars" | "builtins" | "defines";
     threadId?: number;
     frameId?: number;
   }>(-3);
@@ -437,6 +441,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body.supportsLoadedSourcesRequest = true;
 
     response.body.supportsEvaluateForHovers = true;
+    response.body.supportsSetVariable = true;
     response.body.supportsDataBreakpoints = true;
 
     this.sendResponse(response);
@@ -926,12 +931,20 @@ export class SparkDebugSession extends LoggingDebugSession {
     const frame = this._frames.get(args.frameId);
     response.body = {
       scopes: [
-        new Scope(
-          "Temps",
-          this._variableHandles.create({ scope: "temps", ...frame }),
-          false,
-        ),
+        {
+          ...new Scope(
+            "Temps",
+            this._variableHandles.create({ scope: "temps", ...frame }),
+            false,
+          ),
+          presentationHint: "locals",
+        },
         new Scope("Vars", this._variableHandles.create({ scope: "vars" }), false),
+        new Scope(
+          "Builtins",
+          this._variableHandles.create({ scope: "builtins" }),
+          true,
+        ),
         new Scope(
           "Defines",
           this._variableHandles.create({ scope: "defines" }),
@@ -968,6 +981,13 @@ export class SparkDebugSession extends LoggingDebugSession {
         }),
       );
       vars = variables;
+    } else if (scope === "builtins") {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "builtins",
+        }),
+      );
+      vars = variables;
     } else if (scope === "defines") {
       const { variables } = await this._connection.emit(
         GetGameVariablesMessage.type.request({
@@ -997,11 +1017,27 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.EvaluateResponse,
     args: DebugProtocol.EvaluateArguments,
   ): Promise<void> {
+    if (
+      (args.context === "watch" || args.context === "repl") &&
+      !/^[A-Za-z_$][\w$]*(\.[\w$]+)*$/.test(args.expression)
+    ) {
+      this.sendErrorResponse(response, {
+        id: 2004,
+        format: "Only a name or a path such as party.1 can be watched for now.",
+        showUser: false,
+      });
+      return;
+    }
 
     const frame =
       args.frameId != null ? this._frames.get(args.frameId) : undefined;
     const { context } = await this._connection.emit(
-      GetGameEvaluationContextMessage.type.request({ ...frame }),
+      GetGameEvaluationContextMessage.type.request({
+        ...frame,
+        ...(args.context === "watch" || args.context === "repl"
+          ? { name: args.expression.split(".")[0] }
+          : {}),
+      }),
     );
 
     const value = args.expression
@@ -1044,9 +1080,45 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   protected override async setVariableRequest(
     response: DebugProtocol.SetVariableResponse,
-    _args: DebugProtocol.SetVariableArguments,
+    args: DebugProtocol.SetVariableArguments,
   ) {
-
+    const handle = this._variableHandles.get(args.variablesReference);
+    const scope = handle ? handle.scope : "children";
+    if (scope !== "vars" && scope !== "temps" && scope !== "children") {
+      this.sendErrorResponse(response, {
+        id: 2003,
+        format: "Only story and local values can be changed.",
+        showUser: true,
+      });
+      return;
+    }
+    let changed: SetGameVariableResult;
+    try {
+      changed = await this._connection.emit(
+        SetGameVariableMessage.type.request({
+          scope,
+          name: args.name,
+          value: args.value,
+          ...(scope === "temps"
+            ? { threadId: handle?.threadId, frameId: handle?.frameId }
+            : {}),
+          ...(scope === "children"
+            ? { variablesReference: args.variablesReference }
+            : {}),
+        }),
+      );
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
+    const { variable } = changed;
+    response.body = {
+      value: variable.value,
+      type: variable.type,
+      variablesReference: variable.variablesReference,
+      namedVariables: variable.namedVariables,
+      indexedVariables: variable.indexedVariables,
+    };
     this.sendResponse(response);
   }
 

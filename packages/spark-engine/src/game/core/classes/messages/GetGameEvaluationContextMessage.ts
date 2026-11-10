@@ -8,6 +8,7 @@ export type GetGameEvaluationContextMethod =
 export interface GetGameEvaluationContextParams {
   threadId?: number;
   frameId?: number;
+  name?: string;
 }
 
 export interface GetGameEvaluationContextResult {

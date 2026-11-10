@@ -161,6 +161,9 @@ export const PROJECT_SETTINGS_SCHEMA = {
   previewPanelHeight: setting(44),
   problemsScriptCardOpen: setting(true),
   problemsPlayedCardOpen: setting(true),
+  problemsVariablesCardOpen: setting(true),
+  problemsWatchCardOpen: setting(true),
+  problemsCallStackCardOpen: setting(true),
 } as const satisfies Record<string, SettingSpec>;
 
 type ValuesOf<S extends Record<string, SettingSpec>> = {

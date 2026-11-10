@@ -136,6 +136,21 @@ describe("the run operand's quick fixes", () => {
     }
   });
 
+  test.each([
+    ["run lib/helpers", ["Path quoted."]],
+    ['run "./lib/helpers', ["Quote closed."]],
+    ["run Helpers", ["Changed to helpers."]],
+    ["run util", ['Changed to "lib/util".', 'Changed to "scripts/util".']],
+  ])("notes what each fix did: %s", (line, notes) => {
+    const text = lines(line, "scene start", "  done", "end", "");
+    const document = TextDocument.create(MAIN, "sparkdown", 1, text);
+    expect(
+      getCodeActions(document, errorsOf(compile(text), MAIN)).map(
+        (action) => (action.data as { done: string }).done,
+      ),
+    ).toEqual(notes);
+  });
+
   test("offers nothing for an operand no file is near", () => {
     expect(fixesOf(lines("run missing", "scene start", "  done", "end", ""))).toEqual([]);
     expect(fixesOf(lines('run "missing"', "scene start", "  done", "end", ""))).toEqual([]);

@@ -206,6 +206,8 @@ export default class WorkspaceWindow {
     onStop: (position) => this.followStop(position),
     onRoll: (restored) => this.followRoll(restored),
     onRefusal: (message) => showSnackbar({ message }),
+    saveWatch: (expressions) => this.setWatchExpressions(expressions),
+    source: (uri) => this.scriptSource(uri),
   });
 
   constructor(workspace: {
@@ -1020,6 +1022,21 @@ export default class WorkspaceWindow {
         },
       },
     });
+  }
+
+  setWatchExpressions(expressions: readonly string[]) {
+    this.update({
+      ...this.store,
+      debug: { ...this.store.debug, watch: [...expressions] },
+    });
+  }
+
+  protected scriptSource(uri: string) {
+    const fs = this._workspace.fs;
+    const root = `${fs.getDirectoryUri(this.store.project.id ?? "")}/`;
+    return uri.startsWith(root)
+      ? { path: uri.slice(root.length), inProject: true }
+      : { path: fs.getFilename(uri), inProject: false };
   }
 
   protected followVerifiedBreakpoints() {
