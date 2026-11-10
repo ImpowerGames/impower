@@ -446,6 +446,38 @@ describe("the asset inspector", () => {
     expect(region()!.querySelector("[data-zoom-frame]")).toBeNull();
   });
 
+  it("forgets a video's length when Replace changes its file, and reads the new one's", async () => {
+    lists({ assetsType: "video", assetsFolders: {} });
+    await mount();
+    await open("intro");
+    const metadata = async (seconds: number) => {
+      const video = region()!.querySelector("video")!;
+      Object.defineProperty(video, "duration", { value: seconds, configurable: true });
+      await act(async () => {
+        video.dispatchEvent(new Event("loadedmetadata"));
+      });
+      await settle();
+    };
+    await metadata(84);
+    expect(details()).toContain("Length: 1:24");
+    await act(async () => {
+      const listing = workspace.assetListing.value!;
+      workspace.assetListing.value = {
+        ...listing,
+        files: { ...listing.files, "Assets/Video/intro.webm": { ...listing.files["Assets/Video/intro.webm"]!, src: "/p/4?v=2" } },
+      };
+    });
+    await settle();
+    const replaced = region()!.querySelector("video")!;
+    expect(replaced.getAttribute("src")).toBe("/p/4?v=2");
+    await act(async () => {
+      replaced.dispatchEvent(new Event("error"));
+    });
+    expect(details().some((row) => row.startsWith("Length"))).toBe(false);
+    await metadata(2);
+    expect(details()).toContain("Length: 0:02");
+  });
+
   it("says a font that cannot be loaded cannot be shown, instead of leaving its frame blank", async () => {
     const original = (globalThis as { FontFace?: unknown }).FontFace;
     (globalThis as { FontFace?: unknown }).FontFace = class {

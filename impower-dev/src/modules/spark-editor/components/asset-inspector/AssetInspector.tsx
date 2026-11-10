@@ -130,7 +130,6 @@ export default function AssetInspector({
 
   useEffect(() => {
     setFacts(null);
-    setVideoSeconds(null);
     let dispose: (() => void) | undefined;
     let alive = true;
     void intents().then((Workspace) => {
@@ -146,6 +145,10 @@ export default function AssetInspector({
       dispose?.();
     };
   }, [filesKey]);
+
+  useEffect(() => {
+    setVideoSeconds(null);
+  }, [asset.path, asset.src]);
 
   useEffect(() => {
     if (asset.type === "image" && asset.src && pixels === undefined) {
@@ -321,7 +324,7 @@ export default function AssetInspector({
         data-inspector-body
       >
         <AssetFrame
-          key={asset.path}
+          key={`${asset.path}\n${asset.src ?? ""}`}
           asset={asset}
           pixels={pixels}
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
