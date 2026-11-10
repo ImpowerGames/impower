@@ -23,7 +23,7 @@ const story = () => {
   const values: Record<string, string> = { gold: "3", mood: "\"calm\"" };
   const temps: Record<number, Record<string, string>> = { 1: { bag: "2" }, 0: { coin: "9" } };
   let refuseSet: string | null = null;
-  let dataId: string | null = "gold";
+  let noData = false;
   const answer = (request: DebugProtocol.Request): Answer => {
     const args = request.arguments as Record<string, any>;
     switch (request.command) {
@@ -81,8 +81,12 @@ const story = () => {
         }
         values[args.name] = args.value;
         return { body: { value: args.value } };
-      case "dataBreakpointInfo":
+      case "dataBreakpointInfo": {
+        const ref = args.variablesReference as number;
+        const frame = Math.floor((ref - TEMPS_REF) / 100);
+        const dataId = noData ? null : ref === VARS_REF ? args.name : `frame${frame}.${args.name}`;
         return { body: { dataId, description: dataId ?? "Value will never change" } };
+      }
       case "setDataBreakpoints":
         return { body: { breakpoints: args.breakpoints.map(() => ({ verified: true })) } };
       default:
@@ -95,7 +99,10 @@ const story = () => {
       refuseSet = message;
     },
     noData: () => {
-      dataId = null;
+      noData = true;
+    },
+    local: (frame: number, name: string, value: string) => {
+      temps[frame]![name] = value;
     },
   };
 };
@@ -301,6 +308,34 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     await debug.inspection.breakOnChange("scope:Vars/mood", true);
     const mood = variableTree(workspace.debugInspection.value)[0]!.children![1]!;
     expect([mood.breaking, mood.message]).toEqual([false, "Value will never change"]);
+  });
+
+  it("keeps Break when value changes on a local to the frame it was set in, apart from a caller's local of the same name", async () => {
+    const { fake, debug, game } = await begin();
+    game.local(1, "count", "1");
+    game.local(0, "count", "5");
+    await stop(fake);
+    const count = () =>
+      variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
+    const sent = () => fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments;
+    await debug.inspection.breakOnChange("scope:Temps/count", true);
+    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame1.count", accessType: "write" }] });
+    expect(count().breaking).toBe(true);
+    await debug.inspection.selectFrame(0);
+    expect([count().value, count().breaking]).toEqual(["5", false]);
+    await debug.inspection.breakOnChange("scope:Temps/count", true);
+    expect(sent()).toEqual({
+      breakpoints: [
+        { dataId: "frame1.count", accessType: "write" },
+        { dataId: "frame0.count", accessType: "write" },
+      ],
+    });
+    await debug.inspection.selectFrame(1);
+    expect([count().value, count().breaking]).toEqual(["1", true]);
+    await debug.inspection.breakOnChange("scope:Temps/count", false);
+    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame0.count", accessType: "write" }] });
+    await debug.inspection.selectFrame(0);
+    expect(count().breaking).toBe(true);
   });
 
   it("adds, changes and removes watch expressions in the project's store, evaluating them while paused", async () => {

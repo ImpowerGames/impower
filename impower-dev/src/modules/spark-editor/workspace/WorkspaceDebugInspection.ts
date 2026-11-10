@@ -57,6 +57,17 @@ const expandedOf = (
 const refusal = (response: DebugProtocol.Response | null) =>
   response?.message || DEBUG_INSPECTION_TEXT.refused;
 
+const breakKey = (state: DebugInspectionState, key: string) => {
+  const scope = state.scopes.find(
+    (s) => key.startsWith(`${scopeKey(s)}${SEPARATOR}`),
+  );
+  if (scope?.presentationHint !== "locals") {
+    return key;
+  }
+  const frame = state.frames.find((f) => f.id === state.frameId);
+  return `${frame?.name ?? ""}@${key}`;
+};
+
 export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
   const nodes = (
     parent: string,
@@ -77,7 +88,7 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
         expanded,
         editable: inScope && !expandable,
         breakable: inScope,
-        breaking: key in state.breaking,
+        breaking: breakKey(state, key) in state.breaking,
         message: state.messages[key],
         children: expanded && children ? nodes(key, children, false) : undefined,
       };
@@ -290,6 +301,7 @@ export default class WorkspaceDebugInspection {
   async breakOnChange(key: string, on: boolean) {
     const generation = this._generation;
     const breaking = { ...this.state.breaking };
+    const at = breakKey(this.state, key);
     if (on) {
       const info = (await this._options.request("dataBreakpointInfo", {
         variablesReference: this.state.refs[parentOf(key)],
@@ -303,12 +315,12 @@ export default class WorkspaceDebugInspection {
         this.note(key, info.success ? info.body?.description || refusal(null) : refusal(info));
         return;
       }
-      breaking[key] = dataId;
+      breaking[at] = dataId;
     } else {
-      delete breaking[key];
+      delete breaking[at];
     }
     const response = await this._options.request("setDataBreakpoints", {
-      breakpoints: Object.values(breaking).map((dataId) => ({
+      breakpoints: [...new Set(Object.values(breaking))].map((dataId) => ({
         dataId,
         accessType: "write",
       })),

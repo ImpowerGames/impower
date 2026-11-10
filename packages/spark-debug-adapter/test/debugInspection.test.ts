@@ -36,12 +36,6 @@ const session = (refuse?: string) => {
           },
         };
       }
-      if (message.method === "game/evaluationContext") {
-        return { context: { gold: 3 } };
-      }
-      if (message.method === "game/variables") {
-        return { variables: [{ name: "", value: "3", variablesReference: 0 }] };
-      }
       return {};
     },
   };
@@ -152,24 +146,5 @@ describe("the debug adapter's inspection requests", () => {
     expect(s.setSent()).toEqual([]);
     expect(response.success).toBe(false);
     expect(response.message).toBe("Only story and local values can be changed.");
-  });
-
-  it("answers a watch on a name the frame does not hold with an error, not a value", async () => {
-    const s = session();
-    const { body } = await s.call("stackTraceRequest", { threadId: 0 });
-    const missing = await s.call("evaluateRequest", {
-      expression: "silver",
-      frameId: body.stackFrames[0].id,
-      context: "watch",
-    });
-    expect(missing.success).toBe(false);
-    expect(missing.message).toBe("not available in this frame");
-    const held = await s.call("evaluateRequest", {
-      expression: "gold",
-      frameId: body.stackFrames[0].id,
-      context: "watch",
-    });
-    expect(held.success).toBe(true);
-    expect(held.body.result).toBe("3");
   });
 });

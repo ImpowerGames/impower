@@ -999,10 +999,7 @@ export class SparkDebugSession extends LoggingDebugSession {
         context,
       );
 
-    if (
-      value === undefined &&
-      (args.context === "hover" || args.context === "watch")
-    ) {
+    if (value === undefined && args.context === "hover") {
       this.sendErrorResponse(response, {
         id: 2001,
         format: "not available in this frame",
