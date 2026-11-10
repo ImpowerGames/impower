@@ -1565,6 +1565,15 @@ export function sessionOf(owner) {
   try { return streamSession(owner.handle.launchDir); } catch { return null; }
 }
 
+export function recordSessions(file) {
+  const record = readRecord(file);
+  const owners = (r) => Object.values(r.tickets ?? {}).map((t) => t?.owner).filter(Boolean);
+  if (record.retired || !owners(record).some((o) => !o.sessionId && sessionOf(o))) return record;
+  return updateRecord(file, { expectRevision: record.revision, coordinator: record.coordinator.session }, (r) => {
+    for (const owner of owners(r)) if (!owner.sessionId && sessionOf(owner)) { noteSession(owner); log(r, "session-recorded", { launchId: owner.launchId ?? null, sessionId: owner.sessionId }); }
+  }).record;
+}
+
 export const writerIdentities = (record) => Object.entries(record.tickets ?? {}).flatMap(([number, t]) => (t?.owner ? [{ ticket: Number(number), launchId: t.owner.launchId ?? null, sessionId: sessionOf(t.owner), launchDir: t.owner.handle?.launchDir ?? null }] : []));
 
 export function writerSession(record, { ticket: number, writer, session, evidence }) {
@@ -2228,13 +2237,13 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     }
     case "schedule": { const file = absolute(o.record, "record"); return scheduleSpec(readRecord(file), file, defaults); }
     case "snapshot": {
-      const record = readRecord(absolute(o.record, "record"));
+      const record = recordSessions(absolute(o.record, "record"));
       const snap = takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, clientFor(record, record.checkout));
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
-      return { tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record) };
+      return { revision: record.revision, tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record) };
     }
     case "plan": {
-      const record = readRecord(absolute(o.record, "record"));
+      const record = recordSessions(absolute(o.record, "record"));
       const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults, machine: observeWriterMachine(record) });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
       const checkpoint = autoCheckpoint(absolute(o.record, "record"), { coordinator: record.coordinator.session, transition: "a new plan", github, plan, onlyIfChanged: true });
