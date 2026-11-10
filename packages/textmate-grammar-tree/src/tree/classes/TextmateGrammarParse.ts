@@ -59,8 +59,12 @@ export class TextmateGrammarParse implements PartialParse {
             stampedEpoch !== undefined &&
             stampedEpoch !== cachedCompiler.reuseEpoch
           ) {
-            break;
+            if (!cachedCompiler.canRollBackTo(stampedEpoch)) {
+              break;
+            }
+            cachedCompiler.rollback();
           }
+          cachedCompiler.beginParseJournal();
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
@@ -100,7 +104,7 @@ export class TextmateGrammarParse implements PartialParse {
     } else if (this.region.from > anchor) {
       this.tokenizer.skip(this.region.from - anchor);
     }
-    this.tokenizer.emitSplitSignals = this.region.from > 0 || !!this.region.edit;
+    this.tokenizer.emitSplitSignals = true;
   }
 
   get done() {
@@ -254,12 +258,23 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected tryImpureSplice(): boolean {
-    const ahead = this.compiler.ahead;
-    const first = ahead?.first;
-    if (!ahead || !first) {
+    let ahead = this.compiler.ahead;
+    if (!ahead?.first || !this.region.contiguous) {
       return false;
     }
-    if (!this.region.contiguous) {
+    if (this.parsedPos > ahead.first.from) {
+      const next = ahead.findAheadSplitPoint(this.parsedPos - 1);
+      if (!next.chunk || next.index == null) {
+        this.compiler.ahead = undefined;
+        return false;
+      }
+      if (next.index > 0) {
+        ahead = ahead.split(next.index).right;
+        this.compiler.ahead = ahead;
+      }
+    }
+    const first = ahead.first;
+    if (!first) {
       return false;
     }
     if ((ahead.last?.to ?? 0) < this.region.to) {
