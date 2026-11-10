@@ -1,6 +1,9 @@
 import type { DebugFrameEntry } from "@impower/spark-web-player/src/components/DebugCallStack/DebugCallStack";
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
-import type { DebugWatchEntry } from "@impower/spark-web-player/src/components/DebugWatch/DebugWatch";
+import {
+  DEBUG_WATCH_TEXT,
+  type DebugWatchEntry,
+} from "@impower/spark-web-player/src/components/DebugWatch/DebugWatch";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import workspace, {
   IDLE_DEBUG_INSPECTION,
@@ -62,6 +65,7 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
     parent: string,
     list: readonly DebugProtocol.Variable[],
     inScope: boolean,
+    direct: boolean,
   ): DebugVariableNode[] =>
     list.map((variable) => {
       const key = childKey(parent, variable.name);
@@ -76,10 +80,11 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
         expandable,
         expanded,
         editable: inScope && !expandable,
-        breakable: inScope,
+        breakable: inScope && direct,
         breaking: key in state.marked,
         message: state.messages[key],
-        children: expanded && children ? nodes(key, children, false) : undefined,
+        children:
+          expanded && children ? nodes(key, children, inScope, false) : undefined,
       };
     });
   return state.scopes.map((scope) => {
@@ -97,7 +102,9 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
       breaking: false,
       message: state.messages[key],
       children:
-        expanded && children ? nodes(key, children, !scope.expensive) : undefined,
+        expanded && children
+          ? nodes(key, children, !scope.expensive, true)
+          : undefined,
     };
   });
 }
@@ -401,9 +408,12 @@ export default class WorkspaceDebugInspection {
     if (!response) {
       return null;
     }
-    return response.success
-      ? { value: response.body.result }
-      : { error: response.message || DEBUG_INSPECTION_TEXT.noValue };
+    if (!response.success) {
+      return { error: response.message || DEBUG_INSPECTION_TEXT.noValue };
+    }
+    return response.body.type === "undefined"
+      ? { error: DEBUG_WATCH_TEXT.unavailable }
+      : { value: response.body.result };
   }
 
   protected async evaluateWatch(
@@ -424,7 +434,17 @@ export default class WorkspaceDebugInspection {
         results[expression] = result;
       }
     }
-    this.update({ watch: replace ? results : { ...this.state.watch, ...results } });
+    if (!replace) {
+      this.update({ watch: { ...this.state.watch, ...results } });
+      return;
+    }
+    const asked = new Set(expressions);
+    const since = Object.fromEntries(
+      Object.entries(this.state.watch).filter(
+        ([expression]) => !asked.has(expression) && this.expressions.includes(expression),
+      ),
+    );
+    this.update({ watch: { ...since, ...results } });
   }
 
   protected async load(

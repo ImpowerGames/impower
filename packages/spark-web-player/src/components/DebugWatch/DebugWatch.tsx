@@ -48,6 +48,7 @@ export const DEBUG_WATCH_TEXT = {
   title: "Watch",
   empty: "Add an expression to watch it.",
   running: "not available while running",
+  unavailable: "not available in this frame",
   none: "not available until the story plays",
   add: "Add expression",
   addLabel: "Add an expression to watch",

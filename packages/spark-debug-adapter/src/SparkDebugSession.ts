@@ -1046,8 +1046,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetVariableArguments,
   ) {
     const handle = this._variableHandles.get(args.variablesReference);
-    const scope = handle?.scope;
-    if (scope !== "vars" && scope !== "temps") {
+    const scope = handle ? handle.scope : "children";
+    if (scope !== "vars" && scope !== "temps" && scope !== "children") {
       this.sendErrorResponse(response, {
         id: 2003,
         format: "Only story and local values can be changed.",
@@ -1064,6 +1064,9 @@ export class SparkDebugSession extends LoggingDebugSession {
           value: args.value,
           ...(scope === "temps"
             ? { threadId: handle?.threadId, frameId: handle?.frameId }
+            : {}),
+          ...(scope === "children"
+            ? { variablesReference: args.variablesReference }
             : {}),
         }),
       );

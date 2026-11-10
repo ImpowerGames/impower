@@ -139,6 +139,20 @@ describe("the debug adapter's inspection requests", () => {
     ]);
   });
 
+  it("changes a field of a table through the reference the game gave the table", async () => {
+    const s = session();
+    await s.call("stackTraceRequest", { threadId: 0 });
+    const response = await s.call("setVariableRequest", {
+      variablesReference: 2001,
+      name: "1",
+      value: '"Grace"',
+    });
+    expect(s.setSent()).toEqual([
+      { scope: "children", name: "1", value: '"Grace"', variablesReference: 2001 },
+    ]);
+    expect(response.success).toBe(true);
+  });
+
   it("answers with the player's message when the player refuses the value", async () => {
     const s = session("Expected a value.");
     const vars = await s.scope("Vars");

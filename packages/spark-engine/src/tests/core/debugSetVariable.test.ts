@@ -68,6 +68,18 @@ const SOURCE = [
   "",
 ].join("\n");
 
+const TABLES = [
+  "store party = {\"Ada\", \"Lin\"}",
+  "store gear = {sword = {damage = 3}}",
+  "",
+  "scene start",
+  "  local bag = {\"rope\"}",
+  "  Ready.",
+  "  done",
+  "end",
+  "",
+].join("\n");
+
 describe("changing a value from the Variables view", () => {
   it("writes a story value, and the run reads the new value from then on", () => {
     const { game, runTo, startAt, shown } = debugGame(SOURCE);
@@ -127,5 +139,42 @@ describe("changing a value from the Variables view", () => {
     const before = hits.length;
     game.continue();
     expect(hits.length).toBe(before + 1);
+  });
+
+  it("writes a field of a story table, nested ones included, through the reference Variables gave the table", () => {
+    const { game, startAt, shown } = debugGame(TABLES);
+    startAt(5);
+    const party = game.getVarVariables().find((v) => v.name === "party")!;
+    game.setChildVariable(party.variablesReference, "1", "\"Grace\"");
+    const again = game.getVarVariables().find((v) => v.name === "party")!;
+    expect(shown(game.getChildVariables(again.variablesReference))["1"]).toBe("\"Grace\"");
+    const gear = game.getVarVariables().find((v) => v.name === "gear")!;
+    const sword = game.getChildVariables(gear.variablesReference).find((v) => v.name === "sword")!;
+    game.setChildVariable(sword.variablesReference, "damage", "9");
+    const gear2 = game.getVarVariables().find((v) => v.name === "gear")!;
+    const sword2 = game.getChildVariables(gear2.variablesReference).find((v) => v.name === "sword")!;
+    expect(shown(game.getChildVariables(sword2.variablesReference))["damage"]).toBe("9");
+  });
+
+  it("writes a field of a local table of the frame", () => {
+    const { game, startAt, shown } = debugGame(TABLES);
+    startAt(5);
+    const bag = game.getTempVariables().find((v) => v.name === "bag")!;
+    game.setChildVariable(bag.variablesReference, "1", "\"lamp\"");
+    const again = game.getTempVariables().find((v) => v.name === "bag")!;
+    expect(shown(game.getChildVariables(again.variablesReference))["1"]).toBe("\"lamp\"");
+  });
+
+  it("refuses a field of a table that is not the story's own or a local, and a key the table lacks", () => {
+    const { game, startAt } = debugGame(TABLES);
+    startAt(5);
+    const builtin = game.getBuiltinVariables().find((v) => v.variablesReference > 0)!;
+    expect(() => game.setChildVariable(builtin.variablesReference, "x", "1")).toThrow(
+      "Only story and local values can be changed.",
+    );
+    const party = game.getVarVariables().find((v) => v.name === "party")!;
+    expect(() => game.setChildVariable(party.variablesReference, "9", "1")).toThrow(
+      "9 is not in party.",
+    );
   });
 });

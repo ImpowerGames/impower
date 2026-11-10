@@ -75,9 +75,12 @@ const story = () => {
       }
       case "evaluate": {
         const value = values[args.expression] ?? temps[args.frameId]?.[args.expression];
-        return value === undefined
+        if (value !== undefined) {
+          return { body: { result: value, variablesReference: 0 } };
+        }
+        return args.context === "hover"
           ? { success: false, message: "not available in this frame" }
-          : { body: { result: value, variablesReference: 0 } };
+          : { body: { result: "undefined", type: "undefined", variablesReference: 0 } };
       }
       case "setVariable":
         if (refuseSet) {
@@ -121,18 +124,27 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
   const requests: DebugProtocol.Request[] = [];
   let send: (message: DebugProtocol.ProtocolMessage) => void = () => {};
   let seq = 0;
+  let holding: string | null = null;
+  const held: (() => void)[] = [];
   const adapter: DebugAdapter = {
     handleMessage(message) {
       const request = message as DebugProtocol.Request;
       requests.push(request);
-      send({
-        seq: ++seq,
-        type: "response",
-        request_seq: request.seq,
-        command: request.command,
-        success: true,
-        ...answer(request),
-      } as DebugProtocol.Response);
+      const reply = () =>
+        send({
+          seq: ++seq,
+          type: "response",
+          request_seq: request.seq,
+          command: request.command,
+          success: true,
+          ...answer(request),
+        } as DebugProtocol.Response);
+      const args = request.arguments as { expression?: string };
+      if (request.command === "evaluate" && args.expression === holding) {
+        held.push(reply);
+      } else {
+        reply();
+      }
     },
     onDidSendMessage(listener) {
       send = listener;
@@ -145,6 +157,14 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
     commands: () => requests.map((r) => r.command),
     event: (event: string, body: unknown) =>
       send({ seq: ++seq, type: "event", event, body } as DebugProtocol.Event),
+    hold: (expression: string) => {
+      holding = expression;
+    },
+    held: () => held.length,
+    release: () => {
+      holding = null;
+      held.splice(0).forEach((reply) => reply());
+    },
   };
 };
 
@@ -236,7 +256,7 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     ]);
   });
 
-  it("lets only direct values of a cheap scope be edited or watched for changes", async () => {
+  it("lets a cheap scope's direct values be watched for changes and its scalar values, inside tables too, be edited", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
     await debug.inspection.toggle("scope:Vars/party");
@@ -245,7 +265,7 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     const party = vars!.children!.find((v) => v.name === "party")!;
     expect([gold.editable, gold.breakable]).toEqual([true, true]);
     expect([party.editable, party.expandable, party.expanded]).toEqual([false, true, true]);
-    expect(party.children!.map((v) => [v.name, v.editable, v.breakable])).toEqual([["1", false, false]]);
+    expect(party.children!.map((v) => [v.name, v.editable, v.breakable])).toEqual([["1", true, false]]);
   });
 
   it("keeps a branch open across stops and loads it again at the next stop", async () => {
@@ -387,6 +407,45 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     const state = workspace.debugInspection.value;
     expect([state.status, state.frameId, state.scopes]).toEqual(["paused", null, []]);
     expect(watchEntries(state, ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
+  });
+
+  it("lets a scalar field of a story table be changed through the table's reference, but not the table row itself", async () => {
+    const { fake, debug } = await begin();
+    await stop(fake);
+    await debug.inspection.toggle("scope:Vars/party");
+    const party = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "party")!;
+    const ada = party.children![0]!;
+    expect([party.editable, ada.editable, ada.breakable]).toEqual([false, true, false]);
+    await debug.inspection.setValue("scope:Vars/party/1", '"Grace"');
+    expect(fake.requests.findLast((r) => r.command === "setVariable")!.arguments).toEqual({
+      variablesReference: PARTY_REF,
+      name: "1",
+      value: '"Grace"',
+    });
+  });
+
+  it("keeps a watch added while a stop's watch values are still arriving", async () => {
+    const { fake, debug } = await begin(["gold"]);
+    await stop(fake);
+    fake.hold("gold");
+    fake.event("stopped", { reason: "step", threadId: 0 });
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    await debug.inspection.addWatch("mood");
+    expect(watchEntries(workspace.debugInspection.value, ["gold", "mood"])[1]!.value).toBe('"calm"');
+    fake.release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(watchEntries(workspace.debugInspection.value, ["gold", "mood"])).toEqual([
+      { key: "0", expression: "gold", value: "3" },
+      { key: "1", expression: "mood", value: '"calm"' },
+    ]);
+  });
+
+  it("shows a watched name the frame does not hold as not available, not as an undefined value", async () => {
+    const { fake } = await begin(["silver"]);
+    await stop(fake);
+    expect(watchEntries(workspace.debugInspection.value, ["silver"])).toEqual([
+      { key: "0", expression: "silver", error: "not available in this frame" },
+    ]);
   });
 
   it("adds, changes and removes watch expressions in the project's store, evaluating them while paused", async () => {

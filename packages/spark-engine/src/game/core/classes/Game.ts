@@ -105,6 +105,7 @@ import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
 import {
+  NullValue,
   ObjectValue,
   VariablePointerValue,
 } from "@impower/sparkdown/src/runtime/Value";
@@ -220,6 +221,13 @@ const restsAfter = (
     position.after === chunkOfAddress(address)
   );
 };
+
+interface VariableOrigin {
+  scope: "vars" | "temps";
+  threadId?: number;
+  frameId?: number;
+  path: string[];
+}
 
 const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
@@ -456,6 +464,8 @@ export class Game<T extends M = {}> {
   protected _nextObjectVariableRef = 2000;
 
   protected _objectVariableRefMap = new Map<number, object>();
+
+  protected _objectVariableOrigins = new Map<number, VariableOrigin>();
 
   protected _tableRecords = new WeakMap<object, string[]>();
 
@@ -4326,10 +4336,16 @@ export class Game<T extends M = {}> {
       const value = this.getRuntimeValue(valueObj);
       if (value !== undefined) {
         variables.push(
-          this.getVariableInfo(name, value, {
-            kind: "data",
-            visibility: "public",
-          }),
+          this.getVariableInfo(
+            name,
+            value,
+            {
+              kind: "data",
+              visibility: "public",
+            },
+            undefined,
+            story ? { scope: "vars", path: [name] } : undefined,
+          ),
         );
       }
     }
@@ -4372,13 +4388,7 @@ export class Game<T extends M = {}> {
     threadId?: number,
     frameId?: number,
   ): Variable {
-    const parsed = parseLiteral(text);
-    if (!parsed.ok) {
-      throw new Error(
-        `${parsed.error.charAt(0).toUpperCase()}${parsed.error.slice(1)}.`,
-      );
-    }
-    const value = valueOfLiteral(parsed.value);
+    const value = this.literalValue(text);
     const variableState = this._story.state.variablesState;
     if (scope === "vars") {
       if (
@@ -4405,6 +4415,66 @@ export class Game<T extends M = {}> {
       kind: "data",
       visibility: scope === "vars" ? "public" : "private",
     });
+  }
+
+  setChildVariable(varRef: number, key: string, text: string): Variable {
+    const origin = this._objectVariableOrigins.get(varRef);
+    if (!origin) {
+      throw new Error("Only story and local values can be changed.");
+    }
+    const value = this.literalValue(text);
+    let table: unknown = this.originValue(origin);
+    for (const field of origin.path.slice(1)) {
+      table =
+        table instanceof ObjectValue
+          ? (table.value as Map<string, InkObject>).get(field)
+          : undefined;
+    }
+    const where = origin.path.join(".");
+    if (!(table instanceof ObjectValue)) {
+      throw new Error(`${where} is no longer a table.`);
+    }
+    const entries = table.value as Map<string, InkObject>;
+    if (!entries.has(key)) {
+      throw new Error(`${key} is not in ${where}.`);
+    }
+    this._story.state.variablesState.WriteBarrier(table);
+    if (value instanceof NullValue) {
+      entries.delete(key);
+    } else {
+      entries.set(key, value);
+    }
+    return this.getVariableInfo(key, this.getRuntimeValue(value), {
+      kind: "property",
+      visibility: "public",
+    });
+  }
+
+  protected literalValue(text: string) {
+    const parsed = parseLiteral(text);
+    if (!parsed.ok) {
+      throw new Error(
+        `${parsed.error.charAt(0).toUpperCase()}${parsed.error.slice(1)}.`,
+      );
+    }
+    return valueOfLiteral(parsed.value);
+  }
+
+  protected originValue(origin: VariableOrigin): InkObject | null {
+    const name = origin.path[0]!;
+    const variableState = this._story.state.variablesState;
+    if (origin.scope === "vars") {
+      const globalObj = variableState.GetGlobalVariableValue(name);
+      return globalObj instanceof VariablePointerValue
+        ? variableState.ValueAtVariablePointer(globalObj)
+        : globalObj;
+    }
+    const { thread, element } = this.tempFrame(origin.threadId, origin.frameId);
+    const held = element?.temporaryScopes.findLast((scoped) => scoped.has(name));
+    const scoped = held?.get(name) ?? null;
+    return scoped instanceof VariablePointerValue && thread
+      ? this.valueAtPointerInThread(thread, scoped)
+      : scoped;
   }
 
   getTempVariables(threadId?: number, frameId?: number): Variable[] {
@@ -4438,6 +4508,7 @@ export class Game<T extends M = {}> {
                   visibility: "private",
                 },
                 scopePath,
+                { scope: "temps", threadId, frameId, path: [name] },
               ),
             );
           }
@@ -4504,13 +4575,20 @@ export class Game<T extends M = {}> {
     } else if (typeof value === "object" && value) {
       const tableKeys = this._tableRecords.get(value);
       const record = value as Record<string, unknown>;
+      const origin = tableKeys ? this._objectVariableOrigins.get(varRef) : undefined;
       for (const k of tableKeys ?? Object.keys(record)) {
         if (tableKeys || !k.startsWith("$")) {
           variables.push(
-            this.getVariableInfo(k, record[k], {
-              kind: "property",
-              visibility: "public",
-            }),
+            this.getVariableInfo(
+              k,
+              record[k],
+              {
+                kind: "property",
+                visibility: "public",
+              },
+              undefined,
+              origin ? { ...origin, path: [...origin.path, k] } : undefined,
+            ),
           );
         }
       }
@@ -4582,6 +4660,7 @@ export class Game<T extends M = {}> {
     value: unknown,
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
+    origin?: VariableOrigin,
   ): Variable {
     if (value instanceof ObjectValue) {
       value = this.getTableRecord(value);
@@ -4590,6 +4669,9 @@ export class Game<T extends M = {}> {
     if (typeof value === "object" && value != null) {
       variablesReference = this._nextObjectVariableRef;
       this._objectVariableRefMap.set(variablesReference, value);
+      if (origin && this.isTableRecord(value)) {
+        this._objectVariableOrigins.set(variablesReference, origin);
+      }
       this._nextObjectVariableRef++;
     }
     const indexedVariables =
@@ -4645,6 +4727,7 @@ export class Game<T extends M = {}> {
 
   clearVariableReferences() {
     this._objectVariableRefMap.clear();
+    this._objectVariableOrigins.clear();
     this._nextObjectVariableRef = 2000;
   }
 

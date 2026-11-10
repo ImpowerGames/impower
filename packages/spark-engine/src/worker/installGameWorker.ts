@@ -442,9 +442,13 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        const { scope, name, value, threadId, frameId } = message.params;
+        const { scope, name, value, threadId, frameId, variablesReference } =
+          message.params;
         return {
-          variable: game.setVariable(scope, name, value, threadId, frameId),
+          variable:
+            scope === "children"
+              ? game.setChildVariable(variablesReference ?? 0, name, value)
+              : game.setVariable(scope, name, value, threadId, frameId),
         };
       });
       return;
