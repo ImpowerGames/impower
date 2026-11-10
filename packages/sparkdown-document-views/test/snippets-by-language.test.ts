@@ -390,14 +390,14 @@ describe("a snippet is inserted with its tab stops", () => {
         selected: [0, 4],
       });
       expect(
-        view.state.selection.ranges.map((r) => [
-          r.from - LINE_START,
-          r.to - LINE_START,
-        ]),
-      ).toEqual([
-        [0, 4],
-        [5, 9],
-      ]);
+        [...view.contentDOM.querySelectorAll(".cm-snippetField")].map(
+          (field) => field.textContent,
+        ),
+      ).toEqual(["name", "name"]);
+      expect(nextField(view)).toEqual({
+        inserted: "name name",
+        selected: [9, 9],
+      });
     },
     "nested-placeholder": () => {
       const view = insertView("${1:outer ${2:inner}} end");
