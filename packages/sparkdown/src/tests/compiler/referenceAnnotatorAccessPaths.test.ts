@@ -6,6 +6,7 @@ interface Ref {
   text: string;
   symbolIds?: string[];
   bound?: boolean;
+  site?: number;
   declaration?: string;
 }
 
@@ -15,8 +16,14 @@ function referencesOf(registry: SparkdownDocumentRegistry, source: string): Ref[
   const out: Ref[] = [];
   const cur = registry.annotations(URI).references.iter();
   while (cur.value) {
-    const { symbolIds, bound, declaration } = cur.value.type;
-    out.push({ from: cur.from, text: source.slice(cur.from, cur.to), symbolIds, bound, declaration });
+    const { symbolIds, binding, declaration } = cur.value.type;
+    out.push({
+      from: cur.from,
+      text: source.slice(cur.from, cur.to),
+      symbolIds,
+      declaration,
+      ...(binding == null ? {} : { bound: true, site: cur.from - binding }),
+    });
     cur.next();
   }
   return out;
@@ -70,6 +77,8 @@ describe("ReferenceAnnotator · access paths (I-1969)", () => {
   test.each([
     ["one pair", "{(character).raffles.name}"],
     ["nested pairs", "{((character)).raffles.name}"],
+    ["a parenthesized continuation", "{((character).raffles).name}"],
+    ["a parenthesized segment", "{(character.raffles).name}"],
   ])("a parenthesized root continues its path through %s of parentheses", (_, expression) => {
     const source = `scene s\n  ${expression}\nend\n`;
     const refs = collect(source);
@@ -150,6 +159,47 @@ describe("ReferenceAnnotator · a use's root resolves to the binding in scope (I
     expect(at(refs, source, "other", 2)?.bound).toBeUndefined();
   });
 
+  test("each use points at the declaration of the binding it resolves to, and distinct bindings stay distinct", () => {
+    const source =
+      "function a(settings)\n  local settings = settings\n  return settings\nend\nfunction b()\n  local settings = 3\n  return settings\nend\n";
+    const refs = collect(source);
+    const parameter = at(refs, source, "settings", 1)!;
+    const firstLocal = at(refs, source, "settings", 2)!;
+    const secondLocal = at(refs, source, "settings", 5)!;
+    expect(parameter.site).toBe(parameter.from);
+    expect(firstLocal.site).toBe(firstLocal.from);
+    expect(secondLocal.site).toBe(secondLocal.from);
+    expect(at(refs, source, "settings", 3)?.site).toBe(parameter.from);
+    expect(at(refs, source, "settings", 4)?.site).toBe(firstLocal.from);
+    expect(at(refs, source, "settings", 6)?.site).toBe(secondLocal.from);
+  });
+
+  test("a const in a function binds like a local, and a top-level local or const binds nothing", () => {
+    const source =
+      "const settings = 1\nfunction show()\n  const other = 2\n  const function helper()\n    return 1\n  end\n  return settings + other + helper()\nend\n";
+    const refs = collect(source);
+    expect(at(refs, source, "settings", 1)?.bound).toBeUndefined();
+    expect(at(refs, source, "settings", 2)?.bound).toBeUndefined();
+    expect(at(refs, source, "other", 2)?.site).toBe(at(refs, source, "other", 1)?.from);
+    expect(at(refs, source, "helper", 2)?.site).toBe(at(refs, source, "helper", 1)?.from);
+  });
+
+  test("calling a parameter or a local function resolves the call to that binding", () => {
+    const source = "function show(callback)\n  return callback() + helper()\nend\n";
+    const refs = collect(source);
+    expect(at(refs, source, "callback", 2)?.site).toBe(at(refs, source, "callback", 1)?.from);
+    expect(at(refs, source, "helper", 1)?.bound).toBeUndefined();
+    expect(at(refs, source, "helper", 1)?.symbolIds).toEqual(["helper"]);
+  });
+
+  test("a repeat body's local binds its until condition", () => {
+    const source =
+      "function show()\n  repeat\n    local settings = {score = 2}\n  until settings.score > 0\n  repeat\n    x = 1\n  until settings\nend\n";
+    const refs = collect(source);
+    expect(at(refs, source, "settings", 2)?.site).toBe(at(refs, source, "settings", 1)?.from);
+    expect(at(refs, source, "settings", 3)?.bound).toBeUndefined();
+  });
+
   test("a local in one function does not bind the name in another", () => {
     const source =
       "function show()\n  local settings = 1\n  return settings\nend\nfunction other()\n  return settings.score\nend\n";
@@ -192,6 +242,26 @@ describe("ReferenceAnnotator · a use's root resolves to the binding in scope (I
     const refs = collect(source);
     expect(at(refs, source, "settings")?.bound).toBeUndefined();
     expect(at(refs, source, "score")?.symbolIds).toEqual(["settings.score"]);
+  });
+
+  test("an edit before a function keeps each use pointing at its binding", () => {
+    let source =
+      "scene s\n  Hi.\nend\nfunction show(callback)\n  local settings = 1\n  return settings + callback()\nend\n";
+    const registry = registryOf(source);
+    const find = "Hi.";
+    const offset = source.indexOf(find);
+    const replace = "Hello there, a longer line.\n  And another.";
+    registry.update({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [
+        { range: { start: { line: 1, character: 2 }, end: { line: 1, character: 2 + find.length } }, text: replace },
+      ],
+    });
+    source = source.slice(0, offset) + replace + source.slice(offset + find.length);
+    const incremental = referencesOf(registry, source);
+    expect(at(incremental, source, "settings", 2)?.site).toBe(at(incremental, source, "settings", 1)?.from);
+    expect(at(incremental, source, "callback", 2)?.site).toBe(at(incremental, source, "callback", 1)?.from);
+    expect(incremental).toEqual(collect(source));
   });
 
   test("an edit that adds a local updates the binding of a later use outside the edited line", () => {

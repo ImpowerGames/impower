@@ -89,8 +89,8 @@ describe("provider · references through access paths and bindings (I-1969)", ()
   const HELPERS = "file:///helpers.sd";
   const sources: Record<string, string> = {
     [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\ndefine settings with\n  score = 1\nend\n',
-    [CHAPTER]: 'scene chapter\n  {character.raffles.name}\n  {character["raffles"].name}\n  {settings.score}\nend\n',
-    [HELPERS]: "function show(settings)\n  return settings.score\nend\nfunction total()\n  local settings = 2\n  return settings\nend\n",
+    [CHAPTER]: 'scene chapter\n  {character.raffles.name}\n  {character["raffles"].name}\n  {settings.score}\n  {((character).raffles).name}\nend\n',
+    [HELPERS]: "function show(settings)\n  return settings.score\nend\nfunction total()\n  local settings = 2\n  return settings\nend\nfunction other()\n  local settings = 3\n  return settings\nend\n",
   };
 
   function workspaceOf() {
@@ -131,22 +131,30 @@ describe("provider · references through access paths and bindings (I-1969)", ()
     expect(references).toContainEqual({ uri: CHAPTER, text: "raffles", line: 2 });
   });
 
-  test("find-references on a define skips uses of a parameter or local of the same name", () => {
+  test("find-references on a define skips parameters and locals of the same name and their uses", () => {
     const references = referencesAt(CAST, "settings");
     expect(references).toContainEqual({ uri: CHAPTER, text: "settings", line: 3 });
-    expect(references.filter((r) => r.uri === HELPERS && r.line !== 4)).toEqual([]);
+    expect(references.filter((r) => r.uri === HELPERS)).toEqual([]);
   });
 
-  test("find-references on a use bound to a local reaches its binding, not the define", () => {
-    const references = referencesAt(HELPERS, "settings", 4);
-    expect(references).toContainEqual({ uri: HELPERS, text: "settings", line: 4 });
-    expect(references).toContainEqual({ uri: HELPERS, text: "settings", line: 5 });
-    expect(references.filter((r) => r.uri !== HELPERS)).toEqual([]);
+  test("find-references on a use bound to a local reaches that local only", () => {
+    expect(referencesAt(HELPERS, "settings", 4)).toEqual([
+      { uri: HELPERS, text: "settings", line: 4 },
+      { uri: HELPERS, text: "settings", line: 5 },
+    ]);
   });
 
-  test("find-references on a property finds its path through the define", () => {
+  test("find-references on a parameter reaches its uses and not a local of the same name", () => {
+    expect(referencesAt(HELPERS, "settings", 1)).toEqual([
+      { uri: HELPERS, text: "settings", line: 0 },
+      { uri: HELPERS, text: "settings", line: 1 },
+    ]);
+  });
+
+  test("find-references on a property finds its path through the define, through parentheses too", () => {
     const references = referencesAt(CAST, "name");
     expect(references).toContainEqual({ uri: CHAPTER, text: "name", line: 1 });
+    expect(references).toContainEqual({ uri: CHAPTER, text: "name", line: 4 });
   });
 });
 

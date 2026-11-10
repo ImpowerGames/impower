@@ -70,6 +70,7 @@ export const getScriptReferences = (
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (
+        reference.binding != null ||
         !DECLARED_BY_SCRIPT.has(reference.declaration) ||
         isTypeUse(uri, reference, r.from)
       ) {
@@ -92,7 +93,7 @@ export const getScriptReferences = (
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (
-        reference.bound ||
+        reference.binding != null ||
         (reference.declaration && !isTypeUse(uri, reference, r.from))
       ) {
         return;

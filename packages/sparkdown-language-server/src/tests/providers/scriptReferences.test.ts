@@ -190,6 +190,14 @@ describe("provider · script references read access paths and bindings from the 
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(1);
   });
 
+  test.each([
+    ["a const in a function", "function show()\n  const settings = {score = 2}\n  return settings.score\nend\n"],
+    ["a repeat body's local in its until condition", "function show()\n  repeat\n    local settings = {score = 2}\n  until settings.score > 0\nend\n"],
+    ["a local function", "function show()\n  local function settings()\n    return 1\n  end\n  return settings()\nend\n"],
+  ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
+  });
+
   test("another script that binds no local or parameter of that name still counts its use", () => {
     expect(
       referencedBy(
