@@ -33,3 +33,14 @@ test("a parent path parseTag refuses is reported", () => {
 test("an unknown tag is still reported", () => {
   assert.deepEqual(ids("notATag"), ["invalidExpression"]);
 });
+
+test("a tag expression parseTag cannot build is reported", () => {
+  for (const tag of ["definition", "keyword(variableName)", "(Block_content/) definition", "toString", "definition(toString)"]) {
+    assert.deepEqual(ids(tag), ["invalidExpression"], tag);
+  }
+});
+
+test("tag functions over a tag pass", () => {
+  assert.deepEqual(ids("definition(variableName)"), []);
+  assert.deepEqual(ids("special(definition(variableName))"), []);
+});

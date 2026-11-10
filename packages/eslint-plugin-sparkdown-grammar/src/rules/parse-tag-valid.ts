@@ -8,25 +8,9 @@ import {
   type YAMLMapping,
   type YAMLScalar,
 } from "../utils/yaml-ast.ts";
+import { readTagExpression } from "../../../textmate-grammar-tree/src/grammar/utils/readTagExpression.ts";
 import { readTagModifier } from "../../../textmate-grammar-tree/src/grammar/utils/readTagModifier.ts";
 import { splitTag } from "../../../textmate-grammar-tree/src/grammar/utils/splitTag.ts";
-
-function validateTagExpression(expr: string): string | null {
-  const parts = expr.split("(");
-  const baseRaw = parts.pop();
-  if (!baseRaw) return "tag expression is empty";
-  const base = baseRaw.replace(/\)+$/, "");
-  const funcs = parts;
-  if (!(base in lezerTags)) {
-    return `unknown base tag "${base}" — must be a name exported by @lezer/highlight's \`tags\``;
-  }
-  for (const func of funcs) {
-    if (!(func in lezerTags)) {
-      return `unknown tag function "${func}" — must be a name exported by @lezer/highlight's \`tags\``;
-    }
-  }
-  return null;
-}
 
 const rule: Rule.RuleModule = {
   meta: {
@@ -83,12 +67,13 @@ const rule: Rule.RuleModule = {
           });
           return;
         }
-        const reason = validateTagExpression(tagExpression);
-        if (reason) {
+        try {
+          readTagExpression(tagExpression, lezerTags, value);
+        } catch (error) {
           context.report({
             loc: scalar.loc,
             messageId: "invalidExpression",
-            data: { value: JSON.stringify(value), reason },
+            data: { value: JSON.stringify(value), reason: (error as Error).message },
           });
         }
       },

@@ -1,4 +1,5 @@
 import { nodeName } from "@impower/textmate-grammar-tree/src/grammar/utils/nodeName";
+import { readTagExpression } from "@impower/textmate-grammar-tree/src/grammar/utils/readTagExpression";
 import { readTagModifier } from "@impower/textmate-grammar-tree/src/grammar/utils/readTagModifier";
 import { splitTag } from "@impower/textmate-grammar-tree/src/grammar/utils/splitTag";
 import { type Tag, tags } from "@lezer/highlight";
@@ -28,40 +29,13 @@ export const parseTag = (
 
   const { modifier, expression: tagExpression } = split;
 
-  const parts = tagExpression?.split("(") || [];
-
-  const baseName = parts.pop()!.replace(/\)+$/, "");
-
-  const funcs = parts;
-
-  if (!(baseName in tags)) {
-    throw new Error(`Unknown tag: ${baseName}`);
-  }
-
-  for (const func of funcs) {
-    if (!(func in tags)) {
-      throw new Error(`Unknown tag function: ${func}`);
-    }
-  }
-
-  // @ts-ignore TS doesn't realize I've checked for this
-  let tag: Tag = tags[baseName];
-
-  for (let i = funcs.length - 1; i >= 0; i--) {
-    const funcName = funcs[i];
-    // @ts-ignore ditto
-    tag = tags[funcName](tag);
-  }
+  const tag = readTagExpression<Tag>(tagExpression, tags, str);
 
   const { parents, suffix } = readTagModifier(modifier ?? "", str);
   const path = parents.map((parent) =>
     parent === null ? "*" : selectorName(nodeName(namespace, parent)),
   );
-  const style = `${[...path, selectorName(node)].join("/")}/...${suffix}`;
-
-  if (!tag.set) {
-    throw new Error(`Invalid tag: ${str}`);
-  }
+  const style = `${[...path, selectorName(node)].join("/")}${suffix === "!" ? "!" : "/..."}`;
 
   return { [style]: tag };
 };

@@ -603,10 +603,10 @@ Both attach to the same node, both control highlighting, but they target **diffe
 `tag` accepts a mini-syntax for modifiers:
 
 - `tag: keyword` — plain
-- `tag: definition(content)` — definition role over content
+- `tag: definition(content)` — definition role over content. A name before `(` must be one of `tags`' functions and the innermost name one of its tags; `parseTag` and the `parse-tag-valid` lint refuse anything else through the same reader.
 - `tag: special(content)` — special role
 - `tag: local(content)` — local scope
-- `tag: (Parent_content/) keyword` — only where the node's parent is `Parent_content`. A parent path lists node names separated by `/`, with `*` for any node, and may end in `/...` or `/!`. Write a name holding `/`, `!`, `"` or whitespace as a JSON string (`("Block/part_content"/) keyword`). A path that cannot be read unambiguously, such as an empty name between slashes, a `!` glued to a name, or a bare name ending in `...`, is refused with an error.
+- `tag: (Parent_content/) keyword` — only where the node's parent is `Parent_content`. A parent path lists node names separated by `/`, with `*` for any node, and may end in `/...` or `/!`. A tag styles its node and the nodes inside it, which `/...` states explicitly; a path ending in `!` (`(Parent_content/!)`, or `(!)` alone) styles the node as one span and leaves the nodes inside it unstyled. Write a name holding `/`, `!`, `"` or whitespace as a JSON string (`("Block/part_content"/) keyword`). A path that cannot be read unambiguously, such as an empty name between slashes, a `!` glued to a name, or a bare name ending in `...`, is refused with an error.
 
 See `parseTag` in `packages/codemirror-vscode-language/src/utils/parseTag.ts` for the parser, and `@lezer/highlight`'s `tags` for the full vocabulary.
 
