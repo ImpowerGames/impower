@@ -14,6 +14,7 @@ import {
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import { showSnackbar } from "../../utils/snackbar";
 
 function timeAgo(ms: number): string {
   const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
@@ -102,7 +103,7 @@ export default function TrashPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const restore = async (batchId: string) => {
+  const restore = async (batch: TrashBatch) => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
@@ -110,11 +111,13 @@ export default function TrashPanel() {
       const pid = workspace.signals.projectId.value;
       if (pid) {
         const { Workspace } = await import("../../workspace/Workspace");
-        await Workspace.fs.restoreTrash(pid, batchId);
+        await Workspace.fs.restoreTrash(pid, batch.batchId);
         await Workspace.window.recordScriptChange();
         await Workspace.window.recordAssetChange();
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
+      showSnackbar({ message: `Couldn't restore ${batchLabel(batch)}.` });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -225,7 +228,7 @@ export default function TrashPanel() {
                       aria-label="Restore"
                       title="Restore"
                       disabled={busy}
-                      onClick={() => void restore(batch.batchId)}
+                      onClick={() => void restore(batch)}
                       size="icon"
                       class="flex-none text-muted"
                     >

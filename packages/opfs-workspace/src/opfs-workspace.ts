@@ -945,14 +945,14 @@ onmessage = async (e) => {
       let result: TrashFilesResult = {};
       const restored: WriteResult[] = [];
       const folderLog = new CommitLog();
-      const restoredFolders: string[] = [];
+      const folderUris: string[] = [];
       if (action === "list") {
         result = { batches: await listTrash(projectId) };
       } else if (action === "restore" && batchId) {
-        const { written, folders } = await restoreTrashBatch(projectId, batchId, folderLog);
+        const { written, folders, restoredFolders } = await restoreTrashBatch(projectId, batchId, folderLog);
         restored.push(...written);
-        restoredFolders.push(...folders);
-        result = { restored: restored.map((r) => r.file) };
+        folderUris.push(...folders);
+        result = { restored: restored.map((r) => r.file), restoredFolders };
       } else if (action === "deleteBatch" && batchId) {
         await removeTrashBatch(projectId, batchId);
       } else if (action === "empty") {
@@ -964,7 +964,7 @@ onmessage = async (e) => {
         );
       }
       respond(TrashFilesMessage.type.response(message.id, result));
-      const createdFolders = restoredFolders.filter((uri) => folderLog.isCurrent(uri));
+      const createdFolders = folderUris.filter((uri) => folderLog.isCurrent(uri));
       if (createdFolders.length > 0) {
         broadcast(
           DidChangeDirectoriesMessage.type.notification({
@@ -1846,16 +1846,16 @@ const restoreTrashBatch = async (
   projectId: string,
   batchId: string,
   folderLog: CommitLog,
-): Promise<{ written: WriteResult[]; folders: string[] }> => {
+): Promise<{ written: WriteResult[]; folders: string[]; restoredFolders: string[] }> => {
   const trash = await getTrashDirHandle(projectId);
   if (!trash) {
-    return { written: [], folders: [] };
+    return { written: [], folders: [], restoredFolders: [] };
   }
   let batchHandle: FileSystemDirectoryHandle;
   try {
     batchHandle = await trash.getDirectoryHandle(batchId);
   } catch {
-    return { written: [], folders: [] };
+    return { written: [], folders: [], restoredFolders: [] };
   }
   const manifestFile = await (
     await batchHandle.getFileHandle(TRASH_MANIFEST)
@@ -1864,24 +1864,48 @@ const restoreTrashBatch = async (
     entries: { relPath: string; originalUri: string }[];
     folders?: string[];
   };
+  const recorded = m.folders ?? [];
+  const moved = new Map<string, string>();
+  for (const folder of recorded) {
+    if (recorded.some((other) => folder.startsWith(`${other}/`))) {
+      continue;
+    }
+    for (let i = 0, target = folder; ; i++) {
+      if (!(await fileExists(getUriFromPath(`${projectId}/${target}`)))) {
+        moved.set(folder, target);
+        break;
+      }
+      target = `${folder}${i === 0 ? " (restored)" : ` (restored ${i + 1})`}`;
+    }
+  }
+  const restoredPath = (relPath: string) => {
+    for (const [from, to] of moved) {
+      if (relPath === from || relPath.startsWith(`${from}/`)) {
+        return to + relPath.slice(from.length);
+      }
+    }
+    return relPath;
+  };
+  const restoredFolders = recorded.map(restoredPath);
   const folders = await createDirectories(
-    (m.folders ?? []).map((f) => getUriFromPath(`${projectId}/${f}`)),
+    restoredFolders.map((f) => getUriFromPath(`${projectId}/${f}`)),
     folderLog,
   );
   const restored: WriteResult[] = [];
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   for (const entry of m.entries) {
     const data = await readFile(getUriFromPath(`${trashPrefix}/${entry.relPath}`));
-    const targetUri = (await fileExists(entry.originalUri))
-      ? await deconflictRestoreUri(entry.originalUri)
-      : entry.originalUri;
+    const originalUri = getUriFromPath(`${projectId}/${restoredPath(entry.relPath)}`);
+    const targetUri = (await fileExists(originalUri))
+      ? await deconflictRestoreUri(originalUri)
+      : originalUri;
     const [created] = await createFiles([{ uri: targetUri, data }]);
     if (created) {
       restored.push(created);
     }
   }
   await removeTrashBatch(projectId, batchId);
-  return { written: restored, folders };
+  return { written: restored, folders, restoredFolders };
 };
 
 const emptyTrash = async (projectId: string) => {

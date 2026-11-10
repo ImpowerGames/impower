@@ -996,13 +996,18 @@ export default class WorkspaceFileSystem {
     return result.batches ?? [];
   }
 
-  async restoreTrash(projectId: string, batchId: string): Promise<FileData[]> {
+  async restoreTrash(
+    projectId: string,
+    batchId: string,
+  ): Promise<{ files: FileData[]; folders: string[] }> {
     const result = await this.sendRequest(TrashFilesMessage.type, {
       projectId,
       action: "restore",
       batchId,
     });
-    return result.restored ?? [];
+    const folders = result.restoredFolders ?? [];
+    this.addFolderUris(folders.map((f) => this.getFileUri(projectId, f)));
+    return { files: result.restored ?? [], folders };
   }
 
   async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {

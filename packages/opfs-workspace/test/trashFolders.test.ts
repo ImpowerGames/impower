@@ -91,6 +91,36 @@ it("restores a deleted folder's empty subfolders along with its files", async ()
   ]);
 });
 
+it("restores a folder whose name a file now holds under a restored name, with everything inside it", async () => {
+  const h = await worker();
+  writeMemoryFile(h.root, "p/Scripts/Drafts.sd/old.sd", new TextEncoder().encode("Old"));
+  makeMemoryDirectory(h.root, "p/Scripts/Drafts.sd/Empty");
+  await h.request("workspace/willDeleteFiles", {
+    files: [{ uri: "file://p/Scripts/Drafts.sd/old.sd" }],
+    folders: [{ uri: "file://p/Scripts/Drafts.sd" }, { uri: "file://p/Scripts/Drafts.sd/Empty" }],
+    mode: "trash",
+  });
+  await h.request("workspace/directories", { action: "delete", uris: ["file://p/Scripts/Drafts.sd"] });
+  writeMemoryFile(h.root, "p/Scripts/Drafts.sd", new TextEncoder().encode("Live"));
+  const [batch] = (await h.trash({ action: "list" })).result.batches;
+  const response = await h.trash({ action: "restore", batchId: batch.batchId });
+  expect(response.error).toBeUndefined();
+  expect(response.result.restoredFolders).toEqual([
+    "Scripts/Drafts.sd (restored)",
+    "Scripts/Drafts.sd (restored)/Empty",
+  ]);
+  expect(response.result.restored.map((f: { uri: string }) => f.uri)).toEqual([
+    "file://p/Scripts/Drafts.sd (restored)/old.sd",
+  ]);
+  expect(listMemory(h.root, "p").filter((p) => !p.startsWith(".trash"))).toEqual([
+    "Scripts/",
+    "Scripts/Drafts.sd",
+    "Scripts/Drafts.sd (restored)/",
+    "Scripts/Drafts.sd (restored)/Empty/",
+    "Scripts/Drafts.sd (restored)/old.sd",
+  ]);
+});
+
 it("records no folders for a deletion of files alone", async () => {
   const h = await worker();
   writeMemoryFile(h.root, "p/a.sd", new TextEncoder().encode("A"));

@@ -50,7 +50,7 @@ const fs = vi.hoisted(() => ({
       }
     }
     disk.trash = disk.trash.filter((b) => b.batchId !== batchId);
-    return [];
+    return { files: [...disk.restored.get(batchId)!.keys()].map((path) => ({ uri: uri(path) })), folders: [] };
   },
   createFolders: async (_: string, folders: string[]) => {
     for (const d of folders) disk.dirs.add(d);
