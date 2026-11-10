@@ -1,12 +1,19 @@
 export const debounce = <T extends (...args: any[]) => void>(
   callback: T,
   delay: number,
-): T => {
+): T & { flush(): void } => {
   let timeout = 0;
-  return ((...args: Parameters<T>) => {
+  let pending: (() => void) | undefined;
+  const flush = () => {
     clearTimeout(timeout);
-    timeout = window.setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }) as T;
+    const run = pending;
+    pending = undefined;
+    run?.();
+  };
+  const debounced = (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    pending = () => callback(...args);
+    timeout = window.setTimeout(flush, delay);
+  };
+  return Object.assign(debounced as T, { flush });
 };

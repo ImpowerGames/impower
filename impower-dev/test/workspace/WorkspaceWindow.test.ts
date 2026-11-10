@@ -2350,6 +2350,21 @@ describe("The preview's top bar", () => {
     expect(workspace.current.preview.modes.game.choosing).toBe(false);
   });
 
+  it("writes the workspace cache it still owes when it is disposed, and nothing after", async () => {
+    show();
+    win.startGame();
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      win.dispose();
+      const written = setItem.mock.calls.length;
+      expect(written).toBeGreaterThan(0);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      expect(setItem.mock.calls.length).toBe(written);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it("keeps the source-order skip when no run is playing", async () => {
     const rollBack = vi.spyOn(win.debug, "rollBack").mockResolvedValue(true);
     holding({ canRollBack: false, rollBackRefusal: "Nothing to go back to." });

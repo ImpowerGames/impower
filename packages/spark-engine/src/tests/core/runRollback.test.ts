@@ -610,6 +610,18 @@ describe("a roll superseded while it draws", () => {
     expect(h.text()).toBe("The first beat.");
     expect(history(h).canRollBack).toBe(false);
   });
+
+  test("settles as superseded when its game is destroyed before the drawing ends", async () => {
+    const h = play();
+    playTo(h, "The third beat.");
+    const ui = h.game.module.ui;
+    ui.onRestore = () => new Promise<void>(() => {});
+    const rolling = h.game.rollBack("beat");
+    await settle();
+    h.game.destroy();
+    expect(await rolling).toMatchObject({ moved: false, superseded: true });
+    expect(h.of("game/rolled")).toEqual([]);
+  });
 });
 
 const MUSIC = [

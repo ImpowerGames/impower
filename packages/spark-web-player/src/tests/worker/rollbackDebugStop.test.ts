@@ -4,6 +4,7 @@ import { Connection } from "@impower/spark-engine/src/game/core/classes/Connecti
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { SparkDebugSession } from "../../../../spark-debug-adapter/src/SparkDebugSession";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
@@ -231,6 +232,43 @@ describe("a roll of a run the debugger holds", () => {
       expect(c.getGameState()).toMatchObject({ launchState: "play", paused: false });
     } finally {
       session?.dispose();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("answers a roll whose run a restart replaced while its beat was still drawing", async () => {
+    const { h, c } = await playing();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let entered!: () => void;
+    const drawing = new Promise<void>((resolve) => (entered = resolve));
+    const within = <T>(promise: Promise<T>) =>
+      Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("the roll was never answered")), 5000),
+        ),
+      ]);
+    try {
+      const ui = h.playing()!.module.ui as any;
+      const restore = ui.onRestore.bind(ui);
+      ui.onRestore = async () => {
+        await restore();
+        entered();
+        await released;
+      };
+      const rolling = c.handleRollBackGame(
+        RollBackGameMessage.type.request({ to: "beat", hold: true }),
+      );
+      await drawing;
+      expect(await c.restartGame(true)).toBe(true);
+      await settle(30);
+      release();
+      const answer: any = await within(rolling);
+      expect(answer.result).toMatchObject({ moved: false, superseded: true });
+      expect(c.getGameState()).toMatchObject({ launchState: "play", paused: false });
+    } finally {
+      release();
       h.dispose();
     }
   }, 120_000);

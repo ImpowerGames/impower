@@ -602,6 +602,7 @@ export default class WorkspaceWindow {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
     this.debug.end();
+    this.cacheProjectWorkspace.flush();
   }
 
   protected registerProtocolHandlers() {
