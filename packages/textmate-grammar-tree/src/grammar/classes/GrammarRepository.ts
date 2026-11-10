@@ -267,18 +267,25 @@ export class GrammarRepository {
   }
 
   private nestedId(owner: string, name: string) {
-    const local = `${this.local(owner)}#${name}`;
+    const ownerLocal = this.local(owner);
+    const namespace = nodeName(this.prefix, `${ownerLocal}#`);
     const taken = (id: string) => {
       for (const existing of this.map.keys()) {
         if (existing.startsWith(id)) {
           return true;
         }
+        if (existing.length > namespace.length && id.startsWith(existing)) {
+          const next = id.charAt(existing.length);
+          if (next === "_" || next === "-") {
+            return true;
+          }
+        }
       }
       return false;
     };
-    let id = nodeName(this.prefix, local);
+    let id = nodeName(this.prefix, `${ownerLocal}#${name}`);
     for (let n = 1; taken(id); n++) {
-      id = nodeName(this.prefix, `${local}#${n}`);
+      id = nodeName(this.prefix, `${ownerLocal}#${n}#${name}`);
     }
     return id;
   }
