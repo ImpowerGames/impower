@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
 import { removeJobDir } from "../clean-worktrees/clean-worktrees.mjs";
-import { readRecord, updateRecord, pointerFile, acquire, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
+import { readRecord, updateRecord, pointerFile, acquire, branchTicket, coordinatorMerges, parseCriteria, acceptanceHash, verificationGaps, closedBeforeRun, finishedContainers, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -138,6 +138,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   const delivered = snapshot.tickets.filter((x) => x.deliveredBy?.ticket === number);
   const carried = new Set([number, ...delivered.map((x) => x.number)]);
   const historic = new Set(snapshot.tickets.filter((x) => closedBeforeRun(record, x)).map((x) => x.number));
+  for (const n of finishedContainers(record, snapshot).closed) historic.add(n);
   for (const x of [t, ...delivered].filter(Boolean)) {
     if (!requiresDependencies(record, x, number)) continue;
     for (const b of x.blockers ?? []) {
@@ -246,10 +247,11 @@ export function mergeScope(snapshot, ticket, record = {}) {
     prs: (t.prs ?? []).filter((p) => branchTicket(p.branch) === t.number && ["OPEN", "MERGED"].includes(p.state)).map((p) => [p.number, p.state]).sort((a, b) => a[0] - b[0]),
     worktrees: t.worktrees?.length ?? 0,
   } : null;
+  const finished = finishedContainers(record, snapshot).closed;
   const slices = members.map((t) => JSON.stringify({
     number: t.number, state: t.state, stateReason: t.stateReason ?? null, closedAt: t.closedAt ?? null,
     container: t.container, deliveredBy: t.deliveredBy ? { ticket: t.deliveredBy.ticket, via: t.deliveredBy.via, pr: t.deliveredBy.pr } : null,
-    blockers: [...(requiresDependencies(record, t, ticket) ? t.blockers ?? [] : [])].sort((a, b) => a.number - b.number).map((b) => ({ ...b, history: history(snapshot.tickets.find((x) => x.number === b.number)) })),
+    blockers: [...(requiresDependencies(record, t, ticket) ? t.blockers ?? [] : [])].sort((a, b) => a.number - b.number).map((b) => ({ ...b, history: history(snapshot.tickets.find((x) => x.number === b.number)), finishedContainer: finished.has(b.number) })),
     delivered: t.delivered ?? false, worktrees: (t.worktrees ?? []).map((w) => w.path).sort(),
     prs: (t.prs ?? []).map((p) => ({ number: p.number, state: p.state, head: p.head, branch: p.branch })).sort((a, b) => a.number - b.number),
   })).sort();
@@ -319,6 +321,18 @@ function slices(record, snapshot) {
   });
 }
 
+function containerLines(record, snapshot) {
+  const finished = finishedContainers(record, snapshot).closed;
+  return snapshot.tickets.filter((t) => t.container).map((t) => {
+    const op = (record.operations ?? []).filter((o) => o.kind === "close" && o.pr === t.number && o.state === "confirmed").at(-1);
+    if (t.state !== "closed") return `- #${t.number}: open${record.containers?.[t.number] ? `; ${record.containers[t.number].unmet.map((c) => `unmet on ${TARGET} \`${short(record.containers[t.number].mainSha)}\`: ${c.criterion} (${norm(c.gap)})`).join("; ")}` : ""}`;
+    if (!finished.has(t.number)) return `- #${t.number}: closed before all of its sub-issues were delivered`;
+    if (!op?.container) return `- #${t.number}: closed outside this run's helper, with every sub-issue delivered`;
+    const moved = op.container.criteria.filter((c) => c.status === "moved").map((c) => `; "${c.criterion}" moved to #${c.movedTo}`).join("");
+    return `- #${t.number}: closed by the coordinator, with every sub-issue delivered and its criteria checked on ${TARGET} \`${short(op.container.mainSha)}\`${moved}`;
+  });
+}
+
 function acceptances(record, snapshot) {
   const merged = new Map(snapshot.tickets.flatMap((t) => t.prs.filter((p) => p.state === "MERGED").map((p) => [p.number, p.head])));
   return Object.entries(record.tickets).flatMap(([n, t]) => (t.checkpoints ?? []).filter((d) => d.kind === "accept-unreviewed" && d.state === "published").map((d) => ({ ticket: Number(n), pr: d.pr, id: d.id, comment: d.published.comment, head: d.head, range: d.range, merged: merged.has(d.pr) ? merged.get(d.pr) : null })));
@@ -336,7 +350,7 @@ export function finalReport(record, snapshot, v) {
     const by = s.deliveredBy && !s.history ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
     return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, by + how + landed).replace(/\|/g, "/")} |`;
   });
-  const accepted = acceptances(record, snapshot);
+  const accepted = acceptances(record, snapshot), containers = containerLines(record, snapshot).map((line) => qualifyPrs(names, line));
   const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)].map((line) => qualifyPrs(names, line));
   return [
     REPORT_MARK(v.id),
@@ -349,6 +363,10 @@ export function finalReport(record, snapshot, v) {
     "| Ticket | State | PR | Integration |",
     "| --- | --- | --- | --- |",
     ...rows,
+    "",
+    "### Containers",
+    "",
+    ...(containers.length ? containers : ["None."]),
     "",
     "### Accepted unreviewed corrections",
     "",
@@ -375,24 +393,7 @@ export function verifyIssue(record, { snapshot, evidence, mainSha }) {
   if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; snapshot again so the tickets and ${TARGET} agree`);
   if (snapshot.issue.acceptanceSha256 == null) throw new Error(`Issue #${record.issue} has no "Acceptance criteria" section, so nothing can be verified and the parent issue stays open on its merged PRs alone; add a heading named Acceptance criteria with the checklist to verify, then verify again`);
   if (!criteria.length) throw new Error(`Issue #${record.issue} lists no checklist under its "Acceptance criteria" heading, so nothing can be verified; add the criteria there, then verify again`);
-  const given = evidence?.criteria;
-  if (!Array.isArray(given)) throw new Error("--evidence must hold { \"criteria\": [ { \"criterion\", \"status\": \"met\" | \"unmet\", \"evidence\": [...], \"gap\" } ] }");
-  const unknown = given.filter((g) => !criteria.some((c) => norm(c.text) === norm(g?.criterion)));
-  if (unknown.length) throw new Error(`The evidence names criteria the parent issue does not list: ${unknown.map((g) => JSON.stringify(g?.criterion)).join(", ")}`);
-  const rows = criteria.map((c) => {
-    const matches = given.filter((g) => norm(g.criterion) === norm(c.text));
-    if (matches.length !== 1) throw new Error(`The evidence ${matches.length ? `lists criterion ${c.index} ${matches.length} times` : `omits criterion ${c.index}`}: "${c.text}"`);
-    const g = matches[0];
-    if (g.status === "met") {
-      if (!Array.isArray(g.evidence) || !g.evidence.length || !g.evidence.every(present)) throw new Error(`Criterion ${c.index} is met only with evidence: list what shows it (a test, a check, a live run, a merged commit)`);
-      return { index: c.index, criterion: c.text, status: "met", evidence: g.evidence };
-    }
-    if (g.status === "unmet") {
-      if (!present(g.gap)) throw new Error(`Criterion ${c.index} is unmet; name the gap in gap`);
-      return { index: c.index, criterion: c.text, status: "unmet", gap: g.gap, ...(Array.isArray(g.evidence) && { evidence: g.evidence }) };
-    }
-    throw new Error(`Criterion ${c.index}'s status must be met or unmet`);
-  });
+  const rows = judgeCriteria(criteria, evidence, { shape: "{ \"criteria\": [ { \"criterion\", \"status\": \"met\" | \"unmet\", \"evidence\": [...], \"gap\" } ] }", owner: "the parent issue", shows: "list what shows it (a test, a check, a live run, a merged commit)", statuses: "met or unmet" });
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
   incomplete.push(...filedActions(record).map((f) => ({ number: f.number, action: f.unplaced ? "triaged separate with no umbrella it was attached under" : f.action === "triage-filed" ? "filed during the run, with no triage outcome" : `named as filed in #${f.from}'s writer's report, not confirmed and triaged` })));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
@@ -428,35 +429,165 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
   let existing;
   try { existing = client.comments(record.issue).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
   catch (error) { notRun(`the parent issue's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
-  const report = gated(() => existing ?? client.createComment(record.issue, v.report));
-  if (!report.called && report.error) { notRun(`the verification could not be checked again after the intent was saved: ${report.error.message}`); throw report.error; }
-  if (!report.called) {
-    notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the parent issue again`);
-    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${report.blockers.join("; ")}`, comment: null };
-  }
+  return closeWithComment(file, { coordinator, planned, op, client, number: record.issue, body: v.report, existing, gated, notRun, text: {
+    report: "the report",
+    recheck: (when, error) => `the verification could not be checked again ${when === "post" ? "after the intent was saved" : "before the close call"}: ${error.message}`,
+    stop: (blockers, comment) => (comment ? `after the report was posted in comment ${comment.id}, ${blockers.join("; ")}; that report's verification no longer holds, so verify the parent issue again` : `while the intent was saved, ${blockers.join("; ")}; verify the parent issue again`),
+    notPosted: "the final report was not posted",
+    subject: "the parent issue",
+    evidence: ({ issue, comment, problem, called, state }) => (issue?.state === "closed" ? `Issue #${record.issue} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Issue #${record.issue} reads back ${issue.state}` : "the parent issue was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`),
+  } });
+}
+
+function closeWithComment(file, { coordinator, planned, op, client, number, body, existing, gated, notRun, text }) {
+  const stopped = (result, comment) => { notRun(text.stop(result.blockers, comment)); return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${result.blockers.join("; ")}`, comment }; };
+  const posted = gated(() => existing ?? client.createComment(number, body));
+  if (!posted.called && posted.error) { notRun(text.recheck("post", posted.error)); throw posted.error; }
+  if (!posted.called) return stopped(posted, null);
   let comment = null, problem = null, called = false, refused = false;
   try {
-    if (report.error) throw report.error;
-    const back = client.getComment(report.value.id);
-    if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${report.value.id} does not read back as the report`);
+    if (posted.error) throw posted.error;
+    const back = client.getComment(posted.value.id);
+    if (norm(back.body) !== norm(body)) throw new Error(`comment ${posted.value.id} does not read back as ${text.report}`);
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
-  } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
+  } catch (error) { problem = `${text.notPosted}, so the close was not called: ${error.message}`; }
   if (comment) {
-    const close = gated(() => client.closeIssue(record.issue));
-    if (!close.called && close.error) { notRun(`the verification could not be checked again before the close call: ${close.error.message}`); throw close.error; }
-    if (!close.called) {
-      notRun(`after the report was posted in comment ${comment.id}, ${close.blockers.join("; ")}; that report's verification no longer holds, so verify the parent issue again`);
-      return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${close.blockers.join("; ")}`, comment };
-    }
+    const close = gated(() => client.closeIssue(number));
+    if (!close.called && close.error) { notRun(text.recheck("close", close.error)); throw close.error; }
+    if (!close.called) return stopped(close, comment);
     called = true;
     if (close.error) { refused = GITHUB_REFUSAL.test(`${close.error.stderr ?? ""} ${close.error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${close.error.message}`; }
   }
   let issue = null;
-  try { issue = client.issue(record.issue); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the parent issue could not be read back: ${error.message}`; }
+  try { issue = client.issue(number); } catch (error) { problem = `${problem ? `${problem}; ` : ""}${text.subject} could not be read back: ${error.message}`; }
   const state = issue?.state === "closed" ? "confirmed" : !called || refused ? "failed" : "uncertain";
-  const evidence = issue?.state === "closed" ? `Issue #${record.issue} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Issue #${record.issue} reads back ${issue.state}` : "the parent issue was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
+  const evidence = text.evidence({ issue, comment, problem, called, state });
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
+}
+
+const containerProblems = (record, snapshot, number, running = null) => {
+  if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
+  const t = snapshot.tickets.find((x) => x.number === number);
+  if (!t?.container) return [`#${number} is not a container in issue #${record.issue}'s tree`];
+  const own = record.tickets?.[number] ?? {};
+  return [
+    ...(t.state === "closed" ? [`#${number} is already closed`] : !finishedContainers(record, snapshot).ready.has(number) ? [`#${number} still has a sub-issue that is not closed with its deliverable on ${TARGET}`] : []),
+    ...(t.claimedContainer ? [`a closing reference still claims #${number}`] : []),
+    ...(own.owner || own.pending || t.worktrees?.length || t.prs?.some((p) => p.state === "OPEN") ? [`#${number} still has a writer, pending start, worktree or open PR`] : []),
+    ...(record.operations ?? []).filter((o) => o.kind === "close" && o.pr === number && o.id !== running && OPEN_STATES.has(o.state)).map((o) => `${operationText(o)} (${o.id}) is ${o.state}; settle it with checkpoint.mjs reconcile-operations`),
+  ];
+};
+
+function judgeCriteria(criteria, evidence, { shape, owner, shows, statuses, other = null }) {
+  const given = evidence?.criteria;
+  if (!Array.isArray(given)) throw new Error(`--evidence must hold ${shape}`);
+  const unknown = given.filter((g) => !criteria.some((c) => norm(c.text) === norm(g?.criterion)));
+  if (unknown.length) throw new Error(`The evidence names criteria ${owner} does not list: ${unknown.map((g) => JSON.stringify(g?.criterion)).join(", ")}`);
+  return criteria.map((c) => {
+    const matches = given.filter((g) => norm(g.criterion) === norm(c.text));
+    if (matches.length !== 1) throw new Error(`The evidence ${matches.length ? `lists criterion ${c.index} ${matches.length} times` : `omits criterion ${c.index}`}: "${c.text}"`);
+    const g = matches[0], row = { index: c.index, criterion: c.text, status: g.status };
+    if (g.status === "met") {
+      if (!Array.isArray(g.evidence) || !g.evidence.length || !g.evidence.every(present)) throw new Error(`Criterion ${c.index} is met only with evidence: ${shows}`);
+      return { ...row, evidence: g.evidence };
+    }
+    if (g.status === "unmet") {
+      if (!present(g.gap)) throw new Error(`Criterion ${c.index} is unmet; name the gap in gap`);
+      return { ...row, gap: g.gap, ...(Array.isArray(g.evidence) && { evidence: g.evidence }) };
+    }
+    const extra = other?.(c, g, row);
+    if (extra) return extra;
+    throw new Error(`Criterion ${c.index}'s status must be ${statuses}`);
+  });
+}
+
+const movedOwnerHolds = (snapshot, number, to) => { const t = snapshot.tickets.find((x) => x.number === to); return Boolean(t) && t.state !== "closed" && (t.blockers ?? []).some((b) => b.number === number); };
+
+function judgeContainer(number, criteria, evidence, snapshot) {
+  return judgeCriteria(criteria, evidence, {
+    shape: '{ "criteria": [ { "criterion", "status": "met" | "unmet" | "moved", "evidence": [...], "gap", "movedTo", "reason" } ] }',
+    owner: `#${number}`, shows: `list what on ${TARGET} shows it`, statuses: "met, unmet or moved",
+    other: (c, g, row) => {
+      if (g.status !== "moved") return null;
+      if (!movedOwnerHolds(snapshot, number, g.movedTo)) throw new Error(`Criterion ${c.index} can move only to an open ticket in the tree that #${number} blocks; #${g.movedTo} is not one`);
+      if (!present(g.reason)) throw new Error(`Criterion ${c.index} moves to #${g.movedTo}; say why in reason`);
+      return { ...row, movedTo: g.movedTo, reason: g.reason };
+    },
+  });
+}
+
+export function containerComment(number, rows, mainSha, coordinator) {
+  return [
+    `<!-- orchestrate-issues container closure: #${number} at ${mainSha} -->`,
+    "## Container closed",
+    "",
+    `Every sub-issue is closed with its deliverable on ${TARGET}. Coordinator \`${coordinator}\` checked this container's acceptance criteria on ${TARGET} at \`${mainSha}\`.`,
+    "",
+    ...(rows.length ? rows.map((r) => (r.status === "met" ? `- [x] ${r.criterion} Evidence: ${r.evidence.map(norm).join("; ")}` : `- [ ] ${r.criterion} Moved to #${r.movedTo}, which this container blocks and which now owns this criterion: ${norm(r.reason)}`)) : ["This container lists no acceptance criteria."]),
+  ].join("\n");
+}
+
+export function closeContainer(file, { coordinator, expectRevision, ticket, evidence, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
+  const record = readRecord(file);
+  if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not close its containers`);
+  if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
+  const snapshot = takeSnapshot();
+  const problems = containerProblems(record, snapshot, ticket);
+  if (problems.length) throw new Error(`#${ticket} cannot close: ${problems.join("; ")}; nothing was recorded`);
+  git.fetch();
+  const mainSha = git.main();
+  if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; check the criteria on the new ${TARGET} and run this again`);
+  const judgedBody = client.issue(ticket).body;
+  const acceptance = acceptanceHash(judgedBody);
+  const rows = judgeContainer(ticket, parseCriteria(judgedBody), evidence, snapshot);
+  const unmet = rows.filter((r) => r.status === "unmet").map((r) => ({ criterion: r.criterion, gap: r.gap }));
+  if (unmet.length) {
+    const held = updateRecord(file, { expectRevision, coordinator }, (r) => {
+      (r.containers ??= {})[ticket] = { mainSha, time: new Date().toISOString(), unmet };
+      r.log.push({ time: r.containers[ticket].time, event: "container-held", ticket, mainSha });
+    });
+    return { closed: false, verdict: "unmet", unmet, revision: held.record.revision };
+  }
+  const body = containerComment(ticket, rows, mainSha, coordinator);
+  const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
+    const o = intent(r, { kind: "close", ticket, pr: ticket, expectHead: mainSha, evidence: "container criteria checked" });
+    o.container = { mainSha, acceptanceSha256: acceptance, criteria: rows };
+    if (r.containers) delete r.containers[ticket];
+    return o;
+  });
+  const op = planned.output;
+  const notRun = (reason) => updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); });
+  try { afterIntent?.(); }
+  catch (error) { notRun(error.message); throw error; }
+  const checked = (rec, snap) => [
+    ...containerProblems(rec, snap, ticket, op.id),
+    ...(acceptanceHash(client.issue(ticket).body) === acceptance ? [] : [`#${ticket}'s acceptance criteria changed after they were checked; check them again`]),
+    ...rows.filter((r) => r.status === "moved" && !movedOwnerHolds(snap, ticket, r.movedTo)).map((r) => `#${r.movedTo}, which was to own criterion ${r.index}, is no longer an open ticket that #${ticket} blocks`),
+  ];
+  const scopeOf = (snap, hash = acceptance) => {
+    const base = snapshotScope(snap);
+    const tree = new Set([ticket]);
+    for (let grew = true; grew;) { grew = false; for (const t of snap.tickets) if (tree.has(t.parent) && !tree.has(t.number)) { tree.add(t.number); grew = true; } }
+    const members = snap.tickets.filter((t) => tree.has(t.number) && t.number !== ticket).map((t) => `#${t.number} under #${t.parent} ${t.state} ${t.stateReason ?? "-"} ${t.delivered ? "delivered" : "undelivered"}`).sort();
+    members.push(`#${ticket} ready ${finishedContainers(readRecord(file), snap).ready.has(ticket)}`);
+    const root = snap.tickets.find((t) => t.number === ticket);
+    const self = `#${ticket} ${root?.state} ${root?.container ? "container" : "not-container"} claimed ${Boolean(root?.claimedContainer)} worktrees ${(root?.worktrees ?? []).map((w) => w.path).sort().join(",")} open ${(root?.prs ?? []).filter((p) => p.state === "OPEN").map((p) => p.number).sort().join(",")}`;
+    const owners = rows.filter((r) => r.status === "moved").map((r) => `#${r.movedTo} owns criterion ${r.index} ${movedOwnerHolds(snap, ticket, r.movedTo) ? "holds" : "lost"}`);
+    return { ...base, slices: [...base.slices, ...members, self, ...owners, `#${ticket} acceptance ${hash}`] };
+  };
+  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope: () => scopeOf(takeSnapshot(), acceptanceHash(client.issue(ticket).body)), scopeOf, git, main: mainSha, premises: (rec, snap) => ({ blockers: checked(rec, snap) }), call });
+  let existing;
+  try { existing = client.comments(ticket).find((c) => norm(c.body) === norm(body)) ?? null; }
+  catch (error) { notRun(`the container's comments could not be read: ${error.message}`); throw error; }
+  return closeWithComment(file, { coordinator, planned, op, client, number: ticket, body, existing, gated, notRun, text: {
+    report: "the closure comment",
+    recheck: (_, error) => error.message,
+    stop: (blockers) => blockers.join("; "),
+    notPosted: "the closure comment was not posted",
+    subject: "the container",
+    evidence: ({ issue, comment, problem }) => (issue?.state === "closed" ? `#${ticket} reads back closed, with comment ${comment?.id}` : `#${ticket} ${issue ? `reads back ${issue.state}` : "was not read back"}${problem ? `: ${problem}` : ""}`),
+  } });
 }
 
 const OPEN_STATES = new Set(["intent", "uncertain"]);
@@ -632,7 +763,7 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
       return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
     }
-    case "criteria": { const { record, client } = context(); return { issue: record.issue, criteria: parseCriteria(client.issue(record.issue).body) }; }
+    case "criteria": { const { record, client } = context(), issue = o.ticket === undefined ? record.issue : int(o.ticket, "ticket"); return { issue, criteria: parseCriteria(client.issue(issue).body) }; }
     case "verify-issue": {
       const { git, snapshotNow } = context();
       const snapshot = snapshotNow(), evidence = readJson(abs(o.evidence, "evidence"));
@@ -650,11 +781,16 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       try { return { ...closed, retire: retireRun(file(), { coordinator: o.coordinator, expectRevision: result.revision, evidence: closed.evidence, snapshot: snapshotNow(), save: retireSave }) }; }
       catch (error) { return { ...closed, retire: { retired: false, reason: error.message } }; }
     }
+    case "close-container": {
+      const { client, git, snapshotNow, scopeNow } = context(), ticket = int(o.ticket, "ticket");
+      const result = closeContainer(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket, evidence: readJson(abs(o.evidence, "evidence")), takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
+      return { ...result, ...checkpointAfter(`closing container #${ticket} (${result.state ?? result.verdict})`) };
+    }
     case "retire": {
       const { snapshotNow } = context();
       return retireRun(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), evidence: o.evidence, snapshot: snapshotNow(), save: retireSave });
     }
-    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-issue|close-issue|retire --option value ...");
+    default: throw new Error("Usage: integration.mjs gate|merge|criteria|close-container|verify-issue|close-issue|retire --option value ...");
   }
 }
 
