@@ -382,3 +382,86 @@ describe("a beat a Step presents joins the page as a new beat", () => {
     ]);
   });
 });
+
+describe("a beat a Step presents ends the sound and voice of the beat before it, as a click does", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  for (const channel of ["sound", "voice"] as const) {
+    for (const advance of ["click", "step"] as const) {
+      it(`stops a looping ${channel} on a ${advance} to a plain beat`, async () => {
+        const { program: compiled } = compileUI(
+          [
+            "define asset as audio with",
+            '  src = "https://example.com/a.wav"',
+            "  loop = true",
+            "end",
+            "scene start",
+            `  ((play ${channel} asset)) First.`,
+            "  Second.",
+            "  Third.",
+            "end",
+            "",
+          ].join("\n"),
+        );
+        const game = new Game({
+          program: compiled,
+          now: () => 0,
+          setTimeout: () => 0,
+          log: () => {},
+        } as never);
+        vi.spyOn(game.module.audio as any, "loadAllAudio").mockResolvedValue(
+          undefined,
+        );
+        vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(
+          null as never,
+        );
+        game.start();
+        await settle();
+        (game as any)._coordinator.onUpdate({ deltaMS: 0 });
+        expect(game.module.audio.loopsHeld().get(channel)?.size).toBe(1);
+        if (advance === "step") {
+          game.pause();
+          for (
+            let i = 0;
+            i < 30 && (game as any)._run.beats.length < 2;
+            i += 1
+          ) {
+            game.step("over");
+          }
+          expect(game.paused).toBe(true);
+          expect(game.resume()).toBe(false);
+        } else {
+          game.clickedToContinue();
+        }
+        expect(game.story.currentText?.trim()).toBe("Second.");
+        await settle();
+        expect(game.module.audio.loopsHeld().get(channel)?.size ?? 0).toBe(0);
+      });
+    }
+  }
+
+  it("tells the assets a presented beat is displayed, as a played beat does, and a restored beat does not", async () => {
+    const { program: compiled } = compileUI(
+      "scene start\n  First.\n  Second.\n  Third.\nend\n",
+    );
+    const game = new Game({
+      program: compiled,
+      now: () => 0,
+      setTimeout: () => 0,
+      log: () => {},
+    } as never);
+    game.start();
+    const displayed = vi.spyOn(game.module.assets, "onBeatDisplayed");
+    game.pause();
+    for (let i = 0; i < 30 && (game as any)._run.beats.length < 2; i += 1) {
+      game.step("over");
+    }
+    expect(displayed).toHaveBeenCalledOnce();
+    expect((await game.rollBack("beat")).moved).toBe(true);
+    expect(displayed).toHaveBeenCalledOnce();
+  });
+});
