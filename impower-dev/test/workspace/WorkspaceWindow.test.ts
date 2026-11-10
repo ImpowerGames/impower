@@ -756,6 +756,22 @@ describe("WorkspaceWindow store transitions", () => {
         }
       });
 
+      it("a review that finishes after the browser agreed to keep the project shows and claims nothing", async () => {
+        metadata.set("backedUpAt", String(started - 9 * DAY_MS));
+        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
+        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => {
+          workspace.deviceStorage.value = {
+            persisted: true,
+            permission: "granted",
+            canPersist: true,
+            install: null,
+          };
+          return [];
+        });
+        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([]);
+        expect(metadata.has("remindedAt")).toBe(false);
+      });
+
       it("two exports finishing out of order keep the later backup time", async () => {
         let release!: () => void;
         const held = new Promise<void>((resolve) => {

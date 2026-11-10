@@ -143,9 +143,21 @@ describe("removing batches from the trash", () => {
 });
 
 describe("changes that leave no time of their own", () => {
+  let now: number;
+
   beforeEach(() => {
-    vi.spyOn(Date, "now").mockReturnValue(7_000);
+    now = 7_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
     recordSteps();
+    const requests = fs as unknown as {
+      sendRequest: (type: unknown, params: { action?: string }) => Promise<unknown>;
+    };
+    const record = vi.mocked(requests.sendRequest).getMockImplementation()!;
+    vi.mocked(requests.sendRequest).mockImplementation(async (type, params) => {
+      const result = await record(type, params);
+      now = 8_000;
+      return result;
+    });
   });
 
   it.each<[string, (fs: WorkspaceFileSystemType) => Promise<unknown>, string]>([
@@ -156,9 +168,9 @@ describe("changes that leave no time of their own", () => {
       (fs) => fs.deleteFiles({ files: [{ uri: fs.getFileUri("local", "notes.sd") }] }),
       "request deleteFiles",
     ],
-  ])("records the change time before %s", async (_case, change, request) => {
+  ])("records the change time before and after %s", async (_case, change, request) => {
     await change(fs);
-    expect(steps).toEqual(["keep changedAt=7000", request]);
+    expect(steps).toEqual(["keep changedAt=7000", request, "keep changedAt=8000"]);
   });
 
   it("leaves a deletion to the trash its own time", async () => {

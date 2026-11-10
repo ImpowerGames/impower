@@ -203,14 +203,14 @@ export const remindBackupIfDue = async ({
   project,
   now,
   exportProject,
-  visible,
+  stillDue,
 }: {
   local: boolean;
   persisted: boolean;
   project: ProjectBackupRecord;
   now: number;
   exportProject: () => Promise<boolean>;
-  visible: () => boolean;
+  stillDue: () => boolean;
 }): Promise<boolean> => {
   if (!local) {
     return false;
@@ -230,7 +230,7 @@ export const remindBackupIfDue = async ({
     ageMs: now - since,
     sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
   });
-  if (!due || !visible()) {
+  if (!due || !stillDue()) {
     return false;
   }
   showSnackbar({

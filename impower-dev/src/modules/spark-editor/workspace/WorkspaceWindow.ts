@@ -683,7 +683,9 @@ export default class WorkspaceWindow {
           project: this.backupRecord(id),
           now: Date.now(),
           exportProject: downloadProjectZip,
-          visible: () => document.visibilityState !== "hidden",
+          stillDue: () =>
+            document.visibilityState !== "hidden" &&
+            !(workspace.deviceStorage.peek()?.persisted ?? false),
         }),
       );
     } catch (err) {

@@ -814,10 +814,11 @@ export default class WorkspaceFileSystem {
         ({ uri }) =>
           uri.startsWith(root) && !isProjectMetadata(uri.slice(root.length)),
       );
-    if (projectId && outright) {
-      await this.keepLatest(projectId, "changedAt", Date.now());
-    }
-    const result = await this.sendRequest(WillDeleteFilesMessage.type, params);
+    const remove = () => this.sendRequest(WillDeleteFilesMessage.type, params);
+    const result =
+      projectId && outright
+        ? await this.recordingChange(projectId, remove)
+        : await remove();
     return result;
   }
 
@@ -880,13 +881,14 @@ export default class WorkspaceFileSystem {
     if (folderPaths.length === 0) {
       return [];
     }
-    await this.keepLatest(projectId, "changedAt", Date.now());
-    const { uris } = await this.sendRequest(DirectoriesMessage.type, {
-      action: "create",
-      uris: folderPaths.map((p) =>
-        this.getFileUri(projectId, p.replace(/\/+$/, "")),
-      ),
-    });
+    const { uris } = await this.recordingChange(projectId, () =>
+      this.sendRequest(DirectoriesMessage.type, {
+        action: "create",
+        uris: folderPaths.map((p) =>
+          this.getFileUri(projectId, p.replace(/\/+$/, "")),
+        ),
+      }),
+    );
     this.addFolderUris(uris);
     return uris.map((uri) => this.getRelativePath(projectId, uri));
   }
@@ -895,13 +897,14 @@ export default class WorkspaceFileSystem {
     if (folderPaths.length === 0) {
       return [];
     }
-    await this.keepLatest(projectId, "changedAt", Date.now());
-    const { uris } = await this.sendRequest(DirectoriesMessage.type, {
-      action: "delete",
-      uris: folderPaths.map((p) =>
-        this.getFileUri(projectId, p.replace(/\/+$/, "")),
-      ),
-    });
+    const { uris } = await this.recordingChange(projectId, () =>
+      this.sendRequest(DirectoriesMessage.type, {
+        action: "delete",
+        uris: folderPaths.map((p) =>
+          this.getFileUri(projectId, p.replace(/\/+$/, "")),
+        ),
+      }),
+    );
     this.removeFolderUris(uris);
     return uris.map((uri) => this.getRelativePath(projectId, uri));
   }
@@ -1050,6 +1053,15 @@ export default class WorkspaceFileSystem {
         await this.writeProjectMetadata(projectId, field, String(time));
       }
     });
+  }
+
+  protected async recordingChange<T>(projectId: string, change: () => Promise<T>) {
+    await this.keepLatest(projectId, "changedAt", Date.now());
+    try {
+      return await change();
+    } finally {
+      await this.keepLatest(projectId, "changedAt", Date.now());
+    }
   }
 
   protected async keepNewestDeletion(projectId: string) {
