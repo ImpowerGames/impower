@@ -161,7 +161,7 @@ describe("the debug adapter's frames", () => {
     expect(await evaluate(undefined)).toEqual({});
   });
 
-  it("offers the Temps, Vars and Defines scopes and asks the game for each", async () => {
+  it("offers the Temps, Vars, Builtins and Defines scopes and asks the game for each", async () => {
     const s = session();
     const { stackFrames } = await s.call("stackTraceRequest", { threadId: 0 });
     const { scopes } = await s.call("scopesRequest", {
@@ -170,6 +170,7 @@ describe("the debug adapter's frames", () => {
     expect(scopes.map((c: { name: string }) => c.name)).toEqual([
       "Temps",
       "Vars",
+      "Builtins",
       "Defines",
     ]);
     for (const scope of scopes) {
@@ -180,6 +181,7 @@ describe("the debug adapter's frames", () => {
     expect(s.variablesSent().map((p) => p.scope)).toEqual([
       "temps",
       "vars",
+      "builtins",
       "defines",
     ]);
   });

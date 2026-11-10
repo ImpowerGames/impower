@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./theme.css";
 @source ".";
+@source "../../spark-web-player/src/components";
 
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
 @custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));
