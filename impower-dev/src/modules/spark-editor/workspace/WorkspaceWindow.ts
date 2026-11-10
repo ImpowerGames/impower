@@ -549,6 +549,10 @@ export default class WorkspaceWindow {
     workspace.syncConflictOpen.value = false;
   }
 
+  openTrash() {
+    workspace.trashOpen.value = true;
+  }
+
   async resolveSyncConflict(keep: "device" | "drive") {
     this.closeSyncConflict();
     if (keep === "device") {
