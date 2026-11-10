@@ -284,3 +284,25 @@ describe("the name given to a stacked picture", () => {
     expect(fs.moveFile).not.toHaveBeenCalled();
   });
 });
+
+describe("the file names a stacked picture's rename builds", () => {
+  it("takes an extension typed on the name off once, keeping one base", async () => {
+    const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
+    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
+    await assets.load();
+    await assets.renameStack(STACK, "imani", "ada.png");
+    expect([...files.keys()].sort()).toEqual([
+      "Assets/Images/ada.png",
+      "Assets/Images/ada@night.png",
+      "Assets/Images/ada~face.happy.png",
+    ]);
+  });
+
+  it("keeps each member's suffix as it was, even one that ends like an extension", async () => {
+    const STACK = ["Assets/Images/imani.png", "Assets/Images/imani~face.png.png"];
+    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
+    await assets.load();
+    await assets.renameStack(STACK, "imani", "ada");
+    expect([...files.keys()].sort()).toEqual(["Assets/Images/ada.png", "Assets/Images/ada~face.png.png"]);
+  });
+});

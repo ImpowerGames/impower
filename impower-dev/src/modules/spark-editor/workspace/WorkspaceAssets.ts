@@ -273,17 +273,23 @@ export default class WorkspaceAssets {
   }
 
   async renameStack(paths: readonly string[], base: string, name: string): Promise<string[]> {
-    const stackName = validName(name);
+    let stackName = validName(name);
+    const typed = paths
+      .map(extensionOf)
+      .find((extension) => extension && stackName.toLowerCase().endsWith(extension.toLowerCase()));
+    if (typed) {
+      stackName = validName(stackName.slice(0, -typed.length));
+    }
     if (/[@~]/.test(stackName)) {
       throw new NameError(STACK_NAME_MESSAGE);
     }
     const renames = paths.map((path) => {
-      const stem = stemOf(path);
-      const next = stackName + stem.slice(base.length);
+      const extension = extensionOf(path);
+      const next = stackName + stemOf(path).slice(base.length) + extension;
       return {
         path,
         name: next,
-        leaf: availableName(next, this.siblings(parentOf(path)), extensionOf(path), nameOf(path)),
+        leaf: availableName(next, this.siblings(parentOf(path)), extension, nameOf(path)),
       };
     });
     const leaves = renames.map((rename) => `${parentOf(rename.path)}/${rename.leaf.toLowerCase()}`);
