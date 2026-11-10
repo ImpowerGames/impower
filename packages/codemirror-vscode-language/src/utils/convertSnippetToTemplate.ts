@@ -1,10 +1,31 @@
 export type SnippetVariables = Readonly<Record<string, string>>;
 
+type FormatPart =
+  | { kind: "text"; value: string }
+  | {
+      kind: "group";
+      group: number;
+      modifier?: string;
+      ifValue?: string;
+      elseValue?: string;
+    };
+
+interface Transform {
+  regex: string;
+  format: FormatPart[];
+  options: string;
+}
+
 type SnippetNode =
   | { kind: "text"; value: string }
   | { kind: "stop"; index: string; children: SnippetNode[] | null }
   | { kind: "choice"; index: string; options: string[] }
-  | { kind: "variable"; name: string; children: SnippetNode[] | null };
+  | {
+      kind: "variable";
+      name: string;
+      children: SnippetNode[] | null;
+      transform?: Transform;
+    };
 
 export interface SnippetTemplate {
   template: string;
@@ -12,6 +33,8 @@ export interface SnippetTemplate {
 }
 
 const FIELD_UNSAFE = ["{", "}", "\n"];
+
+const normalizeLineBreaks = (text: string) => text.replace(/\r\n?/g, "\n");
 
 const isDigit = (c: string | undefined) =>
   c !== undefined && c >= "0" && c <= "9";
@@ -22,17 +45,183 @@ const isVariableStart = (c: string | undefined) =>
 const isVariableChar = (c: string | undefined) =>
   c !== undefined && /[A-Za-z0-9_]/.test(c);
 
-class SnippetParser {
-  private index = 0;
+class Scanner {
+  index = 0;
 
-  constructor(private readonly body: string) {}
+  constructor(readonly source: string) {}
 
-  parse(): SnippetNode[] {
-    return this.readNodes(null);
+  get done() {
+    return this.index >= this.source.length;
   }
 
-  private peek(offset = 0) {
-    return this.body[this.index + offset];
+  peek(offset = 0) {
+    return this.source[this.index + offset];
+  }
+
+  escaped(escapable: string): string | null {
+    const next = this.peek(1);
+    if (this.peek() !== "\\" || next === undefined) return null;
+    return escapable.includes(next) ? next : null;
+  }
+
+  readWhile(test: (c: string | undefined) => boolean): string {
+    const start = this.index;
+    while (test(this.peek())) this.index += 1;
+    return this.source.slice(start, this.index);
+  }
+
+  readUntil(end: string, escapable: string): string | null {
+    let text = "";
+    while (!this.done) {
+      const literal = this.escaped(escapable);
+      if (literal !== null) {
+        text += literal;
+        this.index += 2;
+        continue;
+      }
+      const c = this.peek()!;
+      this.index += 1;
+      if (c === end) return text;
+      text += c;
+    }
+    return null;
+  }
+}
+
+const parseFormat = (source: string): FormatPart[] => {
+  const scanner = new Scanner(source);
+  const parts: FormatPart[] = [];
+  let text = "";
+  const flush = () => {
+    if (text) parts.push({ kind: "text", value: text });
+    text = "";
+  };
+  while (!scanner.done) {
+    const literal = scanner.escaped("$\\/}");
+    if (literal !== null) {
+      text += literal;
+      scanner.index += 2;
+      continue;
+    }
+    const start = scanner.index;
+    if (scanner.peek() === "$") {
+      scanner.index += 1;
+      if (isDigit(scanner.peek())) {
+        flush();
+        parts.push({
+          kind: "group",
+          group: Number(scanner.readWhile(isDigit)),
+        });
+        continue;
+      }
+      if (scanner.peek() === "{" && isDigit(scanner.peek(1))) {
+        scanner.index += 1;
+        const group = Number(scanner.readWhile(isDigit));
+        const next = scanner.peek();
+        let part: FormatPart | null = null;
+        if (next === "}") {
+          scanner.index += 1;
+          part = { kind: "group", group };
+        } else if (next === ":") {
+          scanner.index += 1;
+          const mode = scanner.peek();
+          if (mode === "/") {
+            scanner.index += 1;
+            const modifier = scanner.readUntil("}", "}");
+            if (modifier !== null) part = { kind: "group", group, modifier };
+          } else if (mode === "+") {
+            scanner.index += 1;
+            const ifValue = scanner.readUntil("}", "}");
+            if (ifValue !== null) part = { kind: "group", group, ifValue };
+          } else if (mode === "?") {
+            scanner.index += 1;
+            const ifValue = scanner.readUntil(":", ":");
+            const elseValue =
+              ifValue === null ? null : scanner.readUntil("}", "}");
+            if (ifValue !== null && elseValue !== null) {
+              part = { kind: "group", group, ifValue, elseValue };
+            }
+          } else {
+            if (mode === "-") scanner.index += 1;
+            const elseValue = scanner.readUntil("}", "}");
+            if (elseValue !== null) part = { kind: "group", group, elseValue };
+          }
+        }
+        if (part) {
+          flush();
+          parts.push(part);
+          continue;
+        }
+      }
+      scanner.index = start;
+    }
+    text += scanner.peek();
+    scanner.index += 1;
+  }
+  flush();
+  return parts;
+};
+
+const words = (value: string) => value.match(/[\p{L}\p{N}]+/gu) ?? [];
+
+const capitalize = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1);
+
+const MODIFIERS: Readonly<Record<string, (value: string) => string>> = {
+  upcase: (value) => value.toUpperCase(),
+  downcase: (value) => value.toLowerCase(),
+  capitalize,
+  pascalcase: (value) =>
+    words(value)
+      .map((w) => capitalize(w.toLowerCase()))
+      .join(""),
+  camelcase: (value) =>
+    words(value)
+      .map((w, i) => (i === 0 ? w.toLowerCase() : capitalize(w.toLowerCase())))
+      .join(""),
+};
+
+const resolveFormat = (
+  parts: readonly FormatPart[],
+  groups: readonly (string | undefined)[],
+) =>
+  parts
+    .map((part) => {
+      if (part.kind === "text") return part.value;
+      const value = groups[part.group] ?? "";
+      if (part.modifier !== undefined) {
+        return (MODIFIERS[part.modifier] ?? ((v: string) => v))(value);
+      }
+      if (part.ifValue !== undefined) {
+        return value ? part.ifValue : (part.elseValue ?? "");
+      }
+      if (part.elseValue !== undefined) return value || part.elseValue;
+      return value;
+    })
+    .join("");
+
+const applyTransform = (value: string, transform: Transform): string => {
+  let regex: RegExp;
+  try {
+    regex = new RegExp(
+      transform.regex,
+      transform.options.replace(/[^gimsuy]/g, ""),
+    );
+  } catch {
+    return value;
+  }
+  return value.replace(regex, (...args: unknown[]) => {
+    const end = args.findIndex((arg) => typeof arg === "number");
+    return resolveFormat(
+      transform.format,
+      args.slice(0, end) as (string | undefined)[],
+    );
+  });
+};
+
+class SnippetParser extends Scanner {
+  parse(): SnippetNode[] {
+    return this.readNodes(null);
   }
 
   private readNodes(stop: string | null): SnippetNode[] {
@@ -42,11 +231,12 @@ class SnippetParser {
       if (text) nodes.push({ kind: "text", value: text });
       text = "";
     };
-    while (this.index < this.body.length) {
-      const c = this.body[this.index]!;
+    while (!this.done) {
+      const c = this.peek()!;
       if (stop !== null && c === stop) break;
-      if (c === "\\" && "$}\\".includes(this.peek(1) ?? "")) {
-        text += this.peek(1);
+      const literal = this.escaped("$}\\");
+      if (literal !== null) {
+        text += literal;
         this.index += 2;
         continue;
       }
@@ -65,22 +255,17 @@ class SnippetParser {
     return nodes;
   }
 
-  private readWhile(test: (c: string | undefined) => boolean): string {
-    const start = this.index;
-    while (test(this.peek())) this.index += 1;
-    return this.body.slice(start, this.index);
-  }
-
   private readChoices(): string[] | null {
     const options: string[] = [];
     let option = "";
-    while (this.index < this.body.length) {
-      const c = this.body[this.index]!;
-      if (c === "\\" && "$}\\,|".includes(this.peek(1) ?? "")) {
-        option += this.peek(1);
+    while (!this.done) {
+      const literal = this.escaped("$}\\,|");
+      if (literal !== null) {
+        option += literal;
         this.index += 2;
         continue;
       }
+      const c = this.peek()!;
       if (c === ",") {
         options.push(option);
         option = "";
@@ -98,24 +283,60 @@ class SnippetParser {
     return null;
   }
 
-  private skipTransform(): boolean {
-    let slashes = 0;
-    while (this.index < this.body.length) {
-      const c = this.body[this.index]!;
-      if (c === "\\") {
+  private readRegex(): string | null {
+    let regex = "";
+    while (!this.done) {
+      if (this.escaped("/") !== null) {
+        regex += "/";
+        this.index += 2;
+        continue;
+      }
+      const c = this.peek()!;
+      if (c === "\\" && this.peek(1) !== undefined) {
+        regex += c + this.peek(1);
         this.index += 2;
         continue;
       }
       this.index += 1;
-      if (c === "/") slashes += 1;
-      if (slashes === 3) {
-        this.readWhile((ch) => ch !== undefined && ch !== "}");
-        if (this.peek() !== "}") return false;
-        this.index += 1;
-        return true;
-      }
+      if (c === "/") return regex;
+      regex += c;
     }
-    return false;
+    return null;
+  }
+
+  private readRawFormat(): string | null {
+    let format = "";
+    let depth = 0;
+    while (!this.done) {
+      const c = this.peek()!;
+      if (c === "\\" && this.peek(1) !== undefined) {
+        format += c + this.peek(1);
+        this.index += 2;
+        continue;
+      }
+      if (c === "$" && this.peek(1) === "{") {
+        depth += 1;
+        format += "${";
+        this.index += 2;
+        continue;
+      }
+      this.index += 1;
+      if (c === "}" && depth > 0) depth -= 1;
+      else if (c === "/" && depth === 0) return format;
+      format += c;
+    }
+    return null;
+  }
+
+  private readTransform(): Transform | null {
+    const regex = this.readRegex();
+    if (regex === null) return null;
+    const format = this.readRawFormat();
+    if (format === null) return null;
+    const options = this.readWhile((c) => c !== undefined && c !== "}");
+    if (this.peek() !== "}") return null;
+    this.index += 1;
+    return { regex, format: parseFormat(format), options };
   }
 
   private readElement(): SnippetNode | null {
@@ -159,6 +380,12 @@ class SnippetParser {
         const options = this.readChoices();
         return options ? { kind: "choice", index, options } : fail();
       }
+      if (this.peek() === "/") {
+        this.index += 1;
+        return this.readTransform()
+          ? { kind: "stop", index, children: null }
+          : fail();
+      }
       return fail();
     }
     if (isVariableStart(this.peek())) {
@@ -176,8 +403,9 @@ class SnippetParser {
       }
       if (this.peek() === "/") {
         this.index += 1;
-        return this.skipTransform()
-          ? { kind: "variable", name, children: null }
+        const transform = this.readTransform();
+        return transform
+          ? { kind: "variable", name, children: null, transform }
           : fail();
       }
     }
@@ -188,7 +416,7 @@ class SnippetParser {
 class SnippetRenderer {
   private readonly defaults = new Map<string, SnippetNode[]>();
 
-  readonly stops = new Set<string>();
+  readonly fields = new Set<string>();
 
   constructor(
     private readonly variables: SnippetVariables,
@@ -197,9 +425,6 @@ class SnippetRenderer {
 
   collectDefaults(nodes: readonly SnippetNode[]) {
     for (const node of nodes) {
-      if (node.kind === "stop" || node.kind === "choice") {
-        this.stops.add(node.index);
-      }
       if (node.kind === "stop" && node.children) {
         if (!this.defaults.has(node.index) && node.children.length > 0) {
           this.defaults.set(node.index, node.children);
@@ -218,14 +443,16 @@ class SnippetRenderer {
   }
 
   private variableText(
-    name: string,
-    children: readonly SnippetNode[] | null,
+    node: Extract<SnippetNode, { kind: "variable" }>,
     seen: ReadonlySet<string>,
   ): string {
-    const value = this.variables[name];
+    const value = this.variables[node.name];
+    if (node.transform) {
+      return applyTransform(value ?? "", node.transform);
+    }
     if (value) return value;
-    if (children) return this.text(children, seen);
-    return name in this.variables ? "" : name;
+    if (node.children) return this.text(node.children, seen);
+    return node.name in this.variables ? "" : node.name;
   }
 
   text(nodes: readonly SnippetNode[], seen: ReadonlySet<string>): string {
@@ -234,7 +461,7 @@ class SnippetRenderer {
       if (node.kind === "text") {
         text += node.value;
       } else if (node.kind === "variable") {
-        text += this.variableText(node.name, node.children, seen);
+        text += this.variableText(node, seen);
       } else {
         text += this.placeholder(node.index, seen);
       }
@@ -254,12 +481,9 @@ class SnippetRenderer {
       if (node.kind === "text") {
         template += node.value.replace(/[{}]/g, "\\$&");
       } else if (node.kind === "variable") {
-        template += this.variableText(
-          node.name,
-          node.children,
-          new Set(),
-        ).replace(/[{}]/g, "\\$&");
+        template += this.variableText(node, new Set()).replace(/[{}]/g, "\\$&");
       } else {
+        this.fields.add(node.index);
         const placeholder = [...this.placeholder(node.index, new Set())]
           .map((c) => this.standInFor.get(c) ?? c)
           .join("");
@@ -285,18 +509,26 @@ export const convertSnippetToTemplate = (
   body: string | readonly string[],
   variables: SnippetVariables = {},
 ): SnippetTemplate => {
-  const source = typeof body === "string" ? body : body.join("\n");
+  const source = normalizeLineBreaks(
+    typeof body === "string" ? body : body.join("\n"),
+  );
+  const values: SnippetVariables = Object.fromEntries(
+    Object.entries(variables).map(([name, value]) => [
+      name,
+      normalizeLineBreaks(value),
+    ]),
+  );
   const standIns = unusedCharacters(
-    source + Object.values(variables).join(""),
+    source + Object.values(values).join(""),
     FIELD_UNSAFE.length,
   );
   const standInFor = new Map(FIELD_UNSAFE.map((c, i) => [c, standIns[i]!]));
   const nodes = new SnippetParser(source).parse();
-  const renderer = new SnippetRenderer(variables, standInFor);
+  const renderer = new SnippetRenderer(values, standInFor);
   renderer.collectDefaults(nodes);
   const template = renderer.template(nodes);
   return {
-    template: renderer.stops.has("0") ? template : `${template}\${0}`,
+    template: renderer.fields.has("0") ? template : `${template}\${0}`,
     standIns: new Map(standIns.map((s, i) => [s, FIELD_UNSAFE[i]!])),
   };
 };

@@ -270,6 +270,42 @@ describe("a snippet is inserted with its tab stops", () => {
       [0, 11],
     ],
     ["keeps a lone dollar sign", "$ alone", "", "$ alone", [7, 7]],
+    ["keeps a trailing literal backslash", "path\\", "", "path\\", [5, 5]],
+    [
+      "keeps a CRLF placeholder inside its field",
+      "${1:a\r\nb}$0",
+      "",
+      "a\nb",
+      [0, 3],
+    ],
+    [
+      "applies an identity variable transform",
+      "${TM_SELECTED_TEXT/foo/foo/} next",
+      "foo",
+      "foo next",
+      [8, 8],
+    ],
+    [
+      "applies a variable transform's case modifier",
+      "${TM_SELECTED_TEXT/(.*)/${1:/upcase}/}",
+      "foo",
+      "FOO",
+      [3, 3],
+    ],
+    [
+      "applies a variable transform's conditional",
+      "${TM_SELECTED_TEXT/(x)?.*/${1:?has x:no x}/}",
+      "abc",
+      "no x",
+      [4, 4],
+    ],
+    [
+      "ends at the end when the final stop is nested",
+      "${1:outer $0} suffix",
+      "",
+      "outer  suffix",
+      [0, 6],
+    ],
   ] as const)("%s", (_name, body, selected, inserted, range) => {
     expect(insertBody(body, selected)).toEqual({ inserted, selected: range });
   });
