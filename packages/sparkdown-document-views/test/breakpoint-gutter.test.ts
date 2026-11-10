@@ -136,6 +136,23 @@ describe("the script editor's breakpoint gutter", () => {
     expect(getBreakpointLineNumbers(view)).toEqual([]);
   });
 
+  it("deletes a dot with the last line when the deletion runs from the line above to the end", () => {
+    const { view } = mount();
+    pressGutterAt(view, 6);
+    const previous = view.state.doc.line(5);
+    view.dispatch({ changes: { from: previous.to, to: view.state.doc.length } });
+    expect(view.state.doc.lines).toBe(5);
+    expect(getBreakpointLineNumbers(view)).toEqual([]);
+  });
+
+  it("keeps a dot on its line when only the line's text is cleared", () => {
+    const { view } = mount();
+    pressGutterAt(view, 5);
+    const line = view.state.doc.line(5);
+    view.dispatch({ changes: { from: line.from, to: line.to } });
+    expect(getBreakpointLineNumbers(view)).toEqual([5]);
+  });
+
   it("moves a dot to the line the debugger verified, and draws an unplaceable one hollow with its reason", () => {
     const { view } = mount();
     pressGutterAt(view, 4);

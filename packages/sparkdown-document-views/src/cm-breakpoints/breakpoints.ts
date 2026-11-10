@@ -1,5 +1,4 @@
 import {
-  MapMode,
   RangeSet,
   StateEffect,
   StateField,
@@ -59,12 +58,20 @@ const mapWithLines = (set: RangeSet<GutterMarker>, transaction: Transaction) => 
   const ranges: Range<GutterMarker>[] = [];
   const iter = set.iter(0);
   while (iter.value) {
-    const end = transaction.changes.mapPos(
-      before.lineAt(iter.from).to,
-      -1,
-      MapMode.TrackDel,
-    );
-    if (end != null) {
+    const line = before.lineAt(iter.from);
+    const spanFrom = line.from > 0 ? line.from - 1 : line.from;
+    const spanTo = line.to < before.length ? line.to + 1 : line.to;
+    let removed = false;
+    transaction.changes.iterChangedRanges((fromA, toA) => {
+      if (
+        (fromA <= spanFrom && toA >= line.to && spanFrom < line.from) ||
+        (fromA <= line.from && toA >= spanTo && spanTo > line.to)
+      ) {
+        removed = true;
+      }
+    });
+    if (!removed) {
+      const end = transaction.changes.mapPos(line.to, -1);
       const from = after.lineAt(end).from;
       if (ranges.at(-1)?.from !== from) {
         ranges.push(iter.value.range(from));
