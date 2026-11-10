@@ -5,7 +5,7 @@
 import { GrammarNode } from "./GrammarNode";
 import { GrammarStack } from "./GrammarStack";
 
-type CallFrame = { ruleId: string; position: number };
+export type CallFrame = { ruleId: string; position: number; scoped: boolean };
 
 export class GrammarState {
   stack: GrammarStack = new GrammarStack([
@@ -22,6 +22,8 @@ export class GrammarState {
   protected _anchorLineStart = -1;
 
   visited: CallFrame[] = [];
+
+  enclosing: CallFrame[] = [];
 
   str: string;
 
@@ -166,8 +168,26 @@ export class GrammarState {
     return hasVisited;
   }
 
-  enter(ruleId: string, position: number) {
-    this.visited.push({ ruleId, position });
+  enter(ruleId: string, position: number, scoped = false) {
+    this.visited.push({ ruleId, position, scoped });
+  }
+
+  enclosingAt(lineStart: number, captureId: string, captureAt: number) {
+    const frames: CallFrame[] = [];
+    for (const frame of this.enclosing) {
+      frames.push({ ...frame, position: frame.position - lineStart });
+    }
+    for (const frame of this.visited) {
+      if (frame.scoped) {
+        frames.push({ ...frame, position: frame.position - lineStart });
+      }
+    }
+    frames.push({
+      ruleId: captureId,
+      position: captureAt - lineStart,
+      scoped: true,
+    });
+    return frames;
   }
 
   exit(ruleId: string, position: number) {

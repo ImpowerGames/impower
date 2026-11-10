@@ -98,6 +98,7 @@ export class MatchRule implements Rule {
           result.indices,
           lineStart,
           lineText,
+          state,
         );
       } else {
         let pos = from;
@@ -111,6 +112,7 @@ export class MatchRule implements Rule {
               pos,
               lineStart,
               lineText,
+              state,
             );
             matched.children ??= [];
             matched.children.push(captured);
@@ -140,6 +142,7 @@ export class MatchRule implements Rule {
     indices: ([number, number] | undefined)[],
     lineStart: number,
     lineText: string,
+    state: GrammarState,
   ) {
     const parents = this.matcher.groupParents;
     const captures = this.captures;
@@ -180,6 +183,7 @@ export class MatchRule implements Rule {
         start,
         lineStart,
         lineText,
+        state,
       );
       host.children ??= [];
       host.children.push(captureMatched);
@@ -198,6 +202,7 @@ export class MatchRule implements Rule {
     pos: number,
     lineStart: number,
     lineText: string,
+    state: GrammarState,
   ) {
     const resultStrLength = resultStr?.length ?? 0;
     if (!(capture instanceof SwitchRule)) {
@@ -213,6 +218,7 @@ export class MatchRule implements Rule {
       lineText.slice(0, start + resultStrLength),
       start,
       lineStart,
+      state.enclosingAt(lineStart, capture.id, pos),
     );
     if (tokens.length === 0) {
       return Matched.create(capture.node, pos, 0);

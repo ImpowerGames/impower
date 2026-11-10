@@ -8,7 +8,7 @@ import { Wrapping } from "../enums/Wrapping";
 import { type Rule } from "../types/Rule";
 import { Grammar } from "./Grammar";
 import { type GrammarNode } from "./GrammarNode";
-import { GrammarState } from "./GrammarState";
+import { type CallFrame, GrammarState } from "./GrammarState";
 import { Matched } from "./Matched";
 import { MatchRule } from "./rules/MatchRule";
 import { ScopedRule } from "./rules/ScopedRule";
@@ -117,11 +117,13 @@ export class ResumableTokenizer {
     text: string,
     from: number,
     offset: number,
+    enclosing: CallFrame[],
   ): { tokens: GrammarToken[]; to: number } {
     const tokenizer = new ResumableTokenizer(grammar, () => "", offset);
     tokenizer.rootRules = rules;
     tokenizer.stopsAtEmptyRootMatch = true;
     tokenizer.state.str = text;
+    tokenizer.state.enclosing = enclosing;
     tokenizer.pos = from;
     const tokens: GrammarToken[] = [];
     if (from >= text.length) {
@@ -134,8 +136,8 @@ export class ResumableTokenizer {
         tokens.push(step.tokens[i]!);
       }
       emptySteps = step.length === 0 ? emptySteps + 1 : 0;
-      if (emptySteps > EMPTY_STEP_LIMIT) {
-        tokenizer.closeAll(tokens);
+      if (emptySteps > EMPTY_STEP_LIMIT && !tokenizer.hasOpenFrames) {
+        tokenizer.stoppedAtRoot = true;
       }
     }
     const pending = tokenizer.flushPending();
@@ -148,13 +150,6 @@ export class ResumableTokenizer {
       tokens.push([null, covered, end]);
     }
     return { tokens, to: tokenizer.pos };
-  }
-
-  protected closeAll(out: GrammarToken[]) {
-    while (this.frames.length > 0) {
-      this.closeWithoutEnd(out, true);
-    }
-    this.stoppedAtRoot = true;
   }
 
   get hasOpenFrames() {
@@ -228,6 +223,16 @@ export class ResumableTokenizer {
         return true;
       }
     }
+    const enclosing = this.state.enclosing;
+    for (let i = enclosing.length - 1; i >= 0; i--) {
+      const frame = enclosing[i]!;
+      if (frame.position !== pos) {
+        return false;
+      }
+      if (frame.ruleId === rule.id) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -249,7 +254,7 @@ export class ResumableTokenizer {
         } else if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
-        this.state.enter(rule.id, pos);
+        this.state.enter(rule.id, pos, true);
         const beginMatched = rule.begin(this.state, pos);
         if (!beginMatched) {
           this.state.exit(rule.id, pos);
@@ -420,7 +425,14 @@ export class ResumableTokenizer {
       this.rootRules ?? this.grammar.rules ?? [],
       dispatchPos,
     );
-    if (!result || result.kind === "repeated") {
+    if (!result) {
+      return result;
+    }
+    if (result.kind === "repeated") {
+      if (this.stopsAtEmptyRootMatch) {
+        this.pos = this.state.str.length;
+        this.stoppedAtRoot = true;
+      }
       return result;
     }
     if (
@@ -554,7 +566,7 @@ export class ResumableTokenizer {
         emptyMatchCount: f.emptyMatchCount,
         wrapperNodes: f.wrapperNodes?.slice(),
       });
-      this.state.enter(f.rule.id, openedAt);
+      this.state.enter(f.rule.id, openedAt, true);
     }
   }
 

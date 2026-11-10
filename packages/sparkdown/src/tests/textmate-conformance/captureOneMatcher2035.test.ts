@@ -1,3 +1,4 @@
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -83,9 +84,71 @@ const rootStop = grammar({}, [{ match: "(?=a)", name: "empty.probe" }, { include
 cases.push(["capture root non-advancing match ends the capture", captured(rootStop), "-x a b;tail\n"]);
 cases.push(["capture whose first match does not advance ends empty", captured(rootStop), "-a;tail\n"]);
 
+const enclosing = {
+  name: "probe",
+  scopeName: "source.probe",
+  patterns: [{ include: "#Block" }, { match: ".|\\n" }],
+  repository: {
+    Block: {
+      name: "block.probe",
+      begin: "(?=<)",
+      end: ">",
+      patterns: [
+        { match: "(<)", captures: { "1": { name: "cap.probe", patterns: [{ include: "#Block" }, { match: ".|\\n" }] } } },
+        { match: ".|\\n" },
+      ],
+    },
+  },
+};
+cases.push(["capture sees a rule its enclosing rule opened at the same position", enclosing, "<abc>\n"]);
+
+const depth = (inCapture: boolean) => {
+  const repository: Record<string, unknown> = {};
+  for (let i = 0; i < 110; i++) {
+    repository[`D${i}`] = {
+      name: `depth${i}.probe`,
+      begin: "(?=a)",
+      end: "(?=;)",
+      patterns: i === 109 ? [{ match: "a", name: "letter.probe" }] : [{ include: `#D${i + 1}` }],
+    };
+  }
+  return {
+    name: "probe",
+    scopeName: "source.probe",
+    repository,
+    patterns: inCapture
+      ? [
+          { match: "^-(a)(;)$", captures: { "1": { name: "cap.probe", patterns: [{ include: "#D0" }] }, "2": { name: "separator.probe" } } },
+          { match: ".|\\n" },
+        ]
+      : [{ include: "#D0" }, { match: ".|\\n" }],
+  };
+};
+cases.push(["110 nested zero-width scopes", depth(false), "a;\n"]);
+cases.push(["110 nested zero-width scopes in a capture", depth(true), "-a;\n"]);
+
 describe("capture patterns run through the line tokenizer", () => {
   test.each(cases)("%s", async (_label, g, text) => {
     const expected = await vscodeScopes(structuredClone(g), text);
     expect(treeScopes(g, text)).toEqual(expected);
+  });
+
+  test.each([
+    ["-x a b;tail\n"],
+    ["-a;tail\n"],
+  ])("a capture stopped by a match that does not advance holds no empty match nodes: %j", (text) => {
+    const parser = new TextmateGrammarParser(structuredClone(captured(rootStop)));
+    const emptyIds = new Set(
+      (parser as any).grammar.nodes
+        .filter((node: any) => node?.props?.name === "empty.probe")
+        .map((node: any) => node.typeIndex),
+    );
+    let count = 0;
+    parser.parse(text).iterate({
+      enter(node) {
+        if (emptyIds.has(node.type.id)) count++;
+      },
+    });
+    expect(count).toBe(0);
   });
 });
