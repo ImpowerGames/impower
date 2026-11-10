@@ -102,6 +102,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _frames = new Map<number, { threadId: number; frameId: number }>();
   private _frameIds = new Map<string, number>();
+  private _lineBreakpoints = new Map<string, { file: string; line: number }[]>();
 
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
@@ -637,29 +638,25 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments,
   ): Promise<void> {
-
-    const setBreakpoints: {
-      file: string;
-      line: number;
-    }[] = [];
-
-    if (args.breakpoints) {
-      for (const b of args.breakpoints) {
-        setBreakpoints.push({
-          file: this._fileAccessor.pathToUri(args.source.path || ""),
-          line: this.convertClientLineToDebugger(b.line),
-        });
-      }
+    const file = this._fileAccessor.pathToUri(args.source.path || "");
+    const requested = (args.breakpoints ?? []).map((b) => ({
+      file,
+      line: this.convertClientLineToDebugger(b.line),
+    }));
+    this._lineBreakpoints.delete(file);
+    const others = [...this._lineBreakpoints.values()].flat();
+    if (requested.length > 0) {
+      this._lineBreakpoints.set(file, requested);
     }
 
     const { breakpoints } = await this._connection.emit(
       SetGameBreakpointsMessage.type.request({
-        breakpoints: setBreakpoints,
+        breakpoints: [...others, ...requested],
       }),
     );
 
     response.body = {
-      breakpoints: (breakpoints || []).map((b) => ({
+      breakpoints: (breakpoints || []).slice(others.length).map((b) => ({
         ...b,
         source:
           b.location != null

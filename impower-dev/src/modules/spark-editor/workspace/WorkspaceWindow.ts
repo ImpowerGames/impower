@@ -38,6 +38,12 @@ import {
   SelectedEditorMethod,
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
+import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
+import {
+  type EditorBreakpoint,
+  SetEditorBreakpointsMessage,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
@@ -620,6 +626,13 @@ export default class WorkspaceWindow {
       onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
         this.handleChangedEditorBreakpoints(m),
       ),
+      onProtocolRequest(EvaluateEditorHoverMessage.type, async (m) =>
+        EvaluateEditorHoverMessage.type.response(m.id, {
+          value: await this.debug.evaluate(m.params.expression),
+        }),
+      ),
+      this.followVerifiedBreakpoints(),
+      this.followStopEnds(),
       onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
         this.handleChangedEditorPinpoints(m),
       ),
@@ -782,17 +795,64 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, breakpointLines } = message.params;
     const uri = textDocument.uri;
+    this.setBreakpointLines(uri, breakpointLines);
+    void this.debug.setBreakpoints(uri, breakpointLines);
+  };
+
+  protected setBreakpointLines(uri: string, lines: number[]) {
     this.update({
       ...this.store,
       debug: {
         ...this.store.debug,
         breakpoints: {
           ...this.store.debug.breakpoints,
-          [uri]: breakpointLines,
+          [uri]: lines,
         },
       },
     });
-  };
+  }
+
+  protected followVerifiedBreakpoints() {
+    let followed = workspace.debugSession.peek().breakpoints;
+    return workspace.debugSession.subscribe(({ breakpoints }) => {
+      if (breakpoints === followed) {
+        return;
+      }
+      const previous = followed;
+      followed = breakpoints;
+      for (const [uri, verified] of Object.entries(breakpoints)) {
+        if (verified !== previous[uri]) {
+          this.applyVerifiedBreakpoints(uri, verified);
+        }
+      }
+    });
+  }
+
+  protected followStopEnds() {
+    let stopped = workspace.debugSession.peek().stopped;
+    return workspace.debugSession.subscribe((session) => {
+      const ended = stopped != null && session.stopped !== stopped;
+      stopped = session.stopped;
+      if (ended) {
+        sendProtocolMessage(HideEditorHoverValuesMessage.type.notification({}));
+      }
+    });
+  }
+
+  protected applyVerifiedBreakpoints(uri: string, verified: EditorBreakpoint[]) {
+    const lines = [...new Set(verified.map((b) => b.line))].sort((a, b) => a - b);
+    const states = lines.map((line) => ({
+      line,
+      verified: verified.some((b) => b.line === line && b.verified),
+    }));
+    this.setBreakpointLines(uri, lines);
+    sendProtocolMessage(
+      SetEditorBreakpointsMessage.type.request({
+        textDocument: { uri },
+        breakpoints: states,
+      }),
+    );
+  }
 
   protected handleChangedEditorStartingValueLines = (
     message: ChangedEditorStartingValueLinesMessage.Notification,
@@ -1914,6 +1974,7 @@ export default class WorkspaceWindow {
   }
 
   followStop(position: GamePosition) {
+    this.syncGamePaused(true);
     this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];

@@ -10,6 +10,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
+import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 import { highlightLines } from "../../../cm-highlight-lines/highlightLines";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
@@ -41,6 +42,7 @@ const EDITOR_EXTENSIONS = [
   history(),
   deferFileDropsToApp,
   pinpoints(),
+  breakpoints(),
   lineNumbers(),
   indentUnit.of("  "),
   indentedLineWrapping(),
