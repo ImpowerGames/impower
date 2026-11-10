@@ -106,7 +106,12 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       ["store x = a & b\nHello\n", ["1:12", "1:14", "1:15"]],
       ["local x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
       ["x = a&b\nHello\n", ["1:5", "1:6", "1:7"]],
-    ])("I-2038: an `&` inside a declaration's or reassignment's value, %j", async (source, positions) => {
+      [
+        "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
+        ["5:13", "5:15", "5:16", "5:17", "5:18"],
+      ],
+      ["repeat\n  Hi.\nuntil a&b\nHello\n", ["3:7", "3:8", "3:9"]],
+    ])("I-2038: an `&` after a declaration's, reassignment's or `until` condition's value, %j", async (source, positions) => {
       const { divergences } = await compareLanguages(source);
       expect(divergences.map((d) => d.lineCol)).toEqual(positions);
     });

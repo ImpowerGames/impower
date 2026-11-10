@@ -7252,7 +7252,6 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauUnreadableCharacter" }
-      - { include: "#LuauUnreadStatementMark" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   LuauSparkdownDoBlock:
@@ -8686,7 +8685,6 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauUnreadableCharacter" }
-      - { include: "#LuauUnreadStatementMark" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   SparkdownExplicitTag:
