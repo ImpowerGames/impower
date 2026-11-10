@@ -44,10 +44,17 @@ export interface SceneSpan {
   endLine: number;
 }
 
+export interface DialogueCue {
+  startLine: number;
+  endLine: number;
+  speaker: string;
+}
+
 export interface StoryBlock {
   startLine: number;
   endLine: number;
   speaker: string | null;
+  cues: readonly DialogueCue[];
 }
 
 export interface ScriptStructure {
@@ -171,13 +178,23 @@ function speakerOf(node: SyntaxNode, source: string): string | null {
 export function storyBlocksOf(tree: Tree, source: string): StoryBlock[] {
   const lines = linesOf(source);
   const blocks: StoryBlock[] = [];
-  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+  const linesOfNode = (node: SyntaxNode) => {
     const startLine = lineIndexAt(lines, node.from);
     let endLine = lineIndexAt(lines, Math.max(node.from, node.to - 1));
     while (endLine > startLine && !lines[endLine]!.content) endLine--;
+    return { startLine, endLine };
+  };
+  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    const { startLine, endLine } = linesOfNode(node);
     const speaker = speakerOf(node, source);
     if (endLine <= startLine && !speaker) continue;
-    blocks.push({ startLine, endLine, speaker });
+    const cues: DialogueCue[] = [];
+    const cursor = node.cursor();
+    while (cursor.next() && cursor.from < node.to) {
+      const cue = speakerOf(cursor.node, source);
+      if (cue) cues.push({ ...linesOfNode(cursor.node), speaker: cue });
+    }
+    blocks.push({ startLine, endLine, speaker, cues });
   }
   return blocks;
 }
@@ -295,7 +312,7 @@ function templateOf(
       return { lines: ["((sound_name))"], placeholder: "sound_name" };
     case "music":
       return {
-        lines: ["((play music music_name looping))"],
+        lines: ["((play music music_name loop))"],
         placeholder: "music_name",
       };
     default:
@@ -391,7 +408,10 @@ function planStoryBlock(
     indent = lines[branch.startLine]!.indent;
     atLine = Math.min(branch.endLine, lines.length - 1);
   } else if (enclosing) {
-    speaker = enclosing.speaker;
+    const cue = enclosing.cues
+      .filter((cue) => index >= cue.startLine && index <= cue.endLine)
+      .at(-1);
+    speaker = cue?.speaker ?? enclosing.speaker;
     indent = lines[enclosing.startLine]!.indent;
     atLine = enclosing.endLine;
   } else if (!line.content) {

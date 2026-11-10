@@ -811,6 +811,59 @@ describe("insertions checked against the reparsed script", () => {
     },
   );
 
+  it.each([
+    lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  if true then",
+      "    IMANI:",
+      "      Hello.",
+      "  end",
+      "end",
+      "",
+    ),
+    lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  choose",
+      "    + [Talk]",
+      "      IMANI:",
+      "        Hello.",
+      "  end",
+      "end",
+      "",
+    ),
+  ])(
+    "keeps the speaker of a dialogue nested in another block: %s",
+    (source) => {
+      expect(diagnosticsOf(source)).toEqual([]);
+      const dialogue = apply(source, caretAt(source, "Hello."), "dialogue")!;
+      expect(dialogue.text).toContain(
+        lines("  IMANI:", "    What do they say?"),
+      );
+      expect(dialogue.selected).toBe("What do they say?");
+      expect(diagnosticsOf(dialogue.text)).toEqual([]);
+    },
+  );
+
+  it("writes Music with the language's loop clause", () => {
+    const source = lines("scene start", "  Hello.", "end", "");
+    const music = apply(source, caretAt(source, "Hello."), "music")!;
+    expect(music.text).toContain("((play music music_name loop))");
+    expect(music.selected).toBe("music_name");
+    const problems = diagnosticsOf(music.text);
+    expect(problems.some((message) => message.includes("looping"))).toBe(false);
+    expect(
+      problems.filter((message) => message.includes("music_name")),
+    ).not.toEqual([]);
+  });
+
   it("adds a Branch beside the branch the caret is in, never inside it", () => {
     const source = lines(
       "define IMANI as character with",

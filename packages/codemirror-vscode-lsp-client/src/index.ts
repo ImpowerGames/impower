@@ -95,6 +95,7 @@ export {
   type InsertPlan,
   type SceneSpan,
   type ScriptStructure,
+  type DialogueCue,
   type StoryBlock,
 } from "./insert";
 export {
