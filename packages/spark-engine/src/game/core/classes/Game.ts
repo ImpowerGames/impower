@@ -4014,12 +4014,12 @@ export class Game<T extends M = {}> {
       });
     const pinned = this.pinnedOptions;
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(
+    const reported = routeDecisions(route, lineOf, structureOf, pinned);
+    const forcedLines = this.forcedLinesOf(
       route,
-      lineOf,
-      structureOf,
-      pinned,
-    )) {
+      reported.find((decision) => decision.kind === "forced")?.override,
+    );
+    for (const decision of reported) {
       const location = decision.loop
         ? this.lineLocation(
             this.scriptUri(decision.loop.script),
@@ -4088,7 +4088,51 @@ export class Game<T extends M = {}> {
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
+      ...(forcedLines ? { forcedLines } : {}),
     };
+  }
+
+  protected forcedLinesOf(
+    route: RoutePlan,
+    override: number | undefined,
+  ): Record<string, number[]> | undefined {
+    const decision = override === undefined ? undefined : route.decisions[override];
+    if (override === undefined || !decision) {
+      return undefined;
+    }
+    const lineKeys = (address: ProgramAddress): string[] => {
+      const at = this.scriptLocationOf(address);
+      const keys: string[] = [];
+      for (let line = at?.[1] ?? 0; at && line <= at[3]; line++) {
+        keys.push(`${at[0]}:${line}`);
+      }
+      return keys;
+    };
+    const before = new Set<string>(lineKeys(decision.site));
+    const after = new Set<string>();
+    for (const step of route.steps) {
+      for (const key of lineKeys(step.address)) {
+        (step.decision < override ? before : after).add(key);
+      }
+    }
+    const lines = new Map<number, number[]>();
+    for (const key of after) {
+      if (before.has(key)) {
+        continue;
+      }
+      const [script, line] = key.split(":").map(Number) as [number, number];
+      const list = lines.get(script) ?? [];
+      list.push(line);
+      lines.set(script, list);
+    }
+    if (lines.size === 0) {
+      return undefined;
+    }
+    const ranges: Record<string, number[]> = {};
+    for (const [script, list] of lines) {
+      ranges[this.scriptUri(script)] = lineRanges(list);
+    }
+    return ranges;
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {

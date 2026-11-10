@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
@@ -24,11 +24,13 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
       revealDocument: intents.revealDocument,
+      setStripHeight: () => {},
     },
   },
 }));
 
 let phone = false;
+let compact = false;
 const mediaListeners = new Set<() => void>();
 const HEIGHT = 808;
 
@@ -36,7 +38,10 @@ beforeAll(() => {
   window.matchMedia = (query: string) =>
     ({
       get matches() {
-        return query.includes("min-width") ? !phone : false;
+        if (!query.includes("min-width") || phone) {
+          return false;
+        }
+        return !(compact && query.includes("1101px"));
       },
       media: query,
       onchange: null,
@@ -72,6 +77,37 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
+const { ROUTE_LIST_STYLESHEET_ID } = await import(
+  "@impower/spark-web-player/src/route/RouteViews"
+);
+const { RouteSheet } = await import(
+  "../../src/modules/spark-editor/components/preview-route"
+);
+const { default: route } = await import(
+  "../../src/modules/spark-editor/workspace/route/RouteStore"
+);
+
+const lineAt = (line: number) => ({
+  uri: "file:///local/main.sd",
+  range: {
+    start: { line: line - 1, character: 0 },
+    end: { line: line - 1, character: 0 },
+  },
+});
+
+const forcedRoute = {
+  open: false,
+  tab: "route" as const,
+  toggles: { pinned: true, auto: true, forced: true, clipped: true },
+  pins: [],
+  route: {
+    start: { scene: "interrogation", location: lineAt(4) },
+    target: lineAt(21),
+    decisions: [
+      { kind: "forced" as const, location: lineAt(15), text: "trust > 3", verdict: true },
+    ],
+  },
+};
 
 const diagnostic = (severity: number) => ({
   range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
@@ -157,6 +193,9 @@ beforeEach(() => {
   workspaceSettings.setPreference("previewMode", "game");
   intents.revealDocument.mockClear();
   problems.diagnostics.value = {};
+  problems.panelShows.value = "problems";
+  route.view.value = null;
+  route.sheetOpen.value = false;
 });
 
 afterEach(async () => {
@@ -164,6 +203,7 @@ afterEach(async () => {
   document.body.innerHTML = "";
   vi.restoreAllMocks();
   phone = false;
+  compact = false;
   await act(async () => mediaListeners.forEach((listener) => listener()));
 });
 
@@ -231,6 +271,167 @@ describe("the bar under the game", () => {
       "file:///local/chapter.sd",
       { start: { line: 11, character: 0 }, end: { line: 11, character: 0 } },
     ]);
+  });
+
+  it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = () =>
+      bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]')!;
+    expect(readout().textContent).toBe("interrogation(4 → 21)");
+    expect(readout().getAttribute("aria-expanded")).toBe("false");
+    await act(async () => readout().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(260);
+    expect(readout().getAttribute("aria-expanded")).toBe("true");
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    expect(document.getElementById("problems-panel")).toBeNull();
+    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+    await act(async () => toggle().click());
+    await settle();
+    expect(document.getElementById("problems-panel")).not.toBeNull();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(260);
+    await act(async () => readout().click());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    await act(async () => readout().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("route-panel")).toBeNull();
+  });
+
+  it("closes the route list when the route goes away, as it does while playing", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await act(async () => route.toggle());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    await act(async () =>
+      route.receive({
+        jsonrpc: "2.0",
+        method: "preview/didChangeRouteView",
+        params: { view: null },
+      }),
+    );
+    await settle();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(44);
+  });
+
+  it("mounts the player's own route list, which closes the panel on Escape and brings its own stylesheets", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await act(async () => route.toggle());
+    await settle();
+    expect(document.querySelector("#route-panel swp-route-view > section.route-list")).not.toBeNull();
+    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
+    await key(document.body, "Escape");
+    await settle();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(44);
+  });
+
+  it("keeps the Starting values tab in the route list and sends its tab and value changes to the player", async () => {
+    const sent: unknown[] = [];
+    const listen = (event: Event) => sent.push((event as CustomEvent).detail);
+    window.addEventListener("jsonrpc", listen);
+    try {
+      await mount();
+      await act(() => {
+        route.view.value = {
+          ...forcedRoute,
+          values: {
+            start: "interrogation",
+            values: { trust: "2" },
+            drafts: {},
+            unsaved: {},
+            search: "",
+          },
+        };
+      });
+      await act(async () => route.toggle());
+      await settle();
+      const tab = document.querySelector<HTMLButtonElement>(
+        '#route-panel .route-tab[data-tab="values"]',
+      );
+      expect(tab?.textContent).toContain("Starting values");
+      await act(async () => tab!.click());
+      await settle();
+      expect(sent).toContainEqual(
+        expect.objectContaining({
+          method: "preview/routeViewAction",
+          params: { action: { kind: "tab", tab: "values" } },
+        }),
+      );
+      await act(() => {
+        route.view.value = { ...route.view.value!, tab: "values" };
+      });
+      const reset = document.querySelector<HTMLButtonElement>("#route-panel .sv-reset");
+      expect(reset?.disabled).toBe(false);
+      await act(async () => reset!.click());
+      await settle();
+      expect(sent).toContainEqual(
+        expect.objectContaining({
+          method: "preview/routeViewAction",
+          params: { action: { kind: "values", event: { kind: "resetAll" } } },
+        }),
+      );
+    } finally {
+      window.removeEventListener("jsonrpc", listen);
+    }
+  });
+
+  it("shows a forced route on the compact strip's readout, whose press opens the list in the strip", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = bar().querySelector<HTMLButtonElement>(
+      'button[aria-controls="route-panel"]',
+    )!;
+    expect(readout.querySelector('[data-icon="detour"]')).not.toBeNull();
+    await act(async () => readout.click());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+  });
+
+  it("shows a forced route on the phone's preview readout, whose press opens the list as a sheet", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(HEIGHT);
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(h(Fragment, {}, h(Preview, {}), h(RouteSheet, {})), host!),
+    );
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = bar().querySelector<HTMLButtonElement>(
+      'button[aria-controls="route-panel"]',
+    )!;
+    expect(readout.querySelector('[data-icon="detour"]')).not.toBeNull();
+    await act(async () => readout.click());
+    await settle(300);
+    const sheet = document.querySelector('[role="dialog"]');
+    expect(sheet?.querySelector("swp-route-view .route-entry")?.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+    expect(document.getElementById("route-panel")).toBeNull();
   });
 
   it("names the ratio and the size the player reports", async () => {
