@@ -206,20 +206,26 @@ describe("node types across grammars (I-2026)", () => {
       scopeName: "source.inner",
       patterns: [{ include: "#Block" }],
       repository: {
-        Block: { begin: "\\(", end: "\\)", patterns: [{ include: "#Word" }] },
+        Block: { begin: "\\(", end: "\\)", patterns: [{ include: "#Word" }, { include: "#Number" }, { include: "#Gap" }] },
         Word: { match: "[a-z]+", tag: "(Block_content/) keyword" },
+        Number: { match: "[0-9]+", tag: '("Block_content"/) number' },
+        Gap: { match: "\\s" },
       },
     };
-    const highlighter = tagHighlighter([{ tag: tags.keyword, class: "kw" }]);
+    const highlighter = tagHighlighter([
+      { tag: tags.keyword, class: "kw" },
+      { tag: tags.number, class: "num" },
+    ]);
     const keywords = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"], text: string) => {
       const spans: string[] = [];
       const tree = vscodeLanguage({ name: "x", grammar }).language.parser.parse(text);
       highlightTree(tree, highlighter, (from, to, classes) => spans.push(`${text.slice(from, to)}:${classes}`));
       return spans;
     };
-    expect(keywords(structuredClone(tagged), "(abc)")).toEqual(["abc:kw"]);
-    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc)}")).toEqual([
+    expect(keywords(structuredClone(tagged), "(abc 12)")).toEqual(["abc:kw", "12:num"]);
+    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc 12)}")).toEqual([
       "abc:kw",
+      "12:num",
     ]);
   });
 

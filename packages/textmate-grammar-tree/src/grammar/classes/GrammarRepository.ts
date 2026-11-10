@@ -82,10 +82,13 @@ export class GrammarRepository {
       .split("/")
       .map((part) => {
         const name = part.endsWith("!") ? part.slice(0, -1) : part;
-        if (name === "" || name === "*" || name === "..." || name.startsWith('"')) {
+        if (name === "" || name === "*" || name === "...") {
           return part;
         }
-        return this.qualifyName(name) + part.slice(name.length);
+        const qualified = /^"[^"\\]*"$/.test(name)
+          ? `"${this.qualifyName(name.slice(1, -1))}"`
+          : this.qualifyName(name);
+        return qualified + part.slice(name.length);
       })
       .join("/");
     return `(${path})${tag.slice(close + 1)}`;
