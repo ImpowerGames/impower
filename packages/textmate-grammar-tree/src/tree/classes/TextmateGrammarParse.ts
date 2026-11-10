@@ -6,7 +6,7 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import { Compiler } from "../../compiler/classes/Compiler";
+import { Compiler, type CompilerJournal } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
 import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
@@ -21,6 +21,8 @@ export class TextmateGrammarParse implements PartialParse {
   declare protected region: TextmateParseRegion;
 
   declare protected compiler: Compiler;
+
+  declare protected journal?: CompilerJournal;
 
   declare protected tokenizer: ResumableTokenizer;
 
@@ -64,7 +66,7 @@ export class TextmateGrammarParse implements PartialParse {
             }
             cachedCompiler.rollback();
           }
-          cachedCompiler.beginParseJournal();
+          this.journal = cachedCompiler.beginParseJournal();
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
@@ -142,6 +144,9 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected finish(): Tree {
+    if (this.journal) {
+      this.journal.finished = true;
+    }
     const pending = this.tokenizer.flushPending();
     if (pending) {
       this.compiler.add(pending);

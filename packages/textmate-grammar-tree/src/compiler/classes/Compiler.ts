@@ -56,7 +56,8 @@ let lastReuseEpoch = 0;
 
 type JournalKind = "snapshot" | "parse";
 
-class CompilerJournal {
+export class CompilerJournal {
+  finished = false;
   undo: (() => void)[] = [];
   savedFrom = Infinity;
   saved?: Int32Array;
@@ -162,15 +163,18 @@ export class Compiler {
     return true;
   }
 
-  beginParseJournal() {
-    if (this._journal?.kind !== "snapshot") {
-      this._journal = this.openJournal("parse");
+  beginParseJournal(): CompilerJournal | undefined {
+    if (this._journal?.kind === "snapshot") {
+      return undefined;
     }
+    this._journal = this.openJournal("parse");
+    return this._journal;
   }
 
   canRollBackTo(epoch: number): boolean {
     return (
       this._journal?.kind === "parse" &&
+      this._journal.finished &&
       this._journal.reuseEpoch === epoch &&
       epoch !== this.reuseEpoch
     );

@@ -91,6 +91,26 @@ describe("incremental fragment reuse (#2028)", () => {
     expectCold(typed.tree, typed.next);
   });
 
+  test("a sibling parsed while an earlier parse from the same base is unfinished leaves both trees intact", () => {
+    const base = getParser().parse(TEXT);
+    const firstEdit: Edit = { from: DEEP, to: DEEP, insert: CUE };
+    const firstText = applyEdit(TEXT, firstEdit);
+    const first = getParser().startParse(
+      firstText,
+      TreeFragment.applyChanges(TreeFragment.addTree(base), [
+        { fromA: DEEP, toA: DEEP, fromB: DEEP, toB: DEEP + CUE.length },
+      ]),
+    );
+    expect(first.advance()).toBeNull();
+    const second = parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "x" });
+    expectCold(second.tree, second.next);
+    let firstTree: Tree | null = null;
+    while (!firstTree) {
+      firstTree = first.advance();
+    }
+    expectCold(firstTree, firstText);
+  });
+
   test("a state two generations back is no longer reusable and parses cold", () => {
     const base = getParser().parse(TEXT);
     const child = parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
