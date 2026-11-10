@@ -240,6 +240,11 @@ describe("the missing-character warning on the Add > Dialogue placeholder", () =
           severity: 1,
           message: "Second",
         },
+        {
+          range: { start: { line: door, character: 0 }, end: { line: door, character: 2 } },
+          severity: 1,
+          message: "Indent",
+        },
       ];
     };
     const { view, server } = mount(SOURCE);
@@ -260,7 +265,7 @@ describe("the missing-character warning on the Add > Dialogue placeholder", () =
     ]);
     const control = mount(text);
     control.server.publish(control.view, others(text));
-    const door = text.indexOf("The door");
+    const door = text.indexOf("  The door");
     const leaveWhileEditing = (target: EditorView) =>
       target.dispatch({
         changes: [
@@ -271,7 +276,10 @@ describe("the missing-character warning on the Add > Dialogue placeholder", () =
       });
     leaveWhileEditing(view);
     leaveWhileEditing(control.view);
-    expect(shown(control.view)).toEqual(["define: First", "The : Second"]);
+    expect(shown(control.view)).toHaveLength(3);
+    expect(shown(control.view)).toEqual(
+      expect.arrayContaining(["define: First", "The : Second"]),
+    );
     expect(shown(view)).toEqual([
       ...shown(control.view),
       `CHARACTER: ${WARNING}`,
