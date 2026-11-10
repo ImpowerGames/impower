@@ -1,4 +1,5 @@
 import { notifyFolderPathChanged } from "./folderPathChanges";
+import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
 
@@ -75,11 +76,16 @@ export function recordMove(
 ) {
   const move = async (from: string, to: string) => {
     const { Workspace } = await import("../workspace/Workspace");
+    const move = await renameOrReport(from, to, () =>
+      isDir
+        ? Workspace.fs.moveFolder(projectId, from, to)
+        : Workspace.fs.moveFile(projectId, from, to),
+    );
+    if (!move.renamed) {
+      throw new Error(`Rename of ${from} to ${to} was refused`);
+    }
     if (isDir) {
-      await Workspace.fs.moveFolder(projectId, from, to);
       notifyFolderPathChanged(from, to);
-    } else {
-      await Workspace.fs.moveFile(projectId, from, to);
     }
     await markProjectDirty();
   };
@@ -97,7 +103,12 @@ export function recordReferenceRename(
 ) {
   const rename = async (from: string, to: string) => {
     const { Workspace } = await import("../workspace/Workspace");
-    await Workspace.fs.renameFileWithReferences(projectId, from, to);
+    const rename = await renameOrReport(from, to, () =>
+      Workspace.fs.renameFileWithReferences(projectId, from, to),
+    );
+    if (!rename.renamed) {
+      throw new Error(`Rename of ${from} to ${to} was refused`);
+    }
     await markProjectDirty();
   };
   pushUndo({

@@ -211,6 +211,26 @@ describe("empty folders are directories in the workspace store", () => {
     ]);
   });
 
+  it("moves nothing when one file of a folder move would land on an existing file", async () => {
+    const root = seed(
+      {
+        ...MIGRATED,
+        "main.sd": "x",
+        "assets/source/occupied.png": "S",
+        "assets/source/other.png": "O",
+        "assets/target/occupied.png": "T",
+      },
+      [],
+    );
+    const fs = await load(root);
+    const before = stored(root);
+    await expect(fs.moveFolder(PROJECT, "assets/source", "assets/target")).rejects.toThrow(
+      /already exists/,
+    );
+    await settle();
+    expect(stored(root)).toEqual(before);
+  });
+
   it("undoes and redoes a folder move exactly", async () => {
     const root = seed({ ...MIGRATED, "main.sd": "x", "assets/a/x.png": "p" }, [
       "assets/a/inner",

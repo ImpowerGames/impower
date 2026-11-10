@@ -1416,6 +1416,74 @@ describe("renaming files (I-1910)", () => {
     expect([...fileAt(root, "y.txt")!.bytes]).toEqual([2]);
   });
 
+  it("refuses a rename onto an occupied file without either option and touches neither file", async () => {
+    const root = seed({ "a.txt": [1, 1], "b.txt": [2, 2] });
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("a.txt"), newUri: uriOf("b.txt") }],
+      }),
+    ).toHaveProperty("error");
+    expect([...fileAt(root, "a.txt")!.bytes]).toEqual([1, 1]);
+    expect([...fileAt(root, "b.txt")!.bytes]).toEqual([2, 2]);
+    expect(h.notifications("workspace/didRenameFiles")).toEqual([]);
+  });
+
+  it("replaces an occupied file when the rename asks to overwrite", async () => {
+    const root = seed({ "a.txt": [1, 1], "b.txt": [2, 2] });
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("a.txt"), newUri: uriOf("b.txt"), options: { overwrite: true } }],
+      }),
+    ).toHaveProperty("result");
+    expect(fileAt(root, "a.txt")).toBeUndefined();
+    expect([...fileAt(root, "b.txt")!.bytes]).toEqual([1, 1]);
+  });
+
+  it("skips a rename onto an occupied file when the rename asks to ignore it", async () => {
+    const root = seed({ "a.txt": [1, 1], "b.txt": [2, 2] });
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("a.txt"), newUri: uriOf("b.txt"), options: { ignoreIfExists: true } }],
+      }),
+    ).toHaveProperty("result");
+    expect([...fileAt(root, "a.txt")!.bytes]).toEqual([1, 1]);
+    expect([...fileAt(root, "b.txt")!.bytes]).toEqual([2, 2]);
+    expect(h.notifications("workspace/didRenameFiles")).toEqual([]);
+  });
+
+  it("refuses only the occupied entry of a batch and moves the rest", async () => {
+    const root = seed({ "a.txt": [1], "b.txt": [2], "c.txt": [3] });
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [
+          { oldUri: uriOf("a.txt"), newUri: uriOf("b.txt") },
+          { oldUri: uriOf("c.txt"), newUri: uriOf("d.txt") },
+        ],
+      }),
+    ).toHaveProperty("error");
+    expect(listMemory(root, "local")).toEqual(["a.txt", "b.txt", "d.txt"]);
+    expect([...fileAt(root, "b.txt")!.bytes]).toEqual([2]);
+    expect(h.notifications("workspace/didRenameFiles").map((m) => m.params.files)).toEqual([
+      [{ oldUri: uriOf("c.txt"), newUri: uriOf("d.txt") }],
+    ]);
+  });
+
+  it("reports an edit's refused rename onto an occupied file as not applied", async () => {
+    const root = seed({ "a.txt": [1], "b.txt": [2] });
+    const h = await worker(root);
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [{ kind: "rename", oldUri: uriOf("a.txt"), newUri: uriOf("b.txt") }] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect([...fileAt(root, "a.txt")!.bytes]).toEqual([1]);
+    expect([...fileAt(root, "b.txt")!.bytes]).toEqual([2]);
+  });
+
   it("keeps a save that lands on the source while the rename is writing its destination", async () => {
     const root = seed({ "a.sd": "OLD", "b.sd": "DEST" });
     const h = await worker(root);
@@ -1425,7 +1493,7 @@ describe("renaming files (I-1910)", () => {
       release = resolve;
     });
     h.start("rename", "workspace/willRenameFiles", {
-      files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+      files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } }],
     });
     await vi.advanceTimersByTimeAsync(250);
     expect(h.response("rename")).toBeUndefined();
@@ -1490,7 +1558,7 @@ describe("renaming files (I-1910)", () => {
     const h = await worker(root);
     expect(
       await h.request("rename", "workspace/willRenameFiles", {
-        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } }],
       }),
     ).toHaveProperty("error");
     expect(textAt(root, "a.sd")).toBe("SOURCE");
@@ -1510,7 +1578,7 @@ describe("renaming files (I-1910)", () => {
     const h = await worker(root);
     expect(
       await h.request("rename", "workspace/willRenameFiles", {
-        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } }],
       }),
     ).toHaveProperty("error");
     expect(textAt(root, "a.sd")).toBe("SOURCE");
