@@ -52,16 +52,19 @@ import {
   applyStartValues,
   bindStartArguments,
   carryStoreListing,
+  globalsDeclaredBy,
   startPlanKey,
   startPlanOf,
   startStoryAt,
   startingValueListing,
   startingValueTargets,
+  valueOfLiteral,
   type StartPlan,
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
 import {
   ownEntry,
+  parseLiteral,
   type StartingValueListing,
   type StartingValueSet,
   type StartingValues,
@@ -4256,11 +4259,38 @@ export class Game<T extends M = {}> {
     );
   }
 
+  protected _storyGlobals?: { root: unknown; names: Set<string> };
+
+  protected storyGlobalNames(): Set<string> {
+    const root = this._story.root;
+    if (this._storyGlobals?.root !== root) {
+      const names = new Set<string>();
+      for (const uri of Object.keys(this._program.scripts ?? {})) {
+        for (const chunk of root?.declarations(uri)?.arrays.chunks ?? []) {
+          for (const name of globalsDeclaredBy(root!, chunk)) {
+            names.add(name);
+          }
+        }
+      }
+      this._storyGlobals = { root, names };
+    }
+    return this._storyGlobals.names;
+  }
+
   getVarVariables(): Variable[] {
+    return this.globalVariables(true);
+  }
+
+  getBuiltinVariables(): Variable[] {
+    return this.globalVariables(false);
+  }
+
+  protected globalVariables(story: boolean): Variable[] {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
+    const declared = this.storyGlobalNames();
     for (const name of variableState["_globalVariables"].keys()) {
-      if (name.indexOf("$") > 0) {
+      if (name.indexOf("$") > 0 || declared.has(name) !== story) {
         continue;
       }
       const globalObj = variableState.GetGlobalVariableValue(name);
@@ -4296,10 +4326,8 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  getTempVariables(threadId?: number, frameId?: number): Variable[] {
-    const variables: Variable[] = [];
-    const variableState = this._story.state.variablesState;
-    const callStack = variableState.callStack;
+  protected tempFrame(threadId?: number, frameId?: number) {
+    const callStack = this._story.state.variablesState.callStack;
     const thread =
       threadId != null
         ? callStack.ThreadWithIndex(threadId)
@@ -4309,7 +4337,57 @@ export class Game<T extends M = {}> {
       (threadId != null && thread
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
-    const contextElement = thread?.callstack[frameIndex];
+    return { thread, frameIndex, element: thread?.callstack[frameIndex] };
+  }
+
+  setVariable(
+    scope: "vars" | "temps",
+    name: string,
+    text: string,
+    threadId?: number,
+    frameId?: number,
+  ): Variable {
+    const parsed = parseLiteral(text);
+    if (!parsed.ok) {
+      throw new Error(
+        `${parsed.error.charAt(0).toUpperCase()}${parsed.error.slice(1)}.`,
+      );
+    }
+    const value = valueOfLiteral(parsed.value);
+    const variableState = this._story.state.variablesState;
+    if (scope === "vars") {
+      if (
+        name.includes("$") ||
+        !variableState.GlobalVariableExistsWithName(name)
+      ) {
+        throw new Error(`${name} is not a story value.`);
+      }
+      variableState.SetGlobal(name, value);
+    } else {
+      const scopes = this.tempFrame(threadId, frameId).element?.temporaryScopes ?? [];
+      const held = name.includes("$")
+        ? undefined
+        : scopes.findLast((scoped) => scoped.has(name));
+      if (!held) {
+        throw new Error(`${name} is not a local value in this frame.`);
+      }
+      if (held.get(name) instanceof VariablePointerValue) {
+        throw new Error(`Change ${name} where it is declared.`);
+      }
+      held.set(name, value);
+    }
+    return this.getVariableInfo(name, this.getRuntimeValue(value), {
+      kind: "data",
+      visibility: scope === "vars" ? "public" : "private",
+    });
+  }
+
+  getTempVariables(threadId?: number, frameId?: number): Variable[] {
+    const variables: Variable[] = [];
+    const { thread, frameIndex, element: contextElement } = this.tempFrame(
+      threadId,
+      frameId,
+    );
     const programScope = this._story.debugFrames(thread?.threadIndex ?? 0)?.[
       frameIndex
     ]?.scope;

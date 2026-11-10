@@ -130,8 +130,7 @@ describe("the web editor's debug client", () => {
     await vi.waitFor(() => expect(onStop).toHaveBeenCalledWith({ uri: MAIN, line: 9 }));
     expect(workspace.debugSession.value.stopped).toEqual({ reason: "step", threadId: 0 });
     expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(2);
-    expect(fake.requests.at(-1)).toMatchObject({
-      command: "stackTrace",
+    expect(fake.requests.findLast((r) => r.command === "stackTrace")).toMatchObject({
       arguments: { threadId: 0 },
     });
     fake.event("continued", { threadId: 0, allThreadsContinued: true });

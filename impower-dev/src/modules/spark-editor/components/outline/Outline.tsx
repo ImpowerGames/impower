@@ -1,8 +1,6 @@
 import {
   BranchIcon,
   Button,
-  ChevronDownIcon,
-  ChevronIcon,
   ChooseIcon,
   ErrorIcon,
   FileIcon,
@@ -10,6 +8,7 @@ import {
   ListRowBadge,
   SceneIcon,
   SearchIcon,
+  TreeToggle,
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
@@ -131,30 +130,6 @@ function RowIcon({ row }: { row: OutlineRow }) {
   return <Glyph />;
 }
 
-function Disclosure({
-  expanded,
-  label,
-  onToggle,
-}: {
-  expanded: boolean;
-  label: string;
-  onToggle: () => void;
-}) {
-  return (
-    <Button
-      variant="quiet"
-      size="icon"
-      class="text-muted [&_svg]:size-3.5"
-      aria-expanded={expanded}
-      aria-label={label}
-      title={label}
-      onClick={onToggle}
-    >
-      {expanded ? <ChevronDownIcon /> : <ChevronIcon />}
-    </Button>
-  );
-}
-
 function Heading({
   title,
   action,
@@ -274,7 +249,7 @@ export default function Outline() {
                     }
                     actions={
                       row.expanded === undefined ? undefined : (
-                        <Disclosure
+                        <TreeToggle
                           expanded={row.expanded}
                           label={`${row.expanded ? "Collapse" : "Expand"} scene ${row.label}`}
                           onToggle={() =>

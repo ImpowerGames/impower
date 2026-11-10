@@ -16,6 +16,7 @@ import {
   scopedProblems,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
+import { DebugCardsList } from "./debugCards";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
 
@@ -76,7 +77,13 @@ export default function ProblemsDialog() {
             : scopeContext(state.scope)}
         </p>
       ) : null}
-      <div class="-mx-2 max-h-[60vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]">
+      <div
+        class={
+          state?.scope.kind === "story"
+            ? "-mx-2 max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+            : "-mx-2 max-h-[60vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
+        }
+      >
         {groups.map((group) => (
           <div key={group.path} class="pt-1 pb-0.5">
             {headings ? (
@@ -109,6 +116,7 @@ export default function ProblemsDialog() {
           </div>
         ))}
       </div>
+      {state?.scope.kind === "story" ? <DebugCardsList /> : null}
     </Dialog>
   );
 }

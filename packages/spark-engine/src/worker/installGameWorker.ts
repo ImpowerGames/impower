@@ -31,6 +31,7 @@ import { SetGameStartingValuesMessage } from "../game/core/classes/messages/SetG
 import { GetGameStartingValueListingMessage } from "../game/core/classes/messages/GetGameStartingValueListingMessage";
 import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { SetGameDataBreakpointsMessage } from "../game/core/classes/messages/SetGameDataBreakpointsMessage";
+import { SetGameVariableMessage } from "../game/core/classes/messages/SetGameVariableMessage";
 import { SetGameFunctionBreakpointsMessage } from "../game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { SetGameStartFromMessage } from "../game/core/classes/messages/SetGameStartFromMessage";
 import { SimulateGameRouteMessage } from "../game/core/classes/messages/SimulateGameRouteMessage";
@@ -435,6 +436,19 @@ export function installGameWorker(connection: MessageConnection) {
       });
       return;
     }
+    if (SetGameVariableMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = target();
+        if (!game) {
+          throw new NoGameError();
+        }
+        const { scope, name, value, threadId, frameId } = message.params;
+        return {
+          variable: game.setVariable(scope, name, value, threadId, frameId),
+        };
+      });
+      return;
+    }
     if (GetGameEvaluationContextMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         const game = target();
@@ -505,6 +519,10 @@ export function installGameWorker(connection: MessageConnection) {
         }
         if (scope === "vars") {
           const variables = game.getVarVariables();
+          return { variables };
+        }
+        if (scope === "builtins") {
+          const variables = game.getBuiltinVariables();
           return { variables };
         }
         if (scope === "defines") {

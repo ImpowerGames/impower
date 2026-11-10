@@ -6,7 +6,7 @@ import type { Variable } from "../../types/Variable";
 export type GetGameVariablesMethod = typeof GetGameVariablesMessage.method;
 
 export interface GetGameVariablesParams {
-  scope: "vars" | "defines" | "temps" | "children" | "value";
+  scope: "vars" | "builtins" | "defines" | "temps" | "children" | "value";
   value?: any;
   variablesReference?: number;
   threadId?: number;

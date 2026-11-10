@@ -48,6 +48,48 @@ export const IDLE_DEBUG_SESSION: DebugSessionState = {
   breakpoints: {},
 };
 
+export interface InspectedFrame {
+  id: number;
+  name: string;
+  uri: string;
+  line: number;
+  character: number;
+  path: string;
+  inProject: boolean;
+}
+
+export type WatchResult = { value: string } | { error: string };
+
+export interface DebugInspectionState {
+  status: "none" | "running" | "paused";
+  frames: readonly InspectedFrame[];
+  frameId: number | null;
+  scopes: readonly DebugProtocol.Scope[];
+  variables: Readonly<Record<string, readonly DebugProtocol.Variable[]>>;
+  refs: Readonly<Record<string, number>>;
+  expanded: Readonly<Record<string, boolean>>;
+  messages: Readonly<Record<string, string>>;
+  editing: string | null;
+  watch: Readonly<Record<string, WatchResult>>;
+  watchEditing: number | null;
+  breaking: Readonly<Record<string, string>>;
+}
+
+export const IDLE_DEBUG_INSPECTION: DebugInspectionState = {
+  status: "none",
+  frames: [],
+  frameId: null,
+  scopes: [],
+  variables: {},
+  refs: {},
+  expanded: {},
+  messages: {},
+  editing: null,
+  watch: {},
+  watchEditing: null,
+  breaking: {},
+};
+
 const defaults: WorkspaceCache = {
   project: { id: "" },
   pane: "logic",
@@ -182,6 +224,12 @@ class WorkspaceStore {
   readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
 
   readonly debugSession = signal<DebugSessionState>(IDLE_DEBUG_SESSION);
+
+  readonly debugInspection = signal<DebugInspectionState>(IDLE_DEBUG_INSPECTION);
+
+  readonly watchExpressions = computed<readonly string[]>(
+    () => this.state.value.debug?.watch ?? [],
+  );
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

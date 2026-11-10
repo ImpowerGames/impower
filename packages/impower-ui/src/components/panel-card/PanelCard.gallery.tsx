@@ -5,6 +5,7 @@ import {
   PANEL_CARD_HEIGHT,
   PanelCardAction,
   PanelCardHead,
+  PanelCardNote,
   PanelCardRow,
   type PanelCardRowPart,
 } from "./PanelCard";
@@ -18,7 +19,7 @@ function PanelCardDemo() {
   const [open, setOpen] = useState({ script: true, played: false });
   return (
     <div class="max-w-md space-y-4">
-      <GalleryRow label={`A head per card (open and folded), body rows (${PARTS.body}) and its ${PARTS.end} row; heads are ${PANEL_CARD_HEIGHT.head}px, ends ${PANEL_CARD_HEIGHT.end}px`}>
+      <GalleryRow label={`A head per card (open and folded), body rows (${PARTS.body}) and its ${PARTS.end} row; heads are ${PANEL_CARD_HEIGHT.head}px, notes ${PANEL_CARD_HEIGHT.note}px, ends ${PANEL_CARD_HEIGHT.end}px`}>
         <div>
           <div class="h-[50px]">
             <PanelCardHead
@@ -30,10 +31,8 @@ function PanelCardDemo() {
           </div>
           {open.script ? (
             <>
-              <div class="h-11">
-                <PanelCardRow part="body">
-                  <p class="m-0 px-2 py-3 text-[13px]/[1.5] text-muted">No problems.</p>
-                </PanelCardRow>
+              <div class="h-[52px]">
+                <PanelCardNote>No problems.</PanelCardNote>
               </div>
               <div class="h-[15px]">
                 <PanelCardRow part="end" />
@@ -66,6 +65,7 @@ export const panelCardGallery: GalleryEntry = {
     "PanelCardHead",
     "PanelCardRow",
     "PanelCardAction",
+    "PanelCardNote",
     "panelCardHeadVariants",
     "panelCardRowVariants",
     "PANEL_CARD_HEIGHT",

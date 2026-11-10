@@ -56,6 +56,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "sheetVariants",
   "sidebarLayoutVariants",
   "toastVariants",
+  "treeToggleVariants",
   "useCoarsePointer",
   "useHoldRepeat",
   "useLayout",
