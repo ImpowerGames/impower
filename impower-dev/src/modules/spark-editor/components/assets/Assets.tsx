@@ -116,7 +116,9 @@ type Heading = { kind: "heading"; type: AssetType; title: string };
 
 type Item = Heading | AssetRow;
 
-const intents = async () => (await import("../../workspace/Workspace")).Workspace;
+let workspaceModule: Promise<typeof import("../../workspace/Workspace")> | undefined;
+
+const intents = async () => (await (workspaceModule ??= import("../../workspace/Workspace"))).Workspace;
 
 const run = async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
   try {
@@ -340,6 +342,7 @@ function AssetsBrowser() {
           icon={<RowGlyph row={row} listing={listing} />}
           label={`Rename ${row.name}`}
           refocusOnce
+          wrapError={tiles}
           initial={stem}
           suffix={extension}
           onCancel={() => setRenaming(null)}

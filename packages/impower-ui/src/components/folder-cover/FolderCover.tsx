@@ -39,7 +39,7 @@ export default function FolderCover({ sources, class: className }: FolderCoverPr
       {count === 0 ? (
         <FolderIcon class="col-span-2 row-span-2 size-[30px] place-self-center text-muted" />
       ) : (
-        <span class="absolute bottom-1.5 left-1.5 flex size-6 items-center justify-center rounded-[7px] bg-popup/90 text-ink shadow-sm [&>svg]:size-3.5">
+        <span class="absolute bottom-1.5 left-1.5 flex size-6 items-center justify-center rounded-[7px] bg-media-badge text-media-badge-ink [&>svg]:size-3.5">
           <FolderIcon />
         </span>
       )}

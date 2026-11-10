@@ -6,7 +6,7 @@ import { variantsLabel } from "../variants-chip/VariantsChip";
 const shortNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
 export const variantsBadgeVariants = cva(
-  "pointer-events-none inline-flex flex-none items-center gap-[3px] rounded-full bg-popup/90 font-semibold text-ink shadow-sm",
+  "pointer-events-none inline-flex flex-none items-center gap-[3px] rounded-full bg-media-badge font-semibold text-media-badge-ink",
   {
     variants: {
       size: {

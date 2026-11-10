@@ -481,7 +481,9 @@ is `--bg` outside Midnight and Dusk (`folio-themes.css:319-325`), line numbers a
 info problem colour are `--muted` (`folio-editor.css:39`, `:57`), the indentation guides
 are the derived colours above (`folio-editor.css:71`), and focus, links and the current
 selection's accents are `--accent`. The sticky header shadow takes the one-third black
-of the popovers (`folio-hierarchy.css:918`). The one value the themes do not share
+of the popovers (`folio-hierarchy.css:918`). A badge laid over a picture, `--media-badge`
+on `--media-badge-ink`, is the prototype's fixed dark pill in every theme, Midnight and Dusk
+included, because it sits on the picture rather than on a surface. The one value the themes do not share
 is the modal backdrop `--scrim`, declared in each theme's own block from the overlay
 strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in the dark themes (`app.css:1093-1094`)
 and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
@@ -500,6 +502,8 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--focus-ring` | `var(--accent)` | Focus edge |
 | `--error-strong` | `var(--error)` | Problem colour: error |
 | `--warning-strong` | `var(--warning)` | Problem colour: warning |
+| `--media-badge` | `rgb(0 0 0 / 0.67)` | Badge laid over a picture: the variants count and the folder mark on a cover, `folio-assets.css:280` (`#000a`) |
+| `--media-badge-ink` | `rgb(255 255 255)` | Ink of a badge laid over a picture, `folio-assets.css:280` (`#fff`) |
 | `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
 | `--editor-line-number-active` | `var(--ink)` | Ink |
 | `--editor-indent-guide` | `color-mix(in srgb, var(--muted) 22%, transparent)` | `--guide`, `folio-themes.css:905` |

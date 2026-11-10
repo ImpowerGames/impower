@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   recordReferenceRename: vi.fn(),
   recordTrashDeletion: vi.fn(async () => undefined),
   recordCreate: vi.fn(),
+  recordRenames: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({ importFiles: mocks.importFiles }));
 vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
@@ -13,6 +14,7 @@ vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
   recordReferenceRename: mocks.recordReferenceRename,
   recordTrashDeletion: mocks.recordTrashDeletion,
   recordCreate: mocks.recordCreate,
+  recordRenames: mocks.recordRenames,
 }));
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");

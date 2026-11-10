@@ -51,7 +51,6 @@ let host: HTMLDivElement | undefined;
 
 const settle = () =>
   act(async () => {
-    await vi.dynamicImportSettled();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
@@ -430,6 +429,11 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Cast" } } };
     await mount();
     await settle();
+    expect(assets.measureImages).toHaveBeenCalledWith([
+      "Assets/Images/Cast/ada.png",
+      "Assets/Images/Cast/kai.png",
+      "Assets/Images/Cast/sky.png",
+    ]);
     expect(workspace.assetSizes.value).toMatchObject({
       "/p/3001": { width: 300, height: 400 },
       "/p/3003": { width: 640, height: 400 },
@@ -471,5 +475,38 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     await settle();
     expect(workspace.assetSizes.value["/p/5012"]).toEqual({ width: 300, height: 400 });
     expect(tileShapes()).toEqual(["portrait", "portrait"]);
+  });
+});
+
+describe("renaming a stacked picture shown as a tile", () => {
+  it("shows the whole error message under the field in the tile", async () => {
+    setListing({
+      "Assets/Images/Portraits/imani.png": facts(6001),
+      "Assets/Images/Portraits/imani@night.png": facts(6002),
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    const message = "That name is already in use in this folder.";
+    assets.renameStack.mockRejectedValueOnce(new Error(message));
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for imani"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Rename"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Rename")));
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!;
+    expect(input.value).toBe("imani");
+    await act(async () => {
+      input.value = "kai";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.renameStack).toHaveBeenCalledWith(
+      ["Assets/Images/Portraits/imani.png", "Assets/Images/Portraits/imani@night.png"],
+      "imani",
+      "kai",
+    );
+    const alert = host!.querySelector<HTMLElement>('[role="alert"]')!;
+    expect(alert.textContent).toBe(message);
+    expect(alert.closest("small")!.className).toContain("whitespace-normal");
+    expect(alert.closest("small")!.className).not.toContain("fade-edge");
   });
 });

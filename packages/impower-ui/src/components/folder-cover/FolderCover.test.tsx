@@ -30,6 +30,7 @@ describe("FolderCover", () => {
       "/4.png",
     ]);
     expect(cover.querySelectorAll("svg").length).toBe(1);
+    expect(cover.querySelector("svg")!.parentElement!.className).toContain("bg-media-badge");
   });
 
   it("shows the folder glyph alone when the folder holds no pictures", async () => {

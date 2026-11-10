@@ -71,6 +71,8 @@
   --color-error-strong: var(--error-strong);
   --color-warning-strong: var(--warning-strong);
   --color-scrim: var(--scrim);
+  --color-media-badge: var(--media-badge);
+  --color-media-badge-ink: var(--media-badge-ink);
   --color-stage: var(--stage);
 
   --color-foreground: var(--ink);

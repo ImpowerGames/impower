@@ -23,5 +23,7 @@ describe("VariantsBadge", () => {
     expect(badge.querySelector("svg")).not.toBeNull();
     expect(badge.textContent).toBe("1.5K");
     expect(badge.className).toContain("pointer-events-none");
+    expect(badge.className).toContain("bg-media-badge");
+    expect(badge.className).toContain("text-media-badge-ink");
   });
 });

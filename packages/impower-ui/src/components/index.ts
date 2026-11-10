@@ -58,6 +58,7 @@ export {
   type ListRowProps,
   type ListRowBadgeProps,
   type ListRowSize,
+  type ListRowDescriptionFit,
   type ListRowState,
   type ListRowTone,
   type ListRowLabelOverflow,
