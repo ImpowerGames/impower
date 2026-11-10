@@ -17,10 +17,27 @@ export type LocalScope = { from: number; to: number };
 const LOCAL_ONLY: ReadonlySet<string> = new Set(["local"]);
 
 export const LOCAL_SCOPE_NODES = {
-  functionLike: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition"]),
-  parameterOwnerContents: nodeNameSet(["LuauFunctionDefinition_content", "LuauMethodDefinition_content"]),
-  parameterOwners: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauComponent", "Scene", "Branch"]),
-  constScopes: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauSparkleHandlerClosure"]),
+  functionLike: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauFunctionTypeDeclaration"]),
+  parameterOwnerContents: nodeNameSet([
+    "LuauFunctionDefinition_content",
+    "LuauMethodDefinition_content",
+    "LuauFunctionTypeDeclaration_content",
+  ]),
+  parameterOwners: nodeNameSet([
+    "LuauFunctionDefinition",
+    "LuauMethodDefinition",
+    "LuauFunctionTypeDeclaration",
+    "LuauComponent",
+    "Scene",
+    "Branch",
+  ]),
+  constScopes: nodeNameSet([
+    "LuauFunctionDefinition",
+    "LuauMethodDefinition",
+    "LuauFunctionTypeDeclaration",
+    "LuauSparkleHandlerClosure",
+  ]),
+  rootNames: nodeNameSet(["LuauVariableName", "LuauFunctionName", "LuauStdLibConstants", "LuauStdLibGlobals"]),
   forLoopContents: nodeNameSet([
     "LuauForLoop_content",
     "LuauSparkdownForLoop_content",

@@ -14,8 +14,10 @@ import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
   VARIABLE_DEFINITION_NAMES,
   assignmentListName,
+  isBareDeclarationTarget,
   valueListAssignmentName,
 } from "./variableDefinitionNames";
+import { soleVariableName } from "../lint/luauTree";
 
 export const ROOT_ONLY = "only";
 
@@ -402,6 +404,11 @@ function declaredNameNodes(node: SyntaxNode): SyntaxNode[] {
   for (let content = node.firstChild; content; content = content.nextSibling) {
     if (!VARIABLE_DEFINITION_CONTENT_NAMES.has(content.name)) continue;
     for (let inner = content.firstChild; inner; inner = inner.nextSibling) {
+      const bare = isExplicitRuleName(inner.name, "LuauAccessPath") ? soleVariableName(inner) : null;
+      if (bare && isBareDeclarationTarget(bare)) {
+        names.push(bare);
+        continue;
+      }
       if (
         !isExplicitRuleName(inner.name, "LuauVariableAssignment") ||
         valueListAssignmentName(inner)

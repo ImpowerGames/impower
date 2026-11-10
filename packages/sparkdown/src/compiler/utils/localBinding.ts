@@ -1,5 +1,4 @@
 import { type SyntaxNode, type Tree } from "@lezer/common";
-import { isBareDeclarationTarget } from "../classes/annotators/DeclarationAnnotator";
 import { ancestorMatching } from "./ancestorMatching";
 import { EXPLICIT } from "./declarationOnly";
 import { isExplicitRuleName } from "./explicitRuleNames";
@@ -7,7 +6,7 @@ import { findChildByName } from "./findChildByName";
 import { getLocalScope, LOCAL_SCOPE_NODES } from "./localScopes";
 import { nodeNameSet } from "./nodeNameSet";
 import { CHOOSE_BLOCKS, RootLocals, THEN_CLAUSES } from "./rootLocals";
-import { VARIABLE_DEFINITION_NAMES, valueListAssignmentName } from "./variableDefinitionNames";
+import { VARIABLE_DEFINITION_NAMES, isBareDeclarationTarget, valueListAssignmentName } from "./variableDefinitionNames";
 
 type Read = (from: number, to: number) => string;
 
@@ -23,6 +22,7 @@ const {
   untilConditions,
   eventHandlers,
   eventParameters,
+  rootNames,
 } = LOCAL_SCOPE_NODES;
 const FLOW_CONTAINERS = new Set([...CHOOSE_BLOCKS, ...THEN_CLAUSES, ...EXPLICIT]);
 const FUNCTION_PARAMETER = nodeNameSet(["LuauFunctionParameter"]);
@@ -182,8 +182,7 @@ export class LocalBindings {
     while (
       node &&
       node.from === at &&
-      node.name !== "LuauVariableName" &&
-      node.name !== "LuauFunctionName" &&
+      !rootNames.has(node.name) &&
       node.name !== "LuauFunctionParameter"
     ) {
       node = node.parent;

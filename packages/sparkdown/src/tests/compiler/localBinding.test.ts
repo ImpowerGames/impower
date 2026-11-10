@@ -278,6 +278,24 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("settings", 3)).toBeNull();
   });
 
+  test("a type function's parameter binds inside the type function", () => {
+    const { bindingOf, offset } = bindingsOf("type function Optional(t)\n  return types.unionof(t, types.singleton(nil))\nend\n");
+    expect(bindingOf("t,")).toBe(offset("(t)") + 1);
+  });
+
+  test("a parameter named like a standard-library constant binds its reads", () => {
+    const { bindingOf, offset } = bindingsOf('function f(n: number, lang: string): string\n  if lang == "en" then\n    return "one"\n  end\n  return "other"\nend\n');
+    expect(bindingOf("lang", 2)).toBe(offset("lang", 1));
+  });
+
+  test.each([
+    ["on its own line", "scene s\n  & local settings x = settings\nend\n"],
+    ["on the next explicit line", "scene s\n  & local settings\n  & x = settings\nend\n"],
+  ])("a bare local in a scene binds a later read %s", (_, source) => {
+    const { bindingOf, offset } = bindingsOf(source);
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();

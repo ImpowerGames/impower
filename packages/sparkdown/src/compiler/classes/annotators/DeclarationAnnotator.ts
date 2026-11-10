@@ -1,15 +1,11 @@
-import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
-  VARIABLE_DEFINITION_CONTENT_NAMES,
   VARIABLE_DEFINITION_NAMES,
+  isBareDeclarationTarget,
   isValueListName,
-  ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
-import { soleVariableName } from "../../lint/luauTree";
 import { Range } from "@codemirror/state";
-import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -27,31 +23,6 @@ export type DeclarationType =
   | "end";
 
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
-const ACCESS_PATH = nodeNameSet(["LuauAccessPath"]);
-const BEFORE_BARE_TARGET = nodeNameSet([
-  "LuauVariableAssignment",
-  "LuauAccessPath",
-  "LuauCommaSeparator",
-  "LuauCommaLineBreak",
-  "OptionalWhitespace",
-  "ExtraWhitespace",
-  "RequiredWhitespace",
-]);
-
-export function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
-  const path = ancestorMatching(node, ACCESS_PATH, 6);
-  if (!path?.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(path.parent.name)) {
-    return false;
-  }
-  if (soleVariableName(path)?.from !== node?.from) return false;
-  for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
-    if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
-    if (isExplicitRuleName(prev.name, "LuauVariableAssignment") && ownAssignmentOperation(prev)) {
-      return false;
-    }
-  }
-  return true;
-}
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 export class DeclarationAnnotator extends SparkdownAnnotator<
