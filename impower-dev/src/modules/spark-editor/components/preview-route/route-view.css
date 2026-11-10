@@ -1,10 +1,11 @@
-swp-route-view {
+:root swp-route-view {
   --swp-toolbar-button-gap: 6px;
   --swp-toolbar-font-size: 12px;
   --swp-toolbar-icon-size: 16px;
   --swp-background-color: var(--panel);
   --swp-error-color: var(--error);
   --swp-accent-color: var(--accent);
+  --swp-toolbar-color: var(--ink);
   --swp-toolbar-border-color: var(--edge);
   --swp-toolbar-button-hover-color: var(--control-hover);
   --swp-toolbar-button-active-color: var(--tint);

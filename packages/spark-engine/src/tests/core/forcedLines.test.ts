@@ -263,28 +263,44 @@ describe("the lines a route ran only because a branch was forced", () => {
     expect(forced).not.toContain(7);
   }, 120_000);
 
-  test("a forced step and an unforced step on one line leave that line unforced when it also ran before", () => {
-    const { route } = preview(
-      [
-        "store flag = false",
-        "store n = 0",
-        "",
-        "scene start",
-        "  for i = 1, 2 do",
-        "    n += 1; Step {n}.",
-        "    if flag and i == 2 then",
-        "      Target.",
-        "    end",
-        "  end",
-        "end",
-        "",
+  test("different steps on one line: the line stays solid when one ran before the forced verdict", () => {
+    const game: any = Object.create(Game.prototype);
+    const lineOf: Record<number, number> = { 1: 4, 10: 6, 11: 6, 12: 7 };
+    game.scriptLocationOf = (address: number) => [0, lineOf[address], 0, lineOf[address], 1];
+    game.scriptUri = () => URI;
+    const steps = [
+      { address: 10, decision: -1 },
+      { address: 1, decision: 0 },
+      { address: 11, decision: 0 },
+      { address: 12, decision: 0 },
+    ];
+    const plan = { decisions: [{ kind: "condition", site: 1, value: true, departs: true }], steps };
+    expect(steps.filter((s) => s.decision < 0).map((s) => lineOf[s.address])).toEqual([6]);
+    expect(steps.filter((s) => s.decision >= 0 && s.address !== 1).map((s) => [s.address, lineOf[s.address]])).toEqual([
+      [11, 6],
+      [12, 7],
+    ]);
+    const forced = game.forcedLinesOf(plan, 0);
+    expect(expandLineRanges(forced[URI]).map((line: number) => line + 1)).toEqual([8]);
+  });
+
+  test("a step after the forced verdict on a line no earlier step ran is forced, in every script it runs in", () => {
+    const game: any = Object.create(Game.prototype);
+    const at: Record<number, [number, number]> = { 1: [0, 4], 20: [0, 5], 30: [1, 2] };
+    game.scriptLocationOf = (address: number) => [at[address]![0], at[address]![1], 0, at[address]![1], 1];
+    game.scriptUri = (script: number) => (script === 0 ? URI : LIB_URI);
+    const plan = {
+      decisions: [{ kind: "condition", site: 1, value: true, departs: true }],
+      steps: [
+        { address: 1, decision: 0 },
+        { address: 20, decision: 0 },
+        { address: 30, decision: 0 },
       ],
-      8,
-    );
-    const forced = forcedIn(route);
-    expect(forced).toContain(8);
-    expect(forced).not.toContain(6);
-  }, 120_000);
+    };
+    const forced = game.forcedLinesOf(plan, 0);
+    expect(expandLineRanges(forced[URI]).map((line: number) => line + 1)).toEqual([6]);
+    expect(expandLineRanges(forced[LIB_URI]).map((line: number) => line + 1)).toEqual([3]);
+  });
 
   test("a route that forced nothing reports no forced lines", () => {
     const { route } = preview(
