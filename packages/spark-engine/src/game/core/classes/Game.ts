@@ -4254,15 +4254,25 @@ export class Game<T extends M = {}> {
     return context;
   }
 
-  protected plainValue(valueObj: InkObject | null, depth = 0): unknown {
+  protected plainValue(
+    valueObj: InkObject | null,
+    within: ReadonlySet<InkObject> = new Set(),
+  ): unknown {
     const value = this.getRuntimeValue(valueObj);
-    if (!this.isTableRecord(value) || depth > 8) {
+    if (!this.isTableRecord(value)) {
       return value;
     }
+    const path = new Set(within).add(valueObj!);
     const record: Record<string, unknown> = Object.create(null);
     for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-      record[key] =
-        entry instanceof ObjectValue ? this.plainValue(entry, depth + 1) : entry;
+      if (entry instanceof ObjectValue && (path.has(entry) || path.size > 8)) {
+        continue;
+      }
+      const plain =
+        entry instanceof ObjectValue ? this.plainValue(entry, path) : entry;
+      if (isEvaluable(plain)) {
+        record[key] = plain;
+      }
     }
     return record;
   }
@@ -4438,11 +4448,18 @@ export class Game<T extends M = {}> {
     if (!entries.has(key)) {
       throw new Error(`${key} is not in ${where}.`);
     }
-    this._story.state.variablesState.WriteBarrier(table);
+    if (table.isFrozen) {
+      throw new Error(`${where} is read-only.`);
+    }
+    const variableState = this._story.state.variablesState;
+    variableState.WriteBarrier(table);
     if (value instanceof NullValue) {
       entries.delete(key);
     } else {
       entries.set(key, value);
+    }
+    if (variableState.reactiveDepsEnabled) {
+      variableState.recordReactiveTableChange(entries);
     }
     return this.getVariableInfo(key, this.getRuntimeValue(value), {
       kind: "property",

@@ -76,6 +76,25 @@ describe("the evaluation context a watch reads", () => {
     });
   });
 
+  it("gives a table that holds itself, without the cycle, so its other fields still resolve", () => {
+    const game = pausedGame(
+      [
+        "store party = {name = \"Ada\"}",
+        "",
+        "scene start",
+        "  party.self = party",
+        "  Ready.",
+        "  done",
+        "end",
+        "",
+      ].join("\n"),
+      4,
+    );
+    expect(plain(game.getEvaluationContext(undefined, undefined, "party"))).toEqual({
+      party: { name: "Ada" },
+    });
+  });
+
   it("gives nothing for a name the frame does not hold, and keeps tables out of the whole context a hover reads", () => {
     const game = pausedGame(SOURCE, 6);
     expect(plain(game.getEvaluationContext(undefined, undefined, "silver"))).toEqual({});

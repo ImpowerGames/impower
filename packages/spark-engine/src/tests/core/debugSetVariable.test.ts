@@ -177,4 +177,24 @@ describe("changing a value from the Variables view", () => {
       "9 is not in party.",
     );
   });
+
+  it("refuses a field of a frozen table, as the story itself would", () => {
+    const { game, startAt } = debugGame(
+      [
+        "store sealed = table.freeze({\"Ada\"})",
+        "",
+        "scene start",
+        "  local open = 1",
+        "  Ready.",
+        "  done",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    startAt(4);
+    const sealed = game.getVarVariables().find((v) => v.name === "sealed")!;
+    expect(() => game.setChildVariable(sealed.variablesReference, "1", "\"Lin\"")).toThrow(
+      "sealed is read-only.",
+    );
+  });
 });

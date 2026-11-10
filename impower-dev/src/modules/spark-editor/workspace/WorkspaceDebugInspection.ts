@@ -35,13 +35,16 @@ export const DEBUG_INSPECTION_TEXT = {
 
 const SEPARATOR = "/";
 
-const scopeKey = (scope: DebugProtocol.Scope) => `scope:${scope.name}`;
+const scopeKey = (scope: DebugProtocol.Scope) =>
+  `scope:${encodeURIComponent(scope.name)}`;
 
-const childKey = (parent: string, name: string) => `${parent}${SEPARATOR}${name}`;
+const childKey = (parent: string, name: string) =>
+  `${parent}${SEPARATOR}${encodeURIComponent(name)}`;
 
 const parentOf = (key: string) => key.slice(0, key.lastIndexOf(SEPARATOR));
 
-const nameOf = (key: string) => key.slice(key.lastIndexOf(SEPARATOR) + 1);
+const nameOf = (key: string) =>
+  decodeURIComponent(key.slice(key.lastIndexOf(SEPARATOR) + 1));
 
 const scopeRank = (scope: DebugProtocol.Scope) =>
   scope.expensive ? 2 : scope.presentationHint === "locals" ? 1 : 0;
@@ -266,12 +269,14 @@ export default class WorkspaceDebugInspection {
     const generation = this._generation;
     const loaded = { variables: {}, refs: {} };
     await this.load(key, ref, loaded, generation);
-    if (generation === this._generation) {
-      this.update({
-        variables: { ...this.state.variables, ...loaded.variables },
-        refs: { ...this.state.refs, ...loaded.refs },
-      });
+    if (generation !== this._generation) {
+      return;
     }
+    this.update({
+      variables: { ...this.state.variables, ...loaded.variables },
+      refs: { ...this.state.refs, ...loaded.refs },
+    });
+    await this.markBreaking(generation);
   }
 
   edit(key: string | null) {

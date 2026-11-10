@@ -18,6 +18,8 @@ const VARS_REF = 11;
 const TEMPS_REF = 12;
 const DEFINES_REF = 13;
 const PARTY_REF = 21;
+const BAG_REF = 31;
+const BAG_A_REF = 32;
 
 const story = () => {
   const values: Record<string, string> = { gold: "3", mood: "\"calm\"" };
@@ -26,6 +28,7 @@ const story = () => {
   let noData = false;
   let names = ["shop", "start"];
   let empty = false;
+  let withBag = false;
   const answer = (request: DebugProtocol.Request): Answer => {
     const args = request.arguments as Record<string, any>;
     switch (request.command) {
@@ -59,9 +62,23 @@ const story = () => {
               variables: [
                 ...Object.entries(values).map(([name, value]) => ({ name, value, variablesReference: 0 })),
                 { name: "party", value: "{...}", variablesReference: PARTY_REF },
+                ...(withBag ? [{ name: "bag", value: "{...}", variablesReference: BAG_REF }] : []),
               ],
             },
           };
+        }
+        if (ref === BAG_REF) {
+          return {
+            body: {
+              variables: [
+                { name: "a/b", value: "1", variablesReference: 0 },
+                { name: "a", value: "{...}", variablesReference: BAG_A_REF },
+              ],
+            },
+          };
+        }
+        if (ref === BAG_A_REF) {
+          return { body: { variables: [{ name: "b", value: "2", variablesReference: 0 }] } };
         }
         if (ref === PARTY_REF) {
           return { body: { variables: [{ name: "1", value: "\"Ada\"", variablesReference: 0 }] } };
@@ -116,6 +133,9 @@ const story = () => {
     },
     emptyStack: () => {
       empty = true;
+    },
+    bag: () => {
+      withBag = true;
     },
   };
 };
@@ -422,6 +442,36 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
       name: "1",
       value: '"Grace"',
     });
+  });
+
+  it("writes a field whose name holds a slash to its own table, not to a nested table's field of the same path", async () => {
+    const { fake, debug, game } = await begin();
+    game.bag();
+    await stop(fake);
+    const bagKey = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "bag")!.key;
+    await debug.inspection.toggle(bagKey);
+    const bag = () => variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "bag")!;
+    await debug.inspection.toggle(bag().children!.find((v) => v.name === "a")!.key);
+    const slash = bag().children!.find((v) => v.name === "a/b")!;
+    const nested = bag().children!.find((v) => v.name === "a")!.children!.find((v) => v.name === "b")!;
+    expect(slash.key).not.toBe(nested.key);
+    await debug.inspection.setValue(slash.key, "9");
+    expect(fake.requests.findLast((r) => r.command === "setVariable")!.arguments).toEqual({
+      variablesReference: BAG_REF,
+      name: "a/b",
+      value: "9",
+    });
+  });
+
+  it("marks a story value's data breakpoint again when its folded scope is reopened at a later stop", async () => {
+    const { fake, debug } = await begin();
+    await stop(fake);
+    await debug.inspection.breakOnChange("scope:Vars/gold", true);
+    await debug.inspection.toggle("scope:Vars");
+    await stop(fake);
+    await debug.inspection.toggle("scope:Vars");
+    const gold = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "gold")!;
+    expect(gold.breaking).toBe(true);
   });
 
   it("keeps a watch added while a stop's watch values are still arriving", async () => {
