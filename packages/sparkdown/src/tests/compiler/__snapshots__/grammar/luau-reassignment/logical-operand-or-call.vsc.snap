@@ -88,18 +88,19 @@ text.source.sparkdown [0..203]
  │           ├─ punctuation.whitespace.optional.sd [92..93]: " "
  │           ├─ keyword.control.until.luau [93..98]: "until"
  │           ├─ punctuation.whitespace.optional.sd [98..99]: " "
- │           ├─ variable.other.readwrite.luau [99..100]: "a"
- │           ├─ punctuation.whitespace.optional.sd [100..101]: " "
- │           ├─ keyword.operator.comparison.luau [101..103]: "=="
- │           ├─ punctuation.whitespace.optional.sd [103..104]: " "
- │           ├─ constant.numeric.decimal.luau [104..105]: "0"
- │           ├─ punctuation.whitespace.optional.sd [105..106]: " "
- │           ├─ keyword.operator.logical.luau [106..108]
- │           │   └─ keyword.operator.wordlike.luau [106..108]: "or"
- │           ├─ punctuation.whitespace.optional.sd [108..109]: " "
- │           ├─ punctuation.definition.template-expression.begin.sd [109..110]: "("
- │           ├─ variable.other.readwrite.luau [110..111]: "b"
- │           ├─ punctuation.definition.template-expression.end.sd [111..112]: ")"
+ │           ├─ meta.embedded.line.luau [99..112]
+ │           │   ├─ variable.other.readwrite.luau [99..100]: "a"
+ │           │   ├─ punctuation.whitespace.optional.sd [100..101]: " "
+ │           │   ├─ keyword.operator.comparison.luau [101..103]: "=="
+ │           │   ├─ punctuation.whitespace.optional.sd [103..104]: " "
+ │           │   ├─ constant.numeric.decimal.luau [104..105]: "0"
+ │           │   ├─ punctuation.whitespace.optional.sd [105..106]: " "
+ │           │   ├─ keyword.operator.logical.luau [106..108]
+ │           │   │   └─ keyword.operator.wordlike.luau [106..108]: "or"
+ │           │   ├─ punctuation.whitespace.optional.sd [108..109]: " "
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [109..110]: "("
+ │           │   ├─ variable.other.readwrite.luau [110..111]: "b"
+ │           │   └─ punctuation.definition.template-expression.end.sd [111..112]: ")"
  │           ├─ punctuation.whitespace.extra.sd [112..113]: " "
  │           ├─ support.function.luau [113..118]: "print"
  │           └─ meta.parameter.luau [118..121]
@@ -125,12 +126,13 @@ text.source.sparkdown [0..203]
  │           ├─ punctuation.whitespace.optional.sd [140..141]: " "
  │           ├─ keyword.control.until.luau [141..146]: "until"
  │           ├─ punctuation.whitespace.optional.sd [146..147]: " "
- │           ├─ keyword.operator.logical.luau [147..150]
- │           │   └─ keyword.operator.wordlike.luau [147..150]: "not"
- │           ├─ punctuation.whitespace.optional.sd [150..151]: " "
- │           ├─ punctuation.definition.template-expression.begin.sd [151..152]: "("
- │           ├─ variable.other.readwrite.luau [152..153]: "a"
- │           ├─ punctuation.definition.template-expression.end.sd [153..154]: ")"
+ │           ├─ meta.embedded.line.luau [147..154]
+ │           │   ├─ keyword.operator.logical.luau [147..150]
+ │           │   │   └─ keyword.operator.wordlike.luau [147..150]: "not"
+ │           │   ├─ punctuation.whitespace.optional.sd [150..151]: " "
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [151..152]: "("
+ │           │   ├─ variable.other.readwrite.luau [152..153]: "a"
+ │           │   └─ punctuation.definition.template-expression.end.sd [153..154]: ")"
  │           ├─ punctuation.whitespace.extra.sd [154..155]: " "
  │           ├─ support.function.luau [155..160]: "print"
  │           └─ meta.parameter.luau [160..163]
@@ -156,14 +158,15 @@ text.source.sparkdown [0..203]
  │           ├─ punctuation.whitespace.optional.sd [182..183]: " "
  │           ├─ keyword.control.until.luau [183..188]: "until"
  │           ├─ punctuation.whitespace.optional.sd [188..189]: " "
- │           ├─ variable.other.readwrite.luau [189..190]: "a"
- │           ├─ punctuation.whitespace.optional.sd [190..191]: " "
- │           ├─ keyword.operator.logical.luau [191..194]
- │           │   └─ keyword.operator.wordlike.luau [191..194]: "and"
- │           ├─ punctuation.whitespace.optional.sd [194..195]: " "
- │           ├─ punctuation.definition.template-expression.begin.sd [195..196]: "("
- │           ├─ variable.other.readwrite.luau [196..197]: "b"
- │           └─ punctuation.definition.template-expression.end.sd [197..198]: ")"
+ │           └─ meta.embedded.line.luau [189..198]
+ │               ├─ variable.other.readwrite.luau [189..190]: "a"
+ │               ├─ punctuation.whitespace.optional.sd [190..191]: " "
+ │               ├─ keyword.operator.logical.luau [191..194]
+ │               │   └─ keyword.operator.wordlike.luau [191..194]: "and"
+ │               ├─ punctuation.whitespace.optional.sd [194..195]: " "
+ │               ├─ punctuation.definition.template-expression.begin.sd [195..196]: "("
+ │               ├─ variable.other.readwrite.luau [196..197]: "b"
+ │               └─ punctuation.definition.template-expression.end.sd [197..198]: ")"
  ├─ Newline [198..199]: "\n"
  ├─ meta.function.luau [199..202]
  │   └─ meta.embedded.block.luau [199..202]

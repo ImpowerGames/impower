@@ -7236,6 +7236,7 @@ repository:
   # cannot begin with it; without the lookbehind it would take any
   # expression of the body around the loop, which `LuauExpression` reads.
   LuauUntilCondition:
+    contentName: meta.embedded.line.luau
     begin: (?<=\buntil)({{WS}}*){{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
@@ -7245,6 +7246,7 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   LuauSparkdownDoBlock:
@@ -8451,6 +8453,7 @@ repository:
     end: (?=$|{{TAG_START}})
 
   LuauSparkdownExplicitVariableDefinition:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
       1:
@@ -8471,6 +8474,7 @@ repository:
       - { include: "#LuauSparkdownExplicitVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownExplicitVariableDefinitionValue" }
+      - { include: "#LuauUnreadableCharacter" }
     # lookaround: LuauAssignmentOperation and LuauTypeAnnotationOperation own declaration values and annotations; this declaration ends only after their content is complete.
     # See bounded-exit rationale above for the structural alternatives.
     end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}"

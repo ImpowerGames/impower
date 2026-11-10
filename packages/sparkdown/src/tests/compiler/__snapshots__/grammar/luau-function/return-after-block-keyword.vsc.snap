@@ -69,7 +69,8 @@ text.source.sparkdown [0..228]
  │           ├─ punctuation.whitespace.optional.sd [86..88]: "  "
  │           ├─ keyword.control.until.luau [88..93]: "until"
  │           ├─ punctuation.whitespace.optional.sd [93..94]: " "
- │           └─ constant.language.boolean.luau [94..98]: "true"
+ │           └─ meta.embedded.line.luau [94..98]
+ │               └─ constant.language.boolean.luau [94..98]: "true"
  ├─ Newline [98..99]: "\n"
  ├─ meta.function.luau [99..102]
  │   └─ meta.embedded.block.luau [99..102]

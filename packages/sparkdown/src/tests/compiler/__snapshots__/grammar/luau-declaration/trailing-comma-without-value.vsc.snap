@@ -137,7 +137,8 @@ text.source.sparkdown [0..294]
  │           │   └─ punctuation.whitespace.extra.sd [164..166]: "  "
  │           ├─ keyword.control.until.luau [166..171]: "until"
  │           ├─ punctuation.whitespace.optional.sd [171..172]: " "
- │           └─ constant.language.boolean.luau [172..176]: "true"
+ │           └─ meta.embedded.line.luau [172..176]
+ │               └─ constant.language.boolean.luau [172..176]: "true"
  ├─ Newline [176..177]: "\n"
  ├─ meta.function.luau [177..194]
  │   └─ meta.embedded.block.luau [177..194]

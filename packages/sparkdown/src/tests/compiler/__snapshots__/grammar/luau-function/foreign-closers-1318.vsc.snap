@@ -60,11 +60,12 @@ text.source.sparkdown [0..883]
  │           ├─ punctuation.whitespace.optional.sd [86..87]: " "
  │           ├─ keyword.control.until.luau [87..92]: "until"
  │           ├─ punctuation.whitespace.optional.sd [92..93]: " "
- │           ├─ variable.other.readwrite.luau [93..94]: "x"
- │           ├─ punctuation.whitespace.optional.sd [94..95]: " "
- │           ├─ keyword.operator.comparison.luau [95..97]: ">="
- │           ├─ punctuation.whitespace.optional.sd [97..98]: " "
- │           ├─ constant.numeric.decimal.luau [98..99]: "3"
+ │           ├─ meta.embedded.line.luau [93..99]
+ │           │   ├─ variable.other.readwrite.luau [93..94]: "x"
+ │           │   ├─ punctuation.whitespace.optional.sd [94..95]: " "
+ │           │   ├─ keyword.operator.comparison.luau [95..97]: ">="
+ │           │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
+ │           │   └─ constant.numeric.decimal.luau [98..99]: "3"
  │           └─ keyword.operator.semicolon.luau [99..100]: ";"
  ├─ Newline [100..101]: "\n"
  ├─ meta.function.luau [101..137]
@@ -75,14 +76,16 @@ text.source.sparkdown [0..883]
  │           ├─ punctuation.whitespace.optional.sd [109..110]: " "
  │           ├─ keyword.control.until.luau [110..115]: "until"
  │           ├─ punctuation.whitespace.optional.sd [115..116]: " "
- │           ├─ constant.numeric.decimal.luau [116..117]: "1"
+ │           ├─ meta.embedded.line.luau [116..117]
+ │           │   └─ constant.numeric.decimal.luau [116..117]: "1"
  │           ├─ keyword.operator.semicolon.luau [117..118]: ";"
  │           ├─ punctuation.whitespace.optional.sd [118..119]: " "
  │           ├─ keyword.control.repeat.luau [119..125]: "repeat"
  │           ├─ punctuation.whitespace.optional.sd [125..126]: " "
  │           ├─ keyword.control.until.luau [126..131]: "until"
  │           ├─ punctuation.whitespace.optional.sd [131..132]: " "
- │           ├─ constant.language.boolean.luau [132..136]: "true"
+ │           ├─ meta.embedded.line.luau [132..136]
+ │           │   └─ constant.language.boolean.luau [132..136]: "true"
  │           └─ keyword.operator.semicolon.luau [136..137]: ";"
  ├─ Newline [137..138]: "\n"
  ├─ meta.function.luau [138..141]
@@ -610,8 +613,9 @@ text.source.sparkdown [0..883]
  │       │   ├─ punctuation.whitespace.optional.sd [832..833]: " "
  │       │   ├─ keyword.control.until.luau [833..838]: "until"
  │       │   ├─ punctuation.whitespace.optional.sd [838..839]: " "
- │       │   ├─ punctuation.definition.template-expression.begin.sd [839..840]: "("
- │       │   ├─ variable.other.readwrite.luau [840..841]: "x"
+ │       │   ├─ meta.embedded.line.luau [839..841]
+ │       │   │   ├─ punctuation.definition.template-expression.begin.sd [839..840]: "("
+ │       │   │   └─ variable.other.readwrite.luau [840..841]: "x"
  │       │   └─ punctuation.whitespace.extra.sd [841..842]: " "
  │       └─ meta.function.body.luau [842..843]: "]"
  ├─ Newline [843..844]: "\n"
