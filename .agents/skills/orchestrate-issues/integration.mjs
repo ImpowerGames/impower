@@ -569,7 +569,10 @@ export function closeContainer(file, { coordinator, expectRevision, ticket, evid
     const tree = new Set([ticket]);
     for (let grew = true; grew;) { grew = false; for (const t of snap.tickets) if (tree.has(t.parent) && !tree.has(t.number)) { tree.add(t.number); grew = true; } }
     const members = snap.tickets.filter((t) => tree.has(t.number) && t.number !== ticket).map((t) => `#${t.number} under #${t.parent} ${t.state} ${t.delivered ? "delivered" : "undelivered"}`).sort();
-    return { ...base, slices: [...base.slices, ...members, `#${ticket} acceptance ${hash}`] };
+    const root = snap.tickets.find((t) => t.number === ticket);
+    const self = `#${ticket} ${root?.state} ${root?.container ? "container" : "not-container"} claimed ${Boolean(root?.claimedContainer)} worktrees ${(root?.worktrees ?? []).map((w) => w.path).sort().join(",")} open ${(root?.prs ?? []).filter((p) => p.state === "OPEN").map((p) => p.number).sort().join(",")}`;
+    const owners = rows.filter((r) => r.status === "moved").map((r) => `#${r.movedTo} owns criterion ${r.index} ${movedOwnerHolds(snap, ticket, r.movedTo) ? "holds" : "lost"}`);
+    return { ...base, slices: [...base.slices, ...members, self, ...owners, `#${ticket} acceptance ${hash}`] };
   };
   const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope: () => scopeOf(takeSnapshot(), acceptanceHash(client.issue(ticket).body)), scopeOf, git, main: mainSha, premises: (rec, snap) => ({ blockers: checked(rec, snap) }), call });
   let existing;

@@ -170,6 +170,15 @@ try {
     let takes = 0;
     const e = closeWith(moving, ghMove, [met(CRITERIA[0]), met(CRITERIA[1])], { snapshot: before, takeSnapshot: () => (++takes >= 3 ? after : before) });
     assert.deepEqual([e.closed, ghMove.calls], [false, []], "a slice reparented under the container during the final scope read stops the comment");
+
+    const lateRead = (change, criteria) => {
+      const f = newRecord(), g = github(), base = open(), changed = snapshotOf(base.tickets.map(change));
+      let n = 0;
+      const r = closeWith(f, g, criteria, { snapshot: base, takeSnapshot: () => (++n >= 5 ? changed : base) });
+      return [r.closed, g.calls];
+    };
+    assert.deepEqual(lateRead((t) => (t.number === BLOCKED ? { ...t, blockers: [] } : t), [met(CRITERIA[0]), moved]), [false, ["comment"]], "a moved owner's blocking link lost in the last read before the close stops it");
+    assert.deepEqual(lateRead((t) => (t.number === CONTAINER ? { ...t, worktrees: [{ path: "w", branch: "fix/200-x" }] } : t), [met(CRITERIA[0]), met(CRITERIA[1])]), [false, ["comment"]], "a worktree for the container in the last read before the close stops it");
   }
   {
     const file = newRecord(), gh = github("no criteria here");
