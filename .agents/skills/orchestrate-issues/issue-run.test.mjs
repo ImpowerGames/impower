@@ -812,6 +812,12 @@ try {
       assert.deepEqual([scoped.calls.fields, scoped.calls.comments, scoped.calls.checks], [0, 0, 0], "a scoped read skips the fields, rounds and checks the gate never uses");
       assert.ok(scoped.calls.blockedBy < whole.calls.blockedBy,`the scoped read of #${t.number} reads fewer tickets (${JSON.stringify(scoped.calls)} vs ${JSON.stringify(whole.calls)})`);
     }
+    const batches = [];
+    const batched = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...client, prefetch: (requests) => { batches.push(Object.fromEntries(Object.entries(requests).map(([kind, keys]) => [kind, keys.length]))); } });
+    assert.deepEqual(batched.tickets, snap.tickets, "batching changes nothing a snapshot reports");
+    const kinds = (kind) => batches.filter((b) => b[kind] > 0).length;
+    assert.ok(kinds("subIssues") >= 2, `the walk batches each tree level's sub-issue lists (${JSON.stringify(batches)})`);
+    assert.deepEqual([kinds("blockedBy"), kinds("fields"), kinds("checks"), kinds("comments")], [1, 1, 1, 1], `a full snapshot batches its per-ticket and per-PR reads once (${JSON.stringify(batches)})`);
     const ran = [], fanned = [];
     const gh = run.githubClient({ repository: "acme/widgets" }, tmp, {
       run: (cmd, args) => { ran.push(args.join(" ")); return args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: "direct", conclusion: "SUCCESS" }] }) : "[[]]"; },
