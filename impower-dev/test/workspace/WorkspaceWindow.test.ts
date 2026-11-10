@@ -2210,7 +2210,7 @@ describe("The preview's top bar", () => {
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(false),
       );
-      expect(requests).toContain("game/unpause");
+      expect(requests).toContain("game/continue");
     } finally {
       window.removeEventListener(MessageProtocol.event, player);
     }
