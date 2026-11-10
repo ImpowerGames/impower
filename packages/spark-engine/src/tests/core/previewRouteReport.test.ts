@@ -5,6 +5,7 @@ import type {
   PreviewRoute,
   ScriptSource,
 } from "../../game/core/types/PreviewRoute";
+import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
 import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
@@ -108,6 +109,22 @@ describe("the route the preview reports", () => {
     expect(condition!.verdict).toBe(true);
     expect(loop!.verdict).toBe(false);
     expect(loop!.passes).toBe(count);
+  }, 120_000);
+
+  test("the lines the example ran only because its condition was forced are lines 16 to 21", () => {
+    const { route } = preview(interrogation, 21);
+    expect(
+      Object.entries(route.forcedLines ?? {}).map(([uri, ranges]) => [
+        uri,
+        expandLineRanges(ranges).map((line) => line + 1),
+      ]),
+    ).toEqual([[URI, [16, 17, 18, 19, 20, 21]]]);
+  }, 120_000);
+
+  test("a route that forced nothing reports no forced lines", () => {
+    const { route } = preview(interrogation, 9);
+    expect(route.decisions.some((d) => d.kind === "forced")).toBe(false);
+    expect(route.forcedLines).toBeUndefined();
   }, 120_000);
 
   test("a loop the search leaves part way inside a forced branch is clipped after the passes it ran", () => {

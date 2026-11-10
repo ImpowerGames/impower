@@ -2,6 +2,7 @@
 import { PreactComponent } from "@impower/impower-ui/preact";
 import SparkWebPlayer, { propDefaults } from "./SparkWebPlayer";
 import cssText from "./spark-web-player.css?inline";
+import routeCssText from "./route/route-list.css?inline";
 
 if (
   typeof document !== "undefined" &&
@@ -9,7 +10,7 @@ if (
 ) {
   const style = document.createElement("style");
   style.id = "spark-web-player-css";
-  style.textContent = cssText;
+  style.textContent = cssText + routeCssText;
   document.head.appendChild(style);
 }
 

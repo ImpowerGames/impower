@@ -42,6 +42,8 @@ export type PlayedSource = (message: unknown) => ConsoleEntry | null;
 
 export type PanelSource = (message: unknown) => boolean | null;
 
+export type PreviewPanel = "problems" | "route";
+
 const CARD_SETTING = {
   script: "problemsScriptCardOpen",
   played: "problemsPlayedCardOpen",
@@ -84,6 +86,16 @@ export class ProblemsStore {
     () =>
       workspaceSettings.projectSettings.value.previewPanelHeight >
       PANEL_BAR_HEIGHT,
+  );
+
+  readonly panelShows = signal<PreviewPanel>("problems");
+
+  readonly problemsShown = computed(
+    () => this.panelOpen.value && this.panelShows.value === "problems",
+  );
+
+  readonly routeShown = computed(
+    () => this.panelOpen.value && this.panelShows.value === "route",
   );
 
   readonly cards = computed<Readonly<Record<PanelCard, boolean>>>(() => {
@@ -187,16 +199,32 @@ export class ProblemsStore {
     }
   }
 
-  openPanel(card?: PanelCard) {
+  showPanel(panel: PreviewPanel) {
     const layout = layoutState.current();
     if (layout === "phone") {
       return false;
     }
+    this.panelShows.value = panel;
     if (!this.panelOpen.value) {
       workspaceSettings.setProjectSetting("previewPanelHeight", this._openHeight);
     }
     if (layout === "compact") {
       this.makeRoomInStrip();
+    }
+    return true;
+  }
+
+  toggleRoute() {
+    if (this.routeShown.value) {
+      this.collapsePanel();
+      return true;
+    }
+    return this.showPanel("route");
+  }
+
+  openPanel(card?: PanelCard) {
+    if (!this.showPanel("problems")) {
+      return false;
     }
     if (card) {
       if (!this.cards.value[card]) {
@@ -233,7 +261,7 @@ export class ProblemsStore {
   togglePanel(returnFocus?: () => HTMLElement | null) {
     if (layoutState.current() === "phone") {
       this.openDialog({ kind: "story" }, returnFocus);
-    } else if (this.panelOpen.value) {
+    } else if (this.problemsShown.value) {
       this.collapsePanel();
     } else {
       this.openPanel();

@@ -142,6 +142,16 @@ import { setHighlights } from "../../cm-highlight-lines/highlightLines";
 import { setBreakpointStates } from "../../cm-breakpoints/breakpoints";
 import { setPinpoints } from "../../cm-pinpoints/pinpoints";
 import { setRoutePinsEffect } from "../../cm-route-pins/routePins";
+import {
+  setChoiceMarkersEffect,
+  type ChoiceMarkerAction,
+} from "../../cm-choice-markers/choiceMarkers";
+import { setForcedLinesEffect } from "../../cm-line-bands/lineBands";
+import {
+  SetEditorRouteMarksMessage,
+  type SetEditorRouteMarksParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRouteMarksMessage";
+import { PressedEditorChoiceMarkMessage } from "@impower/spark-editor-protocol/src/protocols/editor/PressedEditorChoiceMarkMessage";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
@@ -506,6 +516,11 @@ export class ScriptEditorController {
     p.onRequest(
       SetEditorRoutePinsMessage.type,
       (m) => this.handleSetEditorRoutePins(m),
+      this.host,
+    );
+    p.onRequest(
+      SetEditorRouteMarksMessage.type,
+      (m) => this.handleSetEditorRouteMarks(m),
       this.host,
     );
     p.onRequest(
@@ -892,6 +907,59 @@ export class ScriptEditorController {
     return SetEditorRoutePinsMessage.type.response(message.id, {});
   };
 
+  protected _routeMarks: SetEditorRouteMarksParams = { choices: [], forced: [] };
+
+  protected handleSetEditorRouteMarks = (
+    message: SetEditorRouteMarksMessage.Request,
+  ) => {
+    this._routeMarks = message.params;
+    this.applyRouteMarks();
+    return SetEditorRouteMarksMessage.type.response(message.id, {});
+  };
+
+  protected applyRouteMarks() {
+    const uri = this._textDocument?.uri;
+    if (!this._view || !uri) {
+      return;
+    }
+    const { choices, forced } = this._routeMarks;
+    this._view.dispatch({
+      effects: [
+        setChoiceMarkersEffect.of(
+          choices
+            .filter((choice) => choice.uri === uri)
+            .map((choice) => ({
+              line: choice.line + 1,
+              icon: choice.icon,
+              title: choice.title,
+              text: choice.text,
+              options: choice.options,
+              unpin: choice.unpin,
+            })),
+        ),
+        setForcedLinesEffect.of(
+          forced
+            .filter((script) => script.uri === uri)
+            .flatMap((script) => script.lines.map((line) => line + 1)),
+        ),
+      ],
+    });
+  }
+
+  protected handleChoiceMark = (line: number, action: ChoiceMarkerAction) => {
+    const uri = this._textDocument?.uri;
+    if (uri) {
+      sendProtocolMessage(
+        PressedEditorChoiceMarkMessage.type.notification({
+          textDocument: { uri },
+          line: line - 1,
+          action,
+        }),
+        this.host,
+      );
+    }
+  };
+
   protected handleSetEditorFindMatches = (
     message: SetEditorFindMatchesMessage.Request,
   ) => {
@@ -1196,6 +1264,7 @@ export class ScriptEditorController {
           startingValueLines,
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
           routePins,
+          onChoiceMark: this.handleChoiceMark,
           scrollToLineNumber:
             visibleRange && typeof visibleRange !== "string"
               ? (visibleRange?.start.line ?? 0) + 1
@@ -1450,6 +1519,7 @@ export class ScriptEditorController {
         this._focusLeft = false;
       }
     }
+    this.applyRouteMarks();
     sendProtocolMessage(
       DidOpenTextDocumentMessage.type.notification({ textDocument }),
       this.host,

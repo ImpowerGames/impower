@@ -1,23 +1,29 @@
 import {
   Button,
+  DetourIcon,
   DropdownContent,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
   DropdownTrigger,
   ExpandIcon,
+  PinIcon,
+  ScissorsIcon,
   SettingsIcon,
   ShrinkIcon,
+  WarningIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
+import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { ProblemsToggle } from "../problems";
+import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
 import {
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
-  barPosition,
+  barReadout,
   PAPER_SIZE_LABELS,
 } from "./barState";
 
@@ -40,7 +46,7 @@ export default function PreviewBar({
       class="flex h-11 shrink-0 items-center gap-1 px-2"
     >
       <ProblemsToggle />
-      <PositionReadout />
+      <RouteReadout />
       {mode === "screenplay" ? <PaperSizeLink /> : <AspectRatioMenu />}
       <Button
         variant="quiet"
@@ -56,29 +62,57 @@ export default function PreviewBar({
   );
 }
 
-function PositionReadout() {
-  const position = useComputed(() => barPosition(workspace.state.value)).value;
+const READOUT_ICONS = {
+  forced: <DetourIcon class="text-warning" />,
+  clipped: <ScissorsIcon class="text-warning" />,
+  pinned: <PinIcon class="text-accent" />,
+  failure: <WarningIcon class="text-error" />,
+};
+
+function RouteReadout() {
+  const readout = useComputed(() =>
+    barReadout(workspace.state.value, route.view.value),
+  ).value;
+  const open = useComputed(() => route.open.value).value;
 
   const onClick = async () => {
-    if (!position) return;
+    if (!readout) return;
+    if (readout.opensRoute) {
+      route.toggle();
+      return;
+    }
     const { Workspace } = await import("../../workspace/Workspace");
     const uri =
-      position.uri ?? Workspace.window.getActiveEditorForPane("logic")?.uri;
+      readout.uri ?? Workspace.window.getActiveEditorForPane("logic")?.uri;
     if (!uri) return;
-    const at = { line: position.line, character: 0 };
+    const at = { line: readout.line, character: 0 };
     void Workspace.window.revealDocument(uri, { start: at, end: at });
   };
 
   return (
     <div class="flex min-w-0 flex-1 justify-end">
-      {position ? (
+      {readout ? (
         <Button
           variant="quiet"
-          title={position.title}
-          class={`max-w-full min-w-0 justify-end px-2.5 text-muted ${BAR_TEXT}`}
+          title={readout.title}
+          aria-label={
+            readout.opensRoute
+              ? `${readout.name} ${readout.lines}. ${readout.title}`
+              : undefined
+          }
+          aria-expanded={readout.opensRoute ? open : undefined}
+          aria-controls={readout.opensRoute ? ROUTE_PANEL_ID : undefined}
+          data-failed={readout.failed ? "" : undefined}
+          class={`max-w-full min-w-0 justify-end gap-1.5 px-2.5 text-muted data-failed:text-error ${BAR_TEXT}`}
           onClick={onClick}
         >
-          <span class="truncate">{position.label}</span>
+          {readout.icon ? READOUT_ICONS[readout.icon] : null}
+          <span class="min-w-0 overflow-hidden whitespace-nowrap @max-[360px]:fade-edge">
+            {readout.name}
+          </span>
+          {readout.lines ? (
+            <span class="shrink-0 font-normal">{readout.lines}</span>
+          ) : null}
         </Button>
       ) : null}
     </div>

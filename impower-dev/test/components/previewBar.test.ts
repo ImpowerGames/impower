@@ -72,6 +72,30 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
+const { default: route } = await import(
+  "../../src/modules/spark-editor/workspace/route/RouteStore"
+);
+
+const lineAt = (line: number) => ({
+  uri: "file:///local/main.sd",
+  range: {
+    start: { line: line - 1, character: 0 },
+    end: { line: line - 1, character: 0 },
+  },
+});
+
+const forcedRoute = {
+  open: false,
+  toggles: { pinned: true, auto: true, forced: true, clipped: true },
+  pins: [],
+  route: {
+    start: { scene: "interrogation", location: lineAt(4) },
+    target: lineAt(21),
+    decisions: [
+      { kind: "forced" as const, location: lineAt(15), text: "trust > 3", verdict: true },
+    ],
+  },
+};
 
 const diagnostic = (severity: number) => ({
   range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
@@ -157,6 +181,9 @@ beforeEach(() => {
   workspaceSettings.setPreference("previewMode", "game");
   intents.revealDocument.mockClear();
   problems.diagnostics.value = {};
+  problems.panelShows.value = "problems";
+  route.view.value = null;
+  route.sheetOpen.value = false;
 });
 
 afterEach(async () => {
@@ -231,6 +258,59 @@ describe("the bar under the game", () => {
       "file:///local/chapter.sd",
       { start: { line: 11, character: 0 }, end: { line: 11, character: 0 } },
     ]);
+  });
+
+  it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = () =>
+      bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]')!;
+    expect(readout().textContent).toBe("interrogation(4 → 21)");
+    expect(readout().getAttribute("aria-expanded")).toBe("false");
+    await act(async () => readout().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(260);
+    expect(readout().getAttribute("aria-expanded")).toBe("true");
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    expect(document.getElementById("problems-panel")).toBeNull();
+    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+    await act(async () => toggle().click());
+    await settle();
+    expect(document.getElementById("problems-panel")).not.toBeNull();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(260);
+    await act(async () => readout().click());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    await act(async () => readout().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("route-panel")).toBeNull();
+  });
+
+  it("closes the route list when the route goes away, as it does while playing", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await act(async () => route.toggle());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    await act(async () =>
+      route.receive({
+        jsonrpc: "2.0",
+        method: "preview/didChangeRouteView",
+        params: { view: null },
+      }),
+    );
+    await settle();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(44);
   });
 
   it("names the ratio and the size the player reports", async () => {

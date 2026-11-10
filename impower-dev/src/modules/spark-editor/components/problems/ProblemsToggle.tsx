@@ -10,7 +10,7 @@ export default function ProblemsToggle() {
   const phone = useLayout() === "phone";
   const ref = useRef<HTMLButtonElement | null>(null);
   const counts = useComputed(() => problems.counts.value).value;
-  const open = useComputed(() => problems.panelOpen.value).value;
+  const open = useComputed(() => problems.problemsShown.value).value;
   const label = problemsLabel(counts);
   const expanded = !phone && open;
 

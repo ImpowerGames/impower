@@ -4002,12 +4002,12 @@ export class Game<T extends M = {}> {
       });
     const pinned = this.pinnedOptions;
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(
+    const reported = routeDecisions(route, lineOf, structureOf, pinned);
+    const forcedLines = this.linesRunAfter(
       route,
-      lineOf,
-      structureOf,
-      pinned,
-    )) {
+      reported.find((decision) => decision.kind === "forced")?.override,
+    );
+    for (const decision of reported) {
       const location = decision.loop
         ? this.lineLocation(
             this.scriptUri(decision.loop.script),
@@ -4076,7 +4076,49 @@ export class Game<T extends M = {}> {
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
+      ...(forcedLines ? { forcedLines } : {}),
     };
+  }
+
+  protected linesRunAfter(
+    route: RoutePlan,
+    override: number | undefined,
+  ): Record<string, number[]> | undefined {
+    const decision = override === undefined ? undefined : route.decisions[override];
+    const verdict = decision && this.scriptLocationOf(decision.site);
+    if (override === undefined || !verdict) {
+      return undefined;
+    }
+    const spans = new Map<number, [number, number]>();
+    for (const step of route.steps) {
+      if (step.decision < override) {
+        continue;
+      }
+      const at = this.scriptLocationOf(step.address);
+      if (!at) {
+        continue;
+      }
+      const after = at[0] === verdict[0] ? verdict[3] + 1 : undefined;
+      const from = after ?? at[1];
+      if (at[3] < from) {
+        continue;
+      }
+      const span = spans.get(at[0]);
+      spans.set(
+        at[0],
+        span
+          ? [Math.min(span[0], from), Math.max(span[1], at[3])]
+          : [from, at[3]],
+      );
+    }
+    if (spans.size === 0) {
+      return undefined;
+    }
+    const ranges: Record<string, number[]> = {};
+    for (const [script, [from, to]] of spans) {
+      ranges[this.scriptUri(script)] = [from, to];
+    }
+    return ranges;
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {
