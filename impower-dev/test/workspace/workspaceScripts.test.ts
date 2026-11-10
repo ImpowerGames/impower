@@ -191,6 +191,7 @@ describe("Scripts through the workspace", () => {
     await scripts.download(["Scripts/Drafts"]);
     expect(fs.zipFiles).toHaveBeenCalledWith({
       files: [{ uri: uri("Scripts/Drafts/old.sd"), path: "old.sd" }],
+      directories: [],
     });
     expect(downloadFile).toHaveBeenLastCalledWith("Drafts.zip", "application/zip", "zip bytes");
   });
@@ -319,6 +320,7 @@ describe("downloading several items", () => {
         { uri: uri("Scripts/A/chapter.sd"), path: "A/chapter.sd" },
         { uri: uri("Scripts/B/chapter.sd"), path: "B/chapter.sd" },
       ],
+      directories: [],
     });
     expect(downloadFile).toHaveBeenLastCalledWith("Scripts.zip", "application/zip", "zip bytes");
     await scripts.download(["Scripts/Drafts", "Scripts/intro.sd"]);
@@ -327,6 +329,22 @@ describe("downloading several items", () => {
         { uri: uri("Scripts/intro.sd"), path: "intro.sd" },
         { uri: uri("Scripts/Drafts/old.sd"), path: "Drafts/old.sd" },
       ],
+      directories: ["Drafts"],
+    });
+  });
+
+  it("keeps picked folders and their empty folders in the archive", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, [...FOLDERS, "Scripts/Drafts/Inner"]);
+    await scripts.load();
+    await scripts.download(["Scripts/Empty", "Scripts/intro.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [{ uri: uri("Scripts/intro.sd"), path: "intro.sd" }],
+      directories: ["Empty"],
+    });
+    await scripts.download(["Scripts/Drafts"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [{ uri: uri("Scripts/Drafts/old.sd"), path: "old.sd" }],
+      directories: ["Inner"],
     });
   });
 });

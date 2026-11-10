@@ -312,7 +312,10 @@ export default class WorkspaceScripts {
         uri: fs.getFileUri(projectId, p),
         path: base ? p.slice(base.length + 1) : p,
       }));
-    const zip = await fs.zipFiles({ files });
+    const directories = this.listing.folders
+      .filter((f) => f !== only && items.some((item) => isInside(f, item)))
+      .map((f) => (base ? f.slice(base.length + 1) : f));
+    const zip = await fs.zipFiles({ files, directories });
     downloadFile(only ? `${nameOf(only)}.zip` : "Scripts.zip", "application/zip", zip);
   }
 
