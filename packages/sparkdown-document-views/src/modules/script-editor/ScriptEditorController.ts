@@ -858,7 +858,7 @@ export class ScriptEditorController {
     if (this._view && textDocument.uri === this._textDocument?.uri) {
       setBreakpointStates(
         this._view,
-        breakpoints.map(({ line, verified }) => ({ line: line + 1, verified })),
+        breakpoints.map((b) => ({ ...b, line: b.line + 1 })),
       );
     }
     return SetEditorBreakpointsMessage.type.response(message.id, {});

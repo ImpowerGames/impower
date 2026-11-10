@@ -28,7 +28,10 @@ const fileAccessor: FileAccessor = {
   getRootPath: () => "/project",
 };
 
-const createSession = (host: SparkDebugSessionHost) => {
+const createSession = (
+  host: SparkDebugSessionHost,
+  refusals: Record<number, string> = {},
+) => {
   const emitted: { method: string; params: any }[] = [];
   let receive: ((msg: any) => Promise<unknown>) | undefined;
   const connection = {
@@ -41,10 +44,13 @@ const createSession = (host: SparkDebugSessionHost) => {
         case "game/setBreakpoints":
           return {
             breakpoints: message.params.breakpoints.map(
-              (b: { file: string; line: number }) => ({
-                verified: true,
-                location: { uri: b.file, range: range(b.line, 2, 8) },
-              }),
+              (b: { file: string; line: number }) =>
+                refusals[b.line] != null
+                  ? { verified: false, message: refusals[b.line] }
+                  : {
+                      verified: true,
+                      location: { uri: b.file, range: range(b.line, 2, 8) },
+                    },
             ),
           };
         case "game/threads":
@@ -189,6 +195,26 @@ describe("SparkDebugSession in a browser page", () => {
     expect(emitted.filter((m) => m.method === "game/setBreakpoints").at(-1)?.params).toEqual({
       breakpoints: [{ file: "file:///project/other.sd", line: 4 }],
     });
+  });
+
+  it.each([
+    ["a declaration line", "A declaration runs before the story starts"],
+    ["a line with no statement", "No statement to stop at here."],
+  ])("answers a breakpoint the engine refuses on %s with the engine's reason", async (_, reason) => {
+    const { request } = createSession({ syncCursorToExecution: false }, { 1: reason });
+    await request("initialize", {
+      adapterID: "sparkdown",
+      pathFormat: "path",
+      linesStartAt1: true,
+      columnsStartAt1: true,
+    });
+    const answer = await request<DebugProtocol.SetBreakpointsResponse>("setBreakpoints", {
+      source: { path: MAIN_PATH },
+      breakpoints: [{ line: 2 }, { line: 3 }],
+    });
+    expect(answer.body.breakpoints[0]).toMatchObject({ verified: false, message: reason });
+    expect(answer.body.breakpoints[1]).toMatchObject({ verified: true, line: 3 });
+    expect(answer.body.breakpoints[1]!.message).toBeUndefined();
   });
 
   it("reads syncCursorToExecution from the host each time the game awaits interaction", async () => {
