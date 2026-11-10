@@ -2,7 +2,7 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
-import { recordMove } from "../utils/fileUndo";
+import { recordMove, renameFile } from "../utils/fileUndo";
 import {
   availableName,
   copyName,
@@ -44,6 +44,7 @@ type Deps = {
     | "createFolder"
     | "moveFile"
     | "moveFolder"
+    | "renameFileWithReferences"
     | "readFile"
     | "zipFiles"
     | "deleteFiles"
@@ -57,6 +58,7 @@ type Deps = {
     | "openFileEditor"
     | "getActiveEditorForFile"
   >;
+  autoRenameFiles: () => boolean;
 };
 
 const extensionOf = (path: string) => {
@@ -215,9 +217,9 @@ export default class WorkspaceScripts {
     const openEditors = Object.keys(this.listing.files).filter(
       (path) => isInside(path, from) && window.getActiveEditorForFile(path)?.open,
     );
-    const moved = await renameOrReport(from, to, () =>
+    const moved = await renameOrReport<unknown>(from, to, () =>
       kind === "file"
-        ? fs.moveFile(projectId, from, to)
+        ? renameFile(this._workspace, projectId, from, to)
         : fs.moveFolder(projectId, from, to),
     );
     if (!moved.renamed) {

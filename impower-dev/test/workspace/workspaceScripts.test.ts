@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const downloadFile = vi.hoisted(() => vi.fn());
 vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({ downloadFile }));
-vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
+vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
+  renameFile: (await original<typeof import("../../src/modules/spark-editor/utils/fileUndo")>()).renameFile,
   recordMove: vi.fn(),
   recordTrashDeletion: vi.fn(async () => undefined),
 }));
@@ -86,7 +87,7 @@ function fakeWorkspace(paths: string[], folders: string[]) {
     openFileEditor: vi.fn(),
     getActiveEditorForFile: vi.fn((path: string) => (open.has(path) ? { open: true } : undefined)),
   };
-  const scripts = new WorkspaceScripts({ fs, ls, window } as never);
+  const scripts = new WorkspaceScripts({ fs, ls, window, autoRenameFiles: () => false } as never);
   return { scripts, fs, ls, window, files, dirs, open };
 }
 
@@ -266,6 +267,7 @@ describe("Scripts through the workspace, under concurrent reloads", () => {
       },
       ls: b.ls,
       window: b.window,
+      autoRenameFiles: () => false,
     } as never);
     switchProject("A");
     const pendingA = scripts.load();
