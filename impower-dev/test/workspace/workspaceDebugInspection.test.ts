@@ -1,3 +1,4 @@
+import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WorkspaceDebugClient, {
@@ -5,7 +6,6 @@ import WorkspaceDebugClient, {
 } from "../../src/modules/spark-editor/workspace/WorkspaceDebugClient";
 import {
   frameEntries,
-  variableTree,
   watchEntries,
 } from "../../src/modules/spark-editor/workspace/WorkspaceDebugInspection";
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
@@ -21,9 +21,17 @@ const PARTY_REF = 21;
 const BAG_REF = 31;
 const BAG_A_REF = 32;
 
+const ODD_NAMES = ["__proto__", "constructor", "toString", "a/b", "a.b"];
+
 const story = () => {
-  const values: Record<string, string> = { gold: "3", mood: "\"calm\"" };
-  const temps: Record<number, Record<string, string>> = { 1: { bag: "2" }, 0: { coin: "9" } };
+  const values = new Map<string, string>([
+    ["gold", "3"],
+    ["mood", "\"calm\""],
+  ]);
+  const temps = new Map<number, Map<string, string>>([
+    [1, new Map([["bag", "2"]])],
+    [0, new Map([["coin", "9"]])],
+  ]);
   let refuseSet: string | null = null;
   let noData = false;
   let names = ["shop", "start"];
@@ -60,7 +68,7 @@ const story = () => {
           return {
             body: {
               variables: [
-                ...Object.entries(values).map(([name, value]) => ({ name, value, variablesReference: 0 })),
+                ...[...values].map(([name, value]) => ({ name, value, variablesReference: 0 })),
                 { name: "party", value: "{...}", variablesReference: PARTY_REF },
                 ...(withBag ? [{ name: "bag", value: "{...}", variablesReference: BAG_REF }] : []),
               ],
@@ -86,14 +94,12 @@ const story = () => {
         const frame = Math.floor((ref - TEMPS_REF) / 100);
         return {
           body: {
-            variables: Object.entries(temps[frame] ?? {}).map(([name, value]) => ({ name, value, variablesReference: 0 })),
+            variables: [...(temps.get(frame) ?? [])].map(([name, value]) => ({ name, value, variablesReference: 0 })),
           },
         };
       }
       case "evaluate": {
-        const own = (record: Record<string, string> | undefined) =>
-          record && Object.hasOwn(record, args.expression) ? record[args.expression] : undefined;
-        const value = own(values) ?? own(temps[args.frameId]);
+        const value = values.get(args.expression) ?? temps.get(args.frameId)?.get(args.expression);
         if (value !== undefined) {
           return { body: { result: value, variablesReference: 0 } };
         }
@@ -105,7 +111,7 @@ const story = () => {
         if (refuseSet) {
           return { success: false, message: refuseSet };
         }
-        values[args.name] = args.value;
+        values.set(args.name, args.value);
         return { body: { value: args.value } };
       case "dataBreakpointInfo": {
         const ref = args.variablesReference as number;
@@ -121,6 +127,9 @@ const story = () => {
   };
   return {
     answer,
+    set: (name: string, value: string) => {
+      values.set(name, value);
+    },
     refuseSet: (message: string | null) => {
       refuseSet = message;
     },
@@ -128,7 +137,7 @@ const story = () => {
       noData = true;
     },
     local: (frame: number, name: string, value: string) => {
-      temps[frame]![name] = value;
+      temps.get(frame)!.set(name, value);
     },
     name: (inner: string, outer: string) => {
       names = [inner, outer];
@@ -152,16 +161,15 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
     handleMessage(message) {
       const request = message as DebugProtocol.Request;
       requests.push(request);
-      const reply = () =>
-        send({
-          seq: ++seq,
-          type: "response",
-          request_seq: request.seq,
-          command: request.command,
-          success: true,
-          ...answer(request),
-        } as DebugProtocol.Response);
-      const args = request.arguments as { expression?: string };
+      const response = {
+        seq: 0,
+        type: "response",
+        request_seq: request.seq,
+        command: request.command,
+        success: true,
+        ...answer(request),
+      } as DebugProtocol.Response;
+      const reply = () => send({ ...response, seq: ++seq });
       if (holding?.(request)) {
         held.push(reply);
       } else {
@@ -222,19 +230,47 @@ const begin = async (watch: string[] = []) => {
   return { debug, fake, game };
 };
 
+const settle = async () => {
+  for (let i = 0; i < 4; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+};
+
 const stop = async (fake: ReturnType<typeof fakeAdapter>) => {
   fake.event("stopped", { reason: "step", threadId: 0 });
   await vi.waitFor(() => expect(workspace.debugInspection.value.status).toBe("paused"));
   await vi.waitFor(() => expect(fake.commands().at(-1)).not.toBe("scopes"));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await settle();
 };
 
+const state = () => workspace.debugInspection.value;
+
+const node = (...names: string[]): DebugVariableNode => {
+  let list: readonly DebugVariableNode[] | undefined = state().variables;
+  let found: DebugVariableNode | undefined;
+  for (const name of names) {
+    found = list?.find((n) => n.name === name);
+    list = found?.children;
+  }
+  if (!found) {
+    throw new Error(`No row ${names.join(" > ")}`);
+  }
+  return found;
+};
+
+const key = (...names: string[]) => node(...names).key;
+
 const tree = () =>
-  variableTree(workspace.debugInspection.value).map((scope) => ({
+  state().variables.map((scope) => ({
     name: scope.name,
     expanded: scope.expanded,
     children: scope.children?.map((v) => `${v.name}=${v.value}`),
   }));
+
+const sentBreakpoints = (fake: ReturnType<typeof fakeAdapter>) =>
+  (fake.requests.findLast((r) => r.command === "setDataBreakpoints")?.arguments as
+    | { breakpoints: { dataId: string }[] }
+    | undefined)?.breakpoints.map((b) => b.dataId);
 
 beforeEach(() => {
   saved.length = 0;
@@ -243,16 +279,15 @@ beforeEach(() => {
 afterEach(() => {
   ending?.end();
   ending = undefined;
-  workspace.debugInspection.value = { ...workspace.debugInspection.value, expanded: {} };
 });
 
 describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("knows no run before a start and a running story after it", async () => {
-    expect(workspace.debugInspection.value.status).toBe("none");
+    expect(state().status).toBe("none");
     await begin();
-    expect(workspace.debugInspection.value.status).toBe("running");
+    expect(state().status).toBe("running");
     ending!.end();
-    expect(workspace.debugInspection.value.status).toBe("none");
+    expect(state().status).toBe("none");
   });
 
   it("asks for the stack, the frame's scopes, their variables and each watch at a stop, and the cards receive them", async () => {
@@ -273,11 +308,11 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
       { name: "Temps", expanded: true, children: ["bag=2"] },
       { name: "Defines", expanded: false, children: undefined },
     ]);
-    expect(watchEntries(workspace.debugInspection.value, workspace.watchExpressions.value)).toEqual([
+    expect(watchEntries(state(), workspace.watchExpressions.value)).toEqual([
       { key: "0", expression: "gold", value: "3" },
       { key: "1", expression: "silver", error: "not available in this frame" },
     ]);
-    expect(frameEntries(workspace.debugInspection.value)).toEqual([
+    expect(frameEntries(state())).toEqual([
       { id: 1, name: "shop", location: "main.sd:12", inProject: true, selected: true },
       { id: 0, name: "start", location: "main.sd:4", inProject: true, selected: false },
     ]);
@@ -286,10 +321,9 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("lets a cheap scope's direct values be watched for changes and its scalar values, inside tables too, be edited", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
-    await debug.inspection.toggle("scope:Vars/party");
-    const [vars] = variableTree(workspace.debugInspection.value);
-    const gold = vars!.children!.find((v) => v.name === "gold")!;
-    const party = vars!.children!.find((v) => v.name === "party")!;
+    await debug.inspection.toggle(key("Vars", "party"));
+    const gold = node("Vars", "gold");
+    const party = node("Vars", "party");
     expect([gold.editable, gold.breakable]).toEqual([true, true]);
     expect([party.editable, party.expandable, party.expanded]).toEqual([false, true, true]);
     expect(party.children!.map((v) => [v.name, v.editable, v.breakable])).toEqual([["1", true, false]]);
@@ -298,11 +332,10 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("keeps a branch open across stops and loads it again at the next stop", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
-    await debug.inspection.toggle("scope:Vars/party");
+    await debug.inspection.toggle(key("Vars", "party"));
     await stop(fake);
     expect(fake.commands().filter((c) => c === "variables").length).toBeGreaterThanOrEqual(5);
-    const [vars] = variableTree(workspace.debugInspection.value);
-    expect(vars!.children!.find((v) => v.name === "party")!.children!.map((v) => v.value)).toEqual(["\"Ada\""]);
+    expect(node("Vars", "party").children!.map((v) => v.value)).toEqual(["\"Ada\""]);
   });
 
   it("selects a caller frame and reads that frame's locals and watches", async () => {
@@ -311,43 +344,40 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     await debug.inspection.selectFrame(0);
     expect(fake.requests.findLast((r) => r.command === "scopes")!.arguments).toEqual({ frameId: 0 });
     expect(tree()[1]).toEqual({ name: "Temps", expanded: true, children: ["coin=9"] });
-    expect(watchEntries(workspace.debugInspection.value, ["coin"])).toEqual([
-      { key: "0", expression: "coin", value: "9" },
-    ]);
-    expect(frameEntries(workspace.debugInspection.value).map((f) => f.selected)).toEqual([false, true]);
+    expect(watchEntries(state(), ["coin"])).toEqual([{ key: "0", expression: "coin", value: "9" }]);
+    expect(frameEntries(state()).map((f) => f.selected)).toEqual([false, true]);
   });
 
   it("changes a value through setVariable and shows the new value and the watches that read it", async () => {
     const { fake, debug } = await begin(["gold"]);
     await stop(fake);
-    debug.inspection.edit("scope:Vars/gold");
-    expect(workspace.debugInspection.value.editing).toBe("scope:Vars/gold");
-    await debug.inspection.setValue("scope:Vars/gold", "12");
+    debug.inspection.edit(key("Vars", "gold"));
+    expect(state().editing).toBe(key("Vars", "gold"));
+    await debug.inspection.setValue(key("Vars", "gold"), "12");
     expect(fake.requests.find((r) => r.command === "setVariable")!.arguments).toEqual({
       variablesReference: VARS_REF,
       name: "gold",
       value: "12",
     });
-    expect(workspace.debugInspection.value.editing).toBeNull();
+    expect(state().editing).toBeNull();
     expect(tree()[0]!.children![0]).toBe("gold=12");
-    expect(watchEntries(workspace.debugInspection.value, ["gold"])[0]!.value).toBe("12");
+    expect(watchEntries(state(), ["gold"])[0]!.value).toBe("12");
   });
 
   it("keeps the old value and shows the adapter's message under the row when setVariable is refused", async () => {
     const { fake, debug, game } = await begin();
     await stop(fake);
     game.refuseSet("Expected a value.");
-    await debug.inspection.setValue("scope:Vars/gold", "ten");
-    const gold = variableTree(workspace.debugInspection.value)[0]!.children![0]!;
-    expect([gold.value, gold.message]).toEqual(["3", "Expected a value."]);
-    debug.inspection.edit("scope:Vars/gold");
-    expect(variableTree(workspace.debugInspection.value)[0]!.children![0]!.message).toBeUndefined();
+    await debug.inspection.setValue(key("Vars", "gold"), "ten");
+    expect([node("Vars", "gold").value, node("Vars", "gold").message]).toEqual(["3", "Expected a value."]);
+    debug.inspection.edit(key("Vars", "gold"));
+    expect(node("Vars", "gold").message).toBeUndefined();
   });
 
   it("sets and clears a data breakpoint through dataBreakpointInfo and setDataBreakpoints, marking the row", async () => {
     const { fake, debug, game } = await begin();
     await stop(fake);
-    await debug.inspection.breakOnChange("scope:Vars/gold", true);
+    await debug.inspection.breakOnChange(key("Vars", "gold"), true);
     expect(fake.requests.find((r) => r.command === "dataBreakpointInfo")!.arguments).toEqual({
       variablesReference: VARS_REF,
       name: "gold",
@@ -355,16 +385,15 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     expect(fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments).toEqual({
       breakpoints: [{ dataId: "gold", accessType: "write" }],
     });
-    expect(variableTree(workspace.debugInspection.value)[0]!.children![0]!.breaking).toBe(true);
-    await debug.inspection.breakOnChange("scope:Vars/gold", false);
+    expect(node("Vars", "gold").breaking).toBe(true);
+    await debug.inspection.breakOnChange(key("Vars", "gold"), false);
     expect(fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments).toEqual({
       breakpoints: [],
     });
-    expect(variableTree(workspace.debugInspection.value)[0]!.children![0]!.breaking).toBe(false);
+    expect(node("Vars", "gold").breaking).toBe(false);
     game.noData();
-    await debug.inspection.breakOnChange("scope:Vars/mood", true);
-    const mood = variableTree(workspace.debugInspection.value)[0]!.children![1]!;
-    expect([mood.breaking, mood.message]).toEqual([false, "Value will never change"]);
+    await debug.inspection.breakOnChange(key("Vars", "mood"), true);
+    expect([node("Vars", "mood").breaking, node("Vars", "mood").message]).toEqual([false, "Value will never change"]);
   });
 
   it("keeps Break when value changes on a local to the frame it was set in, apart from a caller's local of the same name", async () => {
@@ -372,25 +401,18 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     game.local(1, "count", "1");
     game.local(0, "count", "5");
     await stop(fake);
-    const count = () =>
-      variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
-    const sent = () => fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments;
-    await debug.inspection.breakOnChange("scope:Temps/count", true);
-    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame1.count", accessType: "write" }] });
+    const count = () => node("Temps", "count");
+    await debug.inspection.breakOnChange(count().key, true);
+    expect(sentBreakpoints(fake)).toEqual(["frame1.count"]);
     expect(count().breaking).toBe(true);
     await debug.inspection.selectFrame(0);
     expect([count().value, count().breaking]).toEqual(["5", false]);
-    await debug.inspection.breakOnChange("scope:Temps/count", true);
-    expect(sent()).toEqual({
-      breakpoints: [
-        { dataId: "frame1.count", accessType: "write" },
-        { dataId: "frame0.count", accessType: "write" },
-      ],
-    });
+    await debug.inspection.breakOnChange(count().key, true);
+    expect(sentBreakpoints(fake)).toEqual(["frame1.count", "frame0.count"]);
     await debug.inspection.selectFrame(1);
     expect([count().value, count().breaking]).toEqual(["1", true]);
-    await debug.inspection.breakOnChange("scope:Temps/count", false);
-    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame0.count", accessType: "write" }] });
+    await debug.inspection.breakOnChange(count().key, false);
+    expect(sentBreakpoints(fake)).toEqual(["frame0.count"]);
     await debug.inspection.selectFrame(0);
     expect(count().breaking).toBe(true);
   });
@@ -401,22 +423,15 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     game.local(1, "count", "1");
     game.local(0, "count", "5");
     await stop(fake);
-    const count = () =>
-      variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
-    const sent = () => fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments;
-    await debug.inspection.breakOnChange("scope:Temps/count", true);
+    const count = () => node("Temps", "count");
+    await debug.inspection.breakOnChange(count().key, true);
     expect(count().breaking).toBe(true);
     await debug.inspection.selectFrame(0);
     expect([count().value, count().breaking]).toEqual(["5", false]);
-    await debug.inspection.breakOnChange("scope:Temps/count", false);
-    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame1.count", accessType: "write" }] });
-    await debug.inspection.breakOnChange("scope:Temps/count", true);
-    expect(sent()).toEqual({
-      breakpoints: [
-        { dataId: "frame1.count", accessType: "write" },
-        { dataId: "frame0.count", accessType: "write" },
-      ],
-    });
+    await debug.inspection.breakOnChange(count().key, false);
+    expect(sentBreakpoints(fake)).toEqual(["frame1.count"]);
+    await debug.inspection.breakOnChange(count().key, true);
+    expect(sentBreakpoints(fake)).toEqual(["frame1.count", "frame0.count"]);
     await debug.inspection.selectFrame(1);
     expect(count().breaking).toBe(true);
     await stop(fake);
@@ -426,24 +441,23 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("drops the last stop's watch values at a stop with no frames", async () => {
     const { fake, game } = await begin(["gold"]);
     await stop(fake);
-    expect(watchEntries(workspace.debugInspection.value, ["gold"])[0]!.value).toBe("3");
+    expect(watchEntries(state(), ["gold"])[0]!.value).toBe("3");
     game.emptyStack();
     fake.event("stopped", { reason: "step", threadId: 0 });
-    await vi.waitFor(() => expect(workspace.debugInspection.value.frames).toEqual([]));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const state = workspace.debugInspection.value;
-    expect([state.status, state.frameId, state.scopes]).toEqual(["paused", null, []]);
-    expect(watchEntries(state, ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
+    await vi.waitFor(() => expect(state().frames).toEqual([]));
+    await settle();
+    expect([state().status, state().frameId, state().variables]).toEqual(["paused", null, []]);
+    expect(watchEntries(state(), ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
   });
 
   it("lets a scalar field of a story table be changed through the table's reference, but not the table row itself", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
-    await debug.inspection.toggle("scope:Vars/party");
-    const party = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "party")!;
+    await debug.inspection.toggle(key("Vars", "party"));
+    const party = node("Vars", "party");
     const ada = party.children![0]!;
     expect([party.editable, ada.editable, ada.breakable]).toEqual([false, true, false]);
-    await debug.inspection.setValue("scope:Vars/party/1", '"Grace"');
+    await debug.inspection.setValue(ada.key, '"Grace"');
     expect(fake.requests.findLast((r) => r.command === "setVariable")!.arguments).toEqual({
       variablesReference: PARTY_REF,
       name: "1",
@@ -455,12 +469,10 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     const { fake, debug, game } = await begin();
     game.bag();
     await stop(fake);
-    const bagKey = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "bag")!.key;
-    await debug.inspection.toggle(bagKey);
-    const bag = () => variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "bag")!;
-    await debug.inspection.toggle(bag().children!.find((v) => v.name === "a")!.key);
-    const slash = bag().children!.find((v) => v.name === "a/b")!;
-    const nested = bag().children!.find((v) => v.name === "a")!.children!.find((v) => v.name === "b")!;
+    await debug.inspection.toggle(key("Vars", "bag"));
+    await debug.inspection.toggle(key("Vars", "bag", "a"));
+    const slash = node("Vars", "bag", "a/b");
+    const nested = node("Vars", "bag", "a", "b");
     expect(slash.key).not.toBe(nested.key);
     await debug.inspection.setValue(slash.key, "9");
     expect(fake.requests.findLast((r) => r.command === "setVariable")!.arguments).toEqual({
@@ -473,12 +485,11 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("marks a story value's data breakpoint again when its folded scope is reopened at a later stop", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
-    await debug.inspection.breakOnChange("scope:Vars/gold", true);
-    await debug.inspection.toggle("scope:Vars");
+    await debug.inspection.breakOnChange(key("Vars", "gold"), true);
+    await debug.inspection.toggle(key("Vars"));
     await stop(fake);
-    await debug.inspection.toggle("scope:Vars");
-    const gold = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "gold")!;
-    expect(gold.breaking).toBe(true);
+    await debug.inspection.toggle(key("Vars"));
+    expect(node("Vars", "gold").breaking).toBe(true);
   });
 
   it("keeps the previous frame's values read-only while a selected frame's values load, and sends no write meanwhile", async () => {
@@ -486,37 +497,30 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     game.local(1, "count", "1");
     game.local(0, "count", "5");
     await stop(fake);
+    const countKey = key("Temps", "count");
     fake.holdWhen((r) => r.command === "scopes");
     const selecting = debug.inspection.selectFrame(0);
     await vi.waitFor(() => expect(fake.held()).toBe(1));
-    const count = variableTree(workspace.debugInspection.value)[1]?.children?.find((v) => v.name === "count");
-    expect(count?.editable ?? false).toBe(false);
-    await debug.inspection.setValue("scope:Temps/count", "7");
+    expect(node("Temps", "count").editable).toBe(false);
+    await debug.inspection.setValue(countKey, "7");
     expect(fake.commands()).not.toContain("setVariable");
     fake.release();
     await selecting;
-    const loaded = variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
-    expect([loaded.value, loaded.editable]).toEqual(["5", true]);
+    expect([node("Temps", "count").value, node("Temps", "count").editable]).toEqual(["5", true]);
   });
 
   it("keeps both data breakpoints when the second is set before the first is answered", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
     fake.holdWhen((r) => r.command === "dataBreakpointInfo");
-    const first = debug.inspection.breakOnChange("scope:Vars/gold", true);
+    const first = debug.inspection.breakOnChange(key("Vars", "gold"), true);
     await vi.waitFor(() => expect(fake.held()).toBe(1));
-    const second = debug.inspection.breakOnChange("scope:Vars/mood", true);
+    const second = debug.inspection.breakOnChange(key("Vars", "mood"), true);
     fake.release();
     await first;
     await second;
-    expect(fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments).toEqual({
-      breakpoints: [
-        { dataId: "gold", accessType: "write" },
-        { dataId: "mood", accessType: "write" },
-      ],
-    });
-    const [vars] = variableTree(workspace.debugInspection.value);
-    expect(vars!.children!.filter((v) => v.breaking).map((v) => v.name)).toEqual(["gold", "mood"]);
+    expect(sentBreakpoints(fake)).toEqual(["gold", "mood"]);
+    expect(node("Vars").children!.filter((v) => v.breaking).map((v) => v.name)).toEqual(["gold", "mood"]);
   });
 
   it("drops a queued data breakpoint toggle when another frame is selected before it runs", async () => {
@@ -526,9 +530,9 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     game.local(0, "bonus", "8");
     await stop(fake);
     fake.holdWhen((r) => r.command === "dataBreakpointInfo");
-    const first = debug.inspection.breakOnChange("scope:Temps/count", true);
+    const first = debug.inspection.breakOnChange(key("Temps", "count"), true);
     await vi.waitFor(() => expect(fake.held()).toBe(1));
-    const second = debug.inspection.breakOnChange("scope:Temps/bonus", true);
+    const second = debug.inspection.breakOnChange(key("Temps", "bonus"), true);
     fake.holdWhen(() => false);
     await debug.inspection.selectFrame(0);
     fake.release();
@@ -545,42 +549,38 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     game.local(1, "count", "1");
     await stop(fake);
     fake.holdWhen((r) => r.command === "setDataBreakpoints");
-    const setting = debug.inspection.breakOnChange("scope:Temps/count", true);
+    const setting = debug.inspection.breakOnChange(key("Temps", "count"), true);
     await vi.waitFor(() => expect(fake.held()).toBe(1));
     fake.holdWhen(() => false);
     await debug.inspection.selectFrame(0);
     fake.release();
     await setting;
     await debug.inspection.selectFrame(1);
-    const count = variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
-    expect(count.breaking).toBe(true);
-    expect(Object.values(workspace.debugInspection.value.breaking)).toEqual(["scope:Temps/count"]);
+    expect(node("Temps", "count").breaking).toBe(true);
+    await debug.inspection.breakOnChange(key("Vars", "gold"), true);
+    expect(sentBreakpoints(fake)).toEqual(["frame1.count", "gold"]);
   });
 
   it("loads a scope opened while a stop's values were still loading", async () => {
     const { fake, debug } = await begin();
     await stop(fake);
-    await debug.inspection.toggle("scope:Vars");
+    await debug.inspection.toggle(key("Vars"));
     fake.holdWhen((r) => r.command === "variables");
     fake.event("stopped", { reason: "step", threadId: 0 });
     await vi.waitFor(() => expect(fake.held()).toBe(1));
-    await debug.inspection.toggle("scope:Vars");
+    await debug.inspection.toggle(key("Vars"));
     fake.holdWhen(() => false);
     fake.release();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settle();
     await vi.waitFor(() =>
-      expect(variableTree(workspace.debugInspection.value)[0]!.children?.map((v) => v.name)).toEqual([
-        "gold",
-        "mood",
-        "party",
-      ]),
+      expect(node("Vars").children?.map((v) => v.name)).toEqual(["gold", "mood", "party"]),
     );
   });
 
   it("shows a watch named __proto__ like any other name", async () => {
     const { fake } = await begin(["__proto__", "gold"]);
     await stop(fake);
-    expect(watchEntries(workspace.debugInspection.value, ["__proto__", "gold"])).toEqual([
+    expect(watchEntries(state(), ["__proto__", "gold"])).toEqual([
       { key: "0", expression: "__proto__", error: "not available in this frame" },
       { key: "1", expression: "gold", value: "3" },
     ]);
@@ -593,10 +593,10 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     fake.event("stopped", { reason: "step", threadId: 0 });
     await vi.waitFor(() => expect(fake.held()).toBe(1));
     await debug.inspection.addWatch("mood");
-    expect(watchEntries(workspace.debugInspection.value, ["gold", "mood"])[1]!.value).toBe('"calm"');
+    expect(watchEntries(state(), ["gold", "mood"])[1]!.value).toBe('"calm"');
     fake.release();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(watchEntries(workspace.debugInspection.value, ["gold", "mood"])).toEqual([
+    await settle();
+    expect(watchEntries(state(), ["gold", "mood"])).toEqual([
       { key: "0", expression: "gold", value: "3" },
       { key: "1", expression: "mood", value: '"calm"' },
     ]);
@@ -605,7 +605,7 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
   it("shows a watched name the frame does not hold as not available, not as an undefined value", async () => {
     const { fake } = await begin(["silver"]);
     await stop(fake);
-    expect(watchEntries(workspace.debugInspection.value, ["silver"])).toEqual([
+    expect(watchEntries(state(), ["silver"])).toEqual([
       { key: "0", expression: "silver", error: "not available in this frame" },
     ]);
   });
@@ -616,13 +616,13 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     await debug.inspection.addWatch("mood");
     expect(saved.at(-1)).toEqual(["mood"]);
     expect(workspace.current.debug.watch).toEqual(["mood"]);
-    expect(watchEntries(workspace.debugInspection.value, ["mood"])[0]!.value).toBe("\"calm\"");
+    expect(watchEntries(state(), ["mood"])[0]!.value).toBe("\"calm\"");
     debug.inspection.editWatch(0);
-    expect(workspace.debugInspection.value.watchEditing).toBe(0);
+    expect(state().watchEditing).toBe(0);
     await debug.inspection.changeWatch(0, "gold");
     expect(workspace.current.debug.watch).toEqual(["gold"]);
-    expect(workspace.debugInspection.value.watchEditing).toBeNull();
-    expect(watchEntries(workspace.debugInspection.value, ["gold"])[0]!.value).toBe("3");
+    expect(state().watchEditing).toBeNull();
+    expect(watchEntries(state(), ["gold"])[0]!.value).toBe("3");
     debug.inspection.removeWatch(0);
     expect(workspace.current.debug.watch).toEqual([]);
   });
@@ -631,10 +631,9 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     const { fake } = await begin(["gold"]);
     await stop(fake);
     fake.event("continued", { threadId: 0, allThreadsContinued: true });
-    const state = workspace.debugInspection.value;
-    expect(state.status).toBe("running");
-    expect([state.frames, state.scopes, state.watch]).toEqual([[], [], {}]);
-    expect(watchEntries(state, ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
+    expect(state().status).toBe("running");
+    expect([state().frames, state().variables, state().watch.size]).toEqual([[], [], 0]);
+    expect(watchEntries(state(), ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
   });
 
   it("answers a hover through the same evaluate path, in the selected frame", async () => {
@@ -649,4 +648,226 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     });
     expect(await debug.evaluate("nothing")).toBeNull();
   });
+
+  describe("names an object would inherit, and names holding a slash or a dot", () => {
+    const oddStory = async () => {
+      const started = await begin(ODD_NAMES);
+      ODD_NAMES.forEach((name, index) => started.game.set(name, String(100 + index)));
+      await stop(started.fake);
+      return started;
+    };
+
+    it("lists each as its own row with its own value and key", async () => {
+      await oddStory();
+      const rows = ODD_NAMES.map((name) => node("Vars", name));
+      expect(rows.map((row) => row.value)).toEqual(["100", "101", "102", "103", "104"]);
+      expect(new Set([...rows.map((row) => row.key), key("Vars", "gold"), key("Vars")]).size).toBe(7);
+    });
+
+    it.each(ODD_NAMES)("changes the value named %s through setVariable with that exact name", async (name) => {
+      const { debug, fake } = await oddStory();
+      await debug.inspection.setValue(key("Vars", name), "7");
+      expect(fake.requests.findLast((r) => r.command === "setVariable")!.arguments).toEqual({
+        variablesReference: VARS_REF,
+        name,
+        value: "7",
+      });
+      expect(node("Vars", name).value).toBe("7");
+    });
+
+    it.each(ODD_NAMES)("marks only the row named %s when its value breaks on change", async (name) => {
+      const { debug, fake } = await oddStory();
+      await debug.inspection.breakOnChange(key("Vars", name), true);
+      expect(sentBreakpoints(fake)).toEqual([name]);
+      expect(node("Vars").children!.filter((v) => v.breaking).map((v) => v.name)).toEqual([name]);
+    });
+
+    it("shows each as its own watch", async () => {
+      await oddStory();
+      expect(watchEntries(state(), ODD_NAMES).map((entry) => entry.value)).toEqual([
+        "100",
+        "101",
+        "102",
+        "103",
+        "104",
+      ]);
+    });
+  });
+});
+
+type Fake = ReturnType<typeof fakeAdapter>;
+type Started = Awaited<ReturnType<typeof begin>>;
+
+interface Pending {
+  name: string;
+  watch: string[];
+  start: (started: Started) => Promise<unknown>;
+  holds: (request: DebugProtocol.Request) => boolean;
+}
+
+const evaluates = (expression: string) => (request: DebugProtocol.Request) =>
+  request.command === "evaluate" &&
+  (request.arguments as { expression?: string }).expression === expression;
+
+const PENDING: Pending[] = [
+  {
+    name: "loading the scopes of a stop",
+    watch: ["gold"],
+    holds: (request) => request.command === "scopes",
+    start: async ({ fake }) => fake.event("stopped", { reason: "step", threadId: 0 }),
+  },
+  {
+    name: "loading a table's variables",
+    watch: ["gold"],
+    holds: (request) =>
+      request.command === "variables" &&
+      (request.arguments as { variablesReference: number }).variablesReference === PARTY_REF,
+    start: ({ debug }) => debug.inspection.toggle(key("Vars", "party")),
+  },
+  {
+    name: "setting a variable",
+    watch: ["gold"],
+    holds: (request) => request.command === "setVariable",
+    start: ({ debug }) => debug.inspection.setValue(key("Vars", "gold"), "50"),
+  },
+  {
+    name: "toggling a data breakpoint",
+    watch: ["gold"],
+    holds: (request) => request.command === "dataBreakpointInfo",
+    start: ({ debug }) => debug.inspection.breakOnChange(key("Vars", "mood"), true),
+  },
+  {
+    name: "adding a watch",
+    watch: ["gold"],
+    holds: evaluates("mood"),
+    start: ({ debug }) => debug.inspection.addWatch("mood"),
+  },
+  {
+    name: "evaluating the watches of a stop",
+    watch: ["gold", "mood"],
+    holds: evaluates("mood"),
+    start: async ({ fake }) => fake.event("stopped", { reason: "step", threadId: 0 }),
+  },
+];
+
+interface Interruption {
+  name: string;
+  frameId: number | null;
+  status: "paused" | "none";
+  run: (started: Started) => Promise<void>;
+}
+
+const INTERRUPTIONS: Interruption[] = [
+  {
+    name: "a new stop",
+    frameId: 1,
+    status: "paused",
+    run: async ({ fake }) => {
+      fake.event("stopped", { reason: "step", threadId: 0 });
+    },
+  },
+  {
+    name: "a frame selection",
+    frameId: 0,
+    status: "paused",
+    run: ({ debug }) => debug.inspection.selectFrame(0),
+  },
+  {
+    name: "a stop with no frames",
+    frameId: null,
+    status: "paused",
+    run: async ({ fake, game }) => {
+      game.emptyStack();
+      fake.event("stopped", { reason: "step", threadId: 0 });
+    },
+  },
+  {
+    name: "the run ending",
+    frameId: null,
+    status: "none",
+    run: async ({ debug }) => debug.end(),
+  },
+];
+
+const CASES = PENDING.flatMap((pending) =>
+  INTERRUPTIONS.flatMap((interruption) =>
+    (["before", "after"] as const).map((arrives) => ({ pending, interruption, arrives })),
+  ),
+);
+
+const complete = (interruption: Interruption, expressions: readonly string[]) => {
+  const now = state();
+  expect(now.status).toBe(interruption.status);
+  expect(now.frameId).toBe(interruption.frameId);
+  if (interruption.frameId == null) {
+    expect(now.variables).toEqual([]);
+    expect(watchEntries(now, expressions).every((entry) => entry.value === undefined && !entry.error)).toBe(true);
+    return;
+  }
+  const visit = (nodes: readonly DebugVariableNode[]) => {
+    for (const row of nodes) {
+      expect(row.message).toBeUndefined();
+      if (row.expanded) {
+        expect(row.children).toBeDefined();
+        visit(row.children!);
+      }
+    }
+  };
+  visit(now.variables);
+  expect(node("Vars", "gold").value).toBe("77");
+  expect(node("Vars", "gold").editable).toBe(true);
+  const own = interruption.frameId === 0 ? "coin=9" : "bag=2";
+  expect(node("Temps").children!.map((v) => `${v.name}=${v.value}`)).toEqual([own]);
+  for (const entry of watchEntries(now, expressions)) {
+    expect(entry.value ?? entry.error).toBeDefined();
+  }
+  expect(watchEntries(now, ["gold"])[0]!.value).toBe("77");
+};
+
+describe("a response requested under one snapshot never changes another", () => {
+  it(`covers ${PENDING.length} pending operations, ${INTERRUPTIONS.length} interruptions and both arrival orders`, () => {
+    expect(CASES).toHaveLength(48);
+  });
+
+  it.each(CASES.map((c) => [c.pending.name, c.interruption.name, c.arrives, c] as const))(
+    "%s, interrupted by %s, its response arriving %s",
+    async (_pending, _interruption, _arrives, { pending, interruption, arrives }) => {
+      const started = await begin(pending.watch);
+      const { fake, game } = started;
+      await stop(fake);
+      const breakpointsBefore = fake.commands().filter((c) => c === "setDataBreakpoints").length;
+      fake.holdWhen(pending.holds);
+      const operation = pending.start(started);
+      await vi.waitFor(() => expect(fake.held()).toBe(1));
+      fake.holdWhen(() => false);
+      if (arrives === "before") {
+        fake.release();
+        await operation;
+        await settle();
+      }
+      game.set("gold", "77");
+      await interruption.run(started);
+      await settle();
+      if (arrives === "after") {
+        const published = state();
+        const sent = fake.requests.length;
+        fake.release();
+        await operation;
+        await settle();
+        expect(state()).toBe(published);
+        expect(fake.requests.length).toBe(sent);
+      }
+      complete(interruption, workspace.watchExpressions.value);
+      const breakpoints = fake.commands().filter((c) => c === "setDataBreakpoints").length;
+      if (pending.name === "toggling a data breakpoint") {
+        expect(breakpoints - breakpointsBefore).toBe(arrives === "before" ? 1 : 0);
+        if (interruption.frameId != null) {
+          expect(node("Vars", "mood").breaking).toBe(arrives === "before");
+        }
+      } else {
+        expect(breakpoints).toBe(breakpointsBefore);
+      }
+      started.debug.end();
+    },
+  );
 });

@@ -33,18 +33,71 @@ export const DEBUG_INSPECTION_TEXT = {
   noValue: "This expression has no value here.",
 } as const;
 
-const SEPARATOR = "/";
+interface Place {
+  readonly id: string;
+  readonly name: string;
+  readonly children: Map<string, Place>;
+  open?: boolean;
+  openByDefault: boolean;
+}
 
-const scopeKey = (scope: DebugProtocol.Scope) =>
-  `scope:${encodeURIComponent(scope.name)}`;
+interface Row {
+  readonly place: Place;
+  readonly parent: Row | null;
+  readonly ref: number;
+  readonly variable?: DebugProtocol.Variable;
+  readonly scope?: DebugProtocol.Scope;
+  children: Row[] | null;
+  message?: string;
+  mark?: string;
+}
 
-const childKey = (parent: string, name: string) =>
-  `${parent}${SEPARATOR}${encodeURIComponent(name)}`;
+class Snapshot {
+  retired = false;
 
-const parentOf = (key: string) => key.slice(0, key.lastIndexOf(SEPARATOR));
+  loading = true;
 
-const nameOf = (key: string) =>
-  decodeURIComponent(key.slice(key.lastIndexOf(SEPARATOR) + 1));
+  scopes: Row[] = [];
+
+  readonly rows = new Map<Place, Row>();
+
+  readonly watch = new Map<string, WatchResult>();
+
+  editing: Place | null = null;
+
+  marking: Promise<void> = Promise.resolve();
+
+  previous: Snapshot | null = null;
+
+  constructor(
+    readonly frameId: number | null,
+    protected readonly _request: DebugRequest,
+    protected readonly _changed: () => void,
+  ) {}
+
+  changed() {
+    if (!this.retired) {
+      this._changed();
+    }
+  }
+
+  async ask<T extends DebugProtocol.Response>(
+    command: string,
+    args: unknown,
+  ): Promise<T | null> {
+    if (this.retired) {
+      return null;
+    }
+    const response = await this._request(command, args);
+    return this.retired ? null : (response as T | null);
+  }
+
+  add(place: Place, parent: Row | null, ref: number, item: Partial<Row>): Row {
+    const row: Row = { place, parent, ref, children: null, ...item };
+    this.rows.set(place, row);
+    return row;
+  }
+}
 
 const scopeRank = (scope: DebugProtocol.Scope) =>
   scope.expensive ? 2 : scope.presentationHint === "locals" ? 1 : 0;
@@ -54,72 +107,17 @@ const defaultSource = (uri: string): DebugSource => ({
   inProject: Boolean(uri),
 });
 
-const expandedOf = (
-  state: DebugInspectionState,
-  key: string,
-  fallback: boolean,
-) => state.expanded[key] ?? fallback;
-
 const refusal = (response: DebugProtocol.Response | null) =>
   response?.message || DEBUG_INSPECTION_TEXT.refused;
 
-export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
-  const nodes = (
-    parent: string,
-    list: readonly DebugProtocol.Variable[],
-    inScope: boolean,
-    direct: boolean,
-  ): DebugVariableNode[] =>
-    list.map((variable) => {
-      const key = childKey(parent, variable.name);
-      const expandable = variable.variablesReference > 0;
-      const expanded = expandable && expandedOf(state, key, false);
-      const children = state.variables[key];
-      return {
-        key,
-        name: variable.name,
-        value: variable.value,
-        type: variable.type,
-        expandable,
-        expanded,
-        editable: !state.pending && inScope && !expandable,
-        breakable: !state.pending && inScope && direct,
-        breaking: key in state.marked,
-        message: state.messages[key],
-        children:
-          expanded && children ? nodes(key, children, inScope, false) : undefined,
-      };
-    });
-  return state.scopes.map((scope) => {
-    const key = scopeKey(scope);
-    const expanded = expandedOf(state, key, !scope.expensive);
-    const children = state.variables[key];
-    return {
-      key,
-      name: scope.name,
-      value: "",
-      expandable: true,
-      expanded,
-      editable: false,
-      breakable: false,
-      breaking: false,
-      message: state.messages[key],
-      children:
-        expanded && children
-          ? nodes(key, children, !scope.expensive, true)
-          : undefined,
-    };
-  });
-}
+const isOpen = (place: Place) => place.open ?? place.openByDefault;
 
 export function watchEntries(
   state: DebugInspectionState,
   expressions: readonly string[],
 ): DebugWatchEntry[] {
   return expressions.map((expression, index) => {
-    const result = Object.hasOwn(state.watch, expression)
-      ? state.watch[expression]
-      : undefined;
+    const result = state.watch.get(expression);
     return {
       key: String(index),
       expression,
@@ -141,7 +139,19 @@ export function frameEntries(state: DebugInspectionState): DebugFrameEntry[] {
 }
 
 export default class WorkspaceDebugInspection {
-  protected _generation = 0;
+  protected _status: DebugInspectionState["status"] = "none";
+
+  protected _frames: readonly InspectedFrame[] = [];
+
+  protected _snapshot: Snapshot | null = null;
+
+  protected _accepted = new Map<string, Place>();
+
+  protected _watchEditing: number | null = null;
+
+  protected _places = new Map<string, Place>();
+
+  protected readonly _root: Place = this.place(null, "", false);
 
   protected _breaks: Promise<void> = Promise.resolve();
 
@@ -156,41 +166,29 @@ export default class WorkspaceDebugInspection {
   }
 
   begin() {
-    this._generation += 1;
-    this.update({
-      ...IDLE_DEBUG_INSPECTION,
-      status: "running",
-      expanded: this.state.expanded,
-    });
+    this._status = "running";
+    this.close();
   }
 
   end() {
-    this._generation += 1;
-    this.update({ ...IDLE_DEBUG_INSPECTION, expanded: this.state.expanded });
+    this._status = "none";
+    this.close();
   }
 
   resume() {
-    if (this.state.status === "none") {
+    if (this._status === "none") {
       return;
     }
-    this._generation += 1;
-    this.update({
-      status: "running",
-      frames: [],
-      frameId: null,
-      scopes: [],
-      variables: {},
-      refs: {},
-      messages: {},
-      editing: null,
-      watch: {},
-      marked: {},
-    });
+    this._status = "running";
+    this.replace(null);
+    this._frames = [];
+    this.publish();
   }
 
   stopped(stack: DebugProtocol.StackTraceResponse["body"]) {
     const source = this._options.source ?? defaultSource;
-    const frames: InspectedFrame[] = stack.stackFrames.map((frame) => {
+    this._status = "paused";
+    this._frames = stack.stackFrames.map((frame) => {
       const uri = frame.source?.path ?? "";
       const place = uri ? source(uri) : { path: "", inProject: false };
       return {
@@ -203,221 +201,89 @@ export default class WorkspaceDebugInspection {
         inProject: place.inProject,
       };
     });
-    this.update({
-      status: "paused",
-      frames,
-      frameId: frames[0]?.id ?? null,
-      messages: {},
-      editing: null,
-      marked: {},
-      pending: true,
-    });
-    return this.refresh();
+    return this.open(this._frames[0]?.id ?? null);
   }
 
   async selectFrame(frameId: number) {
     if (
-      this.state.status !== "paused" ||
-      !this.state.frames.some((frame) => frame.id === frameId)
+      this._status !== "paused" ||
+      !this._frames.some((frame) => frame.id === frameId)
     ) {
       return;
     }
-    this.update({ frameId, messages: {}, editing: null, marked: {}, pending: true });
-    await this.refresh();
-  }
-
-  async refresh() {
-    const generation = ++this._generation;
-    const { frameId } = this.state;
-    let scopes: DebugProtocol.Scope[] = [];
-    const loaded = { variables: {}, refs: {} } as {
-      variables: Record<string, readonly DebugProtocol.Variable[]>;
-      refs: Record<string, number>;
-    };
-    if (frameId != null) {
-      const response = (await this._options.request("scopes", {
-        frameId,
-      })) as DebugProtocol.ScopesResponse | null;
-      if (generation !== this._generation) {
-        return;
-      }
-      scopes = [...(response?.success ? (response.body?.scopes ?? []) : [])].sort(
-        (a, b) => scopeRank(a) - scopeRank(b),
-      );
-      for (const scope of scopes) {
-        loaded.refs[scopeKey(scope)] = scope.variablesReference;
-      }
-      const tried = new Set<string>();
-      const opened = () =>
-        Object.keys(loaded.refs).filter((key) => {
-          const scope = scopes.find((s) => scopeKey(s) === key);
-          return (
-            !tried.has(key) &&
-            !loaded.variables[key] &&
-            expandedOf(this.state, key, scope ? !scope.expensive : false)
-          );
-        });
-      for (let keys = opened(); keys.length; keys = opened()) {
-        for (const key of keys) {
-          tried.add(key);
-          await this.load(key, loaded.refs[key]!, loaded, generation);
-          if (generation !== this._generation) {
-            return;
-          }
-        }
-      }
-    }
-    this.update({
-      scopes,
-      variables: loaded.variables,
-      refs: loaded.refs,
-      pending: false,
-    });
-    await this.markBreaking(generation);
-    if (generation !== this._generation) {
-      return;
-    }
-    await this.evaluateWatch(this.expressions, generation, true);
+    await this.open(frameId);
   }
 
   async toggle(key: string) {
-    const scope = this.state.scopes.find((s) => scopeKey(s) === key);
-    const expanded = expandedOf(this.state, key, scope ? !scope.expensive : false);
-    this.update({ expanded: { ...this.state.expanded, [key]: !expanded } });
-    const ref = this.state.refs[key];
-    if (expanded || ref == null || this.state.variables[key] || this.state.pending) {
+    const place = this._places.get(key);
+    if (!place) {
       return;
     }
-    const generation = this._generation;
-    const loaded = { variables: {}, refs: {} };
-    await this.load(key, ref, loaded, generation);
-    if (generation !== this._generation) {
+    const opening = !isOpen(place);
+    place.open = opening;
+    this.publish();
+    const snapshot = this._snapshot;
+    const row = snapshot?.rows.get(place);
+    if (!opening || !snapshot || snapshot.loading || !row || row.children) {
       return;
     }
-    this.update({
-      variables: { ...this.state.variables, ...loaded.variables },
-      refs: { ...this.state.refs, ...loaded.refs },
-    });
-    await this.markBreaking(generation);
+    await this.loadOpen(snapshot, [row]);
+    snapshot.changed();
+    await this.mark(snapshot);
   }
 
   edit(key: string | null) {
-    const messages = { ...this.state.messages };
-    if (key) {
-      delete messages[key];
+    const snapshot = this._snapshot;
+    if (!snapshot) {
+      return;
     }
-    this.update({ editing: key, messages });
+    const place = key == null ? null : (this._places.get(key) ?? null);
+    const row = place ? snapshot.rows.get(place) : undefined;
+    if (row) {
+      row.message = undefined;
+    }
+    snapshot.editing = place;
+    this.publish();
   }
 
   async setValue(key: string, value: string) {
-    const generation = this._generation;
-    this.update({ editing: null });
-    if (this.state.pending) {
+    const snapshot = this._snapshot;
+    if (!snapshot) {
       return;
     }
-    const response = await this._options.request("setVariable", {
-      variablesReference: this.state.refs[parentOf(key)],
-      name: nameOf(key),
+    snapshot.editing = null;
+    this.publish();
+    const row = this.row(snapshot, key);
+    if (!row?.parent) {
+      return;
+    }
+    const response = await snapshot.ask("setVariable", {
+      variablesReference: row.parent.ref,
+      name: row.place.name,
       value,
     });
-    if (!response || generation !== this._generation) {
+    if (!response) {
       return;
     }
     if (!response.success) {
-      this.note(key, refusal(response));
+      this.note(snapshot, row, refusal(response));
       return;
     }
-    await this.refresh();
+    if (this._snapshot === snapshot) {
+      await this.open(snapshot.frameId);
+    }
   }
 
   breakOnChange(key: string, on: boolean) {
-    const generation = this._generation;
-    const run = this._breaks.then(() => this.applyBreak(key, on, generation));
+    const snapshot = this._snapshot;
+    const run = this._breaks.then(() => this.applyBreak(snapshot, key, on));
     this._breaks = run.catch(() => {});
     return run;
   }
 
-  protected async applyBreak(key: string, on: boolean, generation: number) {
-    if (this.state.pending || generation !== this._generation) {
-      return;
-    }
-    const breaking: Record<string, string> = Object.assign(
-      Object.create(null),
-      this.state.breaking,
-    );
-    const marked = { ...this.state.marked };
-    if (on) {
-      const info = await this.dataBreakpointInfo(key);
-      if (!info || generation !== this._generation) {
-        return;
-      }
-      const dataId = info.success ? info.body?.dataId : null;
-      if (!dataId) {
-        this.note(key, info.success ? info.body?.description || refusal(null) : refusal(info));
-        return;
-      }
-      breaking[dataId] = key;
-      marked[key] = dataId;
-    } else {
-      const dataId = marked[key];
-      if (dataId === undefined) {
-        return;
-      }
-      delete breaking[dataId];
-      delete marked[key];
-    }
-    const response = await this._options.request("setDataBreakpoints", {
-      breakpoints: Object.keys(breaking).map((dataId) => ({
-        dataId,
-        accessType: "write",
-      })),
-    });
-    if (!response?.success) {
-      if (response && generation === this._generation) {
-        this.note(key, refusal(response));
-      }
-      return;
-    }
-    if (generation === this._generation) {
-      this.update({ breaking, marked });
-      return;
-    }
-    this.update({ breaking });
-    if (!this.state.pending) {
-      await this.markBreaking(this._generation);
-    }
-  }
-
-  protected dataBreakpointInfo(key: string) {
-    return this._options.request("dataBreakpointInfo", {
-      variablesReference: this.state.refs[parentOf(key)],
-      name: nameOf(key),
-    }) as Promise<DebugProtocol.DataBreakpointInfoResponse | null>;
-  }
-
-  protected async markBreaking(generation: number) {
-    const { breaking, variables } = this.state;
-    const marked: Record<string, string> = {};
-    for (const key of new Set(Object.values(breaking))) {
-      const shown = variables[parentOf(key)]?.some((v) => v.name === nameOf(key));
-      if (!shown) {
-        continue;
-      }
-      const info = await this.dataBreakpointInfo(key);
-      if (generation !== this._generation) {
-        return;
-      }
-      const dataId = info?.success ? info.body?.dataId : null;
-      if (dataId && dataId in breaking) {
-        marked[key] = dataId;
-      }
-    }
-    this.update({ marked });
-  }
-
   async addWatch(expression: string) {
     this.saveWatch([...this.expressions, expression]);
-    await this.evaluateWatch([expression], this._generation);
+    await this.evaluateWatch(this._snapshot, [expression]);
   }
 
   async changeWatch(index: number, expression: string) {
@@ -426,33 +292,251 @@ export default class WorkspaceDebugInspection {
       return;
     }
     expressions[index] = expression;
-    this.update({ watchEditing: null });
+    this._watchEditing = null;
     this.saveWatch(expressions);
-    await this.evaluateWatch([expression], this._generation);
+    this.publish();
+    await this.evaluateWatch(this._snapshot, [expression]);
   }
 
   removeWatch(index: number) {
-    this.update({ watchEditing: null });
+    this._watchEditing = null;
     this.saveWatch(this.expressions.filter((_, i) => i !== index));
+    this.publish();
   }
 
   editWatch(index: number | null) {
-    this.update({ watchEditing: index });
+    this._watchEditing = index;
+    this.publish();
   }
 
-  async evaluate(
+  evaluate(
     expression: string,
     context: "watch" | "hover",
   ): Promise<WatchResult | null> {
-    const { status, frameId } = this.state;
-    if (status !== "paused" || frameId == null) {
+    const snapshot = this._snapshot;
+    return snapshot
+      ? this.evaluateIn(snapshot, expression, context)
+      : Promise.resolve(null);
+  }
+
+  protected close() {
+    this.replace(null);
+    this._frames = [];
+    this._accepted = new Map();
+    this._watchEditing = null;
+    this.publish();
+  }
+
+  protected replace(snapshot: Snapshot | null) {
+    const previous = this._snapshot;
+    if (previous) {
+      previous.retired = true;
+    }
+    this._snapshot = snapshot;
+    if (snapshot && previous) {
+      snapshot.previous = previous.loading ? previous.previous : previous;
+    }
+  }
+
+  protected async open(frameId: number | null) {
+    const snapshot = new Snapshot(frameId, this._options.request, () =>
+      this.publish(),
+    );
+    this.replace(snapshot);
+    this.publish();
+    if (frameId != null) {
+      const response = await snapshot.ask<DebugProtocol.ScopesResponse>(
+        "scopes",
+        { frameId },
+      );
+      const scopes = [
+        ...(response?.success ? (response.body?.scopes ?? []) : []),
+      ].sort((a, b) => scopeRank(a) - scopeRank(b));
+      snapshot.scopes = scopes.map((scope) =>
+        snapshot.add(
+          this.place(this._root, scope.name, !scope.expensive),
+          null,
+          scope.variablesReference,
+          { scope },
+        ),
+      );
+      await this.loadOpen(snapshot, snapshot.scopes);
+    }
+    snapshot.loading = false;
+    snapshot.changed();
+    await this.mark(snapshot);
+    await this.evaluateWatch(snapshot, this.expressions);
+    snapshot.previous = null;
+    snapshot.changed();
+  }
+
+  protected async loadOpen(snapshot: Snapshot, roots: readonly Row[]) {
+    const tried = new Set<Row>();
+    const waiting = () => {
+      const found: Row[] = [];
+      const visit = (row: Row) => {
+        if (row.ref <= 0 || !isOpen(row.place)) {
+          return;
+        }
+        if (row.children) {
+          row.children.forEach(visit);
+        } else if (!tried.has(row)) {
+          found.push(row);
+        }
+      };
+      roots.forEach(visit);
+      return found;
+    };
+    for (let rows = waiting(); rows.length; rows = waiting()) {
+      for (const row of rows) {
+        tried.add(row);
+        await this.load(snapshot, row);
+      }
+    }
+  }
+
+  protected async load(snapshot: Snapshot, row: Row) {
+    const response = await snapshot.ask<DebugProtocol.VariablesResponse>(
+      "variables",
+      { variablesReference: row.ref },
+    );
+    if (!response?.success) {
+      row.message = refusal(response);
+      return;
+    }
+    row.children = (response.body?.variables ?? []).map((variable) =>
+      snapshot.add(
+        this.place(row.place, variable.name, false),
+        row,
+        variable.variablesReference,
+        { variable },
+      ),
+    );
+  }
+
+  protected async applyBreak(
+    snapshot: Snapshot | null,
+    key: string,
+    on: boolean,
+  ) {
+    if (!snapshot || snapshot.retired || snapshot.loading) {
+      return;
+    }
+    const row = this.row(snapshot, key);
+    if (!row?.parent) {
+      return;
+    }
+    const accepted = new Map(this._accepted);
+    if (on) {
+      const info = await this.dataBreakpointInfo(snapshot, row);
+      if (!info) {
+        return;
+      }
+      const dataId = info.success ? info.body?.dataId : null;
+      if (!dataId) {
+        this.note(
+          snapshot,
+          row,
+          info.success ? info.body?.description || refusal(null) : refusal(info),
+        );
+        return;
+      }
+      accepted.set(dataId, row.place);
+    } else {
+      if (row.mark === undefined) {
+        return;
+      }
+      accepted.delete(row.mark);
+    }
+    const response = await this._options.request("setDataBreakpoints", {
+      breakpoints: [...accepted.keys()].map((dataId) => ({
+        dataId,
+        accessType: "write",
+      })),
+    });
+    if (!response?.success) {
+      if (response) {
+        this.note(snapshot, row, refusal(response));
+      }
+      return;
+    }
+    this._accepted = accepted;
+    if (this._snapshot) {
+      await this.mark(this._snapshot);
+    }
+  }
+
+  protected dataBreakpointInfo(snapshot: Snapshot, row: Row) {
+    return snapshot.ask<DebugProtocol.DataBreakpointInfoResponse>(
+      "dataBreakpointInfo",
+      { variablesReference: row.parent?.ref, name: row.place.name },
+    );
+  }
+
+  protected mark(snapshot: Snapshot) {
+    const run = snapshot.marking.then(() => this.deriveMarks(snapshot));
+    snapshot.marking = run.catch(() => {});
+    return run;
+  }
+
+  protected async deriveMarks(snapshot: Snapshot) {
+    if (snapshot.loading) {
+      return;
+    }
+    const watched = new Set(this._accepted.values());
+    const marks = new Map<Row, string>();
+    for (const scope of snapshot.scopes) {
+      if (scope.scope?.expensive) {
+        continue;
+      }
+      for (const row of scope.children ?? []) {
+        if (!watched.has(row.place)) {
+          continue;
+        }
+        const info = await this.dataBreakpointInfo(snapshot, row);
+        if (!info) {
+          return;
+        }
+        const dataId = info.success ? info.body?.dataId : null;
+        if (dataId && this._accepted.has(dataId)) {
+          marks.set(row, dataId);
+        }
+      }
+    }
+    for (const row of snapshot.rows.values()) {
+      row.mark = marks.get(row);
+    }
+    snapshot.changed();
+  }
+
+  protected async evaluateWatch(
+    snapshot: Snapshot | null,
+    expressions: readonly string[],
+  ) {
+    if (!snapshot) {
+      return;
+    }
+    for (const expression of new Set(expressions)) {
+      const result = await this.evaluateIn(snapshot, expression, "watch");
+      if (result) {
+        snapshot.watch.set(expression, result);
+        snapshot.changed();
+      }
+    }
+  }
+
+  protected async evaluateIn(
+    snapshot: Snapshot,
+    expression: string,
+    context: "watch" | "hover",
+  ): Promise<WatchResult | null> {
+    if (this._status !== "paused" || snapshot.frameId == null) {
       return null;
     }
-    const response = (await this._options.request("evaluate", {
-      expression,
-      frameId,
-      context,
-    })) as DebugProtocol.EvaluateResponse | null;
+    const response = await snapshot.ask<DebugProtocol.EvaluateResponse>(
+      "evaluate",
+      { expression, frameId: snapshot.frameId, context },
+    );
     if (!response) {
       return null;
     }
@@ -464,75 +548,98 @@ export default class WorkspaceDebugInspection {
       : { value: response.body.result };
   }
 
-  protected async evaluateWatch(
-    expressions: readonly string[],
-    generation: number,
-    replace = false,
-  ) {
-    if (this.state.status !== "paused") {
-      return;
+  protected place(parent: Place | null, name: string, openByDefault: boolean) {
+    const known = parent?.children.get(name);
+    if (known) {
+      return known;
     }
-    const results: Record<string, WatchResult> = Object.create(null);
-    for (const expression of new Set(expressions)) {
-      const result = await this.evaluate(expression, "watch");
-      if (generation !== this._generation) {
-        return;
-      }
-      if (result) {
-        results[expression] = result;
-      }
-    }
-    const watch: Record<string, WatchResult> = Object.create(null);
-    const asked = new Set(expressions);
-    for (const [expression, result] of Object.entries(this.state.watch)) {
-      if (!replace || (!asked.has(expression) && this.expressions.includes(expression))) {
-        watch[expression] = result;
-      }
-    }
-    this.update({ watch: Object.assign(watch, results) });
+    const place: Place = {
+      id: `d${this._places.size}`,
+      name,
+      children: new Map(),
+      openByDefault,
+    };
+    this._places.set(place.id, place);
+    parent?.children.set(name, place);
+    return place;
   }
 
-  protected async load(
-    key: string,
-    ref: number,
-    into: {
-      variables: Record<string, readonly DebugProtocol.Variable[]>;
-      refs: Record<string, number>;
-    },
-    generation: number,
-  ) {
-    const response = (await this._options.request("variables", {
-      variablesReference: ref,
-    })) as DebugProtocol.VariablesResponse | null;
-    if (generation !== this._generation) {
-      return;
-    }
-    if (!response?.success) {
-      this.note(key, refusal(response));
-      return;
-    }
-    const list = response.body?.variables ?? [];
-    into.variables[key] = list;
-    for (const variable of list) {
-      if (variable.variablesReference > 0) {
-        const child = childKey(key, variable.name);
-        into.refs[child] = variable.variablesReference;
-        if (expandedOf(this.state, child, false)) {
-          await this.load(child, variable.variablesReference, into, generation);
-        }
-      }
-    }
+  protected row(snapshot: Snapshot, key: string) {
+    const place = this._places.get(key);
+    return snapshot.loading || !place ? undefined : snapshot.rows.get(place);
   }
 
-  protected note(key: string, message: string) {
-    this.update({ messages: { ...this.state.messages, [key]: message } });
+  protected note(snapshot: Snapshot, row: Row, message: string) {
+    row.message = message;
+    snapshot.changed();
   }
 
   protected saveWatch(expressions: readonly string[]) {
     this._options.saveWatch?.(expressions);
   }
 
-  protected update(change: Partial<DebugInspectionState>) {
-    workspace.debugInspection.value = { ...this.state, ...change };
+  protected tree(snapshot: Snapshot | null): DebugVariableNode[] {
+    const shown = snapshot?.loading ? snapshot.previous : snapshot;
+    if (!shown) {
+      return [];
+    }
+    const settled = shown === snapshot;
+    const node = (row: Row, inScope: boolean, direct: boolean): DebugVariableNode => {
+      const expandable = row.ref > 0;
+      const expanded = expandable && isOpen(row.place);
+      return {
+        key: row.place.id,
+        name: row.place.name,
+        value: row.variable?.value ?? "",
+        type: row.variable?.type,
+        expandable,
+        expanded,
+        editable: settled && inScope && !expandable,
+        breakable: settled && inScope && direct,
+        breaking: settled && row.mark !== undefined,
+        message: settled ? row.message : undefined,
+        children:
+          expanded && row.children
+            ? row.children.map((child) => node(child, inScope, false))
+            : undefined,
+      };
+    };
+    return shown.scopes.map((scope) => {
+      const expanded = isOpen(scope.place);
+      const inScope = !scope.scope?.expensive;
+      return {
+        key: scope.place.id,
+        name: scope.place.name,
+        value: "",
+        expandable: true,
+        expanded,
+        editable: false,
+        breakable: false,
+        breaking: false,
+        message: settled ? scope.message : undefined,
+        children:
+          expanded && scope.children
+            ? scope.children.map((child) => node(child, inScope, true))
+            : undefined,
+      };
+    });
+  }
+
+  protected publish() {
+    const snapshot = this._snapshot;
+    const watch = new Map(snapshot?.previous?.watch);
+    for (const [expression, result] of snapshot?.watch ?? []) {
+      watch.set(expression, result);
+    }
+    workspace.debugInspection.value = {
+      ...IDLE_DEBUG_INSPECTION,
+      status: this._status,
+      frames: this._frames,
+      frameId: snapshot?.frameId ?? null,
+      variables: this.tree(snapshot),
+      editing: snapshot?.editing?.id ?? null,
+      watch,
+      watchEditing: this._watchEditing,
+    };
   }
 }

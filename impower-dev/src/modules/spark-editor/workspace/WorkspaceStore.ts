@@ -4,6 +4,7 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import type {
   Diagnostic,
@@ -64,34 +65,20 @@ export interface DebugInspectionState {
   status: "none" | "running" | "paused";
   frames: readonly InspectedFrame[];
   frameId: number | null;
-  scopes: readonly DebugProtocol.Scope[];
-  variables: Readonly<Record<string, readonly DebugProtocol.Variable[]>>;
-  refs: Readonly<Record<string, number>>;
-  expanded: Readonly<Record<string, boolean>>;
-  messages: Readonly<Record<string, string>>;
+  variables: readonly DebugVariableNode[];
   editing: string | null;
-  watch: Readonly<Record<string, WatchResult>>;
+  watch: ReadonlyMap<string, WatchResult>;
   watchEditing: number | null;
-  breaking: Readonly<Record<string, string>>;
-  marked: Readonly<Record<string, string>>;
-  pending: boolean;
 }
 
 export const IDLE_DEBUG_INSPECTION: DebugInspectionState = {
   status: "none",
   frames: [],
   frameId: null,
-  scopes: [],
-  variables: {},
-  refs: {},
-  expanded: {},
-  messages: {},
+  variables: [],
   editing: null,
-  watch: {},
+  watch: new Map(),
   watchEditing: null,
-  breaking: {},
-  marked: {},
-  pending: false,
 };
 
 const defaults: WorkspaceCache = {

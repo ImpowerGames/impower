@@ -244,6 +244,21 @@ const isEvaluable =(value: unknown, depth = 0): boolean => {
   );
 };
 
+export const evaluationRecord = (
+  values: ReadonlyMap<string, unknown>,
+): Record<string, unknown> => {
+  const record: Record<string, unknown> = Object.create(null);
+  for (const [key, value] of values) {
+    Object.defineProperty(record, key, {
+      value: value instanceof Map ? evaluationRecord(value) : value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  }
+  return record;
+};
+
 const sameLocation = (
   a: ScriptLocation | null | undefined,
   b: ScriptLocation | null | undefined,
@@ -4203,14 +4218,24 @@ export class Game<T extends M = {}> {
     );
   }
 
-  getEvaluationContext(threadId?: number, frameId?: number, named?: string) {
-    const context: any = Object.create(null);
+  getEvaluationContext(threadId?: number, frameId?: number, named?: string): any {
+    return evaluationRecord(this.getEvaluationValues(threadId, frameId, named));
+  }
+
+  getEvaluationValues(
+    threadId?: number,
+    frameId?: number,
+    named?: string,
+  ): Map<string, unknown> {
+    const context = new Map<string, unknown>();
     const read = (valueObj: InkObject | null) =>
       named === undefined
         ? this.getRuntimeValue(valueObj)
         : this.plainValue(valueObj);
-    const keep = (value: unknown) =>
-      isEvaluable(value) && (named !== undefined || !this.isTableRecord(value));
+    const keep = (valueObj: InkObject | null, value: unknown) =>
+      named === undefined
+        ? isEvaluable(value) && !this.isTableRecord(value)
+        : valueObj instanceof ObjectValue || isEvaluable(value);
     const variableState = this._story.state.variablesState;
     const callStack = variableState.callStack;
     const thread =
@@ -4227,8 +4252,8 @@ export class Game<T extends M = {}> {
           ? this.valueInFrame(thread, selected, name)
           : variableState.GetVariableWithName(name);
       const value = read(valueObj);
-      if (keep(value)) {
-        context[name] = value;
+      if (keep(valueObj, value)) {
+        context.set(name, value);
       }
     }
     const contextThread = selected && thread ? thread : callStack.currentThread;
@@ -4244,10 +4269,10 @@ export class Game<T extends M = {}> {
             ? this.valueAtPointerInThread(contextThread, scoped)
             : scoped;
         const value = read(valueObj);
-        if (keep(value)) {
-          context[name] = value;
+        if (keep(valueObj, value)) {
+          context.set(name, value);
         } else {
-          delete context[name];
+          context.delete(name);
         }
       }
     }
@@ -4258,23 +4283,28 @@ export class Game<T extends M = {}> {
     valueObj: InkObject | null,
     within: ReadonlySet<InkObject> = new Set(),
   ): unknown {
-    const value = this.getRuntimeValue(valueObj);
-    if (!this.isTableRecord(value)) {
-      return value;
+    if (!(valueObj instanceof ObjectValue)) {
+      return this.getRuntimeValue(valueObj);
     }
-    const path = new Set(within).add(valueObj!);
-    const record: Record<string, unknown> = Object.create(null);
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    const path = new Set(within).add(valueObj);
+    const table = new Map<string, unknown>();
+    for (const [key, entry] of valueObj.value ?? []) {
       if (entry instanceof ObjectValue && (path.has(entry) || path.size > 8)) {
         continue;
       }
+      if (entry instanceof ObjectValue) {
+        table.set(key, this.plainValue(entry, path));
+        continue;
+      }
       const plain =
-        entry instanceof ObjectValue ? this.plainValue(entry, path) : entry;
+        entry && typeof entry === "object" && "value" in entry
+          ? entry.value
+          : entry;
       if (isEvaluable(plain)) {
-        record[key] = plain;
+        table.set(key, plain);
       }
     }
-    return record;
+    return table;
   }
 
   protected valueInFrame(

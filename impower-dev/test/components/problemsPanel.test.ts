@@ -563,6 +563,20 @@ describe("the Problems panel", () => {
       { id: 1, name: "shop", uri: CHAPTER, line: 11, character: 2, path: "scripts/chapter_1.sd", inProject: true },
       { id: 0, name: "start", uri: MAIN, line: 3, character: 0, path: "main.sd", inProject: true },
     ];
+    const scope = (name: string, value: { key: string; name: string; value: string }) => {
+      const row = { expandable: false, expanded: false, editable: true, breakable: true, breaking: false };
+      return {
+        ...row,
+        key: `scope-${name}`,
+        name,
+        value: "",
+        expandable: true,
+        expanded: true,
+        editable: false,
+        breakable: false,
+        children: [{ ...row, ...value }],
+      };
+    };
     const pause = () => {
       workspace.current = {
         ...workspace.current,
@@ -574,15 +588,14 @@ describe("the Problems panel", () => {
         status: "paused",
         frames,
         frameId: 1,
-        scopes: [
-          { name: "Vars", variablesReference: 1, expensive: false },
-          { name: "Temps", variablesReference: 2, expensive: false, presentationHint: "locals" },
+        variables: [
+          scope("Vars", { key: "d3", name: "gold", value: "3" }),
+          scope("Temps", { key: "d4", name: "bag", value: "2" }),
         ],
-        variables: {
-          "scope:Vars": [{ name: "gold", value: "3", variablesReference: 0 }],
-          "scope:Temps": [{ name: "bag", value: "2", variablesReference: 0 }],
-        },
-        watch: { gold: { value: "3" }, silver: { error: "not available in this frame" } },
+        watch: new Map([
+          ["gold", { value: "3" }],
+          ["silver", { error: "not available in this frame" }],
+        ]),
       };
     };
     const rows = () =>

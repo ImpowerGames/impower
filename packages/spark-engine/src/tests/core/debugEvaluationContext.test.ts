@@ -105,6 +105,55 @@ describe("the evaluation context a watch reads", () => {
     expect(named["__proto__"]).toBe(7);
   });
 
+  describe("treats names an object would inherit, and names holding a slash or a dot, as ordinary names", () => {
+    const ODD = [
+      "store constructor = 1",
+      "store toString = 2",
+      "store __proto__ = 3",
+      "store odd = {[\"a/b\"] = 4, [\"a.b\"] = 5, [\"__proto__\"] = 6, constructor = 7, toString = 8}",
+      "",
+      "scene start",
+      "  Ready.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+
+    it.each(["constructor", "toString", "__proto__"])("gives the story value named %s as its own entry", (name) => {
+      const game = pausedGame(ODD, 7);
+      const values = game.getEvaluationValues(undefined, undefined, name);
+      expect([...values.keys()]).toEqual([name]);
+      const record = game.getEvaluationContext(undefined, undefined, name);
+      expect(Object.keys(record)).toEqual([name]);
+      expect(Object.hasOwn(record, name)).toBe(true);
+    });
+
+    it("keys a named table's fields by their own names in the engine and on the wire", () => {
+      const game = pausedGame(ODD, 7);
+      const odd = game.getEvaluationValues(undefined, undefined, "odd").get("odd");
+      expect(odd).toBeInstanceOf(Map);
+      expect([...(odd as Map<string, unknown>)].sort()).toEqual([
+        ["__proto__", 6],
+        ["a.b", 5],
+        ["a/b", 4],
+        ["constructor", 7],
+        ["toString", 8],
+      ]);
+      const wire = JSON.parse(JSON.stringify(game.getEvaluationContext(undefined, undefined, "odd")));
+      expect(Object.keys(wire.odd).sort()).toEqual(["__proto__", "a.b", "a/b", "constructor", "toString"]);
+      expect(Object.getOwnPropertyDescriptor(wire.odd, "__proto__")?.value).toBe(6);
+    });
+
+    it("leaves names an object would inherit out of the whole context unless the story holds them", () => {
+      const game = pausedGame(SOURCE, 6);
+      const whole = game.getEvaluationValues();
+      for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+        expect(whole.has(name)).toBe(false);
+        expect(Object.hasOwn(game.getEvaluationContext(), name)).toBe(false);
+      }
+    });
+  });
+
   it("gives nothing for a name the frame does not hold, and keeps tables out of the whole context a hover reads", () => {
     const game = pausedGame(SOURCE, 6);
     expect(plain(game.getEvaluationContext(undefined, undefined, "silver"))).toEqual({});

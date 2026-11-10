@@ -28,7 +28,6 @@ import { useMemo } from "preact/hooks";
 import type WorkspaceDebugInspection from "../../workspace/WorkspaceDebugInspection";
 import {
   frameEntries,
-  variableTree,
   watchEntries,
 } from "../../workspace/WorkspaceDebugInspection";
 import workspace from "../../workspace/WorkspaceStore";
@@ -89,7 +88,7 @@ export function useDebugRows(open: Readonly<Record<CardName, boolean>>): DebugRo
       ...debugVariablesRows({
         status: state.status,
         open: open.variables,
-        scopes: variableTree(state),
+        scopes: state.variables,
         editing: state.editing,
       }),
       ...debugWatchRows({
