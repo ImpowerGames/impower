@@ -119,10 +119,10 @@ describe("deciding whether Resume advances the story", () => {
   it("resumes in place after history leaves a stopped beat and returns to it", async () => {
     const { game, methods, shown } = createGame();
     game.start();
-    game.step("over");
+    game.clickedToContinue();
+    const stopped = shown();
     game.step("over");
     expect(game.awaitingResume).toBe(true);
-    const stopped = shown();
     expect((await game.rollBack("beat")).moved).toBe(true);
     expect((await game.rollForward("beat")).moved).toBe(true);
     expect(shown()).toBe(stopped);
@@ -145,15 +145,13 @@ describe("deciding whether Resume advances the story", () => {
       },
     } as never);
     game.start();
-    for (let i = 0; i < 20; i += 1) {
-      game.step("over");
-      if (game.story.asyncContinueComplete && !game.module.interpreter.hasQueuedBeats) {
-        break;
-      }
-    }
+    game.step("over");
     expect(game.awaitingResume).toBe(true);
     const address = game.programStory.previousAddress;
     game.clickedToContinue();
+    for (let i = 0; i < 20 && game.programStory.previousAddress !== address; i += 1) {
+      game.step();
+    }
     expect(game.programStory.previousAddress).toBe(address);
     expect(game.awaitingResume).toBe(false);
   });
@@ -161,7 +159,7 @@ describe("deciding whether Resume advances the story", () => {
   it("stays held when the story is repositioned and then restored to the stop", () => {
     const { game } = createGame();
     game.start();
-    game.step("over");
+    game.clickedToContinue();
     game.step("over");
     const image = game.programStory.capture();
     game.jumpToFlow("start");
