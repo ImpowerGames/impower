@@ -2042,7 +2042,7 @@ export async function openFileMenu(page, { timeout = 10_000 } = {}) {
 
 const SCREENS = {
   logic: `${SCRIPTS_PAGE_SELECTOR}, .sparkdown-script-editor-root .cm-content`,
-  assets: '[role="tab"][id$="-trigger-files"]',
+  assets: '[data-assets-action="add"]',
   share: "#share-page",
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
@@ -3900,7 +3900,7 @@ switch (cmd) {
         "  --complete <line>:<col>=<text>  type real keystrokes and read completion plus its info panel",
         "  --project <dir-or-zip>  replace OPFS /local with this project's files, then reload",
         "  --sd <file.sd>          load this script into OPFS /local/main.sd, then reload",
-        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: files | urls | game | screenplay;",
+        "  --screen <name>         click a tab: logic | assets | share, or one inside a pane: image | audio | video | text | font | other (the Assets type tabs) | game | screenplay;",
         "                          main opens main.sd from the Scripts page; scripts goes to the Scripts page",
         "  --open <panel>          open a panel on its shortcut: find (Ctrl+F) | goto (Ctrl+G)",
         "  --close <panel>         close it with Escape",
