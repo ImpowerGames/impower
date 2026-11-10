@@ -7,15 +7,35 @@ async function findBatchesForUris(
   projectId: string,
   uris: string[],
   sinceMs: number,
+  folders: string[] = [],
 ): Promise<string[]> {
   const { Workspace } = await import("../workspace/Workspace");
   const batches = await Workspace.fs.listTrash(projectId);
   const set = new Set(uris);
+  const folderSet = new Set(folders);
   return batches
     .filter(
-      (b) => b.deletedAt >= sinceMs && b.entries.some((e) => set.has(e.originalUri)),
+      (b) =>
+        b.deletedAt >= sinceMs &&
+        (b.entries.some((e) => set.has(e.originalUri)) ||
+          !!b.folders?.some((f) => folderSet.has(f))),
     )
     .map((b) => b.batchId);
+}
+
+async function restoreBatches(
+  projectId: string,
+  batchIds: string[],
+): Promise<{ uris: string[]; folders: string[] }> {
+  const { Workspace } = await import("../workspace/Workspace");
+  const uris: string[] = [];
+  const folders: string[] = [];
+  for (const id of batchIds) {
+    const restored = await Workspace.fs.restoreTrash(projectId, id);
+    uris.push(...restored.files.map((f) => f.uri));
+    folders.push(...restored.folders);
+  }
+  return { uris, folders };
 }
 
 async function markProjectDirty() {
@@ -31,31 +51,46 @@ export async function recordTrashDeletion(
   since: number,
   deletedFolders: string[] = [],
 ) {
-  let batchIds = await findBatchesForUris(projectId, deletedUris, since);
+  let batchIds = await findBatchesForUris(projectId, deletedUris, since, deletedFolders);
   if (batchIds.length === 0 && deletedFolders.length === 0) {
     return;
   }
+  let uris = deletedUris;
+  let folders = deletedFolders;
   pushUndo({
     label: `Delete ${label}`,
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
-      for (const id of batchIds) {
-        await Workspace.fs.restoreTrash(projectId, id);
+      const restored = await restoreBatches(projectId, batchIds);
+      uris = restored.uris;
+      if (restored.folders.length > 0) {
+        folders = restored.folders;
+      } else {
+        await Workspace.fs.createFolders(projectId, folders);
       }
-      await Workspace.fs.createFolders(projectId, deletedFolders);
       await markProjectDirty();
     },
     redo: async () => {
       const redoSince = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
-      if (deletedUris.length > 0) {
+      if (uris.length > 0 || folders.length > 0) {
         await Workspace.fs.deleteFiles({
-          files: deletedUris.map((uri) => ({ uri })),
+          files: uris.map((uri) => ({ uri })),
+          folders: folders.map((f) => ({
+            uri: Workspace.fs.getFileUri(projectId, f),
+          })),
           mode: "trash",
         });
       }
-      await Workspace.fs.deleteFolders(projectId, deletedFolders);
-      batchIds = await findBatchesForUris(projectId, deletedUris, redoSince);
+      const recorded = new Set(folders);
+      const unrecorded = (await Workspace.fs.getFolders(projectId)).filter(
+        (f) => !recorded.has(f) && folders.some((r) => f.startsWith(`${r}/`)),
+      );
+      await Workspace.fs.deleteFolders(
+        projectId,
+        folders.filter((r) => !unrecorded.some((f) => f.startsWith(`${r}/`))),
+      );
+      batchIds = await findBatchesForUris(projectId, uris, redoSince, folders);
       await markProjectDirty();
     },
   });
@@ -124,23 +159,21 @@ export function recordCreate(
   label: string,
 ) {
   let batchIds: string[] = [];
+  let uris = createdUris;
   pushUndo({
     label: `Create ${label}`,
     undo: async () => {
       const since = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
       await Workspace.fs.deleteFiles({
-        files: createdUris.map((uri) => ({ uri })),
+        files: uris.map((uri) => ({ uri })),
         mode: "trash",
       });
-      batchIds = await findBatchesForUris(projectId, createdUris, since);
+      batchIds = await findBatchesForUris(projectId, uris, since);
       await markProjectDirty();
     },
     redo: async () => {
-      const { Workspace } = await import("../workspace/Workspace");
-      for (const id of batchIds) {
-        await Workspace.fs.restoreTrash(projectId, id);
-      }
+      uris = (await restoreBatches(projectId, batchIds)).uris;
       await markProjectDirty();
     },
   });
@@ -188,36 +221,34 @@ export async function recordResolvedUpload(
       ? await findBatchesForUris(projectId, trashedOldUris, since)
       : [];
   let newBatchIds: string[] = [];
+  let added = newUris;
+  let replaced = trashedOldUris;
   pushUndo({
     label: `Import ${label}`,
     undo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       const t = Date.now();
-      if (newUris.length > 0) {
+      if (added.length > 0) {
         await Workspace.fs.deleteFiles({
-          files: newUris.map((uri) => ({ uri })),
+          files: added.map((uri) => ({ uri })),
           mode: "trash",
         });
-        newBatchIds = await findBatchesForUris(projectId, newUris, t);
+        newBatchIds = await findBatchesForUris(projectId, added, t);
       }
-      for (const id of replacedBatchIds) {
-        await Workspace.fs.restoreTrash(projectId, id);
-      }
+      replaced = (await restoreBatches(projectId, replacedBatchIds)).uris;
       await markProjectDirty();
     },
     redo: async () => {
       const { Workspace } = await import("../workspace/Workspace");
       const t = Date.now();
-      if (trashedOldUris.length > 0) {
+      if (replaced.length > 0) {
         await Workspace.fs.deleteFiles({
-          files: trashedOldUris.map((uri) => ({ uri })),
+          files: replaced.map((uri) => ({ uri })),
           mode: "trash",
         });
-        replacedBatchIds = await findBatchesForUris(projectId, trashedOldUris, t);
+        replacedBatchIds = await findBatchesForUris(projectId, replaced, t);
       }
-      for (const id of newBatchIds) {
-        await Workspace.fs.restoreTrash(projectId, id);
-      }
+      added = (await restoreBatches(projectId, newBatchIds)).uris;
       await markProjectDirty();
     },
   });
