@@ -4193,8 +4193,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  getEvaluationContext(threadId?: number, frameId?: number) {
+  getEvaluationContext(threadId?: number, frameId?: number, named?: string) {
     const context: any = {};
+    const read = (valueObj: InkObject | null) =>
+      named === undefined
+        ? this.getRuntimeValue(valueObj)
+        : this.plainValue(valueObj);
+    const keep = (value: unknown) =>
+      isEvaluable(value) && (named !== undefined || !this.isTableRecord(value));
     const variableState = this._story.state.variablesState;
     const callStack = variableState.callStack;
     const thread =
@@ -4203,12 +4209,15 @@ export class Game<T extends M = {}> {
       ? thread.callstack[frameId ?? thread.callstack.length - 1]
       : undefined;
     for (const name of variableState["_globalVariables"].keys()) {
+      if (named !== undefined && name !== named) {
+        continue;
+      }
       const valueObj =
         selected && thread
           ? this.valueInFrame(thread, selected, name)
           : variableState.GetVariableWithName(name);
-      const value = this.getRuntimeValue(valueObj);
-      if (isEvaluable(value) && !this.isTableRecord(value)) {
+      const value = read(valueObj);
+      if (keep(value)) {
         context[name] = value;
       }
     }
@@ -4217,12 +4226,15 @@ export class Game<T extends M = {}> {
       selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     for (const scope of contextElement?.temporaryScopes ?? []) {
       for (const [name, scoped] of scope) {
+        if (named !== undefined && name !== named) {
+          continue;
+        }
         const valueObj =
           scoped instanceof VariablePointerValue
             ? this.valueAtPointerInThread(contextThread, scoped)
             : scoped;
-        const value = this.getRuntimeValue(valueObj);
-        if (isEvaluable(value) && !this.isTableRecord(value)) {
+        const value = read(valueObj);
+        if (keep(value)) {
           context[name] = value;
         } else {
           delete context[name];
@@ -4230,6 +4242,19 @@ export class Game<T extends M = {}> {
       }
     }
     return context;
+  }
+
+  protected plainValue(valueObj: InkObject | null, depth = 0): unknown {
+    const value = this.getRuntimeValue(valueObj);
+    if (!this.isTableRecord(value) || depth > 8) {
+      return value;
+    }
+    const record: Record<string, unknown> = Object.create(null);
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      record[key] =
+        entry instanceof ObjectValue ? this.plainValue(entry, depth + 1) : entry;
+    }
+    return record;
   }
 
   protected valueInFrame(

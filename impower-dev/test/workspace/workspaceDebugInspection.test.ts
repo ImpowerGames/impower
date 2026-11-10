@@ -24,18 +24,22 @@ const story = () => {
   const temps: Record<number, Record<string, string>> = { 1: { bag: "2" }, 0: { coin: "9" } };
   let refuseSet: string | null = null;
   let noData = false;
+  let names = ["shop", "start"];
+  let empty = false;
   const answer = (request: DebugProtocol.Request): Answer => {
     const args = request.arguments as Record<string, any>;
     switch (request.command) {
       case "stackTrace":
         return {
-          body: {
-            stackFrames: [
-              { id: 1, name: "shop", line: 11, column: 2, source: { path: MAIN } },
-              { id: 0, name: "start", line: 3, column: 0, source: { path: MAIN } },
-            ],
-            totalFrames: 2,
-          },
+          body: empty
+            ? { stackFrames: [], totalFrames: 0 }
+            : {
+                stackFrames: [
+                  { id: 1, name: names[0], line: 11, column: 2, source: { path: MAIN } },
+                  { id: 0, name: names[1], line: 3, column: 0, source: { path: MAIN } },
+                ],
+                totalFrames: 2,
+              },
         };
       case "scopes":
         return {
@@ -103,6 +107,12 @@ const story = () => {
     },
     local: (frame: number, name: string, value: string) => {
       temps[frame]![name] = value;
+    },
+    name: (inner: string, outer: string) => {
+      names = [inner, outer];
+    },
+    emptyStack: () => {
+      empty = true;
     },
   };
 };
@@ -336,6 +346,47 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     expect(sent()).toEqual({ breakpoints: [{ dataId: "frame0.count", accessType: "write" }] });
     await debug.inspection.selectFrame(0);
     expect(count().breaking).toBe(true);
+  });
+
+  it("tells apart two frames with the same name by the debugger's data ID of each local", async () => {
+    const { fake, debug, game } = await begin();
+    game.name("<anonymous>", "<anonymous>");
+    game.local(1, "count", "1");
+    game.local(0, "count", "5");
+    await stop(fake);
+    const count = () =>
+      variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
+    const sent = () => fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments;
+    await debug.inspection.breakOnChange("scope:Temps/count", true);
+    expect(count().breaking).toBe(true);
+    await debug.inspection.selectFrame(0);
+    expect([count().value, count().breaking]).toEqual(["5", false]);
+    await debug.inspection.breakOnChange("scope:Temps/count", false);
+    expect(sent()).toEqual({ breakpoints: [{ dataId: "frame1.count", accessType: "write" }] });
+    await debug.inspection.breakOnChange("scope:Temps/count", true);
+    expect(sent()).toEqual({
+      breakpoints: [
+        { dataId: "frame1.count", accessType: "write" },
+        { dataId: "frame0.count", accessType: "write" },
+      ],
+    });
+    await debug.inspection.selectFrame(1);
+    expect(count().breaking).toBe(true);
+    await stop(fake);
+    expect(count().breaking).toBe(true);
+  });
+
+  it("drops the last stop's watch values at a stop with no frames", async () => {
+    const { fake, game } = await begin(["gold"]);
+    await stop(fake);
+    expect(watchEntries(workspace.debugInspection.value, ["gold"])[0]!.value).toBe("3");
+    game.emptyStack();
+    fake.event("stopped", { reason: "step", threadId: 0 });
+    await vi.waitFor(() => expect(workspace.debugInspection.value.frames).toEqual([]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const state = workspace.debugInspection.value;
+    expect([state.status, state.frameId, state.scopes]).toEqual(["paused", null, []]);
+    expect(watchEntries(state, ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
   });
 
   it("adds, changes and removes watch expressions in the project's store, evaluating them while paused", async () => {

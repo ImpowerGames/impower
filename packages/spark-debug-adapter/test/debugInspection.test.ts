@@ -78,9 +78,11 @@ const session = (refuse?: string) => {
     sent.filter((m) => m.method === "game/setVariable").map((m) => m.params);
   const contextsSent = () =>
     sent.filter((m) => m.method === "game/evaluationContext").length;
+  const lastContextParams = () =>
+    sent.filter((m) => m.method === "game/evaluationContext").at(-1)?.params;
   const variablesSent = () =>
     sent.filter((m) => m.method === "game/variables").map((m) => m.params);
-  return { call, scope, setSent, variablesSent, contextsSent };
+  return { call, scope, setSent, variablesSent, contextsSent, lastContextParams };
 };
 
 describe("the debug adapter's inspection requests", () => {
@@ -184,5 +186,17 @@ describe("the debug adapter's inspection requests", () => {
     expect(s.contextsSent()).toBe(contexts);
     const hovered = await evaluate("gold + 1", "hover");
     expect([hovered.success, hovered.message]).toEqual([false, "not available in this frame"]);
+  });
+
+  it("asks the game for only the first name of a watched path, so a table the whole context leaves out still resolves, and leaves hover reading the whole context", async () => {
+    const s = session();
+    const { body } = await s.call("stackTraceRequest", { threadId: 0 });
+    const frameId = body.stackFrames[1].id;
+    await s.call("evaluateRequest", { expression: "party.1", frameId, context: "watch" });
+    expect(s.lastContextParams()).toEqual({ threadId: 0, frameId: 0, name: "party" });
+    await s.call("evaluateRequest", { expression: "gold", frameId, context: "repl" });
+    expect(s.lastContextParams()).toEqual({ threadId: 0, frameId: 0, name: "gold" });
+    await s.call("evaluateRequest", { expression: "party.1", frameId, context: "hover" });
+    expect(s.lastContextParams()).toEqual({ threadId: 0, frameId: 0 });
   });
 });

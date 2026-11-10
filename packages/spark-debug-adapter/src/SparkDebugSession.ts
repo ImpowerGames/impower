@@ -995,7 +995,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     const frame =
       args.frameId != null ? this._frames.get(args.frameId) : undefined;
     const { context } = await this._connection.emit(
-      GetGameEvaluationContextMessage.type.request({ ...frame }),
+      GetGameEvaluationContextMessage.type.request({
+        ...frame,
+        ...(args.context === "watch" || args.context === "repl"
+          ? { name: args.expression.split(".")[0] }
+          : {}),
+      }),
     );
 
     const value = args.expression

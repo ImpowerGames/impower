@@ -57,17 +57,6 @@ const expandedOf = (
 const refusal = (response: DebugProtocol.Response | null) =>
   response?.message || DEBUG_INSPECTION_TEXT.refused;
 
-const breakKey = (state: DebugInspectionState, key: string) => {
-  const scope = state.scopes.find(
-    (s) => key.startsWith(`${scopeKey(s)}${SEPARATOR}`),
-  );
-  if (scope?.presentationHint !== "locals") {
-    return key;
-  }
-  const frame = state.frames.find((f) => f.id === state.frameId);
-  return `${frame?.name ?? ""}@${key}`;
-};
-
 export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
   const nodes = (
     parent: string,
@@ -88,7 +77,7 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
         expanded,
         editable: inScope && !expandable,
         breakable: inScope,
-        breaking: breakKey(state, key) in state.breaking,
+        breaking: key in state.marked,
         message: state.messages[key],
         children: expanded && children ? nodes(key, children, false) : undefined,
       };
@@ -181,6 +170,7 @@ export default class WorkspaceDebugInspection {
       messages: {},
       editing: null,
       watch: {},
+      marked: {},
     });
   }
 
@@ -205,6 +195,7 @@ export default class WorkspaceDebugInspection {
       frameId: frames[0]?.id ?? null,
       messages: {},
       editing: null,
+      marked: {},
     });
     return this.refresh();
   }
@@ -216,7 +207,7 @@ export default class WorkspaceDebugInspection {
     ) {
       return;
     }
-    this.update({ frameId, messages: {}, editing: null });
+    this.update({ frameId, messages: {}, editing: null, marked: {} });
     await this.refresh();
   }
 
@@ -250,7 +241,11 @@ export default class WorkspaceDebugInspection {
       }
     }
     this.update({ scopes, variables: loaded.variables, refs: loaded.refs });
-    await this.evaluateWatch(this.expressions, generation);
+    await this.markBreaking(generation);
+    if (generation !== this._generation) {
+      return;
+    }
+    await this.evaluateWatch(this.expressions, generation, true);
   }
 
   async toggle(key: string) {
@@ -301,12 +296,9 @@ export default class WorkspaceDebugInspection {
   async breakOnChange(key: string, on: boolean) {
     const generation = this._generation;
     const breaking = { ...this.state.breaking };
-    const at = breakKey(this.state, key);
+    const marked = { ...this.state.marked };
     if (on) {
-      const info = (await this._options.request("dataBreakpointInfo", {
-        variablesReference: this.state.refs[parentOf(key)],
-        name: nameOf(key),
-      })) as DebugProtocol.DataBreakpointInfoResponse | null;
+      const info = await this.dataBreakpointInfo(key);
       if (!info || generation !== this._generation) {
         return;
       }
@@ -315,12 +307,18 @@ export default class WorkspaceDebugInspection {
         this.note(key, info.success ? info.body?.description || refusal(null) : refusal(info));
         return;
       }
-      breaking[at] = dataId;
+      breaking[dataId] = key;
+      marked[key] = dataId;
     } else {
-      delete breaking[at];
+      const dataId = marked[key];
+      if (dataId === undefined) {
+        return;
+      }
+      delete breaking[dataId];
+      delete marked[key];
     }
     const response = await this._options.request("setDataBreakpoints", {
-      breakpoints: [...new Set(Object.values(breaking))].map((dataId) => ({
+      breakpoints: Object.keys(breaking).map((dataId) => ({
         dataId,
         accessType: "write",
       })),
@@ -332,7 +330,34 @@ export default class WorkspaceDebugInspection {
       this.note(key, refusal(response));
       return;
     }
-    this.update({ breaking });
+    this.update({ breaking, marked });
+  }
+
+  protected dataBreakpointInfo(key: string) {
+    return this._options.request("dataBreakpointInfo", {
+      variablesReference: this.state.refs[parentOf(key)],
+      name: nameOf(key),
+    }) as Promise<DebugProtocol.DataBreakpointInfoResponse | null>;
+  }
+
+  protected async markBreaking(generation: number) {
+    const { breaking, variables } = this.state;
+    const marked: Record<string, string> = {};
+    for (const key of new Set(Object.values(breaking))) {
+      const shown = variables[parentOf(key)]?.some((v) => v.name === nameOf(key));
+      if (!shown) {
+        continue;
+      }
+      const info = await this.dataBreakpointInfo(key);
+      if (generation !== this._generation) {
+        return;
+      }
+      const dataId = info?.success ? info.body?.dataId : null;
+      if (dataId && dataId in breaking) {
+        marked[key] = dataId;
+      }
+    }
+    this.update({ marked });
   }
 
   async addWatch(expression: string) {
@@ -384,6 +409,7 @@ export default class WorkspaceDebugInspection {
   protected async evaluateWatch(
     expressions: readonly string[],
     generation: number,
+    replace = false,
   ) {
     if (this.state.status !== "paused") {
       return;
@@ -398,7 +424,7 @@ export default class WorkspaceDebugInspection {
         results[expression] = result;
       }
     }
-    this.update({ watch: { ...this.state.watch, ...results } });
+    this.update({ watch: replace ? results : { ...this.state.watch, ...results } });
   }
 
   protected async load(

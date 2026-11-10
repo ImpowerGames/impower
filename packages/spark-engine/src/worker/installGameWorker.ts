@@ -455,8 +455,8 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        const { threadId, frameId } = message.params;
-        return { context: game.getEvaluationContext(threadId, frameId) };
+        const { threadId, frameId, name } = message.params;
+        return { context: game.getEvaluationContext(threadId, frameId, name) };
       });
       return;
     }
