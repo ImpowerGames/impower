@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { expectWithinPin } from "./knownDifferences";
 import { KNOWN_DISAGREEMENTS, luauInputs } from "./luauFixtures";
 import { readings } from "./luauSyntaxReadings";
 
@@ -28,10 +29,8 @@ describe("Sparkdown and Luau's parser agree on which Luau inputs have syntax err
         expect(sparkdown.some((error) => error.endsWith(entry.limitation!.diagnostic)), report).toBe(true);
         expect(sparkdown.filter((error) => error.endsWith("Malformed number")), report).toEqual([]);
       } else if (entry) {
-        expect(
-          agree,
-          `${input.name} no longer disagrees. Remove its entry (#${entry.issue}) from KNOWN_DISAGREEMENTS in the pull request that fixed it.\n${report}`,
-        ).toBe(false);
+        const disagreement = "its disagreement with Luau's parser";
+        expectWithinPin({ ticket: `#${entry.issue}`, subject: input.name, list: "KNOWN_DISAGREEMENTS" }, [disagreement], agree ? [] : [disagreement]);
       } else {
         expect(
           agree,
