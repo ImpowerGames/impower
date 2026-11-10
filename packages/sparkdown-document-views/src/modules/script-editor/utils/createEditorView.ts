@@ -49,6 +49,7 @@ import {
   breakpointStatesSet,
   getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
+import { breakpointMenu } from "../../../cm-breakpoints/breakpointMenu";
 import { foldedField } from "../../../cm-folded/foldedField";
 import {
   getHighlightLineNumbers,
@@ -522,6 +523,7 @@ const createEditorView = (
         ),
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
+        breakpointMenu(),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
         config.tools ? editorToolCommands.of(config.tools) : [],
         config.onChangeColor ? presentColorPicker(config.onChangeColor) : [],

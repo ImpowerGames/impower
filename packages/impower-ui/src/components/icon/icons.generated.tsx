@@ -37,6 +37,10 @@ export const BranchIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M5 4v9a4 4 0 0 0 4 4h10m-5-5 5 5-5 5\"/>" }} />
 );
 
+export const BreakpointIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<circle cx=\"12\" cy=\"12\" r=\"5\" fill=\"currentColor\" stroke=\"none\"/>" }} />
+);
+
 export const BugIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<rect x=\"7\" y=\"7\" width=\"10\" height=\"14\" rx=\"5\"/><path d=\"M9 7V5a3 3 0 0 1 6 0v2M3 10h4m10 0h4M2 15h5m10 0h5M4 20l4-2m8 0 4 2M12 8v12\"/>" }} />
 );

@@ -87,6 +87,7 @@ import {
 import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
 import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
 import { SetEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
@@ -146,7 +147,10 @@ import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/Re
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
 import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../cm-highlight-lines/highlightLines";
-import { setBreakpointStates } from "../../cm-breakpoints/breakpoints";
+import {
+  setBreakpointStates,
+  toggleBreakpointAtCaret,
+} from "../../cm-breakpoints/breakpoints";
 import { setPinpoints } from "../../cm-pinpoints/pinpoints";
 import { setRoutePinsEffect } from "../../cm-route-pins/routePins";
 import { getScrollableParent } from "../../utils/getScrollableParent";
@@ -516,6 +520,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      ToggleEditorBreakpointMessage.type,
+      (m) => this.handleToggleEditorBreakpoint(m),
+      this.host,
+    );
+    p.onRequest(
       SetEditorPinpointsMessage.type,
       (m) => this.handleSetEditorPinpoints(m),
       this.host,
@@ -862,6 +871,17 @@ export class ScriptEditorController {
       );
     }
     return SetEditorBreakpointsMessage.type.response(message.id, {});
+  };
+
+  protected handleToggleEditorBreakpoint = (
+    message: ToggleEditorBreakpointMessage.Request,
+  ) => {
+    const view = this._view;
+    if (!view || message.params.textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const line = toggleBreakpointAtCaret(view) - 1;
+    return ToggleEditorBreakpointMessage.type.response(message.id, { line });
   };
 
   protected awaitResponse<T>(

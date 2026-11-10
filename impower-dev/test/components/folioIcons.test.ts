@@ -29,7 +29,7 @@ const MODULE_VARIANTS = [
 ];
 
 const DRAWN_FOR_THE_EDITOR = [
-  "fast-forward", "filter", "folder-plus", "follow-off", "rewind",
+  "breakpoint", "fast-forward", "filter", "folder-plus", "follow-off", "rewind",
   "sign-out", "step-over",
 ];
 
