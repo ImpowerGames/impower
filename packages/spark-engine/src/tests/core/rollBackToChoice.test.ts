@@ -54,14 +54,32 @@ function compile(source: string): SparkProgram {
   return compiler.compile({ textDocument: { uri: MAIN } }).program as SparkProgram;
 }
 
-function play() {
+const LAST_MENU = [
+  "store gold = 0",
+  "",
+  "scene start",
+  "  The gate.",
+  "  choose",
+  "    * [Pay.]",
+  "      gold = add(gold, 5)",
+  "    * [Leave.]",
+  "  end",
+  "end",
+  "",
+  "function add(a, b)",
+  "  return a + b",
+  "end",
+  "",
+].join("\n");
+
+function play(source = FIXTURE) {
   const game = new Game({
     now: () => 0,
     setTimeout: (() => 0) as never,
     resolve: (path: string) => path,
     fetch: async () => "",
     log: () => {},
-    program: compile(FIXTURE),
+    program: compile(source),
   } as never);
   const chosen: any[] = [];
   game.connection.outgoing.addListener("*", (message: any) => {
@@ -128,5 +146,20 @@ describe("rolling back to a named choice", () => {
       reason: HISTORY_REASONS.choiceGone,
     });
     expect(h.text()).toBe("Climbed.");
+  });
+
+  test("a choice on the story's last menu, with no beat shown after it, rolls back to that menu", async () => {
+    const h = play(LAST_MENU);
+    h.game.start();
+    h.tapUntil(h.atMenu);
+    h.game.chosePathToContinue(0);
+    expect(h.chosen).toHaveLength(1);
+    expect(h.gold()).toBe("5");
+    const rolled = await h.game.rollBack("choice", h.chosen[0].checkpoint);
+    expect(rolled).toMatchObject({
+      moved: true,
+      restored: { choices: ["Pay.", "Leave."], chosen: 0 },
+    });
+    expect(h.gold()).toBe("0");
   });
 });

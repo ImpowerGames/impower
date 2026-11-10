@@ -90,7 +90,7 @@ export class RunRecord {
   }
 
   backToChoice(checkpoint: number): number | null {
-    for (let i = this._at - 1; i >= 0; i -= 1) {
+    for (let i = this._at; i >= 0; i -= 1) {
       const beat = this._beats[i]!;
       if (beat.checkpoint === checkpoint) {
         return TARGETS.choice(beat) ? i : null;
