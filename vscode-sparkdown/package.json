@@ -749,6 +749,11 @@
             "default": false,
             "description": "Print scene identifiers in screenplay"
           },
+          "sparkdown.screenplay.markup.printBranchIdentifiers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print branch identifiers in screenplay"
+          },
           "sparkdown.screenplay.markup.printKnotIdentifiers": {
             "type": "boolean",
             "default": false,
