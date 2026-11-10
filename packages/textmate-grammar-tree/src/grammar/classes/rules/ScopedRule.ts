@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { NodeID } from "../../../core/enums/NodeID";
 import { Wrapping } from "../../enums/Wrapping";
 import type {
 MatchRuleDefinition,
@@ -13,12 +12,9 @@ import type { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
-import { GrammarState } from "../GrammarState";
-import { Matched } from "../Matched";
+import type { GrammarState } from "../GrammarState";
 import type { MatchRule } from "./MatchRule";
-import { SwitchRule } from "./SwitchRule";
-
-const EMPTY_MATCH_LIMIT = 10;
+import type { SwitchRule } from "./SwitchRule";
 
 export class ScopedRule implements Rule {
   repo: GrammarRepository;
@@ -80,155 +76,6 @@ export class ScopedRule implements Rule {
     this.applyEndPatternLast = def.applyEndPatternLast ?? false;
   }
 
-  match(state: GrammarState, from: number) {
-    if (state.possibleStackOverflow(this.id, from)) {
-      if (this.beginRule.match(state, from)?.length === 0) {
-        state.stopped = true;
-      }
-      return null;
-    }
-    state.enter(this.id, from, true);
-    const wrappedBeginChildren: Matched[] = [];
-    let wrappedContentChildren: Matched[] = [];
-    const wrappedEndChildren: Matched[] = [];
-
-    let pos = from;
-    let totalLength = 0;
-
-    let beginMatched = this.begin(state, pos);
-    if (!beginMatched) {
-      state.exit(this.id, from);
-      return null;
-    }
-    wrappedBeginChildren.push(beginMatched.children?.[0]!);
-    totalLength += beginMatched.length;
-    pos += beginMatched.length;
-    if (pos >= state.str.length) {
-      state.advance();
-    }
-
-    const contentChildren: Matched[] = [];
-    let endMatched = this.applyEndPatternLast ? false : this.end(state, pos);
-
-    let emptyMatchCount = 0;
-
-    while (!endMatched && pos < state.str.length) {
-      state.emptyScopeMatched = false;
-      const patternMatched = this.content(state, pos);
-      if (state.stopped) {
-        if (patternMatched) {
-          contentChildren.push(patternMatched);
-          pos += patternMatched.length;
-          totalLength += patternMatched.length;
-        }
-        const lineEnd = state.lineEndAt(pos);
-        if (lineEnd > pos) {
-          contentChildren.push(
-            new Matched(GrammarNode.None, pos, lineEnd - pos),
-          );
-          totalLength += lineEnd - pos;
-          pos = lineEnd;
-        }
-        break;
-      }
-      if (patternMatched) {
-        if (patternMatched.length === 0 && !state.emptyScopeMatched) {
-          contentChildren.push(patternMatched);
-          state.stopped = true;
-          break;
-        }
-        if (patternMatched.length === 0) {
-          emptyMatchCount++;
-          if (emptyMatchCount >= EMPTY_MATCH_LIMIT) {
-            console.warn(
-              `[ScopedRule:${
-                this.id
-              }] Too many consecutive empty matches at pos=${
-                state.absolutePos + pos
-              }. Possible infinite loop!`,
-              patternMatched,
-            );
-            break;
-          }
-        } else {
-          emptyMatchCount = 0;
-          pos += patternMatched.length;
-          totalLength += patternMatched.length;
-        }
-        contentChildren.push(patternMatched);
-        if (pos >= state.str.length) {
-          state.advance();
-        }
-        if (!this.applyEndPatternLast) {
-          endMatched = this.end(state, pos);
-        }
-      } else {
-        endMatched = this.end(state, pos);
-        break;
-      }
-    }
-    if (!endMatched && !state.stopped && pos >= state.str.length) {
-      endMatched = this.end(state, pos);
-    }
-    const closedCleanly =
-      !endMatched && (state.stopped || pos >= state.str.length);
-    if (contentChildren.length === 1) {
-      const wrapped = contentChildren[0]!.wrap(
-        this.contentRule.node,
-        Wrapping.FULL,
-      );
-      wrappedContentChildren = [wrapped];
-    } else if (contentChildren.length > 1) {
-      const wrapped: Matched[] = [];
-      for (let i = 0; i < contentChildren.length; i++) {
-        const contentChild = contentChildren[i];
-        if (contentChild) {
-          if (i === 0) {
-            wrapped.push(
-              contentChild.wrap(this.contentRule.node, Wrapping.BEGIN),
-            );
-          } else if (i === contentChildren.length - 1) {
-            wrapped.push(
-              contentChild.wrap(this.contentRule.node, Wrapping.END),
-            );
-          } else {
-            wrapped.push(contentChild);
-          }
-        }
-      }
-      wrappedContentChildren = wrapped;
-    }
-
-    if (endMatched || closedCleanly) {
-      if (endMatched) {
-        wrappedEndChildren.push(endMatched.children?.[0]!);
-        totalLength += endMatched.length;
-      }
-      state.exit(this.id, from);
-      state.emptyScopeMatched = totalLength === 0;
-      return Matched.create(this.node, from, totalLength, [
-        ...wrappedBeginChildren,
-        ...wrappedContentChildren,
-        ...wrappedEndChildren,
-      ]);
-    } else {
-      const incompleteMarker = Matched.create(
-        this.repo.grammar.nodes[NodeID.incomplete]!,
-        from + totalLength,
-        0,
-      );
-
-      const incompleteNode = Matched.create(this.node, from, totalLength, [
-        ...wrappedBeginChildren,
-        ...wrappedContentChildren,
-        incompleteMarker,
-      ]);
-      state.exit(this.id, from);
-      state.emptyScopeMatched = totalLength === 0;
-      return incompleteNode;
-    }
-  }
-
   begin(state: GrammarState, from: number) {
     const begun = this.beginRule.matchGroups(state, from);
     if (!begun) {
@@ -265,9 +112,5 @@ export class ScopedRule implements Rule {
 
   get skipped() {
     return this.contentRule.skipped;
-  }
-
-  content(state: GrammarState, from: number) {
-    return this.contentRule.match(state, from);
   }
 }

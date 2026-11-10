@@ -10,10 +10,13 @@ import { Grammar } from "./Grammar";
 import { type GrammarNode } from "./GrammarNode";
 import { GrammarState } from "./GrammarState";
 import { Matched } from "./Matched";
+import { MatchRule } from "./rules/MatchRule";
 import { ScopedRule } from "./rules/ScopedRule";
 import { SwitchRule } from "./rules/SwitchRule";
 
 const EMPTY_MATCH_LIMIT = 10;
+
+const EMPTY_STEP_LIMIT = 100;
 
 interface TokenizerFrame {
   rule: ScopedRule;
@@ -88,6 +91,12 @@ export class ResumableTokenizer {
 
   protected stoppedLine = false;
 
+  protected rootRules?: Rule[];
+
+  protected stopsAtEmptyRootMatch = false;
+
+  protected stoppedAtRoot = false;
+
   emitSplitSignals = false;
 
   constructor(
@@ -100,6 +109,52 @@ export class ResumableTokenizer {
     this.pos = 0;
     this.frames = [];
     this.state = new GrammarState("", next, anchor);
+  }
+
+  static tokenizeCapture(
+    grammar: Grammar,
+    rules: Rule[],
+    text: string,
+    from: number,
+    offset: number,
+  ): { tokens: GrammarToken[]; to: number } {
+    const tokenizer = new ResumableTokenizer(grammar, () => "", offset);
+    tokenizer.rootRules = rules;
+    tokenizer.stopsAtEmptyRootMatch = true;
+    tokenizer.state.str = text;
+    tokenizer.pos = from;
+    const tokens: GrammarToken[] = [];
+    if (from >= text.length) {
+      tokenizer.tryTopLevel(tokens);
+    }
+    let emptySteps = 0;
+    while (!tokenizer.done && !tokenizer.stoppedAtRoot) {
+      const step = tokenizer.step();
+      for (let i = 0; i < step.tokens.length; i++) {
+        tokens.push(step.tokens[i]!);
+      }
+      emptySteps = step.length === 0 ? emptySteps + 1 : 0;
+      if (emptySteps > EMPTY_STEP_LIMIT) {
+        tokenizer.closeAll(tokens);
+      }
+    }
+    const pending = tokenizer.flushPending();
+    if (pending) {
+      tokens.push(pending);
+    }
+    const end = offset + tokenizer.pos;
+    const covered = tokens.length > 0 ? tokens[tokens.length - 1]![2] : offset + from;
+    if (covered < end) {
+      tokens.push([null, covered, end]);
+    }
+    return { tokens, to: tokenizer.pos };
+  }
+
+  protected closeAll(out: GrammarToken[]) {
+    while (this.frames.length > 0) {
+      this.closeWithoutEnd(out, true);
+    }
+    this.stoppedAtRoot = true;
   }
 
   get hasOpenFrames() {
@@ -194,7 +249,7 @@ export class ResumableTokenizer {
         } else if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
-        this.state.enter(rule.id, pos, true);
+        this.state.enter(rule.id, pos);
         const beginMatched = rule.begin(this.state, pos);
         if (!beginMatched) {
           this.state.exit(rule.id, pos);
@@ -203,7 +258,7 @@ export class ResumableTokenizer {
         return { kind: "scope", rule, matched: beginMatched, chain: [] };
       }
       if (rule instanceof SwitchRule) {
-        if (this.state.includeCycle(rule.id, pos)) {
+        if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
         this.state.enter(rule.id, pos);
@@ -222,9 +277,11 @@ export class ResumableTokenizer {
         }
         continue;
       }
-      const matched = rule.match(this.state, pos);
-      if (matched) {
-        return { kind: "leaf", matched };
+      if (rule instanceof MatchRule) {
+        const matched = rule.match(this.state, pos);
+        if (matched) {
+          return { kind: "leaf", matched };
+        }
       }
     }
     return null;
@@ -359,8 +416,20 @@ export class ResumableTokenizer {
 
   protected tryTopLevel(out: GrammarToken[]): DispatchResult | null {
     const dispatchPos = this.pos;
-    const result = this.dispatch(this.grammar.rules ?? [], dispatchPos);
+    const result = this.dispatch(
+      this.rootRules ?? this.grammar.rules ?? [],
+      dispatchPos,
+    );
     if (!result || result.kind === "repeated") {
+      return result;
+    }
+    if (
+      this.stopsAtEmptyRootMatch &&
+      result.kind === "leaf" &&
+      result.matched.length === 0 &&
+      this.pos < this.state.str.length
+    ) {
+      this.stoppedAtRoot = true;
       return result;
     }
     this.emitBatch(
@@ -485,7 +554,7 @@ export class ResumableTokenizer {
         emptyMatchCount: f.emptyMatchCount,
         wrapperNodes: f.wrapperNodes?.slice(),
       });
-      this.state.enter(f.rule.id, openedAt, true);
+      this.state.enter(f.rule.id, openedAt);
     }
   }
 

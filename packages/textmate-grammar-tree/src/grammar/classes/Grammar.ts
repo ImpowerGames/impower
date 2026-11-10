@@ -9,7 +9,6 @@ import type { Rule } from "../types/Rule";
 import { GrammarNode } from "./GrammarNode";
 import { GrammarRegistry } from "./GrammarRegistry";
 import { GrammarRepository } from "./GrammarRepository";
-import { GrammarState } from "./GrammarState";
 
 export class Grammar {
   public definition: GrammarDefinition;
@@ -126,30 +125,5 @@ export class Grammar {
   repositoryOf(scopeName: string): GrammarRepository | undefined {
     const definition = this.registry.get(scopeName);
     return definition ? this.load(definition) : undefined;
-  }
-
-  match(
-    str: string,
-    next: (pos: number) => string,
-    relativePos: number,
-    absolutePos = relativePos,
-  ) {
-    const state = new GrammarState(str, next, absolutePos);
-
-    const rules = this.rules;
-    if (rules) {
-      for (let i = 0; i < rules.length; i++) {
-        const rule = rules[i];
-        const result = rule?.match(state, relativePos);
-        if (result) {
-          if (absolutePos !== relativePos) {
-            result.offset(absolutePos);
-          }
-          return result;
-        }
-      }
-    }
-
-    return null;
   }
 }
