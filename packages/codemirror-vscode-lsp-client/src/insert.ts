@@ -48,7 +48,10 @@ export interface ScriptStructure {
   scenes: readonly SceneSpan[];
   branches: readonly SceneSpan[];
   tree: Tree;
+  endsDialogue: EndsDialogue;
 }
+
+export type EndsDialogue = (line: string, cueIndent: string) => boolean;
 
 export type BodyKind = "scene" | "branch" | "option" | "then";
 
@@ -483,16 +486,11 @@ function planCharacter(
   };
 }
 
-const ENDS_DIALOGUE = new RegExp(
-  String.raw`^(?:[*+](?:$|[^\S\r\n]+|(?=:|#+(?:$|[^\S\r\n])|--))|->|[&%$^]|(?:scene|branch|function|define|const|store|local)\b)`,
-);
-
-const continuesDialogue = (line: SourceLine, indent: string) =>
-  line.text.startsWith(indent) &&
-  /^[^\S\r\n]/.test(line.text.slice(indent.length)) &&
-  !ENDS_DIALOGUE.test(line.content);
-
-function settleCue(lines: SourceLine[], placement: Placement): Placement {
+function settleCue(
+  lines: SourceLine[],
+  placement: Placement,
+  endsDialogue: EndsDialogue,
+): Placement {
   const after =
     placement.mode === "before" ? placement.line - 1 : placement.line;
   let { mode, line, indent } = placement;
@@ -504,7 +502,7 @@ function settleCue(lines: SourceLine[], placement: Placement): Placement {
       line = next;
       continue;
     }
-    if (continuesDialogue(candidate, indent)) indent = candidate.indent;
+    if (!endsDialogue(candidate.text, indent)) indent = candidate.indent;
     break;
   }
   return { mode, line, indent };
@@ -538,7 +536,7 @@ function planStoryBlock(
         : { mode: "after", line: index, indent };
   }
   if (construct === "dialogue") {
-    placement = settleCue(lines, placement);
+    placement = settleCue(lines, placement, structure.endsDialogue);
   }
   const lastLine = lineIndexAt(lines, structure.tree.length);
   if (placement.line > lastLine && structure.tree.length < source.length) {
@@ -674,6 +672,7 @@ export const insertConstruct =
 export async function insertConstructFromServer(
   view: EditorView,
   construct: InsertConstruct,
+  endsDialogue: EndsDialogue,
 ): Promise<boolean> {
   const plugin = LSPPlugin.get(view);
   if (!plugin) return false;
@@ -701,5 +700,6 @@ export async function insertConstructFromServer(
     scenes: sceneSpansOf(symbols),
     branches: branchSpansOf(symbols),
     tree,
+    endsDialogue,
   })(view);
 }

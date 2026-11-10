@@ -33,6 +33,7 @@ import {
   openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
@@ -678,7 +679,7 @@ export class ScriptEditorController {
     }
     const inserted =
       isInsertConstruct(construct) &&
-      (await insertConstructFromServer(view, construct));
+      (await insertConstructFromServer(view, construct, endsDialogueBlock));
     if (inserted && this._view === view) {
       this.focusAtCaret();
     }

@@ -96,6 +96,7 @@ export {
   sceneSpansOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,
+  type EndsDialogue,
   type InsertConstruct,
   type InsertContext,
   type InsertPlan,

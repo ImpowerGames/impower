@@ -3,6 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { getDocumentSymbols } from "../../sparkdown-language-server/src/utils/providers/getDocumentSymbols";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LSPClient } from "../src/client";
@@ -88,6 +89,7 @@ const structureOf = (source: string) => {
     scenes: scenesOf(lf),
     branches: branchSpansOf(symbolsOf(lf)),
     tree: treeOf(lf),
+    endsDialogue: endsDialogueBlock,
   };
 };
 
@@ -674,7 +676,7 @@ describe("structure read from the language server", () => {
       parent: document.body,
     });
     try {
-      expect(await insertConstructFromServer(view, "scene")).toBe(false);
+      expect(await insertConstructFromServer(view, "scene", endsDialogueBlock)).toBe(false);
       expect(view.state.doc.toString()).toBe(SCRIPT);
     } finally {
       view.destroy();
@@ -714,7 +716,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts with the server's scenes once they arrive", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch");
+    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
     resolve();
     expect(await result).toBe(true);
     expect(view.state.doc.toString()).toContain(
@@ -724,7 +726,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts nothing when the script changed while the server answered", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch");
+    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
     view.dispatch({ changes: { from: 0, insert: LF } });
     resolve();
     expect(await result).toBe(false);
@@ -734,7 +736,7 @@ describe("insertConstructFromServer", () => {
   it("never applies an answer to a script edited after it arrived", async () => {
     const { view, resolve } = pending();
     const outside = "store gold = 1";
-    const result = insertConstructFromServer(view, "branch");
+    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
     resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -748,7 +750,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts nothing into an editor destroyed while the server answered", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch");
+    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
     view.destroy();
     resolve();
     expect(await result).toBe(false);
