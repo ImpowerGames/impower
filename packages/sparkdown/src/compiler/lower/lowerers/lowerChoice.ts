@@ -328,7 +328,10 @@ function appendNodeContent(
     | { kind: "comment"; node: SyntaxNode };
   const markers: Marker[] = [];
   const walk = (node: SyntaxNode): void => {
-    if (isExplicitRuleName(node.name, "SparkdownInlineComment")) {
+    if (
+      isExplicitRuleName(node.name, "SparkdownInlineComment") ||
+      isExplicitRuleName(node.name, "SparkdownBlockComment")
+    ) {
       markers.push({ kind: "comment", node });
       return;
     }

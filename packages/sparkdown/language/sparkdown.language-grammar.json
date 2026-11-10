@@ -450,11 +450,12 @@
     "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
+    "SPARKDOWN_BLOCK_COMMENT_START": "(?:[/][*])",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
     "CHAIN": "(?:[\\\\])",
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
-    "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))",
+    "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))",
     "LEADING_GLUE": "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})",
     "INLINE_LEADING_GLUE": "(?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})",
     "ALTERNATOR_GLUE": "(?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))",
@@ -950,6 +951,9 @@
     "DisplayStatements": {
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -1014,6 +1018,42 @@
           "name": "comment.line.double-slash.content.sd"
         }
       }
+    },
+    "SparkdownBlockComment": {
+      "tag": "blockComment",
+      "name": "comment.block.sd",
+      "begin": "((?:[^\\S\\n\\r])*)((?:[/][*]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "name": "punctuation.definition.comment.begin.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#SparkdownBlockCommentContent"
+        }
+      ],
+      "end": "([*][/])",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.comment.end.sd"
+        }
+      }
+    },
+    "SparkdownBlockCommentContent": {
+      "tag": "blockComment",
+      "name": "comment.block.content.sd",
+      "match": "((?:[^*\\r\\n]|[*](?![/]))+)"
     },
     "SparkleTrailingLineComment": {
       "tag": "lineComment",
@@ -1301,7 +1341,7 @@
     "Glue": {
       "tag": "meta",
       "name": "meta.glue.sd",
-      "match": "((?:[^\\S\\n\\r])*)((?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[>])))))",
+      "match": "((?:[^\\S\\n\\r])*)((?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[/][*])|(?:[>])))))",
       "captures": {
         "1": {
           "patterns": [
@@ -1920,6 +1960,9 @@
       "emit": true,
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownInlineComment"
         },
         {
@@ -1949,6 +1992,9 @@
             },
             {
               "include": "#LuauInterpolatedStringExpression"
+            },
+            {
+              "include": "#SparkdownBlockComment"
             },
             {
               "include": "#SparkdownInlineComment"
@@ -2306,6 +2352,9 @@
           "include": "#DivertTarget"
         },
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownInlineComment"
         },
         {
@@ -2394,6 +2443,9 @@
         },
         {
           "include": "#DivertTarget"
+        },
+        {
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
@@ -3050,6 +3102,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3065,7 +3120,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineTitle": {
       "tag": "monospace",
@@ -3184,6 +3239,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3199,7 +3257,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineHeading": {
       "tag": "regexp",
@@ -3318,6 +3376,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3333,7 +3394,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineTransitional": {
       "tag": "labelName",
@@ -3467,6 +3528,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3482,7 +3546,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineWrite": {
       "tag": "definition(string)",
@@ -3621,6 +3685,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3636,7 +3703,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*(?:[*+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))|->|[&%$^]|scene\\b|branch\\b|function\\b|define\\b|const\\b|store\\b|local\\b))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*(?:[*+](?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))|->|[&%$^]|scene\\b|branch\\b|function\\b|define\\b|const\\b|store\\b|local\\b))"
     },
     "InlineDialogue": {
       "tag": "definition(string)",
@@ -3908,6 +3975,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownLineComment"
         },
         {
@@ -3923,7 +3993,7 @@
           "include": "#BlockActionLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|(?:[/][*])|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineAction": {
       "begin": "(?<![}])((?:[^\\S\\n\\r])*)(?:((?:[.][.](?![.])))|([:])($|(?:[^\\S\\n\\r])+))",
@@ -4395,6 +4465,9 @@
           "include": "#LuauSparkdownInlineGluedConditionalAlternatorBlock"
         },
         {
+          "include": "#SparkdownBlockComment"
+        },
+        {
           "include": "#SparkdownInlineComment"
         },
         {
@@ -4439,7 +4512,7 @@
           "include": "#DisplayText"
         }
       ],
-      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[>]))))|(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*)?(?:\\b(?:queue|cycle|chain)\\b)?(?:[^\\S\\n\\r])*(?=[|])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(])))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:[^\\S\\n\\r])*[/]{2}(?=$|(?:[^\\S\\n\\r]))|(?:[^\\S\\n\\r])*(?:[>]))"
+      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[/][*])|(?:[>]))))|(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*)?(?:\\b(?:queue|cycle|chain)\\b)?(?:[^\\S\\n\\r])*(?=[|])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(])))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:[^\\S\\n\\r])*[/]{2}(?=$|(?:[^\\S\\n\\r]))|(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[>]))"
     },
     "DisplayText": {
       "patterns": [

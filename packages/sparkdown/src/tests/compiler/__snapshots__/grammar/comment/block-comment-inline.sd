@@ -1,0 +1,12 @@
+scene start
+  Hello /* note */ there
+  Hello /*note*/ there
+  Glued.. /* note */
+  Before /* one */ middle /* two */ after
+  RAFFLES: Hi /* aside */ there.
+  -> next /* why */
+  + [Go /* inner */ on] You /* outer */ go. -> next
+  * Plain /* note */ choice
+  done
+scene next
+  done

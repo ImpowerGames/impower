@@ -49,6 +49,7 @@ const LITERALS = new Set([
   "LuauStructBlockValueComment",
   "SparkdownInlineComment",
   "SparkdownLineComment",
+  "SparkdownBlockComment",
   "SparkleTrailingLineComment",
 ]);
 

@@ -57,17 +57,52 @@ describe("provider · todo notes", () => {
         "todo",
         { start: { line: 3, character: 2 }, end: { line: 3, character: 9 } },
       ],
+      [
+        "To do: block",
+        DiagnosticSeverity.Information,
+        "todo",
+        { start: { line: 6, character: 2 }, end: { line: 6, character: 15 } },
+      ],
     ]);
   });
 
-  test("a block comment, a string, a longer or shorter word and a mid-comment todo are not notes", () => {
+  test("each line of a block comment that begins with todo is a note", () => {
+    expect(
+      notesOf(
+        lines(
+          "scene A",
+          "  /* todo: first",
+          "  not a note",
+          "    TODO second */",
+          "  Shown. /* todo inline */ text",
+          "end",
+          "",
+        ),
+      ).map((d) => [d.message, d.range]),
+    ).toEqual([
+      [
+        "To do: first",
+        { start: { line: 1, character: 2 }, end: { line: 1, character: 16 } },
+      ],
+      [
+        "To do: second",
+        { start: { line: 3, character: 4 }, end: { line: 3, character: 15 } },
+      ],
+      [
+        "To do: inline",
+        { start: { line: 4, character: 9 }, end: { line: 4, character: 23 } },
+      ],
+    ]);
+  });
+
+  test("a string, a longer or shorter word and a mid-comment todo are not notes", () => {
     expect(
       notesOf(
         lines(
           "  // todolist",
           "  // TOD: fix this",
           "  // not a TODO",
-          "  /* TODO block */",
+          "  /* not a TODO */",
           '  store s = "// TODO no"',
           "",
         ),
@@ -108,6 +143,6 @@ describe("provider · todo notes", () => {
       .getDiagnostics(program, URI)
       .filter((d) => d.source === "todo")
       .map((d) => d.message);
-    expect(notes).toEqual(["To do: fix this", "To do: later", "To do"]);
+    expect(notes).toEqual(["To do: fix this", "To do: later", "To do", "To do: block"]);
   });
 });

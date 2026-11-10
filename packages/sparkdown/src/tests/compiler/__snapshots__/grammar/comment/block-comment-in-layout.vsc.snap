@@ -1,0 +1,26 @@
+text.source.sparkdown [0..33]
+ ├─ meta.layout.luau [0..13]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   └─ meta.embedded.block.luau [7..13]
+ │       ├─ entity.name.type.define.luau [7..11]: "Main"
+ │       ├─ punctuation.whitespace.sd [11..12]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.layout.luau [14..21]
+ │   └─ meta.embedded.block.luau [14..21]
+ │       ├─ punctuation.whitespace.sd [14..16]: "  "
+ │       └─ invalid.illegal.sparkle-block-entry.sd [16..21]: "/*x*/"
+ ├─ Newline [21..22]: "\n"
+ ├─ meta.layout.luau [22..30]
+ │   └─ meta.embedded.block.luau [22..30]
+ │       ├─ punctuation.whitespace.sd [22..24]: "  "
+ │       ├─ entity.name.type.class.view.sd [24..27]: "box"
+ │       ├─ punctuation.whitespace.sd [27..28]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [28..29]: "{"
+ │       └─ punctuation.definition.template-expression.end.sd [29..30]: "}"
+ ├─ Newline [30..31]: "\n"
+ ├─ meta.layout.luau [31..32]
+ │   └─ meta.embedded.block.luau [31..32]
+ │       └─ punctuation.definition.template-expression.end.sd [31..32]: "}"
+ └─ Newline [32..33]: "\n"

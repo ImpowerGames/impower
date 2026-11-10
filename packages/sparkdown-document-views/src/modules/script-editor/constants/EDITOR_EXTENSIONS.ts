@@ -1,6 +1,7 @@
 import { history } from "@codemirror/commands";
-import { indentUnit } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { ensureSyntaxTree, indentUnit, syntaxTree } from "@codemirror/language";
+import { EditorState, Line } from "@codemirror/state";
+import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
 import {
   EditorView,
   crosshairCursor,
@@ -29,13 +30,16 @@ const deferFileDropsToApp = EditorView.domEventHandlers({
 
 const DIALOGUE_CUE = /^[^:]+:$/;
 
-export const isExecutionGap = (text: string) => {
-  const trimmedText = text.trim();
-  return (
-    !trimmedText ||
-    trimmedText.startsWith("//") ||
-    DIALOGUE_CUE.test(trimmedText)
-  );
+const PARSE_TIMEOUT_MS = 100;
+
+export const isExecutionGap = (line: Line, state: EditorState) => {
+  const trimmedText = line.text.trim();
+  if (!trimmedText || DIALOGUE_CUE.test(trimmedText)) {
+    return true;
+  }
+  const tree =
+    ensureSyntaxTree(state, line.to, PARSE_TIMEOUT_MS) ?? syntaxTree(state);
+  return isCommentOnlyLine(tree, line.from, line.text);
 };
 
 const EDITOR_EXTENSIONS = [

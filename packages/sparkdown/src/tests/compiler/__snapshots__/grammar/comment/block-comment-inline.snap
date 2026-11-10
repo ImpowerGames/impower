@@ -1,0 +1,387 @@
+sparkdown [0..281]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..36]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..36]
+ │   │   └─ ActionLineEnd [14..36]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..36]
+ │   │       │   ├─ TextChunk [14..19]
+ │   │       │   │   ├─ TextChunk_begin 14
+ │   │       │   │   ├─ TextChunk_content [14..19]
+ │   │       │   │   │   └─ Word [14..19]: "Hello"
+ │   │       │   │   └─ TextChunk_end 19
+ │   │       │   ├─ SparkdownBlockComment [19..30]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [19..22]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [19..20]
+ │   │       │   │   │   │   └─ OptionalWhitespace [19..20]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [20..22]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [22..28]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [22..28]: " note "
+ │   │       │   │   └─ SparkdownBlockComment_end [28..30]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [28..30]: "*/"
+ │   │       │   └─ TextChunk [30..36]
+ │   │       │       ├─ TextChunk_begin 30
+ │   │       │       ├─ TextChunk_content [30..36]
+ │   │       │       │   ├─ Space [30..31]: " "
+ │   │       │       │   └─ Word [31..36]: "there"
+ │   │       │       └─ TextChunk_end 36
+ │   │       └─ ActionLineEnd_end 36
+ │   └─ ImplicitAction_end 36
+ ├─ Newline [36..37]: "\n"
+ ├─ ImplicitAction [37..59]
+ │   ├─ ImplicitAction_begin [37..39]
+ │   │   └─ ImplicitAction_begin_c1 [37..39]
+ │   │       └─ OptionalWhitespace [37..39]: "  "
+ │   ├─ ImplicitAction_content [39..59]
+ │   │   └─ ActionLineEnd [39..59]
+ │   │       ├─ ActionLineEnd_begin 39
+ │   │       │   └─ ActionLineEnd_begin_c1 39
+ │   │       │       └─ OptionalWhitespace 39
+ │   │       ├─ ActionLineEnd_content [39..59]
+ │   │       │   ├─ TextChunk [39..44]
+ │   │       │   │   ├─ TextChunk_begin 39
+ │   │       │   │   ├─ TextChunk_content [39..44]
+ │   │       │   │   │   └─ Word [39..44]: "Hello"
+ │   │       │   │   └─ TextChunk_end 44
+ │   │       │   ├─ SparkdownBlockComment [44..53]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [44..47]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [44..45]
+ │   │       │   │   │   │   └─ OptionalWhitespace [44..45]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [45..47]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [47..51]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [47..51]: "note"
+ │   │       │   │   └─ SparkdownBlockComment_end [51..53]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [51..53]: "*/"
+ │   │       │   └─ TextChunk [53..59]
+ │   │       │       ├─ TextChunk_begin 53
+ │   │       │       ├─ TextChunk_content [53..59]
+ │   │       │       │   ├─ Space [53..54]: " "
+ │   │       │       │   └─ Word [54..59]: "there"
+ │   │       │       └─ TextChunk_end 59
+ │   │       └─ ActionLineEnd_end 59
+ │   └─ ImplicitAction_end 59
+ ├─ Newline [59..60]: "\n"
+ ├─ ImplicitAction [60..80]
+ │   ├─ ImplicitAction_begin [60..62]
+ │   │   └─ ImplicitAction_begin_c1 [60..62]
+ │   │       └─ OptionalWhitespace [60..62]: "  "
+ │   ├─ ImplicitAction_content [62..80]
+ │   │   └─ ActionLineEnd [62..80]
+ │   │       ├─ ActionLineEnd_begin 62
+ │   │       │   └─ ActionLineEnd_begin_c1 62
+ │   │       │       └─ OptionalWhitespace 62
+ │   │       ├─ ActionLineEnd_content [62..80]
+ │   │       │   ├─ TextChunk [62..67]
+ │   │       │   │   ├─ TextChunk_begin 62
+ │   │       │   │   ├─ TextChunk_content [62..67]
+ │   │       │   │   │   └─ Word [62..67]: "Glued"
+ │   │       │   │   └─ TextChunk_end 67
+ │   │       │   ├─ Glue [67..69]
+ │   │       │   │   ├─ Glue_c1 67
+ │   │       │   │   └─ Glue_c2 [67..69]: ".."
+ │   │       │   └─ SparkdownBlockComment [69..80]
+ │   │       │       ├─ SparkdownBlockComment_begin [69..72]
+ │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [69..70]
+ │   │       │       │   │   └─ OptionalWhitespace [69..70]: " "
+ │   │       │       │   └─ SparkdownBlockComment_begin_c2 [70..72]: "/*"
+ │   │       │       ├─ SparkdownBlockComment_content [72..78]
+ │   │       │       │   └─ SparkdownBlockCommentContent [72..78]: " note "
+ │   │       │       └─ SparkdownBlockComment_end [78..80]
+ │   │       │           └─ SparkdownBlockComment_end_c1 [78..80]: "*/"
+ │   │       └─ ActionLineEnd_end 80
+ │   └─ ImplicitAction_end 80
+ ├─ Newline [80..81]: "\n"
+ ├─ ImplicitAction [81..122]
+ │   ├─ ImplicitAction_begin [81..83]
+ │   │   └─ ImplicitAction_begin_c1 [81..83]
+ │   │       └─ OptionalWhitespace [81..83]: "  "
+ │   ├─ ImplicitAction_content [83..122]
+ │   │   └─ ActionLineEnd [83..122]
+ │   │       ├─ ActionLineEnd_begin 83
+ │   │       │   └─ ActionLineEnd_begin_c1 83
+ │   │       │       └─ OptionalWhitespace 83
+ │   │       ├─ ActionLineEnd_content [83..122]
+ │   │       │   ├─ TextChunk [83..89]
+ │   │       │   │   ├─ TextChunk_begin 83
+ │   │       │   │   ├─ TextChunk_content [83..89]
+ │   │       │   │   │   └─ Word [83..89]: "Before"
+ │   │       │   │   └─ TextChunk_end 89
+ │   │       │   ├─ SparkdownBlockComment [89..99]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [89..92]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [89..90]
+ │   │       │   │   │   │   └─ OptionalWhitespace [89..90]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [90..92]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [92..97]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [92..97]: " one "
+ │   │       │   │   └─ SparkdownBlockComment_end [97..99]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [97..99]: "*/"
+ │   │       │   ├─ TextChunk [99..106]
+ │   │       │   │   ├─ TextChunk_begin 99
+ │   │       │   │   ├─ TextChunk_content [99..106]
+ │   │       │   │   │   ├─ Space [99..100]: " "
+ │   │       │   │   │   └─ Word [100..106]: "middle"
+ │   │       │   │   └─ TextChunk_end 106
+ │   │       │   ├─ SparkdownBlockComment [106..116]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [106..109]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [106..107]
+ │   │       │   │   │   │   └─ OptionalWhitespace [106..107]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [107..109]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [109..114]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [109..114]: " two "
+ │   │       │   │   └─ SparkdownBlockComment_end [114..116]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [114..116]: "*/"
+ │   │       │   └─ TextChunk [116..122]
+ │   │       │       ├─ TextChunk_begin 116
+ │   │       │       ├─ TextChunk_content [116..122]
+ │   │       │       │   ├─ Space [116..117]: " "
+ │   │       │       │   └─ Word [117..122]: "after"
+ │   │       │       └─ TextChunk_end 122
+ │   │       └─ ActionLineEnd_end 122
+ │   └─ ImplicitAction_end 122
+ ├─ Newline [122..123]: "\n"
+ ├─ InlineDialogue [123..155]
+ │   ├─ InlineDialogue_begin [123..134]
+ │   │   ├─ InlineDialogue_begin_c1 [123..125]
+ │   │   │   └─ OptionalWhitespace [123..125]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [125..132]
+ │   │   │   └─ DialogueCharacter [125..132]
+ │   │   │       ├─ DialogueCharacter_c1 125
+ │   │   │       ├─ DialogueCharacter_c2 [125..132]
+ │   │   │       │   └─ DialogueCharacterName [125..132]
+ │   │   │       │       └─ DialogueCharacterName_c1 [125..132]
+ │   │   │       │           └─ Word [125..132]: "RAFFLES"
+ │   │   │       ├─ DialogueCharacter_c3 132
+ │   │   │       ├─ DialogueCharacter_c4 132
+ │   │   │       ├─ DialogueCharacter_c5 132
+ │   │   │       ├─ DialogueCharacter_c6 132
+ │   │   │       └─ DialogueCharacter_c7 132
+ │   │   ├─ InlineDialogue_begin_c3 [132..133]
+ │   │   │   └─ ColonSeparator [132..133]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [133..134]
+ │   │   │   └─ RequiredWhitespace [133..134]: " "
+ │   │   └─ InlineDialogue_begin_c5 134
+ │   ├─ InlineDialogue_content [134..155]
+ │   │   └─ LineEnd [134..155]
+ │   │       ├─ LineEnd_begin 134
+ │   │       │   └─ LineEnd_begin_c1 134
+ │   │       │       └─ OptionalWhitespace 134
+ │   │       ├─ LineEnd_content [134..155]
+ │   │       │   ├─ TextChunk [134..136]
+ │   │       │   │   ├─ TextChunk_begin 134
+ │   │       │   │   ├─ TextChunk_content [134..136]
+ │   │       │   │   │   └─ Word [134..136]: "Hi"
+ │   │       │   │   └─ TextChunk_end 136
+ │   │       │   ├─ SparkdownBlockComment [136..148]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [136..139]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [136..137]
+ │   │       │   │   │   │   └─ OptionalWhitespace [136..137]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [137..139]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [139..146]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [139..146]: " aside "
+ │   │       │   │   └─ SparkdownBlockComment_end [146..148]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [146..148]: "*/"
+ │   │       │   └─ TextChunk [148..155]
+ │   │       │       ├─ TextChunk_begin 148
+ │   │       │       ├─ TextChunk_content [148..155]
+ │   │       │       │   ├─ Space [148..149]: " "
+ │   │       │       │   ├─ Word [149..154]: "there"
+ │   │       │       │   └─ Punctuation [154..155]: "."
+ │   │       │       └─ TextChunk_end 155
+ │   │       └─ LineEnd_end 155
+ │   └─ InlineDialogue_end 155
+ ├─ Newline [155..156]: "\n"
+ ├─ Divert [156..175]
+ │   ├─ Divert_begin [156..160]
+ │   │   ├─ Divert_begin_c1 [156..158]
+ │   │   │   └─ OptionalWhitespace [156..158]: "  "
+ │   │   └─ Divert_begin_c2 [158..160]
+ │   │       └─ DivertMark [158..160]: "->"
+ │   ├─ Divert_content [160..175]
+ │   │   ├─ DivertTarget [160..165]
+ │   │   │   ├─ DivertTarget_begin [160..161]
+ │   │   │   │   └─ DivertTarget_begin_c1 [160..161]
+ │   │   │   │       └─ DivertTarget_begin_c1 [160..161]
+ │   │   │   │           └─ OptionalWhitespace [160..161]: " "
+ │   │   │   ├─ DivertTarget_content [161..165]
+ │   │   │   │   └─ DivertPath [161..165]
+ │   │   │   │       ├─ DivertPath_begin 161
+ │   │   │   │       ├─ DivertPath_content [161..165]
+ │   │   │   │       │   └─ DivertPart [161..165]
+ │   │   │   │       │       └─ DivertPartName [161..165]: "next"
+ │   │   │   │       └─ DivertPath_end 165
+ │   │   │   └─ DivertTarget_end 165
+ │   │   └─ SparkdownBlockComment [165..175]
+ │   │       ├─ SparkdownBlockComment_begin [165..168]
+ │   │       │   ├─ SparkdownBlockComment_begin_c1 [165..166]
+ │   │       │   │   └─ OptionalWhitespace [165..166]: " "
+ │   │       │   └─ SparkdownBlockComment_begin_c2 [166..168]: "/*"
+ │   │       ├─ SparkdownBlockComment_content [168..173]
+ │   │       │   └─ SparkdownBlockCommentContent [168..173]: " why "
+ │   │       └─ SparkdownBlockComment_end [173..175]
+ │   │           └─ SparkdownBlockComment_end_c1 [173..175]: "*/"
+ │   └─ Divert_end 175
+ ├─ Newline [175..176]: "\n"
+ ├─ Choice [176..227]
+ │   ├─ Choice_begin [176..180]
+ │   │   ├─ Choice_begin_c1 [176..178]
+ │   │   │   └─ OptionalWhitespace [176..178]: "  "
+ │   │   ├─ Choice_begin_c2 [178..180]
+ │   │   │   └─ ChoiceMark [178..180]: "+ "
+ │   │   ├─ Choice_begin_c3 180
+ │   │   ├─ Choice_begin_c4 180
+ │   │   ├─ Choice_begin_c5 180
+ │   │   ├─ Choice_begin_c6 180
+ │   │   └─ Choice_begin_c7 180
+ │   ├─ Choice_content [180..227]
+ │   │   └─ ChoiceWithSuppressedText [180..227]
+ │   │       ├─ ChoiceWithSuppressedText_c1 180
+ │   │       ├─ ChoiceWithSuppressedText_c2 [180..181]: "["
+ │   │       ├─ ChoiceWithSuppressedText_c3 [181..198]
+ │   │       │   └─ ChoiceOnlyText [181..198]
+ │   │       │       └─ ChoiceTextContent [181..198]
+ │   │       │           └─ ChoiceTextContent_c1 [181..198]
+ │   │       │               ├─ Word [181..183]: "Go"
+ │   │       │               ├─ SparkdownBlockComment [183..195]
+ │   │       │               │   ├─ SparkdownBlockComment_begin [183..186]
+ │   │       │               │   │   ├─ SparkdownBlockComment_begin_c1 [183..184]
+ │   │       │               │   │   │   └─ OptionalWhitespace [183..184]: " "
+ │   │       │               │   │   └─ SparkdownBlockComment_begin_c2 [184..186]: "/*"
+ │   │       │               │   ├─ SparkdownBlockComment_content [186..193]
+ │   │       │               │   │   └─ SparkdownBlockCommentContent [186..193]: " inner "
+ │   │       │               │   └─ SparkdownBlockComment_end [193..195]
+ │   │       │               │       └─ SparkdownBlockComment_end_c1 [193..195]: "*/"
+ │   │       │               ├─ Space [195..196]: " "
+ │   │       │               └─ Word [196..198]: "on"
+ │   │       ├─ ChoiceWithSuppressedText_c4 [198..199]: "]"
+ │   │       ├─ ChoiceWithSuppressedText_c5 [199..219]
+ │   │       │   ├─ ChoiceInnerText [199..200]
+ │   │       │   │   └─ Space [199..200]: " "
+ │   │       │   ├─ ChoiceInnerText [200..203]
+ │   │       │   │   └─ Word [200..203]: "You"
+ │   │       │   ├─ ChoiceInnerText [203..215]
+ │   │       │   │   └─ SparkdownBlockComment [203..215]
+ │   │       │   │       ├─ SparkdownBlockComment_begin [203..206]
+ │   │       │   │       │   ├─ SparkdownBlockComment_begin_c1 [203..204]
+ │   │       │   │       │   │   └─ OptionalWhitespace [203..204]: " "
+ │   │       │   │       │   └─ SparkdownBlockComment_begin_c2 [204..206]: "/*"
+ │   │       │   │       ├─ SparkdownBlockComment_content [206..213]
+ │   │       │   │       │   └─ SparkdownBlockCommentContent [206..213]: " outer "
+ │   │       │   │       └─ SparkdownBlockComment_end [213..215]
+ │   │       │   │           └─ SparkdownBlockComment_end_c1 [213..215]: "*/"
+ │   │       │   ├─ ChoiceInnerText [215..216]
+ │   │       │   │   └─ Space [215..216]: " "
+ │   │       │   ├─ ChoiceInnerText [216..218]
+ │   │       │   │   └─ Word [216..218]: "go"
+ │   │       │   └─ ChoiceInnerText [218..219]
+ │   │       │       └─ Punctuation [218..219]: "."
+ │   │       ├─ ChoiceWithSuppressedText_c6 219
+ │   │       ├─ ChoiceWithSuppressedText_c7 [219..220]
+ │   │       │   └─ RequiredWhitespace [219..220]: " "
+ │   │       └─ ChoiceWithSuppressedText_c8 [220..227]
+ │   │           └─ Divert [220..227]
+ │   │               ├─ Divert_begin [220..222]
+ │   │               │   ├─ Divert_begin_c1 220
+ │   │               │   │   └─ OptionalWhitespace 220
+ │   │               │   └─ Divert_begin_c2 [220..222]
+ │   │               │       └─ DivertMark [220..222]: "->"
+ │   │               ├─ Divert_content [222..227]
+ │   │               │   └─ DivertTarget [222..227]
+ │   │               │       ├─ DivertTarget_begin [222..223]
+ │   │               │       │   └─ DivertTarget_begin_c1 [222..223]
+ │   │               │       │       └─ DivertTarget_begin_c1 [222..223]
+ │   │               │       │           └─ OptionalWhitespace [222..223]: " "
+ │   │               │       ├─ DivertTarget_content [223..227]
+ │   │               │       │   └─ DivertPath [223..227]
+ │   │               │       │       ├─ DivertPath_begin 223
+ │   │               │       │       ├─ DivertPath_content [223..227]
+ │   │               │       │       │   └─ DivertPart [223..227]
+ │   │               │       │       │       └─ DivertPartName [223..227]: "next"
+ │   │               │       │       └─ DivertPath_end 227
+ │   │               │       └─ DivertTarget_end 227
+ │   │               └─ Divert_end 227
+ │   └─ Choice_end 227
+ ├─ Newline [227..228]: "\n"
+ ├─ Choice [228..255]
+ │   ├─ Choice_begin [228..232]
+ │   │   ├─ Choice_begin_c1 [228..230]
+ │   │   │   └─ OptionalWhitespace [228..230]: "  "
+ │   │   ├─ Choice_begin_c2 [230..232]
+ │   │   │   └─ ChoiceMark [230..232]: "* "
+ │   │   ├─ Choice_begin_c3 232
+ │   │   ├─ Choice_begin_c4 232
+ │   │   ├─ Choice_begin_c5 232
+ │   │   ├─ Choice_begin_c6 232
+ │   │   └─ Choice_begin_c7 232
+ │   ├─ Choice_content [232..255]
+ │   │   └─ ChoiceWithNoSuppressedText [232..255]
+ │   │       ├─ ChoiceWithNoSuppressedText_c1 [232..255]
+ │   │       │   └─ ChoicePlainText [232..255]
+ │   │       │       └─ ChoiceTextContent [232..255]
+ │   │       │           └─ ChoiceTextContent_c1 [232..255]
+ │   │       │               ├─ Word [232..237]: "Plain"
+ │   │       │               ├─ SparkdownBlockComment [237..248]
+ │   │       │               │   ├─ SparkdownBlockComment_begin [237..240]
+ │   │       │               │   │   ├─ SparkdownBlockComment_begin_c1 [237..238]
+ │   │       │               │   │   │   └─ OptionalWhitespace [237..238]: " "
+ │   │       │               │   │   └─ SparkdownBlockComment_begin_c2 [238..240]: "/*"
+ │   │       │               │   ├─ SparkdownBlockComment_content [240..246]
+ │   │       │               │   │   └─ SparkdownBlockCommentContent [240..246]: " note "
+ │   │       │               │   └─ SparkdownBlockComment_end [246..248]
+ │   │       │               │       └─ SparkdownBlockComment_end_c1 [246..248]: "*/"
+ │   │       │               ├─ Space [248..249]: " "
+ │   │       │               └─ Word [249..255]: "choice"
+ │   │       ├─ ChoiceWithNoSuppressedText_c2 255
+ │   │       ├─ ChoiceWithNoSuppressedText_c3 255
+ │   │       └─ ChoiceWithNoSuppressedText_c4 255
+ │   └─ Choice_end 255
+ ├─ Newline [255..256]: "\n"
+ ├─ DoneStatement [256..262]
+ │   ├─ DoneStatement_c1 [256..258]
+ │   │   └─ OptionalWhitespace [256..258]: "  "
+ │   ├─ DoneStatement_c2 [258..262]
+ │   │   └─ DoneKeyword [258..262]: "done"
+ │   └─ DoneStatement_c3 262
+ │       └─ OptionalWhitespace 262
+ ├─ Newline [262..263]: "\n"
+ ├─ Scene [263..273]
+ │   ├─ Scene_begin [263..269]
+ │   │   ├─ Scene_begin_c1 263
+ │   │   │   └─ OptionalWhitespace 263
+ │   │   ├─ Scene_begin_c2 [263..268]
+ │   │   │   └─ SceneKeyword [263..268]: "scene"
+ │   │   └─ Scene_begin_c3 [268..269]
+ │   │       └─ RequiredWhitespace [268..269]: " "
+ │   ├─ Scene_content [269..273]
+ │   │   └─ SceneWithoutParametersDeclaration [269..273]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [269..273]
+ │   │       │   └─ SceneDeclarationName [269..273]: "next"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 273
+ │   └─ Scene_end 273
+ ├─ Newline [273..274]: "\n"
+ ├─ DoneStatement [274..280]
+ │   ├─ DoneStatement_c1 [274..276]
+ │   │   └─ OptionalWhitespace [274..276]: "  "
+ │   ├─ DoneStatement_c2 [276..280]
+ │   │   └─ DoneKeyword [276..280]: "done"
+ │   └─ DoneStatement_c3 280
+ │       └─ OptionalWhitespace 280
+ └─ Newline [280..281]: "\n"

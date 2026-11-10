@@ -16,11 +16,28 @@ export interface OutlineSources {
 }
 
 export const firstContentLine = (text: string): number | undefined => {
-  const index = text.split(/\r?\n/).findIndex((line) => {
-    const trimmed = line.trim();
-    return trimmed && !trimmed.startsWith("//");
-  });
-  return index < 0 ? undefined : index;
+  const lines = text.split(/\r?\n/);
+  let inBlockComment = false;
+  for (let index = 0; index < lines.length; index++) {
+    let rest = lines[index]!;
+    for (;;) {
+      if (inBlockComment) {
+        const close = rest.indexOf("*/");
+        if (close < 0) {
+          rest = "";
+          break;
+        }
+        rest = rest.slice(close + 2);
+        inBlockComment = false;
+      }
+      rest = rest.trim();
+      if (!rest.startsWith("/*")) break;
+      rest = rest.slice(2);
+      inBlockComment = true;
+    }
+    if (rest && !rest.startsWith("//")) return index;
+  }
+  return undefined;
 };
 
 export default class WorkspaceOutline {

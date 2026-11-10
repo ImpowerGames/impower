@@ -65,9 +65,10 @@ describe("the web editor's language data matches the extension manifest", () => 
 });
 
 describe("the story and Luau configs", () => {
-  it("comment story text with // and Luau code with -- and --[[ ]]", () => {
+  it("comment story text with // and /* */ and Luau code with -- and --[[ ]]", () => {
     expect(SPARKDOWN_LANGUAGE_CONFIGS.sparkdown.comments).toEqual({
       lineComment: "//",
+      blockComment: ["/*", "*/"],
     });
     expect(SPARKDOWN_LANGUAGE_CONFIGS["sparkdown-luau"].comments).toEqual({
       lineComment: "--",
@@ -75,10 +76,21 @@ describe("the story and Luau configs", () => {
     });
   });
 
-  it("differ only in their comment markers", () => {
-    expect(withoutComments(SPARKDOWN_LANGUAGE_CONFIGS.sparkdown)).toEqual(
-      withoutComments(SPARKDOWN_LANGUAGE_CONFIGS["sparkdown-luau"]),
-    );
+  it("close /* with */ in story text, with no string condition", () => {
+    expect(SPARKDOWN_LANGUAGE_CONFIGS.sparkdown.autoClosingPairs).toContainEqual({
+      open: "/*",
+      close: "*/",
+    });
+  });
+
+  it("differ only in their comment markers and the story block comment's pair", () => {
+    const story = withoutComments(SPARKDOWN_LANGUAGE_CONFIGS.sparkdown);
+    expect({
+      ...story,
+      autoClosingPairs: (story["autoClosingPairs"] as { open: string }[]).filter(
+        (pair) => pair.open !== "/*",
+      ),
+    }).toEqual(withoutComments(SPARKDOWN_LANGUAGE_CONFIGS["sparkdown-luau"]));
   });
 });
 

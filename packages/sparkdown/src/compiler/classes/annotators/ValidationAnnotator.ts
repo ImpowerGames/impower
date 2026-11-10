@@ -135,6 +135,8 @@ const LINE_BREAK_BINARY_OPERATORS = new Set(
 );
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
+const UNCLOSED_BLOCK_COMMENT =
+  "This comment is missing its closing `*/`. Without it, the rest of the script is read as part of this comment.";
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
   "LuauStructBlockItemMark",
@@ -995,6 +997,19 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    if (nodeRef.name === "SparkdownBlockComment") {
+      if (!childNamed(nodeRef.node, "SparkdownBlockComment_end")) {
+        const begin = childNamed(nodeRef.node, "SparkdownBlockComment_begin");
+        const opener = begin && childNamed(begin, "SparkdownBlockComment_begin_c2");
+        this.error(
+          annotations,
+          UNCLOSED_BLOCK_COMMENT,
+          opener?.from ?? nodeRef.from,
+          opener?.to ?? nodeRef.from + 2,
+        );
+      }
+      return annotations;
+    }
     if (nodeRef.name.startsWith("Luau") && this.inCutIsland(nodeRef.from)) {
       return annotations;
     }

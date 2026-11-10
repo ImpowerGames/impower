@@ -62,6 +62,34 @@ export default class ScreenplayParser {
       return text;
     };
 
+    const continuesAfterComment = (node: SyntaxNode): boolean => {
+      const comment = node.prevSibling;
+      return (
+        comment?.name === "SparkdownBlockComment" &&
+        comment.prevSibling?.name === "TextChunk"
+      );
+    };
+    const appendLine = (lines: string, node: SyntaxNode, text: string) =>
+      continuesAfterComment(node)
+        ? `${lines.replace(/\n$/, "")}${text}\n`
+        : `${lines}${text}\n`;
+    const readWithoutComments = (node: SyntaxNode): string => {
+      let text = "";
+      let pos = node.from;
+      const visit = (parent: SyntaxNode) => {
+        for (let child = parent.firstChild; child; child = child.nextSibling) {
+          if (child.name === "SparkdownBlockComment") {
+            text += read(pos, child.from);
+            pos = child.to;
+          } else {
+            visit(child);
+          }
+        }
+      };
+      visit(node);
+      return text + read(pos, node.to);
+    };
+
     const addSeparator = () => {
       if (tokens.at(-1)?.tag !== "separator") {
         tokens.push({ tag: "separator" });
@@ -125,6 +153,9 @@ export default class ScreenplayParser {
             addSeparator();
           }
         }
+        if (name === "SparkdownBlockComment") {
+          return false;
+        }
         if (name === "Newline") {
           if (isWhitespaceOnly(lineStart, from)) {
             addSeparator();
@@ -169,8 +200,7 @@ export default class ScreenplayParser {
 
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
           if (name === "TextChunk") {
-            const text = readWords(nodeRef.node);
-            title += text + "\n";
+            title = appendLine(title, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
@@ -180,8 +210,7 @@ export default class ScreenplayParser {
 
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
           if (name === "TextChunk") {
-            const text = readWords(nodeRef.node);
-            heading += text + "\n";
+            heading = appendLine(heading, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
@@ -194,8 +223,11 @@ export default class ScreenplayParser {
           stack.includes("InlineTransitional")
         ) {
           if (name === "TextChunk") {
-            const text = readWords(nodeRef.node);
-            transitional += text + "\n";
+            transitional = appendLine(
+              transitional,
+              nodeRef.node,
+              readWords(nodeRef.node),
+            );
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
@@ -209,8 +241,7 @@ export default class ScreenplayParser {
           stack.includes("ImplicitAction")
         ) {
           if (name === "TextChunk") {
-            const text = readWords(nodeRef.node);
-            action += text + "\n";
+            action = appendLine(action, nodeRef.node, readWords(nodeRef.node));
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
@@ -240,11 +271,19 @@ export default class ScreenplayParser {
         ) {
           if (name === "TextChunk") {
             const text = readWords(nodeRef.node);
-            tokens.push({
-              tag: "dialogue_content",
-              text,
-              position,
-            });
+            const last = tokens.at(-1);
+            if (
+              continuesAfterComment(nodeRef.node) &&
+              last?.tag === "dialogue_content"
+            ) {
+              last.text = `${last.text ?? ""}${text}`;
+            } else {
+              tokens.push({
+                tag: "dialogue_content",
+                text,
+                position,
+              });
+            }
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
@@ -262,12 +301,12 @@ export default class ScreenplayParser {
             choice_prefix += text;
           }
           if (name === "Choice_content") {
-            const text = read(from, to);
-            choice += text;
+            choice += readWithoutComments(nodeRef.node);
           }
         }
 
         stack.push(name);
+        return undefined;
       },
       leave: (nodeRef) => {
         const name = nodeRef.name as SparkdownNodeName;
