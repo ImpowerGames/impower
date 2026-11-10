@@ -5,6 +5,9 @@ import {
   Dialog,
   DialogActions,
   DialogTitle,
+  FileIcon,
+  FolderIcon,
+  ListRow,
   TrashIcon,
   UndoIcon,
 } from "@impower/impower-ui/components";
@@ -194,48 +197,45 @@ export default function TrashPanel() {
           {batches!.map((batch) => {
             const loc = batchLocation(batch);
             return (
-              <div
+              <ListRow
                 key={batch.batchId}
-                class="relative flex flex-row items-center gap-2 px-4 py-2 control-overlay"
-              >
-                <div class="flex min-w-0 flex-1 flex-col">
-                  <span class="truncate text-sm font-medium">
-                    {batchLabel(batch)}
-                  </span>
-                  <span class="truncate text-xs text-foreground/50">
-                    {loc ? `${loc} · ` : ""}
-                    {timeAgo(batch.deletedAt)}
-                  </span>
-                </div>
-                <Button
-                  variant="quiet"
-                  aria-label="Restore"
-                  title="Restore"
-                  disabled={busy}
-                  onClick={() => void restore(batch.batchId)}
-                  size="icon"
-                  class="flex-none text-muted"
-                >
-                  <UndoIcon class="size-4" />
-                </Button>
-                <Button
-                  variant="quiet"
-                  aria-label="Delete permanently"
-                  title="Delete permanently"
-                  disabled={busy}
-                  onClick={() =>
-                    setConfirm({
-                      kind: "batch",
-                      batchId: batch.batchId,
-                      label: batchLabel(batch),
-                    })
-                  }
-                  size="icon"
-                  class="flex-none text-muted"
-                >
-                  <TrashIcon class="size-4" />
-                </Button>
-              </div>
+                class="px-2"
+                icon={batch.entries.length === 1 ? <FileIcon /> : <FolderIcon />}
+                label={batchLabel(batch)}
+                description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
+                actions={
+                  <>
+                    <Button
+                      variant="quiet"
+                      aria-label="Restore"
+                      title="Restore"
+                      disabled={busy}
+                      onClick={() => void restore(batch.batchId)}
+                      size="icon"
+                      class="flex-none text-muted"
+                    >
+                      <UndoIcon class="size-4" />
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      aria-label="Delete permanently"
+                      title="Delete permanently"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirm({
+                          kind: "batch",
+                          batchId: batch.batchId,
+                          label: batchLabel(batch),
+                        })
+                      }
+                      size="icon"
+                      class="flex-none text-muted"
+                    >
+                      <TrashIcon class="size-4" />
+                    </Button>
+                  </>
+                }
+              />
             );
           })}
         </div>

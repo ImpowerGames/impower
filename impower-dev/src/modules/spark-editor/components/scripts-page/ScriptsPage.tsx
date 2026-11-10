@@ -16,12 +16,13 @@ import {
   RootIcon,
   SearchIcon,
   TextField,
+  TrashIcon,
   VirtualList,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { Fragment } from "preact";
-import { useEffect, useState } from "preact/hooks";
-import { plural, rowLine } from "../../utils/fileListModel";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { plural, referencedBy, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   browseParent,
@@ -33,11 +34,15 @@ import {
   type ScriptListing,
   type ScriptRow,
 } from "../../workspace/scriptsListing";
+import selection from "../../workspace/scriptsSelection";
 import workspace from "../../workspace/WorkspaceStore";
+import DeleteDialog from "./DeleteDialog";
 import MoveDialog from "./MoveDialog";
 import NameRow from "./NameRow";
 import RowMenu, { type RowAction } from "./RowMenu";
+import SelectionBar, { type SelectionAction } from "./SelectionBar";
 import SortMenu from "./SortMenu";
+import { DROP_FOLDER, useScriptsDrag } from "./useScriptsDrag";
 
 const EMPTY: ScriptListing = { files: {}, folders: [] };
 
@@ -64,23 +69,39 @@ function RowIcon({ row }: { row: ScriptRow }) {
   return <FileIcon />;
 }
 
+const DROP_HIGHLIGHT = "bg-tint text-accent ring-2 ring-inset ring-accent";
+
 function Trail({
   folder,
   home,
   count,
+  dropTarget,
   onOpen,
 }: {
   folder: string;
   home: string;
   count: number;
+  dropTarget: string | null;
   onOpen: (folder: string) => void;
 }) {
+  const dropAt = (target: string) => ({ [DROP_FOLDER]: target });
+  const lit = (target: string) => (dropTarget === target ? DROP_HIGHLIGHT : "");
   if (!folder) {
     return (
       <nav aria-label="Folder path" class="flex min-w-0 items-center gap-0.5 text-[12px]">
-        <span class="flex flex-none items-center px-2 text-muted [&_svg]:size-[17px]">
-          <RootIcon />
-        </span>
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button variant="quiet" size="icon" aria-label="Scripts options" class="flex-none text-muted [&_svg]:size-[17px]">
+              <RootIcon />
+            </Button>
+          </DropdownTrigger>
+          <DropdownContent align="start" class="min-w-[196px]">
+            <DropdownItem onSelect={() => void intents().then((Workspace) => Workspace.window.openTrash())}>
+              <TrashIcon class="text-muted" />
+              Recycle bin
+            </DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>
         <span aria-current="location" class="min-w-0 pr-3.5 pl-2 font-medium [--fade:14px] fade-edge">
           {plural(count, "script")}
         </span>
@@ -94,7 +115,8 @@ function Trail({
         variant="quiet"
         size="icon"
         aria-label="Parent folder"
-        class="flex-none text-muted"
+        {...dropAt(browseParent(folder, home))}
+        class={`flex-none text-muted ${lit(browseParent(folder, home))}`}
         onClick={() => onOpen(browseParent(folder, home))}
       >
         <BackIcon />
@@ -103,7 +125,8 @@ function Trail({
         variant="quiet"
         size="icon"
         aria-label="Scripts"
-        class="flex-none text-muted"
+        {...dropAt("")}
+        class={`flex-none text-muted ${lit("")}`}
         onClick={() => onOpen("")}
       >
         <RootIcon />
@@ -125,7 +148,8 @@ function Trail({
             <Button
               variant="quiet"
               size="compact"
-              class="max-w-40 text-muted [--fade:14px] fade-edge"
+              {...dropAt(crumb.path)}
+              class={`max-w-40 text-muted [--fade:14px] fade-edge ${lit(crumb.path)}`}
               onClick={() => onOpen(crumb.path)}
             >
               {crumb.name}
@@ -155,11 +179,15 @@ export default function ScriptsPage() {
   const [creating, setCreating] = useState<"script" | "folder" | null>(null);
   const [fromMenu, setFromMenu] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [moving, setMoving] = useState<string | null>(null);
+  const [moving, setMoving] = useState<readonly string[] | null>(null);
+  const [deleting, setDeleting] = useState<{ paths: string[]; referencing: string[] } | null>(null);
+  const selecting = selection.active.value;
+  const picked = selection.selected.value;
 
   useEffect(() => {
     let dispose: (() => void) | undefined;
     let cancelled = false;
+    selection.end();
     void intents().then((Workspace) => {
       if (!cancelled) {
         dispose = Workspace.scripts.watch();
@@ -176,6 +204,47 @@ export default function ScriptsPage() {
   const folder = scriptFolders(listing).includes(saved) ? saved : "";
   const sort = lists?.scriptsSort;
   const rows = scriptRows({ listing, references, folder, query, sort });
+  const listed = useRef(rows);
+  listed.current = rows;
+  const dialogOpen = !!moving || !!deleting;
+
+  useEffect(() => {
+    if (!selecting || dialogOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      const typing =
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLInputElement && event.target.type !== "checkbox");
+      if (event.key === "Escape") {
+        event.preventDefault();
+        selection.end();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a" && !typing) {
+        event.preventDefault();
+        selection.selectAll(listed.current.map((row) => row.path));
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selecting, dialogOpen]);
+
+  const drag = useScriptsDrag({
+    listing,
+    carried: (path) => {
+      const chosen = selection.selected.peek();
+      return chosen.includes(path) ? [...chosen] : [path];
+    },
+    onLongPress: (path) => selection.start(path),
+    onRefused: (message) => showSnackbar({ message }),
+    onDrop: (paths, target) =>
+      void run(async () => {
+        await (await intents()).scripts.move(paths, target);
+        selection.end();
+      }),
+  });
 
   const openFolder = (next: string) => {
     setQuery("");
@@ -184,16 +253,44 @@ export default function ScriptsPage() {
     );
   };
 
+  const remove = (paths: string[]) =>
+    void run(async () => {
+      await (await intents()).scripts.remove(paths);
+      selection.end();
+    });
+
+  const requestDelete = (paths: string[]) => {
+    const referencing = referencedBy(references, paths);
+    if (referencing.length) setDeleting({ paths, referencing });
+    else remove(paths);
+  };
+
   const onAction = (row: ScriptRow, action: RowAction) => {
     if (action === "rename") setRenaming(row.path);
-    else if (action === "move") setMoving(row.path);
+    else if (action === "move") setMoving([row.path]);
+    else if (action === "delete") requestDelete([row.path]);
     else
       void run(async () => {
         const { scripts } = await intents();
         if (action === "duplicate") await scripts.duplicate(row.path);
-        else if (action === "download") await scripts.download(row.path);
-        else await scripts.remove(row.path);
+        else await scripts.download([row.path]);
       });
+  };
+
+  const onSelectionAction = (action: SelectionAction) => {
+    if (action === "move") setMoving(picked);
+    else if (action === "delete") requestDelete(picked);
+    else void run(async () => (await intents()).scripts.download(picked));
+  };
+
+  const activate = (row: ScriptRow) => {
+    if (!drag.clicked()) return;
+    if (selecting) {
+      selection.toggle(row.path);
+      return;
+    }
+    if (row.kind === "folder") openFolder(row.path);
+    else void intents().then((Workspace) => Workspace.window.openScript(row.path));
   };
 
   const renderRow = (row: ScriptRow) => {
@@ -223,6 +320,7 @@ export default function ScriptsPage() {
       holdings: row.holdings,
       usesLabel,
     });
+    const main = !!row.pinned;
     return (
       <ListRow
         current={row.kind === "file" && row.path === openScript}
@@ -231,23 +329,29 @@ export default function ScriptsPage() {
         description={line}
         aria-label={`${row.kind === "folder" ? "Open folder" : "Open script"} ${row.name}${line ? `, ${line.toLowerCase()}` : ""}`}
         trailing={row.kind === "folder" ? <ChevronIcon /> : undefined}
+        selection={main ? "none" : selecting ? "active" : "available"}
+        selected={picked.includes(row.path)}
+        selectLabel={`Select ${row.name}`}
+        onSelectedChange={() =>
+          selecting ? selection.toggle(row.path) : selection.start(row.path)
+        }
+        dropTarget={row.kind === "folder" && drag.target === row.path}
+        {...(main ? {} : drag.source(row.path))}
+        {...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {})}
         actions={
           <RowMenu
             name={row.name}
-            main={!!row.pinned}
+            main={main}
             onAction={(action) => onAction(row, action)}
           />
         }
-        onClick={() => {
-          if (row.kind === "folder") openFolder(row.path);
-          else void intents().then((Workspace) => Workspace.window.openScript(row.path));
-        }}
+        onClick={() => activate(row)}
       />
     );
   };
 
   return (
-    <section aria-label="Scripts" class="flex min-h-0 flex-1 flex-col bg-bg [:root[data-layout=desktop]_&]:bg-paper">
+    <section aria-label="Scripts" class="flex min-h-0 flex-1 flex-col bg-bg [:root[data-layout=desktop]_&]:bg-paper" {...drag.area}>
       <header class="flex h-12 flex-none items-center gap-2.5 border-b border-edge px-4 [:root[data-layout=desktop]_&]:h-[68px] [:root[data-layout=desktop]_&]:px-[18px]">
         <BookIcon class="size-5 flex-none text-accent" />
         <h1 class="min-w-0 flex-1 text-[14px] font-semibold [:root[data-layout=desktop]_&]:text-[17px]">
@@ -309,24 +413,36 @@ export default function ScriptsPage() {
             </DropdownRoot>
           </div>
           <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
-            {query.trim() ? (
-              <span class="pl-2 text-[12px] text-muted">Results in all folders</span>
-            ) : !loaded ? (
-              <span />
-            ) : (
-              <Trail
-                folder={folder}
-                home={home}
-                count={Object.keys(listing.files).length}
-                onOpen={openFolder}
+            {selecting ? (
+              <SelectionBar
+                count={picked.length}
+                onSelectAll={() => selection.selectAll(rows.map((row) => row.path))}
+                onAction={onSelectionAction}
+                onClose={() => selection.end()}
               />
+            ) : (
+              <>
+                {query.trim() ? (
+                  <span class="pl-2 text-[12px] text-muted">Results in all folders</span>
+                ) : !loaded ? (
+                  <span />
+                ) : (
+                  <Trail
+                    folder={folder}
+                    home={home}
+                    count={Object.keys(listing.files).length}
+                    dropTarget={drag.target}
+                    onOpen={openFolder}
+                  />
+                )}
+                <SortMenu
+                  value={sort}
+                  onChange={(key) =>
+                    void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
+                  }
+                />
+              </>
             )}
-            <SortMenu
-              value={sort}
-              onChange={(key) =>
-                void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
-              }
-            />
           </div>
           {creating && (
             <div class="flex-none pt-2">
@@ -373,15 +489,26 @@ export default function ScriptsPage() {
         </div>
       </div>
       <MoveDialog
-        path={moving}
+        paths={moving}
         listing={listing}
         onClose={() => setMoving(null)}
-        onMove={async (path, target) => {
-          await (await intents()).scripts.move(path, target);
+        onMove={async (paths, target) => {
+          await (await intents()).scripts.move(paths, target);
+          selection.end();
         }}
         onCreateFolder={(parent, name) =>
           intents().then((Workspace) => Workspace.scripts.create("folder", parent, name))
         }
+      />
+      <DeleteDialog
+        paths={deleting?.paths ?? null}
+        referencing={deleting?.referencing ?? []}
+        onClose={() => setDeleting(null)}
+        onDelete={() => {
+          const paths = deleting!.paths;
+          setDeleting(null);
+          remove(paths);
+        }}
       />
     </section>
   );

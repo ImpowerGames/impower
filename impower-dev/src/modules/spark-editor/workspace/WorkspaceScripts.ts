@@ -3,13 +3,17 @@ import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
 import { recordMove, recordTrashDeletion } from "../utils/fileUndo";
-import { availableName, copyName, NameError } from "../utils/fileListModel";
+import { availableName, copyName, NameError, plural } from "../utils/fileListModel";
+import { renameOrReport } from "../utils/renameOrReport";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import {
   isInside,
   joinPath,
   MAIN_SCRIPT,
+  MAIN_STAYS,
+  moveCheck,
   nameOf,
+  outermost,
   parentOf,
   realFolder,
   scriptsHome,
@@ -19,9 +23,6 @@ import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
 import workspace from "./WorkspaceStore";
-
-export const MAIN_STAYS = "Main stays at the root of your story.";
-export const INTO_ITSELF = "A folder cannot be moved inside itself.";
 
 type Deps = {
   fs: Pick<
@@ -188,10 +189,14 @@ export default class WorkspaceScripts {
     const openEditors = Object.keys(this.listing.files).filter(
       (path) => isInside(path, from) && window.getActiveEditorForFile(path)?.open,
     );
-    if (kind === "file") {
-      await fs.moveFile(projectId, from, to);
-    } else {
-      await fs.moveFolder(projectId, from, to);
+    const moved = await renameOrReport(from, to, () =>
+      kind === "file"
+        ? fs.moveFile(projectId, from, to)
+        : fs.moveFolder(projectId, from, to),
+    );
+    if (!moved.renamed) {
+      await this.load();
+      return from;
     }
     recordMove(projectId, from, to, kind === "folder");
     for (const path of openEditors) {
@@ -217,20 +222,18 @@ export default class WorkspaceScripts {
     return to === path ? path : this.relocate(path, to);
   }
 
-  async move(path: string, folder: string): Promise<string> {
-    if (path === MAIN_SCRIPT) {
-      throw new NameError(MAIN_STAYS);
+  async move(paths: readonly string[], folder: string): Promise<string[]> {
+    const check = moveCheck(this.listing, paths, folder);
+    if ("refused" in check) {
+      throw new NameError(check.refused);
     }
-    const home = scriptsHome(this.listing);
-    const target = realFolder(folder, home);
-    if (this.kindOf(path) === "folder" && isInside(target, path)) {
-      throw new NameError(INTO_ITSELF);
+    const target = realFolder(folder, scriptsHome(this.listing));
+    const moved: string[] = [];
+    for (const path of check.moving) {
+      const leaf = availableName(nameOf(path), this.siblings(target));
+      moved.push(await this.relocate(path, joinPath(target, leaf)));
     }
-    if (parentOf(path) === target) {
-      return path;
-    }
-    const leaf = availableName(nameOf(path), this.siblings(target));
-    return this.relocate(path, joinPath(target, leaf));
+    return moved;
   }
 
   async duplicate(path: string): Promise<string> {
@@ -267,43 +270,54 @@ export default class WorkspaceScripts {
     return to;
   }
 
-  async download(path: string): Promise<void> {
+  async download(paths: readonly string[]): Promise<void> {
     const projectId = this.projectId!;
     const { fs } = this._workspace;
-    if (this.kindOf(path) === "file") {
-      const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, path) } });
-      downloadFile(nameOf(path), "text/plain", data);
+    const items = outermost(paths);
+    const only = items.length === 1 ? items[0]! : null;
+    if (only && this.kindOf(only) === "file") {
+      const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, only) } });
+      downloadFile(nameOf(only), "text/plain", data);
       return;
     }
-    const files = Object.keys(this.listing.files)
-      .filter((p) => isInside(p, path))
-      .map((p) => ({ uri: fs.getFileUri(projectId, p), path: p.slice(path.length + 1) }));
+    const files = Object.keys(this.listing.files).flatMap((p) => {
+      const item = items.find((i) => isInside(p, i));
+      if (!item) {
+        return [];
+      }
+      const base = only ?? parentOf(item);
+      return [{ uri: fs.getFileUri(projectId, p), path: base ? p.slice(base.length + 1) : p }];
+    });
     const zip = await fs.zipFiles({ files });
-    downloadFile(`${nameOf(path)}.zip`, "application/zip", zip);
+    downloadFile(only ? `${nameOf(only)}.zip` : "Scripts.zip", "application/zip", zip);
   }
 
-  async remove(path: string): Promise<void> {
-    if (path === MAIN_SCRIPT) {
+  async remove(paths: readonly string[]): Promise<void> {
+    const items = outermost(paths);
+    if (items.includes(MAIN_SCRIPT)) {
       throw new NameError(MAIN_STAYS);
     }
     const projectId = this.projectId!;
     const { fs } = this._workspace;
     const since = Date.now();
-    if (this.kindOf(path) === "folder") {
-      const deleted = await fs.deleteFolder(projectId, path, "trash");
-      await recordTrashDeletion(
-        projectId,
-        deleted.files.map((d) => d.uri),
-        nameOf(path),
-        since,
-        deleted.folders,
-      );
-      await this.changed("folder");
-      return;
+    const folders = items.filter((p) => this.kindOf(p) === "folder");
+    const uris = items
+      .filter((p) => this.kindOf(p) === "file")
+      .map((p) => fs.getFileUri(projectId, p));
+    if (uris.length) {
+      await fs.deleteFiles({ files: uris.map((uri) => ({ uri })), mode: "trash" });
     }
-    const uri = fs.getFileUri(projectId, path);
-    await fs.deleteFiles({ files: [{ uri }], mode: "trash" });
-    await recordTrashDeletion(projectId, [uri], nameOf(path), since);
-    await this.changed("file");
+    const deletedFolders: string[] = [];
+    for (const folder of folders) {
+      const deleted = await fs.deleteFolder(projectId, folder, "trash");
+      uris.push(...deleted.files.map((d) => d.uri));
+      deletedFolders.push(...deleted.folders);
+    }
+    const label =
+      items.length === 1
+        ? nameOf(items[0]!)
+        : plural(items.length, folders.length ? "item" : "script");
+    await recordTrashDeletion(projectId, uris, label, since, deletedFolders);
+    await this.changed(folders.length ? "folder" : "file");
   }
 }
