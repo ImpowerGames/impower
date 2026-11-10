@@ -50,6 +50,7 @@ export class GrammarRepository {
         ? (typeIndex, typeId, def) =>
             declarator(typeIndex, typeId, {
               ...def,
+              tag: this.qualifyTag(def.tag),
               openedBy: this.qualify(def.openedBy),
               closedBy: this.qualify(def.closedBy),
             })
@@ -61,10 +62,33 @@ export class GrammarRepository {
     );
   }
 
+  private qualifyName(name: string) {
+    return name.startsWith(this.prefix) ? name : this.prefix + name;
+  }
+
   private qualify(names: string | string[] | undefined) {
-    const qualified = (name: string) =>
-      name.startsWith(this.prefix) ? name : this.prefix + name;
-    return Array.isArray(names) ? names.map(qualified) : names && qualified(names);
+    return Array.isArray(names)
+      ? names.map((name) => this.qualifyName(name))
+      : names && this.qualifyName(names);
+  }
+
+  private qualifyTag(tag: string | undefined) {
+    const close = tag?.startsWith("(") ? tag.indexOf(")") : -1;
+    if (!tag || close < 0) {
+      return tag;
+    }
+    const path = tag
+      .slice(1, close)
+      .split("/")
+      .map((part) => {
+        const name = part.endsWith("!") ? part.slice(0, -1) : part;
+        if (name === "" || name === "*" || name === "..." || name.startsWith('"')) {
+          return part;
+        }
+        return this.qualifyName(name) + part.slice(name.length);
+      })
+      .join("/");
+    return `(${path})${tag.slice(close + 1)}`;
   }
 
   load() {

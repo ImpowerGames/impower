@@ -6,6 +6,7 @@ import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/clas
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
+import { highlightTree, tagHighlighter, tags } from "@lezer/highlight";
 import { describe, expect, test, vi } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -197,6 +198,29 @@ describe("node types across grammars (I-2026)", () => {
     });
     expect(matchBrackets(included, 1, 1)?.matched).toBe(true);
     expect(matchBrackets(included, 3, -1)?.matched).toBe(true);
+  });
+
+  test("a tag that names a parent node of another grammar highlights as it does in that grammar alone", () => {
+    const tagged = {
+      name: "tagged",
+      scopeName: "source.inner",
+      patterns: [{ include: "#Block" }],
+      repository: {
+        Block: { begin: "\\(", end: "\\)", patterns: [{ include: "#Word" }] },
+        Word: { match: "[a-z]+", tag: "(Block_content/) keyword" },
+      },
+    };
+    const highlighter = tagHighlighter([{ tag: tags.keyword, class: "kw" }]);
+    const keywords = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"], text: string) => {
+      const spans: string[] = [];
+      const tree = vscodeLanguage({ name: "x", grammar }).language.parser.parse(text);
+      highlightTree(tree, highlighter, (from, to, classes) => spans.push(`${text.slice(from, to)}:${classes}`));
+      return spans;
+    };
+    expect(keywords(structuredClone(tagged), "(abc)")).toEqual(["abc:kw"]);
+    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc)}")).toEqual([
+      "abc:kw",
+    ]);
   });
 
   test("the first grammar of the registry keeps bare names and names the top node, whichever grammar the parse starts from", () => {
