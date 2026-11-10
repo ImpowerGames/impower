@@ -25,7 +25,7 @@ export function validateEditorRequest(value) {
     let valid = false;
     if (object(step)) switch (step.action) {
       case "open": case "close": valid = keys(step, ["action", "value"]) && member(step.value, panels); break;
-      case "screen": valid = keys(step, ["action", "value"]) && member(step.value, ["logic", "assets", "share", "main", "scripts", "files", "urls", "game", "screenplay"]); break;
+      case "screen": valid = keys(step, ["action", "value"]) && member(step.value, ["logic", "assets", "share", "main", "scripts", "image", "audio", "video", "text", "font", "other", "game", "screenplay"]); break;
       case "click": valid = keys(step, ["action", "value"]) && member(step.value, ["next", "prev", "select", "replace", "replaceAll", "close", "submit"]); break;
       case "toggle": valid = keys(step, ["action", "value"]) && member(step.value, ["case", "re", "word"]); break;
       case "press": valid = keys(step, ["action", "value"]) && member(step.value, presses); break;

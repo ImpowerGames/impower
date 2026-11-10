@@ -33,6 +33,8 @@ const { saveScreenshots } = await import("./reviewer-execution-client.mjs");
 const { validateEditorRequest } = await import("./reviewer-editor.mjs");
 const oversizedSteps = Array.from({ length: 8 }, () => ({ action: "type", field: "search", text: "x".repeat(4096) }));
 assert.throws(() => validateEditorRequest({ requestId: "too-long", command: "ui", steps: oversizedSteps }), /step payload/, "combined text must fit the Windows command line");
+assert.doesNotThrow(() => validateEditorRequest({ requestId: "asset-tabs", command: "ui", steps: ["assets", "image", "audio", "video", "text", "font", "other"].map(value => ({ action: "screen", value })) }), "a reviewer can open the Assets page and each of its type tabs");
+assert.throws(() => validateEditorRequest({ requestId: "old-tabs", command: "ui", steps: [{ action: "screen", value: "urls" }] }), /Unknown or invalid editor step/, "the removed Files and URLs tabs are not offered");
 
 const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "impower-review-execution-"));
 console.log(`Scratch repository: ${scratch}`);
