@@ -24,6 +24,7 @@ export class TextmateGrammarParser extends Parser {
       typeIndex: number,
       typeId: string,
       def: RuleDefinition,
+      namespace: string,
     ) => NodeType,
   ) {
     super();
@@ -39,18 +40,15 @@ export class TextmateGrammarParser extends Parser {
         name: registry.home.name?.toLowerCase(),
         top: true,
       });
-    const validGetNodeType = getNodeType ?? defineNodeType;
     const declarator = (
       typeIndex: number,
       typeId: string,
       data: RuleDefinition,
+      namespace = "",
     ) => ({
-      [nodeTypeProp]: validGetNodeType(
-        validRootNodeType,
-        typeIndex,
-        typeId,
-        data,
-      ),
+      [nodeTypeProp]: getNodeType
+        ? getNodeType(validRootNodeType, typeIndex, typeId, data, namespace)
+        : defineNodeType(validRootNodeType, typeIndex, typeId, data),
     });
     this.grammar = new Grammar(registry, declarator);
     const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);

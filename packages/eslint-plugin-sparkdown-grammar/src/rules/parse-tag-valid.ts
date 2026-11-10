@@ -8,8 +8,7 @@ import {
   type YAMLMapping,
   type YAMLScalar,
 } from "../utils/yaml-ast.ts";
-
-const PARSE_TAG_REGEX = /^(?:\((\S*?)\))?(?:\s+|^)(\S+)$/;
+import { splitTag } from "../../../textmate-grammar-tree/src/grammar/utils/splitTag.ts";
 
 function validateTagExpression(expr: string): string | null {
   const parts = expr.split("(");
@@ -54,8 +53,8 @@ const rule: Rule.RuleModule = {
         if (typeof scalar.value !== "string") return;
         const value = scalar.value;
 
-        const match = PARSE_TAG_REGEX.exec(value);
-        if (!match) {
+        const split = splitTag(value);
+        if (!split) {
           context.report({
             loc: scalar.loc,
             messageId: "malformed",
@@ -63,7 +62,7 @@ const rule: Rule.RuleModule = {
           });
           return;
         }
-        const [, , tagExpression] = match;
+        const tagExpression = split.expression;
         if (!tagExpression) {
           context.report({
             loc: scalar.loc,

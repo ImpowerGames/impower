@@ -20,6 +20,7 @@ export class Grammar {
     typeIndex: number,
     typeId: string,
     def: RuleDefinition,
+    namespace?: string,
   ) => Record<string, any>;
 
   declare repository: GrammarRepository;
@@ -40,6 +41,7 @@ export class Grammar {
       typeIndex: number,
       typeId: string,
       def: RuleDefinition,
+      namespace?: string,
     ) => Record<string, any>,
   ) {
     this.registry =

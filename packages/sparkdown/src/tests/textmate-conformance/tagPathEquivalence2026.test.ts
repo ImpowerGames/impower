@@ -18,12 +18,16 @@ const NAMES = [
   "café",
   "has#hash",
   "with space",
+  "tab\there",
+  "source.guest#Block",
 ];
 
+const unicode = (c: string) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`;
 const bare = (name: string) => (/^[^"/!\s]+$/.test(name) ? name : JSON.stringify(name));
 const quoted = (name: string) => JSON.stringify(name);
-const escaped = (name: string) => `"\\u${name.charCodeAt(0).toString(16).padStart(4, "0")}${JSON.stringify(name).slice(2)}`;
-const ENCODINGS = [bare, quoted, escaped];
+const escaped = (name: string) => `"${unicode(name)}${JSON.stringify(name).slice(2)}`;
+const whitespaceEscaped = (name: string) => JSON.stringify(name).replace(/\s/g, unicode);
+const ENCODINGS = [bare, quoted, escaped, whitespaceEscaped];
 
 const guest = (outer: string, inner: string, tag: string) => ({
   name: "guest",
@@ -48,7 +52,7 @@ const outcome = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"]) => {
     highlightTree(tree, highlighter, (from, to, classes) => spans.push(`${text.slice(from, to)}:${classes}`));
     return spans;
   } catch (error) {
-    return [`throws ${(error as Error).name}`];
+    return [`throws ${(error as Error).message}`];
   }
 };
 
@@ -72,12 +76,27 @@ const cases = (): Case[] => {
       ["*", `${inner}_content`],
       [outer, "*", inner, `${inner}_content`],
     ];
-    const valid = !/\s/.test(inner) && !/\s/.test(outer);
     shapes.forEach((shape, s) => {
-      const path = shape
-        .map((name, j) => (name === "*" ? name : ENCODINGS[(i + s + j) % ENCODINGS.length]!(name)))
-        .join("/");
-      all.push({ label: `${inner} in ${outer}, shape ${s}`, outer, inner, tag: `(${path}/) keyword`, highlights: valid });
+      for (let offset = 0; offset < ENCODINGS.length; offset++) {
+        const path = shape
+          .map((name, j) => (name === "*" ? name : ENCODINGS[(i + s + j + offset) % ENCODINGS.length]!(name)))
+          .join("/");
+        all.push({
+          label: `${inner} in ${outer}, shape ${s}, encoding ${offset}`,
+          outer,
+          inner,
+          tag: `(${path}/) keyword`,
+          highlights: !/\s/.test(path),
+        });
+      }
+      const escapedPath = shape.map((name) => (name === "*" ? name : whitespaceEscaped(name))).join("/");
+      all.push({
+        label: `${inner} in ${outer}, shape ${s}, every name escaped`,
+        outer,
+        inner,
+        tag: `(${escapedPath}/) keyword`,
+        highlights: true,
+      });
     });
     const last = bare(`${inner}_content`);
     for (const modifier of [`${last}/...`, `${last}!`, `${last}/!`, `/${last}/`, `${last}//`, "...", "*/"]) {
@@ -88,6 +107,13 @@ const cases = (): Case[] => {
 };
 
 describe("a tag's parent path reads the same in an embedded grammar as alone (I-2026)", () => {
+  test("the generated cases include escaped whitespace and names that begin with the namespace", () => {
+    const valid = cases().filter((c) => c.highlights);
+    expect(valid.filter((c) => /\\u0020/.test(c.tag)).length).toBeGreaterThan(5);
+    expect(valid.filter((c) => /\\t|\\u0009/.test(c.tag)).length).toBeGreaterThan(5);
+    expect(valid.filter((c) => c.tag.includes("source.guest#Block")).length).toBeGreaterThan(5);
+  });
+
   test.each(cases().map((c) => [c.label, c] as const))("%s", (_, c) => {
     const alone = outcome(guest(c.outer, c.inner, c.tag));
     if (c.highlights) {
@@ -95,5 +121,19 @@ describe("a tag's parent path reads the same in an embedded grammar as alone (I-
     }
     const embedded = outcome(new GrammarRegistry([HOST, guest(c.outer, c.inner, c.tag)]));
     expect(embedded, `${c.tag} embedded`).toEqual(alone);
+  });
+
+  test.each([
+    ["an empty name between slashes", "(Block_content//Leaf_content/) keyword"],
+    ["a leading slash", "(/Block_content/) keyword"],
+    ["a ! glued to a name", "(Block_content!/) keyword"],
+    ["a name or a name followed by ...", "(Block_content...) keyword"],
+    ["an unterminated quoted name", '("Block_content/) keyword'],
+    ["text after a quoted name", '("Block"_content/) keyword'],
+    ["a quoted name that is not a JSON string", '("Block\\q"/) keyword'],
+  ])("%s is refused alone and embedded with the same error", (_, tag) => {
+    const alone = outcome(guest("Block", "Leaf", tag));
+    expect(alone[0]).toMatch(/^throws Invalid tag modifier in /);
+    expect(outcome(new GrammarRegistry([HOST, guest("Block", "Leaf", tag)]))).toEqual(alone);
   });
 });

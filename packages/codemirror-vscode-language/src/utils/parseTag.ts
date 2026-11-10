@@ -1,9 +1,21 @@
+import { readTagModifier } from "@impower/textmate-grammar-tree/src/grammar/utils/readTagModifier";
 import { splitTag } from "@impower/textmate-grammar-tree/src/grammar/utils/splitTag";
 import { type Tag, tags } from "@lezer/highlight";
+
+const BARE_SELECTOR_NAME = /^[\w$#:+-][\w.$#:+-]*$/;
+
+const selectorName = (name: string) =>
+  BARE_SELECTOR_NAME.test(name)
+    ? name
+    : JSON.stringify(name).replace(
+        /\s/g,
+        (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`,
+      );
 
 export const parseTag = (
   node: string,
   str: string,
+  namespace = "",
 ): {
   [selector: string]: Tag | readonly Tag[];
 } => {
@@ -40,32 +52,11 @@ export const parseTag = (
     tag = tags[funcName](tag);
   }
 
-  let prefix = "";
-  let suffix = "";
-
-  if (modifier) {
-    if (modifier.endsWith("...")) {
-      suffix = "/...";
-    }
-    if (modifier.endsWith("!")) {
-      suffix = "!";
-    }
-    if (modifier.endsWith("/")) {
-      prefix = modifier;
-    }
-    else {
-      const split = modifier.split("/");
-      const last = split[split.length - 1];
-      if (last === "..." || last === "!") {
-        split.pop();
-      }
-      if (split.length) {
-        prefix = `${split.join("/")}/`;
-      }
-    }
-  }
-
-  const style = `${prefix}${node}${suffix}`;
+  const { parents, suffix } = readTagModifier(modifier ?? "", str);
+  const path = parents.map((parent) =>
+    parent === null ? "*" : selectorName(namespace + parent),
+  );
+  const style = `${[...path, selectorName(node)].join("/")}/...${suffix}`;
 
   if (!tag.set) {
     throw new Error(`Invalid tag: ${str}`);

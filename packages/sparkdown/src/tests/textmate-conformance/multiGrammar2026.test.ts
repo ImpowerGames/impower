@@ -180,24 +180,38 @@ describe("node types across grammars (I-2026)", () => {
   test("a bracket pair of another grammar matches as it does in that grammar alone", () => {
     const inner = {
       ...structuredClone(INNER),
-      patterns: [{ include: "#Open" }, { include: "#Close" }, ...structuredClone(INNER.patterns)],
+      patterns: [
+        { include: "#Open" },
+        { include: "#Close" },
+        { include: "#source.inner#Lt" },
+        { include: "#source.inner#Gt" },
+        { include: "#Pair" },
+        ...structuredClone(INNER.patterns),
+      ],
       repository: {
         ...structuredClone(INNER.repository),
         Open: { match: "a", closedBy: "Close" },
         Close: { match: "b", openedBy: "Open" },
+        "source.inner#Lt": { match: "c", closedBy: "source.inner#Gt" },
+        "source.inner#Gt": { match: "d", openedBy: "source.inner#Lt" },
+        Pair: { begin: "x", end: "y", brackets: true },
       },
     };
-    const alone = EditorState.create({
-      doc: "ab",
-      extensions: [vscodeLanguage({ name: "inner", grammar: structuredClone(inner) })],
-    });
-    expect(matchBrackets(alone, 0, 1)?.matched).toBe(true);
-    const included = EditorState.create({
-      doc: "{ab}",
-      extensions: [vscodeLanguage({ name: "outer", grammar: new GrammarRegistry([structuredClone(OUTER), inner]) })],
-    });
-    expect(matchBrackets(included, 1, 1)?.matched).toBe(true);
-    expect(matchBrackets(included, 3, -1)?.matched).toBe(true);
+    const matched = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"], doc: string, at: number) => {
+      const state = EditorState.create({ doc, extensions: [vscodeLanguage({ name: "x", grammar })] });
+      return [matchBrackets(state, at, 1)?.matched, matchBrackets(state, at + 2, -1)?.matched];
+    };
+    for (const [text, at] of [
+      ["ab", 0],
+      ["cd", 0],
+      ["xy", 0],
+    ] as const) {
+      expect(matched(structuredClone(inner), text, at), `${text} alone`).toEqual([true, true]);
+      expect(
+        matched(new GrammarRegistry([structuredClone(OUTER), structuredClone(inner)]), `{${text}}`, at + 1),
+        `${text} included`,
+      ).toEqual([true, true]);
+    }
   });
 
   test("a tag that names a parent node of another grammar highlights as it does in that grammar alone", () => {

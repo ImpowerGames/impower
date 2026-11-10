@@ -58,7 +58,7 @@ export class ScopedRule implements Rule {
       id: beginId,
       match: def.begin,
       captures: def.beginCaptures ?? def.captures,
-      closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
+      closedBy: (def.closedBy ?? def.brackets) ? repo.local(endId) : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
 
@@ -66,7 +66,7 @@ export class ScopedRule implements Rule {
       id: endId,
       match: def.end,
       captures: def.endCaptures ?? def.captures,
-      openedBy: (def.openedBy ?? def.brackets) ? beginId : undefined,
+      openedBy: (def.openedBy ?? def.brackets) ? repo.local(beginId) : undefined,
     };
     this.endRule = repo.add(endRuleItem, endId);
 

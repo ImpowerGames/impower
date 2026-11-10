@@ -606,6 +606,7 @@ Both attach to the same node, both control highlighting, but they target **diffe
 - `tag: definition(content)` — definition role over content
 - `tag: special(content)` — special role
 - `tag: local(content)` — local scope
+- `tag: (Parent_content/) keyword` — only where the node's parent is `Parent_content`. A parent path lists node names separated by `/`, with `*` for any node, and may end in `/...` or `/!`. Write a name holding `/`, `!`, `"` or whitespace as a JSON string (`("Block/part_content"/) keyword`). A path that cannot be read unambiguously, such as an empty name between slashes, a `!` glued to a name, or a bare name ending in `...`, is refused with an error.
 
 See `parseTag` in `packages/codemirror-vscode-language/src/utils/parseTag.ts` for the parser, and `@lezer/highlight`'s `tags` for the full vocabulary.
 
@@ -1274,7 +1275,7 @@ The tree loads several grammars and reads every include form vscode-textmate rea
 
 - `#Rule` names a rule of the including grammar's repository, `$self` the including grammar's top-level `patterns`, `$base` the top-level `patterns` of the grammar the parse started from, `scope.name` another grammar's top-level `patterns` and `scope.name#Rule` a rule of its repository. A repository rule that is itself `{ include: … }` reads what it names.
 - An include of a scope the registry does not hold, or of a rule its grammar's repository lacks, is skipped, and so is a begin/end or `patterns`-only rule that such skips leave with no patterns, which can in turn empty the rule that includes it, as in vscode-textmate.
-- The registry's first grammar keeps its rule names as node names, and its `name` names the top node, whichever grammar the parse starts from. A node from any other grammar is named `<scopeName>#<rule>` (`source.css#Whitespace`), whatever `id` its definition carries. Node type ids count up across every grammar the parse can reach, so two grammars that each define a rule of the same name keep separate node types, and incremental reuse compares ids that no other grammar shares.
+- The registry's first grammar keeps its rule names as node names, and its `name` names the top node, whichever grammar the parse starts from. A node from any other grammar is named `<scopeName>#<rule>` (`source.css#Whitespace`), whatever `id` its definition carries. A grammar's references to its own nodes stay local: `openedBy`, `closedBy` and the parent path of a `tag` name its rules as written. The declarator qualifies `openedBy` and `closedBy` once. `parseTag`, given the grammar's namespace, is the one reader of a tag's parent path, so a tag reads the same in an embedded grammar as alone. Node type ids count up across every grammar the parse can reach, so two grammars that each define a rule of the same name keep separate node types, and incremental reuse compares ids that no other grammar shares.
 
 One deliberate difference stays: in a rule body the tree closes the rule `ERROR_INCOMPLETE` where vscode-textmate gap-skips (§17.2), so the grammar tiles its lines rather than the tree gap-skipping (I-1244). Scanning on inside a capture is not gap-skipping: the capture's extent is fixed by the outer match.
 

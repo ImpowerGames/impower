@@ -15,7 +15,6 @@ import { isIncludeDefinition } from "../utils/isIncludeDefinition";
 import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
 import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";
 import { isSwitchRuleDefinition } from "../utils/isSwitchRuleDefinition";
-import { splitTag } from "../utils/splitTag";
 import type { Grammar } from "./Grammar";
 import { GrammarNode } from "./GrammarNode";
 import { MatchRule } from "./rules/MatchRule";
@@ -47,15 +46,20 @@ export class GrammarRepository {
     this.prefix = prefix;
     const declarator = grammar.declarator;
     this.declarator =
-      declarator && prefix
-        ? (typeIndex, typeId, def) =>
-            declarator(typeIndex, typeId, {
-              ...def,
-              tag: this.qualifyTag(def.tag),
-              openedBy: this.qualify(def.openedBy),
-              closedBy: this.qualify(def.closedBy),
-            })
-        : declarator;
+      declarator &&
+      ((typeIndex, typeId, def) =>
+        declarator(
+          typeIndex,
+          typeId,
+          prefix
+            ? {
+                ...def,
+                openedBy: this.qualify(def.openedBy),
+                closedBy: this.qualify(def.closedBy),
+              }
+            : def,
+          prefix,
+        ));
     this.self = new SwitchRule(
       this,
       { id: prefix, patterns: definition.patterns ?? [] },
@@ -63,47 +67,14 @@ export class GrammarRepository {
     );
   }
 
-  private qualifyName(name: string) {
-    return name.startsWith(this.prefix) ? name : this.prefix + name;
-  }
-
   private qualify(names: string | string[] | undefined) {
     return Array.isArray(names)
-      ? names.map((name) => this.qualifyName(name))
-      : names && this.qualifyName(names);
+      ? names.map((name) => this.prefix + name)
+      : names && this.prefix + names;
   }
 
-  private qualifyTag(tag: string | undefined) {
-    const split = tag ? splitTag(tag) : null;
-    if (split?.modifier === undefined) {
-      return tag;
-    }
-    return `(${this.qualifyPath(split.modifier)}) ${split.expression}`;
-  }
-
-  private qualifyPath(path: string) {
-    let qualified = "";
-    let rest = path;
-    while (rest) {
-      if (rest === "...") {
-        return qualified + rest;
-      }
-      const name = /^"(?:[^"\\]|\\.)*?"|^[^/!]+/.exec(rest)?.[0];
-      if (!name) {
-        qualified += rest[0];
-        rest = rest.slice(1);
-        continue;
-      }
-      if (name === "*") {
-        qualified += name;
-      } else if (name.startsWith('"')) {
-        qualified += JSON.stringify(this.qualifyName(JSON.parse(name)));
-      } else {
-        qualified += this.qualifyName(name);
-      }
-      rest = rest.slice(name.length);
-    }
-    return qualified;
+  local(id: string) {
+    return id.slice(this.prefix.length);
   }
 
   load() {
