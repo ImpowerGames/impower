@@ -809,7 +809,8 @@ try {
       assert.deepEqual(mergeScope(scopedSnap, t.number), mergeScope(fullSnap, t.number), `the scoped read of #${t.number} yields the full snapshot's merge scope`);
       for (const m of fullSnap.tickets.filter((x) => x.number === t.number || x.deliveredBy?.ticket === t.number)) assert.deepEqual(scopedSnap.tickets.find((x) => x.number === m.number).blockers, m.blockers, `#${m.number}'s blockers read the same in scope`);
       assert.deepEqual(scopedSnap.scope, { ticket: t.number });
-      assert.ok(scoped.calls.fields < whole.calls.fields && scoped.calls.blockedBy < whole.calls.blockedBy, `the scoped read of #${t.number} reads fewer tickets (${JSON.stringify(scoped.calls)} vs ${JSON.stringify(whole.calls)})`);
+      assert.deepEqual([scoped.calls.fields, scoped.calls.comments, scoped.calls.checks], [0, 0, 0], "a scoped read skips the fields, rounds and checks the gate never uses");
+      assert.ok(scoped.calls.blockedBy < whole.calls.blockedBy,`the scoped read of #${t.number} reads fewer tickets (${JSON.stringify(scoped.calls)} vs ${JSON.stringify(whole.calls)})`);
     }
     const ran = [], fanned = [];
     const gh = run.githubClient({ repository: "acme/widgets" }, tmp, {

@@ -854,12 +854,13 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const members = scope === null ? null : new Set(walked.filter((t) => t.number === scope || t.deliveredBy?.ticket === scope).map((t) => t.number));
   const inScope = (n) => members === null || members.has(n);
   const read = walked.map((t) => t.number).filter(inScope);
-  const openPrs = read.flatMap((n) => pullsOf(n).filter((p) => p.state === "OPEN").map((p) => [p.number, n]));
-  client.prefetch?.({ blockedBy: read, fields: read, comments: openPrs, checks: openPrs.map(([pr]) => pr) });
+  const details = members === null ? read : [];
+  const openPrs = details.flatMap((n) => pullsOf(n).filter((p) => p.state === "OPEN").map((p) => [p.number, n]));
+  client.prefetch?.({ blockedBy: read, fields: details, comments: openPrs, checks: openPrs.map(([pr]) => pr) });
   const tickets = walked.map((node) => {
-    const n = node.number, full = inScope(n);
-    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && full && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
-    const { effort, priority } = full ? client.fields(n) : { effort: null, priority: null };
+    const n = node.number, full = inScope(n), detailed = members === null;
+    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && detailed && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    const { effort, priority } = detailed ? client.fields(n) : { effort: null, priority: null };
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
