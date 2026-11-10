@@ -212,6 +212,21 @@ describe("the starting display mode chooses the text layout a game opens with (#
     ]);
   });
 
+  test("a page a script opened in Visual Novel follows the menu: kept on a switch to Interactive Fiction, closed on a switch back", () => {
+    const h = play(OPENS_PAGE);
+    h.game.start();
+    h.tapTo("Now it reads as a page.");
+    expect(h.open()).toEqual(["main", "textbox", "textstream"]);
+
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.text()).toBe("Now it reads as a page.");
+
+    h.game.setStartingDisplayMode("textbox");
+    expect(h.open()).toEqual(["main", "textbox"]);
+    expect(h.text()).toBe("Now it reads as a page.");
+  });
+
   test("Skip back in Visual Novel keeps the page a script opened", async () => {
     const h = play(OPENS_PAGE);
     h.game.start();
