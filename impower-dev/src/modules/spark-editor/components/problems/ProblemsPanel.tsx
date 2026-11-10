@@ -10,6 +10,7 @@ import {
   PANEL_CARD_HEIGHT,
   PanelCardAction,
   PanelCardHead,
+  PanelCardNote,
   PanelCardRow,
   UndoIcon,
   VirtualList,
@@ -36,6 +37,13 @@ import {
   type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
+import {
+  DebugRowView,
+  debugRowHeight,
+  debugRowKey,
+  useDebugRows,
+  type DebugRow,
+} from "./debugCards";
 
 export const PROBLEMS_PANEL_ID = "problems-panel";
 
@@ -49,10 +57,12 @@ const GLYPHS: Record<ConsoleSeverity, typeof ErrorIcon> = {
 
 const HEADING_HEIGHT = 32;
 
-const EMPTY_HEIGHT = 52;
+type PanelItem = PanelRow | { kind: "debug"; row: DebugRow };
 
-const rowHeight = (row: PanelRow) => {
+const rowHeight = (row: PanelItem) => {
   switch (row.kind) {
+    case "debug":
+      return debugRowHeight(row.row);
     case "head":
       return PANEL_CARD_HEIGHT.head;
     case "end":
@@ -60,7 +70,7 @@ const rowHeight = (row: PanelRow) => {
     case "heading":
       return HEADING_HEIGHT;
     case "empty":
-      return EMPTY_HEIGHT;
+      return PANEL_CARD_HEIGHT.note;
     case "problem":
       return row.problem.message
         ? MESSAGE_ENTRY_ROW_HEIGHT.message
@@ -72,8 +82,10 @@ const rowHeight = (row: PanelRow) => {
   }
 };
 
-const rowKey = (row: PanelRow) => {
+const rowKey = (row: PanelItem) => {
   switch (row.kind) {
+    case "debug":
+      return debugRowKey(row.row);
     case "head":
     case "end":
     case "empty":
@@ -189,9 +201,11 @@ function PlayedActions() {
   );
 }
 
-function Row({ row, all, played }: { row: PanelRow; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
+function Row({ row, all, played }: { row: PanelItem; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
   const open = problems.cards.value;
   switch (row.kind) {
+    case "debug":
+      return <DebugRowView row={row.row} />;
     case "head":
       return (
         <PanelCardHead
@@ -216,11 +230,7 @@ function Row({ row, all, played }: { row: PanelRow; all: readonly Problem[]; pla
         </PanelCardRow>
       );
     case "empty":
-      return (
-        <PanelCardRow part="body">
-          <p class="m-0 px-2 py-4 text-[13px]/[1.5] text-muted">{row.text}</p>
-        </PanelCardRow>
-      );
+      return <PanelCardNote>{row.text}</PanelCardNote>;
     case "problem":
       return (
         <PanelCardRow part="body">
@@ -250,9 +260,13 @@ export default function ProblemsPanel() {
     [],
   );
 
-  const rows = useMemo(
-    () => panelRows({ problems: all, played, shown, open: cards }),
-    [all, played, shown, cards],
+  const debugRows = useDebugRows(cards);
+  const rows = useMemo<PanelItem[]>(
+    () => [
+      ...panelRows({ problems: all, played, shown, open: cards }),
+      ...debugRows.map((row) => ({ kind: "debug" as const, row })),
+    ],
+    [all, played, shown, cards, debugRows],
   );
   const counts = useMemo(
     () => countBySeverity([...all, ...playedMessages(played)]),

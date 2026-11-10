@@ -37,6 +37,10 @@ export interface PlayedEntry extends PlayedInput {
 
 export type PanelCard = "script" | "played";
 
+export type DebugCard = "variables" | "watch" | "callStack";
+
+export type CardName = PanelCard | DebugCard;
+
 export type PanelRow =
   | { kind: "head"; card: PanelCard }
   | { kind: "heading"; path: string; script: string }

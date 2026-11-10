@@ -8,25 +8,9 @@ import {
   type YAMLMapping,
   type YAMLScalar,
 } from "../utils/yaml-ast.ts";
-
-const PARSE_TAG_REGEX = /^(?:\((\S*?)\))?(?:\s+|^)(\S+)$/;
-
-function validateTagExpression(expr: string): string | null {
-  const parts = expr.split("(");
-  const baseRaw = parts.pop();
-  if (!baseRaw) return "tag expression is empty";
-  const base = baseRaw.replace(/\)+$/, "");
-  const funcs = parts;
-  if (!(base in lezerTags)) {
-    return `unknown base tag "${base}" — must be a name exported by @lezer/highlight's \`tags\``;
-  }
-  for (const func of funcs) {
-    if (!(func in lezerTags)) {
-      return `unknown tag function "${func}" — must be a name exported by @lezer/highlight's \`tags\``;
-    }
-  }
-  return null;
-}
+import { readTagExpression } from "../../../textmate-grammar-tree/src/grammar/utils/readTagExpression.ts";
+import { readTagModifier } from "../../../textmate-grammar-tree/src/grammar/utils/readTagModifier.ts";
+import { splitTag } from "../../../textmate-grammar-tree/src/grammar/utils/splitTag.ts";
 
 const rule: Rule.RuleModule = {
   meta: {
@@ -41,6 +25,7 @@ const rule: Rule.RuleModule = {
         "`tag` value {{value}} does not match the parseTag syntax `(modifier?) expression`. See GRAMMAR.md §8.",
       invalidExpression:
         "`tag` value {{value}} is invalid: {{reason}}. See GRAMMAR.md §8.",
+      invalidModifier: "{{reason}}. See GRAMMAR.md §8.",
     },
   },
   create(context) {
@@ -54,8 +39,8 @@ const rule: Rule.RuleModule = {
         if (typeof scalar.value !== "string") return;
         const value = scalar.value;
 
-        const match = PARSE_TAG_REGEX.exec(value);
-        if (!match) {
+        const split = splitTag(value);
+        if (!split) {
           context.report({
             loc: scalar.loc,
             messageId: "malformed",
@@ -63,7 +48,7 @@ const rule: Rule.RuleModule = {
           });
           return;
         }
-        const [, , tagExpression] = match;
+        const tagExpression = split.expression;
         if (!tagExpression) {
           context.report({
             loc: scalar.loc,
@@ -72,12 +57,23 @@ const rule: Rule.RuleModule = {
           });
           return;
         }
-        const reason = validateTagExpression(tagExpression);
-        if (reason) {
+        try {
+          readTagModifier(split.modifier ?? "", value);
+        } catch (error) {
+          context.report({
+            loc: scalar.loc,
+            messageId: "invalidModifier",
+            data: { reason: (error as Error).message },
+          });
+          return;
+        }
+        try {
+          readTagExpression(tagExpression, lezerTags, value);
+        } catch (error) {
           context.report({
             loc: scalar.loc,
             messageId: "invalidExpression",
-            data: { value: JSON.stringify(value), reason },
+            data: { value: JSON.stringify(value), reason: (error as Error).message },
           });
         }
       },

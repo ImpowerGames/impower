@@ -2,7 +2,13 @@ import { render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClearIcon } from "../icon/icons.generated";
-import { PanelCardAction, PanelCardHead, PanelCardRow } from "./PanelCard";
+import {
+  PANEL_CARD_HEIGHT,
+  PanelCardAction,
+  PanelCardHead,
+  PanelCardNote,
+  PanelCardRow,
+} from "./PanelCard";
 
 let host: HTMLDivElement | undefined;
 
@@ -65,6 +71,20 @@ describe("PanelCard", () => {
     expect(clear.getAttribute("title")).toBe("Clear the played messages");
     expect(clear.disabled).toBe(true);
     expect(host!.querySelector('[aria-expanded="false"]')).not.toBeNull();
+  });
+
+  it("says a card's note in muted text inside a body row of the note's height", async () => {
+    await mount(
+      <div style={{ height: `${PANEL_CARD_HEIGHT.note}px` }}>
+        <PanelCardNote>Pause the story to inspect it.</PanelCardNote>
+      </div>,
+    );
+    const row = host!.firstElementChild!.firstElementChild as HTMLElement;
+    expect(row.className).toContain("border-x");
+    const note = row.querySelector("p")!;
+    expect(note.textContent).toBe("Pause the story to inspect it.");
+    expect(note.className).toContain("text-muted");
+    expect(PANEL_CARD_HEIGHT.note).toBe(52);
   });
 
   it("frames body rows at the sides and closes the card with its end row", async () => {

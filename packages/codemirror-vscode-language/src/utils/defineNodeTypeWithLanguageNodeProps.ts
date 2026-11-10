@@ -10,12 +10,13 @@ export const defineNodeTypeWithLanguageNodeProps = (
   typeIndex: number,
   typeId: string,
   def: RuleDefinition,
+  namespace = "",
 ): NodeType => {
   return defineNodeType(
     topNode,
     typeIndex,
     typeId,
     def,
-    getLanguageNodeProps(typeId, def),
+    getLanguageNodeProps(typeId, def, namespace),
   );
 };

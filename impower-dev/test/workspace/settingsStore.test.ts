@@ -445,6 +445,9 @@ describe(".vscode/settings.json", () => {
       "previewPanelHeight",
       "problemsScriptCardOpen",
       "problemsPlayedCardOpen",
+      "problemsVariablesCardOpen",
+      "problemsWatchCardOpen",
+      "problemsCallStackCardOpen",
     ]);
     for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
       for (const path of spec.configurationKeys ?? []) {
