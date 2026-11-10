@@ -79,12 +79,12 @@ export class Coordinator<G extends Game> {
   constructor(
     game: G,
     instructions: Instructions,
-    options?: { settled?: boolean },
+    options?: { settled?: "restored" | "presented" },
   ) {
     this._game = game;
     this._instructions = instructions;
     if (options?.settled) {
-      this.onSettle();
+      this.onSettle(options.settled === "restored");
     } else if (game.context.system.previewing) {
       this.onPreview();
     } else {
@@ -96,8 +96,8 @@ export class Coordinator<G extends Game> {
     this.display({ instant: true, preview: true });
   }
 
-  onSettle() {
-    this._displayed = true;
+  onSettle(restored: boolean) {
+    this._displayed = restored;
     this.display({ instant: true });
     this._startedExecution = true;
     this._onTick = () => {};

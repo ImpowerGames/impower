@@ -2736,7 +2736,9 @@ export class Game<T extends M = {}> {
     }
     this.noteShownChoices(beat.shown);
     this._shownBeatOnScreen = beat.shown;
-    this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    this._coordinator = new Coordinator(this, beat.shown, {
+      settled: "restored",
+    });
     this.connection.emit(
       GameRolledMessage.type.notification({ restored, history }),
     );
@@ -3680,7 +3682,9 @@ export class Game<T extends M = {}> {
   protected showBeat(instructions: Instructions | null, settled: boolean) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
-      this._coordinator = new Coordinator(this, instructions, { settled });
+      this._coordinator = new Coordinator(this, instructions, {
+        settled: settled ? "presented" : undefined,
+      });
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
         this._shownBeatOnScreen = instructions;

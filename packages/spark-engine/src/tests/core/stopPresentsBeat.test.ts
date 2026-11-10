@@ -337,3 +337,48 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     expect(game.history.behindLatest).toBe(true);
   });
 });
+
+describe("a beat a Step presents joins the page as a new beat", () => {
+  const TEXTSTREAM = [
+    "define ui as config with",
+    '  layouts_initial = { "textstream" }',
+    "end",
+    "scene start",
+    "  First beat.",
+    "  Second beat.",
+    "  Third beat.",
+    "end",
+    "",
+  ].join("\n");
+
+  const paragraphs = (game: Game) =>
+    game.module.ui.page.entries
+      .filter((entry) => entry.text)
+      .map((entry) => entry.text!.map((event) => event.text).join(""));
+
+  it("keeps the earlier paragraph in a textstream, through the stop and Resume", () => {
+    const { program: compiled } = compileUI(TEXTSTREAM);
+    const game = new Game({
+      program: compiled,
+      now: () => 0,
+      setTimeout: () => 0,
+      log: () => {},
+    } as never);
+    game.start();
+    expect(paragraphs(game)).toEqual(["First beat."]);
+    game.pause();
+    for (let i = 0; i < 30 && (game as any)._run.beats.length < 2; i += 1) {
+      game.step("over");
+    }
+    expect(game.paused).toBe(true);
+    expect(paragraphs(game)).toEqual(["First beat.", "Second beat."]);
+    expect(game.resume()).toBe(false);
+    expect(paragraphs(game)).toEqual(["First beat.", "Second beat."]);
+    game.clickedToContinue();
+    expect(paragraphs(game)).toEqual([
+      "First beat.",
+      "Second beat.",
+      "Third beat.",
+    ]);
+  });
+});
