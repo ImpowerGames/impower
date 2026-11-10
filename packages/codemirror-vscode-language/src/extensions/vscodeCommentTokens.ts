@@ -1,11 +1,13 @@
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorState, Extension } from "@codemirror/state";
 import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
 
 import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 
-type CommentTokens = NonNullable<CodeMirrorLanguageData["commentTokens"]>;
+const PARSE_TIMEOUT_MS = 100;
+
+type CommentTokens =NonNullable<CodeMirrorLanguageData["commentTokens"]>;
 
 const commentTokensOf = (
   config: VSCodeConfigDefinition | undefined,
@@ -39,8 +41,14 @@ export const vscodeCommentTokens = (
   return EditorState.languageData.of((state, pos) => [
     {
       get commentTokens() {
+        const tree =
+          ensureSyntaxTree(
+            state,
+            state.doc.lineAt(pos).to,
+            PARSE_TIMEOUT_MS,
+          ) ?? syntaxTree(state);
         const language = reader.cursor(
-          syntaxTree(state),
+          tree,
           state.doc,
           pos,
           documentLanguage,

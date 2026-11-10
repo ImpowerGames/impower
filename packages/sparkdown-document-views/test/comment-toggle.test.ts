@@ -21,7 +21,7 @@ import {
   LINE_COMMENT_MARKERS,
   lineCommentResults,
 } from "@impower/sparkdown/src/tests/compiler/lineComments";
-import { describe, expect, it, test } from "vitest";
+import { describe, expect, it, test, vi } from "vitest";
 
 const SD_URI = "file:///main.sd";
 const LUAU_URI = "file:///module.luau";
@@ -113,7 +113,6 @@ describe("toggleComment on each line of the grammar fixtures", () => {
               );
               continue;
             }
-            ensureSyntaxTree(commented, commented.doc.length, 10_000);
             const restored = run(toggleComment, commented).doc.toString();
             if (restored !== source) {
               failures.push(
@@ -237,5 +236,58 @@ describe("a position the tree has not reached", () => {
     });
     expect(syntaxTree(state).length).toBe(0);
     expect(run(toggleComment, state).doc.line(2).text).toBe(expected);
+  });
+});
+
+const withParseBudgetSpent = <T>(f: () => T): T => {
+  let now = Date.now();
+  const spy = vi.spyOn(Date, "now").mockImplementation(() => (now += 1_000));
+  try {
+    return f();
+  } finally {
+    spy.mockRestore();
+  }
+};
+
+describe("a line the state's tree stops short of, after the parse budget ran out", () => {
+  const STORY_LINES = Array.from({ length: 30 }, (_, i) => `  Line ${i}`);
+  const DOC = [
+    "scene start()",
+    ...STORY_LINES,
+    "end",
+    "",
+    "function f()",
+    "  local x = 1",
+    "  return x",
+    "end",
+    "",
+  ].join("\n");
+  const LUAU_LINE = STORY_LINES.length + 5;
+
+  it("comments a Luau line with --", () => {
+    const state = withParseBudgetSpent(() =>
+      EditorState.create({ doc: DOC, extensions: EXTENSIONS.get(SD_URI)! }),
+    );
+    const line = state.doc.line(LUAU_LINE);
+    expect(syntaxTree(state).length).toBeLessThan(line.from);
+    const next = run(
+      toggleComment,
+      state.update({ selection: EditorSelection.cursor(line.from) }).state,
+    );
+    expect(next.doc.line(LUAU_LINE).text).toBe("  -- local x = 1");
+  });
+
+  it("uncomments a commented Luau line instead of adding //", () => {
+    const commentedDoc = DOC.replace("  local x = 1", "  -- local x = 1");
+    const state = withParseBudgetSpent(() =>
+      EditorState.create({ doc: commentedDoc, extensions: EXTENSIONS.get(SD_URI)! }),
+    );
+    const line = state.doc.line(LUAU_LINE);
+    expect(syntaxTree(state).length).toBeLessThan(line.from);
+    const next = run(
+      toggleComment,
+      state.update({ selection: EditorSelection.cursor(line.from) }).state,
+    );
+    expect(next.doc.toString()).toBe(DOC);
   });
 });
