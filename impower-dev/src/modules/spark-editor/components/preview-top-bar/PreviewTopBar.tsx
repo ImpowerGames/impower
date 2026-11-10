@@ -36,9 +36,12 @@ import {
 import workspace from "../../workspace/WorkspaceStore";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
+import { useRef } from "preact/hooks";
 import {
+  skipRefusal,
   STEP_SHORTCUTS,
   stepRefusals,
+  type SkipDirection,
   type StepTraversal,
 } from "../../workspace/stepStates";
 
@@ -218,9 +221,17 @@ function StepMenu({
   );
 }
 
-function SkipButton({ direction }: { direction: -1 | 1 }) {
+function SkipButton({
+  direction,
+  reason,
+}: {
+  direction: SkipDirection;
+  reason?: string;
+}) {
+  const byChoice = useRef(false);
   const hold = useHoldRepeat(() => {
-    void withWindow((window) => window.skipBeat(direction));
+    const to = byChoice.current ? "choice" : "beat";
+    void withWindow((window) => window.skipBeat(direction, to));
   });
   const label = direction < 0 ? "Skip back" : "Skip forward";
   const Icon = direction < 0 ? PreviousIcon : NextIcon;
@@ -229,14 +240,21 @@ function SkipButton({ direction }: { direction: -1 | 1 }) {
       variant="quiet"
       size="icon"
       aria-label={label}
-      title={label}
-      data-pressed={hold.pressed ? "" : undefined}
-      onPointerDown={hold.onPointerDown}
+      title={reason ?? label}
+      aria-disabled={reason ? true : undefined}
+      data-pressed={hold.pressed && !reason ? "" : undefined}
+      onPointerDown={(e: PointerEvent) => {
+        byChoice.current = e.shiftKey;
+        hold.onPointerDown(e);
+      }}
       onPointerUp={hold.onPointerUp}
       onPointerCancel={hold.onPointerCancel}
       onPointerLeave={hold.onPointerLeave}
-      onClick={hold.onClick}
-      class="text-muted data-[pressed]:bg-tint data-[pressed]:text-accent"
+      onClick={(e: MouseEvent) => {
+        byChoice.current = e.shiftKey;
+        hold.onClick(e);
+      }}
+      class="text-muted data-[pressed]:bg-tint data-[pressed]:text-accent aria-disabled:cursor-default aria-disabled:opacity-40"
     >
       <Icon />
     </Button>
@@ -364,7 +382,8 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const paused = playing && !!game?.paused;
   const loading = !!game?.loading;
   const refusal = running ? undefined : game?.playRefusal;
-  const refusals = stepRefusals(game, workspace.debugSession.value);
+  const session = workspace.debugSession.value;
+  const refusals = stepRefusals(game, session);
   const steps = running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
@@ -413,7 +432,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         {steps && phone ? <StepMenu refusals={refusals} /> : null}
         {steps && !phone ? stepButton("over") : null}
         {steps && !phone ? stepButton("in") : null}
-        <SkipButton direction={-1} />
+        <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
         <Button
           variant="primary"
           size="icon"
@@ -429,7 +448,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         >
           {running ? <StopIcon /> : <PlayIcon />}
         </Button>
-        <SkipButton direction={1} />
+        <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
         {steps && !phone ? stepButton("out") : null}
       </div>
       <div class="justify-self-end">

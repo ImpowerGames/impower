@@ -7,10 +7,12 @@ export type RollBackGameMethod = typeof RollBackGameMessage.method;
 
 export interface RollBackGameParams {
   to: RollTarget;
+  hold?: boolean;
 }
 
 export type RollBackGameResult = RollResult & {
   run?: number | null;
+  held?: boolean;
 };
 
 export class RollBackGameMessage {

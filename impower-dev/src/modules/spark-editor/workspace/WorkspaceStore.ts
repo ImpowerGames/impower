@@ -4,6 +4,7 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import type {
   Diagnostic,
@@ -37,14 +38,14 @@ export interface OutlineSnapshot {
 export interface DebugSessionState {
   stopped: DebugProtocol.StoppedEvent["body"] | null;
   stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
-  canStepOut: boolean;
+  history: GameHistory | null;
   breakpoints: Record<string, EditorBreakpoint[]>;
 }
 
 export const IDLE_DEBUG_SESSION: DebugSessionState = {
   stopped: null,
   stackTrace: null,
-  canStepOut: false,
+  history: null,
   breakpoints: {},
 };
 
