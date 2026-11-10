@@ -162,23 +162,30 @@ const parseFormat = (source: string): FormatPart[] => {
   return parts;
 };
 
-const words = (value: string) => value.match(/[\p{L}\p{N}]+/gu) ?? [];
-
 const capitalize = (value: string) =>
   value.charAt(0).toUpperCase() + value.slice(1);
+
+const uncapitalize = (value: string) =>
+  value.charAt(0).toLowerCase() + value.slice(1);
+
+const joinWords = (
+  value: string,
+  wordCase: (word: string, index: number) => string,
+) =>
+  value
+    .match(/[a-z0-9]+/gi)
+    ?.map(wordCase)
+    .join("") ?? value;
 
 const MODIFIERS: Readonly<Record<string, (value: string) => string>> = {
   upcase: (value) => value.toUpperCase(),
   downcase: (value) => value.toLowerCase(),
   capitalize,
-  pascalcase: (value) =>
-    words(value)
-      .map((w) => capitalize(w.toLowerCase()))
-      .join(""),
+  pascalcase: (value) => joinWords(value, capitalize),
   camelcase: (value) =>
-    words(value)
-      .map((w, i) => (i === 0 ? w.toLowerCase() : capitalize(w.toLowerCase())))
-      .join(""),
+    joinWords(value, (word, index) =>
+      index === 0 ? uncapitalize(word) : capitalize(word),
+    ),
 };
 
 const resolveFormat = (
@@ -210,13 +217,19 @@ const applyTransform = (value: string, transform: Transform): string => {
   } catch {
     return value;
   }
-  return value.replace(regex, (...args: unknown[]) => {
+  let matched = false;
+  const replaced = value.replace(regex, (...args: unknown[]) => {
+    matched = true;
     const end = args.findIndex((arg) => typeof arg === "number");
     return resolveFormat(
       transform.format,
       args.slice(0, end) as (string | undefined)[],
     );
   });
+  const hasElse = transform.format.some(
+    (part) => part.kind === "group" && Boolean(part.elseValue),
+  );
+  return !matched && hasElse ? resolveFormat(transform.format, []) : replaced;
 };
 
 class SnippetParser extends Scanner {
