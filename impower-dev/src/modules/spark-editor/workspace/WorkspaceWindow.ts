@@ -3,6 +3,12 @@ import {
   lspColorOf,
   storyColors,
 } from "@impower/codemirror-vscode-lsp-client/src/colorValue";
+import {
+  insertContext,
+  sceneSpansOf,
+  type InsertConstruct,
+  type InsertContext,
+} from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -28,6 +34,7 @@ import {
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -92,7 +99,10 @@ import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
-import { type ShowDocumentResult } from "vscode-languageserver-protocol";
+import {
+  type DocumentSymbol,
+  type ShowDocumentResult,
+} from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
@@ -390,6 +400,7 @@ export default class WorkspaceWindow {
       screen: {
         ...this.store.screen,
         appMenuOpen: false,
+        addPanel: undefined,
         writingTools: { view, fromMenu: false },
       },
     });
@@ -416,6 +427,87 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, writingTools: undefined },
     });
+  }
+
+  openAddPanel() {
+    if (
+      layoutState.current() === "phone" &&
+      workspace.scriptMode.peek() === "reading"
+    ) {
+      workspace.scriptMode.value = "editing";
+    }
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: undefined,
+        addPanel: true,
+      },
+    });
+  }
+
+  closeAddPanel() {
+    if (!this.store.screen.addPanel) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, addPanel: undefined },
+    });
+  }
+
+  async readInsertContext(filename: string): Promise<InsertContext | null> {
+    const projectId = this.store.project.id;
+    const ls = this._workspace.ls;
+    if (!projectId || !ls?.initialization || !ls.connection) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const editor = await this.requestEditor(ReadEditorMessage.type, {
+      textDocument: { uri },
+    });
+    if (!editor) {
+      return null;
+    }
+    await ls.initialization();
+    const symbols = await ls.connection
+      .sendRequest<DocumentSymbol[] | null>("textDocument/documentSymbol", {
+        textDocument: { uri },
+      })
+      .catch(() => undefined);
+    if (symbols === undefined) {
+      return null;
+    }
+    const { text } = editor.textDocument;
+    const { line, character } = editor.caret;
+    const offset = text
+      .split("\n")
+      .slice(0, line)
+      .reduce((total, row) => total + row.length + 1, character);
+    return insertContext(text, offset, sceneSpansOf(symbols));
+  }
+
+  async insertConstruct(
+    filename: string,
+    construct: InsertConstruct,
+  ): Promise<boolean> {
+    this.closeAddPanel();
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const result = await this.requestEditor(InsertEditorConstructMessage.type, {
+      textDocument: { uri },
+      construct,
+    });
+    if (!result?.inserted) {
+      showSnackbar({
+        message: "Couldn't add that here. Move to another line and try again.",
+      });
+    }
+    return !!result?.inserted;
   }
 
   startEditing(filename: string) {
@@ -555,6 +647,10 @@ export default class WorkspaceWindow {
 
   closeSyncConflict() {
     workspace.syncConflictOpen.value = false;
+  }
+
+  openTrash() {
+    workspace.trashOpen.value = true;
   }
 
   async resolveSyncConflict(keep: "device" | "drive") {
@@ -1398,7 +1494,7 @@ export default class WorkspaceWindow {
     if (!editor) {
       return null;
     }
-    const position = editor.selection.end;
+    const position = editor.caret;
     const textDocument = { uri };
     await ls.initialization();
     const [highlights, definitions] = await Promise.all([

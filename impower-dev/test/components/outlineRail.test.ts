@@ -402,6 +402,41 @@ describe("an Outline badge", () => {
     dialogHost.remove();
   });
 
+  const railBadge = () =>
+    host!.querySelector<HTMLButtonElement>('button[aria-label^="Outline:"]');
+
+  it("opens Problems for the open script from the collapsed rail's badge, without moving the caret", async () => {
+    const show = vi.spyOn(problems, "showProblems").mockImplementation(() => {});
+    try {
+      await mount([STORM_ERROR, DOCK_WARNING], SCRIPT, "file://outline/main.sd");
+      const badge = railBadge()!;
+      expect(badge.getAttribute("aria-label")).toBe(
+        "Outline: 1 error, 1 warning in main",
+      );
+      expect(badge.querySelector('svg[class*="text-error"]')).not.toBeNull();
+      await act(async () => badge.click());
+      expect(intents.openOutlineLocation).not.toHaveBeenCalled();
+      expect(show).toHaveBeenCalledTimes(1);
+      const [returnFocus, path] = show.mock.calls[0]!;
+      expect(path).toBe("main.sd");
+      expect(returnFocus!()).toBe(badge);
+    } finally {
+      show.mockRestore();
+    }
+  });
+
+  it("shows no rail badge when only another script has problems", async () => {
+    const other = "file://outline/chapter.sd";
+    problems.record({ uri: other, diagnostics: [STORM_ERROR, DOCK_WARNING] });
+    try {
+      expect(problems.counts.value.problems).toBeGreaterThan(0);
+      await mount([]);
+      expect(railBadge()).toBeNull();
+    } finally {
+      problems.record({ uri: other, diagnostics: [] });
+    }
+  });
+
   it("scopes a branch's badge to its own lines", async () => {
     const dialogHost = await mountWithDialog([STORM_ERROR, problem(1, 2)]);
     await act(async () => badgeOf(row("Branch: storm"))!.click());

@@ -5,12 +5,16 @@ import {
   Dialog,
   DialogActions,
   DialogTitle,
+  FileIcon,
+  FolderIcon,
+  ListRow,
   TrashIcon,
   UndoIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import { showSnackbar } from "../../utils/snackbar";
 
 function timeAgo(ms: number): string {
   const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
@@ -23,15 +27,30 @@ function timeAgo(ms: number): string {
   return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
+function topFolders(batch: TrashBatch): string[] {
+  const folders = batch.folders ?? [];
+  return folders.filter(
+    (f) => !folders.some((other) => other !== f && f.startsWith(`${other}/`)),
+  );
+}
+
 function batchLabel(batch: TrashBatch): string {
-  if (batch.entries.length === 1) {
-    const rel = batch.entries[0]!.relPath;
-    return rel.split("/").pop() || rel;
+  const tops = topFolders(batch);
+  const loose = batch.entries.filter(
+    (e) => !tops.some((t) => e.relPath.startsWith(`${t}/`)),
+  );
+  const [only] = [...tops, ...loose.map((e) => e.relPath)];
+  if (only && tops.length + loose.length === 1) {
+    return only.split("/").pop() || only;
   }
-  return `${batch.entries.length} items`;
+  return `${tops.length + loose.length} items`;
 }
 
 function batchLocation(batch: TrashBatch): string {
+  const [top, ...others] = topFolders(batch);
+  if (top && others.length === 0) {
+    return top.includes("/") ? top.slice(0, top.lastIndexOf("/")) : "";
+  }
   const rel = batch.entries[0]?.relPath ?? "";
   const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
   if (batch.entries.length > 1) {
@@ -84,7 +103,7 @@ export default function TrashPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const restore = async (batchId: string) => {
+  const restore = async (batch: TrashBatch) => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
@@ -92,11 +111,13 @@ export default function TrashPanel() {
       const pid = workspace.signals.projectId.value;
       if (pid) {
         const { Workspace } = await import("../../workspace/Workspace");
-        await Workspace.fs.restoreTrash(pid, batchId);
+        await Workspace.fs.restoreTrash(pid, batch.batchId);
         await Workspace.window.recordScriptChange();
         await Workspace.window.recordAssetChange();
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
+      showSnackbar({ message: `Couldn't restore ${batchLabel(batch)}.` });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -194,48 +215,45 @@ export default function TrashPanel() {
           {batches!.map((batch) => {
             const loc = batchLocation(batch);
             return (
-              <div
+              <ListRow
                 key={batch.batchId}
-                class="relative flex flex-row items-center gap-2 px-4 py-2 control-overlay"
-              >
-                <div class="flex min-w-0 flex-1 flex-col">
-                  <span class="truncate text-sm font-medium">
-                    {batchLabel(batch)}
-                  </span>
-                  <span class="truncate text-xs text-foreground/50">
-                    {loc ? `${loc} · ` : ""}
-                    {timeAgo(batch.deletedAt)}
-                  </span>
-                </div>
-                <Button
-                  variant="quiet"
-                  aria-label="Restore"
-                  title="Restore"
-                  disabled={busy}
-                  onClick={() => void restore(batch.batchId)}
-                  size="icon"
-                  class="flex-none text-muted"
-                >
-                  <UndoIcon class="size-4" />
-                </Button>
-                <Button
-                  variant="quiet"
-                  aria-label="Delete permanently"
-                  title="Delete permanently"
-                  disabled={busy}
-                  onClick={() =>
-                    setConfirm({
-                      kind: "batch",
-                      batchId: batch.batchId,
-                      label: batchLabel(batch),
-                    })
-                  }
-                  size="icon"
-                  class="flex-none text-muted"
-                >
-                  <TrashIcon class="size-4" />
-                </Button>
-              </div>
+                class="px-2"
+                icon={batch.entries.length === 1 && !batch.folders?.length ? <FileIcon /> : <FolderIcon />}
+                label={batchLabel(batch)}
+                description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
+                actions={
+                  <>
+                    <Button
+                      variant="quiet"
+                      aria-label="Restore"
+                      title="Restore"
+                      disabled={busy}
+                      onClick={() => void restore(batch)}
+                      size="icon"
+                      class="flex-none text-muted"
+                    >
+                      <UndoIcon class="size-4" />
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      aria-label="Delete permanently"
+                      title="Delete permanently"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirm({
+                          kind: "batch",
+                          batchId: batch.batchId,
+                          label: batchLabel(batch),
+                        })
+                      }
+                      size="icon"
+                      class="flex-none text-muted"
+                    >
+                      <TrashIcon class="size-4" />
+                    </Button>
+                  </>
+                }
+              />
             );
           })}
         </div>

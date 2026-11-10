@@ -391,9 +391,8 @@ Component variables of the editor's own chrome:
 | `--editor-line-number-active` | The current line's number | `#99d9ff` |
 | `--editor-indent-guide` | Indentation guide | `#1a293a` |
 | `--editor-indent-guide-active` | Indentation guide of the current block | `#4d5866` |
-| `--editor-field-edge` | Find and go-to-line field border | `hsl(210.6 30% 20%)` |
+| `--editor-field-edge` | Go-to-line and rename field border | `hsl(210.6 30% 20%)` |
 | `--editor-field-edge-hover` | Field border under the pointer or pressed | `hsl(210.6 30% 30%)` |
-| `--editor-button-hover` | Panel button and toggle hover wash | `rgb(43 17 17 / 0.05)` |
 | `--editor-focus` | Focus outline and the focused field's border | `#0da2e7` |
 | `--editor-focus-edge` | Selected reference outline, the dialog close button under the pointer | `#007acc` |
 | `--editor-selection-match` | Other occurrences of the selection | `#62331599` |
@@ -401,8 +400,6 @@ Component variables of the editor's own chrome:
 | `--editor-toolbar-ink` | Keyboard toolbar text | `hsl(211 24% 60%)` |
 | `--editor-status-ink` | Status bar text | `hsl(211 24% 42%)` |
 | `--editor-list-selected` | Selected row: completion, problems, references | `#04395e` |
-| `--editor-toggle-on` | A checked find toggle | `rgb(36 137 219 / 0.51)` |
-| `--editor-toggle-on-edge` | A checked find toggle's border, the focused rename field's border | `#2488db` |
 | `--editor-problem-range` | The active problem's range | `#ffdd991a` |
 | `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
 | `--editor-problem-warning` | Status bar warning count | `#cca700` |
@@ -410,7 +407,7 @@ Component variables of the editor's own chrome:
 | `--editor-action-ink` | A problem's action link | `#9cdcfe` |
 | `--editor-match` | The matched letters in a completion | `#18a3ff` |
 | `--editor-faint` | Fold placeholder, link shortcut hint | `#808080` |
-| `--editor-placeholder` | Find and go-to-line placeholder | `#888888` |
+| `--editor-placeholder` | Go-to-line placeholder | `#888888` |
 | `--editor-swatch-edge` | Colour swatch border | `#888888` |
 | `--editor-reference-line` | Line number in the reference list | `#858585` |
 | `--editor-lens-ink` | Code lens text | `#999999` |
@@ -427,9 +424,8 @@ Component variables of the editor's own chrome:
 | `--editor-doc-keycap-edge` | Key cap border | `#3d444db3` |
 | `--editor-doc-quote-ink` | Block quote text in documentation | `#9198a1` |
 | `--editor-doc-quote-edge` | Block quote rule | `#3d444d` |
-| `--editor-icon-ink` | Find and go-to-line button icons, a checked find toggle's icon | `#ffffff` |
-| `--editor-icon-muted` | An unchecked find toggle's icon | `#cccccc` |
-| `--editor-icon-close` | The find and go-to-line close icon | `#315881` |
+| `--editor-icon-ink` | The go-to-line submit icon | `#ffffff` |
+| `--editor-icon-close` | The go-to-line close icon | `#315881` |
 | `--editor-symbol-highlight` | The other uses of the name under the caret | `color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent)` |
 | `--editor-search-match` | A find match | `#00ffff8a` |
 | `--editor-search-match-selected` | The selected find match | `#ff00ff8a` |
@@ -514,7 +510,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-indent-guide-active` | `color-mix(in srgb, var(--accent) 55%, transparent)` | `--guide-lit`, `folio-themes.css:906` |
 | `--editor-field-edge` | `var(--edge)` | Divider |
 | `--editor-field-edge-hover` | `var(--muted)` | Muted ink |
-| `--editor-button-hover` | `var(--control-hover)` | Hover overlay |
 | `--editor-focus` | `var(--accent)` | Focus edge |
 | `--editor-focus-edge` | `var(--accent)` | Focus edge |
 | `--editor-selection-match` | `color-mix(in srgb, var(--accent) 25%, transparent)` | Accent wash |
@@ -522,8 +517,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-toolbar-ink` | `var(--muted)` | Muted ink |
 | `--editor-status-ink` | `var(--muted)` | Muted ink |
 | `--editor-list-selected` | `var(--tint)` | Selected wash |
-| `--editor-toggle-on` | `var(--tint)` | Selected wash |
-| `--editor-toggle-on-edge` | `var(--accent)` | Focus edge |
 | `--editor-problem-range` | `color-mix(in srgb, var(--warning) 10%, transparent)` | Midnight's warning wash at its 10% |
 | `--editor-problem-error` | `var(--error)` | Problem colour: error |
 | `--editor-problem-warning` | `var(--warning)` | Problem colour: warning |
@@ -549,7 +542,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-doc-quote-ink` | `var(--muted)` | Muted ink |
 | `--editor-doc-quote-edge` | `var(--edge)` | Divider |
 | `--editor-icon-ink` | `var(--ink)` | Ink |
-| `--editor-icon-muted` | `var(--muted)` | Muted ink |
 | `--editor-icon-close` | `var(--muted)` | Muted ink |
 | `--editor-search-match` | `color-mix(in srgb, var(--accent) 30%, transparent)` | Accent wash |
 | `--editor-search-match-selected` | `color-mix(in srgb, var(--accent) 55%, transparent)` | Accent wash, stronger |

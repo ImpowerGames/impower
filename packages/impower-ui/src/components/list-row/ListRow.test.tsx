@@ -100,6 +100,62 @@ describe("ListRow", () => {
     expect(ink).toContain("text-ink");
   });
 
+  it("offers no mark unless the row can be selected", async () => {
+    const root = await mount(<ListRow label="Main" onClick={() => {}} />);
+    expect(root.querySelector("input")).toBeNull();
+    expect(root.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
+  });
+
+  it("draws a selectable row's mark beside its button, reporting each change, and hides it until hovered or focused", async () => {
+    const onSelectedChange = vi.fn();
+    const onClick = vi.fn();
+    const root = await mount(
+      <ListRow
+        selection="available"
+        selectLabel="Select chapter.sd"
+        onSelectedChange={onSelectedChange}
+        label="chapter.sd"
+        onClick={onClick}
+      />,
+    );
+    const mark = root.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(mark.getAttribute("aria-label")).toBe("Select chapter.sd");
+    expect(root.querySelector("button")!.contains(mark)).toBe(false);
+    const label = mark.closest("label")!.className.split(/\s+/);
+    expect(label).toContain("opacity-0");
+    expect(label).toContain("group-hover/row:opacity-100");
+    expect(label).toContain("has-focus-visible:opacity-100");
+    await act(async () => mark.click());
+    expect(onSelectedChange).toHaveBeenCalledWith(true);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(root.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
+  });
+
+  it("shows every mark while selecting, tints a picked row and reads its button as pressed", async () => {
+    const root = await mount(
+      <div>
+        <ListRow selection="active" selected selectLabel="Select a" label="a" onClick={() => {}} />
+        <ListRow selection="active" selectLabel="Select b" label="b" onClick={() => {}} />
+      </div>,
+    );
+    const [a, b] = Array.from(root.querySelectorAll<HTMLInputElement>("input"));
+    expect(a!.checked).toBe(true);
+    expect(b!.checked).toBe(false);
+    expect(a!.closest("label")!.className).not.toContain("opacity-0");
+    const [rowA, rowB] = Array.from(root.querySelectorAll("button"));
+    expect(rowA!.getAttribute("aria-pressed")).toBe("true");
+    expect(rowB!.getAttribute("aria-pressed")).toBe("false");
+    expect(rowA!.parentElement!.className.split(/\s+/)).toContain("bg-tint");
+    expect(rowB!.parentElement!.className.split(/\s+/)).not.toContain("bg-tint");
+  });
+
+  it("marks a drop target with the accent ring and an attribute a drag can find", async () => {
+    const root = await mount(<ListRow dropTarget label="Drafts" onClick={() => {}} />);
+    const row = root.querySelector("button")!.parentElement!;
+    expect(row.hasAttribute("data-drop-target")).toBe(true);
+    expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["ring-2", "ring-accent"]));
+  });
+
   it("puts a leading badge before the row's button as a button of its own, in the glyph's column", async () => {
     const onBadge = vi.fn();
     const onRow = vi.fn();
@@ -140,5 +196,44 @@ describe("ListRow", () => {
     )!;
     expect(label.className).toContain("line-clamp-2");
     expect(label.className).not.toContain("fade-edge");
+  });
+
+  it("draws a block row 64px tall with a 12px help line, and keeps 11px help on the other sizes", async () => {
+    const root = await mount(
+      <ListRow size="block" label="Scene" description="Start a new part of the story." onClick={() => {}} />,
+    );
+    expect(root.querySelector("button")!.className).toContain("min-h-16");
+    expect(root.querySelector("small")!.className).toContain("text-[12px]/[1.5]");
+    await act(async () => render(null, host!));
+    await act(async () =>
+      render(<ListRow label="main.sd" description="2 kB" onClick={() => {}} />, host!),
+    );
+    expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
+
+  it("sizes a block row's badge to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRowBadge size="block" label="Scene" icon={<span />} onClick={() => {}} />,
+    );
+    const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!;
+    expect(badge.className).toContain("[&>svg]:size-[22px]");
+    expect(badge.className).toContain("pl-2.5");
+  });
+
+  it("sizes a block row's selection mark to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRow size="block" selection="active" selectLabel="Select Scene" label="Scene" onClick={() => {}} />,
+    );
+    const mark = root.querySelector("input")!.closest("label")!.className.split(/\s+/);
+    expect(mark).toContain("[&>span]:size-[22px]");
+    expect(mark).toContain("left-2.5");
+  });
+
+  it("rejects a leading slot together with a selection mark at compile time", () => {
+    const both = () => (
+      // @ts-expect-error
+      <ListRow leading={<span />} selection="available" label="Scene" />
+    );
+    expect(typeof both).toBe("function");
   });
 });

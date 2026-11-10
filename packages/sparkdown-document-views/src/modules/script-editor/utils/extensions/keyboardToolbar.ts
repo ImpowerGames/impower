@@ -17,7 +17,7 @@ import {
 } from "@codemirror/view";
 import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
-import { openCustomGotoLinePanel } from "./customSearch";
+import { openCustomGotoLinePanel } from "./gotoLinePanel";
 import { scriptModeField, setScriptMode } from "./scriptMode";
 
 export type KeyboardToolbarTool = "writingTools" | "add";
@@ -88,8 +88,6 @@ export const KEYBOARD_TOOLBAR_TABLE: readonly ToolbarEntry[] = [
         icon: "plus",
         tool: "add",
         text: true,
-        disabled: true,
-        title: "Adding scenes, branches and characters is coming soon",
       },
     ],
   },
