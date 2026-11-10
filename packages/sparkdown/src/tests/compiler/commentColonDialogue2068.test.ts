@@ -12,6 +12,7 @@ const COMMENTED = [
   "Hello. // TODO: tidy this line",
   "Hello.// TODO: tidy",
   "Hello. // a: b: c",
+  "Hello. // TODO:",
   "// TODO: tidy",
   "Hello.\t// TODO: tidy",
   "HERO: Hi. // note: later",
@@ -21,6 +22,7 @@ const DIALOGUE = [
   { line: "A/B: Hi.", name: "A/B" },
   { line: "A//B: Hi.", name: "A//B" },
   { line: "HERO //x: Hi.", name: "HERO //x" },
+  { line: "Hello. //TODO: tidy", name: "Hello. //TODO" },
   { line: "HERO: Hi.", name: "HERO" },
 ];
 
