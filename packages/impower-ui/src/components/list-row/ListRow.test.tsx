@@ -197,4 +197,43 @@ describe("ListRow", () => {
     expect(label.className).toContain("line-clamp-2");
     expect(label.className).not.toContain("fade-edge");
   });
+
+  it("draws a block row 64px tall with a 12px help line, and keeps 11px help on the other sizes", async () => {
+    const root = await mount(
+      <ListRow size="block" label="Scene" description="Start a new part of the story." onClick={() => {}} />,
+    );
+    expect(root.querySelector("button")!.className).toContain("min-h-16");
+    expect(root.querySelector("small")!.className).toContain("text-[12px]/[1.5]");
+    await act(async () => render(null, host!));
+    await act(async () =>
+      render(<ListRow label="main.sd" description="2 kB" onClick={() => {}} />, host!),
+    );
+    expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
+
+  it("sizes a block row's badge to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRowBadge size="block" label="Scene" icon={<span />} onClick={() => {}} />,
+    );
+    const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!;
+    expect(badge.className).toContain("[&>svg]:size-[22px]");
+    expect(badge.className).toContain("pl-2.5");
+  });
+
+  it("sizes a block row's selection mark to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRow size="block" selection="active" selectLabel="Select Scene" label="Scene" onClick={() => {}} />,
+    );
+    const mark = root.querySelector("input")!.closest("label")!.className.split(/\s+/);
+    expect(mark).toContain("[&>span]:size-[22px]");
+    expect(mark).toContain("left-2.5");
+  });
+
+  it("rejects a leading slot together with a selection mark at compile time", () => {
+    const both = () => (
+      // @ts-expect-error
+      <ListRow leading={<span />} selection="available" label="Scene" />
+    );
+    expect(typeof both).toBe("function");
+  });
 });

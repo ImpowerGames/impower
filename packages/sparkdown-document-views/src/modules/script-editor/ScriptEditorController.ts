@@ -23,6 +23,8 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
+  insertConstructFromServer,
+  isInsertConstruct,
   jumpToDefinition,
   type ContextMenuPresenter,
   LSPClient,
@@ -30,6 +32,7 @@ import {
   openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
@@ -54,6 +57,11 @@ import {
   ExecuteEditorCommandMethod,
   ExecuteEditorCommandParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import {
+  InsertEditorConstructMessage,
+  type InsertEditorConstructMethod,
+  type InsertEditorConstructParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
@@ -246,6 +254,10 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
 
+  protected _statusBarFrame = 0;
+
+  protected _pendingResponses = new Set<() => void>();
+
   protected _protocols = new ProtocolObserver();
   protected _historyCache = sharedEditorHistory;
 
@@ -292,6 +304,11 @@ export class ScriptEditorController {
       clearTimeout(this._revealTimeout);
       this._revealTimeout = 0;
     }
+    clearInterval(this._focusIntervalTimeout);
+    this._focusIntervalTimeout = 0;
+    cancelAnimationFrame(this._statusBarFrame);
+    this._statusBarFrame = 0;
+    this._pendingResponses.forEach((abandon) => abandon());
     this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
@@ -444,6 +461,7 @@ export class ScriptEditorController {
       return ReadEditorMessage.type.response(message.id, {
         textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
         selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
+        caret: convertToPosition(view.state.doc, view.state.selection.main.head),
         coordinates,
       });
     }, this.host);
@@ -465,6 +483,11 @@ export class ScriptEditorController {
     p.onRequest(
       ExecuteEditorCommandMessage.type,
       (m) => this.handleExecuteEditorCommand(m),
+      this.host,
+    );
+    p.onRequest(
+      InsertEditorConstructMessage.type,
+      (m) => this.handleInsertEditorConstruct(m),
       this.host,
     );
     p.onRequest(
@@ -651,6 +674,26 @@ export class ScriptEditorController {
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
 
+  protected handleInsertEditorConstruct = async (
+    message: RequestMessage<
+      InsertEditorConstructMethod,
+      InsertEditorConstructParams
+    >,
+  ) => {
+    const { textDocument, construct } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const inserted =
+      isInsertConstruct(construct) &&
+      (await insertConstructFromServer(view, construct, endsDialogueBlock));
+    if (inserted && this._view === view) {
+      this.focusAtCaret();
+    }
+    return InsertEditorConstructMessage.type.response(message.id, { inserted });
+  };
+
   protected handleApplyEditorColor = async (
     message: RequestMessage<ApplyEditorColorMethod, ApplyEditorColorParams>,
   ) => {
@@ -759,7 +802,9 @@ export class ScriptEditorController {
       bottomPanels.style.transition = "opacity 150ms";
       bottomPanels.hidden = false;
       this.refs.placeholder.hidden = true;
-      window.requestAnimationFrame(() => {
+      cancelAnimationFrame(this._statusBarFrame);
+      this._statusBarFrame = window.requestAnimationFrame(() => {
+        this._statusBarFrame = 0;
         if (bottomPanels) {
           bottomPanels.style.opacity = "1";
         }
@@ -819,34 +864,48 @@ export class ScriptEditorController {
     return SetEditorBreakpointsMessage.type.response(message.id, {});
   };
 
-  protected evaluateHover = (expression: string) =>
-    new Promise<string | null>((resolve) => {
-      const uri = this._textDocument?.uri;
-      if (!uri) {
-        resolve(null);
-        return;
-      }
-      const request = EvaluateEditorHoverMessage.type.request({
-        textDocument: { uri },
-        expression,
-      });
-      const finish = (value: string | null) => {
+  protected awaitResponse<T>(
+    request: Parameters<typeof sendProtocolMessage>[0],
+    isResponse: (message: unknown) => message is T,
+  ) {
+    return new Promise<T | undefined>((resolve) => {
+      const abandon = () => {
+        this._pendingResponses.delete(abandon);
         window.removeEventListener(MessageProtocol.event, onProtocol);
-        resolve(value);
+      };
+      const finish = (message?: T) => {
+        abandon();
+        resolve(message);
       };
       const onProtocol = (e: Event) => {
-        if (
-          e instanceof CustomEvent &&
-          EvaluateEditorHoverMessage.type.isResponse(e.detail, request.id)
-        ) {
-          finish("result" in e.detail ? (e.detail.result?.value ?? null) : null);
+        if (e instanceof CustomEvent && isResponse(e.detail)) {
+          finish(e.detail);
         }
       };
+      this._pendingResponses.add(abandon);
       window.addEventListener(MessageProtocol.event, onProtocol);
       if (!sendProtocolMessage(request, this.host) || !this.host.isConnected) {
-        finish(null);
+        finish();
       }
     });
+  }
+
+  protected evaluateHover = async (expression: string) => {
+    const uri = this._textDocument?.uri;
+    if (!uri) {
+      return null;
+    }
+    const request = EvaluateEditorHoverMessage.type.request({
+      textDocument: { uri },
+      expression,
+    });
+    const response = await this.awaitResponse(request, (message) =>
+      EvaluateEditorHoverMessage.type.isResponse(message, request.id),
+    );
+    return response && "result" in response
+      ? (response.result?.value ?? null)
+      : null;
+  };
 
   protected handleSetEditorPinpoints = (
     message: SetEditorPinpointsMessage.Request,
@@ -1117,50 +1176,19 @@ export class ScriptEditorController {
           serverWorkspace: (client: LSPClient) =>
             new SparkdownCodemirrorWorkspace(client, {
               showDocument: async (params) => {
-                return new Promise((resolve) => {
-                  const request = ShowDocumentMessage.type.request(params);
-                  const onProtocol = (e: Event) => {
-                    if (e instanceof CustomEvent) {
-                      const message = e.detail;
-                      if (
-                        ShowDocumentMessage.type.isResponse(message, request.id)
-                      ) {
-                        resolve();
-                        window.removeEventListener(
-                          MessageProtocol.event,
-                          onProtocol,
-                        );
-                      }
-                    }
-                  };
-                  window.addEventListener(MessageProtocol.event, onProtocol);
-                  sendProtocolMessage(request, this.host);
-                });
+                const request = ShowDocumentMessage.type.request(params);
+                await this.awaitResponse(request, (message) =>
+                  ShowDocumentMessage.type.isResponse(message, request.id),
+                );
               },
               applyWorkspaceEdit: async (params) => {
-                return new Promise((resolve) => {
-                  const request =
-                    ApplyWorkspaceEditMessage.type.request(params);
-                  const onProtocol = (e: Event) => {
-                    if (e instanceof CustomEvent) {
-                      const message = e.detail;
-                      if (
-                        ApplyWorkspaceEditMessage.type.isResponse(
-                          message,
-                          request.id,
-                        )
-                      ) {
-                        resolve();
-                        window.removeEventListener(
-                          MessageProtocol.event,
-                          onProtocol,
-                        );
-                      }
-                    }
-                  };
-                  window.addEventListener(MessageProtocol.event, onProtocol);
-                  sendProtocolMessage(request, this.host);
-                });
+                const request = ApplyWorkspaceEditMessage.type.request(params);
+                await this.awaitResponse(request, (message) =>
+                  ApplyWorkspaceEditMessage.type.isResponse(
+                    message,
+                    request.id,
+                  ),
+                );
               },
               onWillApplyWorkspaceEdit: () => {
                 this.allowEditing(false);
