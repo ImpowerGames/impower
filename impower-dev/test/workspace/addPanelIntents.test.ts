@@ -30,6 +30,7 @@ const stops: (() => void)[] = [];
 beforeEach(() => {
   snackbar.value = null;
   layout.value = "desktop";
+  workspace.layout.value = "desktop";
   workspace.scriptMode.value = "reading";
   workspace.current = {
     ...workspace.current,
@@ -134,15 +135,23 @@ describe("the Add panel intents", () => {
     expect(workspace.state.value.screen.writingTools).toBeDefined();
   });
 
-  it("enters editing mode first on a phone in reading mode, and leaves the mode alone elsewhere", () => {
-    const w = mount();
-    w.openAddPanel();
-    expect(workspace.scriptMode.value).toBe("reading");
-    w.closeAddPanel();
-    layout.value = "phone";
-    w.openAddPanel();
-    expect(workspace.scriptMode.value).toBe("editing");
-  });
+  it.each([
+    ["phone", "reading", "editing"],
+    ["phone", "editing", "editing"],
+    ["compact", "reading", "reading"],
+    ["compact", "editing", "editing"],
+    ["desktop", "reading", "reading"],
+    ["desktop", "editing", "editing"],
+  ] as const)(
+    "on a %s layout with the stored mode %s, opening leaves the stored mode %s",
+    (layout, stored, expected) => {
+      const w = mount();
+      workspace.layout.value = layout;
+      workspace.scriptMode.value = stored;
+      w.openAddPanel();
+      expect(workspace.scriptMode.value).toBe(expected);
+    },
+  );
 
   it("reads whether the caret is in a scene from the language server's scene symbols", async () => {
     const w = mount();
