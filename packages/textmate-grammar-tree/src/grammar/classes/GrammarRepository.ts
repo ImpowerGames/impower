@@ -251,8 +251,13 @@ export class GrammarRepository {
       this.bind(rule.contentRule, bound);
     } else if (rule instanceof MatchRule) {
       rule.captures?.forEach((capture) => this.bind(capture, bound));
-    } else {
+    } else if (rule === this.self) {
       rule.resolve();
+    } else {
+      try {
+        rule.resolve();
+      } catch {
+      }
     }
   }
 
