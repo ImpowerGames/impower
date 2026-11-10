@@ -2,7 +2,7 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
-import { availableName, NAME_MESSAGES, NameError, plural } from "../utils/fileListModel";
+import { availableName, NAME_MESSAGES, NameError, plural, validName } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { stemOf } from "../utils/imageStacks";
 import { canMoveFolder } from "../utils/fileTree";
@@ -51,6 +51,8 @@ const extensionOf = (path: string) => {
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot) : "";
 };
+
+export const STACK_NAME_MESSAGE = "A stacked picture's name can't contain @ or ~.";
 
 const MEASURE_BATCH = 8;
 
@@ -271,9 +273,13 @@ export default class WorkspaceAssets {
   }
 
   async renameStack(paths: readonly string[], base: string, name: string): Promise<string[]> {
+    const stackName = validName(name);
+    if (/[@~]/.test(stackName)) {
+      throw new NameError(STACK_NAME_MESSAGE);
+    }
     const renames = paths.map((path) => {
       const stem = stemOf(path);
-      const next = name + stem.slice(base.length);
+      const next = stackName + stem.slice(base.length);
       return {
         path,
         name: next,

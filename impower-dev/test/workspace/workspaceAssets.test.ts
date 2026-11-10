@@ -259,3 +259,28 @@ describe("measuring pictures for a folder's tile shape", () => {
     });
   });
 });
+
+describe("the name given to a stacked picture", () => {
+  const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
+
+  it("is trimmed once, so every member keeps one base", async () => {
+    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
+    await assets.load();
+    await assets.renameStack(STACK, "imani", "ada ");
+    expect([...files.keys()].sort()).toEqual([
+      "Assets/Images/ada.png",
+      "Assets/Images/ada@night.png",
+      "Assets/Images/ada~face.happy.png",
+    ]);
+  });
+
+  it("refuses an empty name or one holding @ or ~, moving nothing", async () => {
+    const NIGHT = ["Assets/Images/imani@day.png", "Assets/Images/imani@night.png"];
+    const { assets, fs } = fakeWorkspace(Object.fromEntries(NIGHT.map((path) => [path, "png"])));
+    await assets.load();
+    await expect(assets.renameStack(NIGHT, "imani", "  ")).rejects.toThrow(NAME_MESSAGES.empty);
+    await expect(assets.renameStack(NIGHT, "imani", "ada@dusk")).rejects.toThrow("can't contain @ or ~");
+    await expect(assets.renameStack(NIGHT, "imani", "ada~x")).rejects.toThrow("can't contain @ or ~");
+    expect(fs.moveFile).not.toHaveBeenCalled();
+  });
+});
