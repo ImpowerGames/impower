@@ -180,3 +180,39 @@ style ink {
     expect(restyled.ink).toContain("--theme-color-slate_95");
   });
 });
+
+describe("the rendered page across a content redisplay (#1990)", () => {
+  test("every earlier entry keeps its text after the editor redisplays the game", async () => {
+    const source = `${OPEN_TEXTSTREAM}
+scene start
+  First.
+  Second.
+  Third.
+end
+`;
+    const last = source.split("\n").findIndex((line) => line.includes("Third."));
+    const h = createDOMHarness(source, last, {
+      reactive: true,
+      autoOpenAll: false,
+      compose: true,
+    });
+    await h.ready;
+    const shown = () =>
+      [...h.overlay.querySelectorAll(".textstream_column > div > .text")].map(
+        (el) => el.textContent,
+      );
+    (h.game.context.system as any).previewing = 1;
+    h.jumpTo("start");
+    for (let i = 0; i < 3; i += 1) {
+      new Coordinator(h.game, h.nextBeat()!);
+      await flushMicrotasks(30);
+    }
+    await h.game.module.ui.endCompose({ sweep: true });
+    await flushMicrotasks(40);
+    expect(shown()).toEqual(["First.", "Second.", "Third."]);
+    await h.game.redisplay((message) => h.router.receive(message));
+    await h.game.module.ui.endCompose({ sweep: true });
+    await flushMicrotasks(40);
+    expect(shown()).toEqual(["First.", "Second.", "Third."]);
+  });
+});

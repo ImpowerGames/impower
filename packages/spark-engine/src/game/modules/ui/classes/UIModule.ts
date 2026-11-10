@@ -472,6 +472,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onStart(): void {
     this._refreshAll = true;
+    this.page.started();
   }
 
   protected evalBinding(binding: Binding, env?: ReactiveEnv): unknown {
@@ -533,7 +534,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onLoad() {
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
-    this.page.restored();
+    this.page.loaded();
   }
 
   override onPreview() {
@@ -965,7 +966,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         tasks.push(this.attributes.restore(target));
       }
     }
-    this.page.show(true);
+    this.page.restore();
     await Promise.all(tasks);
   }
 
@@ -5082,7 +5083,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected _choose?: (index: number) => void;
 
-      protected _restored = false;
+      protected _loaded = false;
+
+      protected _resumed = false;
 
       protected _presented?: { instant: boolean; time?: number };
 
@@ -5094,8 +5097,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return $._state.page?.entries ?? [];
       }
 
-      restored(): void {
-        this._restored = true;
+      loaded(): void {
+        this._loaded = true;
+      }
+
+      started(): void {
+        this._resumed = this._loaded;
+        this._loaded = false;
       }
 
       record(
@@ -5104,8 +5112,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         build: (before: readonly PageEntry[]) => PageRecord,
       ): void {
         const page = this.state;
-        const repeat = again || (this._restored && page.key === key);
-        this._restored = false;
+        const repeat = again || (this._resumed && page.key === key);
+        this._loaded = false;
+        this._resumed = false;
         this._presented = undefined;
         const before = repeat
           ? [...page.entries.slice(0, page.current), ...(page.absorbed ?? [])]
@@ -5174,7 +5183,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.sync(this._presented);
       }
 
-      protected sync(presented?: { instant: boolean; time?: number }): void {
+      restore(): void {
+        this._presented = { instant: true };
+        this.sync(this._presented, 0);
+      }
+
+      protected sync(
+        presented?: { instant: boolean; time?: number },
+        rewriteFrom?: number,
+      ): void {
         if ($.context?.system?.simulating) {
           return;
         }
@@ -5210,7 +5227,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._elements.length = kept;
         this._rendered.length = kept;
         if (instant) {
-          for (let i = current; i < kept; i += 1) {
+          for (let i = rewriteFrom ?? current; i < kept; i += 1) {
             this.writeEntry(this._elements[i]!, entries[i]!, true);
           }
         }
@@ -5300,7 +5317,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
       ): void {
         if (entry.kind === "options") {
-          this._options.forEach((button, index) => {
+          const buttons = el.children.filter((child) =>
+            child.name.split(" ").includes("textstream_option"),
+          );
+          buttons.forEach((button, index) => {
             const option = entry.options?.[index];
             if (option) {
               void $.text.writeElements(button.id, [button], option, instant, time);

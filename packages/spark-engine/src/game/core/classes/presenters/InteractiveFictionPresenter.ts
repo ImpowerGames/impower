@@ -59,7 +59,7 @@ export class InteractiveFictionPresenter implements Presenter {
     const { hold, ...beat } = this._instructions;
     this._game.module.ui.page.record(
       JSON.stringify(beat),
-      Boolean(this._options.again),
+      Boolean(this._options.again || hold),
       (before) => this.entries(before),
     );
   }
@@ -126,16 +126,11 @@ export class InteractiveFictionPresenter implements Presenter {
     const scene = this.scene();
     const entries: PageEntry[] = [];
     const previousScene = context.findLast((entry) => "scene" in entry)?.scene;
-    const first = context.length === 0;
     const kind = LINE_KINDS[instructions.kind ?? "action"] ?? "action";
     const line = lineTarget ? text[lineTarget] : undefined;
     const options = (instructions.choices ?? []).map(
       (target) => text[target] ?? [],
     );
-    const shows = visible(line) || options.length > 0;
-    if (!first && shows && previousScene !== undefined && previousScene !== scene) {
-      entries.push({ kind: "rule", scene });
-    }
     for (const [target, events] of Object.entries(instructions.image ?? {})) {
       for (const event of events) {
         if (event.control === "show" && event.assets?.length) {
@@ -182,6 +177,13 @@ export class InteractiveFictionPresenter implements Presenter {
     }
     if (options.length > 0) {
       entries.push({ kind: "options", scene, options });
+    }
+    if (
+      entries.length > 0 &&
+      previousScene !== undefined &&
+      previousScene !== scene
+    ) {
+      entries.unshift({ kind: "rule", scene });
     }
     return { keep, entries };
   }

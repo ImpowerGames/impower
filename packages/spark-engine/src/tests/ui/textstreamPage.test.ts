@@ -423,3 +423,101 @@ end
   });
 });
 
+describe("the page across restores, scenes and simulation (#1990)", () => {
+  test("restoring a checkpoint keeps the next run of an identical beat on the page", () => {
+    const h = play(`${OPEN_TEXTSTREAM}
+scene start
+  Again.
+  -> start
+end
+`);
+    h.game.start();
+    expect(h.page().map(words)).toEqual(["Again."]);
+    expect(h.game.restoreCheckpoint(h.game.checkpoints.length - 1)).toBe(true);
+    h.game.clickedToContinue();
+    expect(h.page().map(words)).toEqual(["Again.", "Again."]);
+  });
+
+  test("a resumed menu shows its prompt and options once, and picking from it continues the page", () => {
+    const source = `${OPEN_TEXTSTREAM}
+scene start
+  Before.
+  choose
+    + [Left.]
+      Left result.
+    + [Right.]
+      Right result.
+  end
+end
+`;
+    const h = play(source);
+    h.game.start();
+    h.tapToChoice();
+    const before = structuredClone(h.page());
+    const saved = h.game.saveHere();
+    const loaded = play(source);
+    expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+    loaded.game.start();
+    expect(loaded.page()).toEqual(before);
+    loaded.game.chosePathToContinue(1);
+    loaded.tapTo("Right result.");
+    expect(loaded.page().map(describeEntry)).toEqual([
+      "action Before.",
+      "chosen Right.",
+      "action Right result.",
+    ]);
+  });
+
+  test("a scene that opens with a cue on its own beat still gets its rule", () => {
+    const h = play(`${OPEN_TEXTSTREAM}
+define b as image with
+  src = "https://example.com/b.png"
+end
+
+scene start
+  Before.
+  -> next
+end
+
+scene next
+  [[show backdrop b]] >
+  After.
+end
+`);
+    h.game.start();
+    h.tapTo("After.");
+    expect(h.page().map((entry) => entry.kind)).toEqual([
+      "action",
+      "rule",
+      "caption",
+      "action",
+    ]);
+  });
+
+  test("a mounted page builds no entry while the engine simulates, and records it", async () => {
+    const h = createHarness(
+      `${OPEN_TEXTSTREAM}
+scene start
+  First.
+  Second.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    new Coordinator(h.game, h.nextBeat()!);
+    await flushMicrotasks(30);
+    expect(created(h, "textstream_action")).toHaveLength(1);
+    h.reset();
+    (h.game.context.system as any).simulating = "start";
+    new Coordinator(h.game, h.nextBeat()!);
+    await flushMicrotasks(30);
+    expect(h.game.module.ui.page.entries.map(words)).toEqual([
+      "First.",
+      "Second.",
+    ]);
+    expect(created(h, "textstream_action")).toHaveLength(0);
+  });
+});
