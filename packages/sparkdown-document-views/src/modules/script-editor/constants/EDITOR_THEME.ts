@@ -160,19 +160,12 @@ const EDITOR_THEME: {
   "& ul:focus-visible": {
     outline: "none",
   },
-  "& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
-    outline: "1px solid var(--accent)",
-    outlineOffset: "-1px",
-  },
   "@media (pointer: coarse)": {
     ".cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
       height: "44px",
     },
   },
   "@media (forced-colors: active)": {
-    ".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
-      outlineColor: "Highlight",
-    },
     "button:focus-visible, .cm-panels .cm-textfield:focus-visible, .cm-tooltip .cm-textfield:focus-visible":
       {
         outlineColor: "Highlight",
@@ -358,15 +351,6 @@ const EDITOR_THEME: {
     backgroundColor: "var(--paper)",
     color: "var(--editor-toolbar-ink)",
   },
-  "& .cm-panel.cm-panel-lint ul": {
-    minHeight: "100%",
-    maxHeight: "164px",
-    scrollbarGutter: "stable",
-  },
-  "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
-    background: "var(--editor-list-selected)",
-    color: "var(--ink)",
-  },
   "& .cm-panels.cm-panels-top": {
     zIndex: "30",
     "& .cm-panel": {
@@ -404,20 +388,6 @@ const EDITOR_THEME: {
       backgroundColor: "var(--editor-icon-ink)",
     },
   },
-  "& .cm-panel.cm-panel-lint": {
-    "& ul": {
-      "& li": {
-        cursor: "pointer",
-      },
-      "& [aria-selected]": {
-        backgroundColor: "Highlight",
-        color: "HighlightText",
-      },
-    },
-    "& button[name='close']": {
-      display: "none",
-    },
-  },
   "& .cm-lintRange-active": {
     backgroundColor: "var(--editor-problem-range)",
   },
@@ -435,16 +405,6 @@ const EDITOR_THEME: {
     fontSize: "0.9375rem",
     marginLeft: "0",
     marginRight: "8px",
-  },
-  "& .cm-lint-marker": {
-    display: "none",
-    width: "0.8em",
-    height: "0.8em",
-  },
-  "& .cm-lint .cm-lint-marker": {
-    display: "block",
-    width: "0.8em",
-    height: "0.8em",
   },
   "& .cm-tooltip": {
     backgroundColor: "var(--panel)",
