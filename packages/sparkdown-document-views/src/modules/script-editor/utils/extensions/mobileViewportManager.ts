@@ -1,4 +1,3 @@
-import { closeLintPanel } from "@codemirror/lint";
 import { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
@@ -48,7 +47,6 @@ const viewportPlugin = ViewPlugin.fromClass(
         if (!hasScriptMode(this.view.state)) {
           openKeyboardToolbar(this.view);
         }
-        closeLintPanel(this.view);
       });
     }
 

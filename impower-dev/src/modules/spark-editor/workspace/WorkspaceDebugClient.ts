@@ -256,6 +256,7 @@ export default class WorkspaceDebugClient {
           [uri]: answered.map((b, i) => ({
             line: b.verified && b.line != null ? b.line : lines[i]!,
             verified: b.verified,
+            ...(b.verified || b.message == null ? {} : { message: b.message }),
           })),
         },
       });

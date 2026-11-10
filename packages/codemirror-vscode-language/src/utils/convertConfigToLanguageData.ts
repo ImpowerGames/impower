@@ -4,23 +4,12 @@ import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 export const convertConfigToLanguageData = (
   config: VSCodeConfigDefinition,
 ): CodeMirrorLanguageData => {
-  const comments = config?.comments;
   const autoClosingPairs = config?.autoClosingPairs ?? [];
   const surroundingPairs = config?.surroundingPairs ?? [];
   const wordChars = config?.wordChars;
   const decreaseIndentPattern = config?.indentationRules?.decreaseIndentPattern;
 
   const data: CodeMirrorLanguageData = {};
-
-  if (comments) {
-    data.commentTokens = {
-      block: {
-        open: comments.blockComment?.[0],
-        close: comments.blockComment?.[1],
-      },
-      line: comments.lineComment,
-    };
-  }
 
   if (autoClosingPairs) {
     data.closeBrackets = {

@@ -4107,6 +4107,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const screen = layouts[name]?.screen;
       return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
     };
+    if (e.control === "clear") {
+      return state;
+    }
     if (e.control === "close") {
       return state?.filter((s) => s.name !== e.name);
     }
@@ -4169,9 +4172,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected async runLayoutInstructions(
-    instructions: LayoutInstruction[],
+    layout: LayoutInstruction[],
     instant: boolean,
   ): Promise<void> {
+    const instructions = layout.filter((e) => e.control !== "clear");
     for (const e of instructions) {
       this.saveLayoutState(e);
     }

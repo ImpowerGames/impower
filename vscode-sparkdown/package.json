@@ -396,7 +396,7 @@
         "extensions": [
           ".luau"
         ],
-        "configuration": "./language/sparkdown.language-config.json",
+        "configuration": "./language/sparkdown-luau.language-config.json",
         "icon": {
           "light": "icon-lang.png",
           "dark": "icon-lang.png"

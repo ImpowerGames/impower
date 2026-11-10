@@ -397,7 +397,7 @@ Component variables of the editor's own chrome:
 | `--editor-panel-edge` | Rule above the bottom panels | `hsl(210.6 70% 15%)` |
 | `--editor-toolbar-ink` | Keyboard toolbar text | `hsl(211 24% 60%)` |
 | `--editor-status-ink` | Status bar text | `hsl(211 24% 42%)` |
-| `--editor-list-selected` | Selected row: completion, problems | `#04395e` |
+| `--editor-list-selected` | Selected row: completion | `#04395e` |
 | `--editor-problem-range` | The active problem's range | `#ffdd991a` |
 | `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
 | `--editor-problem-warning` | Status bar warning count | `#cca700` |

@@ -84,7 +84,7 @@ try {
   const prompt = path.join(artifacts, "continue.txt");
   fs.writeFileSync(prompt, "Continue the assignment.");
   let sent;
-  const resumed = resumeWriter(state, { coordinator: current, expectRevision: readRecord(state).revision, ticket: 301, executable: process.execPath, args: ["-p", "--resume", session, "--model", "claude-opus-5-5", "--effort", "low", "--permission-mode", "bypassPermissions"], prompt, identify: () => null, census: () => [], spawner: (spec) => { sent = fs.readFileSync(path.join(spec.launchDir, "prompt.txt"), "utf8"); return { started: false, reason: "contract probe: no child launched" }; } });
+  const resumed = resumeWriter(state, { coordinator: current, expectRevision: readRecord(state).revision, ticket: 301, executable: process.execPath, args: ["-p", "--model", "claude-opus-5-5", "--effort", "low", "--permission-mode", "bypassPermissions"], prompt, identify: () => null, census: () => [], spawner: (spec) => { sent = fs.readFileSync(path.join(spec.launchDir, "prompt.txt"), "utf8"); return { started: false, reason: "contract probe: no child launched" }; } });
   assert.equal(resumed.started, false);
   scenario("same-coordinator acknowledged legacy resume refreshes contact", () => {
     check(sent);

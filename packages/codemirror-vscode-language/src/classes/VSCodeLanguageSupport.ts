@@ -8,6 +8,7 @@ import { Extension } from "@codemirror/state";
 import { NodeType } from "@lezer/common";
 
 import { NodeID } from "@impower/textmate-grammar-tree/src/core/enums/NodeID";
+import { type Grammar } from "@impower/textmate-grammar-tree/src/grammar/classes/Grammar";
 import { type GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
@@ -20,7 +21,7 @@ export class VSCodeLanguageSupport extends LanguageSupport {
     name: string,
     grammar: GrammarDefinition | GrammarRegistry,
     languageData?: CodeMirrorLanguageData,
-    support?: Extension[],
+    support?: Extension[] | ((grammar: Grammar) => Extension[]),
   ) {
     const facet = defineLanguageFacet(languageData);
     const topNodeType = NodeType.define({
@@ -34,7 +35,9 @@ export class VSCodeLanguageSupport extends LanguageSupport {
       topNodeType,
       defineNodeTypeWithLanguageNodeProps,
     );
-    const language = new Language(facet, parser, support, name);
-    super(language, support);
+    const extensions =
+      typeof support === "function" ? support(parser.grammar) : support;
+    const language = new Language(facet, parser, extensions, name);
+    super(language, extensions);
   }
 }

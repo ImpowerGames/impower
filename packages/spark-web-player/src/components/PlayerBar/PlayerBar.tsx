@@ -17,6 +17,7 @@ export interface PlayerBarControls {
   step?: boolean;
   fullscreen?: boolean;
   resize?: boolean;
+  location?: boolean;
 }
 
 export interface PlayerBarProps {
@@ -172,7 +173,7 @@ export default function PlayerBar({
           ) : null}
         </div>
       ) : null}
-      <div id="left-items" hidden={!location}>
+      <div id="left-items" hidden={!location || controls.location === false}>
         <div id="route-button" ref={routeButtonRef} hidden={!routeShown} />
         <div
           id="location-items"

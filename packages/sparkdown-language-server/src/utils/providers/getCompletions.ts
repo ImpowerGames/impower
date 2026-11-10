@@ -51,6 +51,7 @@ import {
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getMorphCompletions } from "./getMorphCompletions";
+import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -58,9 +59,12 @@ const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
+const LAYOUT_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...MOVIE_CONTROL_KEYWORDS,
+  ...LAYOUT_CONTROL_KEYWORDS,
 ];
 const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
@@ -457,6 +461,22 @@ const addKeywordCompletions = (
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
+    }
+  }
+};
+
+const addBracketControlCompletions = (
+  completions: Map<string, CompletionItem>,
+) => {
+  addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
+  for (const verb of LAYOUT_CONTROL_KEYWORDS) {
+    const completion = completions.get(verb);
+    const description = LAYOUT_CONTROL_DESCRIPTIONS[verb];
+    if (completion && description) {
+      completion.documentation = {
+        kind: MarkupKind.Markdown,
+        value: description,
+      };
     }
   }
 };
@@ -1653,7 +1673,22 @@ export const getCompletions = (
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
-        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
+        addBracketControlCompletions(completions);
+        addStructReferenceCompletions(
+          completions,
+          program,
+          IMAGE_COMMAND_NAME_TYPES,
+          isPrefilteredName,
+        );
+      }
+      return buildCompletions();
+    }
+    if (
+      prevNode.name === "ImageBeginMark" &&
+      leftStack[0]?.name === "AssetCommandFileName"
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addBracketControlCompletions(completions);
         addStructReferenceCompletions(
           completions,
           program,
@@ -1665,7 +1700,7 @@ export const getCompletions = (
     }
     if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
+        addBracketControlCompletions(completions);
       }
       return buildCompletions();
     }
@@ -1812,6 +1847,16 @@ export const getCompletions = (
     );
     if (beforeAudioNode) {
       if (isCursorAfterNodeText(beforeAudioNode)) {
+        addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+      }
+      return buildCompletions();
+    }
+    if (
+      prevNode.name === "AudioBeginMark" &&
+      leftStack[0]?.name === "AssetCommandFileName"
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }

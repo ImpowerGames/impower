@@ -34,6 +34,8 @@ jobs:
         definitions/yaml/**
         packages/sparkdown/language/sparkdown.language-grammar.json
         vscode-sparkdown/language/sparkdown.language-grammar.json
+        packages/sparkdown/language/*.language-config.json
+        vscode-sparkdown/language/*.language-config.json
         .github/workflows/typecheck.yml
         .github/workflows/changed-paths.yml
         .github/scripts/changed-paths.mjs
