@@ -16,6 +16,14 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ListSavesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
+import { SetPreviewControlsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewControlsMessage";
+import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
+import {
+  RollBackDebugRequest,
+  RollForwardDebugRequest,
+  type RollDebugArguments,
+  type RollDebugResult,
+} from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
 import {
   SetRoutePinsMessage,
   type RoutePin,
@@ -142,6 +150,8 @@ export class SparkdownPreviewGamePanelManager {
 
   protected _gameRunning = false;
 
+  protected _debugSession?: vscode.DebugSession;
+
   protected _onDidDisposePanel = new vscode.EventEmitter<void>();
   readonly onDidDisposePanel = this._onDidDisposePanel.event;
 
@@ -176,6 +186,47 @@ export class SparkdownPreviewGamePanelManager {
     this._panel?.webview.postMessage(
       SetStartingValuesMessage.type.request({ values }),
     );
+  }
+
+  attachDebugSession(session: vscode.DebugSession) {
+    this._debugSession = session;
+    this.sendControls();
+  }
+
+  detachDebugSession(session: vscode.DebugSession) {
+    if (this._debugSession?.id !== session.id) {
+      return;
+    }
+    this._debugSession = undefined;
+    this.sendControls();
+  }
+
+  protected sendControls() {
+    this._panel?.webview.postMessage(
+      SetPreviewControlsMessage.type.notification({
+        skipButtons: this._debugSession != null,
+      }),
+    );
+  }
+
+  protected async rollDebugSession(
+    session: vscode.DebugSession,
+    direction: -1 | 1,
+  ): Promise<RollDebugResult> {
+    const command =
+      direction < 0
+        ? RollBackDebugRequest.command
+        : RollForwardDebugRequest.command;
+    const args: RollDebugArguments = { to: "beat" };
+    try {
+      const result: RollDebugResult | undefined = await session.customRequest(
+        command,
+        args,
+      );
+      return { moved: Boolean(result?.moved) };
+    } catch {
+      return { moved: false };
+    }
   }
 
   protected async answerRequest<M extends string, P, R>(
@@ -275,6 +326,7 @@ export class SparkdownPreviewGamePanelManager {
         }).catch(console.error);
         this.sendStartingValues(SparkdownStartingValuesManager.instance.values);
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
+        this.sendControls();
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -319,6 +371,14 @@ export class SparkdownPreviewGamePanelManager {
             return {};
           },
         );
+      }
+      if (SkipBeatMessage.type.isRequest(message)) {
+        const session = this._debugSession;
+        if (session) {
+          await this.answerRequest(SkipBeatMessage.type, message.id, () =>
+            this.rollDebugSession(session, message.params.direction),
+          );
+        }
       }
       if (ListSavesMessage.type.isRequest(message)) {
         await this.answerRequest(
