@@ -15,6 +15,7 @@ import {
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
+import { imageStacks } from "../utils/imageStacks";
 import { isInside, joinPath, nameOf, parentOf } from "./scriptsListing";
 
 export interface AssetFacts {
@@ -40,6 +41,9 @@ export interface AssetRow extends ListEntry {
   link?: boolean;
   holdings?: string;
   location?: string;
+  paths?: string[];
+  variantCount?: number;
+  covers?: string[];
 }
 
 export interface AssetLevel {
@@ -169,6 +173,34 @@ const fileRow = (
   };
 };
 
+const stackedRows = (
+  listing: AssetListing,
+  paths: readonly string[],
+  type: AssetType,
+  locate: (path: string) => string | undefined,
+): AssetRow[] => {
+  if (type !== "image") {
+    return paths.map((path) => fileRow(listing, path, type, locate(path)));
+  }
+  return imageStacks(paths).map((stack) => {
+    const row = fileRow(listing, stack.cover, type, locate(stack.cover));
+    if (stack.paths.length === 1) {
+      return row;
+    }
+    const facts = stack.paths.map((path) => listing.files[path]!);
+    return {
+      ...row,
+      name: stack.name,
+      modified: Math.max(...facts.map((fact) => fact.modified)),
+      size: facts.reduce((sum, fact) => sum + fact.size, 0),
+      paths: stack.paths,
+      ...(stack.variantCount > 1 ? { variantCount: stack.variantCount } : {}),
+    };
+  });
+};
+
+export const FOLDER_COVERS = 4;
+
 export const placeOf = (
   listing: AssetListing,
   path: string,
@@ -231,6 +263,9 @@ export const assetLevel = ({
         assetTypeSpec(type).unit,
       ),
       location,
+      ...(type === "image"
+        ? { covers: imageStacks(inside).slice(0, FOLDER_COVERS).map((stack) => stack.cover) }
+        : {}),
     };
   };
 
@@ -246,17 +281,23 @@ export const assetLevel = ({
   const rows: AssetRow[] = [
     ...childFolders.map((f) => folderRow(f)),
     ...strays.map((f) => folderRow(f, parentOf(f))),
-    ...ofType
-      .filter((path) => parentOf(path) === at)
-      .map((path) => fileRow(listing, path, type, outside(at) ? at : undefined)),
+    ...stackedRows(
+      listing,
+      ofType.filter((path) => parentOf(path) === at),
+      type,
+      () => (outside(at) ? at : undefined),
+    ),
     ...(atRoot
-      ? ofType
-          .filter(
+      ? stackedRows(
+          listing,
+          ofType.filter(
             (path) =>
               homes.includes(parentOf(path)) ||
               (outside(path) && typeRoots.some((typeRoot) => isInside(path, typeRoot))),
-          )
-          .map((path) => fileRow(listing, path, type, parentOf(path)))
+          ),
+          type,
+          parentOf,
+        )
       : []),
   ];
   return {
@@ -297,9 +338,12 @@ export const assetSearch = ({
     type,
     title,
     rows: sortEntries(
-      hits
-        .filter((path) => typeOf(listing, path, endings) === type)
-        .map((path) => fileRow(listing, path, type, placeOf(listing, path, type))),
+      stackedRows(
+        listing,
+        hits.filter((path) => typeOf(listing, path, endings) === type),
+        type,
+        (path) => placeOf(listing, path, type),
+      ),
       sort,
     ),
   })).filter((group) => group.rows.length > 0);

@@ -313,3 +313,69 @@ describe("the Assets page", () => {
     expect(workspace.current.lists?.assetsFolders).toMatchObject({ audio: "Assets/Audio" });
   });
 });
+
+describe("image folders as tiles", () => {
+  const tiles = () => all<HTMLElement>('[role="listitem"] [data-tile]');
+  const layoutButton = () => host!.querySelector<HTMLElement>('[data-assets-action="layout"]');
+
+  beforeEach(() => {
+    setListing({
+      "Assets/Images/Portraits/imani.png": facts(100),
+      "Assets/Images/Portraits/imani@night.png": facts(200),
+      "Assets/Images/Portraits/imani~face.happy.png": facts(10),
+      "Assets/Images/Portraits/imani@night~face.sad.png": facts(20),
+      "Assets/Images/Backdrops/subway.png": facts(300),
+      "Assets/Audio/imani.wav": facts(5),
+    });
+  });
+
+  it("draws one portrait tile per thing, with the variants badge in its thumbnail's corner", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
+    expect(rowLabels()).toEqual(["Open image imani, 2 variants, modified 2d · 330 b"]);
+    const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
+    expect(badge.getAttribute("aria-label")).toBe("2 variants");
+    expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
+    expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
+    await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
+    expect(inspectedAsset.value).toMatchObject({ path: "Assets/Images/Portraits/imani.png" });
+  });
+
+  it("draws landscape tiles under Backdrops and folder tiles covered by the pictures inside", async () => {
+    await mount();
+    expect(rowLabels()).toEqual(["Open folder Backdrops, 1 image", "Open folder Portraits, 4 images"]);
+    const portraits = tiles()[1]!;
+    expect(portraits.querySelector("[data-folder-cover]")!.getAttribute("data-folder-cover")).toBe("1");
+    await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
+  });
+
+  it("keeps a folder's switch to rows for that folder only, with the chip beside the name", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as rows");
+    await click(layoutButton()!);
+    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
+    expect(tiles()).toEqual([]);
+    expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("2 variants");
+    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as tiles");
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    expect(tiles().length).toBe(2);
+  });
+
+  it("lists search results as rows and leaves the Audio tab as rows with no layout button", async () => {
+    await mount();
+    await search("imani");
+    expect(tiles()).toEqual([]);
+    expect(rowLabels()).toEqual([
+      "Open image imani, 2 variants, portraits · modified 2d · 330 b",
+      "Open audio imani, audio · modified 2d · 5 b",
+    ]);
+    await search("");
+    await showTab("Audio");
+    expect(tiles()).toEqual([]);
+    expect(layoutButton()).toBeNull();
+    expect(rowLabels()).toEqual(["Open audio imani, modified 2d · 5 b"]);
+  });
+});

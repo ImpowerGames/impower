@@ -332,3 +332,58 @@ describe("asset names", () => {
     expect(assetName("Assets/.hidden")).toBe(".hidden");
   });
 });
+
+describe("stacked pictures on the Assets page", () => {
+  const stacked = listing({
+    "Assets/Images/Portraits/imani.png": 100,
+    "Assets/Images/Portraits/imani@night.png": 200,
+    "Assets/Images/Portraits/imani~face.happy.png": 10,
+    "Assets/Images/Portraits/imani@night~face.sad.png": 20,
+    "Assets/Images/Portraits/bunny.png": 50,
+    "Assets/Images/Portraits/Extras/kai.png": 5,
+    "Assets/Images/Portraits/Extras/zed.png": 5,
+    "Assets/Audio/imani@night.wav": 5,
+    "Assets/Audio/imani.wav": 5,
+  });
+
+  it("shows one row per thing, named as the script names it, with its variants, newest time and total size", () => {
+    const level = assetLevel({
+      listing: stacked,
+      type: "image",
+      folder: "Assets/Images/Portraits",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(level.rows.map((row) => [row.kind, row.name, row.path, row.variantCount])).toEqual([
+      ["folder", "Extras", "Assets/Images/Portraits/Extras", undefined],
+      ["file", "bunny", "Assets/Images/Portraits/bunny.png", undefined],
+      ["file", "imani", "Assets/Images/Portraits/imani.png", 2],
+    ]);
+    const imani = level.rows[2]!;
+    expect(imani.size).toBe(330);
+    expect(imani.paths).toHaveLength(4);
+    expect(level.files).toBe(7);
+  });
+
+  it("covers a folder tile with up to four pictures from inside it", () => {
+    const level = assetLevel({ listing: stacked, type: "image", sort: "name-asc", endings: ENDINGS });
+    const portraits = level.rows.find((row) => row.name === "Portraits")!;
+    expect(portraits.covers).toEqual([
+      "Assets/Images/Portraits/Extras/kai.png",
+      "Assets/Images/Portraits/Extras/zed.png",
+      "Assets/Images/Portraits/bunny.png",
+      "Assets/Images/Portraits/imani.png",
+    ]);
+  });
+
+  it("leaves other types' files as they are", () => {
+    const level = assetLevel({ listing: stacked, type: "audio", sort: "name-asc", endings: ENDINGS });
+    expect(level.rows.map((row) => row.name)).toEqual(["imani", "imani@night"]);
+    expect(level.rows.every((row) => row.variantCount === undefined && row.covers === undefined)).toBe(true);
+  });
+
+  it("rolls search results up the same way", () => {
+    const [images] = assetSearch({ listing: stacked, query: "imani", sort: "name-asc", endings: ENDINGS });
+    expect(images!.rows.map((row) => [row.name, row.variantCount, row.location])).toEqual([["imani", 2, "Portraits"]]);
+  });
+});

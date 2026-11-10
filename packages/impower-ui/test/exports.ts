@@ -66,8 +66,22 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useSheetOpen",
   "useMountTransition",
   "VIRTUAL_LIST_ROW_HEIGHT",
+  "virtualListColumns",
   "virtualListSlotVariants",
   "virtualListVariants",
+  "thumbnailVariants",
+  "thumbnailImageVariants",
+  "folderCoverVariants",
+  "FOLDER_COVER_LIMIT",
+  "variantsChipVariants",
+  "variantsLabel",
+  "variantsBadgeVariants",
+  "tileVariants",
+  "tileMediaVariants",
+  "tileLabelVariants",
+  "tileHeight",
+  "TILE_GAP",
+  "TILE_MIN_WIDTH",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];

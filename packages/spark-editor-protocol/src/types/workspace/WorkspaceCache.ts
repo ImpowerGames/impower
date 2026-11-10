@@ -158,6 +158,7 @@ export interface ListsState {
   assetsFolders?: Record<string, string>;
   assetsQueries?: Record<string, string>;
   assetsScrolls?: Record<string, number>;
+  assetsLayouts?: Record<string, string>;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
