@@ -204,17 +204,26 @@ describe("node types across grammars (I-2026)", () => {
     const tagged = {
       name: "tagged",
       scopeName: "source.inner",
-      patterns: [{ include: "#Block" }],
+      patterns: [{ include: "#Block" }, { include: "#Block/part" }],
       repository: {
-        Block: { begin: "\\(", end: "\\)", patterns: [{ include: "#Word" }, { include: "#Number" }, { include: "#Gap" }] },
+        Block: {
+          begin: "\\(",
+          end: "\\)",
+          patterns: [{ include: "#Word" }, { include: "#Number" }, { include: "#Capital" }, { include: "#Gap" }],
+        },
+        "Block/part": { begin: "\\[", end: "\\]", patterns: [{ include: "#Part" }] },
         Word: { match: "[a-z]+", tag: "(Block_content/) keyword" },
         Number: { match: "[0-9]+", tag: '("Block_content"/) number' },
+        Capital: { match: "[A-Z]+", tag: '("\\u0042lock_content"/) string' },
+        Part: { match: "[a-z]+", tag: '("Block/part_content"/) operator' },
         Gap: { match: "\\s" },
       },
     };
     const highlighter = tagHighlighter([
       { tag: tags.keyword, class: "kw" },
       { tag: tags.number, class: "num" },
+      { tag: tags.string, class: "str" },
+      { tag: tags.operator, class: "op" },
     ]);
     const keywords = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"], text: string) => {
       const spans: string[] = [];
@@ -222,11 +231,11 @@ describe("node types across grammars (I-2026)", () => {
       highlightTree(tree, highlighter, (from, to, classes) => spans.push(`${text.slice(from, to)}:${classes}`));
       return spans;
     };
-    expect(keywords(structuredClone(tagged), "(abc 12)")).toEqual(["abc:kw", "12:num"]);
-    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc 12)}")).toEqual([
-      "abc:kw",
-      "12:num",
-    ]);
+    const expected = ["abc:kw", "12:num", "XY:str", "de:op"];
+    expect(keywords(structuredClone(tagged), "(abc 12 XY)[de]")).toEqual(expected);
+    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc 12 XY)[de]}")).toEqual(
+      expected,
+    );
   });
 
   test("the first grammar of the registry keeps bare names and names the top node, whichever grammar the parse starts from", () => {

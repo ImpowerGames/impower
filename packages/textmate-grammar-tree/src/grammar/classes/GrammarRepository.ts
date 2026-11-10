@@ -77,21 +77,32 @@ export class GrammarRepository {
     if (!tag || close < 0) {
       return tag;
     }
-    const path = tag
-      .slice(1, close)
-      .split("/")
-      .map((part) => {
-        const name = part.endsWith("!") ? part.slice(0, -1) : part;
-        if (name === "" || name === "*" || name === "...") {
-          return part;
-        }
-        const qualified = /^"[^"\\]*"$/.test(name)
-          ? `"${this.qualifyName(name.slice(1, -1))}"`
-          : this.qualifyName(name);
-        return qualified + part.slice(name.length);
-      })
-      .join("/");
-    return `(${path})${tag.slice(close + 1)}`;
+    return `(${this.qualifyPath(tag.slice(1, close))})${tag.slice(close + 1)}`;
+  }
+
+  private qualifyPath(path: string) {
+    let qualified = "";
+    let rest = path;
+    while (rest) {
+      if (rest === "...") {
+        return qualified + rest;
+      }
+      const name = /^"(?:[^"\\]|\\.)*?"|^[^/!]+/.exec(rest)?.[0];
+      if (!name) {
+        qualified += rest[0];
+        rest = rest.slice(1);
+        continue;
+      }
+      if (name === "*") {
+        qualified += name;
+      } else if (name.startsWith('"')) {
+        qualified += JSON.stringify(this.qualifyName(JSON.parse(name)));
+      } else {
+        qualified += this.qualifyName(name);
+      }
+      rest = rest.slice(name.length);
+    }
+    return qualified;
   }
 
   load() {
