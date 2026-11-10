@@ -82,8 +82,8 @@ export function variableTree(state: DebugInspectionState): DebugVariableNode[] {
         type: variable.type,
         expandable,
         expanded,
-        editable: inScope && !expandable,
-        breakable: inScope && direct,
+        editable: !state.pending && inScope && !expandable,
+        breakable: !state.pending && inScope && direct,
         breaking: key in state.marked,
         message: state.messages[key],
         children:
@@ -117,7 +117,9 @@ export function watchEntries(
   expressions: readonly string[],
 ): DebugWatchEntry[] {
   return expressions.map((expression, index) => {
-    const result = state.watch[expression];
+    const result = Object.hasOwn(state.watch, expression)
+      ? state.watch[expression]
+      : undefined;
     return {
       key: String(index),
       expression,
@@ -140,6 +142,8 @@ export function frameEntries(state: DebugInspectionState): DebugFrameEntry[] {
 
 export default class WorkspaceDebugInspection {
   protected _generation = 0;
+
+  protected _breaks: Promise<void> = Promise.resolve();
 
   constructor(protected readonly _options: WorkspaceDebugInspectionOptions) {}
 
@@ -206,6 +210,7 @@ export default class WorkspaceDebugInspection {
       messages: {},
       editing: null,
       marked: {},
+      pending: true,
     });
     return this.refresh();
   }
@@ -217,7 +222,7 @@ export default class WorkspaceDebugInspection {
     ) {
       return;
     }
-    this.update({ frameId, messages: {}, editing: null, marked: {} });
+    this.update({ frameId, messages: {}, editing: null, marked: {}, pending: true });
     await this.refresh();
   }
 
@@ -250,7 +255,12 @@ export default class WorkspaceDebugInspection {
         return;
       }
     }
-    this.update({ scopes, variables: loaded.variables, refs: loaded.refs });
+    this.update({
+      scopes,
+      variables: loaded.variables,
+      refs: loaded.refs,
+      pending: false,
+    });
     await this.markBreaking(generation);
     if (generation !== this._generation) {
       return;
@@ -263,7 +273,7 @@ export default class WorkspaceDebugInspection {
     const expanded = expandedOf(this.state, key, scope ? !scope.expensive : false);
     this.update({ expanded: { ...this.state.expanded, [key]: !expanded } });
     const ref = this.state.refs[key];
-    if (expanded || ref == null || this.state.variables[key]) {
+    if (expanded || ref == null || this.state.variables[key] || this.state.pending) {
       return;
     }
     const generation = this._generation;
@@ -290,6 +300,9 @@ export default class WorkspaceDebugInspection {
   async setValue(key: string, value: string) {
     const generation = this._generation;
     this.update({ editing: null });
+    if (this.state.pending) {
+      return;
+    }
     const response = await this._options.request("setVariable", {
       variablesReference: this.state.refs[parentOf(key)],
       name: nameOf(key),
@@ -305,9 +318,21 @@ export default class WorkspaceDebugInspection {
     await this.refresh();
   }
 
-  async breakOnChange(key: string, on: boolean) {
+  breakOnChange(key: string, on: boolean) {
+    const run = this._breaks.then(() => this.applyBreak(key, on));
+    this._breaks = run.catch(() => {});
+    return run;
+  }
+
+  protected async applyBreak(key: string, on: boolean) {
+    if (this.state.pending) {
+      return;
+    }
     const generation = this._generation;
-    const breaking = { ...this.state.breaking };
+    const breaking: Record<string, string> = Object.assign(
+      Object.create(null),
+      this.state.breaking,
+    );
     const marked = { ...this.state.marked };
     if (on) {
       const info = await this.dataBreakpointInfo(key);
@@ -429,7 +454,7 @@ export default class WorkspaceDebugInspection {
     if (this.state.status !== "paused") {
       return;
     }
-    const results: Record<string, WatchResult> = {};
+    const results: Record<string, WatchResult> = Object.create(null);
     for (const expression of new Set(expressions)) {
       const result = await this.evaluate(expression, "watch");
       if (generation !== this._generation) {
@@ -439,17 +464,14 @@ export default class WorkspaceDebugInspection {
         results[expression] = result;
       }
     }
-    if (!replace) {
-      this.update({ watch: { ...this.state.watch, ...results } });
-      return;
-    }
+    const watch: Record<string, WatchResult> = Object.create(null);
     const asked = new Set(expressions);
-    const since = Object.fromEntries(
-      Object.entries(this.state.watch).filter(
-        ([expression]) => !asked.has(expression) && this.expressions.includes(expression),
-      ),
-    );
-    this.update({ watch: { ...since, ...results } });
+    for (const [expression, result] of Object.entries(this.state.watch)) {
+      if (!replace || (!asked.has(expression) && this.expressions.includes(expression))) {
+        watch[expression] = result;
+      }
+    }
+    this.update({ watch: Object.assign(watch, results) });
   }
 
   protected async load(

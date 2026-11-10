@@ -91,7 +91,9 @@ const story = () => {
         };
       }
       case "evaluate": {
-        const value = values[args.expression] ?? temps[args.frameId]?.[args.expression];
+        const own = (record: Record<string, string> | undefined) =>
+          record && Object.hasOwn(record, args.expression) ? record[args.expression] : undefined;
+        const value = own(values) ?? own(temps[args.frameId]);
         if (value !== undefined) {
           return { body: { result: value, variablesReference: 0 } };
         }
@@ -144,7 +146,7 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
   const requests: DebugProtocol.Request[] = [];
   let send: (message: DebugProtocol.ProtocolMessage) => void = () => {};
   let seq = 0;
-  let holding: string | null = null;
+  let holding: ((request: DebugProtocol.Request) => boolean) | null = null;
   const held: (() => void)[] = [];
   const adapter: DebugAdapter = {
     handleMessage(message) {
@@ -160,7 +162,7 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
           ...answer(request),
         } as DebugProtocol.Response);
       const args = request.arguments as { expression?: string };
-      if (request.command === "evaluate" && args.expression === holding) {
+      if (holding?.(request)) {
         held.push(reply);
       } else {
         reply();
@@ -178,7 +180,12 @@ const fakeAdapter = (answer: (request: DebugProtocol.Request) => Answer) => {
     event: (event: string, body: unknown) =>
       send({ seq: ++seq, type: "event", event, body } as DebugProtocol.Event),
     hold: (expression: string) => {
-      holding = expression;
+      holding = (request) =>
+        request.command === "evaluate" &&
+        (request.arguments as { expression?: string }).expression === expression;
+    },
+    holdWhen: (test: (request: DebugProtocol.Request) => boolean) => {
+      holding = test;
     },
     held: () => held.length,
     release: () => {
@@ -472,6 +479,53 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     await debug.inspection.toggle("scope:Vars");
     const gold = variableTree(workspace.debugInspection.value)[0]!.children!.find((v) => v.name === "gold")!;
     expect(gold.breaking).toBe(true);
+  });
+
+  it("keeps the previous frame's values read-only while a selected frame's values load, and sends no write meanwhile", async () => {
+    const { fake, debug, game } = await begin();
+    game.local(1, "count", "1");
+    game.local(0, "count", "5");
+    await stop(fake);
+    fake.holdWhen((r) => r.command === "scopes");
+    const selecting = debug.inspection.selectFrame(0);
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    const count = variableTree(workspace.debugInspection.value)[1]?.children?.find((v) => v.name === "count");
+    expect(count?.editable ?? false).toBe(false);
+    await debug.inspection.setValue("scope:Temps/count", "7");
+    expect(fake.commands()).not.toContain("setVariable");
+    fake.release();
+    await selecting;
+    const loaded = variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
+    expect([loaded.value, loaded.editable]).toEqual(["5", true]);
+  });
+
+  it("keeps both data breakpoints when the second is set before the first is answered", async () => {
+    const { fake, debug } = await begin();
+    await stop(fake);
+    fake.holdWhen((r) => r.command === "dataBreakpointInfo");
+    const first = debug.inspection.breakOnChange("scope:Vars/gold", true);
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    const second = debug.inspection.breakOnChange("scope:Vars/mood", true);
+    fake.release();
+    await first;
+    await second;
+    expect(fake.requests.findLast((r) => r.command === "setDataBreakpoints")!.arguments).toEqual({
+      breakpoints: [
+        { dataId: "gold", accessType: "write" },
+        { dataId: "mood", accessType: "write" },
+      ],
+    });
+    const [vars] = variableTree(workspace.debugInspection.value);
+    expect(vars!.children!.filter((v) => v.breaking).map((v) => v.name)).toEqual(["gold", "mood"]);
+  });
+
+  it("shows a watch named __proto__ like any other name", async () => {
+    const { fake } = await begin(["__proto__", "gold"]);
+    await stop(fake);
+    expect(watchEntries(workspace.debugInspection.value, ["__proto__", "gold"])).toEqual([
+      { key: "0", expression: "__proto__", error: "not available in this frame" },
+      { key: "1", expression: "gold", value: "3" },
+    ]);
   });
 
   it("keeps a watch added while a stop's watch values are still arriving", async () => {

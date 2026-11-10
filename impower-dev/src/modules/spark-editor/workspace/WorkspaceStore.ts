@@ -74,6 +74,7 @@ export interface DebugInspectionState {
   watchEditing: number | null;
   breaking: Readonly<Record<string, string>>;
   marked: Readonly<Record<string, string>>;
+  pending: boolean;
 }
 
 export const IDLE_DEBUG_INSPECTION: DebugInspectionState = {
@@ -90,6 +91,7 @@ export const IDLE_DEBUG_INSPECTION: DebugInspectionState = {
   watchEditing: null,
   breaking: {},
   marked: {},
+  pending: false,
 };
 
 const defaults: WorkspaceCache = {
