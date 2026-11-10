@@ -97,6 +97,11 @@ function TabsDemo() {
           <IconTabs variant="bar" indicator="none" />
         </div>
       </GalleryRow>
+      <GalleryRow label="Page variant, a phone page's tab row: 48px rows, the current tab in the accent over a 2px accent underline">
+        <div class="w-[360px] rounded border border-surface-border bg-bg">
+          <LabelTabs variant="page" iconLayout="beside" />
+        </div>
+      </GalleryRow>
       <GalleryRow label="Vertical, labels only">
         <div class="w-56 rounded border border-surface-border bg-surface">
           <LabelTabs vertical />

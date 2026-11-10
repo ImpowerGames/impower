@@ -126,7 +126,7 @@ function RowBadge({ uri, row }: { uri: string; row: OutlineRow }) {
   );
 }
 
-function RowIcon({ row }: { row: OutlineRow }) {
+export function RowIcon({ row }: { row: OutlineRow }) {
   const Glyph = GLYPHS[row.kind];
   return <Glyph />;
 }
