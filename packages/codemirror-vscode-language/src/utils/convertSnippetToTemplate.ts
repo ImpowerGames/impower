@@ -26,6 +26,8 @@ export const SNIPPET_DEGRADATIONS = {
     "A final tab stop nested inside a placeholder is flattened with it, so the final position is the end of the snippet.",
   "unsupported-variable":
     "Only TM_SELECTED_TEXT and SELECTION resolve. Any other variable inserts its default text, or without one becomes a placeholder named after the variable, which is what VS Code does for a name it does not know.",
+  "no-free-stand-in":
+    "A placeholder holding a brace or line break needs a character absent from the snippet and the selection to stand in for it; when the text uses every other BMP character, that placeholder's text is inserted unchanged before an empty tab stop instead of inside it.",
 } as const;
 
 export type SnippetDegradation = keyof typeof SNIPPET_DEGRADATIONS;
@@ -34,15 +36,49 @@ const SELECTION_VARIABLES = new Set(["TM_SELECTED_TEXT", "SELECTION"]);
 
 const FIELD_UNSAFE = ["{", "}", "\n"];
 
+const escapeText = (text: string) => text.replace(/[{}]/g, "\\$&");
+
 const normalizeLineBreaks = (text: string) => text.replace(/\r\n?/g, "\n");
 
+const TEMPLATE_SYNTAX = new Set(["$", "#", "\\", "{", "}", "\n", "\r"]);
+
+const standInCandidates = function* () {
+  for (let code = 0xe000; code <= 0xf8ff; code++) yield code;
+  for (let code = 1; code <= 0xffff; code++) {
+    if (code >= 0xd800 && code <= 0xdfff) continue;
+    if (code >= 0xe000 && code <= 0xf8ff) continue;
+    yield code;
+  }
+};
+
 const unusedCharacters = (text: string, count: number): string[] => {
+  const used = new Set(text);
   const found: string[] = [];
-  for (let code = 0xe000; code <= 0xf8ff && found.length < count; code++) {
+  for (const code of standInCandidates()) {
+    if (found.length === count) break;
     const c = String.fromCharCode(code);
-    if (!text.includes(c)) found.push(c);
+    if (!used.has(c) && !TEMPLATE_SYNTAX.has(c)) found.push(c);
   }
   return found;
+};
+
+const fieldOrder = (markers: readonly Marker[]): Map<number, number> => {
+  const indexes = new Set<number>();
+  const visit = (children: readonly Marker[]) => {
+    for (const marker of children) {
+      if (marker instanceof Placeholder) indexes.add(marker.index);
+      else if (!(marker instanceof Text || marker instanceof Choice)) {
+        visit(marker.children);
+      }
+    }
+  };
+  visit(markers);
+  const order = new Map<number, number>([[0, 0]]);
+  [...indexes]
+    .filter((index) => index !== 0)
+    .sort((a, b) => a - b)
+    .forEach((index, i) => order.set(index, i + 1));
+  return order;
 };
 
 const placeholdersForUnsupportedVariables = (snippet: TextmateSnippet) => {
@@ -70,21 +106,28 @@ const placeholdersForUnsupportedVariables = (snippet: TextmateSnippet) => {
 class TemplateRenderer {
   readonly fields = new Set<number>();
 
-  constructor(private readonly standInFor: ReadonlyMap<string, string>) {}
+  constructor(
+    private readonly standInFor: ReadonlyMap<string, string>,
+    private readonly order: ReadonlyMap<number, number>,
+  ) {}
 
   render(markers: readonly Marker[]): string {
     let template = "";
     for (const marker of markers) {
       if (marker instanceof Placeholder) {
-        this.fields.add(marker.index);
-        const text = [...marker.toString()]
-          .map((c) => this.standInFor.get(c) ?? c)
-          .join("");
-        template += text
-          ? `\${${marker.index}:${text}}`
-          : `\${${marker.index}}`;
+        const index = this.order.get(marker.index)!;
+        this.fields.add(index);
+        const chars = [...marker.toString()];
+        if (
+          chars.some((c) => FIELD_UNSAFE.includes(c) && !this.standInFor.has(c))
+        ) {
+          template += `${escapeText(chars.join(""))}\${${index}}`;
+          continue;
+        }
+        const text = chars.map((c) => this.standInFor.get(c) ?? c).join("");
+        template += text ? `\${${index}:${text}}` : `\${${index}}`;
       } else if (marker instanceof Text || marker instanceof Choice) {
-        template += marker.toString().replace(/[{}]/g, "\\$&");
+        template += escapeText(marker.toString());
       } else {
         template += this.render(marker.children);
       }
@@ -119,11 +162,20 @@ export const convertSnippetToTemplate = (
     FIELD_UNSAFE.length,
   );
   const renderer = new TemplateRenderer(
-    new Map(FIELD_UNSAFE.map((c, i) => [c, standIns[i]!])),
+    new Map(
+      standIns.length === FIELD_UNSAFE.length
+        ? FIELD_UNSAFE.map((c, i) => [c, standIns[i]!])
+        : [],
+    ),
+    fieldOrder(snippet.children),
   );
   const template = renderer.render(snippet.children);
   return {
     template: renderer.fields.has(0) ? template : `${template}\${0}`,
-    standIns: new Map(standIns.map((s, i) => [s, FIELD_UNSAFE[i]!])),
+    standIns: new Map(
+      standIns.length === FIELD_UNSAFE.length
+        ? standIns.map((s, i) => [s, FIELD_UNSAFE[i]!])
+        : [],
+    ),
   };
 };

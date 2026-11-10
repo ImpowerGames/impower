@@ -4,6 +4,7 @@ import {
   CompletionContext,
   type CompletionResult,
   type CompletionSource,
+  snippet,
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorSelection, EditorState } from "@codemirror/state";
@@ -371,6 +372,34 @@ describe("a snippet is inserted with its tab stops", () => {
     expect(insertBody(body, selected)).toEqual({ inserted, selected: range });
   });
 
+  it("round 4 finding 1: keeps a selection that uses every private-use character inside its placeholder", () => {
+    let privateUse = "";
+    for (let code = 0xe000; code <= 0xf8ff; code++) {
+      privateUse += String.fromCharCode(code);
+    }
+    const selected = `${privateUse}{x}`;
+    expect(insertBody("${1:${TM_SELECTED_TEXT}}$0", selected)).toEqual({
+      inserted: selected,
+      selected: [0, selected.length],
+    });
+  });
+
+  it("round 4 finding 2: visits a tab stop above one billion before the final stop", () => {
+    const view = insertView("${1000000001:large} ${1:first}$0");
+    expect(readInsertion(view)).toEqual({
+      inserted: "large first",
+      selected: [6, 11],
+    });
+    expect(nextField(view)).toEqual({
+      inserted: "large first",
+      selected: [0, 5],
+    });
+    expect(nextField(view)).toEqual({
+      inserted: "large first",
+      selected: [11, 11],
+    });
+  });
+
   const DEGRADATION_CASES: Record<SnippetDegradation, () => void> = {
     "choice-first-option": () => {
       const view = insertView("${1|left,right|} done");
@@ -430,6 +459,27 @@ describe("a snippet is inserted with its tab stops", () => {
         inserted: "fallback TM_FILENAME UNKNOWN TM_FILENAME",
         selected: [9, 20],
       });
+    },
+    "no-free-stand-in": () => {
+      let everyCharacter = "";
+      for (let code = 1; code <= 0xffff; code++) {
+        if (code === 0x0d || (code >= 0xd800 && code <= 0xdfff)) continue;
+        everyCharacter += String.fromCharCode(code);
+      }
+      const { template, standIns } = convertSnippetToTemplate(
+        "${1:${TM_SELECTED_TEXT}}$0",
+        { TM_SELECTED_TEXT: everyCharacter },
+      );
+      expect(standIns.size).toBe(0);
+      const view = new EditorView({
+        state: EditorState.create({ doc: "" }),
+        parent: document.body,
+      });
+      views.push(view);
+      snippet(template)(view, null, 0, 0);
+      expect(view.state.doc.toString()).toBe(everyCharacter);
+      expect(view.state.selection.main.from).toBe(everyCharacter.length);
+      expect(view.state.selection.main.to).toBe(everyCharacter.length);
     },
   };
 
