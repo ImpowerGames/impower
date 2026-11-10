@@ -556,3 +556,85 @@ end
     }
   });
 });
+
+describe("the page marks its scroller (#1990)", () => {
+  const marked = (h: UIHarness) => {
+    const flat = flattenMessages(h.messages);
+    const names = new Map(
+      flat
+        .filter((m: any) => m.method === "ui/create")
+        .map((m: any) => [m.params.element, m.params.name]),
+    );
+    return flat
+      .filter(
+        (m: any) =>
+          (m.method === "ui/create" || m.method === "ui/update") &&
+          m.params.attributes?.["data-follow"] === "end",
+      )
+      .map((m: any) => names.get(m.params.element));
+  };
+
+  test("a layout that wraps the column inside the textstream scroller marks the scroller, not the wrapper", async () => {
+    const h = createHarness(
+      `${OPEN_TEXTSTREAM}
+layout textstream {
+  textstream.paper.ink {
+    wrapper {
+      textstream_column
+    }
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+    );
+    await h.ready;
+    expect(marked(h)).toEqual(["textstream paper ink"]);
+  });
+
+  test("a textstream layout with no textstream element marks its root, which takes the name and its scroll style", async () => {
+    const h = createHarness(
+      `${OPEN_TEXTSTREAM}
+layout textstream {
+  reader {
+    textstream_column
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+    );
+    await h.ready;
+    expect(marked(h)).toEqual(["textstream"]);
+  });
+
+  test("a column in a layout of another name, with no textstream ancestor, marks the column's parent", async () => {
+    const h = createHarness(
+      `define ui as config with
+  layouts_initial = { "reader_page" }
+end
+
+layout reader_page {
+  reader {
+    textstream_column
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    new Coordinator(h.game, h.nextBeat()!);
+    await flushMicrotasks(30);
+    expect(marked(h)).toEqual(["reader"]);
+  });
+});

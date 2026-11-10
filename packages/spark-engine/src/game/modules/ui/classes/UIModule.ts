@@ -226,6 +226,8 @@ export interface UIState {
 
 const PAGE_COLUMN = "textstream_column";
 
+const PAGE_SCROLLER = "textstream";
+
 type ReactiveEnv = Record<string, unknown>;
 
 type ReactiveDeps = { globals: Set<string>; tables: Set<object> };
@@ -5191,6 +5193,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.sync(this._presented, 0);
       }
 
+      protected scroller(column: Element): Element | null {
+        for (let el = column.parent; el; el = el.parent) {
+          if (el.name.split(" ").includes(PAGE_SCROLLER)) {
+            return el;
+          }
+        }
+        return column.parent;
+      }
+
       protected sync(
         presented?: { instant: boolean; time?: number },
         rewriteFrom?: number,
@@ -5208,8 +5219,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (column !== this._column) {
           this.forget();
           this._column = column;
-          if (column.parent) {
-            $.updateElement(column.parent, {
+          const scroller = this.scroller(column);
+          if (scroller) {
+            $.updateElement(scroller, {
               attributes: { "data-follow": "end" },
             });
           }
