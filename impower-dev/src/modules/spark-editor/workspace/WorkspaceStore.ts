@@ -5,6 +5,7 @@ import type {
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import type {
   Diagnostic,
   DocumentSymbol,
@@ -156,6 +157,12 @@ class WorkspaceStore {
 
   readonly scriptMode = signal<ScriptMode>("reading");
 
+  readonly layout = signal<Layout>(layoutState.current());
+
+  readonly effectiveScriptMode = computed<ScriptMode | undefined>(() =>
+    this.layout.value === "phone" ? this.scriptMode.value : undefined,
+  );
+
   readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
 
   addKeyboardPanel(panel: KeyboardPanel): () => void {
@@ -200,6 +207,9 @@ class WorkspaceStore {
   } as const satisfies Record<string, ReadonlySignal<unknown>>;
 
   constructor() {
+    layoutState.subscribe((next) => {
+      this.layout.value = next;
+    });
     let previous: SyncStatus | undefined;
     effect(() => {
       const status = this.signals.syncStatus.value;

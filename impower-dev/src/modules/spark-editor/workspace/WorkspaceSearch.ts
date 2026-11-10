@@ -53,7 +53,6 @@ export interface SearchSources {
   setMatches: (uri: string, ranges: Range[]) => void;
   revealRail: () => void;
   autoRenameFiles: () => boolean;
-  phone: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
   onEditorTool: (listener: (tool: EditorTool) => void) => () => void;
@@ -394,7 +393,7 @@ export default class WorkspaceSearch {
   }
 
   protected reading() {
-    return this._sources.phone() && workspace.scriptMode.peek() === "reading";
+    return workspace.effectiveScriptMode.peek() === "reading";
   }
 
   protected exclusive<T>(run: () => Promise<T>): Promise<T> {
