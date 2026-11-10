@@ -163,6 +163,23 @@ describe("the close-match quick fix", () => {
       ),
     ).toEqual([]);
   });
+
+  test.each(["alciex", "alcie_2", "xalcie"])(
+    "refuses a fix whose name was extended to %s since the diagnostic",
+    (edited) => {
+      const diagnostics = cannotFind(compile(show("alcie"), ["alice"]));
+      const text = edited.startsWith("x")
+        ? show("alcie").replace(" alcie", "xalcie")
+        : show(edited);
+      expect(summary(text, diagnostics)).toEqual([]);
+      expect(
+        getDiagnosticActions(
+          TextDocument.create(MAIN, "sparkdown", 1, text),
+          diagnostics[0]!,
+        ),
+      ).toEqual([]);
+    },
+  );
 });
 
 describe("the remove-the-note quick fix", () => {
@@ -213,6 +230,18 @@ describe("the remove-the-note quick fix", () => {
   test("refuses a fix whose note was edited since the diagnostic", () => {
     const [note] = todoNotes(SCRIPT);
     expect(summary(SCRIPT.replace("fix this", "fix that"), [note!])).toEqual([]);
+  });
+
+  test.each([
+    ["an own-line note", 0, "fix this", "fix this please"],
+    ["a trailing note", 1, "todo later", "todo later please"],
+  ])("refuses the fix for %s once the note was extended since the diagnostic", (_, index, find, replace) => {
+    const note = todoNotes(SCRIPT)[index]!;
+    const text = SCRIPT.replace(find, replace);
+    expect(summary(text, [note])).toEqual([]);
+    expect(
+      getDiagnosticActions(TextDocument.create(MAIN, "sparkdown", 1, text), note),
+    ).toEqual([]);
   });
 });
 

@@ -116,14 +116,20 @@ export const getCodeActions = (
       return byMessage(document, diagnostic, startSceneMissingIn);
     }
     if (diagnostic.source === TODO_NOTE_SOURCE) {
-      return [
-        quickFix("Remove the note", "Note removed.", document, diagnostic, [
-          removeNote(document, diagnostic),
-        ]),
-      ];
+      const removal = removeNote(document, diagnostic);
+      return removal
+        ? [
+            quickFix("Remove the note", "Note removed.", document, diagnostic, [
+              removal,
+            ]),
+          ]
+        : [];
     }
     const close = closeMatchOf(diagnostic.data);
     if (close) {
+      if (continuesName(document, diagnostic.range)) {
+        return [];
+      }
       return [
         quickFix(
           `Use ${close.match} instead`,
@@ -213,7 +219,7 @@ const runQuickFixes = (
 const removeNote = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
-): TextEdit => {
+): TextEdit | undefined => {
   const { start, end } = diagnostic.range;
   const before = document.getText({
     start: { line: start.line, character: 0 },
@@ -222,17 +228,38 @@ const removeNote = (
   const lineEnd = document.positionAt(
     document.offsetAt({ line: end.line, character: Number.MAX_SAFE_INTEGER }),
   );
-  const after = document.getText({ start: end, end: lineEnd });
-  if (!before.trim() && !after.trim()) {
+  if (document.getText({ start: end, end: lineEnd }).trim()) {
+    return undefined;
+  }
+  if (!before.trim()) {
     return deleteLine(document, start.line);
   }
   return {
     range: {
       start: { line: start.line, character: before.trimEnd().length },
-      end: after.trim() ? end : lineEnd,
+      end: lineEnd,
     },
     newText: "",
   };
+};
+
+const NAME_CHARACTER = /[\p{L}\p{N}_]/u;
+
+const continuesName = (
+  document: TextDocument,
+  range: ActionableDiagnostic["range"],
+): boolean => {
+  const characterAt = (offset: number) =>
+    offset < 0
+      ? ""
+      : document.getText({
+          start: document.positionAt(offset),
+          end: document.positionAt(offset + 1),
+        });
+  return (
+    NAME_CHARACTER.test(characterAt(document.offsetAt(range.start) - 1)) ||
+    NAME_CHARACTER.test(characterAt(document.offsetAt(range.end)))
+  );
 };
 
 const wrapInStartScene = (
