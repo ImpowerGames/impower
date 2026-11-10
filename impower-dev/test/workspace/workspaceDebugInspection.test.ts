@@ -37,10 +37,14 @@ const story = () => {
   let names = ["shop", "start"];
   let empty = false;
   let withBag = false;
+  let refuseStack = false;
   const answer = (request: DebugProtocol.Request): Answer => {
     const args = request.arguments as Record<string, any>;
     switch (request.command) {
       case "stackTrace":
+        if (refuseStack) {
+          return { success: false, message: "No stack." };
+        }
         return {
           body: empty
             ? { stackFrames: [], totalFrames: 0 }
@@ -144,6 +148,9 @@ const story = () => {
     },
     emptyStack: () => {
       empty = true;
+    },
+    refuseStack: () => {
+      refuseStack = true;
     },
     bag: () => {
       withBag = true;
@@ -647,6 +654,54 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
       arguments: { expression: "coin", frameId: 0, context: "hover" },
     });
     expect(await debug.evaluate("nothing")).toBeNull();
+  });
+
+  it("keeps a data breakpoint the debugger accepted for an ended run out of the next run", async () => {
+    const { fake, debug } = await begin();
+    await stop(fake);
+    fake.holdWhen((r) => r.command === "setDataBreakpoints");
+    const toggling = debug.inspection.breakOnChange(key("Vars", "mood"), true);
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    fake.release();
+    debug.end();
+    await debug.start(MAIN);
+    await toggling;
+    await stop(fake);
+    expect(node("Vars", "mood").breaking).toBe(false);
+    await debug.inspection.breakOnChange(key("Vars", "gold"), true);
+    expect(sentBreakpoints(fake)).toEqual(["gold"]);
+  });
+
+  it("makes the stop's rows read-only and sends nothing for them as soon as the next stop is announced", async () => {
+    const { fake, debug } = await begin(["gold"]);
+    await stop(fake);
+    const goldKey = key("Vars", "gold");
+    fake.holdWhen((r) => r.command === "stackTrace");
+    fake.event("stopped", { reason: "step", threadId: 0 });
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    expect(node("Vars", "gold").editable).toBe(false);
+    expect(node("Vars", "gold").breakable).toBe(false);
+    const sent = fake.requests.length;
+    await debug.inspection.setValue(goldKey, "5");
+    await debug.inspection.breakOnChange(goldKey, true);
+    await debug.inspection.selectFrame(0);
+    expect(fake.requests.slice(sent).map((r) => r.command)).toEqual([]);
+    fake.holdWhen(() => false);
+    fake.release();
+    await settle();
+    expect([node("Vars", "gold").value, node("Vars", "gold").editable]).toEqual(["3", true]);
+    expect(state().frameId).toBe(1);
+  });
+
+  it("settles a stop whose stack the debugger refuses as a stop with no frames, not the previous stop", async () => {
+    const { fake, game } = await begin(["gold"]);
+    await stop(fake);
+    game.refuseStack();
+    fake.event("stopped", { reason: "step", threadId: 0 });
+    await settle();
+    const now = state();
+    expect([now.status, now.frameId, now.variables, now.frames]).toEqual(["paused", null, [], []]);
+    expect(watchEntries(now, ["gold"])).toEqual([{ key: "0", expression: "gold", value: undefined }]);
   });
 
   describe("names an object would inherit, and names holding a slash or a dot", () => {

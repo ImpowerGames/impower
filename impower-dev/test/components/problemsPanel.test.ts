@@ -642,6 +642,29 @@ describe("the Problems panel", () => {
       });
     });
 
+    it("opens the script at the last tapped frame when an earlier tap's selection finishes later", async () => {
+      pause();
+      await openPanel();
+      let finishFirst: () => void = () => {};
+      inspection.selectFrame.mockImplementationOnce(
+        () => new Promise<void>((resolve) => (finishFirst = resolve)),
+      );
+      await act(async () =>
+        panel()!.querySelector<HTMLButtonElement>('[aria-label="Show start at main.sd:4"]')!.click(),
+      );
+      await settle();
+      await act(async () =>
+        panel()!.querySelector<HTMLButtonElement>('[aria-label="Show shop at scripts/chapter_1.sd:12"]')!.click(),
+      );
+      await settle();
+      finishFirst();
+      await settle();
+      expect(intents.revealDocument.mock.calls.at(-1)).toEqual([
+        CHAPTER,
+        { start: { line: 11, character: 2 }, end: { line: 11, character: 2 } },
+      ]);
+    });
+
     it("keeps each debugging card's open state in the project's settings", async () => {
       pause();
       await openPanel();

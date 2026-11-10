@@ -52,6 +52,27 @@ interface Row {
   mark?: string;
 }
 
+class Run {
+  retired = false;
+
+  accepted = new Map<string, Place>();
+
+  breaks: Promise<void> = Promise.resolve();
+
+  constructor(protected readonly _request: DebugRequest) {}
+
+  async ask<T extends DebugProtocol.Response>(
+    command: string,
+    args: unknown,
+  ): Promise<T | null> {
+    if (this.retired) {
+      return null;
+    }
+    const response = await this._request(command, args);
+    return this.retired ? null : (response as T | null);
+  }
+}
+
 class Snapshot {
   retired = false;
 
@@ -70,8 +91,9 @@ class Snapshot {
   previous: Snapshot | null = null;
 
   constructor(
+    readonly run: Run,
+    readonly frames: readonly InspectedFrame[],
     readonly frameId: number | null,
-    protected readonly _request: DebugRequest,
     protected readonly _changed: () => void,
   ) {}
 
@@ -88,8 +110,8 @@ class Snapshot {
     if (this.retired) {
       return null;
     }
-    const response = await this._request(command, args);
-    return this.retired ? null : (response as T | null);
+    const response = await this.run.ask<T>(command, args);
+    return this.retired ? null : response;
   }
 
   add(place: Place, parent: Row | null, ref: number, item: Partial<Row>): Row {
@@ -141,11 +163,9 @@ export function frameEntries(state: DebugInspectionState): DebugFrameEntry[] {
 export default class WorkspaceDebugInspection {
   protected _status: DebugInspectionState["status"] = "none";
 
-  protected _frames: readonly InspectedFrame[] = [];
+  protected _run: Run;
 
   protected _snapshot: Snapshot | null = null;
-
-  protected _accepted = new Map<string, Place>();
 
   protected _watchEditing: number | null = null;
 
@@ -153,9 +173,9 @@ export default class WorkspaceDebugInspection {
 
   protected readonly _root: Place = this.place(null, "", false);
 
-  protected _breaks: Promise<void> = Promise.resolve();
-
-  constructor(protected readonly _options: WorkspaceDebugInspectionOptions) {}
+  constructor(protected readonly _options: WorkspaceDebugInspectionOptions) {
+    this._run = new Run(_options.request);
+  }
 
   get state(): DebugInspectionState {
     return workspace.debugInspection.peek();
@@ -181,14 +201,22 @@ export default class WorkspaceDebugInspection {
     }
     this._status = "running";
     this.replace(null);
-    this._frames = [];
+    this.publish();
+  }
+
+  stopping() {
+    if (this._status === "none") {
+      return;
+    }
+    this._status = "paused";
+    this.replace(new Snapshot(this._run, [], null, () => this.publish()));
     this.publish();
   }
 
   stopped(stack: DebugProtocol.StackTraceResponse["body"]) {
     const source = this._options.source ?? defaultSource;
     this._status = "paused";
-    this._frames = stack.stackFrames.map((frame) => {
+    const frames = stack.stackFrames.map((frame) => {
       const uri = frame.source?.path ?? "";
       const place = uri ? source(uri) : { path: "", inProject: false };
       return {
@@ -201,17 +229,18 @@ export default class WorkspaceDebugInspection {
         inProject: place.inProject,
       };
     });
-    return this.open(this._frames[0]?.id ?? null);
+    return this.open(frames, frames[0]?.id ?? null);
   }
 
   async selectFrame(frameId: number) {
+    const frames = this._snapshot?.frames ?? [];
     if (
       this._status !== "paused" ||
-      !this._frames.some((frame) => frame.id === frameId)
+      !frames.some((frame) => frame.id === frameId)
     ) {
       return;
     }
-    await this.open(frameId);
+    await this.open(frames, frameId);
   }
 
   async toggle(key: string) {
@@ -270,15 +299,16 @@ export default class WorkspaceDebugInspection {
       return;
     }
     if (this._snapshot === snapshot) {
-      await this.open(snapshot.frameId);
+      await this.open(snapshot.frames, snapshot.frameId);
     }
   }
 
   breakOnChange(key: string, on: boolean) {
+    const run = this._run;
     const snapshot = this._snapshot;
-    const run = this._breaks.then(() => this.applyBreak(snapshot, key, on));
-    this._breaks = run.catch(() => {});
-    return run;
+    const job = run.breaks.then(() => this.applyBreak(run, snapshot, key, on));
+    run.breaks = job.catch(() => {});
+    return job;
   }
 
   async addWatch(expression: string) {
@@ -321,8 +351,8 @@ export default class WorkspaceDebugInspection {
 
   protected close() {
     this.replace(null);
-    this._frames = [];
-    this._accepted = new Map();
+    this._run.retired = true;
+    this._run = new Run(this._options.request);
     this._watchEditing = null;
     this.publish();
   }
@@ -338,8 +368,11 @@ export default class WorkspaceDebugInspection {
     }
   }
 
-  protected async open(frameId: number | null) {
-    const snapshot = new Snapshot(frameId, this._options.request, () =>
+  protected async open(
+    frames: readonly InspectedFrame[],
+    frameId: number | null,
+  ) {
+    const snapshot = new Snapshot(this._run, frames, frameId, () =>
       this.publish(),
     );
     this.replace(snapshot);
@@ -415,6 +448,7 @@ export default class WorkspaceDebugInspection {
   }
 
   protected async applyBreak(
+    run: Run,
     snapshot: Snapshot | null,
     key: string,
     on: boolean,
@@ -426,7 +460,7 @@ export default class WorkspaceDebugInspection {
     if (!row?.parent) {
       return;
     }
-    const accepted = new Map(this._accepted);
+    const accepted = new Map(run.accepted);
     if (on) {
       const info = await this.dataBreakpointInfo(snapshot, row);
       if (!info) {
@@ -448,7 +482,7 @@ export default class WorkspaceDebugInspection {
       }
       accepted.delete(row.mark);
     }
-    const response = await this._options.request("setDataBreakpoints", {
+    const response = await run.ask("setDataBreakpoints", {
       breakpoints: [...accepted.keys()].map((dataId) => ({
         dataId,
         accessType: "write",
@@ -460,8 +494,8 @@ export default class WorkspaceDebugInspection {
       }
       return;
     }
-    this._accepted = accepted;
-    if (this._snapshot) {
+    run.accepted = accepted;
+    if (this._snapshot?.run === run) {
       await this.mark(this._snapshot);
     }
   }
@@ -483,7 +517,7 @@ export default class WorkspaceDebugInspection {
     if (snapshot.loading) {
       return;
     }
-    const watched = new Set(this._accepted.values());
+    const watched = new Set(snapshot.run.accepted.values());
     const marks = new Map<Row, string>();
     for (const scope of snapshot.scopes) {
       if (scope.scope?.expensive) {
@@ -498,7 +532,7 @@ export default class WorkspaceDebugInspection {
           return;
         }
         const dataId = info.success ? info.body?.dataId : null;
-        if (dataId && this._accepted.has(dataId)) {
+        if (dataId && snapshot.run.accepted.has(dataId)) {
           marks.set(row, dataId);
         }
       }
@@ -631,11 +665,15 @@ export default class WorkspaceDebugInspection {
     for (const [expression, result] of snapshot?.watch ?? []) {
       watch.set(expression, result);
     }
+    const stack =
+      snapshot?.loading && !snapshot.frames.length && snapshot.previous
+        ? snapshot.previous
+        : snapshot;
     workspace.debugInspection.value = {
       ...IDLE_DEBUG_INSPECTION,
       status: this._status,
-      frames: this._frames,
-      frameId: snapshot?.frameId ?? null,
+      frames: stack?.frames ?? [],
+      frameId: stack?.frameId ?? null,
       variables: this.tree(snapshot),
       editing: snapshot?.editing?.id ?? null,
       watch,

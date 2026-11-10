@@ -68,7 +68,6 @@ const callStackHandlers: DebugCallStackHandlers = {
   onOpenChange: (open) => problems.setCardOpen("callStack", open),
   onSelect: (entry) =>
     withInspection(async (inspection) => {
-      await inspection.selectFrame(entry.id);
       const frame = inspection.state.frames.find((f) => f.id === entry.id);
       if (frame?.inProject) {
         await problems.jump({
@@ -77,6 +76,7 @@ const callStackHandlers: DebugCallStackHandlers = {
           character: frame.character,
         });
       }
+      await inspection.selectFrame(entry.id);
     }),
 };
 

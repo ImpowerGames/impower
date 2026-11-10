@@ -338,6 +338,7 @@ export default class WorkspaceDebugClient {
     session.stops += 1;
     const stop = session.stops;
     this.update({ stopped, stackTrace: null });
+    this.inspection.stopping();
     const response = (await this.request(session, "stackTrace", {
       threadId: stopped.threadId ?? 0,
     })) as DebugProtocol.StackTraceResponse | null;
@@ -346,6 +347,7 @@ export default class WorkspaceDebugClient {
     }
     if (!response.success) {
       this._options.onRefusal?.(response.message ?? "");
+      void this.inspection.stopped({ stackFrames: [] });
       return;
     }
     this.update({ stackTrace: response.body });
