@@ -1,10 +1,12 @@
 import { SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
+import problems from "../../workspace/problems/ProblemsStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
 import PreviewBar from "../preview-bar/PreviewBar";
+import { ProblemsPanel } from "../problems";
 import PreviewGame from "../preview-game/PreviewGame";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
 import PreviewTopBar from "../preview-top-bar/PreviewTopBar";
@@ -46,8 +48,14 @@ function useFullscreen() {
 
 export default function Preview(_props: PreviewProps) {
   const mode = workspaceSettings.preferences.value.previewMode;
-  const phone = useLayout() === "phone";
+  const layout = useLayout();
+  const phone = layout === "phone";
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
+  useEffect(() => {
+    if (layout === "compact" && panelHeight > BAR_HEIGHT) {
+      problems.makeRoomInStrip();
+    }
+  }, [layout, panelHeight]);
   const { ref, fullscreen, toggle } = useFullscreen();
 
   const game = workspace.state.value.preview?.modes?.game;
@@ -69,11 +77,15 @@ export default function Preview(_props: PreviewProps) {
     <PreviewBar fullscreen={fullscreen} onToggleFullscreen={toggle} />
   );
 
-  const onPanelHeightChange = (height: number | undefined) =>
+  const onPanelHeightChange = (height: number | undefined) => {
+    if (height != null) {
+      problems.rememberPanelHeight(height);
+    }
     workspaceSettings.setProjectSetting(
       "previewPanelHeight",
       height ?? BAR_HEIGHT,
     );
+  };
 
   return (
     <div
@@ -103,7 +115,9 @@ export default function Preview(_props: PreviewProps) {
           end={
             <div class="flex h-full flex-col">
               {bar}
-              <div data-preview-panel class="min-h-0 flex-1" />
+              <div data-preview-panel class="min-h-0 flex-1">
+                {panelHeight > BAR_HEIGHT ? <ProblemsPanel /> : null}
+              </div>
             </div>
           }
         />

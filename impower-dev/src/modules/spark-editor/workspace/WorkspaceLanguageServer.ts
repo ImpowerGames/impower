@@ -47,6 +47,7 @@ import {
 } from "vscode-jsonrpc/browser";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
+import problems from "./problems/ProblemsStore";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import type WorkspaceWindow from "./WorkspaceWindow";
 const CLIENT_CAPABILITIES: ClientCapabilities = {
@@ -260,7 +261,7 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       PublishDiagnosticsMessage.method,
       (params: PublishDiagnosticsParams) => {
-        this._workspace.window.recordPublishedDiagnostics(params);
+        problems.record(params);
         for (const listener of this._publishedDiagnosticsListeners) {
           listener(params);
         }

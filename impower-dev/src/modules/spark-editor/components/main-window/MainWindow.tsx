@@ -2,6 +2,7 @@ import { LiveRegion, SplitPane } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { inspectedAsset } from "../../utils/assetInspector";
 import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
@@ -30,12 +31,7 @@ function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) 
   return <Logic key="logic" />;
 }
 
-const STRIP_HEIGHT = {
-  default: 280,
-  min: 200,
-  collapsed: 48,
-  reserve: 240,
-} as const;
+const STRIP_HEIGHT = WorkspaceConstants.PREVIEW_STRIP_HEIGHT;
 
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();

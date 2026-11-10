@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openFileMenu, openPreviewSettings, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -1121,6 +1121,30 @@ await asyncCheck("--step preview-settings presses the gear and reports the quick
   assert.match((await openPreviewSettings(stuck, { timeout: 1000 })).reason, /settings menu did not open within 1 s/);
   const hidden = { locator: () => ({ first: () => ({ isVisible: async () => false }) }) };
   assert.match((await openPreviewSettings(hidden)).reason, /settings button is not on screen/);
+});
+
+await asyncCheck("--step problems presses the problems toggle unless the panel is open, and reports the panel or dialog it opened", async () => {
+  const clicks = [];
+  const report = { surface: "panel", cards: [{ name: "In the script, 2 problems", open: true }], entries: 2 };
+  const toggle = (expanded) => ({
+    isVisible: async () => true,
+    getAttribute: async () => expanded,
+    click: async () => clicks.push("toggle"),
+    textContent: async () => " 2 problems ",
+  });
+  const page = (expanded) => ({
+    locator: () => ({ first: () => toggle(expanded) }),
+    waitForFunction: async () => true,
+    evaluate: async () => report,
+  });
+  assert.deepEqual(await openProblems(page("false")), { step: "problems", ran: true, toggle: "2 problems", ...report });
+  assert.deepEqual(clicks, ["toggle"]);
+  await openProblems(page("true"));
+  assert.deepEqual(clicks, ["toggle"]);
+  const stuck = { ...page("false"), waitForFunction: async () => { throw new Error("timeout"); } };
+  assert.match((await openProblems(stuck, { timeout: 1000 })).reason, /neither the Problems panel nor the Problems to fix dialog opened within 1 s/);
+  const hidden = { locator: () => ({ first: () => ({ isVisible: async () => false }) }) };
+  assert.match((await openProblems(hidden)).reason, /problems toggle under the game is not on screen/);
 });
 
 if (failures > 0) {

@@ -6,7 +6,8 @@ export type EditorTool =
   | "findNext"
   | "findPrevious"
   | "rename"
-  | "references";
+  | "references"
+  | "problems";
 
 export type RequestedEditorToolMethod = typeof RequestedEditorToolMessage.method;
 

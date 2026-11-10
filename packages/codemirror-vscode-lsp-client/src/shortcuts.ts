@@ -77,7 +77,7 @@ import {
   undoSelection,
 } from "@codemirror/commands";
 import { foldAll, foldCode, unfoldAll, unfoldCode } from "@codemirror/language";
-import { nextDiagnostic, openLintPanel } from "@codemirror/lint";
+import { nextDiagnostic } from "@codemirror/lint";
 import {
   closeSearchPanel,
   gotoLine,
@@ -125,7 +125,7 @@ import {
   type ShortcutPrecedence,
 } from "./shortcutTable";
 import { nextSignature, prevSignature, showSignatureHelp } from "./signature";
-import { findNextMatch, findPreviousMatch, openFind } from "./tools";
+import { findNextMatch, findPreviousMatch, openFind, openProblems } from "./tools";
 
 export type ShortcutCommand =
   | Command
@@ -175,7 +175,7 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   selectMatches: selectSelectionMatches,
   selectNextMatch: selectNextOccurrence,
   gotoLine,
-  problems: openLintPanel,
+  problems: openProblems,
   nextProblem: nextDiagnostic,
   signature: showSignatureHelp,
   previousSignature: prevSignature,

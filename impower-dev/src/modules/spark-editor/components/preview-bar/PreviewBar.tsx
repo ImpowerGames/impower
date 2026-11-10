@@ -1,6 +1,5 @@
 import {
   Button,
-  ChevronDownIcon,
   DropdownContent,
   DropdownRadioGroup,
   DropdownRadioItem,
@@ -12,8 +11,8 @@ import {
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
-import { countProblems, problemsLabel } from "../../workspace/problemCounts";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { ProblemsToggle } from "../problems";
 import { settingsSectionHref } from "../settings";
 import {
   ASPECT_RATIO_ROWS,
@@ -54,33 +53,6 @@ export default function PreviewBar({
         {fullscreen ? <ShrinkIcon /> : <ExpandIcon />}
       </Button>
     </div>
-  );
-}
-
-function ProblemsToggle() {
-  const counts = useComputed(() =>
-    countProblems(workspace.state.value.debug?.diagnosticsSummary),
-  ).value;
-
-  const onClick = async () => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    const uri = Workspace.window.getActiveEditorForPane("logic")?.uri;
-    if (uri) {
-      void Workspace.window.showProblems(uri);
-    }
-  };
-
-  return (
-    <Button
-      variant="quiet"
-      title="Open the problems"
-      data-problems={counts.problems > 0 ? "" : undefined}
-      class="gap-1.5 pr-2.5 pl-2 text-[12px]/[1.6] font-semibold text-muted data-problems:text-ink"
-      onClick={onClick}
-    >
-      <ChevronDownIcon class="size-4! -rotate-90 text-muted" />
-      <span>{problemsLabel(counts)}</span>
-    </Button>
   );
 }
 

@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import ListRow from "./ListRow";
+import ListRow, { ListRowBadge } from "./ListRow";
 
 let host: HTMLDivElement | undefined;
 
@@ -98,6 +98,93 @@ describe("ListRow", () => {
     expect(here).not.toContain("text-muted");
     expect(above).toContain("text-accent");
     expect(ink).toContain("text-ink");
+  });
+
+  it("offers no mark unless the row can be selected", async () => {
+    const root = await mount(<ListRow label="Main" onClick={() => {}} />);
+    expect(root.querySelector("input")).toBeNull();
+    expect(root.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
+  });
+
+  it("draws a selectable row's mark beside its button, reporting each change, and hides it until hovered or focused", async () => {
+    const onSelectedChange = vi.fn();
+    const onClick = vi.fn();
+    const root = await mount(
+      <ListRow
+        selection="available"
+        selectLabel="Select chapter.sd"
+        onSelectedChange={onSelectedChange}
+        label="chapter.sd"
+        onClick={onClick}
+      />,
+    );
+    const mark = root.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(mark.getAttribute("aria-label")).toBe("Select chapter.sd");
+    expect(root.querySelector("button")!.contains(mark)).toBe(false);
+    const label = mark.closest("label")!.className.split(/\s+/);
+    expect(label).toContain("opacity-0");
+    expect(label).toContain("group-hover/row:opacity-100");
+    expect(label).toContain("has-focus-visible:opacity-100");
+    await act(async () => mark.click());
+    expect(onSelectedChange).toHaveBeenCalledWith(true);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(root.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
+  });
+
+  it("shows every mark while selecting, tints a picked row and reads its button as pressed", async () => {
+    const root = await mount(
+      <div>
+        <ListRow selection="active" selected selectLabel="Select a" label="a" onClick={() => {}} />
+        <ListRow selection="active" selectLabel="Select b" label="b" onClick={() => {}} />
+      </div>,
+    );
+    const [a, b] = Array.from(root.querySelectorAll<HTMLInputElement>("input"));
+    expect(a!.checked).toBe(true);
+    expect(b!.checked).toBe(false);
+    expect(a!.closest("label")!.className).not.toContain("opacity-0");
+    const [rowA, rowB] = Array.from(root.querySelectorAll("button"));
+    expect(rowA!.getAttribute("aria-pressed")).toBe("true");
+    expect(rowB!.getAttribute("aria-pressed")).toBe("false");
+    expect(rowA!.parentElement!.className.split(/\s+/)).toContain("bg-tint");
+    expect(rowB!.parentElement!.className.split(/\s+/)).not.toContain("bg-tint");
+  });
+
+  it("marks a drop target with the accent ring and an attribute a drag can find", async () => {
+    const root = await mount(<ListRow dropTarget label="Drafts" onClick={() => {}} />);
+    const row = root.querySelector("button")!.parentElement!;
+    expect(row.hasAttribute("data-drop-target")).toBe(true);
+    expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["ring-2", "ring-accent"]));
+  });
+
+  it("puts a leading badge before the row's button as a button of its own, in the glyph's column", async () => {
+    const onBadge = vi.fn();
+    const onRow = vi.fn();
+    const root = await mount(
+      <ListRow
+        size="compact"
+        leading={
+          <ListRowBadge
+            size="compact"
+            label="2 errors in the_rumour"
+            icon={<span data-glyph />}
+            onClick={onBadge}
+          />
+        }
+        label="the_rumour"
+        onClick={onRow}
+      />,
+    );
+    const [badge, row] = Array.from(root.querySelectorAll("button"));
+    expect(badge!.getAttribute("aria-label")).toBe("2 errors in the_rumour");
+    expect(badge!.getAttribute("title")).toBe("2 errors in the_rumour");
+    expect(badge!.contains(row!)).toBe(false);
+    expect(badge!.className).toContain("w-9");
+    expect(row!.className).toContain("pl-0");
+    await act(async () => badge!.click());
+    expect(onBadge).toHaveBeenCalledTimes(1);
+    expect(onRow).not.toHaveBeenCalled();
+    await act(async () => row!.click());
+    expect(onRow).toHaveBeenCalledTimes(1);
   });
 
   it("clamps a long label to two lines instead of fading it", async () => {

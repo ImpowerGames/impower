@@ -13,8 +13,6 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { openLintPanel } from "@codemirror/lint";
-import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -158,7 +156,7 @@ import createEditorView, {
 import {
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
-} from "./utils/extensions/customSearch";
+} from "./utils/extensions/gotoLinePanel";
 import {
   setKeyboardToolbarHold,
   type KeyboardToolbarHold,
@@ -233,7 +231,7 @@ export class ScriptEditorController {
   protected _domClientY = 0;
   protected _userInitiatedScroll = false;
   protected _boundPanelInputs = new WeakSet<Element>();
-  protected _searchInputFocused = false;
+  protected _gotoLineInputFocused = false;
   protected _breakpoints: number[] = [];
   protected _highlightedLines = new Set<number>();
   protected _scrollMargin: {
@@ -248,7 +246,6 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
 
-  protected _problemsOnReveal: string | undefined;
   protected _protocols = new ProtocolObserver();
   protected _historyCache = sharedEditorHistory;
 
@@ -650,10 +647,6 @@ export class ScriptEditorController {
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
     }
-    if (command === "problems" && this.refs.editor?.style.visibility === "hidden") {
-      this._problemsOnReveal = textDocument.uri;
-      return ExecuteEditorCommandMessage.type.response(message.id, { ran: true });
-    }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
@@ -697,8 +690,6 @@ export class ScriptEditorController {
         return formatDocument(view);
       case "gotoLine":
         return openCustomGotoLinePanel(view);
-      case "problems":
-        return openLintPanel(view);
       case "search":
         return openFind(view);
       case "undo":
@@ -997,28 +988,12 @@ export class ScriptEditorController {
     return restored ? { ...restored, folded: [] } : undefined;
   }
 
-  protected handleFocusFindInput = () => {
-    this._searchInputFocused = true;
-  };
-
-  protected handleBlurFindInput = () => {
-    this._searchInputFocused = false;
-  };
-
-  protected handleFocusReplaceInput = () => {
-    this._searchInputFocused = true;
-  };
-
-  protected handleBlurReplaceInput = () => {
-    this._searchInputFocused = false;
-  };
-
   protected handleFocusGotoLineInput = () => {
-    this._searchInputFocused = true;
+    this._gotoLineInputFocused = true;
   };
 
   protected handleBlurGotoLineInput = () => {
-    this._searchInputFocused = false;
+    this._gotoLineInputFocused = false;
   };
 
   protected loadTextDocument(params: LoadEditorParams) {
@@ -1095,7 +1070,7 @@ export class ScriptEditorController {
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
-      this._searchInputFocused = false;
+      this._gotoLineInputFocused = false;
       this._textDocument = textDocument;
       const editorContainer = this.refs.editor;
       if (editorContainer) {
@@ -1118,6 +1093,7 @@ export class ScriptEditorController {
             findPrevious: () => this.requestEditorTool("findPrevious"),
             rename: () => this.requestEditorTool("rename"),
             references: () => this.requestEditorTool("references"),
+            problems: () => this.requestEditorTool("problems"),
           },
           onChangeColor: this.options.onChangeColor
             ? ({ from, to, text, color }) => {
@@ -1223,7 +1199,7 @@ export class ScriptEditorController {
           onBlur: () => {
             this._editing = false;
             if (this._textDocument) {
-              if (!this._searchInputFocused) {
+              if (!this._gotoLineInputFocused) {
                 sendProtocolMessage(
                   UnfocusedEditorMessage.type.notification({
                     textDocument: this._textDocument,
@@ -1430,20 +1406,7 @@ export class ScriptEditorController {
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }
-            if (
-              searchPanelOpen(update.state) ||
-              customGotoLinePanelOpen(update.state)
-            ) {
-              this.bindPanelInput(
-                ".cm-search [contenteditable][name='search']",
-                this.handleFocusFindInput,
-                this.handleBlurFindInput,
-              );
-              this.bindPanelInput(
-                ".cm-search [contenteditable][name='replace']",
-                this.handleFocusReplaceInput,
-                this.handleBlurReplaceInput,
-              );
+            if (customGotoLinePanelOpen(update.state)) {
               this.bindPanelInput(
                 ".cm-gotoLine [contenteditable]",
                 this.handleFocusGotoLineInput,
@@ -1591,11 +1554,6 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
-    const problems = this._problemsOnReveal;
-    this._problemsOnReveal = undefined;
-    if (this._view && problems && problems === this._textDocument?.uri) {
-      openLintPanel(this._view);
-    }
   };
 
   protected handleViewportParsed = () => {

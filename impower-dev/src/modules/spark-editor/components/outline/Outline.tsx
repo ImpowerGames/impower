@@ -7,16 +7,23 @@ import {
   ErrorIcon,
   FileIcon,
   ListRow,
+  ListRowBadge,
   SceneIcon,
   SearchIcon,
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
-import { useComputed } from "@preact/signals";
+import { computed, useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useMemo } from "preact/hooks";
 import type { Position, Range } from "vscode-languageserver-protocol";
+import {
+  problemSummary as scopeSummary,
+  projectPath,
+  severityOf,
+} from "../../workspace/problems/problemEntries";
+import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
 import { openFind, SearchRail } from "../find-references-rename";
 import {
@@ -66,13 +73,61 @@ const caretIn = (
   return editor.selectedRange?.start;
 };
 
+const rowName = (row: OutlineRow) =>
+  row.kind === "setup" ? "Script setup" : row.label;
+
+const scopeOf = (uri: string, key: string) =>
+  computed(() => {
+    const snapshot = workspace.outline.value;
+    if (!snapshot || snapshot.uri !== uri) {
+      return [];
+    }
+    return (
+      outlineRows({
+        symbols: snapshot.symbols,
+        diagnostics: snapshot.diagnostics,
+        firstContentLine: snapshot.firstContentLine,
+      }).rows.find((row) => row.key === key)?.diagnostics ?? []
+    );
+  });
+
+const openScope = (uri: string, row: OutlineRow, trigger: HTMLElement) =>
+  problems.openDialog(
+    {
+      kind: "outline",
+      uri,
+      label: rowName(row),
+      diagnostics: scopeOf(uri, row.key),
+    },
+    () => trigger,
+  );
+
+function RowBadge({ uri, row }: { uri: string; row: OutlineRow }) {
+  const summary = scopeSummary(
+    row.diagnostics.map((d) => ({ severity: severityOf(d) })),
+  );
+  const label = `${row.kind === "scene" ? "Scene total: " : ""}${summary} in ${rowName(row)}`;
+  return (
+    <ListRowBadge
+      size="compact"
+      label={label}
+      title={row.kind === "scene" ? `${label}. Includes choices and branches.` : label}
+      aria-haspopup="dialog"
+      icon={
+        row.problems.errors ? (
+          <ErrorIcon class="text-error" />
+        ) : (
+          <WarningIcon class="text-warning" />
+        )
+      }
+      onClick={(event) =>
+        openScope(uri, row, event.currentTarget as HTMLElement)
+      }
+    />
+  );
+}
+
 function RowIcon({ row }: { row: OutlineRow }) {
-  if (row.problems.errors) {
-    return <ErrorIcon class="text-error!" />;
-  }
-  if (row.problems.warnings) {
-    return <WarningIcon class="text-warning!" />;
-  }
   const Glyph = GLYPHS[row.kind];
   return <Glyph />;
 }
@@ -148,9 +203,6 @@ export default function Outline() {
   };
 
   const summary = problemSummary(model.problems);
-  const firstProblem = snapshot?.diagnostics.find(
-    (d) => (d.severity ?? 1) <= 2,
-  );
 
   return (
     <>
@@ -195,11 +247,29 @@ export default function Outline() {
                     current={row.current === "self" ? "location" : false}
                     containsCurrent={row.current === "ancestor"}
                     overflow={row.kind === "choose" ? "clamp" : "fade"}
-                    icon={<RowIcon row={row} />}
+                    leading={
+                      row.problems.errors || row.problems.warnings ? (
+                        <RowBadge uri={uri} row={row} />
+                      ) : undefined
+                    }
+                    icon={
+                      row.problems.errors || row.problems.warnings ? undefined : (
+                        <RowIcon row={row} />
+                      )
+                    }
                     label={row.label}
                     aria-label={row.accessibleName}
                     title={row.accessibleName}
-                    onClick={() => open(row.selection)}
+                    aria-haspopup={
+                      row.kind === "setup" && row.diagnostics.length
+                        ? "dialog"
+                        : undefined
+                    }
+                    onClick={(event) =>
+                      row.kind === "setup" && row.diagnostics.length
+                        ? openScope(uri, row, event.currentTarget as HTMLElement)
+                        : open(row.selection)
+                    }
                     actions={
                       row.expanded === undefined ? undefined : (
                         <Disclosure
@@ -228,14 +298,17 @@ export default function Outline() {
           </>
         )}
       </nav>
-      {summary && uri && firstProblem ? (
+      {summary && uri ? (
         <div class="hidden justify-center pt-3 group-data-[sidebar=collapsed]/sidebar:flex">
           <Button
             variant="quiet"
             size="icon"
             aria-label={`Outline: ${summary} in ${scriptName(uri)}`}
             title={`${summary} in ${scriptName(uri)}`}
-            onClick={() => open(firstProblem.range)}
+            onClick={(event) => {
+              const trigger = event.currentTarget as HTMLElement;
+              problems.showProblems(() => trigger, projectPath(uri));
+            }}
           >
             {model.problems.errors ? (
               <ErrorIcon class="text-error" />

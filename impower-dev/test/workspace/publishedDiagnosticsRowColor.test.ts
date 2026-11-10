@@ -50,6 +50,7 @@ import WorkspaceConfiguration from "../../src/modules/spark-editor/workspace/Wor
 import WorkspaceLanguageServer from "../../src/modules/spark-editor/workspace/WorkspaceLanguageServer";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
+import problems from "../../src/modules/spark-editor/workspace/problems/ProblemsStore";
 import { useDiagnosticColor } from "../../src/modules/spark-editor/workspace/useDiagnosticColor";
 
 const MAIN = "file://proj/main.sd";
@@ -90,6 +91,7 @@ describe("asset rows coloured from the language server's published diagnostics",
   beforeEach(() => {
     connection.notifications.clear();
     workspace.current = { ...workspace.current, debug: {} };
+    problems.diagnostics.value = {};
     vi.stubGlobal(
       "Worker",
       class {

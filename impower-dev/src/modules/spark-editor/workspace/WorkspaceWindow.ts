@@ -23,7 +23,6 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
@@ -86,9 +85,7 @@ import {
   WorkspaceCache,
   WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
-import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
-import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
@@ -159,8 +156,6 @@ import {
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { renameOrReport } from "../utils/renameOrReport";
-
-const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -554,6 +549,10 @@ export default class WorkspaceWindow {
     workspace.syncConflictOpen.value = false;
   }
 
+  openTrash() {
+    workspace.trashOpen.value = true;
+  }
+
   async resolveSyncConflict(keep: "device" | "drive") {
     this.closeSyncConflict();
     if (keep === "device") {
@@ -907,20 +906,6 @@ export default class WorkspaceWindow {
       ...workspace.editorHistory.peek(),
       [this.relativePathOf(textDocument.uri)]: { canUndo, canRedo },
     };
-  }
-
-  recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
-    const summary = { ...this.store.debug.diagnosticsSummary };
-    delete summary[uri];
-    const counts = countDiagnostics(diagnostics);
-    this.update({
-      ...this.store,
-      debug: {
-        ...this.store.debug,
-        diagnosticsSummary:
-          diagnostics.length > 0 ? { ...summary, [uri]: counts } : summary,
-      },
-    });
   }
 
   protected handleCompiledProgram = (
@@ -1912,36 +1897,6 @@ export default class WorkspaceWindow {
       this.navigateTo("write");
     }
     return result;
-  }
-
-  async showProblems(uri: string) {
-    await this.revealDocument(uri, undefined, false);
-    const request = () =>
-      ExecuteEditorCommandMessage.type.request({
-        textDocument: { uri },
-        command: "problems",
-      });
-    const first = request();
-    const stop = () => {
-      stopAnswer();
-      stopLoad();
-      clearTimeout(timer);
-    };
-    const stopAnswer = onProtocolMessage(
-      {
-        is: (message: unknown): message is ExecuteEditorCommandMessage.Response =>
-          ExecuteEditorCommandMessage.type.isResponse(message, first.id),
-      },
-      () => stop(),
-    );
-    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
-      if (message.params.textDocument.uri === uri) {
-        stop();
-        sendProtocolMessage(request());
-      }
-    });
-    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
-    sendProtocolMessage(first);
   }
 
   syncGamePaused(paused: boolean) {

@@ -1,6 +1,6 @@
 import {
+  collectSymbolDiagnostics,
   countProblems,
-  countSymbolProblems,
   type ProblemCounts,
 } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import type {
@@ -24,6 +24,7 @@ export interface OutlineRow {
   depth: OutlineDepth;
   selection: Range;
   problems: ProblemCounts;
+  diagnostics: readonly Diagnostic[];
   current: OutlineCurrent;
   scene?: string;
   expanded?: boolean;
@@ -104,7 +105,7 @@ export function outlineRows({
   collapsed = [],
   firstContentLine,
 }: OutlineInput): OutlineModel {
-  const counts = countSymbolProblems(symbols, diagnostics);
+  const scoped = collectSymbolDiagnostics(symbols, diagnostics);
   const rows: OutlineRow[] = [];
   let currentIndex = -1;
   const firstScene = symbols.find((s) => KIND_OF[s.kind] === "scene");
@@ -113,11 +114,10 @@ export function outlineRows({
     firstContentLine != null &&
     firstContentLine < firstScene.range.start.line
   ) {
-    const problems = countProblems(
-      diagnostics.filter(
-        (d) => d.range.start.line < firstScene.range.start.line,
-      ),
+    const setup = diagnostics.filter(
+      (d) => d.range.start.line < firstScene.range.start.line,
     );
+    const problems = countProblems(setup);
     const start = { line: 0, character: 0 };
     rows.push({
       key: "setup",
@@ -127,6 +127,7 @@ export function outlineRows({
       depth: 0,
       selection: { start, end: start },
       problems,
+      diagnostics: setup,
       current: "none",
     });
   }
@@ -147,10 +148,12 @@ export function outlineRows({
     }
     const key = `${path}/${kind}:${symbol.name}@${symbol.range.start.line}`;
     const isCollapsed = Boolean(scene && collapsed.includes(scene));
-    const symbolCounts = counts.get(symbol);
-    const problems =
-      (kind === "scene" ? symbolCounts?.total : symbolCounts?.direct) ??
-      countProblems([]);
+    const symbolDiagnostics = scoped.get(symbol);
+    const listed =
+      (kind === "scene"
+        ? symbolDiagnostics?.total
+        : symbolDiagnostics?.direct) ?? [];
+    const problems = countProblems(listed);
     const index = rows.length;
     if (!hidden) {
       rows.push({
@@ -161,6 +164,7 @@ export function outlineRows({
         depth: Math.min(depth, 3) as OutlineDepth,
         selection: symbol.selectionRange,
         problems,
+        diagnostics: listed,
         current: "none",
         scene,
         expanded: scene && children.length ? !isCollapsed : undefined,
