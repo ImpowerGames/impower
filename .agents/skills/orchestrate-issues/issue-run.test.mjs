@@ -798,6 +798,30 @@ try {
   assert.deepEqual([byNumber[227].container, byNumber[227].deliveredBy, byNumber[228].deliveredBy], [false, undefined, { ticket: 227, via: "pr", pr: 407, merged: false }], "the own PR's claim outranks the sibling's body claim in the classification too");
   assert.deepEqual([byNumber[224].deliveredBy, byNumber[224].deliveryConflict], [undefined, [201, 202]], "two slices' PRs closing one ticket is a conflict, not a delivery");
   assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read and the snapshot agree on the slices");
+  {
+    const { mergeScope } = await import("./integration.mjs");
+    const counting = () => { const calls = { fields: 0, blockedBy: 0, checks: 0, comments: 0, subIssues: 0 }; return { calls, client: { ...client, ...Object.fromEntries(Object.keys(calls).map((k) => [k, (...a) => { calls[k]++; return client[k](...a); }])) } }; };
+    const whole = counting(), fullSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, whole.client);
+    assert.deepEqual(fullSnap.tickets, snap.tickets, "counting reads changes nothing");
+    assert.equal(whole.calls.subIssues, fullSnap.tickets.length + 1, "each sub-issue list is read once");
+    for (const t of fullSnap.tickets.filter((x) => !x.container && !x.deliveredBy)) {
+      const scoped = counting(), scopedSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200, scope: t.number }, scoped.client);
+      assert.deepEqual(mergeScope(scopedSnap, t.number), mergeScope(fullSnap, t.number), `the scoped read of #${t.number} yields the full snapshot's merge scope`);
+      for (const m of fullSnap.tickets.filter((x) => x.number === t.number || x.deliveredBy?.ticket === t.number)) assert.deepEqual(scopedSnap.tickets.find((x) => x.number === m.number).blockers, m.blockers, `#${m.number}'s blockers read the same in scope`);
+      assert.deepEqual(scopedSnap.scope, { ticket: t.number });
+      assert.ok(scoped.calls.fields < whole.calls.fields && scoped.calls.blockedBy < whole.calls.blockedBy, `the scoped read of #${t.number} reads fewer tickets (${JSON.stringify(scoped.calls)} vs ${JSON.stringify(whole.calls)})`);
+    }
+    const ran = [], fanned = [];
+    const gh = run.githubClient({ repository: "acme/widgets" }, tmp, {
+      run: (cmd, args) => { ran.push(args.join(" ")); return args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: "direct", conclusion: "SUCCESS" }] }) : "[[]]"; },
+      parallel: (jobs) => { fanned.push(...jobs.map(([, args]) => args.join(" "))); return jobs.map(([, args]) => ({ ok: true, stdout: args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: `batched ${args[2]}`, conclusion: "SUCCESS" }] }) : JSON.stringify([[{ number: 7, state: "open" }]]) })); },
+    });
+    gh.prefetch({ checks: [11, 12, 11], blockedBy: [5] });
+    assert.equal(fanned.length, 3, "the prefetch fans out each distinct read once");
+    assert.deepEqual([gh.checks(11), gh.checks(12), gh.blockedBy(5)], [[{ name: "batched 11", state: "SUCCESS" }], [{ name: "batched 12", state: "SUCCESS" }], [{ number: 7, state: "open" }]], "prefetched reads are served from the fan-out");
+    assert.deepEqual(ran, [], "no read ran serially");
+    assert.deepEqual(gh.checks(11), [{ name: "direct", state: "SUCCESS" }], "a prefetched read is used once, then read fresh");
+  }
   assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open", "#227 open", "#228 open"]);
   assert.deepEqual(run.closingReferences("Closes #1, closes #2, fixed #3, Resolves: acme/widgets#4, close #1, other/repo#2 is not closed, and #5 is only mentioned").map((r) => `${r.repository ?? ""}#${r.number}`), ["#1", "#2", "#3", "acme/widgets#4"]);
   assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read reads the same PRs and agrees");

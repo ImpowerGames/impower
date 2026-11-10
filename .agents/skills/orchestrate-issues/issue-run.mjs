@@ -15,6 +15,7 @@ import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktr
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../hooks/typed-issue-hook.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
+import { runParallel } from "./gh-parallel.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 export const RECORD_VERSION = 2;
@@ -573,11 +574,35 @@ export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
 }
 
-export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }) } = {}) {
+export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }), parallel = (jobs) => runParallel(jobs, { cwd: checkout }) } = {}) {
   const { code, tickets, split, thread } = repositoriesOf(names);
-  const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
+  const pagesArgs = (args) => ["api", "--paginate", "--slurp", ...args];
+  const pagesOf = (out) => JSON.parse(out).flat();
+  const pages = (args) => pagesOf(run("gh", pagesArgs(args)));
+  const reads = {
+    subIssues: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/sub_issues`]), parse: pagesOf },
+    blockedBy: { args: (n) => pagesArgs([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]), parse: pagesOf },
+    fields: {
+      args: (n) => pagesArgs(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]),
+      parse: (out) => { const values = pagesOf(out); const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null; return { effort: option("Effort"), priority: option("Priority") }; },
+    },
+    comments: { args: ([pr, ticket]) => { const t = thread(pr, ticket); return pagesArgs([`repos/${t.repo}/issues/${t.number}/comments`]); }, parse: pagesOf },
+    checks: { args: (pr) => ["pr", "view", String(pr), "--repo", code, "--json", "statusCheckRollup"], parse: (out) => JSON.parse(out).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })) },
+  };
+  const fetched = new Map();
+  const keyOf = (kind, key) => `${kind}:${JSON.stringify(key)}`;
+  const read = (kind, key) => {
+    const k = keyOf(kind, key);
+    if (fetched.has(k)) { const out = fetched.get(k); fetched.delete(k); return reads[kind].parse(out); }
+    return reads[kind].parse(run("gh", reads[kind].args(key)));
+  };
+  const prefetch = (requests) => {
+    const wanted = [...new Map(Object.entries(requests).flatMap(([kind, keys]) => keys.map((key) => [keyOf(kind, key), [kind, key]]))).values()].filter(([kind, key]) => !fetched.has(keyOf(kind, key)));
+    const results = parallel(wanted.map(([kind, key]) => ["gh", reads[kind].args(key)]));
+    wanted.forEach(([kind, key], i) => { if (results[i]?.ok) fetched.set(keyOf(kind, key), results[i].stdout); });
+  };
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
-  let account, listing;
+  let account, listing, mainCommits = null;
   const listAccountPulls = () => {
     const responses = JSON.parse(requestAccountPullMetadata(ACCOUNT_PULL_METADATA_QUERY, (query) => run("gh", ["api", "graphql", "--paginate", "--slurp", "-f", `query=${query}`])));
     if (!Array.isArray(responses) || !responses.length) throw new Error("The account pull request listing returned no pages");
@@ -632,19 +657,19 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   };
   return {
     issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
-    subIssues: (n) => pages([`repos/${tickets}/issues/${n}/sub_issues`]),
-    blockedBy: (n) => pages([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]),
-    fields: (n) => {
-      const values = pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]);
-      const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null;
-      return { effort: option("Effort"), priority: option("Priority") };
-    },
+    subIssues: (n) => read("subIssues", n),
+    blockedBy: (n) => read("blockedBy", n),
+    fields: (n) => read("fields", n),
+    prefetch,
     pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
-    comments: (pr, ticket) => { const t = thread(pr, ticket); return pages([`repos/${t.repo}/issues/${t.number}/comments`]); },
-    checks: (pr) => JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", code, "--json", "statusCheckRollup"])).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })),
-    fetchMain: () => { run("git", ["fetch", "-q", "origin", "main"]); return run("git", ["rev-parse", "origin/main"]).trim(); },
-    onMain: (sha) => spawnSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: checkout, windowsHide: true }).status === 0,
+    comments: (pr, ticket) => read("comments", [pr, ticket]),
+    checks: (pr) => read("checks", pr),
+    fetchMain: () => { run("git", ["fetch", "-q", "origin", "main"]); mainCommits = null; return run("git", ["rev-parse", "origin/main"]).trim(); },
+    onMain: (sha) => {
+      mainCommits ??= new Set(run("git", ["rev-list", "origin/main"]).split("\n").map((s) => s.trim()).filter(Boolean));
+      return mainCommits.has(sha) || (!/^[0-9a-f]{40}$/.test(sha) && spawnSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: checkout, windowsHide: true }).status === 0);
+    },
     worktrees: () => parseWorktrees(run("git", ["worktree", "list", "--porcelain"])),
     mainRuns: (branch) => JSON.parse(run("gh", ["run", "list", "--repo", code, "--workflow", MAIN_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
     mainRunJobs: (id) => pages([`repos/${code}/actions/runs/${id}/jobs?per_page=100`]).flatMap((p) => p.jobs ?? []).map((j) => ({ name: j.name, conclusion: j.conclusion })),
@@ -733,9 +758,17 @@ const viablePr = (p) => p.state === "MERGED" || p.state === "OPEN";
 export function walkSubIssues(issue, client, { tickets = null, split = false, pullsOf = pullsFilter(client, tickets, split) } = {}) {
   const nodes = [];
   const isBug = (c) => (c.type?.name ?? null) === "Bug";
+  const listedSubs = new Map();
+  const subsOf = (n) => { if (!listedSubs.has(n)) listedSubs.set(n, client.subIssues(n)); return listedSubs.get(n); };
+  if (client.prefetch) {
+    for (let level = [issue], depth = 0; level.length && depth <= MAX_SUB_ISSUE_DEPTH; depth++) {
+      client.prefetch({ subIssues: level });
+      level = [...new Set(level.flatMap((n) => subsOf(n).map((s) => s.number)))].filter((n) => !listedSubs.has(n));
+    }
+  }
   const visit = (parent, depth) => {
-    for (const sub of client.subIssues(parent)) {
-      const children = client.subIssues(sub.number);
+    for (const sub of subsOf(parent)) {
+      const children = subsOf(sub.number);
       const closes = closingReferences(sub.body).filter((r) => r.repository === null || (tickets !== null && sameRepository(r.repository, tickets))).map((r) => r.number);
       nodes.push({ number: sub.number, title: sub.title, state: sub.state, stateReason: sub.state_reason ?? null, closedAt: sub.closed_at ?? null, type: sub.type?.name ?? null, parent, depth, children: children.map((c) => ({ number: c.number, bug: isBug(c) })), closes });
       if (children.length && depth < MAX_SUB_ISSUE_DEPTH) visit(sub.number, depth + 1);
@@ -810,21 +843,27 @@ const pullsFilter = (client, tickets = null, split = false) => {
   };
 };
 
-export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository }, client) {
+export function takeSnapshot({ repository, issue, tickets: ticketsRepository = repository, scope = null }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
   const pullsOf = pullsFilter(client, ticketsRepository, repositoriesOf({ repository, ticketsRepository }).split);
   const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
   const delivered = (n) => pullsOf(n).some(mergedOnMain);
   const parent = client.issue(issue);
-  const tickets = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf }).map((node) => {
-    const n = node.number;
-    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
-    const { effort, priority } = client.fields(n);
+  const walked = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf });
+  const members = scope === null ? null : new Set(walked.filter((t) => t.number === scope || t.deliveredBy?.ticket === scope).map((t) => t.number));
+  const inScope = (n) => members === null || members.has(n);
+  const read = walked.map((t) => t.number).filter(inScope);
+  const openPrs = read.flatMap((n) => pullsOf(n).filter((p) => p.state === "OPEN").map((p) => [p.number, n]));
+  client.prefetch?.({ blockedBy: read, fields: read, comments: openPrs, checks: openPrs.map(([pr]) => pr) });
+  const tickets = walked.map((node) => {
+    const n = node.number, full = inScope(n);
+    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && full && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    const { effort, priority } = full ? client.fields(n) : { effort: null, priority: null };
     return {
       ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
-      blockers: client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })),
+      blockers: full ? client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })) : [],
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
@@ -838,7 +877,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     t.delivered = t.state === "closed" && t.deliveredBy.merged;
   }
   for (const t of tickets) for (const b of t.blockers) { const x = byNumber.get(b.number); if (x?.deliveredBy) b.delivered = x.delivered; }
-  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, ...(client.mainRuns && { mainCi: mainState(client) }), tickets };
+  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, ...(scope !== null && { scope: { ticket: scope } }), ...(client.mainRuns && { mainCi: mainState(client) }), tickets };
 }
 
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
