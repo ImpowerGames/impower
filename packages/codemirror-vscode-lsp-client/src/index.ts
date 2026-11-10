@@ -86,12 +86,15 @@ export {
   isInsertConstruct,
   planInsertion,
   sceneSpansOf,
+  storyBlocksOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,
   type InsertConstruct,
   type InsertContext,
   type InsertPlan,
   type SceneSpan,
+  type ScriptStructure,
+  type StoryBlock,
 } from "./insert";
 export {
   convertFromServerCodeLens,

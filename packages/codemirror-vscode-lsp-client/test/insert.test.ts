@@ -13,9 +13,35 @@ import {
   insertContext,
   planInsertion,
   sceneSpansOf,
+  storyBlocksOf,
+  TOP_LEVEL_CONSTRUCTS,
   uniqueName,
   type InsertConstruct,
 } from "../src/insert";
+
+vi.mock("@codemirror/language", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@codemirror/language")>();
+  const { SparkdownDocumentRegistry: Registry } =
+    await import("@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry");
+  return {
+    ...actual,
+    ensureSyntaxTree: (state: { doc: { toString(): string } }) => {
+      const documents = new Registry(["declarations"]);
+      const uri = "file:///editor.sd";
+      documents.set({
+        textDocument: {
+          uri,
+          text: state.doc.toString(),
+          version: 1,
+          languageId: "sparkdown",
+        },
+      });
+      return documents.tree(uri);
+    },
+  };
+});
+
+const TOP_LEVEL: readonly InsertConstruct[] = TOP_LEVEL_CONSTRUCTS;
 
 const LF = String.fromCharCode(10);
 const CRLF = String.fromCharCode(13, 10);
@@ -30,7 +56,7 @@ const caretAt = (source: string, marker: string, shift = 0) => {
 
 const SYMBOLS_URI = "file:///insert.sd";
 
-const symbolsOf = (source: string) => {
+const parsed = (source: string) => {
   const documents = new SparkdownDocumentRegistry(["declarations"]);
   documents.set({
     textDocument: {
@@ -40,6 +66,11 @@ const symbolsOf = (source: string) => {
       languageId: "sparkdown",
     },
   });
+  return documents;
+};
+
+const symbolsOf = (source: string) => {
+  const documents = parsed(source);
   return getDocumentSymbols(
     documents.get(SYMBOLS_URI)!,
     documents.annotations(SYMBOLS_URI),
@@ -47,13 +78,20 @@ const symbolsOf = (source: string) => {
   );
 };
 
+const treeOf = (source: string) => parsed(source).tree(SYMBOLS_URI)!;
+
 const scenesOf = (source: string) => sceneSpansOf(symbolsOf(source));
+
+const structureOf = (source: string) => ({
+  scenes: scenesOf(source),
+  blocks: storyBlocksOf(treeOf(source), source),
+});
 
 const contextAt = (source: string, offset: number) =>
   insertContext(source, offset, scenesOf(source));
 
 const apply = (source: string, caret: number, construct: InsertConstruct) => {
-  const plan = planInsertion(source, caret, construct, scenesOf(source));
+  const plan = planInsertion(source, caret, construct, structureOf(source));
   if (!plan) return null;
   const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
   return {
@@ -149,7 +187,12 @@ describe("insertion context", () => {
   it("refuses story blocks outside a scene and keeps Scene and Character", () => {
     const outside = caretAt(SCRIPT, "title");
     for (const construct of INSERT_CONSTRUCTS) {
-      const plan = planInsertion(SCRIPT, outside, construct, scenesOf(SCRIPT));
+      const plan = planInsertion(
+        SCRIPT,
+        outside,
+        construct,
+        structureOf(SCRIPT),
+      );
       if (construct === "scene" || construct === "character") {
         expect(plan, construct).not.toBeNull();
       } else {
@@ -566,6 +609,92 @@ describe("insertConstructFromServer", () => {
   });
 });
 
+describe("statement boundaries read from the syntax tree", () => {
+  it("adds after a whole choice menu when the caret is on one of its options", () => {
+    const source = lines(
+      "scene start",
+      "  choose",
+      "    Prompt?",
+      "    + [First]",
+      "      First path.",
+      "    + [Second]",
+      "      Second path.",
+      "  end",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const branch = apply(source, caretAt(source, "+ [First]"), "branch")!;
+    expect(branch.text).toBe(
+      source.replace(
+        lines("  end", "end"),
+        lines("  end", "  branch new_branch", "    ", "  end", "end"),
+      ),
+    );
+    expect(branch.selected).toBe("new_branch");
+    expect(diagnosticsOf(branch.text)).toEqual([]);
+  });
+
+  it("keeps a dialogue whole across a standalone comment line", () => {
+    const source = lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  IMANI:",
+      "    First.",
+      "// note",
+      "    Second.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const expected = source.replace(
+      "    Second." + LF,
+      lines("    Second.", "  IMANI:", "    What do they say?", ""),
+    );
+    for (const marker of ["First.", "Second."]) {
+      const dialogue = apply(source, caretAt(source, marker), "dialogue")!;
+      expect(dialogue.text, marker).toBe(expected);
+      expect(dialogue.selected, marker).toBe("What do they say?");
+    }
+    expect(diagnosticsOf(expected)).toEqual([]);
+  });
+
+  it("adds after a statement holding a multiline string, not inside the string", () => {
+    const source = lines(
+      'store example = ""',
+      "",
+      "scene start",
+      "  & example = [[",
+      "    Example.",
+      "  ]]",
+      "  After.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const branch = apply(source, caretAt(source, "Example."), "branch")!;
+    expect(branch.text).toBe(
+      source.replace(
+        lines("  ]]", "  After."),
+        lines("  ]]", "  branch new_branch", "    ", "  end", "  After."),
+      ),
+    );
+    expect(diagnosticsOf(branch.text)).toEqual([]);
+    const names: string[] = [];
+    const walk = (symbols: { name: string; children?: unknown[] }[]) => {
+      for (const symbol of symbols) {
+        names.push(symbol.name);
+        walk((symbol.children ?? []) as never);
+      }
+    };
+    walk(symbolsOf(branch.text));
+    expect(names).toContain("new_branch");
+  });
+});
+
 describe("inserted syntax", () => {
   it("compiles without diagnostics for each text construct", () => {
     expect(diagnosticsOf(SCRIPT)).toEqual([]);
@@ -585,6 +714,11 @@ describe("inserted syntax", () => {
         ["outside", caretAt(SCRIPT, "title")],
       ] as const) {
         const result = apply(SCRIPT, caret, construct);
+        if (marker === "outside" && !TOP_LEVEL.includes(construct)) {
+          expect(result, `${construct} at ${marker}`).toBeNull();
+          continue;
+        }
+        expect(result, `${construct} at ${marker}`).not.toBeNull();
         if (!result) continue;
         const expected =
           result.selected === "CHARACTER"
@@ -624,7 +758,7 @@ describe("insertConstruct command", () => {
       userEvent: "input.type",
     });
     const typed = editor.state.doc.toString();
-    expect(insertConstruct("choose", scenesOf(SCRIPT))(editor)).toBe(true);
+    expect(insertConstruct("choose", structureOf(SCRIPT))(editor)).toBe(true);
     const { from, to } = editor.state.selection.main;
     expect(editor.state.sliceDoc(from, to)).toBe("What happens next?");
     expect(undo(editor)).toBe(true);
@@ -632,12 +766,12 @@ describe("insertConstruct command", () => {
   });
 
   it("does nothing outside a scene or in a read-only script", () => {
-    expect(insertConstruct("branch", scenesOf(SCRIPT))(mount(SCRIPT, 0))).toBe(
-      false,
-    );
+    expect(
+      insertConstruct("branch", structureOf(SCRIPT))(mount(SCRIPT, 0)),
+    ).toBe(false);
     view!.destroy();
     const locked = mount(SCRIPT, caretAt(SCRIPT, "quiet"), true);
-    expect(insertConstruct("branch", scenesOf(SCRIPT))(locked)).toBe(false);
+    expect(insertConstruct("branch", structureOf(SCRIPT))(locked)).toBe(false);
     expect(locked.state.doc.toString()).toBe(SCRIPT);
   });
 });

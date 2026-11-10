@@ -1,5 +1,7 @@
 import { isolateHistory } from "@codemirror/commands";
+import { ensureSyntaxTree } from "@codemirror/language";
 import type { Command, EditorView } from "@codemirror/view";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPPlugin } from "./plugin";
 
@@ -42,6 +44,17 @@ export interface SceneSpan {
   endLine: number;
 }
 
+export interface StoryBlock {
+  startLine: number;
+  endLine: number;
+  speaker: string | null;
+}
+
+export interface ScriptStructure {
+  scenes: readonly SceneSpan[];
+  blocks: readonly StoryBlock[];
+}
+
 interface SourceLine {
   from: number;
   to: number;
@@ -54,20 +67,16 @@ const SCENE_SYMBOL_KIND: typeof lsp.SymbolKind.Class = 5;
 
 const STEP = "  ";
 
+const PARSE_BUDGET_MS = 500;
+
 const COMMENT = String.raw`(?:\s*(?:--|\/\/).*)?`;
 const BLOCK_HEADER = new RegExp(
-  String.raw`^(?:(?:scene|branch)\s+[\p{L}_][\p{L}\p{N}_]*.*|choose${COMMENT}\s*)$`,
+  String.raw`^(?:scene|branch)\s+[\p{L}_][\p{L}\p{N}_]*`,
   "u",
 );
 const END_LINE = new RegExp(String.raw`^end${COMMENT}\s*$`);
-const CUE = new RegExp(
-  String.raw`^([\p{L}\p{N}][\p{L}\p{N} _'’.-]*?)\s*(?:\([^)]*\))?\s*(?:\[[^\]]*\])?:${COMMENT}\s*$`,
-  "u",
-);
 
 const newlineOf = (source: string) => (source.includes("\r\n") ? "\r\n" : "\n");
-
-const widthOf = (indent: string) => indent.replace(/\t/g, STEP).length;
 
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
@@ -113,43 +122,53 @@ function linesOf(source: string): SourceLine[] {
 }
 
 function lineIndexAt(lines: SourceLine[], offset: number): number {
-  let index = 0;
-  while (index + 1 < lines.length && lines[index + 1]!.from <= offset) index++;
-  return index;
+  let low = 0;
+  let high = lines.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if (lines[middle]!.from <= offset) low = middle;
+    else high = middle - 1;
+  }
+  return low;
 }
 
-const sceneAt = (scenes: readonly SceneSpan[], index: number) =>
-  scenes.find((scene) => index >= scene.startLine && index <= scene.endLine) ??
-  null;
+const DIALOGUE_NODES = ["BlockDialogue", "InlineDialogue"];
 
-export function insertContext(
-  source: string,
-  offset: number,
-  scenes: readonly SceneSpan[],
-): InsertContext {
-  return { inScene: !!sceneAt(scenes, lineIndexAt(linesOf(source), offset)) };
-}
-
-const cueName = (line: SourceLine) => line.content.match(CUE)?.[1] ?? null;
-
-function cueOwning(lines: SourceLine[], index: number): number | null {
-  const line = lines[index]!;
-  if (!line.content) return null;
-  if (cueName(line)) return index;
-  const width = widthOf(line.indent);
-  for (let previous = index - 1; previous >= 0; previous--) {
-    const candidate = lines[previous]!;
-    if (!candidate.content) continue;
-    if (widthOf(candidate.indent) >= width) continue;
-    return cueName(candidate) ? previous : null;
+function speakerOf(node: SyntaxNode, source: string): string | null {
+  if (!DIALOGUE_NODES.includes(node.name)) return null;
+  const cursor = node.cursor();
+  while (cursor.next() && cursor.from < node.to) {
+    if (cursor.name === "DialogueCharacterName") {
+      return source.slice(cursor.from, cursor.to).trim() || null;
+    }
   }
   return null;
 }
 
-function dialogueEnd(lines: SourceLine[], cue: number): number {
-  const width = widthOf(lines[cue]!.indent);
-  let last = cue;
-  for (let next = cue + 1; next < lines.length; next++) {
+export function storyBlocksOf(tree: Tree, source: string): StoryBlock[] {
+  const lines = linesOf(source);
+  const blocks: StoryBlock[] = [];
+  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    const startLine = lineIndexAt(lines, node.from);
+    let endLine = lineIndexAt(lines, Math.max(node.from, node.to - 1));
+    while (endLine > startLine && !lines[endLine]!.content) endLine--;
+    const speaker = speakerOf(node, source);
+    if (endLine <= startLine && !speaker) continue;
+    blocks.push({ startLine, endLine, speaker });
+  }
+  return blocks;
+}
+
+const widthOf = (indent: string) => indent.replace(/\t/g, STEP).length;
+
+function lastAbsorbedLine(
+  lines: SourceLine[],
+  after: number,
+  indent: string,
+): number {
+  const width = widthOf(indent);
+  let last = after;
+  for (let next = after + 1; next < lines.length; next++) {
     const line = lines[next]!;
     if (!line.content) continue;
     if (widthOf(line.indent) <= width) break;
@@ -158,12 +177,19 @@ function dialogueEnd(lines: SourceLine[], cue: number): number {
   return last;
 }
 
-function cueAround(lines: SourceLine[], index: number): number | null {
-  if (lines[index]!.content) return cueOwning(lines, index);
-  let previous = index - 1;
-  while (previous >= 0 && !lines[previous]!.content) previous--;
-  const cue = previous >= 0 ? cueOwning(lines, previous) : null;
-  return cue != null && dialogueEnd(lines, cue) > index ? cue : null;
+const spanAt = <T extends { startLine: number; endLine: number }>(
+  spans: readonly T[],
+  index: number,
+) =>
+  spans.find((span) => index >= span.startLine && index <= span.endLine) ??
+  null;
+
+export function insertContext(
+  source: string,
+  offset: number,
+  scenes: readonly SceneSpan[],
+): InsertContext {
+  return { inScene: !!spanAt(scenes, lineIndexAt(linesOf(source), offset)) };
 }
 
 function templateOf(
@@ -225,7 +251,7 @@ function planScene(
   const newline = newlineOf(source);
   const id = uniqueName(source, "new_scene");
   const block = [`scene ${id}`, STEP, "end"].join(newline);
-  const current = sceneAt(scenes, index);
+  const current = spanAt(scenes, index);
   if (current) {
     const at = lines[Math.min(current.endLine, lines.length - 1)]!.to;
     const insert = newline + newline + block;
@@ -288,42 +314,49 @@ function planStoryBlock(
   lines: SourceLine[],
   index: number,
   construct: InsertConstruct,
-  scenes: readonly SceneSpan[],
+  structure: ScriptStructure,
 ): InsertPlan | null {
-  if (!sceneAt(scenes, index)) return null;
+  if (!spanAt(structure.scenes, index)) return null;
   const newline = newlineOf(source);
   const line = lines[index]!;
   let mode: "after" | "replace" | "before" = "after";
-  let at = line.to;
+  let atLine = index;
   let indent = line.indent;
   let speaker: string | null = null;
-  const cue = cueAround(lines, index);
-  if (cue != null) {
-    speaker = cueName(lines[cue]!);
-    indent = lines[cue]!.indent;
-    at = lines[dialogueEnd(lines, cue)]!.to;
+  const enclosing = spanAt(structure.blocks, index);
+  if (enclosing) {
+    speaker = enclosing.speaker;
+    indent = lines[enclosing.startLine]!.indent;
+    atLine = enclosing.endLine;
   } else if (!line.content) {
     mode = "replace";
     if (!indent) {
       let previous = index - 1;
       while (previous >= 0 && !lines[previous]!.content) previous--;
       const above = previous >= 0 ? lines[previous]! : null;
-      const aboveCue = previous >= 0 ? cueOwning(lines, previous) : null;
-      indent =
-        aboveCue != null
-          ? lines[aboveCue]!.indent
-          : above && BLOCK_HEADER.test(above.content)
-            ? above.indent + STEP
-            : (above?.indent ?? "");
+      const aboveBlock =
+        previous >= 0 ? spanAt(structure.blocks, previous) : null;
+      indent = aboveBlock
+        ? lines[aboveBlock.startLine]!.indent
+        : above && BLOCK_HEADER.test(above.content)
+          ? above.indent + STEP
+          : (above?.indent ?? "");
     }
   } else if (END_LINE.test(line.content)) {
     mode = "before";
-    at = line.from;
     indent = line.indent + STEP;
   } else if (BLOCK_HEADER.test(line.content)) {
     indent = line.indent + STEP;
   }
   if (!indent) indent = STEP;
+  if (construct === "dialogue" && mode !== "before") {
+    const absorbed = lastAbsorbedLine(lines, atLine, indent);
+    if (absorbed > atLine) {
+      mode = "after";
+      atLine = absorbed;
+    }
+  }
+  const at = mode === "before" ? line.from : lines[atLine]!.to;
   const template = templateOf(construct, source, speaker);
   const block = template.lines.map((text) => indent + text).join(newline);
   const offset = block.indexOf(template.placeholder);
@@ -361,27 +394,31 @@ export function planInsertion(
   source: string,
   offset: number,
   construct: InsertConstruct,
-  scenes: readonly SceneSpan[],
+  structure: ScriptStructure,
 ): InsertPlan | null {
   const lines = linesOf(source);
   const index = lineIndexAt(
     lines,
     Math.max(0, Math.min(source.length, offset)),
   );
-  if (construct === "scene") return planScene(source, lines, index, scenes);
-  if (construct === "character") return planCharacter(source, lines, scenes);
-  return planStoryBlock(source, lines, index, construct, scenes);
+  if (construct === "scene") {
+    return planScene(source, lines, index, structure.scenes);
+  }
+  if (construct === "character") {
+    return planCharacter(source, lines, structure.scenes);
+  }
+  return planStoryBlock(source, lines, index, construct, structure);
 }
 
 export const insertConstruct =
-  (construct: InsertConstruct, scenes: readonly SceneSpan[]): Command =>
+  (construct: InsertConstruct, structure: ScriptStructure): Command =>
   (view) => {
     if (view.state.readOnly) return false;
     const plan = planInsertion(
       view.state.doc.toString(),
       view.state.selection.main.head,
       construct,
-      scenes,
+      structure,
     );
     if (!plan) return false;
     view.dispatch({
@@ -417,5 +454,11 @@ export async function insertConstructFromServer(
   ) {
     return false;
   }
-  return insertConstruct(construct, sceneSpansOf(symbols))(view);
+  const tree = ensureSyntaxTree(view.state, doc.length, PARSE_BUDGET_MS);
+  if (!tree) return false;
+  const structure = {
+    scenes: sceneSpansOf(symbols),
+    blocks: storyBlocksOf(tree, doc.toString()),
+  };
+  return insertConstruct(construct, structure)(view);
 }
