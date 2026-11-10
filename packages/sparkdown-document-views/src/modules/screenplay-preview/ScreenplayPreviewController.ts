@@ -194,6 +194,7 @@ export class ScreenplayPreviewController {
       this.handlePointerLeaveScroller,
     );
     this._protocols.dispose();
+    this.onIdle.cancel();
     const view = this._view;
     if (view) {
       this.unbindView(view);
