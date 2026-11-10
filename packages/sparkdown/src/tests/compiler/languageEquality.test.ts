@@ -49,6 +49,7 @@ const UNREADABLE: Record<string, string> = {
   "Hello {a&b}\nAfter\n": "&b",
   "Hello {{a & b}}\nAfter\n": "& b",
   "if a & b then\n  Hi.\nend\n": "& b",
+  "if x == 1 @@then\n  Hi.\nend\n": "@@",
 };
 
 const INCOMPLETE_HEADERS: Record<string, string> = {
