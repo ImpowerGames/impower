@@ -1,23 +1,28 @@
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isBareDeclarationTarget } from "../classes/annotators/DeclarationAnnotator";
 import { ancestorMatching } from "./ancestorMatching";
+import { isExplicitRuleName } from "./explicitRuleNames";
 import { findChildByName } from "./findChildByName";
-import { getLocalScope } from "./localScopes";
+import { getLocalScope, LOCAL_SCOPE_NODES } from "./localScopes";
 import { nodeNameSet } from "./nodeNameSet";
 import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
 
 type Read = (from: number, to: number) => string;
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
-const FUNCTION_LIKE = nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition"]);
-const CONST_SCOPE = nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauSparkleHandlerClosure"]);
-const SECTION_HEADER = nodeNameSet(["Scene", "Branch"]);
-const PARAMETER_OWNER = nodeNameSet([
-  "LuauFunctionDefinition",
-  "LuauMethodDefinition",
-  "Scene",
-  "Branch",
-]);
+const {
+  functionLike,
+  sectionHeaders,
+  constScopes,
+  forLoopContents,
+  forConditions,
+  repeatLoops,
+  untilConditions,
+  explicitStatements,
+  eventHandlers,
+  eventParameters,
+} = LOCAL_SCOPE_NODES;
+const PARAMETER_OWNER = new Set([...functionLike, ...sectionHeaders]);
 const FUNCTION_PARAMETER = nodeNameSet(["LuauFunctionParameter"]);
 const LOCAL_ONLY: ReadonlySet<string> = new Set(["local"]);
 const LOCAL_OR_CONST: ReadonlySet<string> = new Set(["local", "const"]);
@@ -57,13 +62,19 @@ function allNamed(node: SyntaxNode | null, name: string, found: SyntaxNode[] = [
   return found;
 }
 
+function statementsOf(statement: SyntaxNode): SyntaxNode[] {
+  return explicitStatements.has(statement.name)
+    ? significantChildren(findChildByName(statement, `${statement.name}_content`)).reverse()
+    : [statement];
+}
+
 function variableNames(statement: SyntaxNode): SyntaxNode[] {
   const names: SyntaxNode[] = [];
   for (const child of significantChildren(findChildByName(statement, `${statement.name}_content`))) {
     if (child.name.endsWith("VariableAssignment")) {
       const name = firstNamed(findChildByName(child, `${child.name}_begin`), "LuauVariableName");
       if (name) names.push(name);
-    } else if (child.name.endsWith("AccessPath")) {
+    } else if (isExplicitRuleName(child.name, "LuauAccessPath")) {
       const name = firstNamed(child, "LuauVariableName");
       if (name && isBareDeclarationTarget(name)) names.push(name);
     }
@@ -79,21 +90,22 @@ function functionName(definition: SyntaxNode): SyntaxNode | null {
   return firstNamed(declaration, "LuauFunctionName");
 }
 
-function loopVariables(loopContent: SyntaxNode): SyntaxNode[] {
-  const condition = significantChildren(loopContent).find(
-    (child) => child.name.endsWith("ForCondition") || child.name.endsWith("LoopCondition"),
-  );
-  const names: SyntaxNode[] = [];
-  for (const child of significantChildren(condition ? findChildByName(condition, `${condition.name}_content`) : null)) {
+function loopHeader(loopContent: SyntaxNode): { condition: SyntaxNode; variables: SyntaxNode[] } | null {
+  const condition = significantChildren(loopContent).find((child) => forConditions.has(child.name));
+  if (!condition) return null;
+  const variables: SyntaxNode[] = [];
+  for (const child of significantChildren(findChildByName(condition, `${condition.name}_content`))) {
     if (child.name === "LuauCommaSeparator") continue;
-    if (child.name.endsWith("AccessPath")) {
+    if (isExplicitRuleName(child.name, "LuauAccessPath")) {
       const name = firstNamed(child, "LuauVariableName");
-      if (name) names.push(name);
+      if (name) variables.push(name);
       continue;
     }
-    return child.name.endsWith("InKeyword") || child.name.includes("AssignmentOperation") ? names : [];
+    return child.name === "LuauInKeyword" || isExplicitRuleName(child.name, "LuauAssignmentOperation")
+      ? { condition, variables }
+      : null;
   }
-  return [];
+  return null;
 }
 
 export class LocalBindings {
@@ -107,7 +119,7 @@ export class LocalBindings {
   }
 
   private modifiers(node: SyntaxNode): ReadonlySet<string> {
-    return ancestorMatching(node, CONST_SCOPE, Infinity) ? LOCAL_OR_CONST : LOCAL_ONLY;
+    return ancestorMatching(node, constScopes, Infinity) ? LOCAL_OR_CONST : LOCAL_ONLY;
   }
 
   private localScope(declaration: SyntaxNode, type: "var" | "function") {
@@ -119,21 +131,21 @@ export class LocalBindings {
       const scope = this.localScope(declaration, type);
       return !!scope && at > scope.from && at <= scope.to;
     };
-    if (VARIABLE_DEFINITION_NAMES.has(statement.name)) {
-      for (const variable of variableNames(statement).reverse()) {
-        if (this.text(variable) === name && scoped(variable, "var")) return variable;
+    for (const inner of statementsOf(statement)) {
+      if (VARIABLE_DEFINITION_NAMES.has(inner.name)) {
+        for (const variable of variableNames(inner).reverse()) {
+          if (this.text(variable) === name && scoped(variable, "var")) return variable;
+        }
+      } else if (inner.name === "LuauFunctionDefinition") {
+        const declared = functionName(inner);
+        if (declared && this.text(declared) === name && scoped(declared, "function")) return declared;
       }
-      return null;
-    }
-    if (statement.name === "LuauFunctionDefinition") {
-      const declared = functionName(statement);
-      if (declared && this.text(declared) === name && scoped(declared, "function")) return declared;
     }
     return null;
   }
 
   private parameterNamed(owner: SyntaxNode, name: string): SyntaxNode | null {
-    const header = FUNCTION_LIKE.has(owner.name)
+    const header = functionLike.has(owner.name)
       ? findChildByName(findChildByName(owner, `${owner.name}_content`) ?? owner, "LuauFunctionParameters")
       : owner;
     for (const parameter of allNamed(header, "LuauFunctionParameter")) {
@@ -152,7 +164,7 @@ export class LocalBindings {
       }
     }
     if (node.name === "LuauFunctionName") {
-      const statement = ancestorMatching(node, FUNCTION_LIKE, 4);
+      const statement = ancestorMatching(node, functionLike, 4);
       if (statement && functionName(statement)?.from === node.from) {
         return this.localScope(node, "function") != null ? node : null;
       }
@@ -176,25 +188,29 @@ export class LocalBindings {
     if (own !== undefined) return own?.from ?? null;
     const name = this.text(node);
     for (let child: SyntaxNode = node, scope = node.parent; scope; child = scope, scope = scope.parent) {
-      if (scope.name.endsWith("Loop_content")) {
-        for (const variable of loopVariables(scope).reverse()) {
-          if (variable.from === at || (child.name.endsWith("DoBlock") && this.text(variable) === name)) {
+      if (forLoopContents.has(scope.name)) {
+        const header = loopHeader(scope);
+        for (const variable of header?.variables.reverse() ?? []) {
+          if (variable.from === at || (child.from >= header!.condition.to && this.text(variable) === name)) {
             return variable.from;
           }
         }
       }
-      if (FUNCTION_LIKE.has(scope.name)) {
+      if (eventHandlers.has(scope.name) && eventParameters.has(name)) {
+        return scope.from;
+      }
+      if (functionLike.has(scope.name)) {
         const parameter = this.parameterNamed(scope, name);
         if (parameter) return parameter.from;
         const own = this.declarationIn(scope, name, at);
         if (own) return own.from;
       }
-      const repeat = child.name.endsWith("UntilCondition") ? significantBefore(child) : null;
+      const repeat = untilConditions.has(child.name) ? significantBefore(child) : null;
       let sections = scope.parent ? null : { pendingEnds: 0 };
       for (let statement = child.prevSibling; statement; statement = statement.prevSibling) {
         if (sections && statement.name === "LuauEndKeyword") {
           sections.pendingEnds += 1;
-        } else if (sections && SECTION_HEADER.has(statement.name)) {
+        } else if (sections && sectionHeaders.has(statement.name)) {
           if (sections.pendingEnds > 0) {
             sections.pendingEnds -= 1;
           } else {
@@ -203,7 +219,7 @@ export class LocalBindings {
             if (statement.name === "Scene") sections = null;
           }
         }
-        if (repeat?.name.endsWith("RepeatLoop") && statement.from === repeat.from) {
+        if (repeat && repeatLoops.has(repeat.name) && statement.from === repeat.from) {
           const body = findChildByName(statement, `${statement.name}_content`);
           for (let inner = body?.lastChild; inner; inner = inner.prevSibling) {
             const local = this.declarationIn(inner, name, at);

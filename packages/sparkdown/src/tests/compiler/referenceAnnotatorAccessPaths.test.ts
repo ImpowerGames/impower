@@ -116,6 +116,14 @@ describe("ReferenceAnnotator · access paths (I-1969)", () => {
     expect(at(refs, source, "name")).toMatchObject({ symbolIds: ["character.raffles.name"], root });
   });
 
+  test("a path in an explicit statement is annotated like any other", () => {
+    const source = "scene s\n  & x = character.raffles.name\nend\n";
+    const refs = collect(source);
+    const root = offsetOf(source, "character");
+    expect(at(refs, source, "raffles")).toMatchObject({ symbolIds: ["character.raffles"], root });
+    expect(at(refs, source, "name")).toMatchObject({ symbolIds: ["character.raffles.name"], root });
+  });
+
   test("a computed index ends the static path", () => {
     const source = "scene s\n  {character[who].name}\nend\n";
     const refs = collect(source);

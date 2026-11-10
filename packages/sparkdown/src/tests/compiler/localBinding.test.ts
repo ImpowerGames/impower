@@ -206,6 +206,33 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
   });
 
+  test("an explicit local and an explicit local function bind later lines of the scene", () => {
+    const { bindingOf, offset } = bindingsOf(
+      "scene s\n  & local settings = 1\n  & local function helper() return settings end\n  {settings} {helper()}\nend\n",
+    );
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBe(offset("settings", 1));
+    expect(bindingOf("helper", 2)).toBe(offset("helper", 1));
+  });
+
+  test("a layout for loop binds its variable in its body and not after it", () => {
+    const { bindingOf, offset } = bindingsOf(
+      'layout inventory {\n  column {\n    for settings in bag do\n      row {\n        image #src={settings.icon}\n      }\n    end\n    text "{settings}"\n  }\n}\n',
+    );
+    expect(bindingOf("settings", 1)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBeNull();
+  });
+
+  test("an event handler's implicit event parameter binds inside the handler only", () => {
+    const { bindingOf, offset } = bindingsOf(
+      'layout form {\n  button "Go" @click={ x = event.value }\n  button "Save" @click=print(event)\n}\nscene s\n  {event}\nend\n',
+    );
+    expect(bindingOf("event", 1)).toBe(offset("{ x = event"));
+    expect(bindingOf("event", 2)).not.toBeNull();
+    expect(bindingOf("event", 3)).toBeNull();
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();

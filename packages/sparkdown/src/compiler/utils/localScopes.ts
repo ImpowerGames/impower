@@ -16,6 +16,31 @@ export type LocalScope = { from: number; to: number };
 
 const LOCAL_ONLY: ReadonlySet<string> = new Set(["local"]);
 
+export const LOCAL_SCOPE_NODES = {
+  functionLike: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition"]),
+  parameterOwnerContents: nodeNameSet(["LuauFunctionDefinition_content", "LuauMethodDefinition_content"]),
+  sectionHeaders: nodeNameSet(["Scene", "Branch"]),
+  constScopes: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauSparkleHandlerClosure"]),
+  forLoopContents: nodeNameSet([
+    "LuauForLoop_content",
+    "LuauSparkdownForLoop_content",
+    "LuauSparkdownExplicitLoop_content",
+    "LuauSparkleForLoop_content",
+    "LuauSparkleBlockFor_content",
+  ]),
+  forConditions: nodeNameSet(["LuauForCondition", "LuauSparkdownExplicitLoopCondition"]),
+  repeatLoops: nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]),
+  untilConditions: nodeNameSet(["LuauUntilCondition"]),
+  explicitStatements: nodeNameSet(["LuauSparkdownExplicitStatement"]),
+  eventHandlers: nodeNameSet([
+    "LuauSparkleHandlerClosure",
+    "LuauEventAttribute_content",
+    "LuauSparkleEventHandler",
+    "LuauSparkleEventParenAttribute_content",
+  ]),
+  eventParameters: new Set(["event"]),
+};
+
 const LUAU_BLOCKS = nodeNameSet([
   "LuauFunctionBody",
   "LuauFunctionDefinition",
@@ -60,7 +85,7 @@ const LUAU_BRANCHES = nodeNameSet([
   "LuauSparkdownExplicitElseBlock",
 ]);
 
-const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
+const REPEAT_LOOPS = LOCAL_SCOPE_NODES.repeatLoops;
 
 const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
   "Newline",
@@ -230,8 +255,7 @@ export const getParameterScope = (
   if (
     !parameters ||
     !owner ||
-    (owner.name !== "LuauFunctionDefinition_content" &&
-      owner.name !== "LuauMethodDefinition_content")
+    !LOCAL_SCOPE_NODES.parameterOwnerContents.has(owner.name)
   ) {
     return undefined;
   }

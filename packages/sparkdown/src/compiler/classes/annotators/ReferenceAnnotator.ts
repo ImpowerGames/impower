@@ -138,7 +138,7 @@ function lineContinuationAfter(node: SyntaxNode): SyntaxNode | null {
     while (next && (isTrivia(next) || next.name === "Newline" || next.name.endsWith("_end"))) {
       next = next.nextSibling;
     }
-    if (next) return next.name === "LuauLineContinuation" ? next : null;
+    if (next) return isExplicitRuleName(next.name, "LuauLineContinuation") ? next : null;
   }
   return null;
 }
@@ -313,7 +313,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   ): boolean {
     for (let part = first; part; part = part.nextSibling) {
       if (isTrivia(part)) continue;
-      const accessor = part.name === "LuauAccessPart" ? part.firstChild : part;
+      const accessor = isExplicitRuleName(part.name, "LuauAccessPart") ? part.firstChild : part;
       const segment = accessor && this.segmentName(accessor);
       if (!segment) return false;
       path.push(this.read(segment.from, segment.to));
@@ -355,8 +355,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     const part = ancestorMatching(root, VARIABLE, 2)?.parent;
     const path = part?.parent?.parent;
     if (
-      part?.name !== "LuauAccessPart" ||
-      path?.name !== "LuauAccessPath" ||
+      !part ||
+      !path ||
+      !isExplicitRuleName(part.name, "LuauAccessPart") ||
+      !isExplicitRuleName(path.name, "LuauAccessPath") ||
       !onlyTrivia(part.prevSibling, "prevSibling")
     ) {
       return;
@@ -368,8 +370,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     let last: SyntaxNode = path;
     for (;;) {
       const next = significantAfter(last);
-      if (next?.name === "LuauChainedPropertyAccess") {
-        const content = findChildByName(next, "LuauChainedPropertyAccess_content");
+      if (next && isExplicitRuleName(next.name, "LuauChainedPropertyAccess")) {
+        const content = findChildByName(next, `${next.name}_content`);
         if (!this.pushSegments(annotations, root, segments, content?.firstChild ?? null)) return;
         last = next;
         continue;
@@ -380,7 +382,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         continue;
       }
       const continuation = lineContinuationAfter(last);
-      const content = continuation && findChildByName(continuation, "LuauLineContinuation_content");
+      const content = continuation && findChildByName(continuation, `${continuation.name}_content`);
       if (!content || !this.pushSegments(annotations, root, segments, content.firstChild)) return;
       first = last = continuation;
     }

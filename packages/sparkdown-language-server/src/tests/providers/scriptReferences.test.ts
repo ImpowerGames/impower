@@ -170,6 +170,12 @@ describe("provider · script references read access paths and bindings from the 
     ).toBe(0);
   });
 
+  test("a path in an explicit statement counts as a use of the define's script", () => {
+    expect(
+      referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: "scene chapter_scene\n  & x = character.raffles.name\nend\n" }, CAST),
+    ).toBe(1);
+  });
+
   test("a path continued on the next line counts as a use of the define's script", () => {
     expect(
       referencedBy(
@@ -217,6 +223,11 @@ describe("provider · script references read access paths and bindings from the 
     ["a story repeat body's local", "scene start\n  repeat\n    local settings = 1\n  until settings > 0\nend\n"],
     ["a bare local", "function f()\n  local settings return settings\nend\n"],
     ["an event handler's const", 'layout form {\n  button "Go" @click={ const settings = 1 print(settings) }\n}\n'],
+    ["an explicit local", "scene s\n  & local settings = {score = 2}\n  {settings.score}\nend\n"],
+    [
+      "a layout for loop's variable",
+      'layout inventory {\n  column {\n    for settings in bag do\n      row {\n        image #src={settings.icon}\n      }\n    end\n  }\n}\n',
+    ],
   ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
   });
