@@ -13,7 +13,6 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { openLintPanel } from "@codemirror/lint";
 import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -248,7 +247,6 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
 
-  protected _problemsOnReveal: string | undefined;
   protected _protocols = new ProtocolObserver();
   protected _historyCache = sharedEditorHistory;
 
@@ -650,10 +648,6 @@ export class ScriptEditorController {
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
     }
-    if (command === "problems" && this.refs.editor?.style.visibility === "hidden") {
-      this._problemsOnReveal = textDocument.uri;
-      return ExecuteEditorCommandMessage.type.response(message.id, { ran: true });
-    }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
@@ -697,8 +691,6 @@ export class ScriptEditorController {
         return formatDocument(view);
       case "gotoLine":
         return openCustomGotoLinePanel(view);
-      case "problems":
-        return openLintPanel(view);
       case "search":
         return openFind(view);
       case "undo":
@@ -1118,6 +1110,7 @@ export class ScriptEditorController {
             findPrevious: () => this.requestEditorTool("findPrevious"),
             rename: () => this.requestEditorTool("rename"),
             references: () => this.requestEditorTool("references"),
+            problems: () => this.requestEditorTool("problems"),
           },
           onChangeColor: this.options.onChangeColor
             ? ({ from, to, text, color }) => {
@@ -1591,11 +1584,6 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
-    const problems = this._problemsOnReveal;
-    this._problemsOnReveal = undefined;
-    if (this._view && problems && problems === this._textDocument?.uri) {
-      openLintPanel(this._view);
-    }
   };
 
   protected handleViewportParsed = () => {

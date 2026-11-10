@@ -189,7 +189,7 @@ export const EDITOR_SHORTCUTS = [
     aliases: ["Mod+Alt+G"],
     scope: GOTO_LINE_PANEL,
   },
-  { id: "problems", group: "find", name: "Show problems", detail: "List the problems in the script.", keys: "Mod+Shift+M" },
+  { id: "problems", group: "find", name: "Show problems", detail: "Open the Problems panel with every script's problems.", keys: "Mod+Shift+M" },
   { id: "nextProblem", group: "find", name: "Next problem", detail: "Go to the next problem in the script.", keys: "F8" },
   { id: "signature", group: "story", name: "Show parameter hints", detail: "Show what a function call expects.", keys: "Mod+Shift+Space" },
   { id: "previousSignature", group: "story", name: "Previous parameter hint", detail: "Show the previous form of the function being called.", keys: "Mod+Shift+Up" },

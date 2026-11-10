@@ -15,6 +15,7 @@ import {
   type ShortcutPlatform,
 } from "../src/shortcutCombo";
 import { editorShortcutDispatch } from "../src/shortcutDispatch";
+import { editorToolCommands } from "../src/tools";
 import {
   activeCombos,
   assignShortcut,
@@ -382,6 +383,26 @@ describe("the generated keymaps", () => {
     const event = press(view, { key: "X", code: "KeyX", keyCode: 88, ctrlKey: true, shiftKey: true });
     expect(format).toHaveBeenCalledTimes(1);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("asks the host to show its problems on Mod+Shift+M, opening no panel inside the editor", () => {
+    const problems = vi.fn();
+    const view = new EditorView({
+      parent: document.body.appendChild(document.createElement("div")),
+      state: EditorState.create({
+        doc: "line one\nline two",
+        extensions: [
+          editorShortcuts({ platform: "linux" }),
+          editorToolCommands.of({ problems }),
+        ],
+      }),
+    });
+    views.push(view);
+    const event = press(view, { key: "M", code: "KeyM", keyCode: 77, ctrlKey: true, shiftKey: true });
+    expect(problems).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    expect(editorShortcutDispatch(event)?.handled).toBe("problems");
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
   });
 
   it("rebuilds the keymaps when the combos change", () => {

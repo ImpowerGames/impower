@@ -73,6 +73,10 @@ vi.mock("../../src/modules/spark-editor/components/preview-bar/PreviewBar", () =
   default: () => null,
 }));
 
+vi.mock("../../src/modules/spark-editor/components/problems", () => ({
+  ProblemsPanel: () => null,
+}));
+
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
@@ -1874,31 +1878,13 @@ describe("the story's front matter", () => {
 
 describe("Revealing a script from the bar under the game", () => {
   let win: WorkspaceWindow;
-  let sent: { method?: string; id?: unknown; params?: any }[];
-  let stopListening: () => void;
-
-  const SHOW_PROBLEMS = "editor/executeCommand";
 
   beforeEach(() => {
     localStorage.clear();
     win = new WorkspaceWindow(Workspace);
-    sent = [];
-    const listener = (e: Event) => {
-      const message = (e as CustomEvent).detail;
-      if (
-        message?.method === SHOW_PROBLEMS &&
-        message.params?.command === "problems"
-      ) {
-        sent.push(message);
-      }
-    };
-    window.addEventListener(MessageProtocol.event, listener);
-    stopListening = () =>
-      window.removeEventListener(MessageProtocol.event, listener);
   });
 
   afterEach(() => {
-    stopListening();
     win.dispose();
     delete (document as { fullscreenElement?: Element }).fullscreenElement;
   });
@@ -2011,49 +1997,6 @@ describe("Revealing a script from the bar under the game", () => {
     ).toEqual(at(8));
   });
 
-  it("asks the script's editor for its problems once it is on screen", async () => {
-    win.navigateTo("collection");
-    const uri = uriOf("main.sd");
-    await win.showProblems(uri);
-    expect(workspace.current.pane).toBe("logic");
-    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri]);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri: uriOf("other.sd"), version: 1 } },
-    });
-    expect(sent).toHaveLength(1);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 1 } },
-    });
-    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri, uri]);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 2 } },
-    });
-    expect(sent).toHaveLength(2);
-  });
-
-  it("asks only once when the editor on screen answers", async () => {
-    const uri = uriOf("main.sd");
-    await win.showProblems(uri);
-    expect(sent).toHaveLength(1);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: SHOW_PROBLEMS,
-      id: sent[0]!.id,
-      result: {},
-    } as never);
-    sendProtocolMessage({
-      jsonrpc: "2.0",
-      method: "editor/didLoad",
-      params: { textDocument: { uri, version: 1 } },
-    });
-    expect(sent).toHaveLength(1);
-  });
 });
 
 describe("The preview's top bar", () => {

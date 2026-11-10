@@ -237,14 +237,14 @@ export default class WorkspaceSearch {
         };
       }),
       sources.onEditorTool((tool) => {
-        const tools: Record<EditorTool, () => unknown> = {
+        const tools: Partial<Record<EditorTool, () => unknown>> = {
           find: () => this.openFindFromSelection(),
           findNext: () => this.stepOrOpen(false),
           findPrevious: () => this.stepOrOpen(true),
           rename: () => this.openRename(),
           references: () => this.openReferences(),
         };
-        void tools[tool]();
+        void tools[tool]?.();
       }),
       sources.onEditorLoaded(() => {
         this._published = "";
