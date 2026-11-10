@@ -2350,18 +2350,22 @@ describe("The preview's top bar", () => {
     expect(workspace.current.preview.modes.game.choosing).toBe(false);
   });
 
-  it("writes the workspace cache it still owes when it is disposed, and nothing after", async () => {
-    show();
-    win.startGame();
+  it("writes the workspace cache it still owes when it is disposed, and nothing after", () => {
+    vi.useFakeTimers();
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     try {
+      show();
+      win.startGame();
+      setItem.mockClear();
       win.dispose();
-      const written = setItem.mock.calls.length;
-      expect(written).toBeGreaterThan(0);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      expect(setItem.mock.calls.length).toBe(written);
+      expect(setItem.mock.calls.map(([key]) => key)).toEqual([
+        "workspace/" + workspace.current.project.id,
+      ]);
+      vi.advanceTimersByTime(1000);
+      expect(setItem).toHaveBeenCalledTimes(1);
     } finally {
       setItem.mockRestore();
+      vi.useRealTimers();
     }
   });
 
