@@ -51,6 +51,7 @@ import {
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getMorphCompletions } from "./getMorphCompletions";
+import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -59,12 +60,10 @@ const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
-const LAYOUT_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...MOVIE_CONTROL_KEYWORDS,
-  ...LAYOUT_CONTROL_KEYWORDS,
+  ...LAYOUT_VERBS,
 ];
 const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
@@ -469,13 +468,12 @@ const addBracketControlCompletions = (
   completions: Map<string, CompletionItem>,
 ) => {
   addKeywordCompletions(completions, "control", BRACKET_CONTROL_KEYWORDS);
-  for (const verb of LAYOUT_CONTROL_KEYWORDS) {
+  for (const verb of LAYOUT_VERBS) {
     const completion = completions.get(verb);
-    const description = LAYOUT_CONTROL_DESCRIPTIONS[verb];
-    if (completion && description) {
+    if (completion) {
       completion.documentation = {
         kind: MarkupKind.Markdown,
-        value: description,
+        value: LAYOUT_CONTROL_DESCRIPTIONS[verb],
       };
     }
   }

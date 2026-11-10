@@ -194,3 +194,37 @@ describe("the Assets page's file intents", () => {
     expect(fs.createFolder).toHaveBeenCalledWith(PROJECT, "Assets/Audio/Ambience");
   });
 });
+
+describe("measuring pictures for a folder's tile shape", () => {
+  it("reads each picture's header once through a ranged request, skipping links and recording failures", async () => {
+    const { assets } = fakeWorkspace({
+      "Assets/Images/Cast/a.png": "png",
+      "Assets/Images/Cast/b.png": "png",
+      "Assets/Images/Cast/web.url": "https://example.com/c.png",
+    });
+    await assets.load();
+    workspace.assetSizes.value = {};
+    const png = new Uint8Array(24);
+    png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    png.set([0x49, 0x48, 0x44, 0x52], 12);
+    new DataView(png.buffer).setUint32(16, 300);
+    new DataView(png.buffer).setUint32(20, 400);
+    const fetch = vi.fn(async (src: string) =>
+      src.endsWith("a.png") ? new Response(png, { status: 206 }) : new Response("", { status: 404 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const paths = ["Assets/Images/Cast/a.png", "Assets/Images/Cast/b.png", "Assets/Images/Cast/web.url"];
+      await assets.measureImages(paths);
+      await assets.measureImages(paths);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledWith("/src/Assets/Images/Cast/a.png", { headers: { Range: "bytes=0-65535" } });
+    expect(workspace.assetSizes.value).toEqual({
+      "/src/Assets/Images/Cast/a.png": { width: 300, height: 400 },
+      "/src/Assets/Images/Cast/b.png": null,
+    });
+  });
+});

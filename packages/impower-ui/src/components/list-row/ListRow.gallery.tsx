@@ -112,6 +112,16 @@ function ListRowDemo() {
           onClick={() => {}}
         />
       </GalleryRow>
+      <GalleryRow label="A long description wrapping instead of fading, in a narrow cell">
+        <div class="w-44">
+          <ListRow
+            descriptionFit="wrap"
+            icon={<FileIcon />}
+            label="subway"
+            description="That name is already in use in this folder."
+          />
+        </div>
+      </GalleryRow>
       <GalleryRow label="Not interactive, without a description: a row holding a field">
         <ListRow icon={<FileIcon />} label="A name being typed" />
       </GalleryRow>

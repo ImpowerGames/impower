@@ -66,6 +66,7 @@ export type RepositoryDefinition =
 export interface GrammarDefinition {
   fileTypes?: string[];
   name?: string;
+  scopeName?: string;
   patterns?: IncludeDefinition[];
   repository?: Record<string, RepositoryDefinition>;
 }

@@ -205,7 +205,10 @@ function runItem(view: EditorView, item: ContextMenuItem, pos: number) {
   if (!("label" in item) || isDisabled(view, item)) {
     return;
   }
-  const atName = item.when != null && view.state.selection.main.head !== pos;
+  const atName =
+    item.when != null &&
+    !item.keepsSelection &&
+    view.state.selection.main.head !== pos;
   view.dispatch({
     selection: atName ? { anchor: pos } : undefined,
     effects: closeContextMenu.of(),

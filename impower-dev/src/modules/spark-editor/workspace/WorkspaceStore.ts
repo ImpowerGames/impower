@@ -22,6 +22,7 @@ import type {
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
+import type { ImageSize } from "../utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
 import {
@@ -194,6 +195,8 @@ class WorkspaceStore {
   readonly scriptReferences = signal<readonly Reference[]>([]);
 
   readonly assetListing = signal<AssetListing | null>(null);
+
+  readonly assetSizes = signal<Readonly<Record<string, ImageSize | null>>>({});
 
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
