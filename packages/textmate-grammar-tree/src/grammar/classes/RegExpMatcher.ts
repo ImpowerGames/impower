@@ -9,6 +9,11 @@ import type { Matcher } from "../types/Matcher";
 import { analyzeCaptureGroups } from "../utils/analyzeCaptureGroups";
 import { escapeRegExpPattern } from "../utils/escapeRegExpPattern";
 import { hasCapturingGroups } from "../utils/hasCapturingGroups";
+import {
+  ONIGURUMA_CLASS_WORD_RANGES,
+  ONIGURUMA_DIGIT_RANGES,
+  ONIGURUMA_WORD_RANGES,
+} from "../utils/onigurumaRanges";
 
 export type RegExpMatchResult = (string | undefined)[] & {
   indices?: ([number, number] | undefined)[];
@@ -99,58 +104,104 @@ interface UnicodeEscapes {
   inside: Record<string, string>;
 }
 
-const CLASS_WORD = String.raw`\p{Alphabetic}\p{M}\p{Nd}\p{Pc}`;
+type CodeRange = [number, number];
 
-const WORD = String.raw`${CLASS_WORD}\xb2\xb3\xb9\xbc-\xbe`;
+const BMP_END = 0xffff;
 
-const DIGIT = String.raw`\p{Nd}`;
+const MAX_CODE_POINT = 0x10ffff;
 
-const NOT_DIGIT = String.raw`\P{Nd}`;
+const parseRanges = (ranges: string): CodeRange[] =>
+  ranges.split(",").map((range) => {
+    const [from, to = from] = range.split("-");
+    return [parseInt(from!, 16), parseInt(to!, 16)];
+  });
 
-const unicodeEscapes = (word: string, classWord: string): UnicodeEscapes => {
-  const isWord = `[${word}]`;
+const WORD = parseRanges(ONIGURUMA_WORD_RANGES);
+
+const CLASS_WORD = parseRanges(ONIGURUMA_CLASS_WORD_RANGES);
+
+const DIGIT = parseRanges(ONIGURUMA_DIGIT_RANGES);
+
+const bmpPart = (ranges: CodeRange[]): CodeRange[] =>
+  ranges
+    .filter(([from]) => from <= BMP_END)
+    .map(([from, to]) => [from, Math.min(to, BMP_END)]);
+
+const astralPart = (ranges: CodeRange[]): CodeRange[] =>
+  ranges
+    .filter(([, to]) => to > BMP_END)
+    .map(([from, to]) => [Math.max(from, BMP_END + 1), to]);
+
+const complement = (ranges: CodeRange[]): CodeRange[] => {
+  const result: CodeRange[] = [];
+  let next = 0;
+  for (const [from, to] of ranges) {
+    if (from > next) {
+      result.push([next, from - 1]);
+    }
+    next = to + 1;
+  }
+  if (next <= MAX_CODE_POINT) {
+    result.push([next, MAX_CODE_POINT]);
+  }
+  return result;
+};
+
+const codePoint = (c: number) => "\\u{" + c.toString(16) + "}";
+
+const classBody = (ranges: CodeRange[]) =>
+  ranges
+    .map(([from, to]) =>
+      from === to ? codePoint(from) : `${codePoint(from)}-${codePoint(to)}`,
+    )
+    .join("");
+
+const unicodeEscapes = (
+  word: CodeRange[],
+  classWord: CodeRange[],
+  digit: CodeRange[],
+): UnicodeEscapes => {
+  const isWord = `[${classBody(word)}]`;
   return {
     outside: {
       w: isWord,
-      W: `[^${word}]`,
-      d: DIGIT,
-      D: NOT_DIGIT,
+      W: `[^${classBody(word)}]`,
+      d: `[${classBody(digit)}]`,
+      D: `[^${classBody(digit)}]`,
       b: `(?:(?<=${isWord})(?!${isWord})|(?<!${isWord})(?=${isWord}))`,
       B: `(?:(?<=${isWord})(?=${isWord})|(?<!${isWord})(?!${isWord}))`,
     },
     afterWord: { b: `(?!${isWord})`, B: `(?=${isWord})` },
     beforeWord: { b: `(?<!${isWord})`, B: `(?<=${isWord})` },
-    inside: { w: classWord, d: DIGIT, D: NOT_DIGIT },
+    inside: {
+      w: classBody(classWord),
+      W: classBody(complement(classWord)),
+      d: classBody(digit),
+      D: classBody(complement(digit)),
+    },
   };
 };
 
-const UNICODE_ESCAPES = unicodeEscapes(WORD, CLASS_WORD);
-
-const hexUnit = (c: number) => "\\u" + c.toString(16).padStart(4, "0");
-
-const bmpRanges = (set: RegExp) => {
-  let ranges = "";
-  let start = -1;
-  for (let c = 0; c <= 0x10000; c++) {
-    const inSet = c < 0x10000 && set.test(String.fromCharCode(c));
-    if (inSet && start < 0) {
-      start = c;
-    } else if (!inSet && start >= 0) {
-      ranges +=
-        start === c - 1 ? hexUnit(start) : `${hexUnit(start)}-${hexUnit(c - 1)}`;
-      start = -1;
-    }
-  }
-  return ranges;
+const REWRITE_MARKERS: UnicodeEscapes = {
+  outside: { w: "", W: "", d: "", D: "", b: "", B: "" },
+  afterWord: { b: "", B: "" },
+  beforeWord: { b: "", B: "" },
+  inside: { w: "", W: "", d: "", D: "" },
 };
 
 let bmpEscapesCache: UnicodeEscapes | undefined;
 
 const bmpEscapes = () =>
   (bmpEscapesCache ??= unicodeEscapes(
-    bmpRanges(new RegExp(`[${WORD}]`, "u")),
-    bmpRanges(new RegExp(`[${CLASS_WORD}]`, "u")),
+    bmpPart(WORD),
+    bmpPart(CLASS_WORD),
+    bmpPart(DIGIT),
   ));
+
+let fullEscapesCache: UnicodeEscapes | undefined;
+
+const fullEscapes = () =>
+  (fullEscapesCache ??= unicodeEscapes(WORD, CLASS_WORD, DIGIT));
 
 const isAsciiWord = (c: number) =>
   (c >= 48 && c <= 57) ||
@@ -229,26 +280,31 @@ const boundaryEscape = (
   return escapes.outside[kind];
 };
 
-const resolveUnicodeEscapes = (pattern: string, escapes: UnicodeEscapes) => {
+const resolveUnicodeEscapes = (
+  pattern: string,
+  escapes: UnicodeEscapes,
+  nestedClasses: boolean,
+) => {
   let resolved = "";
   let from = 0;
-  let inClass = false;
+  let classDepth = 0;
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern.charCodeAt(i);
-    if (c === 91) {
-      inClass = true;
-    } else if (c === 93) {
-      inClass = false;
+    if (c === 91 && (classDepth === 0 || nestedClasses)) {
+      classDepth++;
+    } else if (c === 93 && classDepth > 0) {
+      classDepth--;
     }
     if (c !== 92) {
       continue;
     }
     const kind = pattern[i + 1]!;
-    const replacement = inClass
-      ? escapes.inside[kind]
-      : kind === "b" || kind === "B"
-        ? boundaryEscape(pattern, i, escapes)
-        : escapes.outside[kind];
+    const replacement =
+      classDepth > 0
+        ? escapes.inside[kind]
+        : kind === "b" || kind === "B"
+          ? boundaryEscape(pattern, i, escapes)
+          : escapes.outside[kind];
     if (replacement !== undefined) {
       resolved += pattern.slice(from, i) + replacement;
       from = i + 2;
@@ -264,10 +320,7 @@ const BMP_TEXT = 1;
 
 const ASTRAL_WORD_TEXT = 2;
 
-const ASTRAL_WORD = new RegExp(
-  String.raw`(?=[\u{10000}-\u{10ffff}])[${WORD}]`,
-  "u",
-);
+const ASTRAL_WORD = new RegExp(`[${classBody(astralPart(WORD))}]`, "u");
 
 let checkedText: string | undefined;
 
@@ -292,7 +345,9 @@ const compile = (
 ) => {
   try {
     return new RegExp(
-      escapes ? resolveUnicodeEscapes(pattern, escapes) : pattern,
+      escapes
+        ? resolveUnicodeEscapes(pattern, escapes, flags.includes("v"))
+        : pattern,
       flags,
     );
   } catch {
@@ -360,12 +415,18 @@ export class RegExpMatcher implements Matcher {
     this.readsUnicodeText =
       !escapes &&
       /[uv]/.test(flags) &&
-      resolveUnicodeEscapes(pattern, UNICODE_ESCAPES) !== pattern;
+      resolveUnicodeEscapes(pattern, REWRITE_MARKERS, flags.includes("v")) !==
+        pattern;
     this.hasAnchor = resolveAnchor(pattern, ANCHOR_REFUSED) != null;
     this.compileSource(pattern);
-    this.hasCapturingGroups = this.regexp
-      ? hasCapturingGroups(this.regexp)
-      : false;
+    const groupsOf = escapes
+      ? compile(
+          resolveAnchor(pattern, ANCHOR_REFUSED) ?? pattern,
+          flags,
+          undefined,
+        )
+      : this.regexp;
+    this.hasCapturingGroups = groupsOf ? hasCapturingGroups(groupsOf) : false;
     this.groupParents = this.hasCapturingGroups
       ? analyzeCaptureGroups(pattern)
       : [0];
@@ -418,9 +479,9 @@ export class RegExpMatcher implements Matcher {
         : (this.astralMatcher ??= new RegExpMatcher(
             this._pattern,
             this._flags,
-            UNICODE_ESCAPES,
+            fullEscapes(),
           ));
-    if (matcher._backReferences !== this._backReferences) {
+    if (matcher._source !== this._source) {
       matcher.backReferences = this._backReferences;
     }
     return matcher;

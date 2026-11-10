@@ -20,18 +20,21 @@ const SAMPLES = [
   "名",
   "é",
   "ж",
-  "́",
-  "٣",
-  "１",
-  "²",
-  "½",
-  "ª",
-  "‿",
-  "Ⅰ",
-  " ",
+  "\u{301}",
+  "\u{663}",
+  "\u{ff11}",
+  "\u{b2}",
+  "\u{bd}",
+  "\u{aa}",
+  "\u{203f}",
+  "\u{2160}",
+  "\u{a0}",
+  "\u{897}",
   "\u{1d49c}",
   "\u{1f600}",
   "\u{1d7ce}",
+  "\u{1e4d0}",
+  "\u{11f02}",
 ];
 
 const PATTERNS = [
@@ -40,11 +43,14 @@ const PATTERNS = [
   "\\d",
   "\\D",
   "[\\w]",
+  "[\\W]",
   "[\\d]",
   "[\\D]",
   "[^\\w]",
+  "[^\\W]",
   "[^\\d]",
   "[\\w-]",
+  "[\\W-]",
   "a\\b",
   "a\\B",
   "\\ba",
@@ -70,8 +76,8 @@ const onigMatch = (pattern: string, text: string, pos = 0) => {
   return text.slice(pos, match.captureIndices[0]!.end);
 };
 
-const treeMatch = (pattern: string, text: string, pos = 0) =>
-  new RegExpMatcher(pattern, "muy").match(text, pos)?.[0] ?? null;
+const treeMatch = (pattern: string, text: string, pos = 0, flags = "muy") =>
+  new RegExpMatcher(pattern, flags).match(text, pos)?.[0] ?? null;
 
 const cases = (pattern: string): [string, number][] =>
   SAMPLES.map((sample) => {
@@ -93,6 +99,20 @@ describe("word and digit escapes read Unicode text as Oniguruma does (I-2037)", 
     );
   });
 
+  test.each(["\\w", "[\\w]", "\\d"])("%s agrees with Oniguruma at every code point", (pattern) => {
+    const scanner = new OnigScanner([pattern]);
+    const matcher = new RegExpMatcher(pattern, "muy");
+    const disagreements: string[] = [];
+    for (let cp = 0; cp <= 0x10ffff; cp++) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue;
+      const text = String.fromCodePoint(cp);
+      const onigMatched = scanner.findNextMatchSync(new OnigString(text), 0) != null;
+      const treeMatched = matcher.match(text, 0) != null;
+      if (onigMatched !== treeMatched) disagreements.push(cp.toString(16));
+    }
+    expect(disagreements.slice(0, 20)).toEqual([]);
+  });
+
   test("an escaped backslash before a letter stays a literal backslash", () => {
     expect(treeMatch("\\\\b", "\\b")).toBe("\\b");
     expect(treeMatch("\\\\w", "\\w")).toBe("\\w");
@@ -103,16 +123,36 @@ describe("word and digit escapes read Unicode text as Oniguruma does (I-2037)", 
     expect(matcher.match("名x", 1)).toBeNull();
     expect(matcher.match(" x", 1)).toEqual(["x"]);
   });
+
+  test("a back-reference array changed in place reaches the Unicode reading", () => {
+    const matcher = new RegExpMatcher("\\1\\b", "muy");
+    const captures = ["", "do"];
+    matcher.backReferences = captures;
+    expect(matcher.match("do é", 0)).toEqual(["do"]);
+    expect(matcher.match("do名", 0)).toBeNull();
+    captures[1] = "end";
+    matcher.backReferences = captures;
+    expect(matcher.match("end é", 0)).toEqual(["end"]);
+    expect(matcher.match("end名", 0)).toBeNull();
+  });
+
+  test("an escape inside a nested class reads the class word set", () => {
+    expect(treeMatch("[[\\w]\\w]", "\u{b2}", 0, "mvy")).toBe(onigMatch("[[\\w]\\w]", "\u{b2}"));
+    expect(treeMatch("[[\\w]\\w]", "名", 0, "mvy")).toBe(onigMatch("[[\\w]\\w]", "名"));
+  });
 });
 
-describe("a keyword glued to a non-ASCII letter is display text in both engines (I-2037)", () => {
-  test.each(["function名 text\nHello\n", "local名 x = 1\n", "function f()\n  return 1\nend\n"])(
-    "%j",
-    async (source) => {
-      const { divergences } = await compareEnginesFull(source);
-      expect(divergences, formatDivergences(source, divergences)).toEqual([]);
-    },
-  );
+describe("a keyword glued to non-ASCII text reads the same in both engines (I-2037)", () => {
+  test.each([
+    "function名 text\nHello\n",
+    "local名 x = 1\n",
+    "function\u{897} text\nHello\n",
+    "function\u{1e4d0} text\nHello\n",
+    "function f()\n  return 1\nend\n",
+  ])("%j", async (source) => {
+    const { divergences } = await compareEnginesFull(source);
+    expect(divergences, formatDivergences(source, divergences)).toEqual([]);
+  });
 
   test.each([
     ["if x == 1 then名\n", "then名"],
