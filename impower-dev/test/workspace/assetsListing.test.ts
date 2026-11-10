@@ -172,6 +172,22 @@ describe("a tab's level", () => {
     expect(paths(images.rows)).toEqual(["assets/bunny.png"]);
   });
 
+  it("lists a file kept in another type's folder at the root of its own tab, at its real path", () => {
+    const mixed = listing({
+      "Assets/Images/Harbor/gulls.wav": 100,
+      "Assets/Images/Harbor/dock.png": 100,
+      "Assets/Audio/theme.wav": 100,
+    });
+    const audio = assetLevel({ listing: mixed, type: "audio", sort: "name-asc", endings: ENDINGS });
+    expect(audio.rows.map((row) => [row.path, row.location])).toEqual([
+      ["Assets/Images/Harbor/gulls.wav", "Assets/Images/Harbor"],
+      ["Assets/Audio/theme.wav", undefined],
+    ]);
+    expect(audio.files).toBe(2);
+    const images = assetLevel({ listing: mixed, type: "image", folder: "Assets/Images/Harbor", sort: "", endings: ENDINGS });
+    expect(paths(images.rows)).toEqual(["Assets/Images/Harbor/dock.png"]);
+  });
+
   it("lists a link under the type its address names", () => {
     const links = listing({
       "assets/urls/ferry_horn.url": { size: 40, address: "https://example.com/sounds/ferry_horn.mp3" },

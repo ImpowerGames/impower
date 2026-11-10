@@ -229,8 +229,12 @@ export const assetLevel = ({
       .map((path) => fileRow(listing, path, type, outside(at) ? at : undefined)),
     ...(atRoot
       ? ofType
-          .filter((path) => parentOf(path) === home)
-          .map((path) => fileRow(listing, path, type, home))
+          .filter(
+            (path) =>
+              parentOf(path) === home ||
+              (outside(path) && typeRoots.some((typeRoot) => isInside(path, typeRoot))),
+          )
+          .map((path) => fileRow(listing, path, type, parentOf(path)))
       : []),
   ];
   return {
