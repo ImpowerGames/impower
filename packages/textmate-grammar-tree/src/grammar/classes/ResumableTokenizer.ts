@@ -86,6 +86,8 @@ export class ResumableTokenizer {
 
   protected emittedAtLineStart = -1;
 
+  protected stoppedLine = false;
+
   emitSplitSignals = false;
 
   constructor(
@@ -174,24 +176,22 @@ export class ResumableTokenizer {
     return false;
   }
 
-  protected dispatch(
-    rules: Rule[],
-    pos: number,
-    atLineEnd = false,
-  ): DispatchResult | null {
+  protected dispatch(rules: Rule[], pos: number): DispatchResult | null {
     for (let i = 0; i < rules.length; i++) {
       const rule = rules[i];
       if (!rule) {
         continue;
       }
       if (rule instanceof ScopedRule) {
-        if (atLineEnd && this.isOpenedAt(rule, pos)) {
-          if (rule.beginRule.match(this.state, pos)) {
+        if (this.isOpenedAt(rule, pos)) {
+          const repeated = rule.beginRule.match(this.state, pos);
+          if (!repeated) {
+            continue;
+          }
+          if (repeated.length === 0) {
             return REPEATED;
           }
-          continue;
-        }
-        if (this.state.possibleStackOverflow(rule.id, pos)) {
+        } else if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
         this.state.enter(rule.id, pos);
@@ -208,7 +208,7 @@ export class ResumableTokenizer {
         }
         this.state.enter(rule.id, pos);
         rule.resolve();
-        const inner = this.dispatch(rule.rules ?? [], pos, atLineEnd);
+        const inner = this.dispatch(rule.rules ?? [], pos);
         this.state.exit(rule.id, pos);
         if (inner) {
           if (rule.emit && inner.kind !== "repeated") {
@@ -333,23 +333,21 @@ export class ResumableTokenizer {
       frame.rule.contentRule.rules ?? [],
       dispatchPos,
     );
-    if (!result || result.kind === "repeated") {
+    if (!result) {
       return false;
     }
+    if (result.kind === "repeated") {
+      this.stopLine(out);
+      return true;
+    }
     if (result.kind === "leaf") {
-      if (result.matched.length === 0) {
-        frame.emptyMatchCount++;
-        if (frame.emptyMatchCount >= EMPTY_MATCH_LIMIT) {
-          console.warn(
-            `[ScopedRule:${frame.rule.id}] Too many consecutive empty matches at pos=${this.absolutePos}. Possible infinite loop!`,
-          );
-          this.closeWithoutEnd(out, false);
-          return true;
-        }
-      } else {
-        frame.emptyMatchCount = 0;
-      }
       this.emitBatch(out, result.matched.compile(), frame);
+      if (result.matched.length === 0) {
+        this.closeWithoutEnd(out, true);
+        this.stopLine(out);
+        return true;
+      }
+      frame.emptyMatchCount = 0;
       this.pos += result.matched.length;
       return true;
     }
@@ -359,16 +357,9 @@ export class ResumableTokenizer {
     return true;
   }
 
-  protected tryTopLevel(
-    out: GrammarToken[],
-    atLineEnd = false,
-  ): DispatchResult | null {
+  protected tryTopLevel(out: GrammarToken[]): DispatchResult | null {
     const dispatchPos = this.pos;
-    const result = this.dispatch(
-      this.grammar.rules ?? [],
-      dispatchPos,
-      atLineEnd,
-    );
+    const result = this.dispatch(this.grammar.rules ?? [], dispatchPos);
     if (!result || result.kind === "repeated") {
       return result;
     }
@@ -407,7 +398,7 @@ export class ResumableTokenizer {
   protected retryOnceAtLineEnd(out: GrammarToken[]): boolean {
     const frame = this.frames[this.frames.length - 1];
     if (!frame) {
-      return this.tryTopLevel(out, true)?.kind === "scope";
+      return this.tryTopLevel(out)?.kind === "scope";
     }
     const rule = frame.rule;
     if (!rule.applyEndPatternLast) {
@@ -417,7 +408,7 @@ export class ResumableTokenizer {
       }
     }
     rule.contentRule.resolve();
-    const result = this.dispatch(rule.contentRule.rules ?? [], this.pos, true);
+    const result = this.dispatch(rule.contentRule.rules ?? [], this.pos);
     if (result?.kind === "repeated") {
       return false;
     }
@@ -517,9 +508,51 @@ export class ResumableTokenizer {
     return result;
   }
 
+  protected lineEndFrom(from: number) {
+    let i = from;
+    for (;;) {
+      const str = this.state.str;
+      while (i < str.length) {
+        const c = str.charCodeAt(i);
+        i++;
+        if (c === 10) {
+          return i;
+        }
+        if (c === 13) {
+          if (i === str.length) {
+            i--;
+            break;
+          }
+          if (str.charCodeAt(i) !== 10) {
+            return i;
+          }
+        }
+      }
+      const before = str.length;
+      this.state.advance();
+      if (this.state.str.length === before) {
+        return before;
+      }
+    }
+  }
+
+  protected stopLine(out: GrammarToken[]) {
+    const from = this.pos;
+    this.pos = this.lineEndFrom(from);
+    this.stoppedLine = true;
+    const frame = this.frames[this.frames.length - 1];
+    if (frame && this.pos > from) {
+      this.emitBatch(out, [[null, from, this.pos]], frame);
+    }
+  }
+
   step(): TokenizerStepResult {
     const posBefore = this.pos;
     const result = this.stepOnce();
+    if (this.stoppedLine) {
+      this.stoppedLine = false;
+      return result;
+    }
     if (this.endsLine(posBefore)) {
       this.retryAtLineEnd(this._stepTokens);
     }
