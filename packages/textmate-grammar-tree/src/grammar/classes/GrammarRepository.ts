@@ -2,9 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { NodeID } from "../../core";
-
 import type {
+GrammarDefinition,
 IncludeDefinition,
 MatchRuleDefinition,
 RuleDefinition,
@@ -25,12 +24,39 @@ import { SwitchRule } from "./rules/SwitchRule";
 export class GrammarRepository {
   grammar: Grammar;
 
+  definition: GrammarDefinition;
+
+  prefix: string;
+
+  self: SwitchRule;
+
   private map = new Map<string, GrammarNode | Rule>();
 
-  private curID = NodeID.safe;
+  private ids = new WeakMap<object, string>();
 
-  constructor(grammar: Grammar) {
+  constructor(grammar: Grammar, definition: GrammarDefinition, prefix: string) {
     this.grammar = grammar;
+    this.definition = definition;
+    this.prefix = prefix;
+    this.self = new SwitchRule(
+      this,
+      { id: prefix, patterns: definition.patterns ?? [] },
+      GrammarNode.None,
+    );
+  }
+
+  load() {
+    const repository = this.definition.repository;
+    if (repository) {
+      for (const name in repository) {
+        const item = repository[name];
+        if (item != null) {
+          this.add(item, this.prefix + name, true);
+        }
+      }
+    }
+    this.self.resolve();
+    this.resolveAll();
   }
 
   nodes() {
@@ -49,6 +75,16 @@ export class GrammarRepository {
       .sort((a, b) => a.typeIndex - b.typeIndex);
   }
 
+  prune(): boolean {
+    let pruned = this.self.prune();
+    for (const obj of this.map.values()) {
+      if (obj instanceof SwitchRule && obj.prune()) {
+        pruned = true;
+      }
+    }
+    return pruned;
+  }
+
   resolveAll() {
     for (const obj of this.map.values()) {
       if (obj instanceof SwitchRule) {
@@ -61,9 +97,7 @@ export class GrammarRepository {
   }
 
   nextTypeIndex() {
-    const id = this.curID;
-    this.curID++;
-    return id;
+    return this.grammar.nextTypeIndex();
   }
 
   add(
@@ -91,34 +125,45 @@ export class GrammarRepository {
     id?: string,
     isRepositoryRule?: boolean,
   ): GrammarNode | Rule {
-    if (!obj.id) {
-      obj.id = id;
+    const ruleId = this.ids.get(obj) || obj.id || id;
+    if (ruleId) {
+      this.ids.set(obj, ruleId);
+      const existing = this.map.get(ruleId);
+      if (existing) {
+        return existing;
+      }
     }
+    const def = ruleId === obj.id ? obj : { ...obj, id: ruleId };
 
-    if (obj.id && this.map.get(obj.id)) {
-      return this.map.get(obj.id)!;
-    }
-
-    if (isMatchRuleDefinition(obj)) {
-      const rule = new MatchRule(this, obj);
+    if (isMatchRuleDefinition(def)) {
+      const rule = new MatchRule(this, def);
       this.map.set(rule.id, rule);
       return rule;
     }
 
-    if (isScopedRuleDefinition(obj)) {
-      const rule = new ScopedRule(this, obj);
+    if (isScopedRuleDefinition(def)) {
+      const rule = new ScopedRule(this, def);
       this.map.set(rule.id, rule);
       return rule;
     }
 
-    if (isSwitchRuleDefinition(obj)) {
-      const rule = new SwitchRule(this, obj);
+    if (isSwitchRuleDefinition(def)) {
+      const rule = new SwitchRule(this, def);
+      this.map.set(rule.id, rule);
+      return rule;
+    }
+
+    if (isIncludeDefinition(def)) {
+      const rule = new SwitchRule(this, {
+        ...def,
+        patterns: [{ include: def.include }],
+      });
       this.map.set(rule.id, rule);
       return rule;
     }
 
     if (id && isRepositoryRule) {
-      const matchDef = { match: "(.+)", ...(obj as any) };
+      const matchDef = { match: "(.+)", ...(def as any) };
       const rule = new MatchRule(this, matchDef);
       this.map.set(rule.id, rule);
       return rule;
@@ -126,7 +171,7 @@ export class GrammarRepository {
 
     const node = new GrammarNode(
       this.nextTypeIndex(),
-      obj,
+      def,
       this.grammar.declarator,
     );
     this.map.set(node.typeId, node);
@@ -144,14 +189,30 @@ export class GrammarRepository {
   }
 
   include(str: string): Rule[] {
-    if (!this.grammar.definition?.repository) {
+    if (str === "$self") {
+      return [this.self];
+    }
+    if (str === "$base") {
+      return [this.grammar.load(this.grammar.definition).self];
+    }
+    const sharp = str.indexOf("#");
+    if (sharp === 0) {
+      return this.rule(str.slice(1));
+    }
+    const repository = this.grammar.repositoryOf(
+      sharp < 0 ? str : str.slice(0, sharp),
+    );
+    if (!repository) {
+      return [];
+    }
+    return sharp < 0 ? [repository.self] : repository.rule(str.slice(sharp + 1));
+  }
+
+  rule(name: string): Rule[] {
+    if (!this.definition.repository) {
       throw new Error("no includes defined");
     }
-    const name = str[0] === "#" ? str.slice(1) : str;
-    const includedRule = this.get(name);
-    if (!includedRule) {
-      throw new Error(`include ${name} not found`);
-    }
+    const includedRule = this.get(this.prefix + name);
     if (
       includedRule instanceof MatchRule ||
       includedRule instanceof ScopedRule ||
@@ -164,11 +225,14 @@ export class GrammarRepository {
 
   getRules(items: IncludeDefinition[], idPrefix: string) {
     const rules: Rule[] = [];
+    let missing = false;
     if (items) {
       items.forEach((item, i) => {
         const patternId = idPrefix + `-p${i}`;
         if (isIncludeDefinition(item)) {
-          rules.push(...this.include(item.include));
+          const included = this.include(item.include);
+          missing ||= included.length === 0;
+          rules.push(...included);
         } else if (isMatchRuleDefinition(item)) {
           rules.push(this.add(item, patternId));
         } else if (isScopedRuleDefinition(item)) {
@@ -178,6 +242,6 @@ export class GrammarRepository {
         }
       });
     }
-    return rules;
+    return { rules, missing };
   }
 }

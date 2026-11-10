@@ -27,6 +27,8 @@ export class MatchRule implements Rule {
 
   declare captures: (GrammarNode | SwitchRule)[];
 
+  readonly skipped = false;
+
   constructor(repo: GrammarRepository, def: MatchRuleDefinition) {
     this.repo = repo;
 

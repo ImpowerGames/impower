@@ -1,11 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, sep } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, test } from "vitest";
-import { compareEnginesFull, formatDivergences } from "./scopeEquality";
+import { compareEnginesFull, type EngineOptions, formatDivergences } from "./scopeEquality";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
+const TESTS_DIR = join(__dirname, "..");
 
 const TARGETED: Record<string, string> = {
   "assign-trailing-space-in-function":
@@ -164,8 +165,21 @@ function loadCorpus(): Fixture[] {
   return fixtures;
 }
 
-async function assertEqual(source: string) {
-  const result = await compareEnginesFull(source);
+function loadLuauFiles(): Fixture[] {
+  return (readdirSync(TESTS_DIR, { recursive: true }) as string[])
+    .filter((file) => file.endsWith(".luau"))
+    .sort()
+    .map((file) => ({
+      category: dirname(file).split(sep).join("/"),
+      name: file.slice(dirname(file).length + 1, -".luau".length),
+      source: readFileSync(join(TESTS_DIR, file), "utf8"),
+    }));
+}
+
+const LUAU_ROOT_DIVERGENT = new Set(["luau-conformance/upstream/conformance/errors"]);
+
+async function assertEqual(source: string, options: EngineOptions = {}) {
+  const result = await compareEnginesFull(source, options);
   expect(
     result.divergences,
     formatDivergences(result.source, result.divergences),
@@ -185,6 +199,15 @@ describe("engine scope-stack equality", () => {
     for (const fixture of loadCorpus()) {
       test(`${fixture.category}/${fixture.name}`, async () => {
         await assertEqual(fixture.source);
+      });
+    }
+  });
+
+  describe(".luau files under the .luau root", () => {
+    for (const fixture of loadLuauFiles()) {
+      const name = `${fixture.category}/${fixture.name}`;
+      (LUAU_ROOT_DIVERGENT.has(name) ? test.fails : test)(name, async () => {
+        await assertEqual(fixture.source, { luauFile: true });
       });
     }
   });

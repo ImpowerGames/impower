@@ -7,11 +7,14 @@ import { NodeID } from "../../core";
 import type { GrammarDefinition,RuleDefinition } from "../types/GrammarDefinition";
 import type { Rule } from "../types/Rule";
 import { GrammarNode } from "./GrammarNode";
+import { GrammarRegistry } from "./GrammarRegistry";
 import { GrammarRepository } from "./GrammarRepository";
 import { GrammarState } from "./GrammarState";
 
 export class Grammar {
   public definition: GrammarDefinition;
+
+  public registry: GrammarRegistry;
 
   declarator?: (
     typeIndex: number,
@@ -27,32 +30,28 @@ export class Grammar {
 
   declare nodeNames: string[];
 
+  private repositories = new Map<GrammarDefinition, GrammarRepository>();
+
+  private curID = NodeID.safe;
+
   constructor(
-    definition: GrammarDefinition,
+    grammar: GrammarDefinition | GrammarRegistry,
     declarator?: (
       typeIndex: number,
       typeId: string,
       def: RuleDefinition,
     ) => Record<string, any>,
   ) {
-    this.definition = definition;
+    this.registry =
+      grammar instanceof GrammarRegistry
+        ? grammar
+        : new GrammarRegistry([grammar]);
+    this.definition = this.registry.start;
     this.declarator = declarator;
 
-    this.repository = new GrammarRepository(this);
-    if (definition?.repository) {
-      for (const name in definition.repository) {
-        const item = definition.repository[name];
-        if (item != null) {
-          this.repository.add(item, name, true);
-        }
-      }
-    }
-
-    if (definition?.patterns) {
-      this.rules = this.repository.getRules(definition.patterns, "");
-    }
-
-    this.repository.resolveAll();
+    this.repository = this.load(this.definition);
+    this.prune();
+    this.rules = this.repository.self.rules ?? [];
 
     const noneNode = new GrammarNode(
       NodeID.none,
@@ -76,14 +75,55 @@ export class Grammar {
         ...(this.declarator?.(typeIndex, typeId, def) || {}),
       }),
     );
+    const loaded = Array.from(this.repositories.values()).flatMap((repository) =>
+      repository.nodes(),
+    );
     this.nodes = [
       noneNode,
       topNode,
       unrecognizedNode,
       incompleteNode,
-      ...this.repository.nodes(),
+      ...loaded.sort((a, b) => a.typeIndex - b.typeIndex),
     ];
     this.nodeNames = this.nodes.map((n) => n.typeId);
+  }
+
+  nextTypeIndex() {
+    const id = this.curID;
+    this.curID++;
+    return id;
+  }
+
+  load(definition: GrammarDefinition): GrammarRepository {
+    const loaded = this.repositories.get(definition);
+    if (loaded) {
+      return loaded;
+    }
+    const repository = new GrammarRepository(
+      this,
+      definition,
+      this.registry.prefixOf(definition),
+    );
+    this.repositories.set(definition, repository);
+    repository.load();
+    return repository;
+  }
+
+  private prune() {
+    let pruned = true;
+    while (pruned) {
+      pruned = false;
+      for (const repository of this.repositories.values()) {
+        if (repository.prune()) {
+          pruned = true;
+        }
+      }
+    }
+  }
+
+  repositoryOf(scopeName: string): GrammarRepository | undefined {
+    const definition = this.registry.get(scopeName);
+    return definition ? this.load(definition) : undefined;
   }
 
   match(

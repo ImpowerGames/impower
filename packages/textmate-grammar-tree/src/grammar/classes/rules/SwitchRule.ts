@@ -24,18 +24,20 @@ export class SwitchRule implements Rule {
 
   rules?: Rule[];
 
+  missing = false;
+
   emit?: boolean;
 
-  constructor(repo: GrammarRepository, def: SwitchRuleDefinition) {
+  constructor(
+    repo: GrammarRepository,
+    def: SwitchRuleDefinition,
+    node = new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator),
+  ) {
     this.repo = repo;
 
     let id = def.id ?? createID();
     this.id = id;
-    this.node = new GrammarNode(
-      repo.nextTypeIndex(),
-      def,
-      repo.grammar.declarator,
-    );
+    this.node = node;
 
     this.emit = def.emit;
 
@@ -48,10 +50,24 @@ export class SwitchRule implements Rule {
 
   resolve() {
     if (!this.rules) {
-      this.rules = this.patterns
-        ? this.repo.getRules(this.patterns, this.id)
-        : [];
+      const resolved = this.repo.getRules(this.patterns ?? [], this.id);
+      this.rules = resolved.rules;
+      this.missing = resolved.missing;
     }
+  }
+
+  get skipped() {
+    return this.missing && this.rules?.length === 0;
+  }
+
+  prune(): boolean {
+    const kept = this.rules?.filter((rule) => !rule.skipped);
+    if (!kept || kept.length === this.rules!.length) {
+      return false;
+    }
+    this.rules = kept;
+    this.missing = true;
+    return true;
   }
 
   pattern(state: GrammarState, from: number) {

@@ -235,6 +235,10 @@ export class ScopedRule implements Rule {
     return endMatched;
   }
 
+  get skipped() {
+    return this.contentRule.skipped;
+  }
+
   content(state: GrammarState, from: number) {
     return this.contentRule.match(state, from);
   }

@@ -1,6 +1,7 @@
 import { type Input, NodeSet, NodeType, Parser, TreeFragment } from "@lezer/common";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
+import { GrammarRegistry } from "../../grammar/classes/GrammarRegistry";
 import type {
 GrammarDefinition,
 RuleDefinition,
@@ -16,7 +17,7 @@ export class TextmateGrammarParser extends Parser {
   lookaheadStart?: (input: Input, pos: number) => number;
 
   constructor(
-    grammarDefinition: GrammarDefinition,
+    grammar: GrammarDefinition | GrammarRegistry,
     rootNodeType?: NodeType,
     getNodeType?: (
       topNode: NodeType,
@@ -27,11 +28,15 @@ export class TextmateGrammarParser extends Parser {
   ) {
     super();
     const nodeTypeProp = "nodeType";
+    const registry =
+      grammar instanceof GrammarRegistry
+        ? grammar
+        : new GrammarRegistry([grammar]);
     const validRootNodeType =
       rootNodeType ??
       NodeType.define({
         id: NodeID.top,
-        name: grammarDefinition.name?.toLowerCase(),
+        name: registry.home.name?.toLowerCase(),
         top: true,
       });
     const validGetNodeType = getNodeType ?? defineNodeType;
@@ -47,7 +52,7 @@ export class TextmateGrammarParser extends Parser {
         data,
       ),
     });
-    this.grammar = new Grammar(grammarDefinition, declarator);
+    this.grammar = new Grammar(registry, declarator);
     const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);
     this.nodeSet = new NodeSet(nodeTypes);
   }

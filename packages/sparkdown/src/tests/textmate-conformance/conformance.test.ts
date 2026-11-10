@@ -45,7 +45,6 @@ const AXIS_ORDER: Axis[] = [
   "while-rule",
   "regex-invalid",
   "throw-other",
-  "external-includes",
   "load-error",
 ];
 

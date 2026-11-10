@@ -1,3 +1,4 @@
+import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -30,7 +31,6 @@ export type Axis =
   | "regex-invalid"
   | "incomplete"
   | "throw-other"
-  | "external-includes"
   | "load-error";
 
 export interface CaseResult {
@@ -53,25 +53,6 @@ interface OurToken {
 
 const UNRECOGNIZED_ID = 2;
 const INCOMPLETE_ID = 3;
-
-function hasExternalIncludes(rawText: string): boolean {
-  const re = /"include"\s*:\s*"([^"]+)"/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(rawText))) {
-    const inc = m[1]!;
-    if (!inc.startsWith("#") && inc !== "$self" && inc !== "$base") {
-      return true;
-    }
-  }
-  const re2 = /<key>include<\/key>\s*<string>([^<]+)<\/string>/g;
-  while ((m = re2.exec(rawText))) {
-    const inc = m[1]!;
-    if (!inc.startsWith("#") && inc !== "$self" && inc !== "$base") {
-      return true;
-    }
-  }
-  return false;
-}
 
 function buildScopeMap(parser: any): Map<number, string> {
   const m = new Map<number, string>();
@@ -191,34 +172,36 @@ function classifyThrow(msg: string): Axis {
   return "throw-other";
 }
 
-function resolveEntry(
-  suiteDir: string,
-  c: TestCase,
-): { rawText: string; raw: any; path: string } {
-  if (c.grammarPath) {
-    const full = resolve(suiteDir, c.grammarPath);
-    const rawText = readFileSync(full, "utf8");
-    return { rawText, raw: parseRawGrammar(rawText, full), path: c.grammarPath };
-  }
-  const candidates = c.grammars ?? [];
-  let fallback: { rawText: string; raw: any; path: string } | null = null;
-  for (const rel of candidates) {
+function loadGrammars(suiteDir: string, c: TestCase): { raw: any; path: string }[] {
+  const loaded: { raw: any; path: string }[] = [];
+  for (const rel of c.grammars ?? []) {
     const full = resolve(suiteDir, rel);
-    let rawText: string;
-    let raw: any;
     try {
-      rawText = readFileSync(full, "utf8");
-      raw = parseRawGrammar(rawText, full);
+      loaded.push({ raw: parseRawGrammar(readFileSync(full, "utf8"), full), path: rel });
     } catch {
       continue;
     }
-    const entry = { rawText, raw, path: rel };
-    fallback = entry;
-    if (c.grammarScopeName && raw?.scopeName === c.grammarScopeName) {
-      return entry;
-    }
   }
-  if (fallback) return fallback;
+  return loaded;
+}
+
+function resolveEntry(
+  suiteDir: string,
+  c: TestCase,
+): { raw: any; path: string; grammars: any[] } {
+  const loaded = loadGrammars(suiteDir, c);
+  if (c.grammarPath) {
+    const full = resolve(suiteDir, c.grammarPath);
+    const raw = parseRawGrammar(readFileSync(full, "utf8"), full);
+    return { raw, path: c.grammarPath, grammars: [raw, ...loaded.map((other) => other.raw)] };
+  }
+  const entry =
+    loaded.find(({ raw }) => c.grammarScopeName && raw?.scopeName === c.grammarScopeName) ??
+    loaded.at(-1);
+  if (entry) {
+    const others = loaded.filter((other) => other !== entry).map((other) => other.raw);
+    return { ...entry, grammars: [entry.raw, ...others] };
+  }
   throw new Error(
     `Could not resolve entry grammar (scopeName=${c.grammarScopeName})`,
   );
@@ -239,25 +222,21 @@ export function runCase(
     lineCount: c.lines.length,
   };
 
-  let rawText: string;
   let raw: any;
+  let grammars: any[];
   try {
     const entry = resolveEntry(suiteDir, c);
-    rawText = entry.rawText;
     raw = entry.raw;
+    grammars = entry.grammars;
     base.grammar = entry.path;
   } catch (e) {
     return { ...base, axis: "load-error", detail: (e as Error).message };
   }
 
-  if (hasExternalIncludes(rawText)) {
-    return { ...base, axis: "external-includes" };
-  }
-
   const rootScope: string = raw.scopeName;
   let parser: any;
   try {
-    parser = new TextmateGrammarParser(raw);
+    parser = new TextmateGrammarParser(new GrammarRegistry(grammars));
   } catch (e) {
     return { ...base, axis: classifyThrow((e as Error).message), detail: (e as Error).message };
   }
