@@ -1,6 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ShowEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
@@ -116,32 +117,115 @@ describe("ScriptEditorController dispose", () => {
     expect(panels.style.opacity).toBe("0");
   });
 
-  it("settles a pending hover evaluation on dispose", async () => {
+  it("removes a pending hover's response listener on dispose and never resumes it", async () => {
     const { controller } = await mount();
-    const listening = vi.spyOn(window, "removeEventListener");
-    const hover = controller["evaluateHover"]("x");
+    const { pending, listener } = watchResponse(() =>
+      controller["evaluateHover"]("x"),
+    );
     controller.dispose();
-    await expect(hover).resolves.toBeNull();
-    expect(listening).toHaveBeenCalled();
+    expectRemoved(listener);
+    expect(await pending()).toBe(true);
   });
 
-  it("settles a pending show document request on dispose", async () => {
+  it("removes a pending show document listener on dispose and never resumes it", async () => {
     const { controller, config } = await mount();
-    const { options } = config.serverWorkspace({}) as unknown as {
-      options: { showDocument: (params: unknown) => Promise<void> };
-    };
-    const shown = options.showDocument({ uri: "file:///other.sd" });
+    const { options } = workspaceOf(config);
+    const { pending, listener } = watchResponse(() =>
+      options.showDocument({ uri: "file:///other.sd" }),
+    );
     controller.dispose();
-    await expect(shown).resolves.toBeUndefined();
+    expectRemoved(listener);
+    expect(await pending()).toBe(true);
   });
 
-  it("settles a pending workspace edit request on dispose", async () => {
+  it("removes a pending workspace edit listener on dispose and never resumes it", async () => {
     const { controller, config } = await mount();
-    const { options } = config.serverWorkspace({}) as unknown as {
-      options: { applyWorkspaceEdit: (params: unknown) => Promise<void> };
-    };
-    const applied = options.applyWorkspaceEdit({ edit: {} });
+    const { options } = workspaceOf(config);
+    const { pending, listener } = watchResponse(() =>
+      options.applyWorkspaceEdit({ edit: {} }),
+    );
     controller.dispose();
-    await expect(applied).resolves.toBeUndefined();
+    expectRemoved(listener);
+    expect(await pending()).toBe(true);
+  });
+
+  it("resolves a workspace edit at once when the host is disconnected", async () => {
+    const { controller, host, config } = await mount();
+    const { options } = workspaceOf(config);
+    host.remove();
+    const { pending, listener } = watchResponse(() =>
+      options.applyWorkspaceEdit({ edit: {} }),
+    );
+    expectRemoved(listener);
+    expect(await pending()).toBe(false);
+    controller.dispose();
+  });
+
+  it("disposes cleanly before any load", () => {
+    const host = document.body.appendChild(document.createElement("div"));
+    cleanups.push(() => host.remove());
+    const controller = new ScriptEditorController(
+      host,
+      {
+        editor: host.appendChild(document.createElement("div")),
+        loading: host.appendChild(document.createElement("div")),
+        main: host.appendChild(document.createElement("div")),
+        placeholder: host.appendChild(document.createElement("div")),
+      },
+      {
+        coarsePointer: false,
+        appearance: ALL_ON_APPEARANCE,
+        languageServerWorker: {} as Worker,
+        languageServerConnection: {} as never,
+      },
+    );
+    controller.setup();
+    expect(() => controller.dispose()).not.toThrow();
+    expect(controller["_focusIntervalTimeout"]).toBe(0);
+    expect(controller["_statusBarFrame"]).toBe(0);
+    expect(controller["_pendingResponses"].size).toBe(0);
   });
 });
+
+const workspaceOf = (config: Config) =>
+  config.serverWorkspace({}) as unknown as {
+    options: {
+      showDocument: (params: unknown) => Promise<void>;
+      applyWorkspaceEdit: (params: unknown) => Promise<void>;
+    };
+  };
+
+const watchResponse = (start: () => Promise<unknown>) => {
+  const adding = vi.spyOn(window, "addEventListener");
+  const removing = vi.spyOn(window, "removeEventListener");
+  let settled = false;
+  start().then(() => {
+    settled = true;
+  });
+  const added = adding.mock.calls.filter(
+    ([type]) => String(type) === MessageProtocol.event,
+  );
+  expect(added).toHaveLength(1);
+  const listener = added[0]![1];
+  return {
+    listener: { removing, listener },
+    pending: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return !settled;
+    },
+  };
+};
+
+const expectRemoved = ({
+  removing,
+  listener,
+}: {
+  removing: { mock: { calls: unknown[][] } };
+  listener: unknown;
+}) => {
+  expect(
+    removing.mock.calls.some(
+      ([type, fn]) => type === MessageProtocol.event && fn === listener,
+    ),
+  ).toBe(true);
+};

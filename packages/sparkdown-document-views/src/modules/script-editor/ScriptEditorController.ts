@@ -308,7 +308,7 @@ export class ScriptEditorController {
     this._focusIntervalTimeout = 0;
     cancelAnimationFrame(this._statusBarFrame);
     this._statusBarFrame = 0;
-    this._pendingResponses.forEach((settle) => settle());
+    this._pendingResponses.forEach((abandon) => abandon());
     this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
@@ -869,21 +869,23 @@ export class ScriptEditorController {
     isResponse: (message: unknown) => message is T,
   ) {
     return new Promise<T | undefined>((resolve) => {
-      const finish = (message?: T) => {
-        this._pendingResponses.delete(settle);
+      const abandon = () => {
+        this._pendingResponses.delete(abandon);
         window.removeEventListener(MessageProtocol.event, onProtocol);
+      };
+      const finish = (message?: T) => {
+        abandon();
         resolve(message);
       };
-      const settle = () => finish();
       const onProtocol = (e: Event) => {
         if (e instanceof CustomEvent && isResponse(e.detail)) {
           finish(e.detail);
         }
       };
-      this._pendingResponses.add(settle);
+      this._pendingResponses.add(abandon);
       window.addEventListener(MessageProtocol.event, onProtocol);
       if (!sendProtocolMessage(request, this.host) || !this.host.isConnected) {
-        settle();
+        finish();
       }
     });
   }
