@@ -56,46 +56,61 @@ export const withheldDiagnosticField = StateField.define<WithheldRange | null>(
   },
 );
 
-const receivedDiagnostics = StateEffect.define<readonly Diagnostic[]>();
+interface ReceivedDiagnostics {
+  shown: readonly Diagnostic[];
+  withheld: readonly Diagnostic[];
+}
 
-const mapReceived = (
+const receivedDiagnostics = StateEffect.define<ReceivedDiagnostics>();
+
+const mapDiagnostics = (
   diagnostics: readonly Diagnostic[],
   changes: ChangeDesc,
 ): readonly Diagnostic[] =>
   changes.empty
     ? diagnostics
-    : diagnostics
-        .filter(({ from, to }) => !changes.touchesRange(from, to))
-        .map((d) => ({
-          ...d,
-          from: changes.mapPos(d.from),
-          to: changes.mapPos(d.to),
-        }));
+    : diagnostics.flatMap((d) => {
+        if (d.from === d.to) {
+          const at = changes.mapPos(d.from);
+          return [{ ...d, from: at, to: at }];
+        }
+        const from = changes.mapPos(d.from, 1);
+        const to = changes.mapPos(d.to, -1);
+        return from < to ? [{ ...d, from, to }] : [];
+      });
 
-const receivedDiagnosticsField = StateField.define<readonly Diagnostic[]>({
-  create: () => [],
+const receivedDiagnosticsField = StateField.define<ReceivedDiagnostics>({
+  create: () => ({ shown: [], withheld: [] }),
   update: (value, tr) => {
     for (const effect of tr.effects) {
       if (effect.is(receivedDiagnostics)) {
         return effect.value;
       }
     }
-    return mapReceived(value, tr.changes);
+    return tr.changes.empty
+      ? value
+      : {
+          shown: mapDiagnostics(value.shown, tr.changes),
+          withheld: mapDiagnostics(value.withheld, tr.changes),
+        };
   },
 });
 
 const showReleasedDiagnostics = EditorState.transactionExtender.of((tr) => {
   const withheld = tr.startState.field(withheldDiagnosticField, false);
+  const received = tr.startState.field(receivedDiagnosticsField, false);
   if (
     !withheld ||
+    !received?.withheld.length ||
     nextWithheld(withheld, tr) ||
+    tr.changes.touchesRange(withheld.from, withheld.to) ||
     tr.effects.some((effect) => effect.is(setDiagnosticsEffect))
   ) {
     return null;
   }
   return {
     effects: setDiagnosticsEffect.of(
-      mapReceived(tr.startState.field(receivedDiagnosticsField), tr.changes),
+      mapDiagnostics([...received.shown, ...received.withheld], tr.changes),
     ),
   };
 });
@@ -195,26 +210,27 @@ function showServerDiagnostics(
   diagnostics: ServerDiagnostic[],
 ) {
   const { state } = view;
-  const converted = convertServerDiagnostics(plugin, diagnostics);
-  const received = converted.map(({ diagnostic }) => diagnostic);
-  const withheld = state.field(withheldDiagnosticField, false);
+  const withheldRange = state.field(withheldDiagnosticField, false);
   const rangeOf = ({ from, to }: WithheldRange): lsp.Range => ({
     start: convertToPosition(state.doc, from),
     end: convertToPosition(state.doc, to),
   });
-  const shown = withheld
-    ? converted
-        .filter(
-          ({ server, diagnostic }) =>
-            !isWithheldDiagnostic(
-              { ...server, range: rangeOf(diagnostic) },
-              rangeOf(withheld),
-            ),
-        )
-        .map(({ diagnostic }) => diagnostic)
-    : received;
+  const shown: Diagnostic[] = [];
+  const withheld: Diagnostic[] = [];
+  for (const { server, diagnostic } of convertServerDiagnostics(
+    plugin,
+    diagnostics,
+  )) {
+    const isWithheld =
+      withheldRange &&
+      isWithheldDiagnostic(
+        { ...server, range: rangeOf(diagnostic) },
+        rangeOf(withheldRange),
+      );
+    (isWithheld ? withheld : shown).push(diagnostic);
+  }
   view.dispatch(setDiagnostics(state, shown), {
-    effects: receivedDiagnostics.of(received),
+    effects: receivedDiagnostics.of({ shown, withheld }),
   });
 }
 

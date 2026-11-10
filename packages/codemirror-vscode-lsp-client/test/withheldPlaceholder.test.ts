@@ -204,6 +204,28 @@ describe("the missing-character warning on the Add > Dialogue placeholder", () =
     expect(warnedAt).not.toBe(withheld.from);
   });
 
+  it("keeps another diagnostic on the cue line when the placeholder is typed over", () => {
+    const { view, server } = mount(SOURCE);
+    addDialogue(view);
+    const line = view.state.doc.lineAt(view.state.selection.main.from);
+    const { from, to } = view.state.selection.main;
+    const at = (start: number, end: number) => ({
+      start: { line: line.number - 1, character: start },
+      end: { line: line.number - 1, character: end },
+    });
+    server.publish(view, [
+      {
+        range: at(from - line.from, to - line.from),
+        severity: 2,
+        message: { kind: "markdown", value: WARNING },
+      },
+      { range: at(0, line.length), severity: 1, message: "Something else" },
+    ]);
+    expect(shown(view)).toEqual(["  CHARACTER:: Something else"]);
+    typeOver(view, "IMANI");
+    expect(shown(view)).toEqual(["  IMANI:: Something else"]);
+  });
+
   it("still shows another diagnostic on the placeholder's line", () => {
     const { view, server } = mount(SOURCE);
     addDialogue(view);
