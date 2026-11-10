@@ -55,7 +55,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function mount() {
+function mount(held?: (() => void)[]) {
   const host = document.body.appendChild(document.createElement("div"));
   view = new EditorView({
     state: EditorState.create({
@@ -70,7 +70,10 @@ function mount() {
     uri: URI,
     client: {
       sync: () => {},
-      request: async () => [SCENE],
+      request: () =>
+        held
+          ? new Promise((resolve) => held.push(() => resolve([SCENE])))
+          : Promise.resolve([SCENE]),
       workspace: { getFile: () => ({ getView: () => shown }) },
     },
   } as unknown as LSPPlugin);
@@ -163,5 +166,42 @@ describe("auditioning a picked construct in the script editor", () => {
     await insert("backdrop", "harbor");
     expect(sent.map((params) => params.state)).toEqual(["focus", "close"]);
     expect(sent[1]!.accepted).toBeUndefined();
+  });
+
+  it("shows nothing for an audition the server answers after the picker closed", async () => {
+    const held: (() => void)[] = [];
+    const { audition } = mount(held);
+    const pending = audition({ construct: "backdrop", name: "beach" });
+    expect(resultOf(await audition(null))).toEqual({ shown: false });
+    held.splice(0).forEach((answer) => answer());
+    expect(resultOf(await pending)).toEqual({ shown: false });
+    expect(sent).toEqual([]);
+  });
+
+  it("keeps the newest audition when the server answers an older one last", async () => {
+    const held: (() => void)[] = [];
+    const { audition } = mount(held);
+    const older = audition({ construct: "backdrop", name: "beach" });
+    const newer = audition({ construct: "backdrop", name: "beach@night" });
+    const [answerOlder, answerNewer] = held.splice(0);
+    answerNewer!();
+    await newer;
+    answerOlder!();
+    await older;
+    expect(sent.map((params) => params.contentChanges?.[0]?.text)).toEqual([
+      `${LF}  [[show backdrop beach@night]]`,
+    ]);
+  });
+
+  it("shows nothing for an audition the server answers after an insert", async () => {
+    const held: (() => void)[] = [];
+    const { audition, insert } = mount(held);
+    const pending = audition({ construct: "backdrop", name: "beach" });
+    const inserting = insert("backdrop", "harbor");
+    held.splice(0).forEach((answer) => answer());
+    await pending;
+    held.splice(0).forEach((answer) => answer());
+    expect(resultOf(await inserting)).toEqual({ inserted: true });
+    expect(sent.filter((params) => params.state === "focus")).toEqual([]);
   });
 });

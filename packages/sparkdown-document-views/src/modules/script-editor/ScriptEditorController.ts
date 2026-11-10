@@ -272,6 +272,8 @@ export class ScriptEditorController {
   protected _view?: EditorView;
 
   protected _audition: ShownAudition | null = null;
+
+  protected _auditionTicket = 0;
   protected _disposable?: { dispose: () => void };
   protected _scroller?: Window | Element | null;
   protected _visibleRange?: Range;
@@ -742,6 +744,7 @@ export class ScriptEditorController {
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
     }
+    this._auditionTicket += 1;
     const structure = isInsertConstruct(construct)
       ? await structureFromServer(view, endsDialogueBlock)
       : null;
@@ -815,11 +818,15 @@ export class ScriptEditorController {
     }
     const respond = (shown: boolean) =>
       AuditionEditorConstructMessage.type.response(message.id, { shown });
+    const ticket = ++this._auditionTicket;
     if (!audition || !isInsertConstruct(audition.construct)) {
       this.endAudition();
       return respond(false);
     }
     const structure = await structureFromServer(view, endsDialogueBlock);
+    if (ticket !== this._auditionTicket) {
+      return respond(false);
+    }
     const plan =
       structure && this._view === view
         ? planConstruct(view, audition.construct, structure, audition.name)
