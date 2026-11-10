@@ -1,3 +1,4 @@
+import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import type {
   PageEntry,
   PageRecord,
@@ -121,7 +122,8 @@ export class InteractiveFictionPresenter implements Presenter {
       .flat()
       .some(
         (event) =>
-          event.control === "clear" && event.name === TEXTSTREAM_LAYOUT,
+          event.control === LayoutVerb.clear &&
+          event.name === TEXTSTREAM_LAYOUT,
       );
     let keep = cleared ? 0 : before.length;
     if (continued > 0 && !cleared) {

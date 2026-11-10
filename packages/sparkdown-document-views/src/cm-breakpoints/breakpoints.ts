@@ -1,4 +1,5 @@
 import {
+  type EditorState,
   RangeSet,
   StateEffect,
   StateField,
@@ -142,12 +143,24 @@ export const getBreakpointLineNumbers = (view: EditorView) => {
   );
 };
 
-export const toggleBreakpoint = (view: EditorView, pos: number) => {
-  let hasBreakpoint = false;
-  view.state.field(breakpointsField).between(pos, pos, () => {
-    hasBreakpoint = true;
+export const hasBreakpointAt = (state: EditorState, pos: number) => {
+  let found = false;
+  state.field(breakpointsField).between(pos, pos, () => {
+    found = true;
   });
-  view.dispatch({ effects: setBreakpointEffect.of({ pos, on: !hasBreakpoint }) });
+  return found;
+};
+
+export const toggleBreakpoint = (view: EditorView, pos: number) => {
+  view.dispatch({
+    effects: setBreakpointEffect.of({ pos, on: !hasBreakpointAt(view.state, pos) }),
+  });
+};
+
+export const toggleBreakpointAtCaret = (view: EditorView) => {
+  const line = view.state.doc.lineAt(view.state.selection.main.head);
+  toggleBreakpoint(view, line.from);
+  return line.number;
 };
 
 export const setBreakpointStates = (

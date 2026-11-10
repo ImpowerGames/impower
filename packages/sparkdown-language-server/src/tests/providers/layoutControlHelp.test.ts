@@ -1,12 +1,9 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { describe, expect, it } from "vitest";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "../../utils/providers/layoutControlDescriptions";
 import { getHover } from "../../utils/providers/getHover";
 import { complete } from "./completionHarness";
-
-const LAYOUT_VERBS: string[] =
-  (GRAMMAR_DEFINITION as any).variables.LAYOUT_CONTROL_KEYWORDS;
 
 let version = 0;
 

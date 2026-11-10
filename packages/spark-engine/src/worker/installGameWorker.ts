@@ -349,13 +349,13 @@ export function installGameWorker(connection: MessageConnection) {
       return;
     }
     if (RollBackGameMessage.type.isRequest(message)) {
-      const { to, hold } = message.params;
+      const { to, choice, hold } = message.params;
       connection.sendResponse(message, () => {
         const game = target();
         if (!game) {
           throw new NoGameError();
         }
-        return rollHolding(game, hold, () => game.rollBack(to));
+        return rollHolding(game, hold, () => game.rollBack(to, choice));
       });
       return;
     }

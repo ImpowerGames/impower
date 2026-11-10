@@ -12,6 +12,7 @@ import {
   PanelCardHead,
   PanelCardNote,
   PanelCardRow,
+  UndoIcon,
   VirtualList,
   WarningIcon,
 } from "@impower/impower-ui/components";
@@ -24,9 +25,11 @@ import {
   countBySeverity,
   filterChip,
   headCount,
+  isChoiceLive,
   lineLink,
   panelRows,
   PLAYED_PREFIX,
+  playedMessages,
   SCRIPT_PREFIX,
   type ConsoleSeverity,
   type PanelRow,
@@ -126,8 +129,22 @@ function ProblemRow({ problem }: { problem: Problem }) {
   );
 }
 
-function PlayedRow({ entry }: { entry: PlayedEntry }) {
+const GO_BACK_LABEL = "Go back to this choice";
+
+function PlayedRow({
+  entry,
+  played,
+}: {
+  entry: PlayedEntry;
+  played: readonly PlayedEntry[];
+}) {
   const location = consoleLocation(entry);
+  const run = useComputed(() => problems.run.value).value;
+  const held = useComputed(() => problems.heldChoices.value).value;
+  const goBack =
+    entry.checkpoint != null && isChoiceLive(entry, played, run, held)
+      ? () => void problems.goBackToChoice(entry.checkpoint!)
+      : undefined;
   return (
     <MessageEntry
       fit="row"
@@ -143,6 +160,17 @@ function PlayedRow({ entry }: { entry: PlayedEntry }) {
           : undefined
       }
       time={playedTime(entry.time)}
+      onActivate={goBack}
+      actions={
+        goBack ? (
+          <PanelCardAction
+            label={GO_BACK_LABEL}
+            icon={<UndoIcon />}
+            class="pointer-coarse:size-11"
+            onClick={goBack}
+          />
+        ) : undefined
+      }
     />
   );
 }
@@ -183,7 +211,7 @@ function Row({ row, all, played }: { row: PanelItem; all: readonly Problem[]; pl
       return (
         <PanelCardHead
           title={CARD_TITLE[row.card]}
-          count={headCount(row.card === "script" ? all : played)}
+          count={headCount(row.card === "script" ? all : playedMessages(played))}
           open={open[row.card]}
           onOpenChange={(next) => problems.setCardOpen(row.card, next)}
           actions={row.card === "played" ? <PlayedActions /> : undefined}
@@ -213,7 +241,7 @@ function Row({ row, all, played }: { row: PanelItem; all: readonly Problem[]; pl
     case "played":
       return (
         <PanelCardRow part="body">
-          <PlayedRow entry={row.entry} />
+          <PlayedRow entry={row.entry} played={played} />
         </PanelCardRow>
       );
   }
@@ -242,7 +270,7 @@ export default function ProblemsPanel() {
     [all, played, shown, cards, debugRows],
   );
   const counts = useMemo(
-    () => countBySeverity([...all, ...played]),
+    () => countBySeverity([...all, ...playedMessages(played)]),
     [all, played],
   );
   const revealIndex = useMemo(() => {

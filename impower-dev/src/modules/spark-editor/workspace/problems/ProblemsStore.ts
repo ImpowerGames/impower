@@ -16,14 +16,15 @@ import { showSnackbar } from "../../utils/snackbar";
 import {
   CONSOLE_SEVERITIES,
   formatConsoleLog,
+  isChoiceEntry,
   PLAYED_LIMIT,
   plural,
   toProblems,
-  type ConsoleEntry,
   type CardName,
   type ConsoleSeverity,
   type PanelCard,
   type PlayedEntry,
+  type PlayedInput,
   type ProblemsScope,
 } from "./problemEntries";
 
@@ -39,7 +40,9 @@ export interface ProblemsDialogState {
   returnFocus?: () => HTMLElement | null;
 }
 
-export type PlayedSource = (message: unknown) => ConsoleEntry | null;
+export type PlayedSource = (message: unknown) => PlayedInput | null;
+
+export type RunSource = (message: unknown) => boolean;
 
 export type PanelSource = (message: unknown) => boolean | null;
 
@@ -60,6 +63,12 @@ export class ProblemsStore {
 
   readonly played = signal<readonly PlayedEntry[]>([]);
 
+  readonly run = signal(0);
+
+  readonly heldChoices = computed(
+    () => workspace.debugSession.value.history?.heldChoices ?? null,
+  );
+
   readonly shown = signal<Readonly<Record<ConsoleSeverity, boolean>>>({
     error: true,
     warning: true,
@@ -73,7 +82,9 @@ export class ProblemsStore {
   readonly problems = computed(() => toProblems(this.diagnostics.value));
 
   readonly visiblePlayed = computed(() =>
-    this.played.value.filter((entry) => this.shown.value[entry.severity]),
+    this.played.value.filter(
+      (entry) => isChoiceEntry(entry) || this.shown.value[entry.severity],
+    ),
   );
 
   readonly summary = computed(() => {
@@ -121,6 +132,8 @@ export class ProblemsStore {
 
   protected readonly _panelSources = new Set<PanelSource>();
 
+  protected readonly _runSources = new Set<RunSource>();
+
   record({
     uri,
     diagnostics,
@@ -139,8 +152,12 @@ export class ProblemsStore {
     this.diagnostics.value = next;
   }
 
-  recordPlayed(entry: ConsoleEntry, time = Date.now()) {
-    const next = [...this.played.value, { ...entry, id: ++this._serial, time }];
+  recordPlayed(entry: PlayedInput, time = Date.now()) {
+    const recorded: PlayedEntry = { ...entry, id: ++this._serial, time };
+    if (entry.checkpoint != null) {
+      recorded.run = this.run.value;
+    }
+    const next = [...this.played.value, recorded];
     this.played.value =
       next.length > PLAYED_LIMIT ? next.slice(-PLAYED_LIMIT) : next;
     if (entry.severity === "error" && this.shown.value.error) {
@@ -310,6 +327,12 @@ export class ProblemsStore {
     await Workspace.window.revealDocument(uri, { start: at, end: at });
   }
 
+  async goBackToChoice(checkpoint: number) {
+    this.closeDialog();
+    const { Workspace } = await import("../Workspace");
+    return Workspace.window.goBackToChoice(checkpoint);
+  }
+
   openDialog(scope: ProblemsScope, returnFocus?: () => HTMLElement | null) {
     this.dialog.value = { scope, returnFocus };
   }
@@ -322,6 +345,13 @@ export class ProblemsStore {
     this._playedSources.add(source);
     return () => {
       this._playedSources.delete(source);
+    };
+  }
+
+  addRunSource(source: RunSource) {
+    this._runSources.add(source);
+    return () => {
+      this._runSources.delete(source);
     };
   }
 
@@ -339,6 +369,11 @@ export class ProblemsStore {
     ) {
       this.showProblems();
       return;
+    }
+    for (const source of this._runSources) {
+      if (source(message)) {
+        this.run.value += 1;
+      }
     }
     for (const source of this._playedSources) {
       const entry = source(message);

@@ -237,3 +237,19 @@ describe("ListRow", () => {
     expect(typeof both).toBe("function");
   });
 });
+
+describe("ListRow description fit", () => {
+  it("fades a long description on one line by default and wraps it whole when asked", async () => {
+    const root = await mount(
+      <div>
+        <ListRow label="a" description="That name is already in use in this folder." />
+        <ListRow label="b" descriptionFit="wrap" description="That name is already in use in this folder." />
+      </div>,
+    );
+    const [line, wrap] = Array.from(root.querySelectorAll("small"));
+    expect(line!.className).toContain("fade-edge");
+    expect(wrap!.className).not.toContain("fade-edge");
+    expect(wrap!.className).toContain("whitespace-normal");
+    expect(wrap!.textContent).toBe("That name is already in use in this folder.");
+  });
+});

@@ -1,4 +1,5 @@
 import {
+  BreakpointIcon,
   Button,
   CheckIcon,
   ChevronDownIcon,
@@ -9,6 +10,7 @@ import {
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
+  DropdownSeparator,
   DropdownTrigger,
   NextIcon,
   PauseIcon,
@@ -35,6 +37,7 @@ import {
   type PreviewMode,
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
+import { useCaretScript } from "../../workspace/useActiveEditor";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
@@ -185,10 +188,20 @@ function ControlButton({
 const step = (traversal: StepTraversal) =>
   void withWindow((window) => window.stepGame(traversal));
 
+const TOGGLE_BREAKPOINT = "Toggle breakpoint";
+
+const NO_CARET_REASON =
+  "Put the caret on a script line to toggle its breakpoint.";
+
+const toggleBreakpoint = (filename: string) =>
+  void withWindow((window) => window.toggleBreakpointAtCaret(filename));
+
 function StepMenu({
   refusals,
+  caretScript,
 }: {
   refusals: Record<StepTraversal, string | undefined>;
+  caretScript: string | undefined;
 }) {
   return (
     <DropdownRoot>
@@ -223,6 +236,22 @@ function StepMenu({
             </DropdownItem>
           );
         })}
+        <DropdownSeparator />
+        <DropdownItem
+          disabled={!caretScript}
+          onSelect={() => caretScript && toggleBreakpoint(caretScript)}
+          class="min-h-14 gap-3 py-2"
+        >
+          <BreakpointIcon class="shrink-0" />
+          <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+            <strong class="text-sm/[1.4] font-semibold">
+              {TOGGLE_BREAKPOINT}
+            </strong>
+            {caretScript ? null : (
+              <small class="text-xs/[1.5] text-muted">{NO_CARET_REASON}</small>
+            )}
+          </span>
+        </DropdownItem>
       </DropdownContent>
     </DropdownRoot>
   );
@@ -391,6 +420,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
   const refusal = running ? undefined : game?.playRefusal;
   const session = workspace.debugSession.value;
   const refusals = stepRefusals(game, session);
+  const caretScript = useCaretScript();
   const steps = running;
   const stepButton = (traversal: StepTraversal) => {
     const { label, icon } = STEPS.find((s) => s.traversal === traversal)!;
@@ -436,7 +466,9 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         ) : null}
       </div>
       <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
-        {steps && phone ? <StepMenu refusals={refusals} /> : null}
+        {steps && phone ? (
+          <StepMenu refusals={refusals} caretScript={caretScript} />
+        ) : null}
         {steps && !phone ? stepButton("over") : null}
         {steps && !phone ? stepButton("in") : null}
         <SkipButton direction={-1} reason={skipRefusal(game, session, -1)} />
@@ -457,6 +489,14 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
         </Button>
         <SkipButton direction={1} reason={skipRefusal(game, session, 1)} />
         {steps && !phone ? stepButton("out") : null}
+        {steps && !phone ? (
+          <ControlButton
+            label={TOGGLE_BREAKPOINT}
+            icon={BreakpointIcon}
+            reason={caretScript ? undefined : NO_CARET_REASON}
+            onClick={() => toggleBreakpoint(caretScript!)}
+          />
+        ) : null}
       </div>
       <div class="justify-self-end">
         <SettingsMenu mode={mode} />

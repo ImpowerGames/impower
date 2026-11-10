@@ -3,6 +3,11 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { StartingDisplayMode } from "../../../core/classes/messages/SetStartingDisplayModeMessage";
 import { ErrorType } from "../../../core/enums/ErrorType";
+import {
+  LAYOUT_VERBS,
+  LayoutVerb,
+  isLayoutVerb,
+} from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
@@ -1664,6 +1669,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphEpoch = 0;
 
   protected _morphConflicts = new Set<string>();
+
+  protected _unknownLayoutVerbs = new Set<string>();
 
   protected _morphHost?: MorphHost;
 
@@ -3602,7 +3609,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.composeWait(
       this.applyLayoutInstructions(
-        closed.map((name) => ({ control: "open", name })),
+        closed.map((name) => ({ control: LayoutVerb.open, name })),
         settle,
       ),
     );
@@ -4122,24 +4129,40 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const screen = layouts[name]?.screen;
       return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
     };
-    if (e.control === "clear") {
-      return state;
-    }
-    if (e.control === "close") {
-      return state?.filter((s) => s.name !== e.name);
-    }
-    if (e.control === "navigate") {
-      if (!e.name) {
+    switch (e.control) {
+      case LayoutVerb.clear:
         return state;
-      }
-      return recordOpen(
-        state?.filter((s) =>
-          e.screen ? s.screen !== e.screen || s.name === e.name : s.name === e.name,
-        ),
-        e.name,
-      );
+      case LayoutVerb.close:
+        return state?.filter((s) => s.name !== e.name);
+      case LayoutVerb.navigate:
+        if (!e.name) {
+          return state;
+        }
+        return recordOpen(
+          state?.filter((s) =>
+            e.screen ? s.screen !== e.screen || s.name === e.name : s.name === e.name,
+          ),
+          e.name,
+        );
+      case LayoutVerb.open:
+        return recordOpen(state, e.name);
+      default:
+        this.reportUnknownLayoutVerb(e.control);
+        return state;
     }
-    return recordOpen(state, e.name);
+  }
+
+  protected reportUnknownLayoutVerb(verb: never): void {
+    const name = String(verb);
+    if (this._unknownLayoutVerbs.has(name)) {
+      return;
+    }
+    this._unknownLayoutVerbs.add(name);
+    const code = (word: string) => "`" + word + "`";
+    this._game.log(
+      `${code(name)} is not a layout command, so it was skipped; the layout commands are ${LAYOUT_VERBS.map(code).join(", ")}.`,
+      "warning",
+    );
   }
 
   protected saveLayoutState(e: LayoutInstruction): void {
@@ -4190,7 +4213,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     layout: LayoutInstruction[],
     instant: boolean,
   ): Promise<void> {
-    const instructions = layout.filter((e) => e.control !== "clear");
+    const instructions = layout.filter((e) => {
+      if (!isLayoutVerb(e.control)) {
+        this.reportUnknownLayoutVerb(e.control as never);
+        return false;
+      }
+      return e.control !== LayoutVerb.clear;
+    });
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
@@ -4204,13 +4233,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         over: e.over,
         ease: e.ease,
       };
-      if (e.control === "close") {
-        return this.closeLayout(e.name, clauses, instant);
+      switch (e.control) {
+        case LayoutVerb.open:
+          return this.openLayout(e.name, clauses, instant);
+        case LayoutVerb.close:
+          return this.closeLayout(e.name, clauses, instant);
+        case LayoutVerb.navigate:
+          return this.navigateScreen(e.name, e.screen, clauses, instant);
+        case LayoutVerb.clear:
+          return Promise.resolve();
+        default:
+          this.reportUnknownLayoutVerb(e.control);
+          return Promise.resolve();
       }
-      if (e.control === "navigate") {
-        return this.navigateScreen(e.name, e.screen, clauses, instant);
-      }
-      return this.openLayout(e.name, clauses, instant);
     };
     if (this._game.replaying && instant) {
       for (const e of instructions) {
@@ -4221,7 +4256,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     const segments: LayoutInstruction[][] = [[]];
     for (const e of instructions) {
-      if (e.control === "navigate") {
+      if (e.control === LayoutVerb.navigate) {
         segments.push([e], []);
       } else {
         segments[segments.length - 1]!.push(e);
@@ -4234,7 +4269,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (segment.length === 0) {
         continue;
       }
-      if (segment.length === 1 && segment[0]!.control === "navigate") {
+      if (segment.length === 1 && segment[0]!.control === LayoutVerb.navigate) {
         await run(segment[0]!);
         continue;
       }
