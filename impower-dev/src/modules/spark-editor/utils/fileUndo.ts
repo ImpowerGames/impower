@@ -1,4 +1,3 @@
-import { applyMoves, reversedMoves, type FileMove } from "./fileMoves";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
@@ -147,26 +146,6 @@ export function recordReferenceRename(
     label: `Rename ${basename(toPath)}`,
     undo: () => rename(toPath, fromPath),
     redo: () => rename(fromPath, toPath),
-  });
-}
-
-export function recordRenames(projectId: string, moves: readonly FileMove[], label: string) {
-  const run = async (steps: readonly FileMove[]) => {
-    const { Workspace } = await import("../workspace/Workspace");
-    try {
-      await applyMoves(Workspace.fs, projectId, steps);
-    } catch (err) {
-      console.error(err);
-      showSnackbar({ message: `Couldn't rename ${label}.` });
-      throw err;
-    }
-    await markProjectDirty();
-  };
-  const done = [...moves];
-  pushUndo({
-    label: `Rename ${label}`,
-    undo: () => run(reversedMoves(done)),
-    redo: () => run(done),
   });
 }
 

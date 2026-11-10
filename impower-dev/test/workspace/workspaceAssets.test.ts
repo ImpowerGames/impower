@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   recordReferenceRename: vi.fn(),
   recordTrashDeletion: vi.fn(async () => undefined),
   recordCreate: vi.fn(),
-  recordRenames: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({ importFiles: mocks.importFiles }));
 vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
@@ -14,7 +13,6 @@ vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
   recordReferenceRename: mocks.recordReferenceRename,
   recordTrashDeletion: mocks.recordTrashDeletion,
   recordCreate: mocks.recordCreate,
-  recordRenames: mocks.recordRenames,
 }));
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
@@ -197,37 +195,6 @@ describe("the Assets page's file intents", () => {
   });
 });
 
-describe("renaming a stacked picture", () => {
-  const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
-
-  it("renames every member's base name and keeps its alternate and layer suffixes", async () => {
-    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
-    await assets.load();
-    expect(await assets.renameStack(STACK, "imani", "ada")).toEqual([
-      "Assets/Images/ada.png",
-      "Assets/Images/ada@night.png",
-      "Assets/Images/ada~face.happy.png",
-    ]);
-    expect([...files.keys()].sort()).toEqual([
-      "Assets/Images/ada.png",
-      "Assets/Images/ada@night.png",
-      "Assets/Images/ada~face.happy.png",
-    ]);
-  });
-
-  it("moves nothing when any member's new name is taken", async () => {
-    const { assets, fs, files } = fakeWorkspace({
-      ...Object.fromEntries(STACK.map((path) => [path, "png"])),
-      "Assets/Images/kai@night.png": "png",
-    });
-    await assets.load();
-    await expect(assets.renameStack(STACK, "imani", "kai")).rejects.toThrow(NAME_MESSAGES.taken);
-    expect(fs.moveFile).not.toHaveBeenCalled();
-    expect(fs.renameFileWithReferences).not.toHaveBeenCalled();
-    expect([...files.keys()].sort()).toEqual([...STACK, "Assets/Images/kai@night.png"].sort());
-  });
-});
-
 describe("measuring pictures for a folder's tile shape", () => {
   it("reads each picture's header once through a ranged request, skipping links and recording failures", async () => {
     const { assets } = fakeWorkspace({
@@ -259,52 +226,5 @@ describe("measuring pictures for a folder's tile shape", () => {
       "/src/Assets/Images/Cast/a.png": { width: 300, height: 400 },
       "/src/Assets/Images/Cast/b.png": null,
     });
-  });
-});
-
-describe("the name given to a stacked picture", () => {
-  const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
-
-  it("is trimmed once, so every member keeps one base", async () => {
-    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
-    await assets.load();
-    await assets.renameStack(STACK, "imani", "ada ");
-    expect([...files.keys()].sort()).toEqual([
-      "Assets/Images/ada.png",
-      "Assets/Images/ada@night.png",
-      "Assets/Images/ada~face.happy.png",
-    ]);
-  });
-
-  it("refuses an empty name or one holding @ or ~, moving nothing", async () => {
-    const NIGHT = ["Assets/Images/imani@day.png", "Assets/Images/imani@night.png"];
-    const { assets, fs } = fakeWorkspace(Object.fromEntries(NIGHT.map((path) => [path, "png"])));
-    await assets.load();
-    await expect(assets.renameStack(NIGHT, "imani", "  ")).rejects.toThrow(NAME_MESSAGES.empty);
-    await expect(assets.renameStack(NIGHT, "imani", "ada@dusk")).rejects.toThrow("can't contain @ or ~");
-    await expect(assets.renameStack(NIGHT, "imani", "ada~x")).rejects.toThrow("can't contain @ or ~");
-    expect(fs.moveFile).not.toHaveBeenCalled();
-  });
-});
-
-describe("the file names a stacked picture's rename builds", () => {
-  it("takes an extension typed on the name off once, keeping one base", async () => {
-    const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
-    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
-    await assets.load();
-    await assets.renameStack(STACK, "imani", "ada.png");
-    expect([...files.keys()].sort()).toEqual([
-      "Assets/Images/ada.png",
-      "Assets/Images/ada@night.png",
-      "Assets/Images/ada~face.happy.png",
-    ]);
-  });
-
-  it("keeps each member's suffix as it was, even one that ends like an extension", async () => {
-    const STACK = ["Assets/Images/imani.png", "Assets/Images/imani~face.png.png"];
-    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
-    await assets.load();
-    await assets.renameStack(STACK, "imani", "ada");
-    expect([...files.keys()].sort()).toEqual(["Assets/Images/ada.png", "Assets/Images/ada~face.png.png"]);
   });
 });

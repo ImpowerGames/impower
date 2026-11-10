@@ -16,7 +16,6 @@ const assets = vi.hoisted(() => ({
   addLink: vi.fn(async () => ""),
   createFolder: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
-  renameStack: vi.fn(async (): Promise<string[]> => []),
   remove: vi.fn(async () => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
 }));
@@ -478,32 +477,49 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
   });
 });
 
-describe("renaming a stacked picture shown as a tile", () => {
-  it("shows the whole error message under the field in the tile", async () => {
+describe("renaming from the row menu", () => {
+  beforeEach(() => {
     setListing({
       "Assets/Images/Portraits/imani.png": facts(6001),
       "Assets/Images/Portraits/imani@night.png": facts(6002),
+      "Assets/Images/Portraits/bunny.png": facts(6003),
     });
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
-    const message = "That name is already in use in this folder.";
-    assets.renameStack.mockRejectedValueOnce(new Error(message));
+  });
+
+  const menuOf = async (name: string) => {
+    await openMenu(all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Delete"));
+    const items = menuItems();
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    return items;
+  };
+
+  it("offers Rename for a single file and not for a stacked picture", async () => {
     await mount();
-    await openMenu(all<HTMLElement>('button[aria-label="Options for imani"]')[0]);
+    expect(await menuOf("bunny")).toEqual(["Rename", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Delete"]);
+  });
+
+  it("shows a refused single-file rename's whole message under the field in its tile", async () => {
+    const message = "That name is already in use in this folder.";
+    assets.rename.mockRejectedValueOnce(new Error(message));
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
     await vi.waitFor(() => expect(menuItems()).toContain("Rename"));
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Rename")));
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!;
-    expect(input.value).toBe("imani");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename bunny"]')!;
+    expect(input.value).toBe("bunny");
     await act(async () => {
-      input.value = "kai";
+      input.value = "imani";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
     await settle();
-    expect(assets.renameStack).toHaveBeenCalledWith(
-      ["Assets/Images/Portraits/imani.png", "Assets/Images/Portraits/imani@night.png"],
-      "imani",
-      "kai",
-    );
+    expect(assets.rename).toHaveBeenCalledWith("Assets/Images/Portraits/bunny.png", "imani");
     const alert = host!.querySelector<HTMLElement>('[role="alert"]')!;
     expect(alert.textContent).toBe(message);
     expect(alert.closest("small")!.className).toContain("whitespace-normal");

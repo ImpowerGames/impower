@@ -46,7 +46,6 @@ import {
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { plural, rowLine } from "../../utils/fileListModel";
 import { majorityShape } from "../../utils/imageSize";
-import { stackBaseOf } from "../../utils/imageStacks";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   ASSET_SORT_FIELDS,
@@ -284,12 +283,6 @@ function AssetsBrowser() {
     else void run(async () => (await intents()).assets.remove(row.paths ?? [row.path]));
   };
 
-  const renameRow = async (row: AssetRow, name: string) => {
-    const Workspace = await intents();
-    if (row.paths) await Workspace.assets.renameStack(row.paths, stackBaseOf(row.path), name);
-    else await Workspace.assets.rename(row.path, name);
-  };
-
   const openLabel = (row: AssetRow, line: string) => {
     const opens = row.kind === "folder" ? "Open folder" : `Open ${row.link ? "link" : TYPE_NOUNS[row.type]}`;
     const variants = row.variantCount ? `, ${variantsLabel(row.variantCount)}` : "";
@@ -316,7 +309,7 @@ function AssetsBrowser() {
         label={row.name}
         description={line}
         aria-label={openLabel(row, line)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
     );
@@ -332,11 +325,7 @@ function AssetsBrowser() {
     }
     const row = item;
     if (renaming === row.path) {
-      const [stem, extension] = row.paths
-        ? [stackBaseOf(row.path), ""]
-        : row.kind === "file"
-          ? stemAndExtension(leafOf(row.path))
-          : [row.name, ""];
+      const [stem, extension] = row.kind === "file" ? stemAndExtension(leafOf(row.path)) : [row.name, ""];
       return (
         <NameRow
           icon={<RowGlyph row={row} listing={listing} />}
@@ -347,7 +336,7 @@ function AssetsBrowser() {
           suffix={extension}
           onCancel={() => setRenaming(null)}
           onCommit={async (name) => {
-            await renameRow(row, name);
+            await (await intents()).assets.rename(row.path, name);
             setRenaming(null);
           }}
         />
@@ -374,7 +363,7 @@ function AssetsBrowser() {
         description={line}
         aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
     );

@@ -2,12 +2,10 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
-import { availableName, NAME_MESSAGES, NameError, plural, validName } from "../utils/fileListModel";
+import { availableName, NameError, plural } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
-import { stemOf } from "../utils/imageStacks";
 import { canMoveFolder } from "../utils/fileTree";
-import { applyMove, applyMoves, type FileMove } from "../utils/fileMoves";
-import { recordCreate, recordMove, recordReferenceRename, recordRenames } from "../utils/fileUndo";
+import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
@@ -52,8 +50,6 @@ const extensionOf = (path: string) => {
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot) : "";
 };
-
-export const STACK_NAME_MESSAGE = "A stacked picture's name can't contain @ or ~.";
 
 const MEASURE_BATCH = 8;
 
@@ -215,35 +211,35 @@ export default class WorkspaceAssets {
     if (kind === "folder") {
       return this.moveFolder(projectId, path, to);
     }
-    const move = await this.planMove(projectId, path, to);
-    const moved = await renameOrReport(path, to, () => applyMove(this._workspace.fs, projectId, move));
-    if (!moved.renamed) {
-      return path;
+    const { fs, ls, window } = this._workspace;
+    let referenced = false;
+    if (this._workspace.autoRenameFiles()) {
+      try {
+        referenced = (await ls.getFileReferences(fs.getFileUri(projectId, path))).length > 0;
+      } catch {
+        referenced = true;
+      }
     }
-    await this.recordMoves([move]);
-    if (move.references) recordReferenceRename(projectId, path, to);
-    else recordMove(projectId, path, to, false);
+    if (referenced) {
+      const renamed = await renameOrReport(path, to, () =>
+        fs.renameFileWithReferences(projectId, path, to),
+      );
+      if (!renamed.renamed) {
+        return path;
+      }
+      await window.recordScriptChange();
+      await window.recordAssetChange();
+      recordReferenceRename(projectId, path, to);
+    } else {
+      const moved = await renameOrReport(path, to, () => fs.moveFile(projectId, path, to));
+      if (!moved.renamed) {
+        return path;
+      }
+      await window.recordAssetChange();
+      recordMove(projectId, path, to, false);
+    }
     await this.load();
     return to;
-  }
-
-  protected async planMove(projectId: string, from: string, to: string): Promise<FileMove> {
-    const { fs, ls } = this._workspace;
-    if (!this._workspace.autoRenameFiles()) {
-      return { from, to, references: false };
-    }
-    try {
-      return { from, to, references: (await ls.getFileReferences(fs.getFileUri(projectId, from))).length > 0 };
-    } catch {
-      return { from, to, references: true };
-    }
-  }
-
-  protected async recordMoves(moves: readonly FileMove[]): Promise<void> {
-    if (moves.some((move) => move.references)) {
-      await this._workspace.window.recordScriptChange();
-    }
-    await this._workspace.window.recordAssetChange();
   }
 
   async measureImages(paths: readonly string[]): Promise<void> {
@@ -271,53 +267,6 @@ export default class WorkspaceAssets {
     }
     for (const src of wanted) this._measuring.delete(src);
     workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
-  }
-
-  async renameStack(paths: readonly string[], base: string, name: string): Promise<string[]> {
-    const projectId = this.requireProject();
-    let stackName = validName(name);
-    const typed = paths
-      .map(extensionOf)
-      .find((extension) => extension && stackName.toLowerCase().endsWith(extension.toLowerCase()));
-    if (typed) {
-      stackName = validName(stackName.slice(0, -typed.length));
-    }
-    if (/[@~]/.test(stackName)) {
-      throw new NameError(STACK_NAME_MESSAGE);
-    }
-    const members = new Set(paths.map((path) => nameOf(path).toLowerCase()));
-    const planned = new Set<string>();
-    const targets = paths.map((from) => {
-      const folder = parentOf(from);
-      const leaf = validName(stackName + stemOf(from).slice(base.length)) + extensionOf(from);
-      const key = `${folder}/${leaf.toLowerCase()}`;
-      const taken = this.siblings(folder).some(
-        (sibling) => sibling.toLowerCase() === leaf.toLowerCase() && !members.has(sibling.toLowerCase()),
-      );
-      if (taken || planned.has(key)) {
-        throw new NameError(NAME_MESSAGES.taken);
-      }
-      planned.add(key);
-      return { from, to: joinPath(folder, leaf) };
-    });
-    const moves: FileMove[] = [];
-    for (const { from, to } of targets) {
-      if (from !== to) moves.push(await this.planMove(projectId, from, to));
-    }
-    if (!moves.length) {
-      return [...paths];
-    }
-    try {
-      await applyMoves(this._workspace.fs, projectId, moves);
-    } catch (error) {
-      console.error(error);
-      await this.load();
-      throw new NameError(`Couldn't rename ${base}. Its files are as they were.`);
-    }
-    await this.recordMoves(moves);
-    recordRenames(projectId, moves, stackName);
-    await this.load();
-    return targets.map((target) => target.to);
   }
 
   protected async moveFolder(projectId: string, from: string, to: string): Promise<string> {
