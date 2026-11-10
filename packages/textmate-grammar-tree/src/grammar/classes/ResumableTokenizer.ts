@@ -344,19 +344,20 @@ export class ResumableTokenizer {
 
   protected tryEnd(out: GrammarToken[], allowLimitClose = true): boolean {
     const frame = this.frames[this.frames.length - 1]!;
+    const ending = frame.rule.matchEnd(this.state, this.pos);
+    if (!ending) {
+      return false;
+    }
     if (
       this.tokenizesCapture &&
+      ending.length === 0 &&
       frame.openedAt === this.pos &&
-      this.pos < this.state.str.length &&
-      frame.rule.matchEnd(this.state, this.pos)?.length === 0
+      this.pos < this.state.str.length
     ) {
       this.stopLine(out);
       return true;
     }
-    const endMatched = frame.rule.end(this.state, this.pos);
-    if (!endMatched) {
-      return false;
-    }
+    const endMatched = frame.rule.close(this.state, this.pos, ending);
     this.closeContentWrapper(frame);
     this.emitBatch(out, endMatched.compile(), null);
     if (frame.wrapperNodes && this.pending) {

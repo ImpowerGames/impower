@@ -13,6 +13,7 @@ import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
 import type { GrammarState } from "../GrammarState";
+import type { Matched } from "../Matched";
 import type { MatchRule } from "./MatchRule";
 import type { SwitchRule } from "./SwitchRule";
 
@@ -100,14 +101,9 @@ export class ScopedRule implements Rule {
     return this.matchEnd(state, from) != null;
   }
 
-  end(state: GrammarState, from: number) {
-    let endMatched = this.matchEnd(state, from);
-    if (!endMatched) {
-      return null;
-    }
-    endMatched = endMatched.wrap(this.node, Wrapping.END);
+  close(state: GrammarState, from: number, endMatched: Matched) {
     state.popScope(from);
-    return endMatched;
+    return endMatched.wrap(this.node, Wrapping.END);
   }
 
   get skipped() {

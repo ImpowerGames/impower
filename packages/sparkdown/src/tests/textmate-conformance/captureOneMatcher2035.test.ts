@@ -1,3 +1,4 @@
+import { MatchRule } from "@impower/textmate-grammar-tree/src/grammar/classes/rules/MatchRule";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
@@ -179,6 +180,44 @@ describe("capture patterns run through the line tokenizer", () => {
   test.each(cases)("%s", async (_label, g, text) => {
     const expected = await vscodeScopes(structuredClone(g), text);
     expect(treeScopes(g, text)).toEqual(expected);
+  });
+
+  test("a capture matches each end once however deeply end captures nest", async () => {
+    const levels = 8;
+    const repository: Record<string, unknown> = {};
+    for (let i = 0; i < levels; i++) {
+      repository[`D${i}`] = {
+        name: `level${i}.probe`,
+        begin: "(?=a)",
+        end: "(a)",
+        endCaptures: {
+          "1": i + 1 < levels ? { name: `end${i}.probe`, patterns: [{ include: `#D${i + 1}` }] } : { name: `end${i}.probe` },
+        },
+        patterns: [{ match: "." }],
+      };
+    }
+    const g = {
+      name: "probe",
+      scopeName: "source.probe",
+      repository,
+      patterns: [
+        { match: "^-(a)", captures: { "1": { name: "cap.probe", patterns: [{ include: "#D0" }] } } },
+        { match: ".|\\n" },
+      ],
+    };
+    const expected = await vscodeScopes(structuredClone(g), "-a\n");
+    let endMatches = 0;
+    const matchGroups = MatchRule.prototype.matchGroups;
+    MatchRule.prototype.matchGroups = function (this: MatchRule, ...args: Parameters<typeof matchGroups>) {
+      if (this.id.endsWith("_end")) endMatches++;
+      return matchGroups.apply(this, args);
+    };
+    try {
+      expect(treeScopes(g, "-a\n")).toEqual(expected);
+    } finally {
+      MatchRule.prototype.matchGroups = matchGroups;
+    }
+    expect(endMatches).toBeLessThanOrEqual(2 * levels);
   });
 
   test.each([
