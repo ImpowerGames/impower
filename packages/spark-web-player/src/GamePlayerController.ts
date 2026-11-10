@@ -1994,7 +1994,7 @@ export class GamePlayerController {
     if (!play) {
       return true;
     }
-    if (play.state === "starting") {
+    if (this.startPending(play)) {
       if (type.method === StepGameClockMessage.method) {
         play.stepped += (params as { seconds: number }).seconds;
       }
@@ -2007,6 +2007,10 @@ export class GamePlayerController {
       console.error(e);
       return false;
     }
+  }
+
+  protected startPending(play: WorkerPlay | undefined): boolean {
+    return play?.state === "starting" && !play.startSent;
   }
 
   protected _appPlay?: WorkerPlay;
@@ -2340,8 +2344,7 @@ export class GamePlayerController {
     const app = this.controlledApp;
     const wasPaused = app?.paused;
     app?.unpause();
-    const play = this._workerPlay;
-    if (play?.state === "starting" && !play.startSent) {
+    if (this.startPending(this._workerPlay)) {
       this.updateLaunchStateIcon();
       return ContinueGameMessage.type.response(message.id, { done: false, run });
     }

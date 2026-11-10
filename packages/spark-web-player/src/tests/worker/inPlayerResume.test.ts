@@ -124,6 +124,69 @@ describe("the player's own Resume", () => {
     }
   }, 120_000);
 
+  it("keeps the beat after a plain Pause taken while the worker's start answer is still on its way", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+      manualClock: true,
+    });
+    const c = h.controller as any;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let reached: () => void = () => {};
+    const started = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const request = h.link.request.bind(h.link);
+    h.link.request = (async (type: any, params: any) => {
+      const answer = await request(type, params);
+      if (type.method === StartPlayMessage.method) {
+        reached();
+        await gate;
+      }
+      return answer;
+    }) as any;
+    const line = async () => {
+      const threads = (
+        await c.handleGetGameThreads(GetGameThreadsMessage.type.request({}))
+      ).result;
+      const stack = (
+        await c.handleGetGameStackTrace(
+          GetGameStackTraceMessage.type.request({
+            threadId: threads.threads[0]?.id ?? 0,
+            startFrame: 0,
+            levels: 20,
+          }),
+        )
+      ).result;
+      return stack.stackFrames[0]?.location?.range.start.line;
+    };
+    let starting: Promise<boolean> | undefined;
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      await settle(40);
+      await c.handleEnableGameDebug(EnableGameDebugMessage.type.request({}));
+      starting = c.startGameAndApp();
+      await started;
+      expect(c._workerPlay.startSent).toBe(true);
+      const before = await line();
+      await c.pauseGame();
+      await c.resumeGame();
+      expect(await line()).toBe(before);
+      release();
+      expect(await starting).toBe(true);
+      expect(c._app.paused).toBe(false);
+      expect(await line()).toBe(before);
+    } finally {
+      release();
+      await starting;
+      h.dispose();
+    }
+  }, 120_000);
+
   it("resumes in place after a plain Pause", async () => {
     const { h, c, standing } = await playing();
     try {
