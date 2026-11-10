@@ -3711,6 +3711,7 @@ repository:
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=^{{WS}}*)(?={{LUAU_LIST_LINE_START_STATEMENT}})"
 
   LuauSparkdownReassignment:
