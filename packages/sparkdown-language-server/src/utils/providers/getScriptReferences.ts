@@ -1,6 +1,7 @@
 import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
+import { referenceBindings } from "../annotations/referenceBindings";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { walkReferences } from "./getReferences";
@@ -22,7 +23,7 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
 
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
-  "document" | "annotations" | "uris" | "compilerConfig"
+  "document" | "annotations" | "uris" | "compilerConfig" | "tree"
 >;
 
 export const getScriptReferences = (
@@ -45,6 +46,10 @@ export const getScriptReferences = (
           : resolved;
       })
       .filter((id): id is string => !!id);
+
+  const bindingAt = referenceBindings(workspace);
+  const isBound = (uri: string, from: number, reference: Reference) =>
+    bindingAt(uri, from, reference) !== undefined;
 
   const lineOf = (uri: string, offset: number) =>
     workspace.document(uri)?.positionAt(offset).line ?? -1;
@@ -70,9 +75,9 @@ export const getScriptReferences = (
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (
-        reference.binding != null ||
         !DECLARED_BY_SCRIPT.has(reference.declaration) ||
-        isTypeUse(uri, reference, r.from)
+        isTypeUse(uri, reference, r.from) ||
+        (reference.declaration === "function" && isBound(uri, r.from, reference))
       ) {
         return;
       }
@@ -92,10 +97,7 @@ export const getScriptReferences = (
     const own = ownIn.get(uri)!;
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (
-        reference.binding != null ||
-        (reference.declaration && !isTypeUse(uri, reference, r.from))
-      ) {
+      if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
         return;
       }
       const ids = resolvedIds(reference, scopePath);
@@ -107,6 +109,9 @@ export const getScriptReferences = (
         const declarers = declaredIn.get(id);
         if (!declarers) {
           continue;
+        }
+        if (isBound(uri, r.from, reference)) {
+          return;
         }
         for (const to of declarers) {
           const key = `${uri}\n${to}\n${divert}`;

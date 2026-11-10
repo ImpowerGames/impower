@@ -36,6 +36,7 @@ function workspaceOf(sources: Record<string, string>) {
     document: (uri: string) => documents.get(uri),
     annotations: (uri: string) => documents.annotations(uri),
     uris: () => documents.keys(),
+    tree: (uri: string) => documents.tree(uri),
     compilerConfig: undefined,
   } as Parameters<typeof getScriptReferences>[0];
 }
@@ -153,6 +154,7 @@ describe("provider · script references read access paths and bindings from the 
     ["whitespace around the dots", "{character . raffles . name}"],
     ["a string index", '{character["raffles"].name}'],
     ["a parenthesized root", "{(character).raffles.name}"],
+    ["a nested parenthesized continuation", "{((character).raffles).name}"],
   ])("%s counts as a use of the define's script", (_, expression) => {
     expect(
       referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
@@ -166,6 +168,15 @@ describe("provider · script references read access paths and bindings from the 
     expect(
       referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
     ).toBe(0);
+  });
+
+  test("a path continued on the next line counts as a use of the define's script", () => {
+    expect(
+      referencedBy(
+        { [CAST]: CAST_SOURCE, [HELPERS]: "function show()\n  return character\n    .raffles.name\nend\n" },
+        CAST,
+      ),
+    ).toBe(1);
   });
 
   test("a use through a local alias is deliberately not counted as a use of the define's script", () => {
@@ -194,6 +205,11 @@ describe("provider · script references read access paths and bindings from the 
     ["a const in a function", "function show()\n  const settings = {score = 2}\n  return settings.score\nend\n"],
     ["a repeat body's local in its until condition", "function show()\n  repeat\n    local settings = {score = 2}\n  until settings.score > 0\nend\n"],
     ["a local function", "function show()\n  local function settings()\n    return 1\n  end\n  return settings()\nend\n"],
+    [
+      "a recursive local function",
+      "function show()\n  local function settings(n)\n    if n > 0 then\n      return settings(n - 1)\n    end\n    return 0\n  end\n  return settings(2)\nend\n",
+    ],
+    ["a scene's local", "scene show\n  local settings = {score = 2}\n  {settings.score}\nend\n"],
   ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
   });

@@ -13,6 +13,7 @@ import {
 } from "vscode-languageserver";
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { getSymbolContext } from "../annotations/getSymbolContext";
+import { referenceBindings } from "../annotations/referenceBindings";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { getSymbol } from "./getSymbol";
@@ -34,9 +35,6 @@ export const linkedTypes = (
   program: SparkProgram | undefined,
   type: string,
 ): string[] => recursivelyGetKeys(program?.context?.[type]?.["$default"]?.["$link"]);
-
-const bindingSite = (uri: string, from: number, reference: Reference) =>
-  reference.binding == null ? undefined : `${uri}\n${from - reference.binding}`;
 
 export interface ReferenceTarget {
   symbolName: string | undefined;
@@ -157,9 +155,10 @@ export const collectReferencesForTarget = (
       ? resolveTargetIds(interdependentIds)
       : [];
   resolvedSymbolIds.push(...targetIds, ...targetInterdependentIds);
+  const bindingAt = referenceBindings(workspace);
   const targetBinding =
-    symbolReference && seedUri && symbolFrom != null
-      ? bindingSite(seedUri, symbolFrom, symbolReference)
+    seedUri && symbolFrom != null
+      ? bindingAt(seedUri, symbolFrom, symbolReference)
       : undefined;
 
   const addMatchingSymbols = (
@@ -171,17 +170,14 @@ export const collectReferencesForTarget = (
     if (!reference) {
       return;
     }
-    const binding = bindingSite(uri, r.from, reference);
-    if (binding !== undefined || targetBinding !== undefined) {
-      if (
-        binding === targetBinding &&
-        (context.includeDeclaration || !reference.declaration) &&
-        (!context.excludeUses || reference.declaration)
-      ) {
+    let sameBinding: boolean | undefined;
+    const add = () => {
+      sameBinding ??= bindingAt(uri, r.from, reference) === targetBinding;
+      if (sameBinding) {
         addSymbol(uri, r);
       }
-      return;
-    }
+      return sameBinding;
+    };
     for (const refId of reference.symbolIds ?? []) {
       const resolvedRefId = resolveSymbolId(
         refId,
@@ -203,7 +199,7 @@ export const collectReferencesForTarget = (
           if (type) {
             for (const linkedType of linkedTypes(program, type)) {
               if (fullyResolvedRefId === linkedType + "." + name) {
-                addSymbol(uri, r);
+                add();
               }
             }
           }
@@ -224,17 +220,14 @@ export const collectReferencesForTarget = (
           if (resolvedSymbolId === `font.${symbolName}`) {
             addAsset("font");
           }
-          if (!context.excludeUses || reference.declaration) {
-            addSymbol(uri, r);
-            if (reference.firstMatchOnly) {
-              break;
-            }
+          if ((!context.excludeUses || reference.declaration) && add() && reference.firstMatchOnly) {
+            break;
           }
         }
       }
       for (const resolvedSymbolId of targetInterdependentIds) {
         if (fullyResolvedRefId === resolvedSymbolId) {
-          addSymbol(uri, r);
+          add();
         }
       }
     }

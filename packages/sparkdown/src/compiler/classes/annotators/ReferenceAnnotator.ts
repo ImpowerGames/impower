@@ -54,7 +54,7 @@ export interface Reference {
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
   asset?: { types: string[]; name: string; typed?: boolean };
-  binding?: number;
+  root?: number;
 }
 
 export const DEFINE_ASSET_TYPES = ["image", "layered_image", "filtered_image"];
@@ -111,17 +111,10 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const PROPERTY_NAME = nodeNameSet(["LuauPropertyName"]);
-const VARIABLE_NAME = nodeNameSet(["LuauVariableName"]);
-const FUNCTION_NAME = nodeNameSet(["LuauFunctionName"]);
-const SCOPE_MODIFIER = nodeNameSet(["LuauScopeModifier"]);
-const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
-const BRANCH_BLOCK = nodeNameSet(["LuauElseifBlock", "LuauElseBlock"]);
-const FUNCTION_DEFINITION = nodeNameSet(["LuauFunctionDefinition"]);
 const VARIABLE = nodeNameSet(["LuauVariable"]);
-const FUNCTION_CALL = nodeNameSet(["LuauFunctionCall"]);
-const LOCAL_MODIFIERS = new Set(["local", "const"]);
+const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
 
 function isTrivia(node: SyntaxNode): boolean {
   return node.name.endsWith("Whitespace") || node.name.endsWith("Comment");
@@ -139,24 +132,15 @@ function significantAfter(node: SyntaxNode): SyntaxNode | null {
   return sibling;
 }
 
-function significantChildren(node: SyntaxNode | null): SyntaxNode[] {
-  const children: SyntaxNode[] = [];
-  for (let child = node?.firstChild; child; child = child.nextSibling) {
-    if (!isTrivia(child)) children.push(child);
+function lineContinuationAfter(node: SyntaxNode): SyntaxNode | null {
+  for (let current: SyntaxNode | null = node; current?.parent; current = current.parent) {
+    let next = current.nextSibling;
+    while (next && (isTrivia(next) || next.name === "Newline" || next.name.endsWith("_end"))) {
+      next = next.nextSibling;
+    }
+    if (next) return next.name === "LuauLineContinuation" ? next : null;
   }
-  return children;
-}
-
-function loopVariables(forContent: SyntaxNode): SyntaxNode[] {
-  const condition = findChildByName(forContent, "LuauForCondition");
-  const names: SyntaxNode[] = [];
-  for (const child of significantChildren(condition && findChildByName(condition, "LuauForCondition_content"))) {
-    if (child.name === "LuauCommaSeparator") continue;
-    if (child.name !== "LuauAccessPath") break;
-    const name = firstDescendant(child, VARIABLE_NAME);
-    if (name) names.push(name);
-  }
-  return names;
+  return null;
 }
 
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
@@ -321,117 +305,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }).range(from, to);
   }
 
-  private parameterSymbolId(parameter: SyntaxNode): string {
-    const definition = ancestorMatching(parameter, PARAMETER_OWNER);
-    let functionNameNode = null;
-    if (definition?.name === "LuauFunctionTypeDeclaration") {
-      functionNameNode = getDescendent("LuauTypeFunctionName", definition);
-    } else if (definition?.name === "LuauFunctionDefinition") {
-      const declName = getDescendent("LuauFunctionDeclarationName", definition);
-      functionNameNode = declName
-        ? getDescendent("LuauFunctionName", declName)
-        : null;
-    }
-    const fnName = functionNameNode
-      ? this.read(functionNameNode.from, functionNameNode.to).trim()
-      : "";
-    const name = this.read(parameter.from, parameter.to).trim();
-    return fnName ? `${fnName}.${name}` : name;
-  }
-
-  private parameterNamed(definition: SyntaxNode, name: string): SyntaxNode | null {
-    const content = findChildByName(definition, "LuauFunctionDefinition_content");
-    const parameters = content && findChildByName(content, "LuauFunctionParameters");
-    const list = parameters && findChildByName(parameters, "LuauFunctionParameters_content");
-    for (const parameter of significantChildren(list)) {
-      if (
-        parameter.name === "LuauFunctionParameter" &&
-        IDENTIFIER.exec(this.read(parameter.from, parameter.to).trim())?.[0] === name
-      ) {
-        return parameter;
-      }
-    }
-    return null;
-  }
-
-  private isLocal(statement: SyntaxNode): boolean {
-    const begin = findChildByName(statement, `${statement.name}_begin`);
-    const modifier = begin && firstDescendant(begin, SCOPE_MODIFIER);
-    return (
-      !!modifier &&
-      LOCAL_MODIFIERS.has(this.read(modifier.from, modifier.to).trim()) &&
-      !!ancestorMatching(statement, FUNCTION_DEFINITION, Infinity)
-    );
-  }
-
-  private localNamed(statement: SyntaxNode, name: string): SyntaxNode | null {
-    if (statement.name === "LuauVariableDefinition") {
-      if (!this.isLocal(statement)) return null;
-      const content = findChildByName(statement, "LuauVariableDefinition_content");
-      for (const assignment of significantChildren(content)) {
-        if (assignment.name !== "LuauVariableAssignment") continue;
-        const begin = findChildByName(assignment, "LuauVariableAssignment_begin");
-        const variable = begin && firstDescendant(begin, VARIABLE_NAME);
-        if (variable && this.read(variable.from, variable.to) === name) return variable;
-      }
-      return null;
-    }
-    if (statement.name === "LuauFunctionDefinition") {
-      if (!this.isLocal(statement)) return null;
-      const content = findChildByName(statement, "LuauFunctionDefinition_content");
-      const declaration = content && findChildByName(content, "LuauFunctionDeclarationName");
-      const functionName = declaration && firstDescendant(declaration, FUNCTION_NAME);
-      if (functionName && this.read(functionName.from, functionName.to) === name) return functionName;
-    }
-    return null;
-  }
-
-  private bindingInScope(use: SyntaxNode, name: string): SyntaxNode | null {
-    let outermost: SyntaxNode | null = null;
-    for (let scope = use.parent; scope; scope = scope.parent) {
-      if (scope.name === "LuauFunctionDefinition") outermost = scope;
-    }
-    if (!outermost) return null;
-    for (let child = use, scope = use.parent; scope; child = scope, scope = scope.parent) {
-      if (scope.name === "LuauForLoop_content") {
-        for (const variable of loopVariables(scope).reverse()) {
-          if (
-            variable.from === use.from ||
-            (child.name === "LuauDoBlock" && this.read(variable.from, variable.to) === name)
-          ) {
-            return variable;
-          }
-        }
-      }
-      if (scope.name === "LuauFunctionDefinition") {
-        const parameter = this.parameterNamed(scope, name);
-        if (parameter) return parameter;
-        if (scope === outermost) return null;
-      }
-      if (BRANCH_BLOCK.has(child.name)) continue;
-      const repeat =
-        child.name === "LuauUntilCondition" ? significantBefore(child) : null;
-      for (let statement = child.prevSibling; statement; statement = statement.prevSibling) {
-        const local =
-          repeat?.name === "LuauRepeatLoop" && statement.from === repeat.from
-            ? this.lastLocalNamed(findChildByName(statement, "LuauRepeatLoop_content"), name)
-            : this.localNamed(statement, name);
-        if (local) return local;
-      }
-    }
-    return null;
-  }
-
-  private lastLocalNamed(block: SyntaxNode | null, name: string): SyntaxNode | null {
-    for (let statement = block?.lastChild; statement; statement = statement.prevSibling) {
-      const local = this.localNamed(statement, name);
-      if (local) return local;
-    }
-    return null;
-  }
-
   private pushSegments(
     annotations: Range<SparkdownAnnotation<Reference>>[],
+    root: SyntaxNode,
     path: string[],
     first: SyntaxNode | null,
   ): boolean {
@@ -445,6 +321,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [path.join(".")],
           kind: "read",
+          root: segment.from - root.from,
         }).range(segment.from, segment.to),
       );
     }
@@ -456,11 +333,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return firstDescendant(accessor, PROPERTY_NAME);
     }
     if (accessor.name === "LuauPropertyIndexer") {
-      const index = significantChildren(findChildByName(accessor, "LuauPropertyIndexer_content"));
+      const content = findChildByName(accessor, "LuauPropertyIndexer_content");
+      const index: SyntaxNode[] = [];
+      for (let child = content?.firstChild; child; child = child.nextSibling) {
+        if (!isTrivia(child)) index.push(child);
+      }
       const string = index.length === 1 && STRING_INDEX.has(index[0]!.name) ? index[0]! : null;
-      const content = string && findChildByName(string, `${string.name}_content`);
-      if (content && IDENTIFIER.exec(this.read(content.from, content.to))?.[0] === this.read(content.from, content.to)) {
-        return content;
+      const name = string && findChildByName(string, `${string.name}_content`);
+      if (name && IDENTIFIER.test(this.read(name.from, name.to))) {
+        return name;
       }
     }
     return null;
@@ -482,25 +363,26 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (definePropertyReference(path)?.property && DEFINE_ASSET_TYPES.includes(name)) return;
     const segments = [name];
-    if (!this.pushSegments(annotations, segments, part.nextSibling)) return;
+    if (!this.pushSegments(annotations, root, segments, part.nextSibling)) return;
     let first: SyntaxNode = path;
     let last: SyntaxNode = path;
     for (;;) {
       const next = significantAfter(last);
       if (next?.name === "LuauChainedPropertyAccess") {
         const content = findChildByName(next, "LuauChainedPropertyAccess_content");
-        if (!this.pushSegments(annotations, segments, content?.firstChild ?? null)) return;
+        if (!this.pushSegments(annotations, root, segments, content?.firstChild ?? null)) return;
         last = next;
         continue;
       }
-      if (
-        next ||
-        first.parent?.name !== "LuauParenthetical_content" ||
-        significantBefore(first)
-      ) {
-        return;
+      if (next && next.name !== "Newline") return;
+      if (!next && first.parent?.name === "LuauParenthetical_content" && !significantBefore(first)) {
+        first = last = first.parent.parent!;
+        continue;
       }
-      first = last = first.parent.parent!;
+      const continuation = lineContinuationAfter(last);
+      const content = continuation && findChildByName(continuation, "LuauLineContinuation_content");
+      if (!content || !this.pushSegments(annotations, root, segments, content.firstChild)) return;
+      first = last = continuation;
     }
   }
 
@@ -543,35 +425,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "LuauFunctionName") {
-      const declarationName = ancestorMatching(
+      const isDeclaration = !!ancestorMatching(
         nodeRef.node,
         FUNCTION_DECL_NAME,
       );
-      const isDeclaration = !!declarationName;
-      const statement = declarationName?.parent?.parent;
-      const call = isDeclaration ? null : ancestorMatching(nodeRef.node, FUNCTION_CALL, 3);
-      const callBinding =
-        call?.parent?.name === "LuauAccessPart" && onlyTrivia(call.parent.prevSibling, "prevSibling")
-          ? this.bindingInScope(nodeRef.node, this.read(nodeRef.from, nodeRef.to))
-          : null;
-      if (callBinding) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-            kind: "read",
-            binding: nodeRef.from - callBinding.from,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           ...(isDeclaration ? { declaration: "function" } : {}),
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
           kind: isDeclaration ? "write" : "read",
-          ...(statement?.name === "LuauFunctionDefinition" && this.isLocal(statement)
-            ? { binding: 0 }
-            : {}),
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
@@ -607,12 +469,28 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "LuauFunctionParameter") {
+      const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
+      let functionNameNode = null;
+      if (definition?.name === "LuauFunctionTypeDeclaration") {
+        functionNameNode = getDescendent("LuauTypeFunctionName", definition);
+      } else if (definition?.name === "LuauFunctionDefinition") {
+        const declName = getDescendent("LuauFunctionDeclarationName", definition);
+        functionNameNode = declName
+          ? getDescendent("LuauFunctionName", declName)
+          : null;
+      }
+      const fnName = functionNameNode
+        ? this.read(functionNameNode.from, functionNameNode.to).trim()
+        : "";
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           declaration: "param",
-          symbolIds: [this.parameterSymbolId(nodeRef.node)],
+          symbolIds: [
+            fnName
+              ? `${fnName}.${this.read(nodeRef.from, nodeRef.to).trim()}`
+              : this.read(nodeRef.from, nodeRef.to).trim(),
+          ],
           kind: "write",
-          binding: 0,
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
@@ -843,18 +721,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             declaration: scope === "const" ? "const" : "var",
             symbolIds: [name],
             kind: "write",
-            ...(this.isLocal(definition) ? { binding: 0 } : {}),
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-      const binding = this.bindingInScope(nodeRef.node, name);
-      if (binding) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            symbolIds: [name],
-            kind: "read",
-            binding: nodeRef.from - binding.from,
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;

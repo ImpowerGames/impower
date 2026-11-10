@@ -68,6 +68,7 @@ end
   const workspace = {
     annotations: (uri: string) => documents.annotations(uri),
     document: (uri: string) => documents.get(uri),
+    tree: (uri: string) => documents.tree(uri),
     uris: () => [...documents.keys()],
     compilerConfig: undefined,
     findFiles: () => [],

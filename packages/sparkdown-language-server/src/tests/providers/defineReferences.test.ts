@@ -17,6 +17,7 @@ function makeWorkspace(source: string) {
   const workspace = {
     annotations: (uri: string) => documents.annotations(uri),
     document: (uri: string) => documents.get(uri),
+    tree: (uri: string) => documents.tree(uri),
     uris: () => [...documents.keys()],
     compilerConfig: undefined,
     findFiles: () => [],
@@ -90,7 +91,7 @@ describe("provider · references through access paths and bindings (I-1969)", ()
   const sources: Record<string, string> = {
     [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\ndefine settings with\n  score = 1\nend\n',
     [CHAPTER]: 'scene chapter\n  {character.raffles.name}\n  {character["raffles"].name}\n  {settings.score}\n  {((character).raffles).name}\nend\n',
-    [HELPERS]: "function show(settings)\n  return settings.score\nend\nfunction total()\n  local settings = 2\n  return settings\nend\nfunction other()\n  local settings = 3\n  return settings\nend\n",
+    [HELPERS]: "function show(settings)\n  return settings.score\nend\nfunction total()\n  local settings = 2\n  return settings\nend\nfunction other()\n  local settings = 3\n  return settings\nend\nfunction count()\n  local function settings(n)\n    return settings(n - 1)\n  end\n  return settings(2)\nend\nscene local_scene\n  local settings = 4\n  {settings}\nend\n",
   };
 
   function workspaceOf() {
@@ -101,6 +102,7 @@ describe("provider · references through access paths and bindings (I-1969)", ()
     const workspace = {
       annotations: (uri: string) => documents.annotations(uri),
       document: (uri: string) => documents.get(uri),
+      tree: (uri: string) => documents.tree(uri),
       uris: () => [...documents.keys()],
       compilerConfig: undefined,
       findFiles: () => [],
@@ -141,6 +143,21 @@ describe("provider · references through access paths and bindings (I-1969)", ()
     expect(referencesAt(HELPERS, "settings", 4)).toEqual([
       { uri: HELPERS, text: "settings", line: 4 },
       { uri: HELPERS, text: "settings", line: 5 },
+    ]);
+  });
+
+  test("find-references on a recursive local function reaches its recursive call and its outside call", () => {
+    expect(referencesAt(HELPERS, "settings", 7)).toEqual([
+      { uri: HELPERS, text: "settings", line: 12 },
+      { uri: HELPERS, text: "settings", line: 13 },
+      { uri: HELPERS, text: "settings", line: 15 },
+    ]);
+  });
+
+  test("find-references on a scene's local reaches its use and not the define", () => {
+    expect(referencesAt(HELPERS, "settings", 10)).toEqual([
+      { uri: HELPERS, text: "settings", line: 18 },
+      { uri: HELPERS, text: "settings", line: 19 },
     ]);
   });
 
