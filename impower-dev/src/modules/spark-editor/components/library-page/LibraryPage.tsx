@@ -18,6 +18,8 @@ export type LibraryList<T> = {
   itemHeight?: (item: T, index: number) => number;
   grid?: VirtualListGrid;
   listRef?: Ref<HTMLDivElement>;
+  revealIndex?: number;
+  revealRequest?: number;
 };
 
 export type LibraryPageProps<T> = {
@@ -82,6 +84,8 @@ export default function LibraryPage<T>({
               renderItem={list.renderItem}
               itemHeight={list.itemHeight}
               grid={list.grid}
+              revealIndex={list.revealIndex}
+              revealRequest={list.revealRequest}
             />
           ) : (
             empty

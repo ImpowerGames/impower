@@ -22,7 +22,8 @@ type Demo =
   | { kind: "flush" }
   | { kind: "locked" }
   | { kind: "responsive" }
-  | { kind: "sheet" };
+  | { kind: "sheet" }
+  | { kind: "full" };
 
 function Body({ close }: { close: () => void }) {
   return (
@@ -116,6 +117,9 @@ function DialogDemo() {
       <GalleryRow label="Sheet: rises from the bottom edge, full width">
         <Trigger label="Sheet" onOpen={() => setDemo({ kind: "sheet" })} />
       </GalleryRow>
+      <GalleryRow label='Sheet size="full": fills the screen, square edged, for a phone surface such as the asset inspector'>
+        <Trigger label="Full sheet" onOpen={() => setDemo({ kind: "full" })} />
+      </GalleryRow>
 
       {(Object.keys(SIZE_LABELS) as DialogSize[]).map((size) => (
         <Dialog
@@ -148,6 +152,9 @@ function DialogDemo() {
       </Dialog>
       <Sheet open={is("sheet")} onOpenChange={onOpenChange}>
         <Body close={close} />
+      </Sheet>
+      <Sheet size="full" flush open={is("full")} onOpenChange={onOpenChange}>
+        <FlushBody close={close} />
       </Sheet>
     </div>
   );

@@ -42,6 +42,9 @@ import { folderCoverGallery } from "./components/folder-cover/FolderCover.galler
 import { variantsChipGallery } from "./components/variants-chip/VariantsChip.gallery";
 import { variantsBadgeGallery } from "./components/variants-badge/VariantsBadge.gallery";
 import { tileGallery } from "./components/tile/Tile.gallery";
+import { zoomFrameGallery } from "./components/zoom-frame/ZoomFrame.gallery";
+import { panelHeadGallery } from "./components/panel-head/PanelHead.gallery";
+import { detailListGallery } from "./components/detail-list/DetailList.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
@@ -88,6 +91,9 @@ export const galleryEntries: readonly GalleryEntry[] = [
   variantsChipGallery,
   variantsBadgeGallery,
   tileGallery,
+  zoomFrameGallery,
+  panelHeadGallery,
+  detailListGallery,
 ];
 
 export function App() {

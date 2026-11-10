@@ -175,28 +175,27 @@ export function recordCreate(
   });
 }
 
-export async function replaceAssetFile(
-  projectId: string,
-  path: string,
-  data: ArrayBuffer,
+export const REPLACED_MESSAGE = "Replaced. Every line that shows it now uses the new file.";
+
+export function recordReplace(
+  uri: string,
+  oldData: ArrayBuffer,
+  newData: ArrayBuffer,
   label: string,
+  message = REPLACED_MESSAGE,
 ) {
-  const { Workspace } = await import("../workspace/Workspace");
-  const uri = Workspace.fs.getFileUri(projectId, path);
-  const oldData = await Workspace.fs.readFile({ file: { uri } });
   const write = async (bytes: ArrayBuffer) => {
     const { Workspace } = await import("../workspace/Workspace");
     await Workspace.fs.createFiles({ files: [{ uri, data: bytes.slice(0) }] });
     await markProjectDirty();
   };
-  await write(data);
   pushUndo({
     label: `Replace ${label}`,
     undo: () => write(oldData),
-    redo: () => write(data),
+    redo: () => write(newData),
   });
   showSnackbar({
-    message: `Replaced ${label}`,
+    message,
     actionLabel: "Undo",
     onAction: () => void undo(),
   });

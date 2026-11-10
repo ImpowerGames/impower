@@ -1,18 +1,24 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { canMoveFolder } from "../utils/fileTree";
-import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
+import { downloadFile } from "../utils/downloadFile";
+import { recordCreate, recordMove, recordReferenceRename, recordReplace, REPLACED_MESSAGE } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameOrReport } from "../utils/renameOrReport";
+import { replacementOf } from "../utils/replaceRule";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
+import type { SearchGroup } from "./searchState";
+import { groupLocations } from "./WorkspaceSearch";
 import { isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -34,8 +40,10 @@ type Deps = {
     | "renameFileWithReferences"
     | "deleteFiles"
     | "deleteFolder"
+    | "readFile"
+    | "getFileText"
   >;
-  ls: Pick<WorkspaceLanguageServer, "getFileReferences">;
+  ls: Pick<WorkspaceLanguageServer, "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics">;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
 };
@@ -52,6 +60,22 @@ const extensionOf = (path: string) => {
 };
 
 const MEASURE_BATCH = 8;
+
+export interface InspectorFacts {
+  uses: SearchGroup[];
+  problems: SparkDiagnostic[];
+}
+
+const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
+  if (a.byteLength !== b.byteLength) {
+    return false;
+  }
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  return x.every((byte, index) => byte === y[index]);
+};
+
+const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const readImageSize = async (src: string): Promise<ImageSize | null> => {
   try {
@@ -296,5 +320,117 @@ export default class WorkspaceAssets {
     await moveToTrash(this._workspace.fs, projectId, trashed, label);
     await this._workspace.window.recordAssetChange();
     await this.load();
+  }
+  async uses(paths: readonly string[]): Promise<SearchGroup[]> {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return [];
+    }
+    const { fs, ls } = this._workspace;
+    const found = await Promise.all(
+      paths.map((path) => ls.getFileReferences(fs.getFileUri(projectId, path)).catch(() => [])),
+    );
+    return groupLocations(found.flat(), (uri) => fs.getFileText(uri));
+  }
+
+  async problems(paths: readonly string[]): Promise<SparkDiagnostic[]> {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return [];
+    }
+    const { fs, ls } = this._workspace;
+    const found = await Promise.all(
+      paths.map((path) => ls.getFileDiagnostics(fs.getFileUri(projectId, path))),
+    );
+    const seen = new Set<string>();
+    return found.flat().filter((problem) => {
+      const key = `${problem.severity}:${typeof problem.message === "string" ? problem.message : problem.message.value}`;
+      return seen.has(key) ? false : (seen.add(key), true);
+    });
+  }
+
+  watchFacts(paths: readonly string[], listener: (facts: InspectorFacts) => void): () => void {
+    let alive = true;
+    let request = 0;
+    const refresh = async () => {
+      const mine = ++request;
+      const [uses, problems] = await Promise.all([
+        this.uses(paths).catch((): SearchGroup[] => []),
+        this.problems(paths).catch((): SparkDiagnostic[] => []),
+      ]);
+      if (alive && mine === request) {
+        listener({ uses, problems });
+      }
+    };
+    const projectId = this.projectId;
+    const { fs, ls } = this._workspace;
+    const uris = new Set(projectId ? paths.map((path) => fs.getFileUri(projectId, path)) : []);
+    const detachCompiled = onProtocolMessage(CompiledProgramMessage.type, () => void refresh());
+    const detachPublished = ls.onPublishedDiagnostics(({ uri }) => {
+      if (uris.has(uri)) {
+        void refresh();
+      }
+    });
+    void refresh();
+    return () => {
+      alive = false;
+      detachCompiled();
+      detachPublished();
+    };
+  }
+
+  async readText(path: string): Promise<string> {
+    const projectId = this.requireProject();
+    const { fs } = this._workspace;
+    return fs.getFileText(fs.getFileUri(projectId, path));
+  }
+
+  async download(path: string): Promise<void> {
+    const projectId = this.requireProject();
+    const { fs } = this._workspace;
+    const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, path) } });
+    downloadFile(nameOf(path), "application/octet-stream", data);
+  }
+
+  async replace(path: string, file: DroppedFile): Promise<string> {
+    const projectId = this.requireProject();
+    const facts = this.listing.files[path];
+    const rule = replacementOf(
+      {
+        path,
+        type: assetTypeOf(path, assetEndings.peek(), facts?.address),
+        link: isLinkPath(path),
+      },
+      file.name,
+      assetEndings.peek(),
+    );
+    if ("refused" in rule) {
+      throw new NameError(rule.refused);
+    }
+    const { fs, window } = this._workspace;
+    const uri = fs.getFileUri(projectId, rule.path);
+    const leaf = nameOf(rule.path);
+    const before = await fs.readFile({ file: { uri } });
+    const data = await file.getBuffer();
+    try {
+      await fs.createFiles({ files: [{ uri, data: data.slice(0) }] });
+    } catch (error) {
+      const now = await fs.readFile({ file: { uri } }).catch(() => null);
+      if (now && sameBytes(now, data)) {
+        await window.recordAssetChange();
+        recordReplace(uri, before, data, leaf, `Replaced, though saving ${leaf} reported a problem: ${reasonOf(error)}`);
+        await this.load();
+        return rule.path;
+      }
+      throw new NameError(
+        now && sameBytes(now, before)
+          ? `Couldn't replace ${leaf}: ${reasonOf(error)}. The old file is still there.`
+          : `Couldn't replace ${leaf}: ${reasonOf(error)}. What it holds now could not be confirmed, so open it to check.`,
+      );
+    }
+    await window.recordAssetChange();
+    recordReplace(uri, before, data, leaf, REPLACED_MESSAGE);
+    await this.load();
+    return rule.path;
   }
 }

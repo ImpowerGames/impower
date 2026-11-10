@@ -303,7 +303,7 @@ describe("default and quiet Button call sites", () => {
 
   it("compose a real caller's classes without a hover or press background rule", async () => {
     const caller = unfilledCallSites().find(
-      ({ location, label }) => location.includes("AudioPreview.tsx") && label === "Loop",
+      ({ location, label }) => location.includes("SearchRail.tsx") && label === "Back to outline",
     );
     expect(caller).toBeDefined();
     const merged = twMerge(buttonVariants({ variant: caller!.variant }), caller!.classText)

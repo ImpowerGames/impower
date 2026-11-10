@@ -83,6 +83,10 @@ export const NOT_COMPONENTS: readonly string[] = [
   "tileHeight",
   "TILE_GAP",
   "TILE_MIN_WIDTH",
+  "zoomFrameVariants",
+  "zoomFrameContentVariants",
+  "panelHeadVariants",
+  "detailListVariants",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];
