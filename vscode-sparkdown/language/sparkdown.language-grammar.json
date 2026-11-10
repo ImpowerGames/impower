@@ -1920,6 +1920,9 @@
       "emit": true,
       "patterns": [
         {
+          "include": "#SparkdownInlineComment"
+        },
+        {
           "include": "#DisplayText"
         }
       ]
@@ -1946,6 +1949,9 @@
             },
             {
               "include": "#LuauInterpolatedStringExpression"
+            },
+            {
+              "include": "#SparkdownInlineComment"
             },
             {
               "include": "#DisplayText"

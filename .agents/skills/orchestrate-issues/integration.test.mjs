@@ -18,6 +18,26 @@ const traces = [];
 const trace = (name, value) => { traces.push(name); if (traceDir) fs.writeFileSync(path.join(traceDir, `${String(traces.length).padStart(2, "0")}-${name}.${typeof value === "string" ? "md" : "json"}`), typeof value === "string" ? `${value}\n` : `${JSON.stringify(value, null, 2)}\n`); };
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const defaults = run.readWriterDefaults();
+
+{
+  const clock = { t: 0 }, sleep = (ms) => { clock.t += ms; }, now = () => clock.t;
+  const sequence = (pulls) => { let i = 0; return { pull: () => pulls[Math.min(i++, pulls.length - 1)] }; };
+  const pending = { head: "h1", checks: [{ name: "comments", workflow: "Comment Check", state: "IN_PROGRESS" }] };
+  const done = { head: "h1", checks: [{ name: "comments", workflow: "Comment Check", state: "SUCCESS" }] };
+  assert.deepEqual(ig.waitForChecks({ client: sequence([pending, pending, pending, done]), pr: 1, seconds: 600, sleep, now }), { head: "h1", pending: [] }, "the wait returns once no check is pending");
+  assert.equal(clock.t, 30000, "it polls at the interval");
+  clock.t = 0;
+  assert.deepEqual(ig.waitForChecks({ client: sequence([pending]), pr: 1, seconds: 40, sleep, now }), { head: "h1", pending: ["Comment Check / comments"] }, "a timeout reports what is still pending and leaves the refusal to the gate");
+  assert.deepEqual(ig.waitForChecks({ client: sequence([pending, pending, { ...done, head: "h2" }]), pr: 1, seconds: 600, sleep, now }), { head: "h1", moved: "h2", pending: [] }, "a head that moves during the wait is reported");
+  const waitSource = fs.readFileSync(new URL("./integration.mjs", import.meta.url), "utf8");
+  const body = waitSource.slice(waitSource.indexOf("export function waitForChecks"), waitSource.indexOf("export function main"));
+  assert.doesNotMatch(body, /updateRecord|acquire|readRecord/, "the wait takes no record lock");
+  for (const [workflow, kept] of [["comment-check.yml", "synchronize"], ["check-linked-issue.yml", "edited"]]) {
+    const text = fs.readFileSync(new URL(`../../../.github/workflows/${workflow}`, import.meta.url), "utf8");
+    assert.match(text, new RegExp(`types: \\[[^\\]]*${kept}`), `${workflow} still runs on ${kept}`);
+    assert.doesNotMatch(text, /ready_for_review/, `${workflow} does not rerun when an unchanged PR is marked ready`);
+  }
+}
 const GB = 2 ** 30;
 const REPO = "acme/widgets", ISSUE = 40, SRC = "src-host", DST = "dst-host";
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
@@ -518,7 +538,11 @@ try {
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
   assert.equal(gh.mergeCalls.length, callsBeforeSave, "no merge call without a saved intent");
   assert.deepEqual([record().operations.at(-1).state, record().operations.at(-1).evidence], ["failed", "not run: the remote is unreachable"]);
-  const unscoped = merge(41, recordFile, "local_coord", src, () => { gh.slices.delete(41); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
+  const opsBeforeAwaited = record().operations.length;
+  const awaitedElsewhere = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, expectHead: "0".repeat(40), takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) });
+  assert.deepEqual([awaitedElsewhere.admitted, gh.mergeCalls.length, record().operations.length], [false, callsBeforeSave, opsBeforeAwaited], "a head other than the one whose checks were awaited records nothing and calls nothing");
+  assert.match(awaitedElsewhere.gate.blockers.join("; "), /the head moved from 0{40}, whose checks were awaited/);
+  const unscoped =merge(41, recordFile, "local_coord", src, () => { gh.slices.delete(41); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
   gh.slices.add(41);
   assert.deepEqual([unscoped.merged, unscoped.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], unscoped.evidence);
   assert.match(unscoped.evidence, /not run: #41 is not a sub-issue of issue #40/);

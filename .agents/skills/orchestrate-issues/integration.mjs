@@ -258,10 +258,11 @@ export function mergeScope(snapshot, ticket, record = {}) {
   return { slices, acceptanceSha256: null };
 }
 
-export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
+export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, expectHead, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
   let gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
+  if (expectHead !== undefined && gate.head !== expectHead) gate = { ...gate, admitted: false, blockers: [...gate.blockers, `the head moved from ${expectHead}, whose checks were awaited, to ${gate.head}`] };
   if (!gate.admitted) return { admitted: false, merged: false, gate };
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
     const op = intent(r, { kind: "merge", ticket, pr, expectHead: gate.head, evidence: `admitted as ${gate.disposition}` });
@@ -743,7 +744,20 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
+const liveSnapshot = (record, scope = null) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets, scope }, githubClient(record, record.checkout));
+
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+export function waitForChecks({ client, pr, seconds, interval = 15, sleep = pause, now = Date.now }) {
+  const deadline = now() + seconds * 1000;
+  const first = client.pull(pr).head;
+  for (;;) {
+    const pull = client.pull(pr);
+    if (pull.head !== first) return { head: first, moved: pull.head, pending: [] };
+    const pending = classifyChecks(pull.checks, []).filter((c) => c.result === "pending").map(label);
+    if (!pending.length || now() >= deadline) return { head: first, pending };
+    sleep(Math.min(interval * 1000, Math.max(0, deadline - now())));
+  }
+}
 const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets, split: repositoriesOf(record).split }, githubClient(record, record.checkout));
 
 export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
@@ -755,12 +769,21 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
   const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
   switch (command) {
     case "gate": {
-      const { record, client, git, snapshotNow } = context(), pr = int(o.pr, "pr"), ticket = int(o.ticket, "ticket");
-      return admission(record, { ticket, pr, snapshot: snapshotNow(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
+      const { record, client, git } = context(), pr = int(o.pr, "pr"), ticket = int(o.ticket, "ticket");
+      return admission(record, { ticket, pr, snapshot: snapshotFor(record, ticket)(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
     }
     case "merge": {
-      const { client, git, snapshotNow, scopeNow } = context(), pr = int(o.pr, "pr");
-      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
+      const { record, client, git, scopeNow } = context(), pr = int(o.pr, "pr"), ticket = int(o.ticket, "ticket");
+      const expectRevision = int(o.expectRevision, "expect-revision");
+      let waited = null;
+      if (o.wait !== undefined) {
+        const seconds = Number(o.wait);
+        if (!Number.isFinite(seconds) || seconds < 0) throw new Error("--wait must be a number of seconds, 0 or more");
+        waited = waitForChecks({ client, pr, seconds });
+        if (waited.moved) return { admitted: false, merged: false, waited, gate: { blockers: [`the head moved from ${waited.head} to ${waited.moved} while its checks were awaited`] } };
+      }
+      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision, ticket, pr, expectHead: waited?.head, takeSnapshot: snapshotFor(record, ticket), readScope: scopeNow, client, git, afterIntent: saved });
+      if (waited) result.waited = waited;
       return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
     }
     case "criteria": { const { record, client } = context(), issue = o.ticket === undefined ? record.issue : int(o.ticket, "ticket"); return { issue, criteria: parseCriteria(client.issue(issue).body) }; }

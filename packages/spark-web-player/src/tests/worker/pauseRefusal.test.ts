@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
+import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { GamePlayerController } from "../../GamePlayerController";
@@ -9,6 +11,10 @@ const controllerWith = (paused: boolean, ask: () => Promise<unknown>) => {
   const play = { state: "running", run: 7 };
   const app = {
     paused,
+    skipped: [] as number[],
+    skip(seconds: number) {
+      this.skipped.push(seconds);
+    },
     pause() {
       this.paused = true;
     },
@@ -68,6 +74,52 @@ describe("a pause the worker refuses", () => {
     } finally {
       errors.mockRestore();
     }
+  });
+
+  it("leaves a paused app paused when Resume is refused", async () => {
+    const { controller, app, published } = controllerWith(true, refused);
+    const answer = await controller.handleContinueGame(ContinueGameMessage.type.request({}));
+    expect(answer.error?.message).toBe("worker refused");
+    expect(app.paused).toBe(true);
+    expect(published).toEqual([true]);
+  });
+
+  it("unpauses the app when the worker accepts a Resume", async () => {
+    const { controller, app, published } = controllerWith(true, async () => ({ done: false }));
+    const answer = await controller.handleContinueGame(ContinueGameMessage.type.request({}));
+    expect(answer.result).toEqual({ done: false, run: 7 });
+    expect(app.paused).toBe(false);
+    expect(published).toEqual([false]);
+  });
+
+  it("unpauses a play that is still starting without asking the worker", async () => {
+    const ask = vi.fn(refused);
+    const { controller, app } = controllerWith(true, ask);
+    controller._workerPlay.state = "starting";
+    const answer = await controller.handleContinueGame(ContinueGameMessage.type.request({}));
+    expect(answer.result).toEqual({ done: false, run: 7 });
+    expect(app.paused).toBe(false);
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it("leaves the app's clock alone when a clock step is refused", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { controller, app } = controllerWith(true, refused);
+      const answer = await controller.handleStepGameClock(
+        StepGameClockMessage.type.request({ seconds: 0.5 }),
+      );
+      expect(answer.error?.message).toBe("no game loaded");
+      expect(app.skipped).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("steps the app's clock when the worker accepts", async () => {
+    const { controller, app } = controllerWith(true, async () => ({}));
+    await controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 0.5 }));
+    expect(app.skipped).toEqual([0.5]);
   });
 
   it("changes the app when the worker accepts", async () => {

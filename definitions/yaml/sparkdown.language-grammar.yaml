@@ -1655,6 +1655,7 @@ repository:
   ChoiceInnerText:
     emit: true
     patterns:
+      - { include: "#SparkdownInlineComment" }
       - { include: "#DisplayText" }
 
   ChoicePlainText:
@@ -1672,6 +1673,7 @@ repository:
           - { include: "#Annotation" }
           - { include: "#LuauFunctionCallShorthand" }
           - { include: "#LuauInterpolatedStringExpression" }
+          - { include: "#SparkdownInlineComment" }
           - { include: "#DisplayText" }
 
   LabelAnchor:

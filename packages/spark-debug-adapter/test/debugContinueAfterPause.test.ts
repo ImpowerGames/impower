@@ -38,14 +38,14 @@ const session = () => {
 };
 
 describe("continuing a debug run", () => {
-  it("resumes in place after a pause, without advancing past the beat on screen", async () => {
+  it("sends the player one Resume after a pause", async () => {
     const { debug, response, resumed } = session();
     await (debug as any).pauseRequest(response("pause"), { threadId: 0 });
-    expect(await resumed()).toEqual(["game/unpause"]);
+    expect(await resumed()).toEqual(["game/continue"]);
   });
 
   for (const traversal of ["nextRequest", "stepInRequest", "stepOutRequest"]) {
-    it(`runs on to the next stop after ${traversal.replace("Request", "")}`, async () => {
+    it(`sends the player one Resume after ${traversal.replace("Request", "")}`, async () => {
       const { debug, response, resumed } = session();
       await (debug as any).pauseRequest(response("pause"), { threadId: 0 });
       await (debug as any)[traversal](response("step"), { threadId: 0 });
@@ -54,62 +54,18 @@ describe("continuing a debug run", () => {
         method: "game/stepped",
         params: { location: { uri: "main.sd", range: {} } },
       });
-      expect(await resumed()).toEqual(["game/unpause", "game/continue"]);
+      expect(await resumed()).toEqual(["game/continue"]);
     });
   }
 
   for (const traversal of ["nextRequest", "stepInRequest", "stepOutRequest"]) {
-    it(`runs on to the next stop when Resume arrives before ${traversal.replace("Request", "")}'s stop is announced`, async () => {
+    it(`sends the player one Resume when it arrives before ${traversal.replace("Request", "")}'s stop is announced`, async () => {
       const { debug, response, resumed } = session();
       await (debug as any).pauseRequest(response("pause"), { threadId: 0 });
       await (debug as any)[traversal](response("step"), { threadId: 0 });
-      expect(await resumed()).toEqual(["game/unpause", "game/continue"]);
+      expect(await resumed()).toEqual(["game/continue"]);
     });
   }
-
-  it("resumes in place when Resume arrives before the pause's stop is announced", async () => {
-    const sent: string[] = [];
-    const events: string[] = [];
-    let answerThreads: (value: unknown) => void = () => {};
-    const debug = new SparkDebugSession(
-      {
-        isWindows: false,
-        uriToPath: (uri: string) => uri,
-        pathToUri: (path: string) => path,
-        getRootPath: () => undefined,
-      } as any,
-      {
-        connectInput() {},
-        emit: (message: { method: string }) => {
-          sent.push(message.method);
-          return message.method === "game/threads"
-            ? new Promise((resolve) => {
-                answerThreads = resolve;
-              })
-            : Promise.resolve({});
-        },
-      } as any,
-      { syncCursorToExecution: false },
-    );
-    const acknowledged = new Promise<void>((resolve) => {
-      (debug as any).sendResponse = () => resolve();
-    });
-    (debug as any).sendEvent = (event: { event: string }) => events.push(event.event);
-    const response = (command: string) => ({
-      seq: 0,
-      type: "response",
-      request_seq: 1,
-      command,
-      success: true,
-    });
-    const pausing = (debug as any).pauseRequest(response("pause"), { threadId: 0 });
-    await acknowledged;
-    await (debug as any).continueRequest(response("continue"), { threadId: 0 });
-    answerThreads({ threads: [{ id: 0, name: "main" }] });
-    await pausing;
-    expect(sent).not.toContain("game/continue");
-    expect(events).not.toContain("stopped");
-  });
 
   const held = () => {
     const sent: string[] = [];
@@ -118,6 +74,29 @@ describe("continuing a debug run", () => {
     const gates = new Map<string, () => void>();
     const refused = new Set<string>();
     const holding = new Set<string>();
+    const player = { paused: false, awaitingResume: false, advanced: 0 };
+    const answer = (method: string) => {
+      if (method === "game/pause") {
+        player.paused = true;
+      }
+      if (method === "game/unpause") {
+        player.paused = false;
+      }
+      if (method === "game/step") {
+        player.awaitingResume = true;
+      }
+      if (method === "game/continue") {
+        if (!player.paused || player.awaitingResume) {
+          player.advanced += 1;
+        }
+        player.paused = false;
+        player.awaitingResume = false;
+      }
+      return {
+        threads: [{ id: 0, name: "main" }],
+        stopped: player.paused || player.awaitingResume,
+      };
+    };
     const debug = new SparkDebugSession(
       {
         isWindows: false,
@@ -129,13 +108,14 @@ describe("continuing a debug run", () => {
         connectInput() {},
         emit: async (message: { method: string }) => {
           sent.push(message.method);
+          const result = refused.has(message.method) ? undefined : answer(message.method);
           if (holding.has(message.method)) {
             await new Promise<void>((resolve) => gates.set(message.method, resolve));
           }
-          if (refused.has(message.method)) {
+          if (!result) {
             throw { data: message.method, code: 1, message: "refused" };
           }
-          return { threads: [{ id: 0, name: "main" }] };
+          return result;
         },
       } as any,
       { syncCursorToExecution: false },
@@ -163,27 +143,66 @@ describe("continuing a debug run", () => {
     const pause = () => (debug as any).pauseRequest(response("pause"), { threadId: 0 });
     const resume = () => (debug as any).continueRequest(response("continue"), { threadId: 0 });
     const step = () => (debug as any).nextRequest(response("next"), { threadId: 0 });
-    return { debug, sent, events, responses, refused, holding, until, release, pause, resume, step };
+    return {
+      debug,
+      player,
+      sent,
+      events,
+      responses,
+      refused,
+      holding,
+      until,
+      release,
+      pause,
+      resume,
+      step,
+    };
   };
 
-  it("pauses the player again when Continue is refused after Unpause succeeded", async () => {
+  it("keeps the beat on screen when Resume follows an acknowledged Pause", async () => {
+    const h = held();
+    await h.pause();
+    await h.resume();
+    expect(h.sent).not.toContain("game/unpause");
+    expect(h.player.advanced).toBe(0);
+    expect(h.player.paused).toBe(false);
+    expect(h.responses).toEqual([true, true]);
+  });
+
+  it("drops a pause's stop whose stack answer is delayed past an accepted Resume", async () => {
+    const h = held();
+    h.holding.add("game/threads");
+    const pausing = h.pause();
+    await h.until("game/threads");
+    await h.resume();
+    h.release("game/threads");
+    await pausing;
+    expect(h.sent).not.toContain("game/unpause");
+    expect(h.responses).toEqual([true, true]);
+    expect(h.events).toEqual([]);
+  });
+
+  it("runs the story on when Resume follows an acknowledged Step, even after a later Pause", async () => {
+    const h = held();
+    await h.pause();
+    await h.step();
+    await h.pause();
+    await h.resume();
+    expect(h.sent).not.toContain("game/unpause");
+    expect(h.player.advanced).toBe(1);
+    expect(h.player.paused).toBe(false);
+  });
+
+  it("sends nothing more when the player refuses a Resume", async () => {
     const h = held();
     await h.pause();
     await h.step();
     h.sent.length = 0;
     h.refused.add("game/continue");
     await h.resume();
-    expect(h.sent).toEqual(["game/unpause", "game/continue", "game/pause"]);
+    expect(h.sent).toEqual(["game/continue"]);
     expect(h.responses.at(-1)).toBe(false);
-  });
-
-  it("does not pause the player again when Unpause itself is refused", async () => {
-    const h = held();
-    await h.pause();
-    h.sent.length = 0;
-    h.refused.add("game/unpause");
-    await h.resume();
-    expect(h.sent).toEqual(["game/unpause"]);
+    expect(h.player.paused).toBe(true);
   });
 
   it("still announces a pause's stop when the Resume that overtook it is refused", async () => {
@@ -191,7 +210,7 @@ describe("continuing a debug run", () => {
     h.holding.add("game/threads");
     const pausing = h.pause();
     await h.until("game/threads");
-    h.refused.add("game/unpause");
+    h.refused.add("game/continue");
     await h.resume();
     h.release("game/threads");
     await pausing;
@@ -199,18 +218,74 @@ describe("continuing a debug run", () => {
     expect(h.events).toEqual(["stopped:pause"]);
   });
 
+  it("drops a pause's stop when Resume is accepted while the first state read is pending", async () => {
+    let paused = false;
+    let finishState: (value: unknown) => void = () => {};
+    const state = new Promise((resolve) => {
+      finishState = resolve;
+    });
+    const events: string[] = [];
+    const responses: string[] = [];
+    const debug = new SparkDebugSession(
+      {
+        isWindows: false,
+        uriToPath: (uri: string) => uri,
+        pathToUri: (path: string) => path,
+        getRootPath: () => undefined,
+      } as any,
+      {
+        connectInput() {},
+        emit: async (message: { method: string }) => {
+          if (message.method === "preview/gameState") {
+            return state;
+          }
+          if (message.method === "game/pause") {
+            paused = true;
+          }
+          if (message.method === "game/continue") {
+            paused = false;
+          }
+          if (message.method === "game/threads") {
+            return { threads: [{ id: 0, name: "main" }], stopped: paused, run: 1 };
+          }
+          return { run: 1 };
+        },
+      } as any,
+      { syncCursorToExecution: false },
+    );
+    (debug as any).sendEvent = (event: { event: string; body?: { reason?: string } }) =>
+      events.push(`${event.event}:${event.body?.reason ?? ""}`);
+    (debug as any).sendResponse = (answer: { command: string }) => responses.push(answer.command);
+    const response = (command: string) => ({
+      seq: 0,
+      type: "response",
+      request_seq: 1,
+      command,
+      success: true,
+    });
+    const reading = (debug as any).readGameState();
+    const pausing = (debug as any).pauseRequest(response("pause"), { threadId: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await (debug as any).continueRequest(response("continue"), { threadId: 0 });
+    expect(responses).toEqual(["pause", "continue"]);
+    finishState({ launchState: "play", run: 1 });
+    await reading;
+    await pausing;
+    expect(events).toEqual([]);
+  });
+
   it("holds a pause's stop until a Resume in flight is answered, then drops it if accepted", async () => {
     const h = held();
     h.holding.add("game/threads");
-    h.holding.add("game/unpause");
+    h.holding.add("game/continue");
     const pausing = h.pause();
     await h.until("game/threads");
     const resuming = h.resume();
-    await h.until("game/unpause");
+    await h.until("game/continue");
     h.release("game/threads");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(h.events).toEqual([]);
-    h.release("game/unpause");
+    h.release("game/continue");
     await resuming;
     await pausing;
     expect(h.events).toEqual([]);
@@ -224,6 +299,7 @@ describe("continuing a debug run", () => {
     h.holding.add("game/continue");
     const resuming = h.resume();
     await h.until("game/continue");
+    h.player.awaitingResume = true;
     const stopping = (h.debug as any).onReceiveNotification({
       jsonrpc: "2.0",
       method: "game/hitBreakpoint",
@@ -235,13 +311,13 @@ describe("continuing a debug run", () => {
     expect(h.events).toEqual(["stopped:breakpoint"]);
   });
 
-    it("runs on to the next stop after a breakpoint", async () => {
+  it("sends the player one Resume after a breakpoint", async () => {
     const { debug, resumed } = session();
     await (debug as any).onReceiveNotification({
       jsonrpc: "2.0",
       method: "game/hitBreakpoint",
       params: { location: { uri: "main.sd", range: {} } },
     });
-    expect(await resumed()).toEqual(["game/unpause", "game/continue"]);
+    expect(await resumed()).toEqual(["game/continue"]);
   });
 });
