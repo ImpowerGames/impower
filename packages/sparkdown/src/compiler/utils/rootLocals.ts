@@ -25,8 +25,8 @@ export const ROOT_NONE = "none";
 
 export const ROOT_MAYBE = "maybe";
 
-const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
-const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
+export const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
+export const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
 const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition", "LuauFunctionAttributes"]);
 const FUNCTION_BODIES = nodeNameSet(["LuauFunctionBody", "LuauMethodDefinition"]);
@@ -131,16 +131,22 @@ export class RootLocals {
     let maybe = false;
     for (let i = list.length - 1; i >= 0; i--) {
       const declaration = list[i]!;
-      if (
-        declaration.visibleFrom <= at &&
-        !declaration.hidden.some(({ from, to }) => from < at && at <= to) &&
-        (declaration.flow < 0 || around.has(declaration.flow))
-      ) {
+      if (visibleAt(declaration, at, around)) {
         if (at <= declaration.certainTo) return ordinal(list, i);
         maybe = true;
       }
     }
     return maybe ? ROOT_MAYBE : ROOT_NONE;
+  }
+
+  declarationOf(name: string, at: number): number | null {
+    const list = this.declarations.get(name);
+    if (!list) return null;
+    const around = this.flowsAround(at);
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (visibleAt(list[i]!, at, around)) return list[i]!.at;
+    }
+    return null;
   }
 
   declared(name: string, at: number): string {
@@ -350,6 +356,14 @@ export class RootLocals {
       );
     }
   }
+}
+
+function visibleAt(declaration: RootDeclaration, at: number, around: Set<number>): boolean {
+  return (
+    declaration.visibleFrom <= at &&
+    !declaration.hidden.some(({ from, to }) => from < at && at <= to) &&
+    (declaration.flow < 0 || around.has(declaration.flow))
+  );
 }
 
 function ordinal(list: readonly RootDeclaration[], i: number): string {

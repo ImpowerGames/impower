@@ -233,6 +233,29 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("event", 3)).toBeNull();
   });
 
+  test("a component's parameter binds inside the component", () => {
+    const { bindingOf, offset } = bindingsOf('component Card(settings) {\n  text "{settings.score}"\n}\n');
+    expect(bindingOf("settings", 1)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
+  test("a choice body's local does not reach a sibling choice", () => {
+    const { bindingOf, offset } = bindingsOf(
+      "scene s\n  choose\n    * First\n      local settings = {score = 1}\n      {settings.score}\n    * Second\n      {settings.score}\n  end\nend\n",
+    );
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBeNull();
+  });
+
+  test.each([
+    ["the choose preamble", "scene s\n  choose\n    local settings = {score = 1}\n    * Go\n  end\n  {settings.score}\nend\n"],
+    ["a choice body", "scene s\n  choose\n    * Go\n      local settings = {score = 1}\n  end\n  {settings.score}\nend\n"],
+    ["a then clause", "scene s\n  choose\n    * Go\n  then\n    local settings = {score = 1}\n  end\n  {settings.score}\nend\n"],
+  ])("a local declared in %s is still bound after the choose", (_, source) => {
+    const { bindingOf, offset } = bindingsOf(source);
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();

@@ -19,7 +19,7 @@ const LOCAL_ONLY: ReadonlySet<string> = new Set(["local"]);
 export const LOCAL_SCOPE_NODES = {
   functionLike: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition"]),
   parameterOwnerContents: nodeNameSet(["LuauFunctionDefinition_content", "LuauMethodDefinition_content"]),
-  sectionHeaders: nodeNameSet(["Scene", "Branch"]),
+  parameterOwners: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauComponent", "Scene", "Branch"]),
   constScopes: nodeNameSet(["LuauFunctionDefinition", "LuauMethodDefinition", "LuauSparkleHandlerClosure"]),
   forLoopContents: nodeNameSet([
     "LuauForLoop_content",
@@ -31,7 +31,6 @@ export const LOCAL_SCOPE_NODES = {
   forConditions: nodeNameSet(["LuauForCondition", "LuauSparkdownExplicitLoopCondition"]),
   repeatLoops: nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]),
   untilConditions: nodeNameSet(["LuauUntilCondition"]),
-  explicitStatements: nodeNameSet(["LuauSparkdownExplicitStatement"]),
   eventHandlers: nodeNameSet([
     "LuauSparkleHandlerClosure",
     "LuauEventAttribute_content",
