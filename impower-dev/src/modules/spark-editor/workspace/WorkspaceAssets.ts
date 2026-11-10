@@ -2,7 +2,8 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
-import { availableName, NameError, plural } from "../utils/fileListModel";
+import { availableName, NAME_MESSAGES, NameError, plural } from "../utils/fileListModel";
+import { stemOf } from "../utils/imageStacks";
 import { canMoveFolder } from "../utils/fileTree";
 import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
@@ -222,6 +223,27 @@ export default class WorkspaceAssets {
     }
     await this.load();
     return to;
+  }
+
+  async renameStack(paths: readonly string[], base: string, name: string): Promise<string[]> {
+    const renames = paths.map((path) => {
+      const stem = stemOf(path);
+      const next = name + stem.slice(base.length);
+      return {
+        path,
+        name: next,
+        leaf: availableName(next, this.siblings(parentOf(path)), extensionOf(path), nameOf(path)),
+      };
+    });
+    const leaves = renames.map((rename) => `${parentOf(rename.path)}/${rename.leaf.toLowerCase()}`);
+    if (new Set(leaves).size !== leaves.length) {
+      throw new NameError(NAME_MESSAGES.taken);
+    }
+    const moved: string[] = [];
+    for (const rename of renames) {
+      moved.push(await this.rename(rename.path, rename.name));
+    }
+    return moved;
   }
 
   protected async moveFolder(projectId: string, from: string, to: string): Promise<string> {

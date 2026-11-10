@@ -45,7 +45,7 @@ import {
 } from "../../utils/assetTypes";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { plural, rowLine } from "../../utils/fileListModel";
-import { stackBaseOf, stemOf } from "../../utils/imageStacks";
+import { stackBaseOf } from "../../utils/imageStacks";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   ASSET_SORT_FIELDS,
@@ -266,14 +266,8 @@ function AssetsBrowser() {
 
   const renameRow = async (row: AssetRow, name: string) => {
     const Workspace = await intents();
-    if (!row.paths) {
-      await Workspace.assets.rename(row.path, name);
-      return;
-    }
-    const base = stackBaseOf(row.path);
-    for (const path of row.paths) {
-      await Workspace.assets.rename(path, name + stemOf(path).slice(base.length));
-    }
+    if (row.paths) await Workspace.assets.renameStack(row.paths, stackBaseOf(row.path), name);
+    else await Workspace.assets.rename(row.path, name);
   };
 
   const openLabel = (row: AssetRow, line: string) => {

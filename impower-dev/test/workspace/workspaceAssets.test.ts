@@ -194,3 +194,34 @@ describe("the Assets page's file intents", () => {
     expect(fs.createFolder).toHaveBeenCalledWith(PROJECT, "Assets/Audio/Ambience");
   });
 });
+
+describe("renaming a stacked picture", () => {
+  const STACK = ["Assets/Images/imani.png", "Assets/Images/imani@night.png", "Assets/Images/imani~face.happy.png"];
+
+  it("renames every member's base name and keeps its alternate and layer suffixes", async () => {
+    const { assets, files } = fakeWorkspace(Object.fromEntries(STACK.map((path) => [path, "png"])));
+    await assets.load();
+    expect(await assets.renameStack(STACK, "imani", "ada")).toEqual([
+      "Assets/Images/ada.png",
+      "Assets/Images/ada@night.png",
+      "Assets/Images/ada~face.happy.png",
+    ]);
+    expect([...files.keys()].sort()).toEqual([
+      "Assets/Images/ada.png",
+      "Assets/Images/ada@night.png",
+      "Assets/Images/ada~face.happy.png",
+    ]);
+  });
+
+  it("moves nothing when any member's new name is taken", async () => {
+    const { assets, fs, files } = fakeWorkspace({
+      ...Object.fromEntries(STACK.map((path) => [path, "png"])),
+      "Assets/Images/kai@night.png": "png",
+    });
+    await assets.load();
+    await expect(assets.renameStack(STACK, "imani", "kai")).rejects.toThrow(NAME_MESSAGES.taken);
+    expect(fs.moveFile).not.toHaveBeenCalled();
+    expect(fs.renameFileWithReferences).not.toHaveBeenCalled();
+    expect([...files.keys()].sort()).toEqual([...STACK, "Assets/Images/kai@night.png"].sort());
+  });
+});

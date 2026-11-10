@@ -387,3 +387,24 @@ describe("stacked pictures on the Assets page", () => {
     expect(images!.rows.map((row) => [row.name, row.variantCount, row.location])).toEqual([["imani", 2, "Portraits"]]);
   });
 });
+
+describe("a stack of one file", () => {
+  it("still names the thing as the script does and counts its variants", () => {
+    const level = assetLevel({
+      listing: listing({
+        "Assets/Images/Cast/imani@night.png": 10,
+        "Assets/Images/Cast/kai~mouth.open.closed.png": 10,
+        "Assets/Images/Cast/zed.png": 10,
+      }),
+      type: "image",
+      folder: "Assets/Images/Cast",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(level.rows.map((row) => [row.name, row.path, row.paths, row.variantCount])).toEqual([
+      ["imani", "Assets/Images/Cast/imani@night.png", ["Assets/Images/Cast/imani@night.png"], undefined],
+      ["kai", "Assets/Images/Cast/kai~mouth.open.closed.png", ["Assets/Images/Cast/kai~mouth.open.closed.png"], 2],
+      ["zed", "Assets/Images/Cast/zed.png", undefined, undefined],
+    ]);
+  });
+});
