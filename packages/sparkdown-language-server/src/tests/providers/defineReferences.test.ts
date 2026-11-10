@@ -83,6 +83,73 @@ raffles: Hello.
   });
 });
 
+describe("provider · references through access paths and bindings (I-1969)", () => {
+  const CAST = "file:///cast.sd";
+  const CHAPTER = "file:///chapter.sd";
+  const HELPERS = "file:///helpers.sd";
+  const sources: Record<string, string> = {
+    [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\ndefine settings with\n  score = 1\nend\n',
+    [CHAPTER]: 'scene chapter\n  {character.raffles.name}\n  {character["raffles"].name}\n  {settings.score}\nend\n',
+    [HELPERS]: "function show(settings)\n  return settings.score\nend\nfunction total()\n  local settings = 2\n  return settings\nend\n",
+  };
+
+  function workspaceOf() {
+    const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
+    for (const [uri, text] of Object.entries(sources)) {
+      documents.set({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
+    }
+    const workspace = {
+      annotations: (uri: string) => documents.annotations(uri),
+      document: (uri: string) => documents.get(uri),
+      uris: () => [...documents.keys()],
+      compilerConfig: undefined,
+      findFiles: () => [],
+    } as any;
+    return { documents, workspace };
+  }
+
+  function referencesAt(uri: string, needle: string, occurrence = 1) {
+    const { documents, workspace } = workspaceOf();
+    const { references } = getReferences(
+      documents.get(uri),
+      documents.tree(uri),
+      undefined,
+      workspace,
+      posAt(sources[uri]!, needle, occurrence),
+      { searchOtherFiles: true, includeDeclaration: true, includeInterdependent: false, includeLinks: false },
+    );
+    return (references ?? []).map((r) => ({
+      uri: r.uri,
+      text: documents.get(r.uri)!.getText(r.range),
+      line: r.range.start.line,
+    }));
+  }
+
+  test("find-references on a define finds property-access uses in other scripts", () => {
+    const references = referencesAt(CAST, "raffles");
+    expect(references).toContainEqual({ uri: CHAPTER, text: "raffles", line: 1 });
+    expect(references).toContainEqual({ uri: CHAPTER, text: "raffles", line: 2 });
+  });
+
+  test("find-references on a define skips uses of a parameter or local of the same name", () => {
+    const references = referencesAt(CAST, "settings");
+    expect(references).toContainEqual({ uri: CHAPTER, text: "settings", line: 3 });
+    expect(references.filter((r) => r.uri === HELPERS && r.line !== 4)).toEqual([]);
+  });
+
+  test("find-references on a use bound to a local reaches its binding, not the define", () => {
+    const references = referencesAt(HELPERS, "settings", 4);
+    expect(references).toContainEqual({ uri: HELPERS, text: "settings", line: 4 });
+    expect(references).toContainEqual({ uri: HELPERS, text: "settings", line: 5 });
+    expect(references.filter((r) => r.uri !== HELPERS)).toEqual([]);
+  });
+
+  test("find-references on a property finds its path through the define", () => {
+    const references = referencesAt(CAST, "name");
+    expect(references).toContainEqual({ uri: CHAPTER, text: "name", line: 1 });
+  });
+});
+
 describe("provider · screen/style layer interdependency (D2)", () => {
   const source = `layout s {
   backdrop {

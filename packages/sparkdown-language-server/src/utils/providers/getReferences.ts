@@ -35,6 +35,8 @@ export const linkedTypes = (
   type: string,
 ): string[] => recursivelyGetKeys(program?.context?.[type]?.["$default"]?.["$link"]);
 
+const LOCAL_DECLARATIONS = new Set<Reference["declaration"]>(["var", "const", "param"]);
+
 export interface ReferenceTarget {
   symbolName: string | undefined;
   symbolIds: string[] | undefined;
@@ -134,12 +136,38 @@ export const collectReferencesForTarget = (
         : DocumentHighlightKind.Text;
   };
 
+  const resolveTargetIds = (ids: string[] | undefined) =>
+    (ids ?? [])
+      .map((id) =>
+        resolveSymbolId(
+          id,
+          symbolReference,
+          symbolScopePath,
+          program,
+          workspace.compilerConfig,
+        ),
+      )
+      .filter((id): id is string => !!id);
+  const targetIds = resolveTargetIds(symbolIds);
+  const targetInterdependentIds =
+    context.includeInterdependent && !context.excludeUses
+      ? resolveTargetIds(interdependentIds)
+      : [];
+  resolvedSymbolIds.push(...targetIds, ...targetInterdependentIds);
+  const targetBound = !!symbolReference?.bound;
+  const targetLocal =
+    targetBound || LOCAL_DECLARATIONS.has(symbolReference?.declaration);
+  const sameBinding = (reference: Reference) =>
+    reference.bound
+      ? targetLocal
+      : !targetBound || LOCAL_DECLARATIONS.has(reference.declaration);
+
   const addMatchingSymbols = (
     uri: string,
     r: RangeCursor<SparkdownAnnotation<Reference>>,
     refScopePath: string,
   ) => {
-    if (r.value) {
+    if (r.value && sameBinding(r.value.type)) {
       const refSymbolIds = r.value.type.symbolIds;
       if (refSymbolIds) {
         for (const refId of refSymbolIds) {
@@ -155,77 +183,48 @@ export const collectReferencesForTarget = (
               ? resolveDivertPath(resolvedRefId, refScopePath)
               : resolvedRefId;
           if (fullyResolvedRefId) {
-            if (symbolIds) {
-              for (const symbolId of symbolIds) {
-                const resolvedSymbolId = resolveSymbolId(
-                  symbolId,
-                  symbolReference,
-                  symbolScopePath,
-                  program,
-                  workspace.compilerConfig,
-                );
-                if (resolvedSymbolId) {
-                  resolvedSymbolIds.push(resolvedSymbolId);
-                  if (r.value.type.linkable) {
-                    if (context.includeLinks) {
-                      if (resolvedSymbolId.includes(".")) {
-                        const [type, name] = resolvedSymbolId.split(".");
-                        if (type) {
-                          for (const linkedType of linkedTypes(program, type)) {
-                            const linkedId = linkedType + "." + name;
-                            if (fullyResolvedRefId === linkedId) {
-                              addSymbol(uri, r);
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                  if (fullyResolvedRefId === resolvedSymbolId) {
-                    if (
-                      context.includeDeclaration ||
-                      !r.value.type.declaration
-                    ) {
-                      if (resolvedSymbolId === `image.${symbolName}`) {
-                        addAsset("image");
-                      }
-                      if (resolvedSymbolId === `audio.${symbolName}`) {
-                        addAsset("audio");
-                      }
-                      if (resolvedSymbolId === `video.${symbolName}`) {
-                        addAsset("video");
-                      }
-                      if (resolvedSymbolId === `font.${symbolName}`) {
-                        addAsset("font");
-                      }
-                      if (!context.excludeUses || r.value.type.declaration) {
-                        addSymbol(uri, r);
-                        if (r.value.type.firstMatchOnly) {
-                          break;
+            for (const resolvedSymbolId of targetIds) {
+              if (r.value.type.linkable) {
+                if (context.includeLinks) {
+                  if (resolvedSymbolId.includes(".")) {
+                    const [type, name] = resolvedSymbolId.split(".");
+                    if (type) {
+                      for (const linkedType of linkedTypes(program, type)) {
+                        const linkedId = linkedType + "." + name;
+                        if (fullyResolvedRefId === linkedId) {
+                          addSymbol(uri, r);
                         }
                       }
                     }
                   }
                 }
               }
-            }
-            if (context.includeInterdependent && !context.excludeUses) {
-              if (interdependentIds) {
-                for (const interdependentId of interdependentIds) {
-                  const resolvedSymbolId = resolveSymbolId(
-                    interdependentId,
-                    symbolReference,
-                    symbolScopePath,
-                    program,
-                    workspace.compilerConfig,
-                  );
-                  if (resolvedSymbolId) {
-                    resolvedSymbolIds.push(resolvedSymbolId);
-                    if (fullyResolvedRefId === resolvedSymbolId) {
-                      addSymbol(uri, r);
+              if (fullyResolvedRefId === resolvedSymbolId) {
+                if (context.includeDeclaration || !r.value.type.declaration) {
+                  if (resolvedSymbolId === `image.${symbolName}`) {
+                    addAsset("image");
+                  }
+                  if (resolvedSymbolId === `audio.${symbolName}`) {
+                    addAsset("audio");
+                  }
+                  if (resolvedSymbolId === `video.${symbolName}`) {
+                    addAsset("video");
+                  }
+                  if (resolvedSymbolId === `font.${symbolName}`) {
+                    addAsset("font");
+                  }
+                  if (!context.excludeUses || r.value.type.declaration) {
+                    addSymbol(uri, r);
+                    if (r.value.type.firstMatchOnly) {
+                      break;
                     }
                   }
                 }
+              }
+            }
+            for (const resolvedSymbolId of targetInterdependentIds) {
+              if (fullyResolvedRefId === resolvedSymbolId) {
+                addSymbol(uri, r);
               }
             }
           }
@@ -241,10 +240,8 @@ export const collectReferencesForTarget = (
       : [];
 
   for (const uri of searchUris) {
-    walkReferences(workspace, uri, (r, refScopePath, text) => {
-      if (text === symbolName) {
-        addMatchingSymbols(uri, r, refScopePath);
-      }
+    walkReferences(workspace, uri, (r, refScopePath) => {
+      addMatchingSymbols(uri, r, refScopePath);
     });
   }
 
@@ -257,7 +254,6 @@ export const walkReferences = (
   visit: (
     r: RangeCursor<SparkdownAnnotation<Reference>>,
     scopePath: string,
-    text: string,
   ) => void,
 ): void => {
   const document = workspace.document(uri);
@@ -287,14 +283,13 @@ export const walkReferences = (
       }
       scopeKind = "branch";
     }
-    const text = document.read(r.from, r.to);
-    visit(r, scopePathParts.map((p) => p.name).join("."), text);
+    visit(r, scopePathParts.map((p) => p.name).join("."));
     if (
       r.value.type.declaration === "function" ||
       r.value.type.declaration === "scene" ||
       r.value.type.declaration === "branch"
     ) {
-      scopePathParts.push({ kind: scopeKind, name: text });
+      scopePathParts.push({ kind: scopeKind, name: document.read(r.from, r.to) });
     }
     r.next();
   }

@@ -147,18 +147,28 @@ describe("provider · script references counted from whole references (#1009)", 
   });
 });
 
-describe("provider · script references not counted until #1969 (#1009)", () => {
+describe("provider · script references read access paths and bindings from the annotations (I-1969)", () => {
   test.each([
     ["a property access through the define's type", "{character.raffles.name}"],
+    ["whitespace around the dots", "{character . raffles . name}"],
     ["a string index", '{character["raffles"].name}'],
     ["a parenthesized root", "{(character).raffles.name}"],
+  ])("%s counts as a use of the define's script", (_, expression) => {
+    expect(
+      referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
+    ).toBe(1);
+  });
+
+  test.each([
+    ["a computed index", "{character[who].name}"],
+    ["a call argument followed by a property", "{f(raffles).name}"],
   ])("%s does not count as a use of the define's script", (_, expression) => {
     expect(
       referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
     ).toBe(0);
   });
 
-  test("a use through a local alias does not count as a use of the define's script", () => {
+  test("a use through a local alias is deliberately not counted as a use of the define's script", () => {
     expect(
       referencedBy(
         {
@@ -176,8 +186,8 @@ describe("provider · script references not counted until #1969 (#1009)", () => 
     ["an anonymous function's parameter in the same function", "function show()\n  local f = function(settings)\n    return settings.score\n  end\n  return settings.score\nend\n"],
     ["a local declared after the use", "function show()\n  local result = settings.score\n  local settings = {score = 2}\n  return result\nend\n"],
     ["a local whose block has ended", "function show()\n  if true then\n    local settings = {score = 2}\n  end\n  return settings.score\nend\n"],
-  ])("a script that also binds the name, as %s, does not count its use of the define", (_, helpers) => {
-    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
+  ])("a script that also binds the name, as %s, counts its use of the define outside that binding", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(1);
   });
 
   test("another script that binds no local or parameter of that name still counts its use", () => {

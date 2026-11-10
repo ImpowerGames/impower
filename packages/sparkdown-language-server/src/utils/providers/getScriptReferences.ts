@@ -20,8 +20,6 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "define_variable_name",
 ]);
 
-const BINDS_LOCALLY = new Set<Reference["declaration"]>(["var", "const", "param"]);
-
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
   "document" | "annotations" | "uris" | "compilerConfig"
@@ -66,18 +64,11 @@ export const getScriptReferences = (
 
   const declaredIn = new Map<string, string[]>();
   const ownIn = new Map<string, Set<string>>();
-  const boundIn = new Map<string, Set<string>>();
   for (const uri of uris) {
     const own = new Set<string>();
-    const bound = new Set<string>();
     ownIn.set(uri, own);
-    boundIn.set(uri, bound);
-    walkReferences(workspace, uri, (r, scopePath, text) => {
+    walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (BINDS_LOCALLY.has(reference.declaration)) {
-        bound.add(text.trim());
-        return;
-      }
       if (
         !DECLARED_BY_SCRIPT.has(reference.declaration) ||
         isTypeUse(uri, reference, r.from)
@@ -98,13 +89,12 @@ export const getScriptReferences = (
   const seen = new Set<string>();
   for (const uri of uris) {
     const own = ownIn.get(uri)!;
-    const bound = boundIn.get(uri)!;
-    walkReferences(workspace, uri, (r, scopePath, text) => {
+    walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
-        return;
-      }
-      if (reference.usage !== "divert" && bound.has(text.trim())) {
+      if (
+        reference.bound ||
+        (reference.declaration && !isTypeUse(uri, reference, r.from))
+      ) {
         return;
       }
       const ids = resolvedIds(reference, scopePath);

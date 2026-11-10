@@ -29,7 +29,7 @@ const FIELD_ICONS: Record<SortIconName, typeof SortIcon> = {
 };
 
 const USES_HINT =
-  "Other scripts' diverts, calls and character cues. Uses of a define's properties are not counted yet.";
+  "Other scripts' diverts, calls, character cues and uses of its defines.";
 
 export type SortMenuProps = {
   value: string | undefined;
