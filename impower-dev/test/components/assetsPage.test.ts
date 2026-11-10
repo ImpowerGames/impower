@@ -96,7 +96,7 @@ const showTab = async (title: string) => {
   await click(tabs().find((tab) => tab.textContent?.startsWith(title)));
 };
 
-const setListing = (files: Record<string, ReturnType<typeof facts>>, folders: string[] = []) => {
+const setListing = (files: Record<string, ReturnType<typeof facts> & { address?: string }>, folders: string[] = []) => {
   workspace.assetListing.value = { projectId: PROJECT, files, folders };
 };
 
@@ -258,16 +258,58 @@ describe("the Assets page", () => {
     );
   });
 
-  it("uploads into the folder in view and follows a file to where it landed", async () => {
-    workspace.current = { ...workspace.current, lists: { assetsType: "font" } };
-    assets.upload.mockResolvedValueOnce(["Assets/Fonts/mono.ttf"]);
-    await mount();
+  const chooseFiles = async (...names: string[]) => {
     const input = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
-    Object.defineProperty(input, "files", { value: [new File(["x"], "mono.ttf")], configurable: true });
+    Object.defineProperty(input, "files", { value: names.map((name) => new File(["x"], name)), configurable: true });
     await act(async () => {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
     await settle();
+  };
+
+  const selectedTab = () => tabs().find((tab) => tab.getAttribute("aria-selected") === "true")?.id.replace(/^.*-trigger-/, "");
+
+  it("uploads into the folder in view and stays there when the file lands in it", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "font" } };
+    assets.upload.mockResolvedValueOnce(["Assets/Fonts/mono.ttf"]);
+    await mount();
+    await chooseFiles("mono.ttf");
     expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "mono.ttf" })], "Assets/Fonts");
+    expect(selectedTab()).toBe("font");
+    expect(window.setListState).not.toHaveBeenCalledWith(expect.objectContaining({ assetsType: expect.anything() }));
+  });
+
+  it("follows an upload that lands in another type's folder to that tab and folder", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "font" } };
+    assets.upload.mockImplementationOnce(async () => {
+      setListing({ ...workspace.assetListing.value!.files, "Assets/Images/Portraits/bunny2.png": facts(700) });
+      return ["Assets/Images/Portraits/bunny2.png"];
+    });
+    await mount();
+    await chooseFiles("bunny2.png");
+    expect(selectedTab()).toBe("image");
+    expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: "Assets/Images/Portraits" });
+    expect(rowLabels()).toEqual(["Open image bunny2, modified 2d · 700 b"]);
+  });
+
+  it("follows a link to the tab of the type its address names", async () => {
+    assets.addLink.mockImplementationOnce(async () => {
+      setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/horn.url": { ...facts(40), address: "https://cdn.example.com/horn.mp3" } });
+      return "Assets/Audio/horn.url";
+    });
+    await mount();
+    await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
+    await vi.waitFor(() => expect(menuItems()).toContain("Link a file by address"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Link a file by address")));
+    const [url, name] = all<HTMLInputElement>('[role="dialog"] input');
+    await act(async () => {
+      url!.value = "https://cdn.example.com/horn.mp3";
+      url!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(all<HTMLButtonElement>('[role="dialog"] button').find((b) => b.textContent?.trim() === "Add"));
+    expect(assets.addLink).toHaveBeenCalledWith("https://cdn.example.com/horn.mp3", "horn", "Assets/Images");
+    expect(name).toBeTruthy();
+    expect(selectedTab()).toBe("audio");
+    expect(workspace.current.lists?.assetsFolders).toMatchObject({ audio: "Assets/Audio" });
   });
 });
