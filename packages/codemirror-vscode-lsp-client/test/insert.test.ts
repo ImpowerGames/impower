@@ -14,7 +14,6 @@ import {
   insertContext,
   planInsertion,
   sceneSpansOf,
-  storyBlocksOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,
   type InsertConstruct,
@@ -88,9 +87,127 @@ const structureOf = (source: string) => {
   return {
     scenes: scenesOf(lf),
     branches: branchSpansOf(symbolsOf(lf)),
-    blocks: storyBlocksOf(treeOf(lf), lf),
-    parse: treeOf,
+    tree: treeOf(lf),
   };
+};
+
+const ERROR_NODE = /Unknown|Invalid|Illegal/;
+const SPACING = ["Newline", "Whitespace"];
+
+interface FlatNode {
+  name: string;
+  from: number;
+  to: number;
+}
+
+const flatten = (source: string): FlatNode[] => {
+  const nodes: FlatNode[] = [];
+  treeOf(source).iterate({
+    enter: (node) => {
+      if (node.type.isTop || SPACING.includes(node.name)) return;
+      const raw = source.slice(node.from, node.to);
+      const text = raw.trim();
+      if (!text) return;
+      const from = node.from + (raw.length - raw.trimStart().length);
+      nodes.push({ name: node.name, from, to: from + text.length });
+    },
+  });
+  return nodes;
+};
+
+const CR = String.fromCharCode(13);
+
+const toLf = (text: string, offset: number) =>
+  offset - text.slice(0, offset).split(CR).length + 1;
+
+interface Change {
+  from: number;
+  to: number;
+  insert: string;
+}
+
+const EXPECTED_NODE: Partial<Record<InsertConstruct, string>> = {
+  branch: "Branch",
+  choose: "LuauSparkdownChooseBlock",
+  dialogue: "BlockDialogue",
+};
+
+const expectKeepsMeaning = (
+  beforeText: string,
+  afterText: string,
+  construct: InsertConstruct,
+  change: Change,
+) => {
+  const before = beforeText.split(CRLF).join(LF);
+  const after = afterText.split(CRLF).join(LF);
+  const r0 = toLf(beforeText, change.from);
+  const r1 = toLf(beforeText, change.to);
+  const a0 = toLf(afterText, change.from);
+  const a1 = toLf(afterText, change.from + change.insert.length);
+  const delta = a1 - a0 - (r1 - r0);
+  const beforeNodes = flatten(before);
+  const afterNodes = flatten(after);
+  const errors = (nodes: FlatNode[]) =>
+    nodes.filter((node) => ERROR_NODE.test(node.name)).length;
+  expect(errors(afterNodes), "no new error node").toBeLessThanOrEqual(
+    errors(beforeNodes),
+  );
+  const kept: string[] = [];
+  const inside: FlatNode[] = [];
+  for (const node of afterNodes) {
+    if (node.from >= a0 && node.to <= a1) {
+      inside.push(node);
+    } else if (node.to <= a0) {
+      kept.push(`${node.name}@${node.from}-${node.to}`);
+    } else if (node.from >= a1) {
+      kept.push(`${node.name}@${node.from - delta}-${node.to - delta}`);
+    } else if (node.from < a0 && node.to >= a1) {
+      kept.push(`${node.name}@${node.from}-${node.to - delta}`);
+    } else {
+      kept.push(`STRADDLES ${node.name}@${node.from}-${node.to}`);
+    }
+  }
+  const original = beforeNodes
+    .filter((node) => !(node.from >= r0 && node.to <= r1))
+    .map((node) => `${node.name}@${node.from}-${node.to}`);
+  expect(
+    kept,
+    "every construct outside the insertion keeps its type and text",
+  ).toEqual(original);
+  const expected = EXPECTED_NODE[construct];
+  if (expected) {
+    expect(inside.map((node) => node.name)).toContain(expected);
+  }
+};
+
+const enclosingKindAt = (source: string, offset: number) => {
+  const lf = source.split(CRLF).join(LF);
+  const tree = treeOf(lf);
+  for (
+    let node: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(
+      offset,
+      1,
+    );
+    node;
+    node = node.parent
+  ) {
+    if (node.name === "LuauSparkdownChooseThenClause") return "then";
+    if (node.name === "LuauSparkdownChooseBlock_content") {
+      let choice = false;
+      for (let child = node.firstChild; child; child = child.nextSibling) {
+        if (child.from > offset) break;
+        if (child.name === "Choice") choice = true;
+        if (child.name === "LuauSparkdownChooseThenClause") choice = false;
+      }
+      if (choice) return "option";
+    }
+  }
+  const line = lf.slice(0, offset).split(LF).length - 1;
+  const branches = branchSpansOf(symbolsOf(lf));
+  if (branches.some((span) => line > span.startLine && line < span.endLine)) {
+    return "branch";
+  }
+  return "scene";
 };
 
 const nodeNamesOf = (source: string) => {
@@ -112,9 +229,16 @@ const apply = (source: string, caret: number, construct: InsertConstruct) => {
   const plan = planInsertion(source, caret, construct, structureOf(source));
   if (!plan) return null;
   const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
+  expectKeepsMeaning(source, text, construct, plan);
+  const inserted = text.split(CRLF).join(LF);
+  const blockStart = toLf(text, plan.from);
+  const firstContent = inserted.slice(blockStart).search(/\S/) + blockStart;
   return {
     text,
     selected: text.slice(plan.anchor, plan.head),
+    inside: TOP_LEVEL.includes(construct)
+      ? null
+      : enclosingKindAt(inserted, firstContent),
   };
 };
 
@@ -727,7 +851,9 @@ describe("insertions checked against the reparsed script", () => {
     expect(diagnosticsOf(source)).toEqual([]);
     const dialogue = apply(source, caretAt(source, "scene start"), "dialogue")!;
     expect(nodeNamesOf(dialogue.text)).toContain("BlockDialogue");
-    expect(dialogue.text).toContain(lines("    ]]", "end"));
+    expect(dialogue.text).toContain(
+      lines("    & example = [[", "Example.", "    ]]"),
+    );
     expect(dialogue.text.includes("[[" + LF + "Example.")).toBe(true);
     expect(dialogue.selected).toBe("CHARACTER");
   });
@@ -844,9 +970,13 @@ describe("insertions checked against the reparsed script", () => {
     (source) => {
       expect(diagnosticsOf(source)).toEqual([]);
       const dialogue = apply(source, caretAt(source, "Hello."), "dialogue")!;
+      const nestedInChoice = source.includes("choose");
       expect(dialogue.text).toContain(
-        lines("  IMANI:", "    What do they say?"),
+        nestedInChoice
+          ? lines("        Hello.", "      IMANI:", "        What do they say?")
+          : lines("  end", "  IMANI:", "    What do they say?"),
       );
+      expect(dialogue.inside).toBe(nestedInChoice ? "option" : "scene");
       expect(dialogue.selected).toBe("What do they say?");
       expect(diagnosticsOf(dialogue.text)).toEqual([]);
     },
@@ -889,6 +1019,119 @@ describe("insertions checked against the reparsed script", () => {
       );
       expect(diagnosticsOf(branch.text), marker).toEqual([]);
     }
+  });
+});
+
+describe("placement inside the construct at the caret", () => {
+  const THEN = lines(
+    "scene start",
+    "  choose",
+    "    Prompt?",
+    "    + [First]",
+    "      First path.",
+    "  then",
+    "    After one.",
+    "    After two.",
+    "  end",
+    "  Later.",
+    "end",
+    "",
+  );
+
+  it("adds a story block inside a then clause, right after the caret's line", () => {
+    expect(diagnosticsOf(THEN)).toEqual([]);
+    const dialogue = apply(THEN, caretAt(THEN, "After one."), "dialogue")!;
+    expect(dialogue.text).toBe(
+      THEN.replace(
+        "    After one." + LF,
+        lines(
+          "    After one.",
+          "    CHARACTER:",
+          "      What do they say?",
+          "",
+        ),
+      ),
+    );
+    expect(dialogue.inside).toBe("then");
+    const choose = apply(THEN, caretAt(THEN, "After one."), "choose")!;
+    expect(choose.inside).toBe("then");
+    expect(choose.text).toContain(lines("    After one.", "    choose"));
+    expect(diagnosticsOf(choose.text)).toEqual([]);
+  });
+
+  it("adds a Branch beside the whole choice menu when the caret is in its then clause", () => {
+    const branch = apply(THEN, caretAt(THEN, "After one."), "branch")!;
+    expect(branch.text).toBe(
+      THEN.replace(
+        lines("  end", "  Later."),
+        lines("  end", "  branch new_branch", "    ", "  end", "  Later."),
+      ),
+    );
+    expect(branch.inside).toBe("scene");
+    expect(diagnosticsOf(branch.text)).toEqual([]);
+  });
+
+  it("adds a story block inside an option, under its header", () => {
+    const dialogue = apply(THEN, caretAt(THEN, "+ [First]"), "dialogue")!;
+    expect(dialogue.text).toBe(
+      THEN.replace(
+        "    + [First]" + LF,
+        lines(
+          "    + [First]",
+          "      CHARACTER:",
+          "        What do they say?",
+          "",
+        ),
+      ),
+    );
+    expect(dialogue.inside).toBe("option");
+  });
+
+  it("adds a story block inside a branch, after the caret's line", () => {
+    const source = lines(
+      "scene start",
+      "  branch hall",
+      "    Dark.",
+      "    Darker.",
+      "  end",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const choose = apply(source, caretAt(source, "Dark."), "choose")!;
+    expect(choose.inside).toBe("branch");
+    expect(choose.text).toContain(lines("    Dark.", "    choose"));
+    expect(choose.text).toContain(lines("    end", "    Darker."));
+    expect(diagnosticsOf(choose.text)).toEqual([]);
+  });
+
+  it("adds after the whole cue when the caret is inside a cue's dialogue", () => {
+    const source = lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  IMANI:",
+      "    Hello.",
+      "    Again.",
+      "  Later.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "Hello."), "dialogue")!;
+    expect(dialogue.text).toBe(
+      source.replace(
+        "    Again." + LF,
+        lines("    Again.", "  IMANI:", "    What do they say?", ""),
+      ),
+    );
+    expect(dialogue.inside).toBe("scene");
+    const branch = apply(source, caretAt(source, "Hello."), "branch")!;
+    expect(branch.text).toContain(lines("    Again.", "  branch new_branch"));
+    expect(diagnosticsOf(dialogue.text)).toEqual([]);
+    expect(diagnosticsOf(branch.text)).toEqual([]);
   });
 });
 

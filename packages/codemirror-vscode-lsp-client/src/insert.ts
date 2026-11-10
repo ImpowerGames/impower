@@ -1,5 +1,5 @@
 import { isolateHistory } from "@codemirror/commands";
-import { ensureSyntaxTree, language } from "@codemirror/language";
+import { ensureSyntaxTree } from "@codemirror/language";
 import type { Command, EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -44,25 +44,13 @@ export interface SceneSpan {
   endLine: number;
 }
 
-export interface DialogueCue {
-  startLine: number;
-  endLine: number;
-  speaker: string;
-}
-
-export interface StoryBlock {
-  startLine: number;
-  endLine: number;
-  speaker: string | null;
-  cues: readonly DialogueCue[];
-}
-
 export interface ScriptStructure {
   scenes: readonly SceneSpan[];
   branches: readonly SceneSpan[];
-  blocks: readonly StoryBlock[];
-  parse?: (text: string) => Tree;
+  tree: Tree;
 }
+
+export type BodyKind = "scene" | "branch" | "option" | "then";
 
 interface SourceLine {
   from: number;
@@ -72,22 +60,48 @@ interface SourceLine {
   content: string;
 }
 
+interface Statement {
+  startLine: number;
+  endLine: number;
+}
+
+interface Body {
+  kind: BodyKind;
+  headerLine: number;
+  closingLine: number | null;
+  statements: Statement[];
+}
+
 const SCENE_SYMBOL_KIND: typeof lsp.SymbolKind.Class = 5;
 
 const BRANCH_SYMBOL_KIND: typeof lsp.SymbolKind.Interface = 11;
 
 const STEP = "  ";
 
-const PARSE_BUDGET_MS = 500;
+const PARSE_BUDGET_MS = 50;
 
-const COMMENT = String.raw`(?:\s*(?:--|\/\/).*)?`;
-const BLOCK_HEADER = new RegExp(
-  String.raw`^(?:scene|branch)\s+[\p{L}_][\p{L}\p{N}_]*`,
-  "u",
-);
-const END_LINE = new RegExp(String.raw`^end${COMMENT}\s*$`);
+const CHOOSE_CONTENT = "LuauSparkdownChooseBlock_content";
+const CHOICE = "Choice";
+const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
+const THEN_CONTENT = "LuauSparkdownChooseThenClause_content";
+const DIALOGUE_NODES = ["BlockDialogue", "InlineDialogue"];
+const SPACING_NODES = ["Newline", "Whitespace"];
+
+const ACCEPTED_BY: Record<InsertConstruct, readonly BodyKind[]> = {
+  character: [],
+  scene: [],
+  branch: ["scene"],
+  choose: ["scene", "branch", "option", "then"],
+  dialogue: ["scene", "branch", "option", "then"],
+  backdrop: ["scene", "branch", "option", "then"],
+  portrait: ["scene", "branch", "option", "then"],
+  sound: ["scene", "branch", "option", "then"],
+  music: ["scene", "branch", "option", "then"],
+};
 
 const newlineOf = (source: string) => (source.includes("\r\n") ? "\r\n" : "\n");
+
+const widthOf = (indent: string) => indent.replace(/\t/g, STEP).length;
 
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
@@ -162,105 +176,14 @@ function lineIndexAt(lines: SourceLine[], offset: number): number {
   return low;
 }
 
-const DIALOGUE_NODES = ["BlockDialogue", "InlineDialogue"];
-
-function speakerOf(node: SyntaxNode, source: string): string | null {
-  if (!DIALOGUE_NODES.includes(node.name)) return null;
-  const cursor = node.cursor();
-  while (cursor.next() && cursor.from < node.to) {
-    if (cursor.name === "DialogueCharacterName") {
-      return source.slice(cursor.from, cursor.to).trim() || null;
-    }
-  }
-  return null;
-}
-
-export function storyBlocksOf(tree: Tree, source: string): StoryBlock[] {
-  const lines = linesOf(source);
-  const blocks: StoryBlock[] = [];
-  const linesOfNode = (node: SyntaxNode) => {
-    const startLine = lineIndexAt(lines, node.from);
-    let endLine = lineIndexAt(lines, Math.max(node.from, node.to - 1));
-    while (endLine > startLine && !lines[endLine]!.content) endLine--;
-    return { startLine, endLine };
-  };
-  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-    const { startLine, endLine } = linesOfNode(node);
-    const speaker = speakerOf(node, source);
-    if (endLine <= startLine && !speaker) continue;
-    const cues: DialogueCue[] = [];
-    const cursor = node.cursor();
-    while (cursor.next() && cursor.from < node.to) {
-      const cue = speakerOf(cursor.node, source);
-      if (cue) cues.push({ ...linesOfNode(cursor.node), speaker: cue });
-    }
-    blocks.push({ startLine, endLine, speaker, cues });
-  }
-  return blocks;
-}
-
-interface TopNode {
-  from: number;
-  to: number;
-  name: string;
-  text: string;
-}
-
-function topNodesOf(tree: Tree, source: string): TopNode[] {
-  const nodes: TopNode[] = [];
-  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-    const raw = source.slice(node.from, node.to);
-    const text = raw.trim();
-    if (text) {
-      const from = node.from + (raw.length - raw.trimStart().length);
-      nodes.push({ from, to: from + text.length, name: node.name, text });
-    }
-  }
-  return nodes;
-}
-
-const EXPECTED_NODE: Partial<Record<InsertConstruct, string>> = {
-  branch: "Branch",
-  choose: "LuauSparkdownChooseBlock",
-  dialogue: "BlockDialogue",
-};
-
-function keepsMeaning(
-  source: string,
-  plan: InsertPlan,
-  construct: InsertConstruct,
-  before: readonly TopNode[],
-  parse: (text: string) => Tree,
-): boolean {
-  const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
-  const from = plan.from;
-  const to = plan.from + plan.insert.length;
-  const outside: string[] = [];
-  const inside: TopNode[] = [];
-  for (const node of topNodesOf(parse(text), text)) {
-    if (node.to <= from || node.from >= to) outside.push(node.text);
-    else if (node.from >= from && node.to <= to) inside.push(node);
-    else return false;
-  }
-  const kept = before
-    .filter((node) => node.to <= plan.from || node.from >= plan.to)
-    .map((node) => node.text);
-  if (
-    kept.length !== outside.length ||
-    kept.some((node, i) => node !== outside[i])
-  ) {
-    return false;
-  }
-  const expected = EXPECTED_NODE[construct];
-  return !expected || inside.some((node) => node.name === expected);
-}
-
-const spanAt = <T extends { startLine: number; endLine: number }>(
-  spans: readonly T[],
-  index: number,
-) =>
+const spanAt = (spans: readonly SceneSpan[], index: number) =>
   spans.find((span) => index >= span.startLine && index <= span.endLine) ??
   null;
+
+const innermostSpanAt = (spans: readonly SceneSpan[], index: number) =>
+  spans
+    .filter((span) => index >= span.startLine && index <= span.endLine)
+    .at(-1) ?? null;
 
 export function insertContext(
   source: string,
@@ -268,6 +191,181 @@ export function insertContext(
   scenes: readonly SceneSpan[],
 ): InsertContext {
   return { inScene: !!spanAt(scenes, lineIndexAt(linesOf(source), offset)) };
+}
+
+function statementOf(lines: SourceLine[], node: SyntaxNode): Statement | null {
+  if (SPACING_NODES.includes(node.name) || node.from >= node.to) return null;
+  const startLine = lineIndexAt(lines, node.from);
+  let endLine = lineIndexAt(lines, Math.max(node.from, node.to - 1));
+  while (endLine > startLine && !lines[endLine]!.content) endLine--;
+  if (!lines[startLine]!.content && startLine === endLine) return null;
+  return { startLine, endLine };
+}
+
+function rootStatements(
+  lines: SourceLine[],
+  tree: Tree,
+  firstLine: number,
+  lastLine: number,
+  branches: readonly SceneSpan[],
+): Statement[] {
+  const statements: Statement[] = [];
+  const start = lines[firstLine]?.from ?? 0;
+  for (
+    let node = tree.topNode.childAfter(start);
+    node && lineIndexAt(lines, node.from) <= lastLine;
+    node = node.nextSibling
+  ) {
+    const statement = statementOf(lines, node);
+    if (!statement) continue;
+    const branch = branches.find(
+      (span) =>
+        span.startLine >= firstLine &&
+        span.endLine <= lastLine &&
+        statement.startLine >= span.startLine &&
+        statement.startLine <= span.endLine,
+    );
+    const next = branch
+      ? { startLine: branch.startLine, endLine: branch.endLine }
+      : statement;
+    const last = statements.at(-1);
+    if (last && last.startLine === next.startLine) continue;
+    statements.push(next);
+  }
+  return statements;
+}
+
+function childStatements(
+  lines: SourceLine[],
+  from: SyntaxNode | null,
+  stop: (node: SyntaxNode) => boolean,
+): Statement[] {
+  const statements: Statement[] = [];
+  for (let node = from; node && !stop(node); node = node.nextSibling) {
+    const statement = statementOf(lines, node);
+    if (statement) statements.push(statement);
+  }
+  return statements;
+}
+
+function treeBodiesAt(lines: SourceLine[], tree: Tree, index: number): Body[] {
+  const line = lines[index]!;
+  const bodies: Body[] = [];
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(
+      line.from + line.indent.length,
+      1,
+    );
+    node;
+    node = node.parent
+  ) {
+    if (node.name === THEN_CLAUSE) {
+      const content = node.getChild(THEN_CONTENT);
+      bodies.push({
+        kind: "then",
+        headerLine: lineIndexAt(lines, node.from),
+        closingLine: null,
+        statements: childStatements(
+          lines,
+          content?.firstChild ?? null,
+          () => false,
+        ),
+      });
+    } else if (node.name === CHOOSE_CONTENT) {
+      let choice: SyntaxNode | null = null;
+      for (let child = node.firstChild; child; child = child.nextSibling) {
+        if (lineIndexAt(lines, child.from) > index) break;
+        if (child.name === CHOICE) choice = child;
+        if (child.name === THEN_CLAUSE) choice = null;
+      }
+      if (choice) {
+        bodies.push({
+          kind: "option",
+          headerLine: lineIndexAt(lines, choice.from),
+          closingLine: null,
+          statements: childStatements(
+            lines,
+            choice.nextSibling,
+            (sibling) =>
+              sibling.name === CHOICE || sibling.name === THEN_CLAUSE,
+          ),
+        });
+      }
+    }
+  }
+  return bodies;
+}
+
+function speakerAt(
+  lines: SourceLine[],
+  tree: Tree,
+  index: number,
+  source: string,
+): string | null {
+  const line = lines[index]!;
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(
+      line.from + line.indent.length,
+      1,
+    );
+    node;
+    node = node.parent
+  ) {
+    if (DIALOGUE_NODES.includes(node.name)) {
+      const name = node.cursor();
+      while (name.next() && name.from < node.to) {
+        if (name.name === "DialogueCharacterName") {
+          return source.slice(name.from, name.to).trim() || null;
+        }
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
+function bodiesAt(
+  lines: SourceLine[],
+  index: number,
+  structure: ScriptStructure,
+): Body[] {
+  const scene = spanAt(structure.scenes, index);
+  if (!scene) return [];
+  const bodies = treeBodiesAt(lines, structure.tree, index);
+  const branch = innermostSpanAt(
+    structure.branches.filter(
+      (span) =>
+        span.startLine > scene.startLine && span.endLine <= scene.endLine,
+    ),
+    index,
+  );
+  if (branch) {
+    bodies.push({
+      kind: "branch",
+      headerLine: branch.startLine,
+      closingLine: branch.endLine,
+      statements: rootStatements(
+        lines,
+        structure.tree,
+        branch.startLine + 1,
+        branch.endLine - 1,
+        [],
+      ),
+    });
+  }
+  bodies.push({
+    kind: "scene",
+    headerLine: scene.startLine,
+    closingLine: scene.endLine,
+    statements: rootStatements(
+      lines,
+      structure.tree,
+      scene.startLine + 1,
+      scene.endLine - 1,
+      structure.branches,
+    ),
+  });
+  return bodies;
 }
 
 function templateOf(
@@ -387,6 +485,11 @@ function planCharacter(
   };
 }
 
+function absorbs(lines: SourceLine[], statement: Statement, indent: string) {
+  const line = lines[statement.startLine]!;
+  return line.text.startsWith("//") || widthOf(line.indent) > widthOf(indent);
+}
+
 function planStoryBlock(
   source: string,
   lines: SourceLine[],
@@ -394,69 +497,47 @@ function planStoryBlock(
   construct: InsertConstruct,
   structure: ScriptStructure,
 ): InsertPlan | null {
-  const scene = spanAt(structure.scenes, index);
-  if (!scene) return null;
-  const line = lines[index]!;
-  let mode: Placement["mode"] = "after";
-  let atLine = index;
-  let indent = line.indent;
-  let speaker: string | null = null;
-  const enclosing = spanAt(structure.blocks, index);
-  const branch =
-    construct === "branch" ? spanAt(structure.branches, index) : null;
-  if (branch) {
-    indent = lines[branch.startLine]!.indent;
-    atLine = Math.min(branch.endLine, lines.length - 1);
-  } else if (enclosing) {
-    const cue = enclosing.cues
-      .filter((cue) => index >= cue.startLine && index <= cue.endLine)
-      .at(-1);
-    speaker = cue?.speaker ?? enclosing.speaker;
-    indent = lines[enclosing.startLine]!.indent;
-    atLine = enclosing.endLine;
-  } else if (!line.content) {
-    mode = "replace";
-    if (!indent) {
-      let previous = index - 1;
-      while (previous >= 0 && !lines[previous]!.content) previous--;
-      const above = previous >= 0 ? lines[previous]! : null;
-      const aboveBlock =
-        previous >= 0 ? spanAt(structure.blocks, previous) : null;
-      indent = aboveBlock
-        ? lines[aboveBlock.startLine]!.indent
-        : above && BLOCK_HEADER.test(above.content)
-          ? above.indent + STEP
-          : (above?.indent ?? "");
-    }
-  } else if (END_LINE.test(line.content)) {
-    mode = "before";
-    indent = line.indent + STEP;
-  } else if (BLOCK_HEADER.test(line.content)) {
-    indent = line.indent + STEP;
+  const body = bodiesAt(lines, index, structure).find((candidate) =>
+    ACCEPTED_BY[construct].includes(candidate.kind),
+  );
+  if (!body) return null;
+  const indent = lines[body.headerLine]!.indent + STEP;
+  let placement: Placement;
+  if (index === body.headerLine) {
+    placement = { mode: "after", line: index, indent };
+  } else if (index === body.closingLine) {
+    placement = { mode: "before", line: index, indent };
+  } else {
+    const statement = body.statements.find(
+      (candidate) => index >= candidate.startLine && index <= candidate.endLine,
+    );
+    placement = statement
+      ? { mode: "after", line: statement.endLine, indent }
+      : !lines[index]!.content
+        ? { mode: "replace", line: index, indent }
+        : { mode: "after", line: index, indent };
   }
-  if (!indent) indent = STEP;
-  const sceneIndent = lines[scene.startLine]!.indent + STEP;
-  const sceneEnd = Math.min(scene.endLine, lines.length - 1);
-  const placements: Placement[] = [
-    { mode, line: mode === "after" ? atLine : index, indent },
-    END_LINE.test(lines[sceneEnd]!.content)
-      ? { mode: "before", line: sceneEnd, indent: sceneIndent }
-      : { mode: "after", line: sceneEnd, indent: sceneIndent },
-  ];
-  const template = templateOf(construct, source, speaker);
-  const before = structure.parse
-    ? topNodesOf(structure.parse(source), source)
-    : null;
-  for (const placement of placements) {
-    const plan = placed(source, lines, placement, template);
-    if (
-      !before ||
-      keepsMeaning(source, plan, construct, before, structure.parse!)
-    ) {
-      return plan;
+  if (construct === "dialogue" && placement.mode !== "before") {
+    for (const next of body.statements) {
+      if (next.startLine <= placement.line) continue;
+      if (!absorbs(lines, next, indent)) break;
+      placement = { mode: "after", line: next.endLine, indent };
     }
   }
-  return null;
+  const lastLine = lineIndexAt(lines, structure.tree.length);
+  if (placement.line > lastLine && structure.tree.length < source.length) {
+    return null;
+  }
+  const speaker =
+    construct === "dialogue"
+      ? speakerAt(lines, structure.tree, index, source)
+      : null;
+  return placed(
+    source,
+    lines,
+    placement,
+    templateOf(construct, source, speaker),
+  );
 }
 
 interface Placement {
@@ -597,14 +678,12 @@ export async function insertConstructFromServer(
   ) {
     return false;
   }
-  const tree = ensureSyntaxTree(view.state, doc.length, PARSE_BUDGET_MS);
-  if (!tree) return false;
-  const parser = view.state.facet(language)?.parser;
-  const structure: ScriptStructure = {
+  const caretLine = doc.lineAt(view.state.selection.main.head);
+  const tree = ensureSyntaxTree(view.state, caretLine.to, PARSE_BUDGET_MS);
+  if (!tree || tree.length < caretLine.to) return false;
+  return insertConstruct(construct, {
     scenes: sceneSpansOf(symbols),
     branches: branchSpansOf(symbols),
-    blocks: storyBlocksOf(tree, doc.toString()),
-    parse: parser ? (text) => parser.parse(text) : undefined,
-  };
-  return insertConstruct(construct, structure)(view);
+    tree,
+  })(view);
 }

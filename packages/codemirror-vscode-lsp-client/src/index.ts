@@ -87,7 +87,6 @@ export {
   planInsertion,
   branchSpansOf,
   sceneSpansOf,
-  storyBlocksOf,
   TOP_LEVEL_CONSTRUCTS,
   uniqueName,
   type InsertConstruct,
@@ -95,8 +94,6 @@ export {
   type InsertPlan,
   type SceneSpan,
   type ScriptStructure,
-  type DialogueCue,
-  type StoryBlock,
 } from "./insert";
 export {
   convertFromServerCodeLens,
