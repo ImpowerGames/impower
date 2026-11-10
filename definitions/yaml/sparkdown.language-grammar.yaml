@@ -425,7 +425,7 @@ variables:
   # reads to a colon cannot be stopped by any rule's `end:`. The name's
   # character is the variable to tighten: a slash is a name character
   # unless it opens that comment.
-  DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}}))|[^{}:/\r\n])
+  DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}}))|[^{}:/\\\r\n])
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
   # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock; GRAMMAR.md §10.1 gives why neither ordering nor `\G` replaces it.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
