@@ -75,8 +75,14 @@ The page keeps growing across choices and scenes. Restarting the game clears it.
 To start a fresh page, write `[[clear textstream]]`. Every entry is removed, and the line the directive is on becomes the first entry of the new page, typed out like any other:
 
 ```sparkdown
-  + [Go upstairs.]
-    [[clear textstream]] The landing is dark.
+scene hall
+  choose
+    + [Go upstairs.]
+      [[clear textstream]] The landing is dark.
+    + [Stay down.]
+      The hall stays quiet.
+  end
+end
 ```
 
 A clear after a menu is a good place for one, when the next part of the story reads better on its own page. Saves and checkpoints taken after it keep the cleared page. `clear` only works on `textstream`: on any other layout the editor warns "Only textstream has a page to clear." and the game ignores it.
