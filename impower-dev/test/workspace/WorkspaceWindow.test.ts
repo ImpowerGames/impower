@@ -710,6 +710,33 @@ describe("WorkspaceWindow store transitions", () => {
         ]);
       });
 
+      it("a folder change recorded after the export leaves the project due for a reminder", async () => {
+        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
+          new Uint8Array([1]) as never,
+        );
+        await downloadProjectZip();
+        metadata.set("changedAt", String(started + DAY_MS));
+        now = started + 9 * DAY_MS;
+        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
+          "9 days since your last backup.",
+        ]);
+      });
+
+      it("a project setting changed after the export leaves the project due for a reminder", async () => {
+        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
+          new Uint8Array([1]) as never,
+        );
+        await downloadProjectZip();
+        now = started + DAY_MS;
+        workspaceSettings.replaceProjectSettings("local", {
+          screenplayTitlePage: false,
+        });
+        now = started + 9 * DAY_MS;
+        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
+          "9 days since your last backup.",
+        ]);
+      });
+
       it("a review that finishes after the editor is hidden shows and claims nothing", async () => {
         metadata.set("backedUpAt", String(started - 9 * DAY_MS));
         files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };

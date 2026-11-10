@@ -144,6 +144,29 @@ describe("the settings store", () => {
     expect(open("p1").projectSettings.value.screenplayPaperSize).toBe("usletter");
   });
 
+  it("records when each project's settings last changed, however they change", () => {
+    const now = vi.spyOn(Date, "now");
+    try {
+      const store = open("p1");
+      expect(store.projectSettingsChangedAt("p1")).toBeNull();
+      now.mockReturnValue(1_000);
+      store.setProjectSetting("screenplayPaperSize", "a4");
+      expect(open("p1").projectSettingsChangedAt("p1")).toBe(1_000);
+      now.mockReturnValue(2_000);
+      store.resetProjectSettings(["screenplayPaperSize"]);
+      expect(store.projectSettingsChangedAt("p1")).toBe(2_000);
+      now.mockReturnValue(3_000);
+      store.replaceProjectSettings("p2", { screenplayTitlePage: false });
+      expect(store.projectSettingsChangedAt("p2")).toBe(3_000);
+      expect(store.projectSettingsChangedAt("p1")).toBe(2_000);
+      now.mockReturnValue(4_000);
+      store.setPreference("theme", "chalk");
+      expect(store.projectSettingsChangedAt("p1")).toBe(2_000);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it("reads the default for a stored value of the wrong type or choice", () => {
     localStorage.setItem(
       "settings/project/p1",

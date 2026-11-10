@@ -125,6 +125,7 @@ import {
 import { showSnackbar } from "../utils/snackbar";
 import { downloadProjectZip } from "../utils/downloadProjectZip";
 import { isProjectMetadata } from "../utils/fileTree";
+import { withProjectRecord } from "../utils/projectRecordLock";
 import {
   installOfferOf,
   keepOnDevice,
@@ -668,18 +669,6 @@ export default class WorkspaceWindow {
 
   protected _installPrompt: InstallPromptEvent | null = null;
 
-  protected _recordQueues = new Map<string, Promise<unknown>>();
-
-  protected withBackupRecord<T>(id: string, task: () => Promise<T>) {
-    const locks = globalThis.navigator?.locks;
-    if (locks) {
-      return locks.request(`impower-backup-record:${id}`, task);
-    }
-    const run = (this._recordQueues.get(id) ?? Promise.resolve()).then(task);
-    this._recordQueues.set(id, run.catch(() => undefined));
-    return run;
-  }
-
   async reviewDeviceStorage() {
     try {
       await this.refreshDeviceStorage();
@@ -687,7 +676,7 @@ export default class WorkspaceWindow {
       if (!id) {
         return;
       }
-      await this.withBackupRecord(id, () =>
+      await withProjectRecord(id, () =>
         remindBackupIfDue({
           local: id === WorkspaceConstants.LOCAL_PROJECT_ID,
           persisted: workspace.deviceStorage.peek()?.persisted ?? false,
@@ -744,7 +733,7 @@ export default class WorkspaceWindow {
     const startedAt = Date.now();
     const backedUp = await backUp();
     if (backedUp && id) {
-      await this.withBackupRecord(id, () =>
+      await withProjectRecord(id, () =>
         recordBackup(this.backupRecord(id), startedAt),
       ).catch((err) => console.error(err));
     }
@@ -777,8 +766,12 @@ export default class WorkspaceWindow {
         const trashed = (await fs.listTrash(id).catch(() => [])).map(
           (batch) => batch.deletedAt,
         );
-        const kept = Number(await fs.readStoredProjectMetadata(id, "deletedAt"));
-        const times = [...written, ...trashed, ...(kept > 0 ? [kept] : [])];
+        const kept = [
+          Number(await fs.readStoredProjectMetadata(id, "deletedAt")),
+          Number(await fs.readStoredProjectMetadata(id, "changedAt")),
+          workspaceSettings.projectSettingsChangedAt(id) ?? 0,
+        ].filter((time) => time > 0);
+        const times = [...written, ...trashed, ...kept];
         return times.length > 0 ? Math.max(...times) : null;
       },
     };

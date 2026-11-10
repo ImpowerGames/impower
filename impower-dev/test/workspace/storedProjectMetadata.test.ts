@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MemoryDirectory,
   memoryRoot,
   writeMemoryFile,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
@@ -12,9 +13,36 @@ class StubWorker {
 }
 
 let fs: WorkspaceFileSystemType;
-const root = memoryRoot();
+let root: MemoryDirectory;
+const steps: string[] = [];
+const encode = (text: string) => new TextEncoder().encode(text);
+
+const recordSteps = () => {
+  vi.spyOn(fs, "writeProjectMetadata").mockImplementation(
+    async (id, field, value) => {
+      writeMemoryFile(root, `${id}/.${field}`, encode(value));
+      steps.push(`keep ${field}=${value}`);
+    },
+  );
+  const requests = fs as unknown as {
+    sendRequest: (
+      type: unknown,
+      params: { action?: string; batchId?: string },
+    ) => Promise<unknown>;
+  };
+  vi.spyOn(requests, "sendRequest").mockImplementation(async (_type, params) => {
+    steps.push(
+      ["request", params.action ?? "deleteFiles", params.batchId]
+        .filter(Boolean)
+        .join(" "),
+    );
+    return { uris: [] };
+  });
+};
 
 beforeEach(async () => {
+  steps.length = 0;
+  root = memoryRoot();
   vi.stubGlobal("Worker", StubWorker);
   vi.spyOn(console, "error").mockImplementation(() => {});
   Object.defineProperty(navigator, "storage", {
@@ -38,7 +66,7 @@ afterEach(() => {
 
 describe("reading a project's metadata as stored", () => {
   it("reads what is on disk, which another tab may have written after this tab's cache", async () => {
-    writeMemoryFile(root, "local/.remindedAt", new TextEncoder().encode("1794312000000"));
+    writeMemoryFile(root, "local/.remindedAt", encode("1794312000000"));
     expect(await fs.readStoredProjectMetadata("local", "remindedAt")).toBe(
       "1794312000000",
     );
@@ -51,40 +79,93 @@ describe("reading a project's metadata as stored", () => {
 });
 
 describe("removing batches from the trash", () => {
-  const steps: string[] = [];
-
   beforeEach(() => {
-    steps.length = 0;
     vi.spyOn(fs, "listTrash").mockResolvedValue([
       { batchId: "a", deletedAt: 5_000, entries: [] },
       { batchId: "b", deletedAt: 9_000, entries: [] },
     ]);
-    vi.spyOn(fs, "writeProjectMetadata").mockImplementation(
-      async (_id, field, value) => {
-        steps.push(`keep ${field}=${value}`);
-      },
-    );
-    const requests = fs as unknown as {
-      sendRequest: (type: unknown, params: { action: string }) => Promise<unknown>;
-    };
-    vi.spyOn(requests, "sendRequest").mockImplementation(async (_type, params) => {
-      steps.push(`request ${params.action}`);
-      return {};
-    });
+    recordSteps();
+  });
+
+  it("keeps the newest deletion time, then empties only the batches it saw", async () => {
+    await fs.emptyTrash("local");
+    expect(steps).toEqual([
+      "keep deletedAt=9000",
+      "request deleteBatch a",
+      "request deleteBatch b",
+    ]);
   });
 
   it.each<[string, (fs: WorkspaceFileSystemType) => Promise<void>, string]>([
-    ["emptying it", (fs) => fs.emptyTrash("local"), "empty"],
-    ["deleting one batch", (fs) => fs.deleteTrashBatch("local", "b"), "deleteBatch"],
-    ["purging expired batches", (fs) => fs.purgeExpiredTrash("local"), "purge"],
-  ])("keeps the newest deletion time before %s", async (_case, remove, action) => {
+    ["deleting one batch", (fs) => fs.deleteTrashBatch("local", "b"), "request deleteBatch b"],
+    ["purging expired batches", (fs) => fs.purgeExpiredTrash("local"), "request purge"],
+  ])("keeps the newest deletion time before %s", async (_case, remove, request) => {
     await remove(fs);
-    expect(steps).toEqual(["keep deletedAt=9000", `request ${action}`]);
+    expect(steps).toEqual(["keep deletedAt=9000", request]);
   });
 
   it("never moves the kept deletion time back", async () => {
-    writeMemoryFile(root, "local/.deletedAt", new TextEncoder().encode("20000"));
+    writeMemoryFile(root, "local/.deletedAt", encode("20000"));
     await fs.emptyTrash("local");
-    expect(steps).toEqual(["request empty"]);
+    expect(steps).toEqual(["request deleteBatch a", "request deleteBatch b"]);
+  });
+
+  it("keeps the newest deletion time when two removals overlap", async () => {
+    const listings = [
+      [{ batchId: "a", deletedAt: 5_000, entries: [] }],
+      [{ batchId: "b", deletedAt: 9_000, entries: [] }],
+    ];
+    vi.mocked(fs.listTrash).mockImplementation(async () => listings.shift()!);
+    const read = fs.readStoredProjectMetadata.bind(fs);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let first = true;
+    vi.spyOn(fs, "readStoredProjectMetadata").mockImplementation(
+      async (id, field) => {
+        const value = await read(id, field);
+        if (first) {
+          first = false;
+          await held;
+        }
+        return value;
+      },
+    );
+    const earlier = fs.deleteTrashBatch("local", "a");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const later = fs.deleteTrashBatch("local", "b");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    release();
+    await Promise.all([earlier, later]);
+    expect(await read("local", "deletedAt")).toBe("9000");
+  });
+});
+
+describe("changes that leave no time of their own", () => {
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(7_000);
+    recordSteps();
+  });
+
+  it.each<[string, (fs: WorkspaceFileSystemType) => Promise<unknown>, string]>([
+    ["creating a folder", (fs) => fs.createFolder("local", "chapters"), "request create"],
+    ["deleting a folder", (fs) => fs.deleteFolders("local", ["chapters"]), "request delete"],
+    [
+      "deleting a file outright",
+      (fs) => fs.deleteFiles({ files: [{ uri: fs.getFileUri("local", "notes.sd") }] }),
+      "request deleteFiles",
+    ],
+  ])("records the change time before %s", async (_case, change, request) => {
+    await change(fs);
+    expect(steps).toEqual(["keep changedAt=7000", request]);
+  });
+
+  it("leaves a deletion to the trash its own time", async () => {
+    await fs.deleteFiles({
+      files: [{ uri: fs.getFileUri("local", "notes.sd") }],
+      mode: "trash",
+    });
+    expect(steps).toEqual(["request deleteFiles"]);
   });
 });

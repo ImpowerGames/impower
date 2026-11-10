@@ -133,6 +133,7 @@ describe("isProjectMetadata and needsFolderMigration", () => {
     expect(isProjectMetadata(".backedUpAt")).toBe(true);
     expect(isProjectMetadata(".createdAt")).toBe(true);
     expect(isProjectMetadata(".deletedAt")).toBe(true);
+    expect(isProjectMetadata(".changedAt")).toBe(true);
     expect(isProjectMetadata(".remindedAt")).toBe(true);
     expect(isProjectMetadata(".folder")).toBe(false);
     expect(isProjectMetadata(".constructor")).toBe(false);
