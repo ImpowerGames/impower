@@ -4,7 +4,8 @@ import {
   onEnterRulesCommand,
   vscodeOnEnterRules,
 } from "@impower/codemirror-vscode-language/src/extensions/vscodeOnEnterRules";
-import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
+import LUAU_CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown-luau.language-config.json";
+import STORY_CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
 import { afterEach, describe, expect, it } from "vitest";
 
 let view: EditorView | undefined;
@@ -14,13 +15,13 @@ afterEach(() => {
   view = undefined;
 });
 
-const pressEnter = (source: string): string => {
+const pressEnter = (source: string, config: unknown): string => {
   const cursor = source.indexOf("|");
   view = new EditorView({
     state: EditorState.create({
       doc: source.replace("|", ""),
       selection: EditorSelection.cursor(cursor),
-      extensions: [vscodeOnEnterRules(CONFIG_DEFINITION as any)],
+      extensions: [vscodeOnEnterRules(config as any)],
     }),
     parent: document.body,
   });
@@ -30,7 +31,10 @@ const pressEnter = (source: string): string => {
   return doc.slice(0, head) + "|" + doc.slice(head);
 };
 
-describe("Enter between `{` and `}` in a brace body", () => {
+describe.each([
+  ["sparkdown.language-config.json", STORY_CONFIG_DEFINITION],
+  ["sparkdown-luau.language-config.json", LUAU_CONFIG_DEFINITION],
+])("Enter between `{` and `}` in a brace body with %s", (_file, config) => {
   it.each([
     [
       "an accepted block completion, `{ | }`",
@@ -53,6 +57,6 @@ describe("Enter between `{` and `}` in a brace body", () => {
       "morph blink {\n  keyframes { from {\n    |\n  } }\n}\n",
     ],
   ])("%s", (_name, before, after) => {
-    expect(pressEnter(before)).toBe(after);
+    expect(pressEnter(before, config)).toBe(after);
   });
 });

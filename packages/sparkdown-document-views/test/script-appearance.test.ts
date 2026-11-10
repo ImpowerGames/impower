@@ -69,7 +69,7 @@ const SCRIPT = [
 const language = vscodeLanguage({
   name: "sparkdown",
   grammar: sparkdownGrammarFor("file:///main.sd"),
-  config: CONFIG_DEFINITION as never,
+  configs: { sparkdown: CONFIG_DEFINITION as never },
 });
 
 let view: EditorView | undefined;

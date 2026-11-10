@@ -51,6 +51,9 @@ assert_denies "Windows backslash grammar path" 'C:\Users\dev\impower\packages\sp
 assert_denies "Windows backslash config path"  'C:\Users\dev\impower\vscode-sparkdown\language\sparkdown.language-config.json'
 assert_denies "uppercase Windows path"         'C:\USERS\DEV\PACKAGES\SPARKDOWN\LANGUAGE\SPARKDOWN.LANGUAGE-GRAMMAR.JSON'
 assert_denies "mixed-case filename"            "packages/sparkdown/language/Sparkdown.Language-Grammar.json"
+assert_denies "Luau config path"               "packages/sparkdown/language/sparkdown-luau.language-config.json" "definitions/yaml/" "npm run language"
+assert_denies "Windows backslash Luau config"  'C:\Users\dev\impower\vscode-sparkdown\language\sparkdown-luau.language-config.json'
+assert_denies "Luau file grammar path"         "vscode-sparkdown/language/sparkdown-luau.language-grammar.json"
 
 reviewer_names=$(node -e '
 const models = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
@@ -68,6 +71,7 @@ assert_allows "reviewer backup file"               ".claude/agents/reviewer-opus
 assert_allows "unrelated source file"              "packages/sparkdown/src/compiler/utils/filterImage.ts"
 assert_allows "same filename outside a language dir" "docs/examples/my-sparkdown.language-grammar.json"
 assert_allows "similarly-named but distinct file"  "packages/sparkdown/language/sparkdown.language-grammar.json.bak"
+assert_allows "Luau config YAML source"            "definitions/yaml/sparkdown-luau.language-config.yaml"
 assert_allows "empty file_path"                    ""
 
 if [[ "$fail" -ne 0 ]]; then
