@@ -1825,6 +1825,9 @@ const removeTrashBatch = async (projectId: string, batchId: string) => {
 const fileExists = async (uri: string): Promise<boolean> =>
   (await findFileHandle(uri)) != null;
 
+const entryExists = async (uri: string): Promise<boolean> =>
+  (await fileExists(uri)) || (await isStoredDirectory(uri));
+
 const deconflictRestoreUri = async (uri: string): Promise<string> => {
   const path = getPathFromUri(uri);
   const slash = path.lastIndexOf("/");
@@ -1836,7 +1839,7 @@ const deconflictRestoreUri = async (uri: string): Promise<string> => {
   for (let i = 1; ; i++) {
     const suffix = i === 1 ? " (restored)" : ` (restored ${i})`;
     const candidate = getUriFromPath(`${dir}${base}${suffix}${ext}`);
-    if (!(await fileExists(candidate))) {
+    if (!(await entryExists(candidate))) {
       return candidate;
     }
   }
@@ -1865,28 +1868,37 @@ const restoreTrashBatch = async (
     folders?: string[];
   };
   const recorded = m.folders ?? [];
-  const moved = new Map<string, string>();
-  for (const folder of recorded) {
-    if (recorded.some((other) => folder.startsWith(`${other}/`))) {
-      continue;
+  const directories = new Map<string, string>();
+  const restoredDirectory = async (path: string): Promise<string> => {
+    if (!path) {
+      return "";
     }
-    for (let i = 0, target = folder; ; i++) {
-      if (!(await fileExists(getUriFromPath(`${projectId}/${target}`)))) {
-        moved.set(folder, target);
-        break;
-      }
-      target = `${folder}${i === 0 ? " (restored)" : ` (restored ${i + 1})`}`;
+    const known = directories.get(path);
+    if (known !== undefined) {
+      return known;
     }
-  }
-  const restoredPath = (relPath: string) => {
-    for (const [from, to] of moved) {
-      if (relPath === from || relPath.startsWith(`${from}/`)) {
-        return to + relPath.slice(from.length);
-      }
+    const slash = path.lastIndexOf("/");
+    const parent = await restoredDirectory(slash >= 0 ? path.slice(0, slash) : "");
+    const name = slash >= 0 ? path.slice(slash + 1) : path;
+    const at = (leaf: string) => (parent ? `${parent}/${leaf}` : leaf);
+    let target = at(name);
+    for (let i = 1; await fileExists(getUriFromPath(`${projectId}/${target}`)); i++) {
+      target = at(`${name}${i === 1 ? " (restored)" : ` (restored ${i})`}`);
     }
-    return relPath;
+    directories.set(path, target);
+    return target;
   };
-  const restoredFolders = recorded.map(restoredPath);
+  const restoredPath = async (relPath: string) => {
+    const slash = relPath.lastIndexOf("/");
+    if (slash < 0) {
+      return relPath;
+    }
+    return `${await restoredDirectory(relPath.slice(0, slash))}/${relPath.slice(slash + 1)}`;
+  };
+  const restoredFolders: string[] = [];
+  for (const folder of recorded) {
+    restoredFolders.push(await restoredDirectory(folder));
+  }
   const folders = await createDirectories(
     restoredFolders.map((f) => getUriFromPath(`${projectId}/${f}`)),
     folderLog,
@@ -1895,8 +1907,8 @@ const restoreTrashBatch = async (
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   for (const entry of m.entries) {
     const data = await readFile(getUriFromPath(`${trashPrefix}/${entry.relPath}`));
-    const originalUri = getUriFromPath(`${projectId}/${restoredPath(entry.relPath)}`);
-    const targetUri = (await fileExists(originalUri))
+    const originalUri = getUriFromPath(`${projectId}/${await restoredPath(entry.relPath)}`);
+    const targetUri = (await entryExists(originalUri))
       ? await deconflictRestoreUri(originalUri)
       : originalUri;
     const [created] = await createFiles([{ uri: targetUri, data }]);

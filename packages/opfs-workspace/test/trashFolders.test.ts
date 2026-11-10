@@ -121,6 +121,66 @@ it("restores a folder whose name a file now holds under a restored name, with ev
   ]);
 });
 
+const live = (h: Awaited<ReturnType<typeof worker>>) =>
+  listMemory(h.root, "p").filter((p) => !p.startsWith(".trash"));
+
+it("restores a nested folder whose name a file now holds under a restored name inside its parent", async () => {
+  const h = await worker();
+  writeMemoryFile(h.root, "p/Scripts/Drafts/old.sd", new TextEncoder().encode("Old"));
+  makeMemoryDirectory(h.root, "p/Scripts/Drafts/Empty");
+  await h.request("workspace/willDeleteFiles", {
+    files: [{ uri: "file://p/Scripts/Drafts/old.sd" }],
+    folders: [{ uri: "file://p/Scripts/Drafts" }, { uri: "file://p/Scripts/Drafts/Empty" }],
+    mode: "trash",
+  });
+  await h.request("workspace/directories", { action: "delete", uris: ["file://p/Scripts/Drafts"] });
+  writeMemoryFile(h.root, "p/Scripts/Drafts/Empty", new TextEncoder().encode("Live"));
+  const [batch] = (await h.trash({ action: "list" })).result.batches;
+  const response = await h.trash({ action: "restore", batchId: batch.batchId });
+  expect(response.error).toBeUndefined();
+  expect(response.result.restoredFolders).toEqual(["Scripts/Drafts", "Scripts/Drafts/Empty (restored)"]);
+  expect(live(h)).toEqual([
+    "Scripts/",
+    "Scripts/Drafts/",
+    "Scripts/Drafts/Empty",
+    "Scripts/Drafts/Empty (restored)/",
+    "Scripts/Drafts/old.sd",
+  ]);
+});
+
+it("restores beneath an ancestor a file now holds, under the ancestor's restored name", async () => {
+  const h = await worker();
+  makeMemoryDirectory(h.root, "p/Scripts/Drafts/Empty");
+  await h.request("workspace/willDeleteFiles", {
+    files: [],
+    folders: [{ uri: "file://p/Scripts/Drafts/Empty" }],
+    mode: "trash",
+  });
+  await h.request("workspace/directories", { action: "delete", uris: ["file://p/Scripts/Drafts"] });
+  writeMemoryFile(h.root, "p/Scripts/Drafts", new TextEncoder().encode("Live"));
+  const [batch] = (await h.trash({ action: "list" })).result.batches;
+  const response = await h.trash({ action: "restore", batchId: batch.batchId });
+  expect(response.error).toBeUndefined();
+  expect(response.result.restoredFolders).toEqual(["Scripts/Drafts (restored)/Empty"]);
+  expect(live(h)).toEqual([
+    "Scripts/",
+    "Scripts/Drafts",
+    "Scripts/Drafts (restored)/",
+    "Scripts/Drafts (restored)/Empty/",
+  ]);
+});
+
+it("restores a file whose name a folder now holds under a restored name", async () => {
+  const h = await worker();
+  writeMemoryFile(h.root, "p/Scripts/a.sd", new TextEncoder().encode("A"));
+  await h.request("workspace/willDeleteFiles", { files: [{ uri: "file://p/Scripts/a.sd" }], mode: "trash" });
+  makeMemoryDirectory(h.root, "p/Scripts/a.sd");
+  const [batch] = (await h.trash({ action: "list" })).result.batches;
+  const response = await h.trash({ action: "restore", batchId: batch.batchId });
+  expect(response.error).toBeUndefined();
+  expect(response.result.restored.map((f: { uri: string }) => f.uri)).toEqual(["file://p/Scripts/a (restored).sd"]);
+});
+
 it("records no folders for a deletion of files alone", async () => {
   const h = await worker();
   writeMemoryFile(h.root, "p/a.sd", new TextEncoder().encode("A"));
