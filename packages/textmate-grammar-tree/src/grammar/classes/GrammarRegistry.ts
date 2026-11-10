@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { GrammarDefinition } from "../types/GrammarDefinition";
+import { namespaceOf } from "../utils/nodeName";
 
 export class GrammarRegistry {
   readonly grammars: readonly GrammarDefinition[];
@@ -31,6 +32,6 @@ export class GrammarRegistry {
   }
 
   prefixOf(grammar: GrammarDefinition): string {
-    return grammar === this.home ? "" : `${grammar.scopeName}#`;
+    return grammar === this.home ? "" : namespaceOf(grammar.scopeName ?? "");
   }
 }

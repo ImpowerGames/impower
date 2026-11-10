@@ -163,6 +163,45 @@ describe("node types across grammars (I-2026)", () => {
     expect(tree.resolveInner(text.indexOf("b"), 1).name).toBe("source.inner#Word");
   });
 
+  test("a home rule named like another grammar's rule or root stays a separate rule", async () => {
+    const guest = {
+      name: "guest",
+      scopeName: "source.guest",
+      patterns: [{ include: "#Block" }, { include: "#Word" }],
+      repository: {
+        Block: { name: "inner.guest", begin: "(?=<)", end: ">", patterns: [{ match: "." }] },
+        Word: { name: "word.guest", match: "[a-z]+" },
+      },
+    };
+    const host = {
+      name: "host",
+      scopeName: "source.host",
+      patterns: [{ include: "#source.guest#Block" }, { include: "#source.guest#" }],
+      repository: {
+        "source.guest#Block": {
+          name: "outer.host",
+          begin: "(?=<)",
+          end: "!",
+          patterns: [{ include: "source.guest#Block" }, { match: "." }],
+        },
+        "source.guest#": { patterns: [{ include: "source.guest" }] },
+      },
+    };
+    for (const [text, needle, expected] of [
+      ["<abc>!\n", "a", "source.host outer.host inner.guest"],
+      ["abc\n", "a", "source.host word.guest"],
+    ] as const) {
+      const vscode = await vscodeScopes(structuredClone(host), text, [structuredClone(guest)]);
+      expect(scopesAt(vscode, text, needle), text).toBe(expected);
+      expect(treeScopes(host, text, [guest]), text).toEqual(vscode);
+    }
+    const parser = new TextmateGrammarParser(
+      new GrammarRegistry([structuredClone(host), structuredClone(guest)] as never),
+    );
+    const names = parser.nodeSet.types.map((type) => type.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   test("a rule whose definition carries an id is still named and found for its own grammar", () => {
     const inner = {
       ...structuredClone(INNER),

@@ -1,3 +1,4 @@
+import { nodeName } from "@impower/textmate-grammar-tree/src/grammar/utils/nodeName";
 import { readTagModifier } from "@impower/textmate-grammar-tree/src/grammar/utils/readTagModifier";
 import { splitTag } from "@impower/textmate-grammar-tree/src/grammar/utils/splitTag";
 import { type Tag, tags } from "@lezer/highlight";
@@ -54,7 +55,7 @@ export const parseTag = (
 
   const { parents, suffix } = readTagModifier(modifier ?? "", str);
   const path = parents.map((parent) =>
-    parent === null ? "*" : selectorName(namespace + parent),
+    parent === null ? "*" : selectorName(nodeName(namespace, parent)),
   );
   const style = `${[...path, selectorName(node)].join("/")}/...${suffix}`;
 

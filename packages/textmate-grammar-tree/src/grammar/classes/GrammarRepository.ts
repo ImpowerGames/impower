@@ -15,6 +15,7 @@ import { isIncludeDefinition } from "../utils/isIncludeDefinition";
 import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
 import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";
 import { isSwitchRuleDefinition } from "../utils/isSwitchRuleDefinition";
+import { localName, nodeName } from "../utils/nodeName";
 import type { Grammar } from "./Grammar";
 import { GrammarNode } from "./GrammarNode";
 import { MatchRule } from "./rules/MatchRule";
@@ -51,13 +52,11 @@ export class GrammarRepository {
         declarator(
           typeIndex,
           typeId,
-          prefix
-            ? {
-                ...def,
-                openedBy: this.qualify(def.openedBy),
-                closedBy: this.qualify(def.closedBy),
-              }
-            : def,
+          {
+            ...def,
+            openedBy: this.qualify(def.openedBy),
+            closedBy: this.qualify(def.closedBy),
+          },
           prefix,
         ));
     this.self = new SwitchRule(
@@ -69,12 +68,12 @@ export class GrammarRepository {
 
   private qualify(names: string | string[] | undefined) {
     return Array.isArray(names)
-      ? names.map((name) => this.prefix + name)
-      : names && this.prefix + names;
+      ? names.map((name) => nodeName(this.prefix, name))
+      : names && nodeName(this.prefix, names);
   }
 
   local(id: string) {
-    return id.slice(this.prefix.length);
+    return localName(this.prefix, id);
   }
 
   load() {
@@ -83,7 +82,7 @@ export class GrammarRepository {
       for (const name in repository) {
         const item = repository[name];
         if (item != null) {
-          this.add(item, this.prefix + name, true);
+          this.add(item, nodeName(this.prefix, name), true);
         }
       }
     }
@@ -235,7 +234,7 @@ export class GrammarRepository {
     if (!repository || !Object.hasOwn(repository, name)) {
       return [];
     }
-    const includedRule = this.map.get(this.prefix + name);
+    const includedRule = this.map.get(nodeName(this.prefix, name));
     if (
       includedRule instanceof MatchRule ||
       includedRule instanceof ScopedRule ||
