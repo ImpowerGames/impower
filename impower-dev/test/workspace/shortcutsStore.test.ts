@@ -103,6 +103,15 @@ describe("the shortcuts store", () => {
     expect(shortcuts.combo("rename")).toBe("F2");
   });
 
+  it("rolls by choice on Shift with the beat keys, and by beat without it", () => {
+    const shortcuts = macShortcuts();
+    const page = (key: string, shiftKey: boolean) => keydown({ key, code: key, shiftKey });
+    expect(shortcuts.matches(page("PageUp", true), "previousChoice")).toBe(true);
+    expect(shortcuts.matches(page("PageDown", true), "nextChoice")).toBe(true);
+    expect(shortcuts.matches(page("PageUp", false), "previousBeat")).toBe(true);
+    expect(shortcuts.matches(page("PageUp", false), "previousChoice")).toBe(false);
+  });
+
   it("matches a letter by the key the layout types", () => {
     const shortcuts = macShortcuts();
     shortcuts.record("search", "Mod+Y");

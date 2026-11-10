@@ -254,6 +254,10 @@ export class ScriptEditorController {
 
   protected _revealTimeout = 0;
 
+  protected _statusBarFrame = 0;
+
+  protected _pendingResponses = new Set<() => void>();
+
   protected _protocols = new ProtocolObserver();
   protected _historyCache = sharedEditorHistory;
 
@@ -300,6 +304,11 @@ export class ScriptEditorController {
       clearTimeout(this._revealTimeout);
       this._revealTimeout = 0;
     }
+    clearInterval(this._focusIntervalTimeout);
+    this._focusIntervalTimeout = 0;
+    cancelAnimationFrame(this._statusBarFrame);
+    this._statusBarFrame = 0;
+    this._pendingResponses.forEach((abandon) => abandon());
     this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
@@ -793,7 +802,9 @@ export class ScriptEditorController {
       bottomPanels.style.transition = "opacity 150ms";
       bottomPanels.hidden = false;
       this.refs.placeholder.hidden = true;
-      window.requestAnimationFrame(() => {
+      cancelAnimationFrame(this._statusBarFrame);
+      this._statusBarFrame = window.requestAnimationFrame(() => {
+        this._statusBarFrame = 0;
         if (bottomPanels) {
           bottomPanels.style.opacity = "1";
         }
@@ -853,34 +864,48 @@ export class ScriptEditorController {
     return SetEditorBreakpointsMessage.type.response(message.id, {});
   };
 
-  protected evaluateHover = (expression: string) =>
-    new Promise<string | null>((resolve) => {
-      const uri = this._textDocument?.uri;
-      if (!uri) {
-        resolve(null);
-        return;
-      }
-      const request = EvaluateEditorHoverMessage.type.request({
-        textDocument: { uri },
-        expression,
-      });
-      const finish = (value: string | null) => {
+  protected awaitResponse<T>(
+    request: Parameters<typeof sendProtocolMessage>[0],
+    isResponse: (message: unknown) => message is T,
+  ) {
+    return new Promise<T | undefined>((resolve) => {
+      const abandon = () => {
+        this._pendingResponses.delete(abandon);
         window.removeEventListener(MessageProtocol.event, onProtocol);
-        resolve(value);
+      };
+      const finish = (message?: T) => {
+        abandon();
+        resolve(message);
       };
       const onProtocol = (e: Event) => {
-        if (
-          e instanceof CustomEvent &&
-          EvaluateEditorHoverMessage.type.isResponse(e.detail, request.id)
-        ) {
-          finish("result" in e.detail ? (e.detail.result?.value ?? null) : null);
+        if (e instanceof CustomEvent && isResponse(e.detail)) {
+          finish(e.detail);
         }
       };
+      this._pendingResponses.add(abandon);
       window.addEventListener(MessageProtocol.event, onProtocol);
       if (!sendProtocolMessage(request, this.host) || !this.host.isConnected) {
-        finish(null);
+        finish();
       }
     });
+  }
+
+  protected evaluateHover = async (expression: string) => {
+    const uri = this._textDocument?.uri;
+    if (!uri) {
+      return null;
+    }
+    const request = EvaluateEditorHoverMessage.type.request({
+      textDocument: { uri },
+      expression,
+    });
+    const response = await this.awaitResponse(request, (message) =>
+      EvaluateEditorHoverMessage.type.isResponse(message, request.id),
+    );
+    return response && "result" in response
+      ? (response.result?.value ?? null)
+      : null;
+  };
 
   protected handleSetEditorPinpoints = (
     message: SetEditorPinpointsMessage.Request,
@@ -1151,50 +1176,19 @@ export class ScriptEditorController {
           serverWorkspace: (client: LSPClient) =>
             new SparkdownCodemirrorWorkspace(client, {
               showDocument: async (params) => {
-                return new Promise((resolve) => {
-                  const request = ShowDocumentMessage.type.request(params);
-                  const onProtocol = (e: Event) => {
-                    if (e instanceof CustomEvent) {
-                      const message = e.detail;
-                      if (
-                        ShowDocumentMessage.type.isResponse(message, request.id)
-                      ) {
-                        resolve();
-                        window.removeEventListener(
-                          MessageProtocol.event,
-                          onProtocol,
-                        );
-                      }
-                    }
-                  };
-                  window.addEventListener(MessageProtocol.event, onProtocol);
-                  sendProtocolMessage(request, this.host);
-                });
+                const request = ShowDocumentMessage.type.request(params);
+                await this.awaitResponse(request, (message) =>
+                  ShowDocumentMessage.type.isResponse(message, request.id),
+                );
               },
               applyWorkspaceEdit: async (params) => {
-                return new Promise((resolve) => {
-                  const request =
-                    ApplyWorkspaceEditMessage.type.request(params);
-                  const onProtocol = (e: Event) => {
-                    if (e instanceof CustomEvent) {
-                      const message = e.detail;
-                      if (
-                        ApplyWorkspaceEditMessage.type.isResponse(
-                          message,
-                          request.id,
-                        )
-                      ) {
-                        resolve();
-                        window.removeEventListener(
-                          MessageProtocol.event,
-                          onProtocol,
-                        );
-                      }
-                    }
-                  };
-                  window.addEventListener(MessageProtocol.event, onProtocol);
-                  sendProtocolMessage(request, this.host);
-                });
+                const request = ApplyWorkspaceEditMessage.type.request(params);
+                await this.awaitResponse(request, (message) =>
+                  ApplyWorkspaceEditMessage.type.isResponse(
+                    message,
+                    request.id,
+                  ),
+                );
               },
               onWillApplyWorkspaceEdit: () => {
                 this.allowEditing(false);

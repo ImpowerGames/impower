@@ -6,7 +6,8 @@ text.source.sparkdown [0..117]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ keyword.control.while.luau [14..19]: "while"
  ├─ punctuation.whitespace.optional.sd [19..20]: " "
- ├─ variable.other.readwrite.luau [20..21]: "x"
+ ├─ meta.embedded.line.luau [20..21]
+ │   └─ variable.other.readwrite.luau [20..21]: "x"
  ├─ punctuation.whitespace.optional.sd [21..22]: " "
  ├─ keyword.control.do.luau [22..24]: "do"
  ├─ Newline [24..25]: "\n"

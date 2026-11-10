@@ -14,20 +14,23 @@ text.source.sparkdown [0..182]
  │   │   ├─ comment.luau [16..17]: "]"
  │   │   ├─ comment.luau [17..18]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [18..19]: " "
- │   ├─ entity.name.type.define.luau [19..25]: "banner"
- │   ├─ punctuation.whitespace.sd [25..26]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [26..27]: "{"
+ │   └─ meta.embedded.block.luau [19..27]
+ │       ├─ entity.name.type.define.luau [19..25]: "banner"
+ │       ├─ punctuation.whitespace.sd [25..26]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [26..27]: "{"
  ├─ Newline [27..28]: "\n"
  ├─ meta.style.luau [28..41]
- │   ├─ punctuation.whitespace.sd [28..30]: "  "
- │   ├─ variable.other.property.define.sd [30..35]: "color"
- │   ├─ markup.raw.whitespace.separator.optional.sd [35..36]: " "
- │   ├─ keyword.operator.assignment.sd [36..37]: "="
- │   ├─ markup.raw.whitespace.separator.optional.sd [37..38]: " "
- │   └─ string.unquoted.identifier.sd [38..41]: "red"
+ │   └─ meta.embedded.block.luau [28..41]
+ │       ├─ punctuation.whitespace.sd [28..30]: "  "
+ │       ├─ variable.other.property.define.sd [30..35]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [35..36]: " "
+ │       ├─ keyword.operator.assignment.sd [36..37]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [37..38]: " "
+ │       └─ string.unquoted.identifier.sd [38..41]: "red"
  ├─ Newline [41..42]: "\n"
  ├─ meta.style.luau [42..43]
- │   └─ punctuation.definition.template-expression.end.sd [42..43]: "}"
+ │   └─ meta.embedded.block.luau [42..43]
+ │       └─ punctuation.definition.template-expression.end.sd [42..43]: "}"
  ├─ Newline [43..44]: "\n"
  ├─ Newline [44..45]: "\n"
  ├─ meta.layout.luau [45..70]
@@ -45,22 +48,25 @@ text.source.sparkdown [0..182]
  │   │   ├─ comment.luau [62..63]: "]"
  │   │   ├─ comment.luau [63..64]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [64..65]: " "
- │   ├─ entity.name.type.define.luau [65..68]: "hud"
- │   ├─ punctuation.whitespace.sd [68..69]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [69..70]: "{"
+ │   └─ meta.embedded.block.luau [65..70]
+ │       ├─ entity.name.type.define.luau [65..68]: "hud"
+ │       ├─ punctuation.whitespace.sd [68..69]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [69..70]: "{"
  ├─ Newline [70..71]: "\n"
  ├─ meta.layout.luau [71..82]
- │   ├─ punctuation.whitespace.sd [71..73]: "  "
- │   ├─ keyword.other.component.builtin.name.sd [73..77]: "text"
- │   ├─ punctuation.whitespace.required.sd [77..78]: " "
- │   └─ string.quoted.double.sd [78..82]
- │       ├─ punctuation.definition.string.begin.sd [78..79]: "\""
- │       ├─ markup.raw.whitespace.sd [79..80]: "h"
- │       ├─ markup.raw.whitespace.sd [80..81]: "i"
- │       └─ punctuation.definition.string.end.sd [81..82]: "\""
+ │   └─ meta.embedded.block.luau [71..82]
+ │       ├─ punctuation.whitespace.sd [71..73]: "  "
+ │       ├─ keyword.other.component.builtin.name.sd [73..77]: "text"
+ │       ├─ punctuation.whitespace.required.sd [77..78]: " "
+ │       └─ string.quoted.double.sd [78..82]
+ │           ├─ punctuation.definition.string.begin.sd [78..79]: "\""
+ │           ├─ markup.raw.whitespace.sd [79..80]: "h"
+ │           ├─ markup.raw.whitespace.sd [80..81]: "i"
+ │           └─ punctuation.definition.string.end.sd [81..82]: "\""
  ├─ Newline [82..83]: "\n"
  ├─ meta.layout.luau [83..84]
- │   └─ punctuation.definition.template-expression.end.sd [83..84]: "}"
+ │   └─ meta.embedded.block.luau [83..84]
+ │       └─ punctuation.definition.template-expression.end.sd [83..84]: "}"
  ├─ Newline [84..85]: "\n"
  ├─ Newline [85..86]: "\n"
  ├─ meta.component.luau [86..115]
@@ -78,24 +84,27 @@ text.source.sparkdown [0..182]
  │   │   ├─ comment.luau [106..107]: "]"
  │   │   ├─ comment.luau [107..108]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [108..109]: " "
- │   ├─ entity.name.type.define.luau [109..113]: "card"
- │   ├─ punctuation.whitespace.sd [113..114]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [114..115]: "{"
+ │   └─ meta.embedded.block.luau [109..115]
+ │       ├─ entity.name.type.define.luau [109..113]: "card"
+ │       ├─ punctuation.whitespace.sd [113..114]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [114..115]: "{"
  ├─ Newline [115..116]: "\n"
  ├─ meta.component.luau [116..129]
- │   ├─ punctuation.whitespace.sd [116..118]: "  "
- │   ├─ keyword.other.component.builtin.name.sd [118..122]: "text"
- │   ├─ punctuation.whitespace.required.sd [122..123]: " "
- │   └─ string.quoted.double.sd [123..129]
- │       ├─ punctuation.definition.string.begin.sd [123..124]: "\""
- │       ├─ markup.raw.whitespace.sd [124..125]: "c"
- │       ├─ markup.raw.whitespace.sd [125..126]: "a"
- │       ├─ markup.raw.whitespace.sd [126..127]: "r"
- │       ├─ markup.raw.whitespace.sd [127..128]: "d"
- │       └─ punctuation.definition.string.end.sd [128..129]: "\""
+ │   └─ meta.embedded.block.luau [116..129]
+ │       ├─ punctuation.whitespace.sd [116..118]: "  "
+ │       ├─ keyword.other.component.builtin.name.sd [118..122]: "text"
+ │       ├─ punctuation.whitespace.required.sd [122..123]: " "
+ │       └─ string.quoted.double.sd [123..129]
+ │           ├─ punctuation.definition.string.begin.sd [123..124]: "\""
+ │           ├─ markup.raw.whitespace.sd [124..125]: "c"
+ │           ├─ markup.raw.whitespace.sd [125..126]: "a"
+ │           ├─ markup.raw.whitespace.sd [126..127]: "r"
+ │           ├─ markup.raw.whitespace.sd [127..128]: "d"
+ │           └─ punctuation.definition.string.end.sd [128..129]: "\""
  ├─ Newline [129..130]: "\n"
  ├─ meta.component.luau [130..131]
- │   └─ punctuation.definition.template-expression.end.sd [130..131]: "}"
+ │   └─ meta.embedded.block.luau [130..131]
+ │       └─ punctuation.definition.template-expression.end.sd [130..131]: "}"
  ├─ Newline [131..132]: "\n"
  ├─ Newline [132..133]: "\n"
  ├─ keyword.control.scene.sd [133..138]: "scene"

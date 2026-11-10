@@ -6,23 +6,24 @@ text.source.sparkdown [0..40]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [14..15]: "&"
  ├─ punctuation.whitespace.required.sd [15..16]: " "
- ├─ variable.other.readwrite.luau [16..17]: "x"
- ├─ punctuation.whitespace.optional.sd [17..18]: " "
- ├─ keyword.operator.assignment.luau [18..19]: "="
- ├─ punctuation.whitespace.optional.sd [19..20]: " "
- ├─ keyword.operator.logical.luau [20..23]
- │   └─ keyword.operator.wordlike.luau [20..23]: "not"
- ├─ punctuation.whitespace.optional.sd [23..24]: " "
- ├─ variable.other.readwrite.luau [24..25]: "a"
- ├─ punctuation.whitespace.optional.sd [25..26]: " "
- ├─ keyword.operator.logical.luau [26..29]
- │   └─ keyword.operator.wordlike.luau [26..29]: "and"
- ├─ punctuation.whitespace.optional.sd [29..30]: " "
- ├─ variable.other.readwrite.luau [30..31]: "b"
- ├─ punctuation.whitespace.optional.sd [31..32]: " "
- ├─ keyword.operator.logical.luau [32..34]
- │   └─ keyword.operator.wordlike.luau [32..34]: "or"
- ├─ punctuation.whitespace.optional.sd [34..35]: " "
- ├─ variable.other.readwrite.luau [35..36]: "c"
+ ├─ meta.embedded.line.luau [16..36]
+ │   ├─ variable.other.readwrite.luau [16..17]: "x"
+ │   ├─ punctuation.whitespace.optional.sd [17..18]: " "
+ │   ├─ keyword.operator.assignment.luau [18..19]: "="
+ │   ├─ punctuation.whitespace.optional.sd [19..20]: " "
+ │   ├─ keyword.operator.logical.luau [20..23]
+ │   │   └─ keyword.operator.wordlike.luau [20..23]: "not"
+ │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   ├─ variable.other.readwrite.luau [24..25]: "a"
+ │   ├─ punctuation.whitespace.optional.sd [25..26]: " "
+ │   ├─ keyword.operator.logical.luau [26..29]
+ │   │   └─ keyword.operator.wordlike.luau [26..29]: "and"
+ │   ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │   ├─ variable.other.readwrite.luau [30..31]: "b"
+ │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ │   ├─ keyword.operator.logical.luau [32..34]
+ │   │   └─ keyword.operator.wordlike.luau [32..34]: "or"
+ │   ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │   └─ variable.other.readwrite.luau [35..36]: "c"
  ├─ Newline [36..37]: "\n"
  └─ keyword.control.end.luau [37..40]: "end"

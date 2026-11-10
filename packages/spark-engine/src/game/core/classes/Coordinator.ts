@@ -6,10 +6,48 @@ import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
-import { choosePresenter } from "./presenters/choosePresenter";
-import { openInitialLayouts } from "./presenters/textLayouts";
+import {
+  InteractiveFictionPresenter,
+  textstreamOpenAfter,
+} from "./presenters/InteractiveFictionPresenter";
+import type { PresentOptions, Presenter } from "./presenters/Presenter";
+import { StagePresenter } from "./presenters/StagePresenter";
+import {
+  openInitialLayouts,
+  presentsText,
+  textLayoutOpenAfter,
+  UNSHOWN_TEXT_MESSAGE,
+} from "./presenters/textLayouts";
+import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
+
+interface PresenterKind {
+  presents(game: Game, instructions: Instructions): boolean;
+  create(game: Game, instructions: Instructions, options: PresentOptions): Presenter;
+}
+
+const PRESENTERS: readonly PresenterKind[] = [
+  {
+    presents: (game, instructions) =>
+      !presentsText(instructions) || textLayoutOpenAfter(game, instructions),
+    create: (game, instructions, options) =>
+      new VisualNovelPresenter(game, instructions, options),
+  },
+  {
+    presents: textstreamOpenAfter,
+    create: (game, instructions, options) =>
+      new InteractiveFictionPresenter(game, instructions, options),
+  },
+];
+
+const CHOICE_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+const NEXT_KEYS = ["ArrowDown", "ArrowRight"];
+
+const PREVIOUS_KEYS = ["ArrowUp", "ArrowLeft"];
+
+const reportedUnshownText = new WeakSet<Game>();
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -29,6 +67,14 @@ export class Coordinator<G extends Game> {
   protected _elapsedMS = 0;
 
   protected _onTick?: (deltaMS: number) => void;
+
+  protected _presenters: Presenter[] = [];
+
+  protected _displayed = false;
+
+  protected _chosen = false;
+
+  protected _focused: number | null = null;
 
   constructor(
     game: G,
@@ -51,6 +97,7 @@ export class Coordinator<G extends Game> {
   }
 
   onSettle() {
+    this._displayed = true;
     this.display({ instant: true });
     this._startedExecution = true;
     this._onTick = () => {};
@@ -82,11 +129,85 @@ export class Coordinator<G extends Game> {
           this.interact();
         }
       } else if (params.type === "keydown") {
+        if (this.handleChoiceKey(params)) {
+          return;
+        }
         if (isAdvanceKey(params)) {
           this.interact();
         }
       }
     }
+  }
+
+  protected handleChoiceKey(
+    params: Parameters<typeof isAdvanceKey>[0],
+  ): boolean {
+    const count = this._instructions.choices?.length ?? 0;
+    if (count === 0 || params.altKey || params.ctrlKey || params.metaKey) {
+      return false;
+    }
+    const key = params.key;
+    const number = CHOICE_KEYS.indexOf(key);
+    if (number >= 0) {
+      if (number < count && !params.repeat) {
+        this.choose(number);
+      }
+      return true;
+    }
+    const step = NEXT_KEYS.includes(key)
+      ? 1
+      : PREVIOUS_KEYS.includes(key)
+        ? -1
+        : 0;
+    if (step !== 0) {
+      const from = this._focused ?? (step > 0 ? -1 : count);
+      this.focusChoice((from + step + count) % count);
+      return true;
+    }
+    if (this._focused !== null && isAdvanceKey(params)) {
+      this.choose(this._focused);
+      return true;
+    }
+    return false;
+  }
+
+  protected focusChoice(index: number | null): void {
+    this._focused = index;
+    for (const presenter of this._presenters) {
+      presenter.focus?.(index);
+    }
+  }
+
+  protected choose(index: number): void {
+    const game = this._game;
+    const count = this._instructions.choices?.length ?? 0;
+    if (game.ending || this._chosen || index < 0 || index >= count) {
+      return;
+    }
+    this._chosen = true;
+    if (this._focused !== null) {
+      this.focusChoice(null);
+    }
+    for (const presenter of this._presenters) {
+      presenter.chose?.(index);
+    }
+    game.chosePathToContinue(index);
+  }
+
+  protected presenters(options: Omit<PresentOptions, "stage">): Presenter[] {
+    const game = this._game;
+    const instructions = this._instructions;
+    const open = PRESENTERS.filter((kind) => kind.presents(game, instructions));
+    if (open.length === 0) {
+      if (presentsText(instructions) && !reportedUnshownText.has(game)) {
+        reportedUnshownText.add(game);
+        game.log(UNSHOWN_TEXT_MESSAGE, "warning");
+      }
+      return [new StagePresenter(game, instructions, { ...options, stage: true })];
+    }
+    return open.map((kind, index) =>
+      kind.create(game, instructions, { ...options, stage: index === 0 }),
+    );
   }
 
   protected interact(): void {
@@ -168,11 +289,29 @@ export class Coordinator<G extends Game> {
       Boolean(instant) || Boolean(game.context.system.simulating),
     );
 
-    const presenter = choosePresenter(game, instructions, {
+    const presenters = this.presenters({
       instant,
       preview: previewing,
-      choose: (index) => game.chosePathToContinue(index),
+      again: this._displayed,
+      choose: (index) => this.choose(index),
     });
+    this._displayed = true;
+    this._presenters = presenters;
+    for (const presenter of presenters) {
+      presenter.record?.();
+    }
+    const presenter = {
+      present: (time?: number) => {
+        for (const p of presenters) {
+          p.present(time);
+        }
+      },
+      finish: () => {
+        for (const p of presenters) {
+          p.finish();
+        }
+      },
+    };
 
     const extended = Boolean(instructions.extended);
 

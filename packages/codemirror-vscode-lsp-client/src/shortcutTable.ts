@@ -249,7 +249,6 @@ export const EDITOR_SHORTCUTS = [
   { id: "macSplitLine", fixed: true, keys: { mac: "Ctrl+O" } },
   { id: "macTranspose", fixed: true, keys: { mac: "Ctrl+T" } },
   { id: "macPageDown", fixed: true, keys: { mac: "Ctrl+V" } },
-  { id: "closeReferences", fixed: true, keys: "Escape" },
   { id: "cut", fixed: true, keys: "Mod+X" },
   { id: "copy", fixed: true, keys: "Mod+C" },
   { id: "paste", fixed: true, keys: "Mod+V" },

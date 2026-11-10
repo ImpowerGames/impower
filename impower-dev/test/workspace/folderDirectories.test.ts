@@ -8,7 +8,6 @@ import {
   type MemoryDirectory,
   memoryLocks,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
-import { buildFileTree } from "../../src/modules/spark-editor/utils/fileTree";
 import type WorkspaceFileSystemType from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "local";
@@ -112,14 +111,22 @@ const relativeFiles = async (fs: WorkspaceFileSystemType) =>
     .sort();
 
 const shownTree = async (fs: WorkspaceFileSystemType) => {
-  const show = (nodes: ReturnType<typeof buildFileTree>): unknown[] =>
-    nodes.map((n) => (n.isDirectory ? { [n.name]: show(n.children) } : n.name));
-  return show(
-    buildFileTree(
-      (await relativeFiles(fs)).filter((p) => !p.startsWith(".")),
-      { folders: await fs.getFolders(PROJECT) },
-    ),
-  );
+  const files = (await relativeFiles(fs)).filter((p) => !p.startsWith("."));
+  const folders = await fs.getFolders(PROJECT);
+  const parentOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  const nameOf = (p: string) => p.slice(p.lastIndexOf("/") + 1);
+  const allFolders = new Set(folders);
+  for (const p of [...files, ...folders]) {
+    for (let f = parentOf(p); f; f = parentOf(f)) allFolders.add(f);
+  }
+  const extOf = (p: string) => (nameOf(p).lastIndexOf(".") > 0 ? nameOf(p).slice(nameOf(p).lastIndexOf(".") + 1) : "");
+  const byName = (a: string, b: string) => nameOf(a).toLowerCase().localeCompare(nameOf(b).toLowerCase());
+  const byExtension = (a: string, b: string) => extOf(a).localeCompare(extOf(b)) || byName(a, b);
+  const show = (at: string): unknown[] => [
+    ...[...allFolders].filter((f) => parentOf(f) === at).sort(byName).map((f) => ({ [nameOf(f)]: show(f) })),
+    ...files.filter((p) => parentOf(p) === at).sort(byExtension).map(nameOf),
+  ];
+  return show("");
 };
 
 const seed = (files: Record<string, string>, folders: string[] = []) => {

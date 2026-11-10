@@ -1,7 +1,7 @@
 import type { HistoryReason } from "../constants/HISTORY_REASONS";
 import type { DocumentLocation } from "./DocumentLocation";
 
-export type RollTarget = "beat" | "choice";
+export type RollTarget = "beat" | "choice" | "breakpoint";
 
 export interface GameHistory {
   canRollBack: boolean;

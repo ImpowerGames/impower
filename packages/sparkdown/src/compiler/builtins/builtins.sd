@@ -1649,6 +1649,10 @@ style layout_textbox {
   z_index = -1
 }
 
+style layout_textstream {
+  z_index = -1
+}
+
 // The style named after each of the story's display targets (`backdrop`,
 // `portrait`, and the textbox's `character_name` through `action` below)
 // applies through `&:where(#data-display-target~=<target>)`. The ui gives
@@ -1722,6 +1726,10 @@ style choice {
     @hovered {
       background_color = black
       transition = all 0.15s linear
+    }
+    &:where(#data-focused) {
+      outline = 2px solid
+      outline_offset = 2px
     }
   }
 }
@@ -2516,6 +2524,22 @@ style h6 {
 
 style muted {
   text-color = slate_60
+}
+
+// The colour roles of the Interactive Fiction page (`layout textstream`): the
+// page's ground, its text, and the accent of names and options, beside `muted`
+// above. Every textstream element takes its colour from one of these four, so
+// a game re-themes the page by redefining them.
+style paper {
+  background-color = neutral_99
+}
+
+style ink {
+  text-color = slate_20
+}
+
+style accent {
+  text-color = orange_30
 }
 
 // A document paragraph, and the one block builtin that keeps a MARGIN.
@@ -3665,6 +3689,100 @@ style end_mark {
   color = white
 }
 
+style textstream {
+  position = absolute
+  inset = 0
+  overflow_y = auto
+  pointer_events = auto
+  container_type = inline-size
+}
+
+style textstream_column {
+  max_width = 36em
+  margin = 0 auto
+  padding = clamp(20px, 6cqi, 40px) clamp(16px, 6cqi, 40px) 56px
+  text-font = "Georgia, serif"
+  text-size = clamp(14px, 3.2cqi, 17px)
+  text-leading = 1.65
+  text-weight = 400
+  cursor = default
+}
+
+style textstream_action {
+  margin = 1.5em 0
+  font_style = italic
+}
+
+style textstream_dialogue {
+  margin = 0 4em
+}
+
+style textstream_name {
+  display = block
+  margin_top = 1.5em
+  font_variant_caps = all-small-caps
+  letter_spacing = 0.05em
+  font_weight = 700
+}
+
+style textstream_heading {
+  margin = 0
+  text_align = center
+  font_variant_caps = all-small-caps
+  letter_spacing = 0.1em
+}
+
+style textstream_rule {
+  margin = 1.5em 0
+  border = 0
+  border_top = 1px solid
+  opacity = 0.3
+}
+
+style textstream_options {
+  display = grid
+  gap = 6px
+  margin = 1em 0 1.2em
+}
+
+style textstream_option {
+  min_height = 44px
+  padding = 8px 14px
+  text_align = left
+  font = inherit
+  line_height = 1.4
+  color = inherit
+  background = none
+  border = 1px solid color-mix(in srgb, currentColor 20%, transparent)
+  border_radius = 9px
+  cursor = pointer
+  @hovered {
+    background_color = color-mix(in srgb, currentColor 6%, transparent)
+  }
+  &:where(#data-focused) {
+    outline = 2px solid
+    outline_offset = 2px
+  }
+}
+
+style textstream_chosen {
+  display = flex
+  flex_direction = row
+  align_items = baseline
+  margin = 0
+  font_style = italic
+  @before {
+    content = "▸"
+    margin_right = 0.35em
+    font_style = normal
+  }
+}
+
+style textstream_caption {
+  margin = 0
+  font_size = 0.8em
+}
+
 define screen with
   ["$recursive"] = true
 end
@@ -3757,6 +3875,12 @@ layout textbox {
     continue_indicator {
       text = ▼
     }
+  }
+}
+
+layout textstream {
+  textstream.paper.ink {
+    textstream_column
   }
 }
 

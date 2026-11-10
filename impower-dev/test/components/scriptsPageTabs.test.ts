@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +23,7 @@ const window = vi.hoisted(() => ({
   openOutlineLocation: vi.fn(async () => {
     calls.push("openOutlineLocation");
   }),
+  setOutlineSceneCollapsed: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { scripts, window },
@@ -35,8 +37,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
+const { ProblemsDialog } = await import("../../src/modules/spark-editor/components/problems");
+const { default: problems } = await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
 
 const URI = "file://p/main.sd";
+const PANES = workspace.current.panes;
 
 const at = (line: number) => ({
   start: { line, character: 0 },
@@ -81,10 +86,48 @@ const unmount = async () => {
 
 const tabs = () => [...host!.querySelectorAll<HTMLElement>('[role="tablist"] [role="tab"]')];
 const tabNamed = (name: string) => tabs().find((tab) => tab.textContent!.startsWith(name))!;
-const rowLabels = () =>
-  [...host!.querySelectorAll<HTMLButtonElement>('[role="listitem"] button[aria-label]')].map((b) =>
+const rowButtons = () =>
+  [...host!.querySelectorAll<HTMLButtonElement>('[role="listitem"] button[aria-label]')].filter(
+    (b) => !b.hasAttribute("aria-expanded") && !b.hasAttribute("data-list-row-badge"),
+  );
+const rowLabels = () => rowButtons().map((b) => b.getAttribute("aria-label"));
+const row = (name: string) => rowButtons().find((b) => b.getAttribute("aria-label")!.startsWith(name))!;
+const badgeOf = (button: HTMLElement) =>
+  button.parentElement!.querySelector<HTMLButtonElement>("[data-list-row-badge]");
+const disclosures = () =>
+  [...host!.querySelectorAll<HTMLButtonElement>('[role="listitem"] button[aria-expanded]')].map((b) =>
     b.getAttribute("aria-label"),
   );
+
+const setCaret = (line: number) => {
+  const state = workspace.current;
+  const logic = state.panes.logic;
+  workspace.current = {
+    ...state,
+    panes: {
+      ...state.panes,
+      logic: {
+        ...logic,
+        panel: "main",
+        panels: {
+          ...logic.panels,
+          main: {
+            ...logic.panels.main,
+            activeEditor: {
+              open: true,
+              filename: "main.sd",
+              selectedRange: { start: { line, character: 1 }, end: { line, character: 1 } },
+            },
+          },
+        },
+      },
+    },
+  };
+};
+
+const setCollapsed = (scenes: string[]) => {
+  workspace.current = { ...workspace.current, outline: { collapsed: { [URI]: scenes } } };
+};
 const search = (label: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
 
 const type = async (input: HTMLInputElement, value: string) => {
@@ -97,12 +140,13 @@ const type = async (input: HTMLInputElement, value: string) => {
 
 beforeEach(() => {
   layout.value = "phone";
+  workspace.layout.value = layout.value as Layout;
   calls.length = 0;
   vi.clearAllMocks();
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
   });
-  workspace.current = { ...workspace.current, lists: {} };
+  workspace.current = { ...workspace.current, lists: {}, outline: {}, panes: PANES };
   workspace.outline.value = { uri: URI, symbols: SYMBOLS, diagnostics: [], firstContentLine: 0 };
 });
 
@@ -188,9 +232,80 @@ describe("the phone Scripts page", () => {
   });
 });
 
+describe("the In this script tab's rows", () => {
+  const STORM_ERROR = {
+    range: { start: { line: 2, character: 1 }, end: { line: 2, character: 4 } },
+    severity: 1 as const,
+    message: "broken",
+  };
+  const dialog = () =>
+    [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find((d) =>
+      d.textContent!.includes("Problems to fix"),
+    );
+
+  beforeEach(() => {
+    workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
+  });
+
+  afterEach(async () => {
+    await act(async () => problems.closeDialog());
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
+  it("badges a scene with an error and opens its scoped Problems from the badge", async () => {
+    workspace.outline.value = { uri: URI, symbols: SYMBOLS, diagnostics: [STORM_ERROR], firstContentLine: 0 };
+    const dialogHost = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(ProblemsDialog, null), dialogHost));
+    await mount();
+    expect(badgeOf(row("Scene: dock"))).toBeNull();
+    const storm = badgeOf(row("Branch: storm"))!;
+    expect(storm.getAttribute("aria-label")).toBe("1 error in storm");
+    const harbor = badgeOf(row("Scene: harbor"))!;
+    expect(harbor.getAttribute("aria-label")).toBe("Scene total: 1 error in harbor");
+    expect(harbor.getAttribute("aria-haspopup")).toBe("dialog");
+    await act(async () => harbor.click());
+    expect(dialog()!.querySelector("p")!.textContent).toBe("harbor · 1 error");
+    expect(window.openOutlineLocation).not.toHaveBeenCalled();
+    await act(async () => render(null, dialogHost));
+    dialogHost.remove();
+  });
+
+  it("marks the row holding the caret as current, and its scene as containing it", async () => {
+    setCaret(2);
+    await mount();
+    expect(row("Branch: storm").getAttribute("aria-current")).toBe("location");
+    expect(row("Scene: harbor").hasAttribute("aria-current")).toBe(false);
+    expect(row("Scene: harbor").parentElement!.className.split(/\s+/)).toContain("text-accent");
+  });
+
+  it("collapses a scene through the rail's persisted state while the search is empty", async () => {
+    setCaret(2);
+    await mount();
+    expect(disclosures()).toEqual(["Collapse scene harbor"]);
+    await act(async () =>
+      host!.querySelector<HTMLButtonElement>('button[aria-label="Collapse scene harbor"]')!.click(),
+    );
+    await vi.waitFor(() => expect(window.setOutlineSceneCollapsed).toHaveBeenCalledWith(URI, "harbor#0", true));
+    setCollapsed(["harbor#0"]);
+    await settle();
+    expect(rowLabels()).toEqual(["Scene: harbor", "Scene: dock"]);
+    expect(disclosures()).toEqual(["Expand scene harbor"]);
+    expect(row("Scene: harbor").getAttribute("aria-current")).toBe("location");
+  });
+
+  it("hides disclosures and lists every match while searching, ignoring collapsed scenes", async () => {
+    setCollapsed(["harbor#0"]);
+    await mount();
+    await type(search("Search this script"), "o");
+    expect(disclosures()).toEqual([]);
+    expect(rowLabels()).toEqual(["Scene: harbor", "Choose: Where now", "Branch: storm", "Scene: dock"]);
+  });
+});
+
 describe("the Scripts page off the phone", () => {
   it("has no tabs and shows All scripts", async () => {
     layout.value = "compact";
+    workspace.layout.value = layout.value as Layout;
     workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
     await mount();
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
