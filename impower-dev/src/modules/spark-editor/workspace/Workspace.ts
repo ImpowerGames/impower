@@ -9,6 +9,7 @@ import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
 import WorkspaceAssets from "./WorkspaceAssets";
+import WorkspaceAudition from "./WorkspaceAudition";
 import WorkspaceScripts from "./WorkspaceScripts";
 import WorkspaceSearch from "./WorkspaceSearch";
 import { searchSources } from "./searchSources";
@@ -34,6 +35,10 @@ export namespace Workspace {
     ls,
     window,
     autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+  });
+  export const audition = new WorkspaceAudition({
+    preview: (filename, shown) => window.auditionConstruct(filename, shown),
+    audio: () => new Audio(),
   });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();

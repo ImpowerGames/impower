@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
-  inserted: [] as [string, string][],
+  inserted: [] as [string, string, string?][],
+  auditions: [] as string[],
+  navigated: [] as unknown[][],
   opened: 0,
   closed: 0,
   searchClosed: 0,
@@ -30,6 +32,23 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
   };
   return {
     Workspace: {
+      audition: {
+        show: (target: { kind: string; name?: string; src?: string }) => {
+          calls.auditions.push(`show ${target.name ?? target.src}`);
+        },
+        revert: () => {
+          calls.auditions.push("revert");
+        },
+        commit: () => {
+          calls.auditions.push("commit");
+        },
+      },
+      assets: {
+        watch: () => () => {},
+        measureDurations: async () => {
+          store.assetDurations.value = { "blob:door": 2.4, "blob:click": 65 };
+        },
+      },
       search: {
         close: () => {
           calls.searchClosed++;
@@ -48,14 +67,20 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
           screen(undefined);
         },
         readInsertContext: async () => calls.context,
-        insertConstruct: async (filename: string, construct: string) => {
-          calls.inserted.push([filename, construct]);
+        insertConstruct: async (filename: string, construct: string, name?: string) => {
+          calls.inserted.push(name === undefined ? [filename, construct] : [filename, construct, name]);
           screen(undefined);
           return true;
         },
         readNameAtCaret: async () => null,
         readEditorKeybindings: async () => null,
         closeWritingTools: () => {},
+        navigateTo: (...args: unknown[]) => {
+          calls.navigated.push(["navigateTo", ...args]);
+        },
+        setListState: (lists: unknown) => {
+          calls.navigated.push(["setListState", lists]);
+        },
         openWritingTools: () => {},
       },
     },
@@ -64,6 +89,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
 
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { assetEndings } =
+  await import("../../src/modules/spark-editor/utils/assetTypes");
 const { default: WriterBar } =
   await import("../../src/modules/spark-editor/components/writer-bar/WriterBar");
 
@@ -103,9 +130,34 @@ const row = (construct: string) =>
     `[data-add-construct="${construct}"]`,
   )!;
 
+const FILES = [
+  "assets/Backdrops/beach.png",
+  "assets/Backdrops/beach@night.png",
+  "assets/art/backdrops/city/plaza.png",
+  "assets/Portraits/imani.png",
+  "assets/Portraits/imani~mood.happy.png",
+  "assets/Sounds/door.wav",
+  "assets/Sounds/ui/click.wav",
+];
+
+const listAssets = (paths: readonly string[]) => {
+  workspace.assetListing.value = {
+    projectId: "local",
+    folders: [],
+    files: Object.fromEntries(
+      paths.map((path) => [path, { modified: 0, size: 1, src: `blob:${path.split("/").pop()!.split(".")[0]}` }]),
+    ),
+  };
+};
+
 beforeEach(() => {
   calls.commands.length = 0;
   calls.inserted.length = 0;
+  calls.auditions.length = 0;
+  calls.navigated.length = 0;
+  assetEndings.value = { image: ["png"], audio: ["wav"], video: [], font: [] };
+  workspace.assetDurations.value = {};
+  listAssets(FILES);
   calls.opened = 0;
   calls.closed = 0;
   calls.searchClosed = 0;
@@ -266,5 +318,139 @@ describe("the Add panel on a phone", () => {
     expect(panel()).toBeNull();
     expect(workspace.keyboardPanels.value).toEqual([]);
     expect(calls.commands).toContainEqual(["main.sd", "focus"]);
+  });
+});
+
+const pickerPanel = (title: string) =>
+  document.querySelector<HTMLElement>(`[role="dialog"][aria-label="${title}"]`);
+const cards = (title: string) =>
+  Array.from(pickerPanel(title)!.querySelectorAll<HTMLElement>("[data-picker-item]"));
+const button = (title: string, text: string) =>
+  Array.from(pickerPanel(title)!.querySelectorAll<HTMLButtonElement>("button")).find(
+    (candidate) => candidate.textContent?.trim() === text || candidate.getAttribute("aria-label") === text,
+  )!;
+const openPicker = async (construct: string, title: string) => {
+  await mount();
+  await setOpen(true);
+  await act(async () => row(construct).click());
+  await settle();
+  return pickerPanel(title)!;
+};
+
+describe("the pickers on desktop", () => {
+  it("open from their row, headed by their kind with Back, listing each picture and alternate with its subfolder", async () => {
+    const picker = await openPicker("backdrop", "Backdrop");
+    expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
+    expect(cards("Backdrop").map((card) => [card.dataset["pickerItem"], card.getAttribute("aria-label")])).toEqual([
+      ["beach", "Preview beach"],
+      ["beach@night", "Preview beach, night"],
+      ["plaza", "Preview plaza, city"],
+    ]);
+    expect(document.activeElement).toBe(cards("Backdrop")[0]);
+    expect(picker.querySelector("[data-picker-status]")!.textContent).toBe("Select to preview");
+    expect(button("Backdrop", "Use backdrop").disabled).toBe(true);
+  });
+
+  it("preview a pressed picture, then Use writes its name through the insert path and closes", async () => {
+    await openPicker("backdrop", "Backdrop");
+    await act(async () => cards("Backdrop")[1]!.click());
+    await settle();
+    expect(calls.auditions).toEqual(["show beach@night"]);
+    expect(cards("Backdrop")[1]!.getAttribute("aria-pressed")).toBe("true");
+    expect(pickerPanel("Backdrop")!.querySelector("[data-picker-status]")!.textContent).toBe("Previewing");
+    await act(async () => button("Backdrop", "Use backdrop").click());
+    await settle();
+    expect(calls.inserted).toEqual([["main.sd", "backdrop", "beach@night"]]);
+    expect(calls.auditions.slice(1, 2)).toEqual(["commit"]);
+    expect(panel()).toBeNull();
+    expect(pickerPanel("Backdrop")).toBeNull();
+  });
+
+  it("revert the preview when Back returns to the rows and when the panel closes", async () => {
+    await openPicker("backdrop", "Backdrop");
+    await act(async () => cards("Backdrop")[0]!.click());
+    await act(async () => button("Backdrop", "Back to add options").click());
+    await settle();
+    expect(calls.auditions).toEqual(["show beach", "revert"]);
+    expect(panel()!.querySelector('[data-add-construct="backdrop"]')).not.toBeNull();
+    await act(async () => row("portrait").click());
+    await settle();
+    await act(async () => cards("Portrait")[1]!.click());
+    await setOpen(false);
+    expect(calls.auditions).toEqual(["show beach", "revert", "show imani:happy", "revert"]);
+  });
+
+  it("offer a portrait's options and a sound's length, playing a pressed sound", async () => {
+    await openPicker("portrait", "Portrait");
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "imani:happy"]);
+    await act(async () => button("Portrait", "Back to add options").click());
+    await act(async () => row("sound").click());
+    await settle();
+    expect(cards("Sound").map((card) => card.getAttribute("aria-label"))).toEqual([
+      "Preview door, 0:02",
+      "Preview click, 1:05 · ui",
+    ]);
+    await act(async () => cards("Sound")[0]!.click());
+    await settle();
+    expect(calls.auditions).toEqual(["revert", "show blob:door"]);
+    expect(pickerPanel("Sound")!.querySelector("[data-picker-status]")!.textContent).toBe("Playing");
+  });
+
+  it("say where the files go when the folder is empty, open Assets, or type a name instead", async () => {
+    listAssets([]);
+    const picker = await openPicker("music", "Music");
+    expect(picker.querySelector("[data-picker-empty]")!.textContent).toContain(
+      "No music yet.Sounds in a folder called Music are listed here.",
+    );
+    await act(async () => button("Music", "Open Assets").click());
+    await settle();
+    expect(calls.navigated).toEqual([
+      ["setListState", { assetsType: "audio" }],
+      ["navigateTo", "collection"],
+    ]);
+    expect(panel()).toBeNull();
+    await setOpen(true);
+    await act(async () => row("backdrop").click());
+    await settle();
+    expect(pickerPanel("Backdrop")!.textContent).toContain(
+      "No backdrops yet.Pictures in a folder called Backdrops are listed here.",
+    );
+    await act(async () => button("Backdrop", "Type a name instead").click());
+    await settle();
+    expect(calls.inserted).toEqual([["main.sd", "backdrop"]]);
+  });
+});
+
+describe("the pickers on a phone", () => {
+  it("show a carousel with its position, where one tap inserts without a preview", async () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    await mount();
+    await setOpen(true);
+    await act(async () => row("backdrop").click());
+    await settle();
+    const picker = pickerPanel("Backdrop")!;
+    expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("1 / 3");
+    await act(async () => button("Backdrop", "Next backdrops").click());
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("2 / 3");
+    expect(cards("Backdrop")[1]!.getAttribute("aria-label")).toBe("Add beach, night");
+    await act(async () => cards("Backdrop")[1]!.click());
+    await settle();
+    expect(calls.inserted).toEqual([["main.sd", "backdrop", "beach@night"]]);
+    expect(calls.auditions.filter((entry) => entry.startsWith("show"))).toEqual([]);
+  });
+
+  it("link the Portrait picker to the thumbnail preference", async () => {
+    layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
+    await mount();
+    await setOpen(true);
+    await act(async () => row("portrait").click());
+    await settle();
+    await act(async () => button("Portrait", "Portrait thumbnail preferences").click());
+    await settle();
+    expect(calls.navigated).toEqual([["navigateTo", "project", "add-folder-preferences"]]);
+    expect(panel()).toBeNull();
   });
 });

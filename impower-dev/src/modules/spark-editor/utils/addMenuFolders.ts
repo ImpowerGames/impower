@@ -37,24 +37,34 @@ export interface AddMenuCandidate {
   readonly type: string;
 }
 
-export const addMenuKindsOf = (
+const nearestFolder = (
   { path, type }: AddMenuCandidate,
   folders: AddMenuFolders,
-): AddMenuKind[] => {
+): { kinds: AddMenuKind[]; below: string } | undefined => {
   const parts = path.split("/");
   if (parts.length < 3 || parts[0]!.toLowerCase() !== ASSETS_ROOT) {
-    return [];
+    return undefined;
   }
   const kinds = ADD_MENU_KINDS.filter((kind) => ADD_MENU_FILE_TYPES[kind] === type);
   for (let at = parts.length - 2; at >= 1; at -= 1) {
     const name = parts[at]!.toLowerCase();
     const named = kinds.filter((kind) => folders[kind].trim().toLowerCase() === name);
     if (named.length > 0) {
-      return named;
+      return { kinds: named, below: parts.slice(at + 1, -1).join("/") };
     }
   }
-  return [];
+  return undefined;
 };
+
+export const addMenuKindsOf = (
+  candidate: AddMenuCandidate,
+  folders: AddMenuFolders,
+): AddMenuKind[] => nearestFolder(candidate, folders)?.kinds ?? [];
+
+export const addMenuSubfolder = (
+  candidate: AddMenuCandidate,
+  folders: AddMenuFolders,
+): string | undefined => nearestFolder(candidate, folders)?.below;
 
 export const addMenuFiles = <T extends AddMenuCandidate>(
   candidates: Iterable<T>,

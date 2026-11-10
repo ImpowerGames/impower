@@ -35,6 +35,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
+import { AuditionEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/AuditionEditorConstructMessage";
 import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
@@ -488,9 +489,26 @@ export default class WorkspaceWindow {
     return insertContext(text, offset, sceneSpansOf(symbols));
   }
 
+  async auditionConstruct(
+    filename: string,
+    audition: { construct: InsertConstruct; name: string } | null,
+  ): Promise<boolean> {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const result = await this.requestEditor(
+      AuditionEditorConstructMessage.type,
+      { textDocument: { uri }, audition },
+    );
+    return !!result?.shown;
+  }
+
   async insertConstruct(
     filename: string,
     construct: InsertConstruct,
+    name?: string,
   ): Promise<boolean> {
     this.closeAddPanel();
     const projectId = this.store.project.id;
@@ -501,6 +519,7 @@ export default class WorkspaceWindow {
     const result = await this.requestEditor(InsertEditorConstructMessage.type, {
       textDocument: { uri },
       construct,
+      ...(name === undefined ? {} : { name }),
     });
     if (!result?.inserted) {
       showSnackbar({

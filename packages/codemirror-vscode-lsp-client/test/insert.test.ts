@@ -11,7 +11,7 @@ import {
   branchSpansOf,
   INSERT_CONSTRUCTS,
   insertConstruct,
-  insertConstructFromServer,
+  structureFromServer,
   insertContext,
   planInsertion,
   sceneSpansOf,
@@ -670,13 +670,13 @@ describe("structure read from the language server", () => {
     expect(diagnosticsOf(dialogue.text)).toEqual([]);
   });
 
-  it("inserts nothing when the editor has no language server to ask", async () => {
+  it("reads no structure when the editor has no language server to ask", async () => {
     const view = new EditorView({
       state: EditorState.create({ doc: SCRIPT }),
       parent: document.body,
     });
     try {
-      expect(await insertConstructFromServer(view, "scene", endsDialogueBlock)).toBe(false);
+      expect(await structureFromServer(view, endsDialogueBlock)).toBeNull();
       expect(view.state.doc.toString()).toBe(SCRIPT);
     } finally {
       view.destroy();
@@ -684,7 +684,11 @@ describe("structure read from the language server", () => {
   });
 });
 
-describe("insertConstructFromServer", () => {
+describe("structureFromServer", () => {
+  const insertFromServer = async (view: EditorView) => {
+    const structure = await structureFromServer(view, endsDialogueBlock);
+    return !!structure && insertConstruct("branch", structure)(view);
+  };
   const SOURCE = lines("scene start", "  Hello.", "end");
   const views: EditorView[] = [];
 
@@ -716,7 +720,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts with the server's scenes once they arrive", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
+    const result = insertFromServer(view);
     resolve();
     expect(await result).toBe(true);
     expect(view.state.doc.toString()).toContain(
@@ -726,7 +730,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts nothing when the script changed while the server answered", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
+    const result = insertFromServer(view);
     view.dispatch({ changes: { from: 0, insert: LF } });
     resolve();
     expect(await result).toBe(false);
@@ -736,7 +740,7 @@ describe("insertConstructFromServer", () => {
   it("never applies an answer to a script edited after it arrived", async () => {
     const { view, resolve } = pending();
     const outside = "store gold = 1";
-    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
+    const result = insertFromServer(view);
     resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -750,7 +754,7 @@ describe("insertConstructFromServer", () => {
 
   it("inserts nothing into an editor destroyed while the server answered", async () => {
     const { view, resolve } = pending();
-    const result = insertConstructFromServer(view, "branch", endsDialogueBlock);
+    const result = insertFromServer(view);
     view.destroy();
     resolve();
     expect(await result).toBe(false);
@@ -1289,6 +1293,31 @@ describe("insertConstruct command", () => {
     expect(editor.state.sliceDoc(from, to)).toBe("What happens next?");
     expect(undo(editor)).toBe(true);
     expect(editor.state.doc.toString()).toBe(typed);
+  });
+
+  it("writes a picked name in place of the placeholder and leaves the caret at the end of its line", () => {
+    const source = lines("scene start", "  Hello.", "end", "");
+    const caret = caretAt(source, "Hello.");
+    const written = (
+      [
+        ["backdrop", "beach@night", "[[show backdrop beach@night]]"],
+        ["portrait", "imani:happy", "[[show portrait imani:happy]]"],
+        ["sound", "door", "((door))"],
+        ["music", "theme", "((play music theme loop))"],
+      ] as const
+    ).map(([construct, name, line]) => {
+      const plan = planInsertion(source, caret, construct, structureOf(source), name)!;
+      const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
+      return [
+        text.includes(lines("  Hello.", `  ${line}`, "end")),
+        plan.anchor === plan.head,
+        text.slice(0, plan.head).endsWith(line),
+      ];
+    });
+    expect(written).toEqual(Array(4).fill([true, true, true]));
+    const editor = mount(source, caret);
+    expect(insertConstruct("sound", structureOf(source), "door")(editor)).toBe(true);
+    expect(editor.state.doc.toString()).toContain(lines("  Hello.", "  ((door))"));
   });
 
   it("does nothing outside a scene or in a read-only script", () => {

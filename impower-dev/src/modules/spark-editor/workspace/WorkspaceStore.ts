@@ -197,6 +197,8 @@ class WorkspaceStore {
 
   readonly assetSizes = signal<Readonly<Record<string, ImageSize | null>>>({});
 
+  readonly assetDurations = signal<Readonly<Record<string, number | null>>>({});
+
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
   readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);

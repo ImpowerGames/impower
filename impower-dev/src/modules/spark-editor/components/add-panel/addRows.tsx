@@ -8,86 +8,149 @@ import {
   SceneIcon,
   SoundIcon,
   VolumeIcon,
+  type IconComponent,
 } from "@impower/impower-ui/components";
 import {
   TOP_LEVEL_CONSTRUCTS,
   type InsertConstruct,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
-import type { ComponentChildren } from "preact";
+
+import type { AddMenuKind } from "../../utils/addMenuFolders";
+
+export type PickerWording = {
+  kind: AddMenuKind;
+  audition: "picture" | "sound";
+  thumbnailPreference: boolean;
+  use: string;
+  empty: string;
+  emptyHelp: (folder: string) => string;
+  idle: string;
+  active: string;
+  browse: string;
+  previous: string;
+  next: string;
+};
 
 export type AddRow = {
   construct: InsertConstruct;
-  icon: ComponentChildren;
+  Icon: IconComponent;
   label: string;
   help: string;
-  picker: boolean;
+  picker?: PickerWording;
 };
+
+export type PickerRow = AddRow & { picker: PickerWording };
 
 export const ADD_ROWS: readonly AddRow[] = [
   {
     construct: "character",
-    icon: <AccountIcon />,
+    Icon: AccountIcon,
     label: "Character",
     help: "Define a new character.",
-    picker: false,
   },
   {
     construct: "scene",
-    icon: <SceneIcon />,
+    Icon: SceneIcon,
     label: "Scene",
     help: "Start a new part of the story.",
-    picker: false,
   },
   {
     construct: "branch",
-    icon: <BranchIcon />,
+    Icon: BranchIcon,
     label: "Branch",
     help: "Create a named path inside this scene.",
-    picker: false,
   },
   {
     construct: "choose",
-    icon: <ChooseIcon />,
+    Icon: ChooseIcon,
     label: "Choice Menu",
     help: "Present the reader with a decision.",
-    picker: false,
   },
   {
     construct: "dialogue",
-    icon: <DialogueIcon />,
+    Icon: DialogueIcon,
     label: "Dialogue",
     help: "Give a character something to say.",
-    picker: false,
   },
   {
     construct: "backdrop",
-    icon: <ArtIcon />,
+    Icon: ArtIcon,
     label: "Backdrop",
     help: "Change the location in the background.",
-    picker: true,
+    picker: {
+      kind: "backdrop",
+      audition: "picture",
+      thumbnailPreference: false,
+      use: "Use backdrop",
+      empty: "No backdrops yet.",
+      emptyHelp: (folder) => `Pictures in a folder called ${folder} are listed here.`,
+      idle: "Select to preview",
+      active: "Previewing",
+      browse: "Browse backdrop options",
+      previous: "Previous backdrops",
+      next: "Next backdrops",
+    },
   },
   {
     construct: "portrait",
-    icon: <FaceIcon />,
+    Icon: FaceIcon,
     label: "Portrait",
     help: "Show a character or expression.",
-    picker: true,
+    picker: {
+      kind: "portrait",
+      audition: "picture",
+      thumbnailPreference: true,
+      use: "Use portrait",
+      empty: "No portraits yet.",
+      emptyHelp: (folder) => `Pictures in a folder called ${folder} are listed here.`,
+      idle: "Select to preview",
+      active: "Previewing",
+      browse: "Browse portrait options",
+      previous: "Previous portraits",
+      next: "Next portraits",
+    },
   },
   {
     construct: "sound",
-    icon: <VolumeIcon />,
+    Icon: VolumeIcon,
     label: "Sound",
     help: "Play a sound effect.",
-    picker: true,
+    picker: {
+      kind: "sound",
+      audition: "sound",
+      thumbnailPreference: false,
+      use: "Use sound",
+      empty: "No sounds yet.",
+      emptyHelp: (folder) => `Sounds in a folder called ${folder} are listed here.`,
+      idle: "Select to listen",
+      active: "Playing",
+      browse: "Browse sound options",
+      previous: "Previous sounds",
+      next: "Next sounds",
+    },
   },
   {
     construct: "music",
-    icon: <SoundIcon />,
+    Icon: SoundIcon,
     label: "Music",
     help: "Play background music.",
-    picker: true,
+    picker: {
+      kind: "music",
+      audition: "sound",
+      thumbnailPreference: false,
+      use: "Use music",
+      empty: "No music yet.",
+      emptyHelp: (folder) => `Sounds in a folder called ${folder} are listed here.`,
+      idle: "Select to listen",
+      active: "Playing",
+      browse: "Browse music options",
+      previous: "Previous music",
+      next: "Next music",
+    },
   },
 ];
+
+export const isPickerRow = (row: AddRow): row is PickerRow => !!row.picker;
 
 export const rowDisabled = (row: AddRow, inScene: boolean | undefined) =>
   inScene === false && !TOP_LEVEL_CONSTRUCTS.includes(row.construct);
