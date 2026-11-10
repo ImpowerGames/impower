@@ -163,12 +163,10 @@ describe("WriterBar tools by layout", () => {
     expect(calls.started).toEqual(["scripts/intro.sd"]);
   });
 
-  it("keeps Add disabled with a tooltip until the Add panel exists", async () => {
+  it("offers Add at the end of the bar", async () => {
     await mount("main.sd");
-    const add = Array.from(host!.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "Add",
-    )!;
-    expect(add.disabled).toBe(true);
-    expect(add.parentElement!.getAttribute("title")).toMatch(/coming soon/);
+    const add = host!.querySelector<HTMLButtonElement>("[data-add-trigger]")!;
+    expect(add.textContent?.trim()).toBe("Add");
+    expect(add.disabled).toBe(false);
   });
 });

@@ -8,6 +8,7 @@ export interface ReadEditorParams {
 export interface ReadEditorResult {
   textDocument: { uri: string; version: number; text: string };
   selection: Range;
+  caret: Position;
   coordinates: { left: number; right: number; top: number; bottom: number } | null;
 }
 export class ReadEditorMessage {
