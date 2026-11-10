@@ -98,7 +98,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const insertedDialogue = () => {
+const insertedDialogue = (source = SOURCE) => {
   const host = document.body.appendChild(document.createElement("div"));
   const refs = {
     editor: host.appendChild(document.createElement("div")),
@@ -119,7 +119,7 @@ const insertedDialogue = () => {
   );
   const view = new EditorView({
     state: EditorState.create({
-      doc: SOURCE,
+      doc: source,
       extensions: [
         history(),
         client.plugin({ uri: URI, version: 5 }),
@@ -136,14 +136,14 @@ const insertedDialogue = () => {
   });
   const documents = new SparkdownDocumentRegistry(["declarations"]);
   documents.set({
-    textDocument: { uri: URI, text: SOURCE, version: 5, languageId: "sparkdown" },
+    textDocument: { uri: URI, text: source, version: 5, languageId: "sparkdown" },
   });
   const symbols = getDocumentSymbols(
     documents.get(URI)!,
     documents.annotations(URI),
     documents.tree(URI),
   );
-  view.dispatch({ selection: { anchor: SOURCE.indexOf("The door") } });
+  view.dispatch({ selection: { anchor: source.indexOf("The door") } });
   expect(
     insertConstruct("dialogue", {
       scenes: sceneSpansOf(symbols),
@@ -229,6 +229,23 @@ describe("the editor and the app agree on the withheld placeholder warning", () 
     publish();
     agree(view, 0);
     view.dispatch({ selection: { anchor: to + 1 } });
+    agree(view, 1);
+  });
+
+  it("keep withholding when an edit moves the placeholder to another line without moving its offsets", () => {
+    const { view, from, to, publish } = insertedDialogue(
+      ["//", "scene start", "  The door opens.", "end", ""].join(LF),
+    );
+    const line = view.state.doc.lineAt(from).number;
+    view.dispatch({
+      changes: { from: 0, to: 2, insert: LF + LF },
+      selection: { anchor: from, head: to },
+    });
+    expect(view.state.sliceDoc(from, to)).toBe("CHARACTER");
+    expect(view.state.doc.lineAt(from).number).toBe(line + 2);
+    publish();
+    agree(view, 0);
+    view.dispatch({ selection: { anchor: to } });
     agree(view, 1);
   });
 

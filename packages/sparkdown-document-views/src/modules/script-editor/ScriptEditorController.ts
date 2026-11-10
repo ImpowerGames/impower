@@ -817,20 +817,31 @@ export class ScriptEditorController {
     version: number;
     from: number;
     to: number;
+    range: Range;
   } | null = null;
 
   protected publishWithheld(state: EditorState, changes?: ChangeDesc) {
     const uri = this._textDocument?.uri;
-    const range = uri ? state.field(withheldDiagnosticField, false) : null;
+    const withheld = uri ? state.field(withheldDiagnosticField, false) : null;
     const last = this._withheld;
+    const range = withheld && {
+      start: convertToPosition(state.doc, withheld.from),
+      end: convertToPosition(state.doc, withheld.to),
+    };
     if (
-      (!last && !range) ||
-      (last &&
-        range &&
-        last.uri === uri &&
-        last.from === range.from &&
-        last.to === range.to)
+      last &&
+      withheld &&
+      range &&
+      last.uri === uri &&
+      last.range.start.line === range.start.line &&
+      last.range.start.character === range.start.character &&
+      last.range.end.line === range.end.line &&
+      last.range.end.character === range.end.character
     ) {
+      this._withheld = { ...last, from: withheld.from, to: withheld.to };
+      return;
+    }
+    if (!last && !range) {
       return;
     }
     const version = getDocumentVersion(state);
@@ -842,15 +853,15 @@ export class ScriptEditorController {
         !!changes?.touchesRange(last.from, last.to),
       );
     }
-    this._withheld = uri && range ? { uri, version, ...range } : null;
+    this._withheld =
+      uri && withheld && range
+        ? { uri, version, from: withheld.from, to: withheld.to, range }
+        : null;
     if (uri && range) {
       sendProtocolMessage(
         ChangedEditorWithheldDiagnosticMessage.type.notification({
           textDocument: { uri, version },
-          range: {
-            start: convertToPosition(state.doc, range.from),
-            end: convertToPosition(state.doc, range.to),
-          },
+          range,
         }),
         this.host,
       );
