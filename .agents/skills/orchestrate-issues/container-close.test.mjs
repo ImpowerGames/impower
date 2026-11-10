@@ -156,6 +156,20 @@ try {
     const c = closeWith(gone, ghGone, [met(CRITERIA[0]), moved], { snapshot, takeSnapshot: () => snapshot, readScope: () => run.snapshotScope(snapshot), afterIntent: () => { snapshot = snapshotOf(open().tickets.map((t) => (t.number === BLOCKED ? { ...t, state: "closed" } : t))); } });
     assert.deepEqual([c.closed, ghGone.calls], [false, []], "a moved criterion's destination that closes stops the comment");
     assert.match(c.evidence, /#300, which was to own criterion 2, is no longer an open ticket that #200 blocks/);
+
+    const prose = (scope) => `## Acceptance criteria\n\n${scope}\n\n${CRITERIA.map((x) => `- [ ] ${x}`).join("\n")}\n`;
+    const reworded = newRecord(), ghProse = github(prose("Desktop only."));
+    const d = closeWith(reworded, ghProse, [met(CRITERIA[0]), met(CRITERIA[1])], { afterIntent: () => { ghProse.body = prose("Desktop and mobile are required."); } });
+    assert.deepEqual([d.closed, ghProse.calls], [false, []], "reworded acceptance prose with the same checklist stops the comment");
+    assert.match(d.evidence, /acceptance criteria changed after they were checked/);
+
+    const moving = newRecord(), ghMove = github();
+    const sibling = ticket(301, { parent: PARENT });
+    const before = snapshotOf([...open().tickets, sibling]);
+    const after = snapshotOf([...open().tickets, { ...sibling, parent: CONTAINER }]);
+    let takes = 0;
+    const e = closeWith(moving, ghMove, [met(CRITERIA[0]), met(CRITERIA[1])], { snapshot: before, takeSnapshot: () => (++takes >= 3 ? after : before) });
+    assert.deepEqual([e.closed, ghMove.calls], [false, []], "a slice reparented under the container during the final scope read stops the comment");
   }
   {
     const file = newRecord(), gh = github("no criteria here");
