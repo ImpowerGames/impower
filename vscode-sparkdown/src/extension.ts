@@ -17,7 +17,6 @@ import { activateFileDecorations } from "./utils/activateFileDecorations";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateInspector } from "./utils/activateInspector";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
-import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
@@ -47,7 +46,6 @@ export function activate(context: vscode.ExtensionContext) {
   activateFileWatcher(context);
   activateLanguageClient(context);
   activateRuntimeDiagnostics(context);
-  activateNewlineHelper(context);
   activateDebugger(context);
   activateVirtualDeclarations(context);
   activateInspector(context);
