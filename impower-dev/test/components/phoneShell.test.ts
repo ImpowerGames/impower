@@ -53,7 +53,8 @@ const env = vi.hoisted(() => ({
     undefined as unknown as typeof import("../../src/modules/spark-editor/workspace/routes").stateForRoute,
 }));
 
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
+vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
+  const { shellWindow } = await import("../shellWindow");
   const store = {
     get current() {
       return env.store.current;
@@ -72,29 +73,16 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
         },
       },
       sync: { google: { getCurrentAccount: async () => null } },
-      window: {
-        setAccount: () => {},
-        loadProject: async () => {},
+      window: shellWindow(() => env.store, {
         navigateTo: (route: string) => {
           calls.routes.push(route);
           store.current = stateForRoute(store.current, route as never);
         },
-        closeSettings: () => {},
-        setStripHeight: () => {},
         setAppMenuOpen: (appMenuOpen: boolean) => {
           store.current = {
             ...store.current,
             screen: { ...store.current.screen, appMenuOpen },
           };
-        },
-        startEditing: () => {
-          env.store.scriptMode.value = "editing";
-        },
-        finishEditing: () => {
-          if (env.store.scriptMode.peek() !== "editing") {
-            return;
-          }
-          env.store.scriptMode.value = "reading";
         },
         renameScript: async () => ({ status: "renamed" }),
         startEditingProjectName: () => {},
@@ -120,7 +108,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
             preview: { ...store.current.preview, revealed: false },
           };
         },
-      },
+      }),
     },
   };
 });
