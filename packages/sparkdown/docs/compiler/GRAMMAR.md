@@ -1272,6 +1272,10 @@ The entire point of sharing a grammar is that the TextMate scope stack VS Code c
 
 One deliberate difference stays: in a rule body the tree closes the rule `ERROR_INCOMPLETE` where vscode-textmate gap-skips (§17.2), so the grammar tiles its lines rather than the tree gap-skipping (I-1244). Scanning on inside a capture is not gap-skipping: the capture's extent is fixed by the outer match.
 
+Two cases are exceptions, where the tree's line tokenizer stops the line as vscode-textmate does and leaves the rest of it in the scope that stays open (I-1968). A match that does not advance inside a begin/end rule pops that rule. A begin that does not advance, of a rule already opened at the same position, leaves the earlier one open. Either way the next line starts from that state, and nothing else on the stopped line is matched. Every other unmatched text still closes the rule `ERROR_INCOMPLETE`.
+
+A capture's `patterns` do not run through the line tokenizer but through a separate recursive matcher. It stops at the capture's end for the two cases above as the conformance tests exercise them, but it can still differ from vscode-textmate. For example, a repeated begin whose `\G` alternative consumes text on re-entry is skipped there, while vscode-textmate opens it. Running captures through the line tokenizer so the tree has one matcher is I-2035.
+
 ### 17.2 Why they diverge — and the one rule that prevents it
 
 The two engines walk a line differently:

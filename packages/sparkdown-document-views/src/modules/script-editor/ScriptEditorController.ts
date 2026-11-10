@@ -13,7 +13,6 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -24,6 +23,8 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
+  insertConstructFromServer,
+  isInsertConstruct,
   jumpToDefinition,
   type ContextMenuPresenter,
   LSPClient,
@@ -31,6 +32,7 @@ import {
   openFind,
   renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
@@ -55,6 +57,11 @@ import {
   ExecuteEditorCommandMethod,
   ExecuteEditorCommandParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import {
+  InsertEditorConstructMessage,
+  type InsertEditorConstructMethod,
+  type InsertEditorConstructParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
@@ -157,7 +164,7 @@ import createEditorView, {
 import {
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
-} from "./utils/extensions/customSearch";
+} from "./utils/extensions/gotoLinePanel";
 import {
   setKeyboardToolbarHold,
   type KeyboardToolbarHold,
@@ -232,7 +239,7 @@ export class ScriptEditorController {
   protected _domClientY = 0;
   protected _userInitiatedScroll = false;
   protected _boundPanelInputs = new WeakSet<Element>();
-  protected _searchInputFocused = false;
+  protected _gotoLineInputFocused = false;
   protected _breakpoints: number[] = [];
   protected _highlightedLines = new Set<number>();
   protected _scrollMargin: {
@@ -445,6 +452,7 @@ export class ScriptEditorController {
       return ReadEditorMessage.type.response(message.id, {
         textDocument: { uri, version: getDocumentVersion(view.state), text: view.state.doc.toString() },
         selection: { start: convertToPosition(view.state.doc, view.state.selection.main.from), end: convertToPosition(view.state.doc, view.state.selection.main.to) },
+        caret: convertToPosition(view.state.doc, view.state.selection.main.head),
         coordinates,
       });
     }, this.host);
@@ -466,6 +474,11 @@ export class ScriptEditorController {
     p.onRequest(
       ExecuteEditorCommandMessage.type,
       (m) => this.handleExecuteEditorCommand(m),
+      this.host,
+    );
+    p.onRequest(
+      InsertEditorConstructMessage.type,
+      (m) => this.handleInsertEditorConstruct(m),
       this.host,
     );
     p.onRequest(
@@ -650,6 +663,26 @@ export class ScriptEditorController {
     }
     const ran = this.executeCommand(view, command);
     return ExecuteEditorCommandMessage.type.response(message.id, { ran });
+  };
+
+  protected handleInsertEditorConstruct = async (
+    message: RequestMessage<
+      InsertEditorConstructMethod,
+      InsertEditorConstructParams
+    >,
+  ) => {
+    const { textDocument, construct } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const inserted =
+      isInsertConstruct(construct) &&
+      (await insertConstructFromServer(view, construct, endsDialogueBlock));
+    if (inserted && this._view === view) {
+      this.focusAtCaret();
+    }
+    return InsertEditorConstructMessage.type.response(message.id, { inserted });
   };
 
   protected handleApplyEditorColor = async (
@@ -989,28 +1022,12 @@ export class ScriptEditorController {
     return restored ? { ...restored, folded: [] } : undefined;
   }
 
-  protected handleFocusFindInput = () => {
-    this._searchInputFocused = true;
-  };
-
-  protected handleBlurFindInput = () => {
-    this._searchInputFocused = false;
-  };
-
-  protected handleFocusReplaceInput = () => {
-    this._searchInputFocused = true;
-  };
-
-  protected handleBlurReplaceInput = () => {
-    this._searchInputFocused = false;
-  };
-
   protected handleFocusGotoLineInput = () => {
-    this._searchInputFocused = true;
+    this._gotoLineInputFocused = true;
   };
 
   protected handleBlurGotoLineInput = () => {
-    this._searchInputFocused = false;
+    this._gotoLineInputFocused = false;
   };
 
   protected loadTextDocument(params: LoadEditorParams) {
@@ -1087,7 +1104,7 @@ export class ScriptEditorController {
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
-      this._searchInputFocused = false;
+      this._gotoLineInputFocused = false;
       this._textDocument = textDocument;
       const editorContainer = this.refs.editor;
       if (editorContainer) {
@@ -1216,7 +1233,7 @@ export class ScriptEditorController {
           onBlur: () => {
             this._editing = false;
             if (this._textDocument) {
-              if (!this._searchInputFocused) {
+              if (!this._gotoLineInputFocused) {
                 sendProtocolMessage(
                   UnfocusedEditorMessage.type.notification({
                     textDocument: this._textDocument,
@@ -1423,20 +1440,7 @@ export class ScriptEditorController {
             if (update.selectionSet && !this._settling) {
               this._selectionMoved = true;
             }
-            if (
-              searchPanelOpen(update.state) ||
-              customGotoLinePanelOpen(update.state)
-            ) {
-              this.bindPanelInput(
-                ".cm-search [contenteditable][name='search']",
-                this.handleFocusFindInput,
-                this.handleBlurFindInput,
-              );
-              this.bindPanelInput(
-                ".cm-search [contenteditable][name='replace']",
-                this.handleFocusReplaceInput,
-                this.handleBlurReplaceInput,
-              );
+            if (customGotoLinePanelOpen(update.state)) {
               this.bindPanelInput(
                 ".cm-gotoLine [contenteditable]",
                 this.handleFocusGotoLineInput,

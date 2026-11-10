@@ -301,3 +301,12 @@ export {
   type PortraitThumbnailProps,
   type PortraitThumbnailSize,
 } from "./portrait-thumbnail/PortraitThumbnail";
+export {
+  default as TabbedPage,
+  tabbedPageVariants,
+  tabbedPageHeaderVariants,
+  tabbedPageTitleVariants,
+  type TabbedPageProps,
+  type TabbedPageTab,
+  type TabbedPageVariantProps,
+} from "./tabbed-page/TabbedPage";

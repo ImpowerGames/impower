@@ -143,10 +143,6 @@ const EDITOR_THEME: {
   ".cm-textfield:active": {
     borderColor: "var(--editor-field-edge-hover)",
   },
-  "label:has(input[type='checkbox']):active::before": {
-    backgroundColor: "var(--control-hover)",
-    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
-  },
   "button:active": {
     backgroundColor: "var(--control-hover)",
     boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
@@ -154,9 +150,6 @@ const EDITOR_THEME: {
   "@media (hover: hover)": {
     ".cm-textfield:hover": {
       borderColor: "var(--editor-field-edge-hover)",
-    },
-    "label:has(input[type='checkbox']):hover::before": {
-      backgroundColor: "var(--control-hover)",
     },
     "button:hover": {
       backgroundColor: "var(--control-hover)",
@@ -170,9 +163,6 @@ const EDITOR_THEME: {
     },
   },
 
-  "& label:has(input[type='checkbox'])": {
-    cursor: "pointer",
-  },
   "& button:focus-visible": {
     outline: "1px solid var(--accent)",
     outlineOffset: "-1px",
@@ -184,76 +174,16 @@ const EDITOR_THEME: {
     outline: "1px solid var(--accent)",
     outlineOffset: "-1px",
   },
-  "& label:has(input[type='checkbox']:focus-visible)::before": {
-    outline: "1px solid var(--accent)",
-    outlineOffset: "-1px",
-  },
   "@media (pointer: coarse)": {
     ".cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
       height: "44px",
-    },
-    ".cm-panels .cm-panel.cm-search": {
-      display: "grid",
-      gridTemplateColumns: "44px 44px 44px minmax(0, 1fr) 44px 44px",
-      gap: "4px",
-      alignItems: "center",
-      paddingLeft: "60px",
-    },
-    ".cm-panels .cm-panel.cm-search br, .cm-panels .cm-panel.cm-search button[name='select']": {
-      display: "none",
-    },
-    ".cm-panels .cm-panel.cm-search .cm-textfield": {
-      width: "auto",
-      minHeight: "44px",
-      margin: "0",
-      padding: "10px 8px",
-    },
-    ".cm-panels .cm-panel.cm-search [name='search']": {
-      gridArea: "1 / 1 / 2 / 5",
-    },
-    ".cm-panels .cm-panel.cm-search [name='replace']:not(button)": {
-      gridArea: "3 / 1 / 4 / 5",
-    },
-    ".cm-panels .cm-panel.cm-search button[name='prev']": {
-      gridArea: "1 / 5",
-    },
-    ".cm-panels .cm-panel.cm-search button[name='next']": {
-      gridArea: "1 / 6",
-    },
-    ".cm-panels .cm-panel.cm-search button[name='replace']": {
-      gridArea: "3 / 5",
-    },
-    ".cm-panels .cm-panel.cm-search button[name='replaceAll']": {
-      gridArea: "3 / 6",
-    },
-    ".cm-panels .cm-panel.cm-search label:has(input[type='checkbox'])": {
-      position: "relative",
-      right: "auto",
-      width: "44px",
-      height: "44px",
-      margin: "0",
-      gridRow: "2",
-    },
-    ".cm-panels .cm-panel.cm-search label:has(input[name='case'])": {
-      gridColumn: "1",
-    },
-    ".cm-panels .cm-panel.cm-search label:has(input[name='word'])": {
-      gridColumn: "2",
-    },
-    ".cm-panels .cm-panel.cm-search label:has(input[name='re'])": {
-      gridColumn: "3",
-    },
-    ".cm-panels .cm-panel.cm-search .cm-search-matches": {
-      right: "108px",
-      top: "15px",
-      height: "30px",
     },
   },
   "@media (forced-colors: active)": {
     ".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
       outlineColor: "Highlight",
     },
-    "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-panels .cm-textfield:focus-visible, .cm-tooltip .cm-textfield:focus-visible":
+    "button:focus-visible, .cm-panels .cm-textfield:focus-visible, .cm-tooltip .cm-textfield:focus-visible":
       {
         outlineColor: "Highlight",
         borderColor: "Highlight",
@@ -482,158 +412,6 @@ const EDITOR_THEME: {
     "& button[name='submit']::after": {
       maskImage: iconMasks["arrow"],
       backgroundColor: "var(--editor-icon-ink)",
-    },
-  },
-  "& .cm-panel.cm-search": {
-    backgroundColor: "var(--panel)",
-    padding: "8px 8px 8px 56px",
-    float: "right",
-    width: "100%",
-    position: "relative",
-    "& .cm-search-matches": {
-      position: "absolute",
-      top: "12px",
-      right: "186px",
-      height: "30px",
-      display: "flex",
-      padding: "0 8px",
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "var(--paper)",
-      color: "color-mix(in srgb, var(--ink) 50%, transparent)",
-    },
-    "& .cm-textfield": {
-      margin: "3px 5px 3px 0px",
-      padding: "4px",
-    },
-    "& label": {
-      margin: "3px 5px 3px 0px",
-    },
-    "& input[type='checkbox']": {
-      margin: "0",
-    },
-    "& input:not([type='checkbox']), & [contenteditable]": {
-      display: "inline-block",
-      width: "calc(100% - 78px)",
-    },
-    "& [contenteditable][name='search'], & [contenteditable][name='replace']": {
-      whiteSpace: "pre-wrap",
-      overflowWrap: "break-word",
-      verticalAlign: "top",
-      maxHeight: "132px",
-      overflowY: "auto",
-      scrollbarGutter: "stable",
-    },
-    "& input[name='search'], & [contenteditable][name='search']": {
-      paddingRight: "100px",
-    },
-    "& button[name='close']": {
-      position: "absolute",
-      top: "0",
-      left: "0",
-      bottom: "0",
-      right: "auto",
-      width: "40px",
-      margin: "8px",
-      borderRadius: "var(--control-radius)",
-      textIndent: "-99999em",
-      overflow: "hidden",
-    },
-    "& button[name='close']::after": {
-      maskImage: iconMasks["close"],
-      backgroundColor: "var(--editor-icon-close)",
-    },
-    "& button:not([name='close'])": {
-      display: "inline-block",
-      width: "36px",
-      height: "36px",
-      verticalAlign: "middle",
-      borderRadius: "var(--control-radius)",
-      textIndent: "-99999em",
-      overflow: "hidden",
-      border: "none",
-      margin: "0",
-    },
-    "& button[name='prev']::after": {
-      maskImage: iconMasks["up"],
-      backgroundColor: "var(--editor-icon-ink)",
-    },
-    "& button[name='next']::after": {
-      maskImage: iconMasks["down"],
-      backgroundColor: "var(--editor-icon-ink)",
-    },
-    "& button[name='select']": {
-      display: "none",
-    },
-    "& button[name='replace']::after": {
-      maskImage: iconMasks["replace"],
-      backgroundColor: "var(--editor-icon-ink)",
-    },
-    "& button[name='replaceAll']::after": {
-      maskImage: iconMasks["replace-all"],
-      backgroundColor: "var(--editor-icon-ink)",
-    },
-    "& label:has(input[type='checkbox'])": {
-      display: "inline-block",
-      width: "30px",
-      height: "30px",
-      verticalAlign: "middle",
-      borderRadius: "var(--control-radius)",
-      textIndent: "-99999em",
-      overflow: "hidden",
-      position: "absolute",
-      cursor: "pointer",
-      "& input": {
-        opacity: "0",
-        position: "absolute",
-        inset: "0",
-        cursor: "pointer",
-      },
-      "&::before": {
-        content: "''",
-        position: "absolute",
-        inset: "2px",
-        marginTop: "1.5px",
-        borderRadius: "var(--control-radius)",
-      },
-    },
-    "& label:has(input[type='checkbox']:checked)::before": {
-      backgroundColor: "var(--editor-toggle-on)",
-      border: "1px solid var(--editor-toggle-on-edge)",
-    },
-    "& label:has(input[type='checkbox'])::after": {
-      ...ICON_LAYER,
-      inset: "2px",
-      marginTop: "1.5px",
-      maskSize: "18px 18px",
-    },
-    "& label:has(input[type='checkbox']:checked)::after": {
-      backgroundColor: "var(--editor-icon-ink)",
-    },
-    "& button::after": {
-      ...ICON_LAYER,
-      inset: "0",
-    },
-    "& label:has(input[name='case'])": {
-      right: "calc(83px + 33px + 33px - 8px)",
-      "&::after": {
-        maskImage: iconMasks["match-case"],
-        backgroundColor: "var(--editor-icon-muted)",
-      },
-    },
-    "& label:has(input[name='word'])": {
-      right: "calc(83px + 33px - 4px)",
-      "&::after": {
-        maskImage: iconMasks["whole-word"],
-        backgroundColor: "var(--editor-icon-muted)",
-      },
-    },
-    "& label:has(input[name='re'])": {
-      right: "83px",
-      "&::after": {
-        maskImage: iconMasks["regex"],
-        backgroundColor: "var(--editor-icon-muted)",
-      },
     },
   },
   "& .cm-panel.cm-panel-lint": {

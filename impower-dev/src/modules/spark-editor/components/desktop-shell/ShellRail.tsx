@@ -8,7 +8,7 @@ import {
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
-import Outline from "../outline/Outline";
+import Outline from "../outline";
 import { SettingsIndex } from "../settings";
 import AppMenu from "./AppMenu";
 

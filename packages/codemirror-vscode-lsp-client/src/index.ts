@@ -86,6 +86,24 @@ export {
   type HoverValueSource,
 } from "./hover";
 export {
+  INSERT_CONSTRUCTS,
+  insertConstruct,
+  insertConstructFromServer,
+  insertContext,
+  isInsertConstruct,
+  planInsertion,
+  branchSpansOf,
+  sceneSpansOf,
+  TOP_LEVEL_CONSTRUCTS,
+  uniqueName,
+  type EndsDialogue,
+  type InsertConstruct,
+  type InsertContext,
+  type InsertPlan,
+  type SceneSpan,
+  type ScriptStructure,
+} from "./insert";
+export {
   convertFromServerCodeLens,
   serverCodeLenses,
   setDocumentCodeLenses,

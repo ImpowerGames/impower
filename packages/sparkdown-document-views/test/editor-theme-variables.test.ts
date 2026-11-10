@@ -1,12 +1,14 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, showTooltip } from "@codemirror/view";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
-import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
+import {
+  customGotoLinePanel,
+  openCustomGotoLinePanel,
+} from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import { statusPanel } from "../src/modules/script-editor/utils/extensions/statusPanel";
 
 let view: EditorView | undefined;
@@ -49,7 +51,6 @@ afterEach(() => {
     "--editor-status-ink",
     "--ink",
     "--editor-icon-ink",
-    "--editor-icon-muted",
     "--editor-icon-close",
   ]) {
     document.documentElement.style.removeProperty(name);
@@ -100,10 +101,10 @@ describe("the code editor's colours follow the shared colour variables", () => {
     );
   });
 
-  it("draws the find and go-to-line icons as masks painted by the icon variables", () => {
-    const editor = mount([customSearchPanel()]);
-    openSearchPanel(editor);
-    const panel = editor.dom.querySelector<HTMLElement>(".cm-panel.cm-search");
+  it("draws the go-to-line icons as masks painted by the icon variables", () => {
+    const editor = mount([customGotoLinePanel()]);
+    openCustomGotoLinePanel(editor);
+    const panel = editor.dom.querySelector<HTMLElement>(".cm-panel.cm-gotoLine");
     expect(panel).toBeTruthy();
     for (const el of panel!.querySelectorAll("button")) {
       expect(
@@ -114,17 +115,17 @@ describe("the code editor's colours follow the shared colour variables", () => {
 
     const panelIcons = declarations(EDITOR_THEME).filter(
       ({ selector }) =>
-        /cm-search|cm-gotoLine/.test(selector) &&
+        /cm-gotoLine/.test(selector) &&
         /::after|&::after/.test(selector),
     );
     const masks = panelIcons.filter(({ property }) => property === "maskImage");
-    expect(masks.length).toBe(10);
+    expect(masks.length).toBe(2);
     for (const { selector } of masks) {
       const fill = panelIcons.find(
         (d) => d.selector === selector && d.property === "backgroundColor",
       );
       expect(fill?.value, selector).toMatch(
-        /^var\(--editor-icon-(ink|muted|close)\)$/,
+        /^var\(--editor-icon-(ink|close)\)$/,
       );
     }
   });
@@ -141,7 +142,7 @@ describe("the code editor's colours follow the shared colour variables", () => {
               ),
           );
         } else {
-          expect(selector, where).not.toMatch(/cm-panel|cm-search|cm-gotoLine/);
+          expect(selector, where).not.toMatch(/cm-panel|cm-gotoLine/);
         }
         continue;
       }

@@ -7,16 +7,14 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src";
 import {
   closeCustomGotoLinePanel,
-  closeCustomSearchPanel,
   openCustomGotoLinePanel,
-} from "./customSearch";
+} from "./gotoLinePanel";
 
 export const leavePageKeysToPreview: Command = () => true;
 
 export const SCRIPT_EDITOR_COMMANDS: ShortcutCommands = {
   gotoLine: openCustomGotoLinePanel,
   closeGotoLine: closeCustomGotoLinePanel,
-  closeSearch: closeCustomSearchPanel,
   newLineByRules: onEnterRulesCommand,
   previousBeat: leavePageKeysToPreview,
   nextBeat: leavePageKeysToPreview,
