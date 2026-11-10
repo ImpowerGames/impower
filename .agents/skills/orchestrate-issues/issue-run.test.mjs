@@ -822,7 +822,16 @@ try {
     assert.deepEqual([gh.checks(11), gh.checks(12), gh.blockedBy(5)], [[{ name: "batched 11", state: "SUCCESS" }], [{ name: "batched 12", state: "SUCCESS" }], [{ number: 7, state: "open" }]], "prefetched reads are served from the fan-out");
     assert.deepEqual(ran, [], "no read ran serially");
     assert.deepEqual(gh.checks(11), [{ name: "direct", state: "SUCCESS" }], "a prefetched read is used once, then read fresh");
-  }
+    const { runJobs, runParallel } = await import("./gh-parallel.mjs");
+    let live = 0, peak = 0;
+    const exec = (cmd, args, options, done) => { live++; peak = Math.max(peak, live); setTimeout(() => { live--; if (args[0] === "fail") done(new Error("boom"), "", "denied"); else done(null, `out ${args[0]}`, ""); }, 5); };
+    const results = await runJobs(Array.from({ length: 10 }, (_, i) => ["gh", [i === 3 ? "fail" : String(i)]]), { limit: 4, exec });
+    assert.equal(peak, 4, "the fan-out never runs more reads than its limit");
+    assert.deepEqual([results[0], results[3], results.length], [{ ok: true, stdout: "out 0" }, { ok: false, stdout: "", stderr: "denied" }, 10], "results keep their order and a failed read is reported, not thrown");
+    assert.deepEqual(runParallel([[process.execPath, ["-e", "process.stdout.write('real')"]], [process.execPath, ["-e", "process.exit(3)"]]], { cwd: tmp }).map((r) => [r.ok, r.stdout]), [[true, "real"], [false, ""]], "the worker process runs real commands and reports a failing one");
+    const failing =run.githubClient({ repository: "acme/widgets" }, tmp, { run: () => "[[{\"number\":9}]]", parallel: (jobs) => jobs.map(() => ({ ok: false, stdout: "", stderr: "x" })) });
+    failing.prefetch({ blockedBy: [5] });
+    assert.deepEqual(failing.blockedBy(5), [{ number: 9 }], "a failed prefetch falls back to a direct read");  }
   assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open", "#227 open", "#228 open"]);
   assert.deepEqual(run.closingReferences("Closes #1, closes #2, fixed #3, Resolves: acme/widgets#4, close #1, other/repo#2 is not closed, and #5 is only mentioned").map((r) => `${r.repository ?? ""}#${r.number}`), ["#1", "#2", "#3", "acme/widgets#4"]);
   assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read reads the same PRs and agrees");
