@@ -13,10 +13,15 @@ console.log(LOG_PREFIX + "Propagating definitions...");
 
 const WATCH_PATH = `./yaml`;
 
-const CONFIG_NAME = "sparkdown.language-config";
-const IN_CONFIG_PATH = `./yaml/${CONFIG_NAME}.yaml`;
-const OUT_CONFIG_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${CONFIG_NAME}.json`,
+const CONFIG_NAMES = [
+  "sparkdown.language-config",
+  "sparkdown-luau.language-config",
+];
+const CONFIG_BUILDS = CONFIG_NAMES.flatMap((name) =>
+  outPaths.map((outPath) => ({
+    inPath: `./yaml/${name}.yaml`,
+    outPath: `${outPath}/${name}.json`,
+  })),
 );
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
@@ -479,7 +484,7 @@ const buildLuauFileGrammarJson = async (
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
-    OUT_CONFIG_PATHS.map((outPath) => buildJson(IN_CONFIG_PATH, outPath)),
+    CONFIG_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
   );
   await Promise.all(
     OUT_GRAMMAR_PATHS.map((outPath) => buildJson(IN_GRAMMAR_PATH, outPath)),

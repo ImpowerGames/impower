@@ -5,11 +5,7 @@
     "Edit the YAML source instead, then run `npm run language` from definitions/."
   ],
   "comments": {
-    "lineComment": "--",
-    "blockComment": [
-      "--[[",
-      "]]"
-    ]
+    "lineComment": "//"
   },
   "brackets": [
     [

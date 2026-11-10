@@ -5,14 +5,18 @@ repo root. Editing them directly _works_ — tests pass, the change ships — an
 then the next `definitions` build silently regenerates them and your change
 vanishes:
 
-| Generated (do NOT edit)                                        | Source of truth                                     |
-| -------------------------------------------------------------- | --------------------------------------------------- |
-| `packages/sparkdown/language/sparkdown.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml`  |
-| `packages/sparkdown/language/sparkdown.language-config.json`   | `definitions/yaml/sparkdown.language-config.yaml`   |
-| `packages/sparkdown/language/sparkdown.language-snippets.json` | `definitions/yaml/sparkdown.language-snippets.yaml` |
-| `vscode-sparkdown/language/sparkdown.language-grammar.json`    | `definitions/yaml/sparkdown.language-grammar.yaml`  |
-| `vscode-sparkdown/language/sparkdown.language-config.json`     | `definitions/yaml/sparkdown.language-config.yaml`   |
-| `vscode-sparkdown/language/sparkdown.language-snippets.json`   | `definitions/yaml/sparkdown.language-snippets.yaml` |
+| Generated (do NOT edit)                                             | Source of truth                                          |
+| ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `packages/sparkdown/language/sparkdown.language-grammar.json`       | `definitions/yaml/sparkdown.language-grammar.yaml`       |
+| `packages/sparkdown/language/sparkdown-luau.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml`       |
+| `packages/sparkdown/language/sparkdown.language-config.json`        | `definitions/yaml/sparkdown.language-config.yaml`        |
+| `packages/sparkdown/language/sparkdown-luau.language-config.json`   | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
+| `packages/sparkdown/language/sparkdown.language-snippets.json`      | `definitions/yaml/sparkdown.language-snippets.yaml`      |
+| `vscode-sparkdown/language/sparkdown.language-grammar.json`         | `definitions/yaml/sparkdown.language-grammar.yaml`       |
+| `vscode-sparkdown/language/sparkdown-luau.language-grammar.json`    | `definitions/yaml/sparkdown.language-grammar.yaml`       |
+| `vscode-sparkdown/language/sparkdown.language-config.json`          | `definitions/yaml/sparkdown.language-config.yaml`        |
+| `vscode-sparkdown/language/sparkdown-luau.language-config.json`     | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
+| `vscode-sparkdown/language/sparkdown.language-snippets.json`        | `definitions/yaml/sparkdown.language-snippets.yaml`      |
 
 (Each YAML source propagates to both `packages/sparkdown/language/` and
 `vscode-sparkdown/language/`; `definitions/yaml/sparkdown.language-completions.yaml`

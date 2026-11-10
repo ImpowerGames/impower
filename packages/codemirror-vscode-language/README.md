@@ -36,11 +36,27 @@ new EditorView({
   state: EditorState.create({
     doc,
     extensions: [
-      vscodeLanguage({ name: "mycustomlang", grammar, config }),
+      vscodeLanguage({
+        name: "mycustomlang",
+        grammar,
+        configs: { mycustomlang: config },
+      }),
       syntaxHighlighting(highlights),
     ],
   }),
   parent: document.querySelector("#editor"),
+});
+```
+
+`configs` maps each language id to its `.language-config.json`, and `language` names the document's language (it defaults to `name`). A grammar that embeds other languages passes the same `embeddedLanguages` map as its VS Code manifest entry, scope name to language id; comment toggling then uses the comment markers of the language at the position, as VS Code does. The other config entries come from the document language's config.
+
+```typescript
+vscodeLanguage({
+  name: "mycustomlang",
+  grammar,
+  language: "mycustomlang",
+  configs: { mycustomlang: config, "mycustomlang-script": scriptConfig },
+  embeddedLanguages: { "meta.embedded.block.script": "mycustomlang-script" },
 });
 ```
 
