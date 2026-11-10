@@ -73,6 +73,16 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       expect(divergences.map((d) => d.lineCol)).toEqual(["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"]);
     });
 
+    test.each([
+      ["an unclosed `[` in a declaration", "store x = [1\nHello\n", ["1:10", "1:11", "1:12"]],
+      ["a `,` in an interpolation", "Hello {x,1}\nAfter\n", ["1:8", "1:9"]],
+      ["a `;` in a narrative condition", "if x; then\nHello\nend\n", ["1:4"]],
+      ["a define header without `with`", "define Person\n\nend\nHello\n", ["4:0", "4:1", "4:2", "4:3", "4:4", "4:5", "5:0"]],
+    ])("I-2043: %s closes the rule incomplete only in the tree", async (_name, source, positions) => {
+      const { divergences } = await compareLanguages(source);
+      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
+    });
+
     test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {
       const { divergences } = await compareLanguages("function名 text\nHello\n");
       expect(divergences).toHaveLength(14);
