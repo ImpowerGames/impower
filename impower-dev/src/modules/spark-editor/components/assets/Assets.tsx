@@ -45,6 +45,7 @@ import {
 } from "../../utils/assetTypes";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { plural, rowLine } from "../../utils/fileListModel";
+import { majorityShape } from "../../utils/imageSize";
 import { stackBaseOf } from "../../utils/imageStacks";
 import { showSnackbar } from "../../utils/snackbar";
 import {
@@ -213,13 +214,30 @@ function AssetsBrowser() {
     type === "image" ? "tiles" : "rows",
   );
   const { projectSettings } = useSettings();
-  const shape: TileShape = addMenuKindsOf(
+  const tiles = !searching && type === "image" && layout === "tiles";
+  const kinds = addMenuKindsOf(
     { path: `${level.folder}/_`, type: "image" },
     addMenuFolders(projectSettings),
-  ).includes("portrait")
+  );
+  const namedShape: TileShape | undefined = kinds.includes("portrait")
     ? "portrait"
-    : "landscape";
-  const tiles = !searching && type === "image" && layout === "tiles";
+    : kinds.includes("backdrop")
+      ? "landscape"
+      : undefined;
+  const pictures = tiles && !namedShape
+    ? level.rows.filter((row) => row.kind === "file" && !row.link).map((row) => row.path)
+    : [];
+  const sizes = workspace.assetSizes.value;
+  const pictureSources = pictures.map((path) => srcOf(listing, path));
+  const measuring = pictureSources.some((src) => src && !Object.hasOwn(sizes, src));
+  const shape: TileShape =
+    namedShape ?? majorityShape(pictureSources.map((src) => (src ? sizes[src] ?? undefined : undefined)));
+  const measureKey = pictures.join("\n");
+  useEffect(() => {
+    if (measureKey) {
+      void intents().then((Workspace) => Workspace.assets.measureImages(measureKey.split("\n")));
+    }
+  }, [measureKey]);
   const scrollKey = searching ? "search" : `${type}:${level.folder}`;
   const scroller = useSavedScroll("assetsScrolls", scrollKey);
 
@@ -462,7 +480,7 @@ function AssetsBrowser() {
           />
         )
       }
-      list={{
+      list={measuring ? null : {
         listRef: scroller,
         label: searching ? "Search results" : "Assets and folders",
         items,
@@ -474,7 +492,7 @@ function AssetsBrowser() {
           : undefined,
       }}
       empty={
-        !loaded ? null : searching ? (
+        !loaded || measuring ? null : searching ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No files match."

@@ -16,8 +16,11 @@ const assets = vi.hoisted(() => ({
   addLink: vi.fn(async () => ""),
   createFolder: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
+  renameStack: vi.fn(async (): Promise<string[]> => []),
   remove: vi.fn(async () => undefined),
+  measureImages: vi.fn(async (_paths: string[]) => undefined),
 }));
+const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
   setListState: vi.fn(),
   navigateTo: vi.fn(),
@@ -48,6 +51,7 @@ let host: HTMLDivElement | undefined;
 
 const settle = () =>
   act(async () => {
+    await vi.dynamicImportSettled();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
@@ -102,6 +106,15 @@ const setListing = (files: Record<string, ReturnType<typeof facts> & { address?:
 
 beforeEach(() => {
   layout.value = "desktop";
+  measured.sizes = {};
+  workspace.assetSizes.value = {};
+  assets.measureImages.mockImplementation(async (paths: string[]) => {
+    const files = workspace.assetListing.value!.files;
+    workspace.assetSizes.value = {
+      ...workspace.assetSizes.value,
+      ...Object.fromEntries(paths.map((path) => [files[path]!.src!, measured.sizes[path] ?? null])),
+    };
+  });
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
@@ -377,5 +390,65 @@ describe("image folders as tiles", () => {
     expect(tiles()).toEqual([]);
     expect(layoutButton()).toBeNull();
     expect(rowLabels()).toEqual(["Open audio imani, modified 2d · 5 b"]);
+  });
+});
+
+describe("the tile shape of a folder not named for portraits or backdrops", () => {
+  const tileShapes = () => all<HTMLElement>('[role="listitem"] [data-tile]').map((tile) => tile.getAttribute("data-tile"));
+
+  const png = (width: number, height: number) => {
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+    new DataView(bytes.buffer).setUint32(16, width);
+    new DataView(bytes.buffer).setUint32(20, height);
+    return bytes;
+  };
+
+  const withPictures = (pictures: Record<string, [number, number, number]>) => {
+    setListing(Object.fromEntries(Object.entries(pictures).map(([path, [size]]) => [path, facts(size)])));
+    measured.sizes = Object.fromEntries(
+      Object.entries(pictures).map(([path, [, width, height]]) => [path, { width, height }]),
+    );
+    const bySrc = new Map(Object.values(pictures).map(([size, width, height]) => [`/p/${size}`, png(width, height)]));
+    vi.stubGlobal("fetch", async (src: string) => {
+      const bytes = bySrc.get(src);
+      return bytes ? new Response(bytes, { status: 206 }) : new Response("", { status: 404 });
+    });
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the shape most of the folder's pictures share once their sizes are read", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [3001, 300, 400],
+      "Assets/Images/Cast/kai.png": [3002, 300, 400],
+      "Assets/Images/Cast/sky.png": [3003, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Cast" } } };
+    await mount();
+    await settle();
+    expect(workspace.assetSizes.value).toMatchObject({
+      "/p/3001": { width: 300, height: 400 },
+      "/p/3003": { width: 640, height: 400 },
+    });
+    expect(tileShapes()).toEqual(["portrait", "portrait", "portrait"]);
+  });
+
+  it("draws landscape tiles when most pictures are wide, and keeps Portraits portrait whatever its pictures", async () => {
+    withPictures({
+      "Assets/Images/Places/a.png": [4001, 640, 400],
+      "Assets/Images/Places/b.png": [4002, 300, 400],
+      "Assets/Images/Portraits/c.png": [4003, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Places" } } };
+    await mount();
+    await settle();
+    expect(tileShapes()).toEqual(["landscape", "landscape"]);
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    await click(all<HTMLElement>('button[aria-label^="Open folder Portraits"]')[0]);
+    expect(tileShapes()).toEqual(["portrait"]);
   });
 });
