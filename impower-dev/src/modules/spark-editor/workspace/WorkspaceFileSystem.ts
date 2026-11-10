@@ -351,28 +351,6 @@ export default class WorkspaceFileSystem {
 
   protected noteChanged(uris: string[]) {
     uris.forEach((uri) => this._changedDuringLoad?.add(uri));
-    this.noteEdited(uris);
-  }
-
-  protected _editListeners = new Set<(projectId: string) => void>();
-
-  onProjectEdit(listener: (projectId: string) => void) {
-    this._editListeners.add(listener);
-  }
-
-  protected noteEdited(uris: string[]) {
-    const projectId = this._loadedProjectId;
-    if (!projectId) {
-      return;
-    }
-    const root = `${this.getDirectoryUri(projectId)}/`;
-    const edited = uris.some(
-      (uri) =>
-        uri.startsWith(root) && !isProjectMetadata(uri.slice(root.length)),
-    );
-    if (edited) {
-      this._editListeners.forEach((listener) => listener(projectId));
-    }
   }
 
   protected acceptCommit(uri: string, commits: FileCommits | undefined) {
@@ -437,7 +415,6 @@ export default class WorkspaceFileSystem {
       }
       this.removeFolderUris(freshDeleted);
       this.addFolderUris(freshCreated);
-      this.noteEdited([...freshCreated, ...freshDeleted]);
       sendProtocolMessage(
         withParams(message, { created: freshCreated, deleted: freshDeleted }),
       );
@@ -563,6 +540,20 @@ export default class WorkspaceFileSystem {
     const file = files[uri];
     const name = file?.text || "";
     return name;
+  }
+
+  async readStoredProjectMetadata(
+    projectId: string,
+    field: ProjectMetadataField,
+  ) {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const project = await root.getDirectoryHandle(projectId);
+      const handle = await project.getFileHandle(`.${field}`);
+      return await (await handle.getFile()).text();
+    } catch {
+      return "";
+    }
   }
 
   async writeProjectMetadata(

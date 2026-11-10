@@ -154,12 +154,13 @@ export const BACKUP_REMINDER_CHECK_MS = 60 * 60_000;
 
 export type BackupField = Extract<
   ProjectMetadataField,
-  "backedUpAt" | "changedAt" | "createdAt" | "remindedAt"
+  "backedUpAt" | "createdAt" | "remindedAt"
 >;
 
 export interface ProjectBackupRecord {
   read: (field: BackupField) => Promise<string>;
   write: (field: BackupField, value: string) => Promise<void>;
+  lastEditAt: () => Promise<number | null>;
 }
 
 const timeOf = async (
@@ -168,24 +169,6 @@ const timeOf = async (
 ): Promise<number | null> => {
   const time = Number(await project.read(field));
   return Number.isFinite(time) && time > 0 ? time : null;
-};
-
-const sinceOf = async (project: ProjectBackupRecord) =>
-  (await timeOf(project, "backedUpAt")) ?? (await timeOf(project, "createdAt"));
-
-const changedSince = (changedAt: number | null, since: number) =>
-  changedAt !== null && changedAt >= since;
-
-export const recordChange = async (
-  project: ProjectBackupRecord,
-  now: number,
-  backupStartedAt: number | null,
-) => {
-  const since = Math.max((await sinceOf(project)) ?? 0, backupStartedAt ?? 0);
-  if (changedSince(await timeOf(project, "changedAt"), since)) {
-    return;
-  }
-  await project.write("changedAt", String(now));
 };
 
 export const recordBackup = async (
@@ -241,7 +224,7 @@ export const remindBackupIfDue = async ({
   const due = backupReminderDue({
     local,
     persistent: persisted,
-    changed: changedSince(await timeOf(project, "changedAt"), since),
+    changed: ((await project.lastEditAt()) ?? 0) >= since,
     ageMs: now - since,
     sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
   });

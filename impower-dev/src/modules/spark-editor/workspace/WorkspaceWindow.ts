@@ -124,11 +124,11 @@ import {
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
 import { downloadProjectZip } from "../utils/downloadProjectZip";
+import { isProjectMetadata } from "../utils/fileTree";
 import {
   installOfferOf,
   keepOnDevice,
   recordBackup,
-  recordChange,
   remindBackupIfDue,
   settleStorage,
   type InstallPromptEvent,
@@ -670,8 +670,6 @@ export default class WorkspaceWindow {
 
   protected _storageReview: Promise<void> = Promise.resolve();
 
-  protected _backupStartedAt: number | null = null;
-
   reviewDeviceStorage() {
     this._storageReview = this._storageReview
       .then(() => this.reviewStorageNow())
@@ -685,14 +683,19 @@ export default class WorkspaceWindow {
     if (!id) {
       return;
     }
-    try {
-      await remindBackupIfDue({
+    const remind = () =>
+      remindBackupIfDue({
         local: id === WorkspaceConstants.LOCAL_PROJECT_ID,
         persisted: workspace.deviceStorage.peek()?.persisted ?? false,
         project: this.backupRecord(id),
         now: Date.now(),
         exportProject: downloadProjectZip,
       });
+    const locks = globalThis.navigator?.locks;
+    try {
+      await (locks
+        ? locks.request(`impower-backup-reminder:${id}`, remind)
+        : remind());
     } catch (err) {
       console.error(err);
     }
@@ -733,37 +736,18 @@ export default class WorkspaceWindow {
     }
   }
 
-  async recordProjectChange(id: string) {
-    try {
-      await recordChange(
-        this.backupRecord(id),
-        Date.now(),
-        this._backupStartedAt,
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   async backUpProject<T>(
     backUp: () => Promise<T>,
     id = this.store.project.id,
   ): Promise<T> {
     const startedAt = Date.now();
-    this._backupStartedAt = startedAt;
-    try {
-      const backedUp = await backUp();
-      if (backedUp && id) {
-        await recordBackup(this.backupRecord(id), startedAt).catch((err) =>
-          console.error(err),
-        );
-      }
-      return backedUp;
-    } finally {
-      if (this._backupStartedAt === startedAt) {
-        this._backupStartedAt = null;
-      }
+    const backedUp = await backUp();
+    if (backedUp && id) {
+      await recordBackup(this.backupRecord(id), startedAt).catch((err) =>
+        console.error(err),
+      );
     }
+    return backedUp;
   }
 
   protected setDeviceStorage(probe: StorageProbe) {
@@ -783,8 +767,18 @@ export default class WorkspaceWindow {
   protected backupRecord(id: string): ProjectBackupRecord {
     const fs = this._workspace.fs;
     return {
-      read: (field) => fs.readProjectMetadata(id, field),
+      read: (field) => fs.readStoredProjectMetadata(id, field),
       write: (field, value) => fs.writeProjectMetadata(id, field, value),
+      lastEditAt: async () => {
+        const written = Object.values(await fs.getFiles(id))
+          .filter((file) => !isProjectMetadata(fs.getRelativePath(id, file.uri)))
+          .map((file) => file.modified ?? 0);
+        const trashed = (await fs.listTrash(id).catch(() => [])).map(
+          (batch) => batch.deletedAt,
+        );
+        const times = [...written, ...trashed];
+        return times.length > 0 ? Math.max(...times) : null;
+      },
     };
   }
 

@@ -13,7 +13,6 @@ import {
   persistAskOf,
   probeStorage,
   recordBackup,
-  recordChange,
   remindBackupIfDue,
   settleStorage,
   type BackupFacts,
@@ -67,20 +66,20 @@ const project = (initial: Partial<Record<BackupField, string>> = {}) => {
   const files = new Map<BackupField, string>(
     Object.entries(initial) as [BackupField, string][],
   );
-  const writes: BackupField[] = [];
+  let lastEdit: number | null = null;
   const record: ProjectBackupRecord = {
     read: async (field) => files.get(field) ?? "",
     write: async (field, value) => {
-      writes.push(field);
       files.set(field, value);
     },
+    lastEditAt: async () => lastEdit,
   };
   return {
     files,
-    writes,
     record,
-    edit: (at: number, backupStartedAt: number | null = null) =>
-      recordChange(record, at, backupStartedAt),
+    edit: (at: number) => {
+      lastEdit = Math.max(lastEdit ?? 0, at);
+    },
   };
 };
 
@@ -214,38 +213,7 @@ describe("which install route the popover offers", () => {
   });
 });
 
-describe("the record of changes a backup is compared against", () => {
-  it("writes the time of the first change after the last backup, once", async () => {
-    const { files, writes, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-      backedUpAt: String(NOW - 10 * DAY_MS),
-    });
-    await edit(NOW - 9 * DAY_MS);
-    await edit(NOW - 8 * DAY_MS);
-    await edit(NOW - 7 * DAY_MS);
-    expect(files.get("changedAt")).toBe(String(NOW - 9 * DAY_MS));
-    expect(writes).toEqual(["changedAt"]);
-  });
-
-  it("writes again for a change made after a backup has started", async () => {
-    const started = NOW - 9 * DAY_MS;
-    const { files, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-      changedAt: String(NOW - 12 * DAY_MS),
-    });
-    await edit(started + 1_000, started);
-    expect(files.get("changedAt")).toBe(String(started + 1_000));
-  });
-
-  it("writes again for the first change after the project's clock starts", async () => {
-    const { files, edit } = project({
-      createdAt: String(NOW),
-      changedAt: String(NOW - 1),
-    });
-    await edit(NOW + 1_000);
-    expect(files.get("changedAt")).toBe(String(NOW + 1_000));
-  });
-
+describe("the backup record", () => {
   it("never moves the last backup back to an earlier start", async () => {
     const { files, record } = project();
     await recordBackup(record, NOW);
@@ -328,7 +296,7 @@ describe("the backup reminder", () => {
   it("reminds with the fact, an Export action and Remind me later, once the four conditions hold", async () => {
     const created = NOW - 9 * DAY_MS;
     const { files, record, edit } = project({ createdAt: String(created) });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     expect(await remind(record)).toBe(true);
     expect(snackbar.value?.message).toBe("9 days and no backup yet.");
     expect(snackbar.value?.actionLabel).toBe("Export");
@@ -340,10 +308,10 @@ describe("the backup reminder", () => {
     const { record, edit } = project({
       createdAt: String(NOW - 30 * DAY_MS),
     });
-    await edit(NOW - 10 * DAY_MS);
+    edit(NOW - 10 * DAY_MS);
     await recordBackup(record, NOW - 9 * DAY_MS);
     expect(await remind(record)).toBe(false);
-    await edit(NOW - 8 * DAY_MS);
+    edit(NOW - 8 * DAY_MS);
     expect(await remind(record)).toBe(true);
     expect(snackbar.value?.message).toBe("9 days since your last backup.");
   });
@@ -353,8 +321,8 @@ describe("the backup reminder", () => {
     const { record, edit } = project({
       createdAt: String(NOW - 30 * DAY_MS),
     });
-    await edit(NOW - 12 * DAY_MS);
-    await edit(started + 1_000, started);
+    edit(NOW - 12 * DAY_MS);
+    edit(started + 1_000);
     await recordBackup(record, started);
     expect(await remind(record)).toBe(true);
     expect(snackbar.value?.message).toBe("9 days since your last backup.");
@@ -362,11 +330,11 @@ describe("the backup reminder", () => {
 
   it("starts an existing project's clock at its first check, so earlier changes do not count", async () => {
     const { files, record, edit } = project();
-    await edit(NOW - 20 * DAY_MS);
+    edit(NOW - 20 * DAY_MS);
     expect(await remind(record)).toBe(false);
     expect(files.get("createdAt")).toBe(String(NOW));
     expect(await remind(record, { now: NOW + 9 * DAY_MS })).toBe(false);
-    await edit(NOW + DAY_MS);
+    edit(NOW + DAY_MS);
     expect(await remind(record, { now: NOW + 9 * DAY_MS })).toBe(true);
   });
 
@@ -375,7 +343,7 @@ describe("the backup reminder", () => {
       createdAt: String(NOW - 40 * DAY_MS),
       backedUpAt: String(NOW - 12 * DAY_MS),
     });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     expect(await remind(record)).toBe(true);
     expect(snackbar.value?.message).toBe("12 days since your last backup.");
   });
@@ -387,18 +355,18 @@ describe("the backup reminder", () => {
     const { files, record, edit } = project({
       createdAt: String(NOW - 30 * DAY_MS),
     });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     expect(await remind(record, options)).toBe(false);
     expect(snackbar.value).toBeNull();
     expect(files.has("remindedAt")).toBe(false);
   });
 
   it("stays silent when nothing changed since the last backup", async () => {
-    const { record } = project({
+    const { record, edit } = project({
       createdAt: String(NOW - 30 * DAY_MS),
       backedUpAt: String(NOW - 10 * DAY_MS),
-      changedAt: String(NOW - 11 * DAY_MS),
     });
+    edit(NOW - 11 * DAY_MS);
     expect(await remind(record)).toBe(false);
   });
 
@@ -407,13 +375,13 @@ describe("the backup reminder", () => {
       createdAt: String(NOW - 30 * DAY_MS),
       backedUpAt: String(NOW - 6 * DAY_MS),
     });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     expect(await remind(record)).toBe(false);
   });
 
   it("Remind me later puts it away and it does not return within the snooze period", async () => {
     const { record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     await remind(record);
     dismissSnackbar(snackbar.value);
     expect(snackbar.value).toBeNull();
@@ -434,7 +402,7 @@ describe("the backup reminder", () => {
       .mockResolvedValueOnce(false)
       .mockRejectedValueOnce(new Error("OPFS read failed"));
     const { record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
-    await edit(NOW - DAY_MS);
+    edit(NOW - DAY_MS);
     await remind(record, { exportProject });
     const reminder = snackbar.value;
     reminder?.onAction?.();
@@ -453,7 +421,7 @@ describe("the backup reminder", () => {
     await recordBackup(before.record, NOW - 2 * DAY_MS);
 
     const reloaded = project(Object.fromEntries(before.files));
-    await reloaded.edit(NOW - DAY_MS);
+    reloaded.edit(NOW - DAY_MS);
     expect(await remind(reloaded.record)).toBe(false);
     expect(
       await remind(reloaded.record, { now: NOW + 6 * DAY_MS }),
