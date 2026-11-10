@@ -22,7 +22,6 @@ import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
-import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
@@ -214,9 +213,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
     if (GameHitBreakpointMessage.type.isNotification(message)) {
       await this.sendStoppedEvent("breakpoint", message.params.run);
-    }
-    if (GameRolledMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("step", message.params.run);
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
       if (this._host.syncCursorToExecution) {
@@ -623,8 +619,16 @@ export class SparkDebugSession extends LoggingDebugSession {
     to: RollTarget,
   ) {
     let result: RollResult;
+    let held: PauseGameResult | undefined;
     try {
+      const ended = this._launchState === "ended";
+      const { stopped } = await this._connection.emit(
+        GetGameThreadsMessage.type.request({}),
+      );
       result = await this._connection.emit(type.request({ to }));
+      if (result.moved && (ended || stopped)) {
+        held = await this._connection.emit(PauseGameMessage.type.request({}));
+      }
     } catch (e) {
       this.sendRefusal(response, e);
       return;
@@ -636,6 +640,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     const body: RollDebugResult = { moved: result.moved };
     response.body = body;
     this.sendResponse(response);
+    if (held) {
+      await this.sendStoppedEvent("step", held.run);
+    }
   }
 
   protected override stepInTargetsRequest(
