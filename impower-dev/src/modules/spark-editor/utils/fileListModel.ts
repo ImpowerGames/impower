@@ -308,6 +308,29 @@ export const referenceCounts = (references: readonly Reference[]) => {
   return (path: string): number => from.get(path)?.size ?? 0;
 };
 
+export const referencedBy = (
+  references: readonly Pick<Reference, "from" | "to">[],
+  paths: readonly string[],
+): string[] => {
+  const within = (path: string) =>
+    paths.some((p) => path === p || path.startsWith(`${p}/`));
+  const found = new Set<string>();
+  for (const r of references) {
+    if (within(r.to) && !within(r.from)) {
+      found.add(r.from);
+    }
+  }
+  return [...found];
+};
+
+export const listSentence = (items: readonly string[]): string =>
+  items.length < 2
+    ? items.join("")
+    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+export const referencedByLabel = (paths: readonly string[]): string =>
+  `Referenced by ${listSentence(paths.map((p) => p.split("/").pop() ?? p))}`;
+
 export const storyOrder = (
   entry: string,
   references: readonly Reference[],

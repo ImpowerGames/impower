@@ -178,6 +178,17 @@ describe("the keyboard toolbar on a phone", () => {
     expect(tools).toEqual(["writingTools"]);
   });
 
+  it("hands Add to the host", async () => {
+    const v = mount("editing");
+    await focus(v);
+    const add = toolbar()!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add"]',
+    )!;
+    expect(add.disabled).toBe(false);
+    add.click();
+    expect(tools).toEqual(["add"]);
+  });
+
   it("indents and dedents the script when its buttons are pressed", async () => {
     const v = mount("editing");
     await focus(v);

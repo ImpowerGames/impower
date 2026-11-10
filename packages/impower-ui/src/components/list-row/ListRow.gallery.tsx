@@ -10,11 +10,13 @@ import {
   SceneIcon,
   WarningIcon,
 } from "../icon/icons.generated";
+import { useState } from "preact/hooks";
 import ListRow, { ListRowBadge, type ListRowSize } from "./ListRow";
 
 const SIZES: Record<ListRowSize, string> = {
   default: "Default: 60px, the Scripts and Assets pages' rows",
   compact: "Compact: 44px",
+  block: "Block: 64px with a 12px help line, the Add panel's rows",
 };
 
 const menu = (
@@ -113,7 +115,64 @@ function ListRowDemo() {
       <GalleryRow label="Not interactive, without a description: a row holding a field">
         <ListRow icon={<FileIcon />} label="A name being typed" />
       </GalleryRow>
+      <SelectionDemo />
     </div>
+  );
+}
+
+function SelectionDemo() {
+  const [picked, setPicked] = useState<string[]>(["chapter_two.sd"]);
+  const toggle = (name: string) =>
+    setPicked((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]));
+  return (
+    <>
+      {(Object.keys(SIZES) as ListRowSize[]).map((size) => (
+        <GalleryRow
+          key={size}
+          label={`Selection available, ${size}: on a pointer that hovers, the mark takes the icon's place under the pointer`}
+        >
+          <ListRow
+            size={size}
+            selection="available"
+            selectLabel="Select chapter_one.sd"
+            icon={<FileIcon />}
+            label="chapter_one.sd"
+            description="Modified 5m · 2 kB"
+            actions={menu}
+            onClick={() => {}}
+          />
+        </GalleryRow>
+      ))}
+      <GalleryRow label="Selecting: every row shows its mark in its icon's place, picked rows tinted">
+        <div class="space-y-0">
+          {["chapter_one.sd", "chapter_two.sd"].map((name) => (
+            <ListRow
+              key={name}
+              selection="active"
+              selected={picked.includes(name)}
+              selectLabel={`Select ${name}`}
+              onSelectedChange={() => toggle(name)}
+              icon={<FileIcon />}
+              label={name}
+              description="Modified 5m · 2 kB"
+              actions={menu}
+              onClick={() => toggle(name)}
+            />
+          ))}
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A drop target: a folder row with a dragged row over it">
+        <ListRow
+          dropTarget
+          icon={<FolderIcon />}
+          label="Drafts"
+          description="3 scripts"
+          trailing={<ChevronIcon />}
+          actions={menu}
+          onClick={() => {}}
+        />
+      </GalleryRow>
+    </>
   );
 }
 

@@ -153,13 +153,13 @@ describe("Scripts through the workspace", () => {
   it("moves a script or a folder into another folder, never a folder inside itself", async () => {
     const { scripts, fs, window } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    expect(await scripts.move("Scripts/outro.sd", "Scripts/Drafts")).toBe("Scripts/Drafts/outro.sd");
+    expect(await scripts.move(["Scripts/outro.sd"], "Scripts/Drafts")).toEqual(["Scripts/Drafts/outro.sd"]);
     expect(fs.moveFile).toHaveBeenCalledWith(PROJECT, "Scripts/outro.sd", "Scripts/Drafts/outro.sd");
-    expect(await scripts.move("Scripts/Drafts", "Scripts/Empty")).toBe("Scripts/Empty/Drafts");
+    expect(await scripts.move(["Scripts/Drafts"], "Scripts/Empty")).toEqual(["Scripts/Empty/Drafts"]);
     expect(fs.moveFolder).toHaveBeenCalledWith(PROJECT, "Scripts/Drafts", "Scripts/Empty/Drafts");
     expect(window.recordScriptChange).toHaveBeenCalledTimes(2);
     expect(window.recordAssetChange).toHaveBeenCalledTimes(1);
-    await expect(scripts.move("Scripts/Empty", "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
+    await expect(scripts.move(["Scripts/Empty"], "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
   });
 
   it("duplicates a script as '<name> copy' beside it", async () => {
@@ -186,11 +186,12 @@ describe("Scripts through the workspace", () => {
   it("downloads a script as its file and a folder as a zip", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    await scripts.download("Scripts/intro.sd");
+    await scripts.download(["Scripts/intro.sd"]);
     expect(downloadFile).toHaveBeenCalledWith("intro.sd", "text/plain", "text of Scripts/intro.sd");
-    await scripts.download("Scripts/Drafts");
+    await scripts.download(["Scripts/Drafts"]);
     expect(fs.zipFiles).toHaveBeenCalledWith({
       files: [{ uri: uri("Scripts/Drafts/old.sd"), path: "old.sd" }],
+      directories: [],
     });
     expect(downloadFile).toHaveBeenLastCalledWith("Drafts.zip", "application/zip", "zip bytes");
   });
@@ -198,9 +199,9 @@ describe("Scripts through the workspace", () => {
   it("deletes a script to the recycle bin and never Main", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
-    await scripts.remove("Scripts/outro.sd");
+    await scripts.remove(["Scripts/outro.sd"]);
     expect(fs.deleteFiles).toHaveBeenCalledWith({ files: [{ uri: uri("Scripts/outro.sd") }], mode: "trash" });
-    await expect(scripts.remove("main.sd")).rejects.toThrow("Main stays");
+    await expect(scripts.remove(["main.sd"])).rejects.toThrow("Main stays");
   });
 });
 
@@ -290,6 +291,61 @@ describe("Scripts through the workspace, under concurrent reloads", () => {
       expect.any(Error),
     );
     error.mockRestore();
+  });
+
+  it("answers which scripts reference an item from a fresh read, and not at all when that read fails", async () => {
+    const { scripts, ls } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toEqual([]);
+    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toBeNull();
+    ls.getScriptReferences.mockResolvedValueOnce([
+      { from: uri("main.sd"), to: uri("Scripts/outro.sd"), divert: true },
+    ]);
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toEqual(["main.sd"]);
+    expect(await scripts.referencing(["Scripts/intro.sd"])).toEqual(["main.sd"]);
+  });
+});
+
+describe("downloading several items", () => {
+  it("keeps each script's folders under the items' shared folder, so scripts with one name stay apart", async () => {
+    const { scripts, fs } = fakeWorkspace(
+      [...PATHS, "Scripts/A/chapter.sd", "Scripts/B/chapter.sd"],
+      [...FOLDERS, "Scripts/A", "Scripts/B"],
+    );
+    await scripts.load();
+    await scripts.download(["Scripts/A/chapter.sd", "Scripts/B/chapter.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [
+        { uri: uri("Scripts/A/chapter.sd"), path: "A/chapter.sd" },
+        { uri: uri("Scripts/B/chapter.sd"), path: "B/chapter.sd" },
+      ],
+      directories: [],
+    });
+    expect(downloadFile).toHaveBeenLastCalledWith("Scripts.zip", "application/zip", "zip bytes");
+    await scripts.download(["Scripts/Drafts", "Scripts/intro.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [
+        { uri: uri("Scripts/intro.sd"), path: "intro.sd" },
+        { uri: uri("Scripts/Drafts/old.sd"), path: "Drafts/old.sd" },
+      ],
+      directories: ["Drafts"],
+    });
+  });
+
+  it("keeps picked folders and their empty folders in the archive", async () => {
+    const { scripts, fs } = fakeWorkspace(PATHS, [...FOLDERS, "Scripts/Drafts/Inner"]);
+    await scripts.load();
+    await scripts.download(["Scripts/Empty", "Scripts/intro.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [{ uri: uri("Scripts/intro.sd"), path: "intro.sd" }],
+      directories: ["Empty"],
+    });
+    await scripts.download(["Scripts/Drafts"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [{ uri: uri("Scripts/Drafts/old.sd"), path: "old.sd" }],
+      directories: ["Inner"],
+    });
   });
 });
 

@@ -30,8 +30,7 @@ const MODULE_VARIANTS = [
 
 const DRAWN_FOR_THE_EDITOR = [
   "detour", "fast-forward", "filter", "folder-plus", "follow-off",
-  "match-case", "options", "regex", "rewind", "scissors", "sign-out",
-  "step-over", "whole-word",
+  "options", "rewind", "scissors", "sign-out", "step-over",
 ];
 
 const componentFor = (name: string) =>

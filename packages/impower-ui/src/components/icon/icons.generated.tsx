@@ -237,10 +237,6 @@ export const LoopIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"m17 2 4 4-4 4\"/><path d=\"M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4\"/><path d=\"M21 13v2a3 3 0 0 1-3 3H3\"/>" }} />
 );
 
-export const MatchCaseIcon: IconComponent = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M2.5 18 7 6l4.5 12M4.2 13.5h5.6\"/><circle cx=\"17.5\" cy=\"15.5\" r=\"2.5\"/><path d=\"M20 12.5V18\"/>" }} />
-);
-
 export const MenuIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M4 6h16M4 12h16M4 18h16\"/>" }} />
 );
@@ -339,10 +335,6 @@ export const RedoIcon: IconComponent = (props) => (
 
 export const RefreshIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M20 11a8 8 0 0 0-14.5-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5L20 16m0 4v-4h-4\"/>" }} />
-);
-
-export const RegexIcon: IconComponent = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M6 18h.01\" stroke-width=\"3\"/><path d=\"M15 5v8m-3.5-6 7 4m0-4-7 4\"/>" }} />
 );
 
 export const ReplaceAllIcon: IconComponent = (props) => (
@@ -507,8 +499,4 @@ export const VolumeIcon: IconComponent = (props) => (
 
 export const WarningIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"m12 3 10 18H2zM12 9v5m0 3h.01\"/>" }} />
-);
-
-export const WholeWordIcon: IconComponent = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<circle cx=\"7\" cy=\"12.5\" r=\"2.5\"/><path d=\"M9.5 10v5\"/><circle cx=\"15.5\" cy=\"12.5\" r=\"2.5\"/><path d=\"M13 7v8M3 19h18\"/>" }} />
 );

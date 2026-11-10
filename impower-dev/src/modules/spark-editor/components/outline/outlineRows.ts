@@ -208,3 +208,13 @@ export function outlineRows({
     problems: countProblems(diagnostics),
   };
 }
+
+export const filterOutlineRows = (
+  rows: readonly OutlineRow[],
+  query: string,
+): OutlineRow[] => {
+  const needle = query.trim().toLocaleLowerCase();
+  return needle
+    ? rows.filter((row) => row.label.toLocaleLowerCase().includes(needle))
+    : [...rows];
+};

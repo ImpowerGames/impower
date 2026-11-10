@@ -105,9 +105,20 @@ export function ToolPanelTrigger({ children }: { children?: ComponentChildren })
 
 export type ToolPanelChrome = "heading" | "none";
 
+export type ToolPanelCloseButton = "heading" | "trigger";
+
+export type ToolPanelAnchoring = "bar" | "trigger";
+
+const POPOVER_PLACEMENT = {
+  bar: { align: "start", sideOffset: 8, alignOffset: 12 },
+  trigger: { align: "end", sideOffset: 18, alignOffset: -8 },
+} as const;
+
 export type ToolPanelProps = {
   open: boolean;
   title: string;
+  closeButton?: ToolPanelCloseButton;
+  anchoring?: ToolPanelAnchoring;
   chrome?: ToolPanelChrome;
   closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
@@ -123,12 +134,14 @@ const keepFocus = (event: PointerEvent) => event.preventDefault();
 function Heading({
   title,
   closeLabel,
+  closeButton,
   onBack,
   onClose,
-}: Pick<ToolPanelProps, "title" | "closeLabel" | "onBack"> & {
+}: Pick<ToolPanelProps, "title" | "closeLabel" | "closeButton" | "onBack"> & {
   onClose: () => void;
 }) {
   const { sheet, keyboard } = useContext(Context);
+  const closes = keyboard || closeButton !== "trigger";
   return (
     <header
       class={cn(
@@ -157,16 +170,18 @@ function Heading({
           {title}
         </h2>
       )}
-      <Button
-        variant="quiet"
-        size="icon"
-        aria-label={closeLabel}
-        class="text-muted"
-        onPointerDown={keepFocus}
-        onClick={onClose}
-      >
-        <CloseIcon />
-      </Button>
+      {closes && (
+        <Button
+          variant="quiet"
+          size="icon"
+          aria-label={closeLabel}
+          class="text-muted"
+          onPointerDown={keepFocus}
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </Button>
+      )}
     </header>
   );
 }
@@ -248,6 +263,8 @@ function KeyboardPanel({
 export function ToolPanel({
   open,
   title,
+  closeButton = "heading",
+  anchoring = "bar",
   chrome = "heading",
   closeLabel = "Close writing tools",
   onClose,
@@ -276,6 +293,7 @@ export function ToolPanel({
         <Heading
           title={title}
           closeLabel={closeLabel}
+          closeButton={closeButton}
           onBack={onBack}
           onClose={() => {
             close("close");
@@ -347,9 +365,7 @@ export function ToolPanel({
     <PopoverContent
       size="panel"
       side="top"
-      align="start"
-      sideOffset={8}
-      alignOffset={12}
+      {...POPOVER_PLACEMENT[anchoring]}
       class="max-h-[min(var(--radix-popover-content-available-height),640px)]"
       aria-label={title}
       onEscapeKeyDown={(event) => {
