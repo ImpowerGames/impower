@@ -53,6 +53,33 @@ describe("increaseIndentPattern", () => {
     }
   });
 
+  it("indents after a named declaration header", () => {
+    for (const line of [
+      "scene name",
+      "  scene start",
+      "scene name -- comment",
+      "branch name",
+      "define name",
+      "define Hero with",
+      "define companion as character with",
+      "define Hero with -- comment",
+    ]) {
+      expect(increase.test(line), line).toBe(true);
+    }
+  });
+
+  it("does not indent after a closed or non-header declaration line", () => {
+    for (const line of [
+      "define x with a = 1 end",
+      "define = 1, 2",
+      "-- scene name",
+      "The scene changes",
+      'x = "scene name"',
+    ]) {
+      expect(increase.test(line), line).toBe(false);
+    }
+  });
+
   it("does not fire inside a line comment", () => {
     expect(increase.test("  -- [")).toBe(false);
   });
@@ -130,4 +157,28 @@ describe("Enter between `{` and `}` in a brace body (#1228)", () => {
     expect(rule?.action.appendText ?? "").toBe("");
   });
 
+});
+
+describe("define onEnterRule", () => {
+  const defineRule = onEnterRules.find(
+    (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),
+  )!;
+  const before = new RegExp(defineRule.beforeText, "u");
+  const after = new RegExp(defineRule.afterText!, "u");
+
+  it("splits a named define header from its end", () => {
+    for (const line of [
+      "define",
+      "define Hero with",
+      "  define companion as character with",
+      "define Hero",
+    ]) {
+      expect(before.test(line), line).toBe(true);
+    }
+    expect(after.test("end")).toBe(true);
+  });
+
+  it("ignores a define closed on its own line", () => {
+    expect(before.test("define x with a = 1 end")).toBe(false);
+  });
 });

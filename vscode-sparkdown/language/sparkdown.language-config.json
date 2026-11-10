@@ -119,7 +119,7 @@
       }
     },
     {
-      "beforeText": "\\bdefine\\s*$",
+      "beforeText": "^\\s*define\\b(?:(?!\\bend\\b|=|--).)*(--.*)?$",
       "afterText": "^\\s*end\\b",
       "action": {
         "indent": "indentOutdent"
@@ -240,7 +240,7 @@
     }
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat|define|scene|branch)\\b\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|((\\{|(?<!\\()\\(|(?<!\\[)\\[)\\s*(--.*)?$))",
+    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat)\\b\\s*(--.*)?$)|(^\\s*(define|scene|branch)\\b(?:(?!\\bend\\b|=|--).)*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|((\\{|(?<!\\()\\(|(?<!\\[)\\[)\\s*(--.*)?$))",
     "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)(?!\\))|\\](?!\\]))",
     "indentNextLinePattern": "^((?!--).)*(?<![=<>!~])=\\s*(--.*)?$",
     "unIndentedLinePattern": "^#\\!"
