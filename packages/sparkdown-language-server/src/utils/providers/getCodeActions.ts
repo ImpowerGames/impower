@@ -1,6 +1,8 @@
 import {
   closeMatchOf,
   expectedTextOf,
+  stillExpected,
+  type FixKind,
 } from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
@@ -36,10 +38,11 @@ export interface DiagnosticAction {
   name: string;
   done: string;
   expect?: string;
+  kind?: FixKind;
   changes: { from: number; to: number; insert: string }[];
 }
 
-type QuickFixData = Pick<DiagnosticAction, "done" | "expect">;
+type QuickFixData = Pick<DiagnosticAction, "done" | "expect" | "kind">;
 
 const QUICK_FIXES = new Map<
   string,
@@ -107,7 +110,13 @@ export const getCodeActions = (
     const expected = expectedTextOf(diagnostic.data);
     if (
       expected !== undefined &&
-      document.getText(diagnostic.range) !== expected
+      !stillExpected(
+        document.getText(),
+        document.offsetAt(diagnostic.range.start),
+        document.offsetAt(diagnostic.range.end),
+        expected,
+        fixKindOf(diagnostic),
+      )
     ) {
       return [];
     }
@@ -116,20 +125,14 @@ export const getCodeActions = (
       return byMessage(document, diagnostic, startSceneMissingIn);
     }
     if (diagnostic.source === TODO_NOTE_SOURCE) {
-      const removal = removeNote(document, diagnostic);
-      return removal
-        ? [
-            quickFix("Remove the note", "Note removed.", document, diagnostic, [
-              removal,
-            ]),
-          ]
-        : [];
+      return [
+        quickFix("Remove the note", "Note removed.", document, diagnostic, [
+          removeNote(document, diagnostic),
+        ]),
+      ];
     }
     const close = closeMatchOf(diagnostic.data);
     if (close) {
-      if (continuesName(document, diagnostic.range)) {
-        return [];
-      }
       return [
         quickFix(
           `Use ${close.match} instead`,
@@ -159,6 +162,13 @@ export const getDiagnosticActions = (
     })),
   }));
 
+const fixKindOf = (diagnostic: ActionableDiagnostic): FixKind | undefined =>
+  diagnostic.source === TODO_NOTE_SOURCE
+    ? "note"
+    : closeMatchOf(diagnostic.data)
+      ? "name"
+      : undefined;
+
 const messageOf = (diagnostic: ActionableDiagnostic): string =>
   typeof diagnostic.message === "string"
     ? diagnostic.message
@@ -173,7 +183,13 @@ const quickFix = (
   isPreferred = true,
 ): CodeAction => {
   const expect = expectedTextOf(diagnostic.data);
-  const data: QuickFixData = expect === undefined ? { done } : { done, expect };
+  const kind = fixKindOf(diagnostic);
+  const data: QuickFixData =
+    expect === undefined
+      ? { done }
+      : kind === undefined
+        ? { done, expect }
+        : { done, expect, kind };
   return {
     title,
     kind: CodeActionKind.QuickFix,
@@ -219,7 +235,7 @@ const runQuickFixes = (
 const removeNote = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
-): TextEdit | undefined => {
+): TextEdit => {
   const { start, end } = diagnostic.range;
   const before = document.getText({
     start: { line: start.line, character: 0 },
@@ -228,9 +244,6 @@ const removeNote = (
   const lineEnd = document.positionAt(
     document.offsetAt({ line: end.line, character: Number.MAX_SAFE_INTEGER }),
   );
-  if (document.getText({ start: end, end: lineEnd }).trim()) {
-    return undefined;
-  }
   if (!before.trim()) {
     return deleteLine(document, start.line);
   }
@@ -241,25 +254,6 @@ const removeNote = (
     },
     newText: "",
   };
-};
-
-const NAME_CHARACTER = /[\p{L}\p{N}_-]/u;
-
-const continuesName = (
-  document: TextDocument,
-  range: ActionableDiagnostic["range"],
-): boolean => {
-  const characterAt = (offset: number) =>
-    offset < 0
-      ? ""
-      : document.getText({
-          start: document.positionAt(offset),
-          end: document.positionAt(offset + 1),
-        });
-  return (
-    NAME_CHARACTER.test(characterAt(document.offsetAt(range.start) - 1)) ||
-    NAME_CHARACTER.test(characterAt(document.offsetAt(range.end)))
-  );
 };
 
 const wrapInStartScene = (

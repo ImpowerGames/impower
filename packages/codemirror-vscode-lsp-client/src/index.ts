@@ -61,8 +61,13 @@ export {
 } from "./definition";
 export {
   convertFromServerDiagnostics,
+  diagnosticFixHandler,
+  fixActionsOf,
   serverDiagnostics,
   updateDocumentDiagnostics,
+  type DiagnosticFix,
+  type DiagnosticFixAction,
+  type DiagnosticFixHandler,
 } from "./diagnostics";
 export {
   convertFromServerFoldingRanges,

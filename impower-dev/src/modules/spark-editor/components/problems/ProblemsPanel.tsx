@@ -4,6 +4,7 @@ import {
   DownloadIcon,
   ErrorIcon,
   FilterChip,
+  FixMenu,
   InfoIcon,
   MESSAGE_ENTRY_ROW_HEIGHT,
   MessageEntry,
@@ -24,6 +25,7 @@ import {
   consoleLocation,
   countBySeverity,
   filterChip,
+  fixChoiceOf,
   headCount,
   isChoiceLive,
   lineLink,
@@ -124,6 +126,17 @@ function ProblemRow({ problem }: { problem: Problem }) {
           line: problem.line,
           character: problem.range.start.character,
         })
+      }
+      actions={
+        problem.actions.length ? (
+          <FixMenu
+            size="compact"
+            actions={problem.actions}
+            onChoose={(action) =>
+              void problems.applyFix(fixChoiceOf(problem, action))
+            }
+          />
+        ) : undefined
       }
     />
   );

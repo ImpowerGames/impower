@@ -3,11 +3,13 @@ import {
   CloseIcon,
   Dialog,
   DialogTitle,
+  FixMenu,
   MessageEntry,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import {
+  fixChoiceOf,
   groupByScript,
   lineLink,
   problemSummary,
@@ -29,7 +31,8 @@ export default function ProblemsDialog() {
   const state = useComputed(() => problems.dialog.value).value ?? last.current;
   last.current = state;
   const all = useComputed(() => problems.problems.value).value;
-  const listed = state ? scopedProblems(state.scope, all) : [];
+  const versions = useComputed(() => problems.versions.value).value;
+  const listed = state ? scopedProblems(state.scope, all, versions) : [];
   const navigating = useRef(false);
 
   const returnFocus = () => {
@@ -111,6 +114,16 @@ export default function ProblemsDialog() {
                     character: problem.range.start.character,
                   });
                 }}
+                actions={
+                  problem.actions.length ? (
+                    <FixMenu
+                      actions={problem.actions}
+                      onChoose={(action) =>
+                        void problems.applyFix(fixChoiceOf(problem, action))
+                      }
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </div>

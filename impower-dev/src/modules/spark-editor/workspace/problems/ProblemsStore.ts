@@ -1,4 +1,5 @@
 import { layoutState } from "@impower/impower-ui/layout";
+import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { computed, signal } from "@preact/signals";
 import type { Diagnostic } from "vscode-languageserver-protocol";
@@ -13,6 +14,7 @@ import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
 import { showSnackbar } from "../../utils/snackbar";
+import { applyFix, type FixChoice } from "./applyFix";
 import {
   CONSOLE_SEVERITIES,
   formatConsoleLog,
@@ -61,6 +63,8 @@ export class ProblemsStore {
     Readonly<Record<string, readonly Diagnostic[]>>
   >({});
 
+  readonly versions = signal<Readonly<Record<string, number>>>({});
+
   readonly played = signal<readonly PlayedEntry[]>([]);
 
   readonly run = signal(0);
@@ -79,7 +83,9 @@ export class ProblemsStore {
 
   readonly reveal = signal<{ card: PanelCard; serial: number } | null>(null);
 
-  readonly problems = computed(() => toProblems(this.diagnostics.value));
+  readonly problems = computed(() =>
+    toProblems(this.diagnostics.value, this.versions.value),
+  );
 
   readonly visiblePlayed = computed(() =>
     this.played.value.filter(
@@ -137,10 +143,21 @@ export class ProblemsStore {
   record({
     uri,
     diagnostics,
+    version,
   }: {
     uri: string;
     diagnostics: readonly Diagnostic[];
+    version?: number | null;
   }) {
+    if (this.versions.value[uri] !== (version ?? undefined)) {
+      const versions = { ...this.versions.value };
+      if (version == null) {
+        delete versions[uri];
+      } else {
+        versions[uri] = version;
+      }
+      this.versions.value = versions;
+    }
     const next = { ...this.diagnostics.value };
     if (diagnostics.length) {
       next[uri] = diagnostics;
@@ -327,6 +344,25 @@ export class ProblemsStore {
     await Workspace.window.revealDocument(uri, { start: at, end: at });
   }
 
+  async applyFix(choice: FixChoice) {
+    const { Workspace } = await import("../Workspace");
+    return applyFix(
+      {
+        getFileText: (uri) => Workspace.fs.getFileText(uri),
+        applyWorkspaceEdit: (edit, label, metadata) =>
+          Workspace.fs.applyWorkspaceEdit(edit, label, metadata),
+        recordScriptChange: () => Workspace.window.recordScriptChange(),
+        refreshDiagnostics: async (uri) => {
+          const pulled = await Workspace.ls.pullDiagnostics(uri);
+          if (pulled) {
+            this.record({ uri, ...pulled });
+          }
+        },
+      },
+      choice,
+    );
+  }
+
   async goBackToChoice(checkpoint: number) {
     this.closeDialog();
     const { Workspace } = await import("../Workspace");
@@ -363,6 +399,10 @@ export class ProblemsStore {
   }
 
   receive(message: unknown) {
+    if (ChoseEditorFixMessage.type.isNotification(message)) {
+      void this.applyFix(message.params);
+      return;
+    }
     if (
       RequestedEditorToolMessage.type.isNotification(message) &&
       message.params.tool === "problems"

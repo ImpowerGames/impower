@@ -66,6 +66,32 @@ describe("the problems model", () => {
     ]);
   });
 
+  it("keeps the fixes the server sent that change the text, with the script's version", () => {
+    const use = {
+      name: "Use alice instead",
+      done: "Changed to alice.",
+      expect: "alcie",
+      kind: "name",
+      changes: [{ from: 5, to: 10, insert: "alice" }],
+    };
+    const add = { name: "Add alcie to assets", done: "Added.", changes: [] };
+    const listed = toProblems(
+      {
+        [MAIN]: [
+          { ...diagnostic(1, 2, "Cannot find alcie"), data: [use, add] },
+          { ...diagnostic(2, 2, "Plain"), data: { closeMatch: {} } },
+          diagnostic(3, 1),
+        ],
+      },
+      { [MAIN]: 7 },
+    );
+    expect(listed.map((p) => [p.actions, p.version])).toEqual([
+      [[use], 7],
+      [[], 7],
+      [[], 7],
+    ]);
+  });
+
   it("counts problems apart from notes in a card's head and names each kind in a summary", () => {
     const listed = toProblems({
       [MAIN]: [diagnostic(1, 1), diagnostic(2, 2), diagnostic(3, 2), diagnostic(4, 3)],

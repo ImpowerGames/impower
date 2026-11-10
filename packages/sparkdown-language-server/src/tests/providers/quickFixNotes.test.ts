@@ -299,6 +299,9 @@ describe("quick fix notes", () => {
         ...((action.data as { expect?: string }).expect !== undefined
           ? { expect: (action.data as { expect: string }).expect }
           : {}),
+        ...((action.data as { kind?: string }).kind !== undefined
+          ? { kind: (action.data as { kind: string }).kind }
+          : {}),
         changes: action.edit!.changes![MAIN]!.map((edit) => ({
           from: document.offsetAt(edit.range.start),
           to: document.offsetAt(edit.range.end),

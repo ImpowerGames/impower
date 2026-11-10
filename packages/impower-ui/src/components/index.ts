@@ -71,6 +71,14 @@ export {
   type FilterChipSize,
 } from "./filter-chip/FilterChip";
 export {
+  default as FixMenu,
+  fixMenuVariants,
+  FIX_MENU_LABEL,
+  type FixMenuAction,
+  type FixMenuProps,
+  type FixMenuSize,
+} from "./fix-menu/FixMenu";
+export {
   default as MessageEntry,
   messageEntryVariants,
   messageEntryGlyphVariants,

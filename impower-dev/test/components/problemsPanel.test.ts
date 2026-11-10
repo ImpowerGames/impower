@@ -316,6 +316,50 @@ describe("the Problems panel", () => {
     });
   });
 
+  it("draws a Fix control only on an entry the server can fix, and hands the chosen fix to the store", async () => {
+    const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+    const fix = {
+      name: "Use alice instead",
+      done: "Changed to alice.",
+      expect: "alcie",
+      kind: "name",
+      changes: [{ from: 30, to: 35, insert: "alice" }],
+    };
+    problems.record({
+      uri: MAIN,
+      version: 4,
+      diagnostics: [
+        { ...diagnostic(1, 2, "Cannot find alcie"), data: [fix] },
+        {
+          ...diagnostic(3, 2, "Cannot find bob"),
+          data: [{ name: "Add bob to assets", done: "Added.", changes: [] }],
+        },
+        diagnostic(5, 1, "Unexpected"),
+      ],
+    });
+    await openPanel();
+    const fixes = Array.from(
+      panel()!.querySelectorAll<HTMLButtonElement>("[data-message-entry] button"),
+    ).filter((button) => !button.getAttribute("aria-label"));
+    expect(fixes.map((button) => button.textContent)).toEqual([
+      "Use alice instead",
+    ]);
+    await act(async () => fixes[0]!.click());
+    expect(applyFix).toHaveBeenCalledWith({
+      fix: {
+        uri: MAIN,
+        version: 4,
+        range: diagnostic(1, 2, "").range,
+        changes: fix.changes,
+        expect: "alcie",
+        kind: "name",
+      },
+      name: "Use alice instead",
+      done: "Changed to alice.",
+    });
+    applyFix.mockRestore();
+  });
+
   it("opens itself on a runtime error during play and lists it under While playing, and ignores a scrubbed preview's", async () => {
     await mount();
     await act(async () => {

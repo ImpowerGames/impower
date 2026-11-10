@@ -18,6 +18,7 @@ import { choiceMarkers } from "../../../cm-choice-markers/choiceMarkers";
 import { lineBands } from "../../../cm-line-bands/lineBands";
 import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 import { problemMarks } from "../../../cm-problem-marks/problemMarks";
+import { editorFixes } from "../utils/extensions/editorFixes";
 import { findMatches } from "../utils/extensions/findMatches";
 
 const carriesFiles = (event: DragEvent) =>
@@ -51,6 +52,7 @@ const EDITOR_EXTENSIONS = [
   lineBands(),
   choiceMarkers(),
   problemMarks(),
+  editorFixes(),
   findMatches(),
   dropCursor(),
   crosshairCursor(),

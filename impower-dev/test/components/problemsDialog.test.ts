@@ -119,6 +119,44 @@ describe("the Problems to fix dialog", () => {
     expect(entries()).toEqual(["Warning · Sound not found"]);
   });
 
+  it("gives an entry the server can fix one 44px Fix control, and none to the others", async () => {
+    const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+    const action = (name: string) => ({
+      name,
+      done: "Changed.",
+      changes: [{ from: 0, to: 1, insert: name }],
+    });
+    problems.record({
+      uri: CHAPTER,
+      version: 2,
+      diagnostics: [
+        {
+          ...diagnostic(1, 2, "Sound not found"),
+          data: [action("Use ding instead"), action("Use dong instead")],
+        },
+        { ...diagnostic(3, 2, "Note"), data: [action("Remove the note")] },
+      ],
+    });
+    await open({ kind: "story" });
+    const fixes = Array.from(
+      dialog()!.querySelectorAll<HTMLButtonElement>("[data-message-entry] button"),
+    ).filter((button) => !button.getAttribute("aria-label"));
+    expect(fixes.map((button) => button.textContent)).toEqual([
+      "Fix",
+      "Remove the note",
+    ]);
+    expect(fixes[0]!.getAttribute("aria-haspopup")).toBe("menu");
+    expect(fixes.every((button) => button.classList.contains("min-h-11"))).toBe(true);
+    await act(async () => fixes[1]!.click());
+    expect(applyFix).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Remove the note",
+        fix: expect.objectContaining({ uri: CHAPTER, version: 2 }),
+      }),
+    );
+    applyFix.mockRestore();
+  });
+
   it("updates its entries as the diagnostics change", async () => {
     await open({ kind: "story" });
     await act(async () =>
