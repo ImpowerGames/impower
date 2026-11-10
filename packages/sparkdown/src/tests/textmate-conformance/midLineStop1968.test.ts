@@ -19,7 +19,7 @@ const grammarOf = (repository: Record<string, unknown>, patterns: unknown[] = RO
 
 const inCapture = (grammar: ReturnType<typeof grammarOf>, name?: string) => ({
   ...grammar,
-  patterns: [{ match: "^(?:-)(.+)", captures: { "1": { name, patterns: ROOT } } }, ...ROOT],
+  patterns: [{ match: "^(?:-)(.+)", captures: { "1": { name, patterns: grammar.patterns } } }, ...grammar.patterns],
 });
 
 const GRAMMARS = {
@@ -62,6 +62,18 @@ const GRAMMARS = {
       patterns: [{ include: "#Block" }, { include: "#Word" }, { include: "#Gap" }],
     },
   }),
+  recursiveEmptyBeginThroughGroup: grammarOf(
+    {
+      Wrapper: { patterns: [{ include: "#Block" }] },
+      Block: {
+        name: "block.mini",
+        begin: "(?=<)",
+        end: ">",
+        patterns: [{ include: "#Wrapper" }, { include: "#Word" }, { include: "#Gap" }],
+      },
+    },
+    [{ include: "#Wrapper" }, { include: "#Word" }, { include: "#Gap" }],
+  ),
 };
 
 const CAPTURED = {
@@ -70,6 +82,7 @@ const CAPTURED = {
   nestedNonAdvancingMatchInCapture: inCapture(GRAMMARS.nestedNonAdvancingMatch, "cap.mini"),
   recursiveEmptyBeginInCapture: inCapture(GRAMMARS.recursiveEmptyBegin),
   recursiveEmptyBeginInNamedCapture: inCapture(GRAMMARS.recursiveEmptyBegin, "cap.mini"),
+  recursiveEmptyBeginThroughGroupInNamedCapture: inCapture(GRAMMARS.recursiveEmptyBeginThroughGroup, "cap.mini"),
 };
 
 const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
@@ -82,6 +95,7 @@ const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
   ["recursiveEmptyBeginAfterEndPatterns", "<abc> d\nef> g\n", "d", "source.mini block.mini"],
   ["nonAdvancingMatch", "<abc> d", "d", "source.mini"],
   ["recursiveEmptyBegin", "<abc> d", "d", "source.mini block.mini"],
+  ["recursiveEmptyBeginThroughGroup", "<abc> d\nef> g\n", "d", "source.mini block.mini"],
 ];
 
 describe("textmate-grammar-tree pops a rule that does not advance mid-line and stops the line, as vscode-textmate does (I-1968)", () => {
@@ -99,6 +113,7 @@ const CAPTURE_CASES: [keyof typeof CAPTURED, string, string, string][] = [
   ["nestedNonAdvancingMatchInCapture", "-<x [abc] y> z\nw\n", "y", "source.mini cap.mini block.mini"],
   ["recursiveEmptyBeginInCapture", "-<abc> d\nef\n", "d", "source.mini block.mini"],
   ["recursiveEmptyBeginInNamedCapture", "-<abc> d\nef\n", "d", "source.mini cap.mini block.mini"],
+  ["recursiveEmptyBeginThroughGroupInNamedCapture", "-<abc> d\nef> g\n", "d", "source.mini cap.mini block.mini"],
 ];
 
 describe("a capture's patterns pop a rule that does not advance and stop at the capture's end, as vscode-textmate does (I-1968)", () => {

@@ -194,7 +194,7 @@ export class ResumableTokenizer {
         } else if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
-        this.state.enter(rule.id, pos);
+        this.state.enter(rule.id, pos, true);
         const beginMatched = rule.begin(this.state, pos);
         if (!beginMatched) {
           this.state.exit(rule.id, pos);
@@ -203,7 +203,7 @@ export class ResumableTokenizer {
         return { kind: "scope", rule, matched: beginMatched, chain: [] };
       }
       if (rule instanceof SwitchRule) {
-        if (this.state.possibleStackOverflow(rule.id, pos)) {
+        if (this.state.includeCycle(rule.id, pos)) {
           continue;
         }
         this.state.enter(rule.id, pos);
@@ -485,7 +485,7 @@ export class ResumableTokenizer {
         emptyMatchCount: f.emptyMatchCount,
         wrapperNodes: f.wrapperNodes?.slice(),
       });
-      this.state.enter(f.rule.id, openedAt);
+      this.state.enter(f.rule.id, openedAt, true);
     }
   }
 

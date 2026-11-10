@@ -5,7 +5,7 @@
 import { GrammarNode } from "./GrammarNode";
 import { GrammarStack } from "./GrammarStack";
 
-type CallFrame = { ruleId: string; position: number };
+type CallFrame = { ruleId: string; position: number; scoped: boolean };
 
 export class GrammarState {
   stack: GrammarStack = new GrammarStack([
@@ -184,15 +184,36 @@ export class GrammarState {
     return hasVisited;
   }
 
-  enter(ruleId: string, position: number) {
-    this.visited.push({ ruleId, position });
+  includeCycle(ruleId: string, position: number): boolean {
+    if (this.visited.length > 10000) {
+      console.warn("Possible stack overflow!", this.visited);
+      return true;
+    }
+    for (let i = this.visited.length - 1; i >= 0; i--) {
+      const frame = this.visited[i]!;
+      if (frame.scoped) {
+        return false;
+      }
+      if (frame.ruleId === ruleId && frame.position === position) {
+        console.warn("Infinite recursion detected!", ruleId, position);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  enter(ruleId: string, position: number, scoped = false) {
+    this.visited.push({ ruleId, position, scoped });
   }
 
   exit(ruleId: string, position: number) {
-    const idx = this.visited.findIndex(
-      (f) => f.ruleId === ruleId && f.position === position,
-    );
-    if (idx >= 0) this.visited.splice(idx, 1);
+    for (let i = this.visited.length - 1; i >= 0; i--) {
+      const frame = this.visited[i]!;
+      if (frame.ruleId === ruleId && frame.position === position) {
+        this.visited.splice(i, 1);
+        return;
+      }
+    }
   }
 }
 

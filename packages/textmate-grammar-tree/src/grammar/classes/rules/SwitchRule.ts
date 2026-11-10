@@ -55,7 +55,7 @@ export class SwitchRule implements Rule {
   }
 
   pattern(state: GrammarState, from: number) {
-    if (state.possibleStackOverflow(this.id, from)) {
+    if (state.includeCycle(this.id, from)) {
       return null;
     }
     state.enter(this.id, from);

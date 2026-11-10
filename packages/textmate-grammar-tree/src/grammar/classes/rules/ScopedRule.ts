@@ -87,7 +87,7 @@ export class ScopedRule implements Rule {
       }
       return null;
     }
-    state.enter(this.id, from);
+    state.enter(this.id, from, true);
     const wrappedBeginChildren: Matched[] = [];
     let wrappedContentChildren: Matched[] = [];
     const wrappedEndChildren: Matched[] = [];
