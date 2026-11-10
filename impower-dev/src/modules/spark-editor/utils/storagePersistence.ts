@@ -150,15 +150,42 @@ export const backupReminderDue = ({
   ageMs > BACKUP_REMINDER_AFTER_MS &&
   (sinceRemindedMs === null || sinceRemindedMs >= BACKUP_REMINDER_SNOOZE_MS);
 
+export const BACKUP_REMINDER_CHECK_MS = 60 * 60_000;
+
 export type BackupField = Extract<
   ProjectMetadataField,
-  "backedUpAt" | "createdAt" | "remindedAt"
+  "backedUpAt" | "backedUpFiles" | "createdAt" | "remindedAt"
 >;
+
+export interface ProjectFileFacts {
+  path: string;
+  size: number;
+  text?: string;
+}
+
+export const projectFingerprint = (files: readonly ProjectFileFacts[]) => {
+  let hash = 0x811c9dc5;
+  const feed = (value: string) => {
+    for (let i = 0; i < value.length; i++) {
+      hash = Math.imul(hash ^ value.charCodeAt(i), 0x01000193) >>> 0;
+    }
+    hash = Math.imul(hash ^ 0xffff, 0x01000193) >>> 0;
+  };
+  const sorted = [...files].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  );
+  for (const { path, size, text } of sorted) {
+    feed(path);
+    feed(String(size));
+    feed(text ?? "");
+  }
+  return `${files.length}:${hash.toString(16)}`;
+};
 
 export interface ProjectBackupRecord {
   read: (field: BackupField) => Promise<string>;
   write: (field: BackupField, value: string) => Promise<void>;
-  lastEditAt: () => Promise<number>;
+  fingerprint: () => Promise<string>;
 }
 
 const timeOf = async (
@@ -169,8 +196,13 @@ const timeOf = async (
   return Number.isFinite(time) && time > 0 ? time : null;
 };
 
-export const recordBackup = (project: ProjectBackupRecord, now: number) =>
-  project.write("backedUpAt", String(now));
+export const recordBackup = async (
+  project: ProjectBackupRecord,
+  now: number,
+) => {
+  await project.write("backedUpFiles", await project.fingerprint());
+  await project.write("backedUpAt", String(now));
+};
 
 export const exportBackup = async (
   exportProject: () => Promise<boolean>,
@@ -203,10 +235,15 @@ export const remindBackupIfDue = async ({
   if (!local) {
     return false;
   }
+  const fingerprint = await project.fingerprint();
   let createdAt = await timeOf(project, "createdAt");
   if (createdAt === null) {
     createdAt = now;
     await project.write("createdAt", String(now));
+  }
+  const baseline = await project.read("backedUpFiles");
+  if (!baseline) {
+    await project.write("backedUpFiles", fingerprint);
   }
   const backedUpAt = await timeOf(project, "backedUpAt");
   const remindedAt = await timeOf(project, "remindedAt");
@@ -214,7 +251,7 @@ export const remindBackupIfDue = async ({
   const due = backupReminderDue({
     local,
     persistent: persisted,
-    changed: (await project.lastEditAt()) > since,
+    changed: !!baseline && baseline !== fingerprint,
     ageMs: now - since,
     sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
   });

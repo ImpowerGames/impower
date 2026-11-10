@@ -52,6 +52,7 @@ export const FOLDERS_MARKER = ".folders";
 
 const PROJECT_METADATA_FIELDS: Record<ProjectMetadataField, true> = {
   backedUpAt: true,
+  backedUpFiles: true,
   createdAt: true,
   folders: true,
   layout: true,

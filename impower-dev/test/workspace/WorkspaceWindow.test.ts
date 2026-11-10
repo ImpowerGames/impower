@@ -218,6 +218,7 @@ import workspace, {
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
+import { projectFingerprint } from "../../src/modules/spark-editor/utils/storagePersistence";
 
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
@@ -585,10 +586,20 @@ describe("WorkspaceWindow store transitions", () => {
       current.window = win;
       const now = Date.UTC(2026, 10, 10, 12, 0, 0);
       vi.spyOn(Date, "now").mockReturnValue(now);
+      vi.spyOn(Workspace.fs, "getFiles").mockResolvedValue({
+        "file://local/main.sd": { uri: "file://local/main.sd", modified: 7, size: 3, text: "end" },
+        "file://local/.remindedAt": { uri: "file://local/.remindedAt", modified: 9, size: 13, text: "1794339454460" },
+      } as never);
       try {
         expect(await downloadProjectZip()).toBe(true);
         expect(write).toHaveBeenCalledWith("local", "backedUpAt", String(now));
+        expect(write).toHaveBeenCalledWith(
+          "local",
+          "backedUpFiles",
+          projectFingerprint([{ path: "main.sd", size: 3, text: "end" }]),
+        );
       } finally {
+        vi.mocked(Workspace.fs.getFiles).mockRestore();
         vi.mocked(Date.now).mockRestore();
         current.window = undefined;
       }

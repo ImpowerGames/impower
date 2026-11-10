@@ -127,6 +127,7 @@ import { isProjectMetadata } from "../utils/fileTree";
 import {
   installOfferOf,
   keepOnDevice,
+  projectFingerprint,
   recordBackup,
   remindBackupIfDue,
   settleStorage,
@@ -740,13 +741,14 @@ export default class WorkspaceWindow {
     return {
       read: (field) => fs.readProjectMetadata(id, field),
       write: (field, value) => fs.writeProjectMetadata(id, field, value),
-      lastEditAt: async () =>
-        Object.values(await fs.getFiles(id)).reduce(
-          (latest, file) =>
-            isProjectMetadata(fs.getRelativePath(id, file.uri))
-              ? latest
-              : Math.max(latest, file.modified ?? 0),
-          0,
+      fingerprint: async () =>
+        projectFingerprint(
+          Object.values(await fs.getFiles(id)).flatMap((file) => {
+            const path = fs.getRelativePath(id, file.uri);
+            return isProjectMetadata(path)
+              ? []
+              : [{ path, size: file.size ?? 0, text: file.text }];
+          }),
         ),
     };
   }

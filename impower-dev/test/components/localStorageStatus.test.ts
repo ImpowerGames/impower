@@ -150,7 +150,7 @@ describe("the local project's storage status", () => {
     expect(instruction.querySelector("button")).toBeNull();
     expect(instruction.textContent).toContain("Add to Home Screen");
     expect(instruction.textContent).toContain("Share");
-    expect(instruction.textContent).toContain("keeps");
+    expect(instruction.textContent).toContain("Safari keeps your work");
   });
 
   it("connects Drive from the Drive row, or saves to Drive when already signed in", async () => {
@@ -190,6 +190,22 @@ describe("the local project's storage status", () => {
     await settle();
     expect(popover()).toBeNull();
     expect(document.activeElement).toBe(trigger());
+  });
+});
+
+describe("the popover's wording", () => {
+  it("keeps every row's description to one short line, since a list row fades out the rest", async () => {
+    const { DEVICE_STORAGE_COPY } =
+      await import("../../src/modules/spark-editor/workspace/saveStatus");
+    for (const detail of [
+      DEVICE_STORAGE_COPY.keepDetail,
+      DEVICE_STORAGE_COPY.installDetail,
+      DEVICE_STORAGE_COPY.homeScreenDetail,
+      DEVICE_STORAGE_COPY.driveDetail,
+      DEVICE_STORAGE_COPY.exportDetail,
+    ]) {
+      expect(detail.length).toBeLessThanOrEqual(42);
+    }
   });
 });
 

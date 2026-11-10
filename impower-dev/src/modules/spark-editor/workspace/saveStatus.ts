@@ -26,12 +26,11 @@ export const DEVICE_STORAGE_COPY = {
   keepRefused:
     "This browser did not agree to keep it. Export a backup to keep a copy.",
   install: "Install as an app",
-  installDetail: "An installed app keeps its work more reliably than a tab.",
-  homeScreen: "Add to Home Screen",
-  homeScreenDetail:
-    "In Safari, tap Share, then Add to Home Screen. Safari keeps a Home Screen app's work; in a tab it can clear it after a week without a visit.",
+  installDetail: "Installed apps keep their work longer.",
+  homeScreen: "Add to Home Screen, so Safari keeps your work",
+  homeScreenDetail: "Tap Share, then Add to Home Screen.",
   saveToDrive: "Save to Google Drive",
-  driveDetail: "Keep a copy online and open it on other devices.",
+  driveDetail: "Keep a copy online, open it anywhere.",
   export: "Export a backup",
   exportDetail: "Download every script and asset as a .zip.",
   exportAction: "Export",
