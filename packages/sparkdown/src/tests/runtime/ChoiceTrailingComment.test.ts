@@ -28,6 +28,21 @@ describe("trailing `//` comment after a choice's text", () => {
     expect(choiceTexts("+ Go [left] now // note")).toEqual(["Go left"]);
   });
 
+  test("is dropped from the output after picking a suppressed-text choice", () => {
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  choose
+    + Go [left] now // note
+      Hi.
+      done
+  end
+end
+`);
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.Continue();
+    ctx.story.ChooseChoiceIndex(0);
+    expect(ctx.story.ContinueMaximally()).not.toContain("note");
+  });
+
   test("is dropped before a divert-free end with no space after the marks", () => {
     expect(choiceTexts("+ Go left //")).toEqual(["Go left"]);
   });

@@ -1654,6 +1654,7 @@ repository:
   ChoiceInnerText:
     emit: true
     patterns:
+      - { include: "#SparkdownInlineComment" }
       - { include: "#DisplayText" }
 
   ChoicePlainText:
