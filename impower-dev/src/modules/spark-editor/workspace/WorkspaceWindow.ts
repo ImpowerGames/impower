@@ -79,6 +79,7 @@ import {
   GamePosition,
   GameSize,
   GameState,
+  ListsState,
   PaneType,
   PanelType,
   Range,
@@ -161,6 +162,7 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+import { renameOrReport } from "../utils/renameOrReport";
 
 const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
@@ -263,6 +265,27 @@ export default class WorkspaceWindow {
       }
     }
     transitionRoute(() => this.openRoute(route));
+  }
+
+  setListState(lists: Partial<ListsState>) {
+    this.update({
+      ...this.store,
+      lists: { ...this.store.lists, ...lists },
+    });
+  }
+
+  browseScripts() {
+    this.navigateTo("scripts");
+  }
+
+  openScript(filename: string) {
+    const panel = this.getPanelType(filename);
+    if (!panel) {
+      return;
+    }
+    this.openPanel("logic", panel);
+    this.openFileEditor(filename);
+    this.navigateTo("write");
   }
 
   closeSettings() {
@@ -1514,31 +1537,6 @@ export default class WorkspaceWindow {
     });
   }
 
-  browseScripts() {
-    const logic = this.store.panes.logic;
-    const scripts = logic.panels.scripts;
-    this.update({
-      ...this.store,
-      panes: {
-        ...this.store.panes,
-        logic: {
-          ...logic,
-          view: "list",
-          panel: "scripts",
-          panels: {
-            ...logic.panels,
-            scripts: {
-              ...scripts,
-              activeEditor: scripts?.activeEditor
-                ? { ...scripts.activeEditor, open: false }
-                : scripts?.activeEditor,
-            },
-          },
-        },
-      },
-    });
-  }
-
   openFileEditor(filename: string, oldFilename?: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
@@ -1709,11 +1707,13 @@ export default class WorkspaceWindow {
       return check;
     }
     const newFilename = joinScriptPath(folder, check.name, ext);
-    const { referencesUpdated } = await fs.renameFileWithReferences(
-      projectId,
-      filename,
-      newFilename,
+    const rename = await renameOrReport(filename, newFilename, () =>
+      fs.renameFileWithReferences(projectId, filename, newFilename),
     );
+    if (!rename.renamed) {
+      return check;
+    }
+    const { referencesUpdated } = rename.result;
     await this.recordScriptChange();
     this.followRenamedScript(filename, newFilename);
     showSnackbar({

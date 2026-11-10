@@ -46,6 +46,7 @@ end
 define ui as config with
   styles_element_name = "styles"
   layouts_element_name = "layouts"
+  layouts_initial = { "textbox" }
   breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
   -- Base size that every `rem` in a style resolves against. Empty means "leave
   -- the host document alone", which is what a game embedded in someone else's
@@ -1264,6 +1265,7 @@ style main {
 // to `& >> …` descendant rules, since the element itself is positioned by the
 // engine with inline styles.
 style layouts {
+  isolation = isolate
   -- HANDLERS. The ui marks every element it attaches an event handler to with
   -- `data-ui-handler`, and this rule opts it into the pointer, which the
   -- overlay leaves off by default (see spark-web-player.css). `:where()` keeps
@@ -1638,8 +1640,13 @@ style screen {
 style stage {
   position = absolute
   inset = 0
+  z_index = -2
   display = flex
   flex_direction = column
+}
+
+style layout_textbox {
+  z_index = -1
 }
 
 // The style named after each of the story's display targets (`backdrop`,
@@ -3687,6 +3694,12 @@ layout main {
       image
     }
   }
+  screen {
+    animation
+  }
+}
+
+layout textbox {
   choices {
     choice.0 {
       text
@@ -3744,9 +3757,6 @@ layout main {
     continue_indicator {
       text = ▼
     }
-  }
-  screen {
-    animation
   }
 }
 

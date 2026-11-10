@@ -1,6 +1,8 @@
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
+import { applyLayoutDirectives, clearStage, writeStage } from "./stage";
+import { opensTextLayout, presentsText } from "./textLayouts";
 
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -37,11 +39,13 @@ export class VisualNovelPresenter implements Presenter {
 
   present(time?: number): void {
     const game = this._game;
+    const presentation = game.module.ui.beginPresentation();
     const composed = game.module.ui.beginCompose();
-    this.writeUI(time);
+    const written = this.writeUI(time);
     if (composed) {
       void game.module.ui.endCompose(time != null ? { time } : {});
     }
+    this.redeliverAfterLayouts(presentation, written);
   }
 
   finish(): void {
@@ -54,27 +58,41 @@ export class VisualNovelPresenter implements Presenter {
     this._game.module.ui.style.update("continue_indicator", indicatorStyle);
   }
 
-  protected writeUI(time?: number): void {
+  protected writeUI(time?: number): string[][] {
     const game = this._game;
     const instructions = this._instructions;
-    const autoAdvance = instructions?.auto;
     const instant = this._options.instant;
-    const choose = this._options.choose;
     const transientLayers = this._transientLayers;
     const extended = Boolean(instructions.extended);
+
+    const layoutsFirst = opensTextLayout(game, instructions);
+    if (layoutsFirst) {
+      applyLayoutDirectives(game, instructions, instant);
+    }
 
     if (!extended || instructions.text) {
       game.module.ui.text.clearAll(transientLayers);
     }
-    if (!extended) {
-      game.module.ui.image.clearAll(
-        transientLayers.filter((layer) => !instructions.image?.[layer]),
-      );
-    }
-    game.module.ui.image.restoreCleared(instructions);
+    clearStage(game, instructions, transientLayers);
 
-    game.module.ui.showLayout("main");
     game.module.ui.reveal();
+
+    this.writeContent(instant, time);
+    const written = this.textElementIds();
+
+    writeStage(game, instructions, instant, time, layoutsFirst);
+    return written;
+  }
+
+  protected writeContent(instant?: boolean, time?: number): void {
+    this.writeIndicator(instant);
+    this.bindChoices();
+    writeBeatText(this._game.module.ui, this._instructions, instant, time);
+  }
+
+  protected writeIndicator(instant?: boolean): void {
+    const game = this._game;
+    const autoAdvance = this._instructions?.auto;
 
     const indicatorStyle: Record<string, string | null> = {};
     if (autoAdvance || game.shownEnding) {
@@ -86,8 +104,13 @@ export class VisualNovelPresenter implements Presenter {
       indicatorStyle["display"] = null;
     }
     game.module.ui.style.update("continue_indicator", indicatorStyle);
+  }
 
-    const choiceTargets = instructions.choices;
+  protected bindChoices(): void {
+    const game = this._game;
+    const choose = this._options.choose;
+
+    const choiceTargets = this._instructions.choices;
     if (choiceTargets) {
       choiceTargets.forEach((target, index) => {
         const handleClick = (): void => {
@@ -103,24 +126,60 @@ export class VisualNovelPresenter implements Presenter {
         game.module.ui.observe("click", target, handleClick);
       });
     }
+  }
 
-    writeBeatText(game.module.ui, instructions, instant, time);
+  protected textTargets(): string[] {
+    return [
+      ...Object.keys(this._instructions.text ?? {}),
+      ...(this._instructions.choices ?? []),
+    ];
+  }
 
-    if (instructions.image) {
-      Object.entries(instructions.image).forEach(([target, events]) =>
-        game.module.ui.image.write(target, events, instant, time),
-      );
+  protected textElementIds(): string[][] {
+    const ui = this._game.module.ui;
+    return this.textTargets().map((target) => ui.findIds(target));
+  }
+
+  protected redeliverAfterLayouts(
+    presentation: number,
+    written: string[][],
+  ): void {
+    const game = this._game;
+    const ui = game.module.ui;
+    if (
+      !presentsText(this._instructions) ||
+      game.context.system.simulating ||
+      game.replaying
+    ) {
+      return;
     }
-
-    if (instructions.layout) {
-      const settle = !!instant || Boolean(game.context.system.simulating);
-      Object.values(instructions.layout).forEach((events) =>
-        game.module.ui.composeWait(
-          game.module.ui.applyLayoutInstructions(events, settle),
-        ),
-      );
+    const settled = ui.whenLayoutsSettled();
+    if (!settled) {
+      return;
     }
-
-    game.module.ui.refreshLayouts();
+    void settled.then(() => {
+      const targets = this.textTargets();
+      const lostTargets = this.textElementIds().flatMap((ids, index) => {
+        const before = written[index] ?? [];
+        return ids.some((id) => !before.includes(id)) &&
+          (before.length === 0 || before.some((id) => !ids.includes(id)))
+          ? [targets[index]!]
+          : [];
+      });
+      if (!ui.isCurrentPresentation(presentation) || lostTargets.length === 0) {
+        return;
+      }
+      const composed = ui.beginCompose();
+      this.writeIndicator(true);
+      this.bindChoices();
+      for (const target of lostTargets) {
+        void ui.text.restore(target);
+      }
+      ui.reveal();
+      ui.refreshLayouts();
+      if (composed) {
+        void ui.endCompose({});
+      }
+    });
   }
 }

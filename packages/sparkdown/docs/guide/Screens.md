@@ -21,6 +21,33 @@ layout main {
 }
 ```
 
+### The `textbox` layout and `ui.layouts_initial`
+
+The built-in `main` layout holds the stage. The dialogue box and the choices live in a built-in layout of their own, `textbox`, and `ui.layouts_initial` names the layouts that open when a run or a preview starts, besides `main`:
+
+```sparkdown
+define ui as config with
+  layouts_initial = { "textbox" }
+end
+```
+
+An initial layout with a dialogue box (a `textbox` or `dialogue` element) is skipped when `main` already holds text elements, so a project whose own `layout main` shows dialogue keeps one dialogue box. Any other layout in the list always opens. An explicit `[[open textbox]]` still opens the built-in layout.
+
+To hide the dialogue box, use the ordinary directives, and checkpoints and saves remember the result:
+
+```sparkdown
+[[close textbox]]
+Nobody sees this line.
+[[open textbox]]
+Everybody sees this one.
+```
+
+Image cues and layout directives still apply while no open layout holds a beat's text. The text and choices are not shown, and the play log says once per run: "No open layout shows this text. Open textbox or textstream." A beat whose text has no open layout waits for a click like any other beat, and a beat whose choices have no open layout waits for a pick that cannot arrive, so open a layout before a menu.
+
+A layout's name styles its root unless the layout holds an element of that name, in which case the name reaches the element.
+
+The `textbox` layout stacks above `main`'s `stage` and below `main`'s `screen`, so a `screen` animation such as a fade or flash covers the dialogue box. A layout opened later stacks above them both.
+
 ---
 
 ## 6.2 Overlays: `open` and `close`

@@ -19,6 +19,7 @@ import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
+import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -417,7 +418,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _mountOwners = new Map<Promise<void>, Composition>();
 
-  protected _pendingOpens = new Map<string, Set<{ cancelled: boolean }>>();
+  protected _pendingOpens = new Map<
+    string,
+    Set<{ cancelled: boolean; cancel: () => void }>
+  >();
 
   protected _retiring = new Set<Retirement>();
 
@@ -705,6 +709,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async onRedisplay() {
     const standing = this._standing;
     this.discardCompose();
+    this._presentation += 1;
     this._standing = undefined;
     this._building = undefined;
     this._restoredEdits = undefined;
@@ -898,28 +903,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onRestore() {
     const epoch = this._game.connection.epoch;
-    const tasks: Promise<void>[] = [];
-    if (this._state.text) {
-      for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
-      }
-    }
-    if (this._state.image) {
-      for (const [target] of Object.entries(this._state.image)) {
-        tasks.push(this.image.restore(target));
-      }
-    }
-    if (this._state.style) {
-      for (const [target] of Object.entries(this._state.style)) {
-        tasks.push(this.style.restore(target));
-      }
-    }
-    if (this._state.attributes) {
-      for (const [target] of Object.entries(this._state.attributes)) {
-        tasks.push(this.attributes.restore(target));
-      }
-    }
-    if (this._state.layout) {
+    if (this._state.layout && this._reactive) {
       let remounted = false;
       for (const { name } of this._state.layout) {
         if (
@@ -952,6 +936,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (remounted) {
         this._game.story.variablesState.takeReactiveChanges();
         this.reveal();
+      }
+    }
+    const tasks: Promise<void>[] = [];
+    if (this._state.text) {
+      for (const [target] of Object.entries(this._state.text)) {
+        tasks.push(this.text.restore(target));
+      }
+    }
+    if (this._state.image) {
+      for (const [target] of Object.entries(this._state.image)) {
+        tasks.push(this.image.restore(target));
+      }
+    }
+    if (this._state.style) {
+      for (const [target] of Object.entries(this._state.style)) {
+        tasks.push(this.style.restore(target));
+      }
+    }
+    if (this._state.attributes) {
+      for (const [target] of Object.entries(this._state.attributes)) {
+        tasks.push(this.attributes.restore(target));
       }
     }
     await Promise.all(tasks);
@@ -1866,7 +1871,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected getLayoutElement(uiName: string): Element | undefined {
     const rootLayoutElement = this.getOrCreateRootLayoutElement();
-    return rootLayoutElement.findChild(uiName);
+    return rootLayoutElement.findChild(this.layoutRootName(uiName));
+  }
+
+  protected layoutRootName(layoutName: string): string {
+    return this.layoutHolds(layoutName, [layoutName])
+      ? `layout_${layoutName}`
+      : layoutName;
   }
 
   protected getThemeVariables(): Record<string, string> {
@@ -1959,8 +1970,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructLayouts(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
+    const skipped = skippedInitialLayouts(this._game, this);
     const validStructNames = targetAllStructs
-      ? Object.keys(this.context?.layout || {})
+      ? Object.keys(this.context?.layout || {}).filter(
+          (name) => !skipped.includes(name),
+        )
       : structNames;
     for (const structName of validStructNames) {
       if (structName && !structName.startsWith("$")) {
@@ -1978,7 +1992,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
-      name: structName,
+      name: this.layoutRootName(structName),
       style: {
         position: "absolute",
         inset: "0",
@@ -2035,12 +2049,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
+  protected _layoutWork: Set<Promise<void>> = new Set();
+
+  protected _presentation = 0;
+
   protected _mountedLayouts: Map<
     string,
     { element: Element; scope: ReactiveScope; screen?: string }
   > = new Map();
-
-  _autoOpenAll = false;
 
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
@@ -2057,9 +2073,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const targetAllLayouts = !structNames || structNames.length === 0;
     const validLayoutNames = !targetAllLayouts
       ? structNames
-      : this._autoOpenAll
-        ? Object.keys(layouts)
-        : Object.keys(layouts).filter((name) => name === "main");
+      : Object.keys(layouts).filter((name) => name === "main");
     for (const layoutName of validLayoutNames) {
       if (layoutName && !layoutName.startsWith("$")) {
         const layout = layouts[layoutName];
@@ -2079,7 +2093,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
-      name: layout.name,
+      name: this.layoutRootName(layout.name),
       style: {
         position: "absolute",
         inset: "0",
@@ -3456,8 +3470,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   initLayouts(): void {
+    const skipped = skippedInitialLayouts(this._game, this);
     for (const structName of Object.keys(this.context?.layout || {})) {
-      if (structName && !structName.startsWith("$")) {
+      if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
         if (layout) {
           this.initLayout(layout);
@@ -3528,6 +3543,74 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  get initialLayoutsOpened(): boolean {
+    return this._state.layout !== undefined;
+  }
+
+  openInitialLayouts(names: string[], settle: boolean): void {
+    this._state.layout ??= [];
+    const closed = names.filter(
+      (name) =>
+        !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
+    );
+    if (closed.length === 0) {
+      return;
+    }
+    this.composeWait(
+      this.applyLayoutInstructions(
+        closed.map((name) => ({ control: "open", name })),
+        settle,
+      ),
+    );
+  }
+
+  layoutHolds(layoutName: string, elements: readonly string[]): boolean {
+    const wanted = new Set(elements);
+    const sparkle = this._game.program?.sparkle;
+    if (sparkle?.layouts) {
+      const layout = sparkle.layouts[layoutName];
+      if (!layout) {
+        return false;
+      }
+      const components = sparkle.components ?? {};
+      const expanded = new Set<string>();
+      const visit = (value: unknown): boolean => {
+        if (Array.isArray(value)) {
+          return value.some(visit);
+        }
+        if (!value || typeof value !== "object") {
+          return false;
+        }
+        const node = value as Record<string, any>;
+        if (node["kind"] === "element") {
+          const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
+          if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+            return true;
+          }
+          const tag = node["tag"];
+          const body = typeof tag === "string" ? components[tag] : undefined;
+          if (body && !expanded.has(tag)) {
+            expanded.add(tag);
+            if (visit(body.children)) {
+              return true;
+            }
+          }
+        }
+        return Object.values(node).some(
+          (v) => v !== null && typeof v === "object" && visit(v),
+        );
+      };
+      return visit(layout.children);
+    }
+    const layout = this.context.layout?.[layoutName];
+    if (!layout) {
+      return false;
+    }
+    return Object.keys(getAllProperties(layout)).some((path) =>
+      path.split(/[.\s]/).some((part) => wanted.has(part)),
+    );
+  }
+
   protected resolveLayoutAnimation(
     direction: "enter" | "exit",
     clauses: { with?: string; after?: number; over?: number; ease?: string },
@@ -3585,7 +3668,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     let mounted: (() => void) | undefined;
     if (fonts) {
       const epoch = this._game.connection.epoch;
-      const pendingOpen = { cancelled: false };
+      let cancel = () => {};
+      const cancelledOpen = new Promise<void>((resolve) => {
+        cancel = resolve;
+      });
+      const pendingOpen = { cancelled: false, cancel };
       const opens = this._pendingOpens.get(name) ?? new Set();
       opens.add(pendingOpen);
       this._pendingOpens.set(name, opens);
@@ -3605,7 +3692,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       this.notifyRealization();
       try {
-        await fonts;
+        await Promise.race([fonts, cancelledOpen]);
       } catch (error) {
         mounted?.();
         throw error;
@@ -3662,6 +3749,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const opens = name ? this._pendingOpens.get(name) : undefined;
     for (const open of opens ?? []) {
       open.cancelled = true;
+      open.cancel();
     }
     const entry = name ? this._mountedLayouts.get(name) : undefined;
     if (!entry) {
@@ -3956,49 +4044,102 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           (screen ? entry.screen === screen : true),
       )
       .map(([n]) => n);
+    const layouts = this._game.program?.sparkle?.layouts;
+    const pending = [...this._pendingOpens.keys()].filter(
+      (n) =>
+        n !== name &&
+        !UIModule.MANAGED_LAYOUTS.has(n) &&
+        !toClose.includes(n) &&
+        (screen ? layouts?.[n]?.screen === screen : true),
+    );
     await Promise.all([
-      ...toClose.map((n) => this.closeLayout(n, clauses, instant)),
+      ...[...toClose, ...pending].map((n) =>
+        this.closeLayout(n, clauses, instant),
+      ),
       this.openLayout(name, clauses, instant),
     ]);
   }
 
-  protected saveLayoutState(e: LayoutInstruction): void {
+  protected nextLayoutState(
+    state: { name: string; screen?: string }[] | undefined,
+    e: LayoutInstruction,
+  ): { name: string; screen?: string }[] | undefined {
     const layouts = this._game.program?.sparkle?.layouts;
-    const recordOpen = (name: string) => {
+    const recordOpen = (
+      list: { name: string; screen?: string }[] | undefined,
+      name: string,
+    ) => {
       if (!name || UIModule.MANAGED_LAYOUTS.has(name) || !layouts?.[name]) {
-        return;
+        return list;
+      }
+      if (list?.some((s) => s.name === name)) {
+        return list;
       }
       const screen = layouts[name]?.screen;
-      this._state.layout ??= [];
-      if (!this._state.layout.some((s) => s.name === name)) {
-        this._state.layout.push({
-          name,
-          ...(screen ? { screen } : {}),
-        });
-      }
+      return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
     };
     if (e.control === "close") {
-      if (this._state.layout) {
-        this._state.layout = this._state.layout.filter((s) => s.name !== e.name);
-      }
-      return;
+      return state?.filter((s) => s.name !== e.name);
     }
     if (e.control === "navigate") {
       if (!e.name) {
-        return;
+        return state;
       }
-      if (this._state.layout) {
-        this._state.layout = this._state.layout.filter((s) =>
+      return recordOpen(
+        state?.filter((s) =>
           e.screen ? s.screen !== e.screen || s.name === e.name : s.name === e.name,
-        );
-      }
-      recordOpen(e.name);
-      return;
+        ),
+        e.name,
+      );
     }
-    recordOpen(e.name);
+    return recordOpen(state, e.name);
   }
 
-  async applyLayoutInstructions(
+  protected saveLayoutState(e: LayoutInstruction): void {
+    const next = this.nextLayoutState(this._state.layout, e);
+    if (next) {
+      this._state.layout = next;
+    }
+  }
+
+  openedLayoutsAfter(instructions: LayoutInstruction[]): string[] {
+    let state = this._state.layout;
+    for (const e of instructions) {
+      state = this.nextLayoutState(state, e);
+    }
+    return ["main", ...(state ?? []).map((s) => s.name)];
+  }
+
+  whenLayoutsSettled(): Promise<void> | null {
+    if (this._layoutWork.size === 0) {
+      return null;
+    }
+    return Promise.allSettled([...this._layoutWork]).then(() => undefined);
+  }
+
+  beginPresentation(): number {
+    this._presentation += 1;
+    return this._presentation;
+  }
+
+  isCurrentPresentation(presentation: number): boolean {
+    return this._presentation === presentation;
+  }
+
+  applyLayoutInstructions(
+    instructions: LayoutInstruction[],
+    instant: boolean,
+  ): Promise<void> {
+    const work = this.runLayoutInstructions(instructions, instant);
+    this._layoutWork.add(work);
+    const settled = () => {
+      this._layoutWork.delete(work);
+    };
+    work.then(settled, settled);
+    return work;
+  }
+
+  protected async runLayoutInstructions(
     instructions: LayoutInstruction[],
     instant: boolean,
   ): Promise<void> {

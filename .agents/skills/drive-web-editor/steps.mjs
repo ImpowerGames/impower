@@ -4,7 +4,7 @@ export const NAMED_STEPS = {
   "app-menu": { does: "open the app menu" },
   dialog: { does: "open a dialog and dismiss it", builtBy: 984 },
   drawer: { does: "open the drawer or rail" },
-  "file-menu": { does: "open a file row's menu", builtBy: 1009 },
+  "file-menu": { does: "open a file row's menu" },
   "asset-inspector": { does: "open the asset inspector", builtBy: 1028 },
   "add-menu": { does: "open the Add menu" },
   "preview-settings": { does: "open the preview's settings menu" },

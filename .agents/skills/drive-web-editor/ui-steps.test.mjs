@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openPreviewSettings, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openFileMenu, openPreviewSettings, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -128,12 +128,12 @@ const asyncCheck = async (name, fn) => {
   catch (err) { failures++; console.log(`FAIL: ${name}\n  ${err.stack}`); }
 };
 
-function protocolGlobals({ text = () => "portrait", coordinates = { left: 172, right: 180, top: 40, bottom: 60 }, hover = () => null, diagnostics = () => [] } = {}) {
+function protocolGlobals({ text = () => "portrait", coordinates = { left: 172, right: 180, top: 40, bottom: 60 }, hover = () => null, diagnostics = () => [], uri = () => "file://local/main.sd" } = {}) {
   const state = { selection: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, messages: [], ignoreSelect: false };
   const bridge = { send: async (message) => {
     state.messages.push(message);
     if (message.method === "editor/select") { if (!state.ignoreSelect) state.selection = message.params.range; return; }
-    if (message.method === "editor/read") return { textDocument: { uri: "file://local/main.sd", version: 1, text: text() }, selection: state.selection, coordinates };
+    if (message.method === "editor/read") return { textDocument: { uri: uri(), version: 1, text: text() }, selection: state.selection, coordinates };
     if (message.method === "textDocument/hover") return hover();
     if (message.method === "textDocument/diagnosticsSettled") return { uri: "file://local/main.sd", version: 1, diagnostics: diagnostics() };
     throw new Error("Unexpected method: " + message.method);
@@ -145,7 +145,7 @@ await asyncCheck("hover uses protocol measurements and values while completion t
   const calls = [];
   let lines = ["intro", "[[portrait]]"], mainVisible = true;
   const view = { state: { doc: { lines: 2, line: (n) => ({ from: n === 1 ? 0 : 6, text: lines[n - 1] }) } }, coordsAtPos: (pos) => ({ left: 100 + pos * 8, top: 40, bottom: 60 }) };
-  const context = vm.createContext({ ...protocolGlobals({ text: () => lines.join("\n") }), document: { querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? (mainVisible ? {} : null) : selector === ".sparkdown-script-editor-root .cm-content" ? { cmTile: { view } } : null, elementFromPoint: () => ({ closest: () => true }) } });
+  const context = vm.createContext({ ...protocolGlobals({ text: () => lines.join("\n"), uri: () => (mainVisible ? "file://local/main.sd" : "file://local/Scripts/chapter_1.sd") }), document: { querySelector: (selector) => selector === ".sparkdown-script-editor-root .cm-content" ? { cmTile: { view } } : null, elementFromPoint: () => ({ closest: () => true }) } });
   const page = {
     waitForFunction: async () => {},
     keyboard: { press: async (key) => calls.push(["press", key]), type: async (text) => { calls.push(["type", text]); lines[1] = "[[portrait" + text + "]]"; } },
@@ -459,7 +459,7 @@ await asyncCheck("language steps wait for placement through the production wait"
     let placed = false, line = "portrait", pauses = 0;
     const view = { state: { doc: { lines: 1, line: () => ({ from: 0, text: line }) } }, coordsAtPos: () => ({ left: 10, top: 10, bottom: 30 }) };
     const context = vm.createContext({ ...protocolGlobals({ text: () => line, coordinates: { left: 10, top: 10, bottom: 30 } }), document: {
-      querySelector: (selector) => selector === '[role="tab"][id$="-trigger-main"]' ? {} : selector === '.sparkdown-script-editor-root .cm-content' ? { cmTile: { view } } : null,
+      querySelector: (selector) => selector === '.sparkdown-script-editor-root .cm-content' ? { cmTile: { view } } : null,
       elementFromPoint: () => ({ closest: () => true }),
     } });
     const page = {
@@ -952,6 +952,61 @@ await asyncCheck("--step focus-project-name clicks the name field and reports it
   assert.match((await focusProjectName(missing, { timeout: 2000 })).reason, /no project name field on the page within 2 s/);
 });
 
+check("the editor view comes from the open document's URI: the project's own main.sd is main, any other script is scripts-view, no editor is null", () => {
+  assert.equal(editorViewOf("file://local/main.sd"), "main");
+  assert.equal(editorViewOf("file:///main.sd"), "main");
+  assert.equal(editorViewOf("file://local/Scripts/chapter_1.sd"), "scripts-view");
+  assert.equal(editorViewOf("file://local/Scripts/Drafts/main.sd"), "scripts-view");
+  assert.equal(editorViewOf(null), null);
+});
+
+function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true } = {}) {
+  const state = { hash, clicked: [], menuOpen: false };
+  const timeout = async () => { throw new Error("timeout"); };
+  const page = {
+    state,
+    evaluate: async (fn) => {
+      const src = String(fn);
+      if (src.includes('location.hash = "#scripts"')) { if (showsPage) state.hash = "#scripts"; return; }
+      if (src.includes(".test(location.hash)")) return state.hash === "#scripts";
+      throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
+    },
+    locator: (selector) => {
+      if (selector === 'section[aria-label="Scripts"]') return { first: () => ({ waitFor: state.hash === "#scripts" ? async () => {} : timeout }) };
+      if (selector === 'button[aria-label^="Options for "]') {
+        return {
+          first: () => ({ waitFor: rows.length ? async () => {} : timeout }),
+          evaluateAll: async (fn) => fn(rows.map((name) => ({ getAttribute: () => `Options for ${name}` }))),
+          nth: (i) => ({ click: async () => { state.clicked.push(rows[i]); state.menuOpen = menuOpens; } }),
+        };
+      }
+      if (selector === '[role="menu"]') return { first: () => ({ waitFor: state.menuOpen ? async () => {} : timeout, evaluate: async () => { state.settledMenu = true; } }) };
+      throw new Error(`stub page has no locator for ${selector}`);
+    },
+  };
+  return page;
+}
+
+await asyncCheck("--step file-menu goes to the Scripts page, opens the first row menu that is not Main's and reports the row", async () => {
+  const page = scriptsPageStub();
+  assert.deepEqual(await openFileMenu(page), { step: "file-menu", ran: true, row: "Definitions" });
+  assert.equal(page.state.hash, "#scripts");
+  assert.deepEqual(page.state.clicked, ["Definitions"]);
+  assert.equal(page.state.settledMenu, true, "the step waits for the open menu's animations before reporting");
+  const onlyMain = scriptsPageStub({ hash: "#scripts", rows: ["Main"] });
+  assert.deepEqual(await openFileMenu(onlyMain), { step: "file-menu", ran: true, row: "Main" });
+  assert.deepEqual(onlyMain.state.clicked, ["Main"]);
+});
+
+await asyncCheck("--step file-menu fails by name when the Scripts page, a row menu button or the menu itself never appears", async () => {
+  const noPage = scriptsPageStub({ showsPage: false });
+  assert.deepEqual(await openFileMenu(noPage, { timeout: 1000 }), { step: "file-menu", ran: false, reason: "the Scripts page did not appear within 1 s of going to #scripts" });
+  const noRows = scriptsPageStub({ rows: [] });
+  assert.deepEqual(await openFileMenu(noRows, { timeout: 2000 }), { step: "file-menu", ran: false, reason: "no row menu button (Options for …) on the Scripts page within 2 s" });
+  const stuck = scriptsPageStub({ menuOpens: false });
+  assert.deepEqual(await openFileMenu(stuck, { timeout: 1000 }), { step: "file-menu", ran: false, row: "Definitions", reason: "the menu for Definitions did not open within 1 s of pressing Options for Definitions" });
+});
+
 await asyncCheck("--step settings=<section> goes to #project?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {
   const page = ({ focuses, sections = [] }) => {
     const calls = [];
@@ -986,6 +1041,70 @@ await asyncCheck("--step focus-script-name clicks the open script's name field, 
   assert.deepEqual(selectors, ["input[data-script-name]"]);
   const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
   assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
+});
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+async function inFakeDocument(fakeDocument, run) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, "document");
+  const previous = globalThis.document;
+  globalThis.document = fakeDocument;
+  try {
+    return await run({ evaluate: (fn, arg) => fn(arg) });
+  } finally {
+    if (had) globalThis.document = previous;
+    else delete globalThis.document;
+  }
+}
+
+await asyncCheck("a screenshot is not taken until the page's running view transition has finished", async () => {
+  const transition = deferred();
+  const order = [];
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-1009-transition-"));
+  try {
+    await inFakeDocument({ activeViewTransition: { finished: transition.promise }, getAnimations: () => [] }, async (page) => {
+      page.screenshot = async () => {
+        order.push("shot");
+      };
+      const shot = shotOf(page, "page", path.join(scratch, "page.png"));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.deepEqual(order, [], "the screenshot waits while the transition runs");
+      order.push("finished");
+      transition.resolve();
+      await shot;
+    });
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+  assert.deepEqual(order, ["finished", "shot"]);
+});
+
+await asyncCheck("the wait covers ::view-transition animations only, gives up at its cap, and skips a page that cannot answer", async () => {
+  const crossfade = deferred();
+  const unrelated = deferred();
+  const animations = [
+    { effect: { pseudoElement: "::view-transition-old(root)" }, finished: crossfade.promise },
+    { effect: { pseudoElement: null }, finished: unrelated.promise },
+  ];
+  const waited = inFakeDocument({ getAnimations: () => animations }, (page) => settleViewTransitions(page, { timeout: 2000 }));
+  setTimeout(() => crossfade.resolve(), 20);
+  assert.equal(await waited, 1, "the unrelated animation that never finishes is not awaited");
+  const stuck = deferred();
+  const started = Date.now();
+  assert.equal(
+    await inFakeDocument({ activeViewTransition: { finished: stuck.promise }, getAnimations: () => [] }, (page) => settleViewTransitions(page, { timeout: 50 })),
+    -1,
+  );
+  assert.ok(Date.now() - started < 1000, "a transition that never finishes is given up on at the cap");
+  assert.equal(await inFakeDocument({ getAnimations: () => [] }, (page) => settleViewTransitions(page)), 0);
+  assert.equal(await settleViewTransitions({ evaluate: () => { throw new Error("no document"); } }), 0);
+  assert.equal(await settleViewTransitions({ evaluate: async () => { throw new Error("closed"); } }), 0);
 });
 
 await asyncCheck("--step preview-settings presses the gear and reports the quick toggles, or fails by name", async () => {
