@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import { compileProgram } from "../harness/compileProgram";
+import { compileUI } from "../ui/harness/uiTestHarness";
 
 const MAIN = "inmemory:///main.sd";
 
@@ -208,5 +209,131 @@ describe("a debugger stop presents the beat it reaches", () => {
     h.game.resume();
     expect(h.onScreen()).toEqual({ text: TUNNEL, settled: false, typed: true });
     expect(h.beats()).toBe(before + 1);
+  });
+});
+
+describe("a debugger stop leaves a beat the settled drawing cannot finish to run as it plays", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const CUTSCENE_ASSETS = [
+    {
+      uri: "inmemory:///intro.webm",
+      type: "video",
+      name: "intro",
+      ext: "webm",
+      src: "/intro.webm",
+    },
+  ];
+
+  const make = (
+    source: string,
+    assets?: typeof CUTSCENE_ASSETS,
+  ): Game => {
+    const compiled = assets
+      ? compileUI(source, { assets: assets as never }).program
+      : compileProgram(source);
+    expect(compiled.chunks).toBeDefined();
+    return new Game({
+      program: compiled,
+      now: () => 0,
+      setTimeout: () => 0,
+      log: () => {},
+    } as never);
+  };
+
+  const shown = (game: Game) => (game as any)._shownBeatOnScreen;
+
+  const stepUntil = (game: Game, reached: () => boolean) => {
+    for (let i = 0; i < 80 && !reached() && !game.ending; i += 1) {
+      game.step("over");
+    }
+    expect(reached()).toBe(true);
+  };
+
+  it("runs a load a Step reaches, once", () => {
+    const game = make(
+      "scene start\n  Before.\n  -> load other\nend\nscene other\n  After.\nend\n",
+    );
+    const settling = vi.spyOn(Coordinator.prototype, "onSettle");
+    const load = vi
+      .spyOn(game.module.assets, "runLoad")
+      .mockReturnValue(null as never);
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.load));
+    expect(settling).not.toHaveBeenCalled();
+    game.resume();
+    expect(load).toHaveBeenCalledOnce();
+    expect(load).toHaveBeenCalledWith([{ name: "other" }]);
+  });
+
+  it("holds a cutscene a Step reaches in its playing drawing, and Resume plays it rather than passing it", () => {
+    const game = make(
+      "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
+      CUTSCENE_ASSETS,
+    );
+    const settling = vi.spyOn(Coordinator.prototype, "onSettle");
+    const playing = vi.spyOn(Coordinator.prototype, "onExecute");
+    vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.cutscene));
+    const coordinator = (game as any)._coordinator;
+    expect(coordinator._instructions.cutscene).toEqual([{ name: "intro" }]);
+    expect(playing.mock.contexts).toContain(coordinator);
+    expect(settling).not.toHaveBeenCalled();
+    expect(game.paused).toBe(true);
+    const beats = (game as any)._run.beats.length;
+    expect(game.resume()).toBe(false);
+    expect(game.paused).toBe(false);
+    expect((game as any)._coordinator).toBe(coordinator);
+    expect((game as any)._run.beats.length).toBe(beats);
+  });
+
+  it("schedules the music a Step reaches", () => {
+    const game = make(
+      [
+        "define theme as audio with",
+        '  src = "https://example.com/theme.wav"',
+        "end",
+        "",
+        "scene start",
+        "  Before.",
+        "  ((play music theme))",
+        "  With music.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const settling = vi.spyOn(Coordinator.prototype, "onSettle");
+    const schedule = vi.spyOn(game.module.audio, "schedule");
+    game.start();
+    game.pause();
+    stepUntil(game, () => Boolean(shown(game)?.audio?.music?.length));
+    expect(settling).not.toHaveBeenCalled();
+    expect(schedule).toHaveBeenCalledWith("music", expect.anything());
+  });
+
+  it("keeps a held roll on the beat it restored when a beat is still queued there", async () => {
+    const game = make(
+      "scene start\n  Before. [[play intro]] After.\n  Last.\nend\n",
+      CUTSCENE_ASSETS,
+    );
+    vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
+    game.start();
+    const first = shown(game);
+    expect(game.module.interpreter.hasQueuedBeats).toBe(true);
+    game.clickedToContinue();
+    game.clickedToContinue();
+    await game.rollBack("beat");
+    await game.rollBack("beat");
+    expect(shown(game)).toEqual(first);
+    const count = (game as any)._run.beats.length;
+    game.pause();
+    expect(shown(game)).toEqual(first);
+    expect((game as any)._run.beats.length).toBe(count);
+    expect(game.history.behindLatest).toBe(true);
   });
 });

@@ -243,6 +243,14 @@ const sameLocation = (
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
 
+const drawsSettled = (beat: Instructions): boolean =>
+  !beat.load?.length &&
+  !beat.cutscene?.length &&
+  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
+  Object.entries(beat.audio ?? {}).every(
+    ([target, events]) => target === "typewriter" || events.length === 0,
+  );
+
 interface Stage {
   text: string[];
   image: string[];
@@ -2505,9 +2513,6 @@ export class Game<T extends M = {}> {
   }
 
   pause(): void {
-    if (this.presentsAtStop()) {
-      this.showBeat(this.module.interpreter.flush() ?? null, true);
-    }
     this._paused = true;
     if (this._clock) {
       this._clock.speed = 0;
@@ -3717,6 +3722,7 @@ export class Game<T extends M = {}> {
       this._state === "running" &&
       this._simulation !== "simulating" &&
       !this._holdingFlush &&
+      !this._run.behindLatest &&
       this.module.interpreter.hasQueuedBeats
     );
   }
@@ -3725,6 +3731,8 @@ export class Game<T extends M = {}> {
     this._announcedStop = true;
     this.holdStop(reason);
     if (this.presentsAtStop()) {
+      const beat = this.module.interpreter.flush()!;
+      this.showBeat(beat, drawsSettled(beat));
       this.pause();
     }
   }
