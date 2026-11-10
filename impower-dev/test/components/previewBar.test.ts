@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
@@ -24,11 +24,13 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
       revealDocument: intents.revealDocument,
+      setStripHeight: () => {},
     },
   },
 }));
 
 let phone = false;
+let compact = false;
 const mediaListeners = new Set<() => void>();
 const HEIGHT = 808;
 
@@ -36,7 +38,10 @@ beforeAll(() => {
   window.matchMedia = (query: string) =>
     ({
       get matches() {
-        return query.includes("min-width") ? !phone : false;
+        if (!query.includes("min-width") || phone) {
+          return false;
+        }
+        return !(compact && query.includes("1101px"));
       },
       media: query,
       onchange: null,
@@ -71,6 +76,9 @@ const { default: Preview } = await import(
 );
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+);
+const { RouteSheet } = await import(
+  "../../src/modules/spark-editor/components/preview-route"
 );
 const { default: route } = await import(
   "../../src/modules/spark-editor/workspace/route/RouteStore"
@@ -191,6 +199,7 @@ afterEach(async () => {
   document.body.innerHTML = "";
   vi.restoreAllMocks();
   phone = false;
+  compact = false;
   await act(async () => mediaListeners.forEach((listener) => listener()));
 });
 
@@ -311,6 +320,49 @@ describe("the bar under the game", () => {
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
     expect(stored().previewPanelHeight).toBe(44);
+  });
+
+  it("shows a forced route on the compact strip's readout, whose press opens the list in the strip", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = bar().querySelector<HTMLButtonElement>(
+      'button[aria-controls="route-panel"]',
+    )!;
+    expect(readout.querySelector('[data-icon="detour"]')).not.toBeNull();
+    await act(async () => readout.click());
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+  });
+
+  it("shows a forced route on the phone's preview readout, whose press opens the list as a sheet", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(HEIGHT);
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(h(Fragment, {}, h(Preview, {}), h(RouteSheet, {})), host!),
+    );
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = bar().querySelector<HTMLButtonElement>(
+      'button[aria-controls="route-panel"]',
+    )!;
+    expect(readout.querySelector('[data-icon="detour"]')).not.toBeNull();
+    await act(async () => readout.click());
+    await settle(300);
+    const sheet = document.querySelector('[role="dialog"]');
+    expect(sheet?.querySelector("swp-route-view .route-entry")?.textContent).toContain(
+      "Condition trust > 3 forced true",
+    );
+    expect(document.getElementById("route-panel")).toBeNull();
   });
 
   it("names the ratio and the size the player reports", async () => {

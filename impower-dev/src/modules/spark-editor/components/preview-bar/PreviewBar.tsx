@@ -63,10 +63,10 @@ export default function PreviewBar({
 }
 
 const READOUT_ICONS = {
-  forced: <DetourIcon class="text-warning" />,
-  clipped: <ScissorsIcon class="text-warning" />,
-  pinned: <PinIcon class="text-accent" />,
-  failure: <WarningIcon class="text-error" />,
+  forced: <DetourIcon data-icon="detour" class="text-warning" />,
+  clipped: <ScissorsIcon data-icon="scissors" class="text-warning" />,
+  pinned: <PinIcon data-icon="pin" class="text-accent" />,
+  failure: <WarningIcon data-icon="warning" class="text-error" />,
 };
 
 function RouteReadout() {
