@@ -204,7 +204,7 @@ describe("node types across grammars (I-2026)", () => {
     const tagged = {
       name: "tagged",
       scopeName: "source.inner",
-      patterns: [{ include: "#Block" }, { include: "#Block/part" }],
+      patterns: [{ include: "#Block" }, { include: "#Block/part" }, { include: "#Block(part)" }],
       repository: {
         Block: {
           begin: "\\(",
@@ -212,6 +212,8 @@ describe("node types across grammars (I-2026)", () => {
           patterns: [{ include: "#Word" }, { include: "#Number" }, { include: "#Capital" }, { include: "#Gap" }],
         },
         "Block/part": { begin: "\\[", end: "\\]", patterns: [{ include: "#Part" }] },
+        "Block(part)": { begin: "<", end: ">", patterns: [{ include: "#Paren" }] },
+        Paren: { match: "[a-z]+", tag: '("Block(part)_content"/) className' },
         Word: { match: "[a-z]+", tag: "(Block_content/) keyword" },
         Number: { match: "[0-9]+", tag: '("Block_content"/) number' },
         Capital: { match: "[A-Z]+", tag: '("\\u0042lock_content"/) string' },
@@ -224,6 +226,7 @@ describe("node types across grammars (I-2026)", () => {
       { tag: tags.number, class: "num" },
       { tag: tags.string, class: "str" },
       { tag: tags.operator, class: "op" },
+      { tag: tags.className, class: "cls" },
     ]);
     const keywords = (grammar: Parameters<typeof vscodeLanguage>[0]["grammar"], text: string) => {
       const spans: string[] = [];
@@ -231,11 +234,13 @@ describe("node types across grammars (I-2026)", () => {
       highlightTree(tree, highlighter, (from, to, classes) => spans.push(`${text.slice(from, to)}:${classes}`));
       return spans;
     };
-    const expected = ["abc:kw", "12:num", "XY:str", "de:op"];
-    expect(keywords(structuredClone(tagged), "(abc 12 XY)[de]")).toEqual(expected);
-    expect(keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc 12 XY)[de]}")).toEqual(
-      expected,
-    );
+    const expected = ["abc:kw", "12:num", "XY:str", "de:op", "fg:cls"];
+    const host = { name: "host", scopeName: "source.host", patterns: [{ include: "source.inner" }] };
+    expect(keywords(structuredClone(tagged), "(abc 12 XY)[de]<fg>")).toEqual(expected);
+    expect(
+      keywords(new GrammarRegistry([structuredClone(OUTER), structuredClone(tagged)]), "{(abc 12 XY)[de]<fg>}"),
+    ).toEqual(expected);
+    expect(keywords(new GrammarRegistry([host, structuredClone(tagged)]), "(abc 12 XY)[de]<fg>")).toEqual(expected);
   });
 
   test("the first grammar of the registry keeps bare names and names the top node, whichever grammar the parse starts from", () => {

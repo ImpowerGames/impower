@@ -73,11 +73,11 @@ export class GrammarRepository {
   }
 
   private qualifyTag(tag: string | undefined) {
-    const close = tag?.startsWith("(") ? tag.indexOf(")") : -1;
-    if (!tag || close < 0) {
+    const modified = tag && /^\((\S*?)\)(\s+\S+)$/.exec(tag);
+    if (!modified) {
       return tag;
     }
-    return `(${this.qualifyPath(tag.slice(1, close))})${tag.slice(close + 1)}`;
+    return `(${this.qualifyPath(modified[1]!)})${modified[2]}`;
   }
 
   private qualifyPath(path: string) {
