@@ -20,7 +20,7 @@ import {
   scriptsHome,
   type ScriptListing,
 } from "../../workspace/scriptsListing";
-import NameRow from "./NameRow";
+import { NameRow } from "../library-page";
 
 export type MoveDialogProps = {
   paths: readonly string[] | null;

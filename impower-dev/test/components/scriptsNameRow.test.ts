@@ -1,7 +1,7 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import NameRow from "../../src/modules/spark-editor/components/scripts-page/NameRow";
+import { NameRow } from "../../src/modules/spark-editor/components/library-page";
 import { availableName } from "../../src/modules/spark-editor/utils/fileListModel";
 
 let host: HTMLDivElement | undefined;

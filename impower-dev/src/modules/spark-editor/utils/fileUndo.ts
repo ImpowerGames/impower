@@ -1,4 +1,3 @@
-import { notifyFolderPathChanged } from "./folderPathChanges";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
@@ -118,9 +117,6 @@ export function recordMove(
     );
     if (!move.renamed) {
       throw new Error(`Rename of ${from} to ${to} was refused`);
-    }
-    if (isDir) {
-      notifyFolderPathChanged(from, to);
     }
     await markProjectDirty();
   };
