@@ -36,6 +36,7 @@
     "packages/sparkdown/src/tests/luau-conformance/upstream/",
     "packages/sparkdown/src/txml/",
     "packages/sparkdown/vendor/",
+    "packages/codemirror-vscode-language/src/vendor/",
     "packages/spark-evaluate/src/_modules/",
     "packages/spec-component/src/idiomorph/",
     "packages/spark-engine/src/game/core/types/",
