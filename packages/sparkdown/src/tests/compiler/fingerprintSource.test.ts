@@ -29,6 +29,9 @@ const COMMENTS: [string, string][] = [
   ["// a whole line\nHello there.", "Hello there."],
   ["Hello there. // a note", "Hello there."],
   ["Hello *there*. // a note", "Hello *there*."],
+  ["/* a block\n  of notes */\nHello there.", "Hello there."],
+  ["Hello /* a note */ there.", "Hello there."],
+  ["Hello /*a note*/ there.", "Hello there."],
   [
     "layout main {\n  if ok then // a note\n  end\n}",
     "layout main {\n  if ok then\n  end\n}",
