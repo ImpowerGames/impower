@@ -1,4 +1,13 @@
 import type { GameSize, WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
+import {
+  routeIcon,
+  routeLabelParts,
+  routeTitle,
+  type RouteIcon,
+  type RouteViewState,
+} from "@impower/spark-web-player/src/route/routeView";
+import type { HostedRouteView } from "@impower/spark-web-player/src/route/routeViewMessages";
+import { routeScriptName } from "../../workspace/route/RouteStore";
 import type { ProjectSettings } from "../../workspace/settings/settingsSchema";
 
 export type AspectRatioChoice = ProjectSettings["previewAspectRatio"];
@@ -54,6 +63,58 @@ const at = (path: string, line: number, playing: boolean): BarPosition => {
     title: `${playing ? "Playing" : "Caret on"} line ${line + 1} of ${script}`,
     line,
   };
+};
+
+export type ReadoutIcon = RouteIcon;
+
+export interface BarReadout {
+  name: string;
+  lines: string;
+  icon: ReadoutIcon;
+  title: string;
+  failed: boolean;
+  opensRoute: boolean;
+  uri?: string;
+  line: number;
+}
+
+const positionReadout = (position: BarPosition): BarReadout => ({
+  name: position.label,
+  lines: "",
+  icon: null,
+  title: position.title,
+  failed: false,
+  opensRoute: false,
+  uri: position.uri,
+  line: position.line,
+});
+
+export const barReadout = (
+  state: WorkspaceCache,
+  view: HostedRouteView | null,
+): BarReadout | null => {
+  const position = barPosition(state);
+  if (state.preview?.modes?.game?.running && position) {
+    return positionReadout(position);
+  }
+  if (view) {
+    const route: RouteViewState = { ...view, tab: "route" };
+    const parts = routeLabelParts(route, routeScriptName);
+    const target = view.route?.target ?? view.failure?.target;
+    if (parts) {
+      return {
+        name: parts.name,
+        lines: parts.lines,
+        icon: routeIcon(route),
+        title: routeTitle(route, routeScriptName),
+        failed: !!view.failure,
+        opensRoute: true,
+        uri: target?.uri,
+        line: target?.range.start.line ?? 0,
+      };
+    }
+  }
+  return position && positionReadout(position);
 };
 
 export const barPosition = (state: WorkspaceCache): BarPosition | null => {

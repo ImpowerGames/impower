@@ -147,11 +147,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 afterEach(() => {
   for (const controller of controllers.splice(0)) {
     (controller as any)._routeState.open = false;
-    window.removeEventListener(
-      "keydown",
-      (controller as any).handleRouteKeyDown,
-      true,
-    );
+    controller.dispose();
   }
   document.body.replaceChildren();
 });

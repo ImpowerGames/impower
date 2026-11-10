@@ -94,10 +94,11 @@ export class InterpreterModule extends Module<
     "open",
     "close",
     "navigate",
+    "clear",
     "load",
   ];
 
-  LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate"];
+  LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate", "clear"];
 
   LOAD_CONTROL_KEYWORDS = ["load"];
 

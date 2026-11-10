@@ -638,3 +638,56 @@ end
     expect(marked(h)).toEqual(["reader"]);
   });
 });
+
+describe("[[clear textstream]] starts a fresh page (#1991)", () => {
+  const CLEARING = `${OPEN_TEXTSTREAM}\nscene start\n  One.\n  Two.\n  Three.\n  [[clear textstream]] Fresh.\n  After.\nend\n`;
+
+  test("three entries, then a clear, leaves only the clearing beat's entry, and a save after it loads back that one entry", () => {
+    const h = play(CLEARING);
+    h.game.start();
+    h.tapTo("Three.");
+    expect(h.page().map(describeEntry)).toEqual(["action One.", "action Two.", "action Three."]);
+    h.tapTo("[[clear textstream]] Fresh.");
+    expect(h.page().map(describeEntry)).toEqual(["action Fresh."]);
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const loaded = play(CLEARING);
+    expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+    loaded.game.start();
+    expect(loaded.page().map(describeEntry)).toEqual(["action Fresh."]);
+    h.tapTo("After.");
+    expect(h.page().map(describeEntry)).toEqual(["action Fresh.", "action After."]);
+  });
+
+  test("a checkpoint after the clear restores the cleared page", () => {
+    const h = play(CLEARING);
+    h.game.start();
+    h.tapTo("[[clear textstream]] Fresh.");
+    const checkpointAt = h.game.checkpoints.length - 1;
+    h.tapTo("After.");
+    expect(h.game.restoreCheckpoint(checkpointAt)).toBe(true);
+    expect(h.page().map(describeEntry)).toEqual(["action Fresh."]);
+  });
+
+  test("simulating through a clear records only the entries after it", () => {
+    const source = CLEARING;
+    const last = source.split("\n").findIndex((l) => l.trim() === "After.");
+    const h = createHarness(source, last, {
+      reactive: true,
+      autoOpenAll: false,
+      connect: false,
+    });
+    h.game.setStartFrom({ file: "inmemory:///main.sd", line: last });
+    h.game.simulate();
+    expect(h.game.simulation).toBe("success");
+    expect(h.game.module.ui.page.entries.map(words)).toEqual(["Fresh."]);
+  });
+
+  test("clearing another layout leaves the page and opens nothing", () => {
+    const h = play(`${OPEN_TEXTSTREAM}\nscene start\n  One.\n  [[clear textbox]] Two.\nend\n`);
+    h.game.start();
+    h.tapTo("[[clear textbox]] Two.");
+    expect(h.page().map(describeEntry)).toEqual(["action One.", "action Two."]);
+    expect(h.game.module.ui.openedLayoutsAfter([])).not.toContain("textbox");
+  });
+});

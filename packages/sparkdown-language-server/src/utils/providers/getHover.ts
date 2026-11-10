@@ -14,6 +14,7 @@ import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlo
 import { own } from "@impower/sparkdown/src/morph/own";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type SyntaxNode, type Tree } from "@lezer/common";
+import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import {
   MarkupKind,
   type Hover,
@@ -33,6 +34,28 @@ const GLUE_HOVER = {
     "A `..` at the start of a line joins this line onto the line shown before it, when that line ends with `..`. Otherwise this line shows on its own, and the game warns that it joins nothing.",
   afterBreak:
     "A `..` after a `>` break carries on in the same box after the click, when the part before the break ends with `..`.",
+};
+
+const getLayoutControlHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const control = stack.find((node) => node.name === "AssetCommandControl");
+  if (!control || !stack.some((node) => node.name === "ImageCommand")) {
+    return null;
+  }
+  const verb = document.getText(document.range(control.from, control.to));
+  const description = LAYOUT_CONTROL_DESCRIPTIONS[verb.trim()];
+  if (!description) {
+    return null;
+  }
+  return {
+    contents: { kind: MarkupKind.Markdown, value: description },
+    range: document.range(control.from, control.to),
+  };
 };
 
 const getGlueHover = (
@@ -137,6 +160,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const layoutControlHover = getLayoutControlHover(document, tree, position);
+    if (layoutControlHover) {
+      return layoutControlHover;
     }
     const morphFieldHover = getMorphFieldHover(document, tree, position);
     if (morphFieldHover) {
