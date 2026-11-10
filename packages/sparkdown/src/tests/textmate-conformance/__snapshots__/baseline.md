@@ -4,9 +4,9 @@ Total cases: 95
 
 ## Summary by axis
 
-- pass: 3
+- pass: 4
 - mismatch: 1
-- incomplete: 18
+- incomplete: 17
 - capture-model: 0
 - while-rule: 18
 - regex-invalid: 53
@@ -15,15 +15,16 @@ Total cases: 95
 
 ## Per-case
 
-### pass (3)
+### pass (4)
 - first-mate#2 [fixtures/coffee-script.json] TEST #5
 - first-mate#10 [fixtures/coffee-script.json] TEST #13
 - first-mate#38 [fixtures/nested-captures.json] TEST #44
+- first-mate#42 [fixtures/forever.json] TEST #48
 
 ### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
-### incomplete (18)
+### incomplete (17)
 - first-mate#0 [fixtures/hello.json] TEST #3 — tokens matched but tree has error nodes
 - first-mate#3 [fixtures/text.json] TEST #6 — line 1 "abc def": token[0] ("abc def") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#11 [fixtures/text.json] TEST #14 — line 1 "hoo": token[0] ("hoo") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
@@ -36,7 +37,6 @@ Total cases: 95
 - first-mate#30 [fixtures/imaginary.json] TEST #33 — line 1 "// a singleLineComment": token[1] (" a singleLineComment") scopes got ["source.imaginaryLanguage"] want ["source.imaginaryLanguage","comment-body"]
 - first-mate#31 [fixtures/multiline.json] TEST #34 — line 1 "Xy\\": token[1] value got "y\\" want "y"
 - first-mate#35 [fixtures/infinite-loop.json] TEST #38 — line 1 "abc": token[0] value got "abc" want "a"
-- first-mate#42 [fixtures/forever.json] TEST #48 — line 1 "forever and ever": token[0] ("forever and ever") scopes got ["source.forever"] want ["source.forever","text"]
 - first-mate#63 [fixtures/loops.json] TEST #74 — tokens matched but tree has error nodes
 - suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — line 1 "This is a paragraph": token[0] ("This is a paragraph") scopes got ["text.html.markdown"] want ["text.html.markdown","meta.paragraph.markdown"]
 - suite1#9 [fixtures/testlang12.plist] Issue #12 — line 1 "[test]|": token[0] ("[test]|") scopes got ["text.testlang"] want ["text.testlang","string.unquoted.verbatim.youki"]
