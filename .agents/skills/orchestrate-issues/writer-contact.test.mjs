@@ -213,7 +213,7 @@ try {
     assert.match(overdue.reason, new RegExp(`no acknowledgement .* within 30 minutes .* confirm that ${COORDINATOR} is this session's own id`));
     const resent = w.f.change((r) => run.deliver(r, { ticket: 333, retry: true }));
     const assignment = run.readRecord(w.f.file).tickets[333].owner.launchId;
-    assert.match(resent.message, new RegExp(`^Assignment ${assignment} \\(delivery \\w+\\)\\. If you have already received assignment ${assignment}, ignore this copy`));
+    assert.match(resent.message, new RegExp(`^Assignment ${assignment} \\(CLI session ${WRITER_SESSION}, delivery \\w+\\)\\. If you have already received assignment ${assignment}, ignore this copy`));
     const firstLines = fs.readFileSync(w.prompt, "utf8").split("\n").filter((line) => !line.startsWith("Coordinator contact: "));
     assert.ok(firstLines.every((line) => resent.message.includes(line)), "the retry preserves the assignment while refreshing its contact instruction");
     assert.ok(fs.readFileSync(w.prompt, "utf8").includes(`Assignment ${assignment}`), "the first copy already named its assignment");
@@ -277,20 +277,29 @@ try {
     const message = w.f.change((r) => run.answer(r, { ticket: 371, request: id, text: "Round 4 is authorized." })).message;
     const answerFile = write("cli-resume-answer.txt", message);
     const stop = path.join(tmp, "stop-cli-resume-2");
-    const resumeArgs = (session, effort = "medium") => [standIn, "-p", "--resume", session, "--model", "claude-opus-5-5", "--effort", effort, "--permission-mode", "bypassPermissions", "--stop", stop];
+    const resumeArgs = (effort = "medium") => [standIn, "-p", "--model", "claude-opus-5-5", "--effort", effort, "--permission-mode", "bypassPermissions", "--stop", stop];
     const resumeIt = (args, spawner) => run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 371, executable: process.execPath, args, prompt: answerFile, ...(spawner && { spawner }) });
-    assert.throws(() => resumeIt(resumeArgs("00000000-0000-4000-8000-000000000000")), new RegExp(`exactly one --resume ${WRITER_SESSION}`), "only the session the writer's stream names is resumed");
-    assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION, "high")), /--effort must be medium/, "the writer resumes at its own effort");
-    assert.equal(resumeIt(resumeArgs(WRITER_SESSION), () => { throw new Error("the host lost the reply"); }).uncertain, true);
+    const unchanged = JSON.stringify(run.readRecord(w.f.file));
+    for (const supplied of ["00000000-0000-4000-8000-000000000000", WRITER_SESSION]) {
+      assert.throws(() => resumeIt(["--resume", supplied, ...resumeArgs()]), /The resume supplies --resume with the session the writer's stream names; drop --resume from --arg/, "a caller-supplied --resume, stale or duplicate, is refused and never delivered");
+    }
+    assert.equal(JSON.stringify(run.readRecord(w.f.file)), unchanged, "a refused --resume records nothing");
+    assert.throws(() => resumeIt(resumeArgs("high")), /--effort must be medium/, "the writer resumes at its own effort");
+    let handed;
+    assert.equal(resumeIt(resumeArgs(), (o) => { handed = o.args; throw new Error("the host lost the reply"); }).uncertain, true);
+    assert.deepEqual(handed.filter((a, i) => a === "--resume" || handed[i - 1] === "--resume"), ["--resume", WRITER_SESSION], "resume supplies the stream's session itself, once");
     assert.match(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).reason, /resume .* has no recorded outcome \(the host lost the reply\); run reconcile/);
-    assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION)), /no recorded outcome; settle it with reconcile/);
+    assert.throws(() => resumeIt(resumeArgs()), /no recorded outcome; settle it with reconcile/);
     assert.equal(w.f.change((r) => run.reconcile(r, { ticket: 371, census: () => [] })).outcome, "not running");
-    const resumed = resumeIt(resumeArgs(WRITER_SESSION));
+    const resumed = resumeIt(resumeArgs());
     started.push({ stop, pid: resumed.pid });
     assert.equal(resumed.started, true);
     const after = run.readRecord(w.f.file).tickets[371].owner;
     assert.notEqual(after.handle.pid, owner.handle.pid, "the resumed process is the writer's handle");
     assert.equal(after.launchId, owner.launchId, "the assignment stays the same");
+    assert.equal(after.sessionId, WRITER_SESSION, "the record holds the CLI session after resume");
+    const shown = entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).owner;
+    assert.deepEqual([shown.launchId, shown.sessionId, shown.handle.launchDir], [owner.launchId, WRITER_SESSION, after.handle.launchDir], "the plan shows the session beside the launch id and directory");
     waitFor(() => fs.existsSync(path.join(after.handle.launchDir, "out.jsonl")) && fs.readFileSync(path.join(after.handle.launchDir, "out.jsonl"), "utf8").includes("session_id"), "the resumed writer's stream");
     assert.equal(fs.readFileSync(path.join(after.handle.launchDir, "prompt.txt"), "utf8"), message, "the answer is the resumed prompt");
     const unconfirmed = entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371);
@@ -298,12 +307,37 @@ try {
     assert.doesNotMatch(unconfirmed.reason, /transcript/, "the running writer's transcript is not read for the answer's outcome");
     w.f.change((r) => run.answered(r, { ticket: 371, request: id, evidence: "resumed with the answer as its prompt" }));
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).action, "observe");
-    assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION)), /is live .*only a writer whose turn has ended is resumed/);
+    assert.throws(() => resumeIt(resumeArgs()), /is live .*only a writer whose turn has ended is resumed/);
     fs.writeFileSync(stop, "");
     waitFor(() => run.ownerStatus(run.readRecord(w.f.file).tickets[371].owner).status === "exited", "the resumed writer to exit");
     const report = write("cli-resume-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 971, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 4 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "await the merge" });
     w.f.change((r) => run.result(r, { ticket: 371, report }));
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).action, "release", "a writer that ended with its final report recorded is released");
+  });
+
+  scenario("a CLI writer's session is recorded at launch and a resume without a readable stream names the file", () => {
+    const w = cliWriter("cli-session-record", 383);
+    const owner = w.f.change((r) => run.launch(r, { ticket: 383, executable: process.execPath, args: w.args("bypassPermissions"), prompt: w.prompt, spawner: ({ launchDir }) => {
+      fs.writeFileSync(path.join(launchDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: WRITER_SESSION })}\n`);
+      return { started: true, pid: 999999 };
+    }, identify: () => null })).owner;
+    const record = run.readRecord(w.f.file);
+    assert.equal(record.tickets[383].owner.sessionId, WRITER_SESSION, "launch records the session once the stream names it");
+    assert.notEqual(record.tickets[383].owner.sessionId, record.tickets[383].owner.launchId);
+    assert.deepEqual(run.writerIdentities(record), [{ ticket: 383, launchId: owner.launchId, sessionId: WRITER_SESSION, launchDir: owner.handle.launchDir }], "snapshot and plan list the session beside the launch id and directory");
+    const resent = w.f.change((r) => run.deliver(r, { ticket: 383, retry: true })).message;
+    assert.ok(resent.startsWith(`Assignment ${owner.launchId} (CLI session ${WRITER_SESSION}, delivery `), "the brief names the session beside the launch id");
+    assert.ok(run.brief(run.readRecord(w.f.file), w.planFile, 383, [], defaults).startsWith(`Assignment ${owner.launchId} (CLI session ${WRITER_SESSION}, `));
+    const out = path.join(owner.handle.launchDir, "out.jsonl");
+    const resumeIt = () => run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 383, executable: process.execPath, args: w.args("bypassPermissions"), prompt: w.prompt, identify: () => null, census: () => [], spawner: () => assert.fail("nothing is started without the writer's session") });
+    w.f.change((r) => { delete r.tickets[383].owner.sessionId; });
+    fs.writeFileSync(out, `${JSON.stringify({ type: "system", subtype: "status" })}\n`);
+    assert.throws(resumeIt, (e) => e.message.includes(out) && /has no init line naming the writer's session/.test(e.message), "a stream without an init line is refused, naming the file");
+    fs.writeFileSync(out, `${JSON.stringify({ type: "system", subtype: "init", session_id: "not-a-session" })}\n`);
+    assert.throws(resumeIt, (e) => e.message.includes(out) && /names no session id/.test(e.message));
+    fs.rmSync(out);
+    assert.throws(resumeIt, (e) => e.message === `No stream at ${out}; the resume reads the writer's session from it, and only a detached CLI writer has one`, "a missing stream is refused, naming the file the resume read");
+    assert.equal(run.readRecord(w.f.file).tickets[383].owner.resuming, undefined, "a refused resume records no intent");
   });
 
   scenario("a CLI writer whose turn ended with no report or request is read and resumed, never released as finished", () => {
@@ -317,7 +351,7 @@ try {
     assert.ok(stalled.reason.includes(out));
     const prompt = write("cli-stalled-continue.txt", "Continue: wait for the reviewer in the foreground, then carry on.");
     const stop = path.join(tmp, "stop-cli-stalled-2");
-    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 375, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt });
+    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 375, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt });
     started.push({ stop, pid: resumed.pid });
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 375).action, "observe", "the resumed writer carries on");
     fs.writeFileSync(stop, "");
@@ -358,7 +392,7 @@ try {
     assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 378).action, "answer-request");
     const answer = write("cli-lost-launch-answer.txt", w.f.change((r) => run.answer(r, { ticket: 378, request: id, text: "Round 4 is authorized." })).message);
     let spawned = null;
-    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 378, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: answer, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 378, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: answer, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
     assert.equal(resumed.started, true);
     assert.ok(spawned.args.includes(WRITER_SESSION), "the session the stream named is resumed");
   });
@@ -372,7 +406,7 @@ try {
     assert.equal(t.plan(379).action, "collect-report");
     const prompt = write("cli-takeover-resume.txt", "Continue: wait for the reviewer in the foreground, then carry on.");
     let spawned = null;
-    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 379, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 379, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
     const sent = fs.readFileSync(path.join(spawned.launchDir, "prompt.txt"), "utf8");
     assert.ok(sent.startsWith("Continue:") && sent.includes(`Your coordinator is now session ${NEXT}`), "the resume prompt carries the new coordinator");
     const after = run.readRecord(t.file).tickets[379].owner;
@@ -394,7 +428,7 @@ try {
     const printed = run.brief(run.readRecord(t.file), null, 381, [], defaults);
     assert.ok(printed.includes(`coordinator session ${NEXT}`) && !printed.includes(COORDINATOR));
     let spawned = null;
-    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 381, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: write("cli-predecessor-continue.txt", "Continue the work."), spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 381, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: write("cli-predecessor-continue.txt", "Continue the work."), spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
     assert.match(fs.readFileSync(path.join(spawned.launchDir, "prompt.txt"), "utf8"), new RegExp(`Your coordinator is now session ${NEXT}`), "the continuation tells the writer the new coordinator");
   });
 
@@ -402,7 +436,7 @@ try {
     const w = cliWriter("cli-resume-closed", 382);
     const { owner } = w.launch();
     w.end(owner);
-    const resumeArgs = [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"];
+    const resumeArgs = [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"];
     assert.equal(run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 382, executable: process.execPath, args: resumeArgs, prompt: write("cli-resume-closed.txt", "Continue."), spawner: () => { throw new Error("the host lost the reply"); } }).uncertain, true);
     const closed = snapshotOf([ticket(382, { state: "closed", delivered: true })]);
     const entry = entryOf(planOf(w.f, closed, { preflights: w.pre }), 382);

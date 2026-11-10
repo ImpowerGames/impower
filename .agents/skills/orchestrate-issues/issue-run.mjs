@@ -1191,11 +1191,11 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const lingering = !own.owner && !own.pending && t.worktrees.length > 0 && !writerKnownEnded(own);
       if (lingering) holdPlace(t.number, own);
       const base = t.delivered ? "closed with its merged deliverable on origin/main" : `closed${t.stateReason === "not_planned" ? " as not planned" : ""} without a merged deliverable on origin/main; confirm whether the ticket is complete`;
-      if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
-      if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
+      if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, launchId: own.owner.launchId ?? null, sessionId: sessionOf(own.owner), handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
+      if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, launchId: own.owner.launchId ?? null, sessionId: sessionOf(own.owner), handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
       const report = own.owner && idleReleaseReport(own, statusOf(t.number, own.owner), observations);
       if (report && t.delivered && t.prs.some((p) => p.onMain && writerPull(own.owner, report, p.number, p.branch))) {
-        add(t, "release", `${base}; its session ended its turn and its final report names merged PR #${report.pr}: record release with the transcript evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "waiting" }, transcript: { from: transcriptOf(own.owner) } });
+        add(t, "release", `${base}; its session ended its turn and its final report names merged PR #${report.pr}: record release with the transcript evidence`, { owner: { route: own.owner.route, launchId: own.owner.launchId ?? null, sessionId: sessionOf(own.owner), handle: own.owner.handle, status: "waiting" }, transcript: { from: transcriptOf(own.owner) } });
         continue;
       }
       add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
@@ -1211,7 +1211,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (own.owner) {
       const s = statusOf(t.number, own.owner);
       const transcript = ["waiting", "exited"].includes(s.status) ? { from: transcriptOf(own.owner) } : null;
-      const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(transcript && { transcript }), ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
+      const extra = { owner: { route: own.owner.route, launchId: own.owner.launchId ?? null, sessionId: sessionOf(own.owner), handle: own.owner.handle, status: s.status }, ...(transcript && { transcript }), ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
       if (own.owner.mismatch) { holdPlace(t.number, own); add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
       const opening = openPending(own.owner) ?? (own.owner.resuming && `resume ${own.owner.resuming.id} of session ${own.owner.sessionId} has no recorded outcome (${own.owner.resuming.reason ?? "it may have started"}); run reconcile, which looks for a process naming ${own.owner.resuming.launchDir}, and never resume again before it`);
       if (opening) { holdPlace(t.number, own); add(t, "reconcile-pending", opening, extra); continue; }
@@ -1555,9 +1555,17 @@ export function release(record, { ticket: number, observations, evidence, host =
 }
 
 function noteSession(owner) {
-  if (!owner || owner.sessionId || owner.handle?.kind !== "process" || !owner.handle.launchDir) return;
-  try { owner.sessionId = streamSession(owner.handle.launchDir); } catch {}
+  const session = owner && sessionOf(owner);
+  if (session) owner.sessionId = session;
 }
+
+export function sessionOf(owner) {
+  if (owner?.sessionId) return owner.sessionId;
+  if (owner?.handle?.kind !== "process" || !owner.handle.launchDir) return null;
+  try { return streamSession(owner.handle.launchDir); } catch { return null; }
+}
+
+export const writerIdentities = (record) => Object.entries(record.tickets ?? {}).flatMap(([number, t]) => (t?.owner ? [{ ticket: Number(number), launchId: t.owner.launchId ?? null, sessionId: sessionOf(t.owner), launchDir: t.owner.handle?.launchDir ?? null }] : []));
 
 export function writerSession(record, { ticket: number, writer, session, evidence }) {
   if (!new RegExp(`^${UUID}$`, "i").test(session ?? "") || !evidence) throw new Error("--session must be the writer's session id and --evidence say where it was read");
@@ -1879,6 +1887,7 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
   const identity = identify(outcome.pid);
   const sent = fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8");
   ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", sent), toldCoordinator(pending, sent, record));
+  noteSession(ticket.owner);
   log(record, "launched", { ticket: number, launchId: pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return { started: true, owner: ticket.owner };
@@ -1887,9 +1896,9 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
 const step = (holder, name, state, detail = {}) => { (holder.steps ??= []).push({ step: name, state, time: new Date().toISOString(), ...detail }); };
 const lastOpenStep = (owner) => owner?.opened?.steps?.at(-1) ?? null;
 
-export function streamSession(launchDir) {
+export function streamSession(launchDir, use = "open") {
   const out = path.join(launchDir ?? "", "out.jsonl");
-  if (!launchDir || !fs.existsSync(out)) throw new Error(`No stream at ${out}; only a detached CLI writer's session can be opened`);
+  if (!launchDir || !fs.existsSync(out)) throw new Error(`No stream at ${out}; the ${use} reads the writer's session from it, and only a detached CLI writer has one`);
   for (const line of fs.readFileSync(out, "utf8").split(/\r?\n/)) {
     let row;
     try { row = JSON.parse(line); } catch { continue; }
@@ -1992,10 +2001,9 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} has no recorded outcome; settle it with reconcile, and never resume again before it`);
     const s = ownerStatus(owner, {}, { host, identify, census });
     if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer whose turn has ended is resumed`);
-    const sessionId = owner.sessionId ?? streamSession(owner.handle.launchDir);
+    if (args.includes("--resume")) throw new Error("The resume supplies --resume with the session the writer's stream names; drop --resume from --arg");
     checkLaunchArgs(args, owner);
-    const at = args.flatMap((a, i) => (a === "--resume" ? [i] : []));
-    if (at.length !== 1 || args[at[0] + 1] !== sessionId) throw new Error(`The resume needs exactly one --resume ${sessionId}, the session the writer's stream names`);
+    const sessionId = owner.sessionId ?? streamSession(owner.handle.launchDir, "resume");
     const id = randomUUID();
     const launchDir = resumeDirOf(owner, number, id);
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
@@ -2026,7 +2034,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
   const text = fs.readFileSync(prompt, "utf8");
   fs.writeFileSync(path.join(launchDir, "prompt.txt"), contactNote && !text.includes(contactNote) ? `${text.replace(/\s*$/, "")}\n${contactNote}\n` : text);
   let outcome;
-  try { outcome = spawner({ executable, args: [...args, "--add-dir", launchDir], cwd: intent.record.checkout, launchDir }); }
+  try { outcome = spawner({ executable, args: [...args, "--resume", intent.record.tickets[number].owner.sessionId, "--add-dir", launchDir], cwd: intent.record.checkout, launchDir }); }
   catch (error) { outcome = { started: false, uncertain: true, reason: error.message }; }
   const done = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
     const o = ticketOf(r, number).owner;
@@ -2045,6 +2053,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
 
 export function reconcile(record, { ticket: number, host = os.hostname(), census = processCensus, identify = processIdentity }) {
   const ticket = ticketOf(record, number), pending = ticket.pending;
+  noteSession(ticket.owner);
   if (!pending && ticket.owner?.resuming) return reconcileResume(record, ticket.owner, number, { host, census, identify });
   if (!pending) throw new Error(`#${number} has nothing pending`);
   if (pending.route !== "claude-cli") throw new Error(`A ${pending.route} start is confirmed with launched or withdrawn with evidence`);
@@ -2110,7 +2119,7 @@ function reconcileResume(record, owner, number, { host, census, identify }) {
   return { outcome };
 }
 
-const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${owner.brief.deliveryId}). If you have already received assignment ${owner.launchId}, ignore this copy and carry on with the first.`;
+const assignmentHeader = (owner) => `Assignment ${owner.launchId} (${sessionOf(owner) ? `CLI session ${sessionOf(owner)}, ` : ""}delivery ${owner.brief.deliveryId}). If you have already received assignment ${owner.launchId}, ignore this copy and carry on with the first.`;
 
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
@@ -2222,14 +2231,14 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       const record = readRecord(absolute(o.record, "record"));
       const snap = takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, clientFor(record, record.checkout));
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
-      return { tickets: snap.tickets.length, originMain: snap.originMain };
+      return { tickets: snap.tickets.length, originMain: snap.originMain, writers: writerIdentities(record) };
     }
     case "plan": {
       const record = readRecord(absolute(o.record, "record"));
       const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults, machine: observeWriterMachine(record) });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
       const checkpoint = autoCheckpoint(absolute(o.record, "record"), { coordinator: record.coordinator.session, transition: "a new plan", github, plan, onlyIfChanged: true });
-      return checkpoint ? { ...plan, checkpoint } : plan;
+      return { ...plan, writers: writerIdentities(record), ...(checkpoint && { checkpoint }) };
     }
     case "claim": return mutate((r) => claim(r, { plan: absolute(o.plan, "plan"), ticket: number(), worktree: o.worktree, branch: o.branch, artifactParent: o.artifactParent, operation: o.operation, evidence: o.evidence, machine: observeWriterMachine(r), observations: readOptional(o.observations), freeBytes: freeBytesAt(r.checkout) }));
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt, observe: observeWriterMachine, observations: readOptional(o.observations) }));
