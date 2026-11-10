@@ -17,7 +17,9 @@ const assets = vi.hoisted(() => ({
   createFolder: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
   remove: vi.fn(async () => undefined),
+  measureImages: vi.fn(async (_paths: string[]) => undefined),
 }));
+const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
   setListState: vi.fn(),
   navigateTo: vi.fn(),
@@ -102,6 +104,15 @@ const setListing = (files: Record<string, ReturnType<typeof facts> & { address?:
 
 beforeEach(() => {
   layout.value = "desktop";
+  measured.sizes = {};
+  workspace.assetSizes.value = {};
+  assets.measureImages.mockImplementation(async (paths: string[]) => {
+    const files = workspace.assetListing.value!.files;
+    workspace.assetSizes.value = {
+      ...workspace.assetSizes.value,
+      ...Object.fromEntries(paths.map((path) => [files[path]!.src!, measured.sizes[path] ?? null])),
+    };
+  });
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
@@ -311,5 +322,207 @@ describe("the Assets page", () => {
     expect(name).toBeTruthy();
     expect(selectedTab()).toBe("audio");
     expect(workspace.current.lists?.assetsFolders).toMatchObject({ audio: "Assets/Audio" });
+  });
+});
+
+describe("image folders as tiles", () => {
+  const tiles = () => all<HTMLElement>('[role="listitem"] [data-tile]');
+  const layoutButton = () => host!.querySelector<HTMLElement>('[data-assets-action="layout"]');
+
+  beforeEach(() => {
+    setListing({
+      "Assets/Images/Portraits/imani.png": facts(100),
+      "Assets/Images/Portraits/imani@night.png": facts(200),
+      "Assets/Images/Portraits/imani~face.happy.png": facts(10),
+      "Assets/Images/Portraits/imani@night~face.sad.png": facts(20),
+      "Assets/Images/Backdrops/subway.png": facts(300),
+      "Assets/Audio/imani.wav": facts(5),
+    });
+  });
+
+  it("draws one portrait tile per thing, with the variants badge in its thumbnail's corner", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
+    expect(rowLabels()).toEqual(["Open image imani, 2 variants, modified 2d · 330 b"]);
+    const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
+    expect(badge.getAttribute("aria-label")).toBe("2 variants");
+    expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
+    expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
+    await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
+    expect(inspectedAsset.value).toMatchObject({ path: "Assets/Images/Portraits/imani.png" });
+  });
+
+  it("draws landscape tiles under Backdrops and folder tiles covered by the pictures inside", async () => {
+    await mount();
+    expect(rowLabels()).toEqual(["Open folder Backdrops, 1 image", "Open folder Portraits, 4 images"]);
+    const portraits = tiles()[1]!;
+    expect(portraits.querySelector("[data-folder-cover]")!.getAttribute("data-folder-cover")).toBe("1");
+    await click(all<HTMLElement>('button[aria-label^="Open folder Backdrops"]')[0]);
+    expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["landscape"]);
+  });
+
+  it("keeps a folder's switch to rows for that folder only, with the chip beside the name", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as rows");
+    await click(layoutButton()!);
+    expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
+    expect(tiles()).toEqual([]);
+    expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("2 variants");
+    expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as tiles");
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    expect(tiles().length).toBe(2);
+  });
+
+  it("lists search results as rows and leaves the Audio tab as rows with no layout button", async () => {
+    await mount();
+    await search("imani");
+    expect(tiles()).toEqual([]);
+    expect(rowLabels()).toEqual([
+      "Open image imani, 2 variants, portraits · modified 2d · 330 b",
+      "Open audio imani, audio · modified 2d · 5 b",
+    ]);
+    await search("");
+    await showTab("Audio");
+    expect(tiles()).toEqual([]);
+    expect(layoutButton()).toBeNull();
+    expect(rowLabels()).toEqual(["Open audio imani, modified 2d · 5 b"]);
+  });
+});
+
+describe("the tile shape of a folder not named for portraits or backdrops", () => {
+  const tileShapes = () => all<HTMLElement>('[role="listitem"] [data-tile]').map((tile) => tile.getAttribute("data-tile"));
+
+  const png = (width: number, height: number) => {
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+    new DataView(bytes.buffer).setUint32(16, width);
+    new DataView(bytes.buffer).setUint32(20, height);
+    return bytes;
+  };
+
+  const withPictures = (pictures: Record<string, [number, number, number]>) => {
+    setListing(Object.fromEntries(Object.entries(pictures).map(([path, [size]]) => [path, facts(size)])));
+    measured.sizes = Object.fromEntries(
+      Object.entries(pictures).map(([path, [, width, height]]) => [path, { width, height }]),
+    );
+    const bySrc = new Map(Object.values(pictures).map(([size, width, height]) => [`/p/${size}`, png(width, height)]));
+    vi.stubGlobal("fetch", async (src: string) => {
+      const bytes = bySrc.get(src);
+      return bytes ? new Response(bytes, { status: 206 }) : new Response("", { status: 404 });
+    });
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the shape most of the folder's pictures share once their sizes are read", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [3001, 300, 400],
+      "Assets/Images/Cast/kai.png": [3002, 300, 400],
+      "Assets/Images/Cast/sky.png": [3003, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Cast" } } };
+    await mount();
+    await settle();
+    expect(assets.measureImages).toHaveBeenCalledWith([
+      "Assets/Images/Cast/ada.png",
+      "Assets/Images/Cast/kai.png",
+      "Assets/Images/Cast/sky.png",
+    ]);
+    expect(workspace.assetSizes.value).toMatchObject({
+      "/p/3001": { width: 300, height: 400 },
+      "/p/3003": { width: 640, height: 400 },
+    });
+    expect(tileShapes()).toEqual(["portrait", "portrait", "portrait"]);
+  });
+
+  it("draws landscape tiles when most pictures are wide, and keeps Portraits portrait whatever its pictures", async () => {
+    withPictures({
+      "Assets/Images/Places/a.png": [4001, 640, 400],
+      "Assets/Images/Places/b.png": [4002, 300, 400],
+      "Assets/Images/Portraits/c.png": [4003, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Places" } } };
+    await mount();
+    await settle();
+    expect(tileShapes()).toEqual(["landscape", "landscape"]);
+    await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
+    await click(all<HTMLElement>('button[aria-label^="Open folder Portraits"]')[0]);
+    expect(tileShapes()).toEqual(["portrait"]);
+  });
+
+  it("measures a picture again when its file changes, and keeps drawing the folder", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [5001, 300, 400],
+      "Assets/Images/Cast/kai.png": [5002, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Cast" } } };
+    await mount();
+    await settle();
+    expect(tileShapes()).toEqual(["landscape", "landscape"]);
+    await act(async () => {
+      withPictures({
+        "Assets/Images/Cast/ada.png": [5001, 300, 400],
+        "Assets/Images/Cast/kai.png": [5012, 300, 400],
+      });
+    });
+    await settle();
+    await settle();
+    expect(workspace.assetSizes.value["/p/5012"]).toEqual({ width: 300, height: 400 });
+    expect(tileShapes()).toEqual(["portrait", "portrait"]);
+  });
+});
+
+describe("renaming from the row menu", () => {
+  beforeEach(() => {
+    setListing({
+      "Assets/Images/Portraits/imani.png": facts(6001),
+      "Assets/Images/Portraits/imani@night.png": facts(6002),
+      "Assets/Images/Portraits/bunny.png": facts(6003),
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+  });
+
+  const menuOf = async (name: string) => {
+    await openMenu(all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Delete"));
+    const items = menuItems();
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    return items;
+  };
+
+  it("offers Rename for a single file and not for a stacked picture", async () => {
+    await mount();
+    expect(await menuOf("bunny")).toEqual(["Rename", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Delete"]);
+  });
+
+  it("shows a refused single-file rename's whole message under the field in its tile", async () => {
+    const message = "That name is already in use in this folder.";
+    assets.rename.mockRejectedValueOnce(new Error(message));
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Rename"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Rename")));
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename bunny"]')!;
+    expect(input.value).toBe("bunny");
+    await act(async () => {
+      input.value = "imani";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.rename).toHaveBeenCalledWith("Assets/Images/Portraits/bunny.png", "imani");
+    const alert = host!.querySelector<HTMLElement>('[role="alert"]')!;
+    expect(alert.textContent).toBe(message);
+    expect(alert.closest("small")!.className).toContain("whitespace-normal");
+    expect(alert.closest("small")!.className).not.toContain("fade-edge");
   });
 });

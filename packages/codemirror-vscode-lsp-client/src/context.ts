@@ -17,6 +17,7 @@ export type ContextMenuItem =
       when?: (state: EditorState, pos: number) => boolean;
       needsSelection?: boolean;
       keepsMenuOpen?: boolean;
+      keepsSelection?: boolean;
       disabled?: () => boolean;
     }
   | { type: "separator" };

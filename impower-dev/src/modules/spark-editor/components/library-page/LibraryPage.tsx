@@ -5,6 +5,7 @@ import {
   DropdownTrigger,
   PlusIcon,
   VirtualList,
+  type VirtualListGrid,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import SearchBox from "./SearchBox";
@@ -15,6 +16,7 @@ export type LibraryList<T> = {
   getKey: (item: T, index: number) => string;
   renderItem: (item: T, index: number) => ComponentChildren;
   itemHeight?: (item: T, index: number) => number;
+  grid?: VirtualListGrid;
   listRef?: Ref<HTMLDivElement>;
 };
 
@@ -79,6 +81,7 @@ export default function LibraryPage<T>({
               getKey={list.getKey}
               renderItem={list.renderItem}
               itemHeight={list.itemHeight}
+              grid={list.grid}
             />
           ) : (
             empty
