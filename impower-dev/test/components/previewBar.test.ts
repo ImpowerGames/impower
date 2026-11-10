@@ -94,6 +94,7 @@ const lineAt = (line: number) => ({
 
 const forcedRoute = {
   open: false,
+  tab: "route" as const,
   toggles: { pinned: true, auto: true, forced: true, clipped: true },
   pins: [],
   route: {
@@ -320,6 +321,60 @@ describe("the bar under the game", () => {
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
     expect(stored().previewPanelHeight).toBe(44);
+  });
+
+  it("closes the route list on Escape, unless Escape is leaving a starting value's draft", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = {
+        ...forcedRoute,
+        values: { values: {}, drafts: { trust: "2" }, unsaved: {}, search: "" },
+      };
+    });
+    await act(async () => route.toggle());
+    await settle();
+    const row = document.body.appendChild(document.createElement("div"));
+    row.className = "sv-row";
+    row.dataset["key"] = "trust";
+    await key(row, "Escape");
+    await settle();
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    row.remove();
+    await key(document.body, "Escape");
+    await settle();
+    expect(document.getElementById("route-panel")).toBeNull();
+    expect(stored().previewPanelHeight).toBe(44);
+  });
+
+  it("keeps the Starting values tab in the route list and sends its tab and value changes to the player", async () => {
+    const sent: unknown[] = [];
+    const listen = (event: Event) => sent.push((event as CustomEvent).detail);
+    window.addEventListener("jsonrpc", listen);
+    try {
+      await mount();
+      await act(() => {
+        route.view.value = {
+          ...forcedRoute,
+          values: { start: "interrogation", values: {}, drafts: {}, unsaved: {}, search: "" },
+        };
+      });
+      await act(async () => route.toggle());
+      await settle();
+      const tab = document.querySelector<HTMLButtonElement>(
+        '#route-panel .route-tab[data-tab="values"]',
+      );
+      expect(tab?.textContent).toContain("Starting values");
+      await act(async () => tab!.click());
+      await settle();
+      expect(sent).toContainEqual(
+        expect.objectContaining({
+          method: "preview/routeViewAction",
+          params: { action: { kind: "tab", tab: "values" } },
+        }),
+      );
+    } finally {
+      window.removeEventListener("jsonrpc", listen);
+    }
   });
 
   it("shows a forced route on the compact strip's readout, whose press opens the list in the strip", async () => {

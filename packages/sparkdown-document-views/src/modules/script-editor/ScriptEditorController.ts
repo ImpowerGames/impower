@@ -935,6 +935,7 @@ export class ScriptEditorController {
               text: choice.text,
               options: choice.options,
               unpin: choice.unpin,
+              note: choice.note,
             })),
         ),
         setForcedLinesEffect.of(

@@ -27,6 +27,7 @@ const route = (decisions: PreviewRoute["decisions"]): PreviewRoute => ({
 
 const view = (extra: Partial<HostedRouteView>): HostedRouteView => ({
   open: false,
+  tab: "route" as const,
   toggles: { pinned: true, auto: true, forced: true, clipped: true },
   pins: [],
   ...extra,

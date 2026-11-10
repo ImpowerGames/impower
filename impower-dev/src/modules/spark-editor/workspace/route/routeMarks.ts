@@ -63,6 +63,7 @@ export const routeMarks = (
       pinned: isPinned(view.pins, option),
     })),
     unpin: stopIsPinned(view.pins, decision),
+    ...(view.pinNote ? { note: view.pinNote } : {}),
   }));
   const forced = Object.entries(route.forcedLines ?? {}).map(
     ([uri, ranges]) => ({ uri, lines: expandLineRanges(ranges) }),

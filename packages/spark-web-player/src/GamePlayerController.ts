@@ -118,6 +118,7 @@ import { renderRouteViews } from "./route/renderRouteViews";
 import {
   DidChangeRouteViewMessage,
   RouteViewActionMessage,
+  type HostedValuesEvent,
 } from "./route/routeViewMessages";
 import {
   changedPins,
@@ -838,12 +839,20 @@ export class GamePlayerController {
       onPinLastRun: this.handleRoutePinLastRun,
     });
     if (this._hostsRoute) {
-      const { route, failure, toggles, pins, pinNote, lastRun } =
-        this._routeState;
       sendProtocolMessage(
         DidChangeRouteViewMessage.type.notification({
           view: this._barView.routeShown
-            ? { route, failure, open, toggles, pins, pinNote, lastRun }
+            ? {
+                ...this._routeState,
+                ...(values
+                  ? {
+                      load: {
+                        saves: this._saves.rows(),
+                        open: this._loadSaveOpen,
+                      },
+                    }
+                  : {}),
+              }
             : null,
         }),
         this.host,
@@ -869,8 +878,44 @@ export class GamePlayerController {
       case "pinLastRun":
         void this.handleRoutePinLastRun();
         return;
+      case "tab":
+        this.handleRouteTab(action.tab);
+        return;
+      case "values":
+        this.handleHostedValues(action.event);
+        return;
     }
   };
+
+  protected handleHostedValues(event: HostedValuesEvent) {
+    switch (event.kind) {
+      case "set":
+        this.valuesEvents.onSet(event.key, event.value);
+        return;
+      case "clear":
+        this.valuesEvents.onClear(event.key);
+        return;
+      case "draft":
+        this.valuesEvents.onDraft(event.key, event.text);
+        return;
+      case "resetAll":
+        this.valuesEvents.onResetAll();
+        return;
+      case "search":
+        this.valuesEvents.onSearch(event.search);
+        return;
+      case "undoLoad":
+        this.undoLoad();
+        return;
+      case "loadOpen":
+        this._loadSaveOpen = event.open;
+        this.renderRoute();
+        return;
+      case "loadPick":
+        void this.loadSave(event.id);
+        return;
+    }
+  }
 
   protected valuesStart(): string | undefined {
     const { route, failure } = this._routeState;

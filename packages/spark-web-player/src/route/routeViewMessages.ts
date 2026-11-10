@@ -1,8 +1,12 @@
 import { MessageProtocolNotificationType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import type { SaveRow } from "../saves/savesView";
 import type { RouteKind, RoutePinChange, RouteViewState } from "./routeView";
+import type { RouteTab } from "./startingValuesView";
 
-export type HostedRouteView = Omit<RouteViewState, "values" | "tab">;
+export interface HostedRouteView extends RouteViewState {
+  load?: { saves: SaveRow[]; open: boolean };
+}
 
 export type DidChangeRouteViewMethod = typeof DidChangeRouteViewMessage.method;
 
@@ -30,7 +34,19 @@ export type RouteViewAction =
   | { kind: "close" }
   | { kind: "toggle"; routeKind: RouteKind; shown: boolean }
   | { kind: "changePins"; change: RoutePinChange }
-  | { kind: "pinLastRun" };
+  | { kind: "pinLastRun" }
+  | { kind: "tab"; tab: RouteTab }
+  | { kind: "values"; event: HostedValuesEvent };
+
+export type HostedValuesEvent =
+  | { kind: "set"; key: string; value: string }
+  | { kind: "clear"; key: string }
+  | { kind: "draft"; key: string; text: string | null }
+  | { kind: "resetAll" }
+  | { kind: "search"; search: string }
+  | { kind: "undoLoad" }
+  | { kind: "loadOpen"; open: boolean }
+  | { kind: "loadPick"; id: string };
 
 export type RouteViewActionMethod = typeof RouteViewActionMessage.method;
 

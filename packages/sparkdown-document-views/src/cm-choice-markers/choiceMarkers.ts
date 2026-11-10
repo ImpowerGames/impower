@@ -32,6 +32,7 @@ export interface ChoiceMarker {
   text: string;
   options: ChoiceMarkerOption[];
   unpin: boolean;
+  note?: string;
 }
 
 export type ChoiceMarkerAction =
@@ -223,6 +224,11 @@ const choiceTooltip = ({ from, marker }: PlacedMarker): Tooltip => ({
       list.append(row);
     });
     dom.append(list);
+    if (marker.note) {
+      const note = element("p", "cm-choice-popover-note", marker.note);
+      note.setAttribute("role", "status");
+      dom.append(note);
+    }
     const foot = element("div", "cm-choice-popover-foot");
     if (marker.unpin) {
       const unpin = element("button", "cm-choice-popover-action", "Unpin");
@@ -483,6 +489,10 @@ const choiceMarkersTheme = EditorView.baseTheme({
     borderColor: "var(--accent)",
     backgroundColor: "var(--accent)",
     color: "var(--accent-ink)",
+  },
+  ".cm-choice-popover-note": {
+    margin: "0",
+    color: "var(--error)",
   },
   ".cm-choice-popover-foot": {
     display: "flex",

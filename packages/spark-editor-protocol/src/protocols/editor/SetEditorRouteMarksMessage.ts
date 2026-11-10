@@ -18,6 +18,7 @@ export interface EditorChoiceMark {
   text: string;
   options: EditorChoiceMarkOption[];
   unpin: boolean;
+  note?: string;
 }
 
 export interface EditorForcedLines {

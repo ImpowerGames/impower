@@ -25,6 +25,7 @@ const options = [
 
 const view = (pinned: boolean): HostedRouteView => ({
   open: false,
+  tab: "route" as const,
   toggles: { pinned: true, auto: true, forced: true, clipped: true },
   pins: pinned ? [{ uri: URI, line: 7, offer: 1 }] : [],
   route: {
@@ -77,6 +78,12 @@ describe("the marks a route puts on the script", () => {
     expect(routeMarks(view(false)).forced).toEqual([
       { uri: URI, lines: [15, 16, 17, 18, 19, 20] },
     ]);
+  });
+
+  it("carries a pin that was not saved into each choice popover", () => {
+    const [mark] = routeMarks({ ...view(true), pinNote: "The pin was not saved." }).choices;
+    expect(mark!.note).toBe("The pin was not saved.");
+    expect(routeMarks(view(true)).choices[0]).not.toHaveProperty("note");
   });
 
   it("clears every mark when there is no route", () => {

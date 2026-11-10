@@ -247,6 +247,16 @@ describe("the choice popover", () => {
     expect(openChoiceLine(view!.state)).toBeNull();
   });
 
+  it("says when a pin was not saved", async () => {
+    mount();
+    setChoiceMarkers(view!, [{ ...choice(3, "pinned"), note: "The pin was not saved." }]);
+    openChoicePopover(view!, 3);
+    await nextFrame();
+    const note = view!.dom.querySelector<HTMLElement>(".cm-choice-popover-note");
+    expect(note?.textContent).toBe("The pin was not saved.");
+    expect(note?.getAttribute("role")).toBe("status");
+  });
+
   it("follows its line through an edit above it", () => {
     mount();
     setChoiceMarkers(view!, [choice(5, "auto")]);

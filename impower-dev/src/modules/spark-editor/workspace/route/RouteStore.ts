@@ -87,6 +87,25 @@ export class RouteStore {
     }
   }
 
+  dismiss(event: KeyboardEvent) {
+    if (
+      event.key !== "Escape" ||
+      event.defaultPrevented ||
+      !problems.routeShown.peek()
+    ) {
+      return;
+    }
+    const target = event.target;
+    const key =
+      target instanceof Element
+        ? target.closest(".sv-row")?.getAttribute("data-key")
+        : null;
+    if (key != null && this.view.peek()?.values?.drafts[key] !== undefined) {
+      return;
+    }
+    this.close();
+  }
+
   act(action: RouteViewAction) {
     sendProtocolMessage(RouteViewActionMessage.type.notification({ action }));
   }

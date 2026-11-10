@@ -86,7 +86,7 @@ describe("a route view the host shows", () => {
     expect(view.route).toEqual(route());
     expect(view.open).toBe(false);
     expect(view.toggles).toEqual({ pinned: true, auto: true, forced: true, clipped: true });
-    expect(view).not.toHaveProperty("values");
+    expect(view.tab).toBe("route");
     expect(p.routeButton.childElementCount).toBe(0);
     expect(p.routeList.childElementCount).toBe(0);
     expect(p.viewport.classList.contains("route-open")).toBe(false);
@@ -103,6 +103,15 @@ describe("a route view the host shows", () => {
     expect(p.views.at(-1)!.toggles.auto).toBe(false);
     p.act({ kind: "close" });
     expect(p.views.at(-1)!.open).toBe(false);
+  });
+
+  test("switches tabs as the host asks, for the Starting values tab the host composes", () => {
+    const p = hostedPlayer();
+    p.report({ route: route() });
+    p.act({ kind: "tab", tab: "values" });
+    expect(p.views.at(-1)!.tab).toBe("values");
+    p.act({ kind: "tab", tab: "route" });
+    expect(p.views.at(-1)!.tab).toBe("route");
   });
 
   test("is withdrawn while the game plays", () => {
