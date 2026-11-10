@@ -31,7 +31,7 @@ export class SwitchRule implements Rule {
   constructor(
     repo: GrammarRepository,
     def: SwitchRuleDefinition,
-    node = new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator),
+    node = new GrammarNode(repo.nextTypeIndex(), def, repo.declarator),
   ) {
     this.repo = repo;
 

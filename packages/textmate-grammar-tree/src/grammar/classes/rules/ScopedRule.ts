@@ -47,7 +47,7 @@ export class ScopedRule implements Rule {
     this.node = new GrammarNode(
       repo.nextTypeIndex(),
       def,
-      repo.grammar.declarator,
+      repo.declarator,
     );
 
     const beginId = this.id + "_begin";

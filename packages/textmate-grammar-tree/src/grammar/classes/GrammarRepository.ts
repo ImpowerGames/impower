@@ -30,6 +30,12 @@ export class GrammarRepository {
 
   self: SwitchRule;
 
+  declarator?: (
+    typeIndex: number,
+    typeId: string,
+    def: RuleDefinition,
+  ) => Record<string, any>;
+
   private map = new Map<string, GrammarNode | Rule>();
 
   private ids = new WeakMap<object, string>();
@@ -38,11 +44,27 @@ export class GrammarRepository {
     this.grammar = grammar;
     this.definition = definition;
     this.prefix = prefix;
+    const declarator = grammar.declarator;
+    this.declarator =
+      declarator && prefix
+        ? (typeIndex, typeId, def) =>
+            declarator(typeIndex, typeId, {
+              ...def,
+              openedBy: this.qualify(def.openedBy),
+              closedBy: this.qualify(def.closedBy),
+            })
+        : declarator;
     this.self = new SwitchRule(
       this,
       { id: prefix, patterns: definition.patterns ?? [] },
       GrammarNode.None,
     );
+  }
+
+  private qualify(names: string | string[] | undefined) {
+    const qualified = (name: string) =>
+      name.startsWith(this.prefix) ? name : this.prefix + name;
+    return Array.isArray(names) ? names.map(qualified) : names && qualified(names);
   }
 
   load() {
@@ -172,7 +194,7 @@ export class GrammarRepository {
     const node = new GrammarNode(
       this.nextTypeIndex(),
       def,
-      this.grammar.declarator,
+      this.declarator,
     );
     this.map.set(node.typeId, node);
     return node;

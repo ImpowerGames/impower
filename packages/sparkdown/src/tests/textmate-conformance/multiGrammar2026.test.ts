@@ -1,3 +1,6 @@
+import { matchBrackets } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
+import { vscodeLanguage } from "@impower/codemirror-vscode-language/src/extensions/vscodeLanguage";
 import { Compiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
 import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
@@ -171,6 +174,29 @@ describe("node types across grammars (I-2026)", () => {
     const tree = parser.parse(text);
     expect(tree.resolveInner(text.indexOf("a"), 1).name).toBe("Word");
     expect(tree.resolveInner(text.indexOf("b"), 1).name).toBe("source.inner#Word");
+  });
+
+  test("a bracket pair of another grammar matches as it does in that grammar alone", () => {
+    const inner = {
+      ...structuredClone(INNER),
+      patterns: [{ include: "#Open" }, { include: "#Close" }, ...structuredClone(INNER.patterns)],
+      repository: {
+        ...structuredClone(INNER.repository),
+        Open: { match: "a", closedBy: "Close" },
+        Close: { match: "b", openedBy: "Open" },
+      },
+    };
+    const alone = EditorState.create({
+      doc: "ab",
+      extensions: [vscodeLanguage({ name: "inner", grammar: structuredClone(inner) })],
+    });
+    expect(matchBrackets(alone, 0, 1)?.matched).toBe(true);
+    const included = EditorState.create({
+      doc: "{ab}",
+      extensions: [vscodeLanguage({ name: "outer", grammar: new GrammarRegistry([structuredClone(OUTER), inner]) })],
+    });
+    expect(matchBrackets(included, 1, 1)?.matched).toBe(true);
+    expect(matchBrackets(included, 3, -1)?.matched).toBe(true);
   });
 
   test("the first grammar of the registry keeps bare names and names the top node, whichever grammar the parse starts from", () => {
