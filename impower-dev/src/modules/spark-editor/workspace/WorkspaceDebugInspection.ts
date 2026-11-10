@@ -245,14 +245,26 @@ export default class WorkspaceDebugInspection {
         (a, b) => scopeRank(a) - scopeRank(b),
       );
       for (const scope of scopes) {
-        const key = scopeKey(scope);
-        loaded.refs[key] = scope.variablesReference;
-        if (expandedOf(this.state, key, !scope.expensive)) {
-          await this.load(key, scope.variablesReference, loaded, generation);
-        }
+        loaded.refs[scopeKey(scope)] = scope.variablesReference;
       }
-      if (generation !== this._generation) {
-        return;
+      const tried = new Set<string>();
+      const opened = () =>
+        Object.keys(loaded.refs).filter((key) => {
+          const scope = scopes.find((s) => scopeKey(s) === key);
+          return (
+            !tried.has(key) &&
+            !loaded.variables[key] &&
+            expandedOf(this.state, key, scope ? !scope.expensive : false)
+          );
+        });
+      for (let keys = opened(); keys.length; keys = opened()) {
+        for (const key of keys) {
+          tried.add(key);
+          await this.load(key, loaded.refs[key]!, loaded, generation);
+          if (generation !== this._generation) {
+            return;
+          }
+        }
       }
     }
     this.update({
@@ -319,16 +331,16 @@ export default class WorkspaceDebugInspection {
   }
 
   breakOnChange(key: string, on: boolean) {
-    const run = this._breaks.then(() => this.applyBreak(key, on));
+    const generation = this._generation;
+    const run = this._breaks.then(() => this.applyBreak(key, on, generation));
     this._breaks = run.catch(() => {});
     return run;
   }
 
-  protected async applyBreak(key: string, on: boolean) {
-    if (this.state.pending) {
+  protected async applyBreak(key: string, on: boolean, generation: number) {
+    if (this.state.pending || generation !== this._generation) {
       return;
     }
-    const generation = this._generation;
     const breaking: Record<string, string> = Object.assign(
       Object.create(null),
       this.state.breaking,
@@ -360,14 +372,20 @@ export default class WorkspaceDebugInspection {
         accessType: "write",
       })),
     });
-    if (!response || generation !== this._generation) {
+    if (!response?.success) {
+      if (response && generation === this._generation) {
+        this.note(key, refusal(response));
+      }
       return;
     }
-    if (!response.success) {
-      this.note(key, refusal(response));
+    if (generation === this._generation) {
+      this.update({ breaking, marked });
       return;
     }
-    this.update({ breaking, marked });
+    this.update({ breaking });
+    if (!this.state.pending) {
+      await this.markBreaking(this._generation);
+    }
   }
 
   protected dataBreakpointInfo(key: string) {

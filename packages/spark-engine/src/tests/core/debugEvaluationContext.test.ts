@@ -95,6 +95,16 @@ describe("the evaluation context a watch reads", () => {
     });
   });
 
+  it("gives a story value named __proto__ as its own entry", () => {
+    const game = pausedGame(
+      ["store __proto__ = 7", "", "scene start", "  Ready.", "  done", "end", ""].join("\n"),
+      3,
+    );
+    const named = game.getEvaluationContext(undefined, undefined, "__proto__");
+    expect(Object.hasOwn(named, "__proto__")).toBe(true);
+    expect(named["__proto__"]).toBe(7);
+  });
+
   it("gives nothing for a name the frame does not hold, and keeps tables out of the whole context a hover reads", () => {
     const game = pausedGame(SOURCE, 6);
     expect(plain(game.getEvaluationContext(undefined, undefined, "silver"))).toEqual({});

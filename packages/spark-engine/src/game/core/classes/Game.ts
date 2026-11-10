@@ -4204,7 +4204,7 @@ export class Game<T extends M = {}> {
   }
 
   getEvaluationContext(threadId?: number, frameId?: number, named?: string) {
-    const context: any = {};
+    const context: any = Object.create(null);
     const read = (valueObj: InkObject | null) =>
       named === undefined
         ? this.getRuntimeValue(valueObj)

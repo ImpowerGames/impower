@@ -519,6 +519,64 @@ describe("the web editor's Variables, Watch and Call stack inspection", () => {
     expect(vars!.children!.filter((v) => v.breaking).map((v) => v.name)).toEqual(["gold", "mood"]);
   });
 
+  it("drops a queued data breakpoint toggle when another frame is selected before it runs", async () => {
+    const { fake, debug, game } = await begin();
+    game.local(1, "count", "1");
+    game.local(1, "bonus", "2");
+    game.local(0, "bonus", "8");
+    await stop(fake);
+    fake.holdWhen((r) => r.command === "dataBreakpointInfo");
+    const first = debug.inspection.breakOnChange("scope:Temps/count", true);
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    const second = debug.inspection.breakOnChange("scope:Temps/bonus", true);
+    fake.holdWhen(() => false);
+    await debug.inspection.selectFrame(0);
+    fake.release();
+    await first;
+    await second;
+    const sent = fake.requests
+      .filter((r) => r.command === "setDataBreakpoints")
+      .flatMap((r) => (r.arguments as { breakpoints: { dataId: string }[] }).breakpoints.map((b) => b.dataId));
+    expect(sent).not.toContain("frame0.bonus");
+  });
+
+  it("keeps a data breakpoint the debugger accepted while another frame was being selected", async () => {
+    const { fake, debug, game } = await begin();
+    game.local(1, "count", "1");
+    await stop(fake);
+    fake.holdWhen((r) => r.command === "setDataBreakpoints");
+    const setting = debug.inspection.breakOnChange("scope:Temps/count", true);
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    fake.holdWhen(() => false);
+    await debug.inspection.selectFrame(0);
+    fake.release();
+    await setting;
+    await debug.inspection.selectFrame(1);
+    const count = variableTree(workspace.debugInspection.value)[1]!.children!.find((v) => v.name === "count")!;
+    expect(count.breaking).toBe(true);
+    expect(Object.values(workspace.debugInspection.value.breaking)).toEqual(["scope:Temps/count"]);
+  });
+
+  it("loads a scope opened while a stop's values were still loading", async () => {
+    const { fake, debug } = await begin();
+    await stop(fake);
+    await debug.inspection.toggle("scope:Vars");
+    fake.holdWhen((r) => r.command === "variables");
+    fake.event("stopped", { reason: "step", threadId: 0 });
+    await vi.waitFor(() => expect(fake.held()).toBe(1));
+    await debug.inspection.toggle("scope:Vars");
+    fake.holdWhen(() => false);
+    fake.release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() =>
+      expect(variableTree(workspace.debugInspection.value)[0]!.children?.map((v) => v.name)).toEqual([
+        "gold",
+        "mood",
+        "party",
+      ]),
+    );
+  });
+
   it("shows a watch named __proto__ like any other name", async () => {
     const { fake } = await begin(["__proto__", "gold"]);
     await stop(fake);
