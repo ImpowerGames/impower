@@ -72,6 +72,7 @@ let host: HTMLElement;
 beforeEach(() => {
   vi.clearAllMocks();
   host = document.body.appendChild(document.createElement("div"));
+  workspace.layout.value = "phone";
   workspace.search.value = INITIAL_SEARCH;
   workspace.searchPosition.value = INITIAL_SEARCH_POSITION;
   workspace.scriptMode.value = "reading";

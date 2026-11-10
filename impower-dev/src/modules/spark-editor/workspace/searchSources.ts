@@ -106,7 +106,6 @@ export const searchSources = (parts: {
       }
     },
     autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
-    phone: () => layoutState.current() === "phone",
     onTextChanged: (listener) => {
       const changed = debounce(listener, TEXT_CHANGE_DELAY);
       const disposers = [
