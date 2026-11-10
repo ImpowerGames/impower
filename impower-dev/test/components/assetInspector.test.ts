@@ -286,9 +286,10 @@ describe("the asset inspector", () => {
     expect(document.activeElement).toBe(rowFor("Assets/Audio/Sounds/door_chime.wav"));
   });
 
-  it("moves to the sheet when no dock is mounted, by the one host rule", async () => {
+  it("docks only in the desktop layout with a dock mounted, and is a sheet otherwise, by the one host rule", async () => {
     expect(inspectorHost("desktop", document.createElement("div"))).toBe("dock");
-    expect(inspectorHost("compact", document.createElement("div"))).toBe("dock");
+    expect(inspectorHost("compact", document.createElement("div"))).toBe("sheet");
+    expect(inspectorHost("compact", null)).toBe("sheet");
     expect(inspectorHost("phone", document.createElement("div"))).toBe("sheet");
     expect(inspectorHost("desktop", null)).toBe("sheet");
     await mount(false);
@@ -296,15 +297,49 @@ describe("the asset inspector", () => {
     expect(document.querySelector('[role="dialog"]')!.contains(region())).toBe(true);
   });
 
-  it("moves from the dock to the sheet when the layout becomes a phone's while open", async () => {
+  it("closes when a layout change moves its host, from desktop to compact and back", async () => {
     await mount();
     await open("door_chime");
     expect(dock().contains(region())).toBe(true);
-    layout.value = "phone";
+    layout.value = "compact";
     await rerender();
-    expect(dock().contains(region())).toBe(false);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    expect(region()).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await open("door_chime");
     expect(document.querySelector('[role="dialog"]')!.contains(region())).toBe(true);
-    expect(title()).toBe("door_chime");
+    layout.value = "desktop";
+    await rerender();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    expect(region()).toBeNull();
+    expect(dock().childElementCount).toBe(0);
+  });
+
+  it("is a full-screen sheet with Back in the compact layout, and Back returns focus to the tile that opened it", async () => {
+    layout.value = "compact";
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("market");
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.contains(region())).toBe(true);
+    expect(dialog.className).toContain("h-full");
+    expect(dock().contains(region())).toBe(false);
+    expect(closeButton().getAttribute("aria-label")).toBe("Back to the collection");
+    expect(document.activeElement).toBe(closeButton());
+    const tile = rowFor("Assets/Images/Backdrops/market.png");
+    expect(tile.closest("[data-tile]")).not.toBeNull();
+    await click(closeButton());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    await settle();
+    expect(region()).toBeNull();
+    expect(document.activeElement).toBe(tile);
   });
 
   it("lists each use as a row that opens the script at that line", async () => {

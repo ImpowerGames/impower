@@ -63,7 +63,7 @@ import {
 import { parentOf } from "../../workspace/scriptsListing";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
-import { AssetInspector, inspectorHost, useInspectorDock } from "../asset-inspector";
+import { AssetInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
 import {
   EmptyState,
   LibraryPage,
@@ -212,6 +212,7 @@ function AssetsBrowser() {
     : level.rows;
   const files = items.filter((item): item is AssetRow => item.kind === "file");
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [openedIn, setOpenedIn] = useState<InspectorHost | null>(null);
   const shownRow = useRef<AssetRow | null>(null);
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
@@ -219,10 +220,10 @@ function AssetsBrowser() {
   const layoutName = useLayout();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
-  const listed = openPath ? files.find((row) => row.path === openPath) : undefined;
+  const listed = openPath && openedIn === host ? files.find((row) => row.path === openPath) : undefined;
   const openRowOf =
     listed ??
-    (openPath && shownRow.current?.path === openPath && Object.hasOwn(listing.files, openPath)
+    (openPath && openedIn === host && shownRow.current?.path === openPath && Object.hasOwn(listing.files, openPath)
       ? shownRow.current
       : null);
   if (openRowOf) {
@@ -276,6 +277,7 @@ function AssetsBrowser() {
     ) ?? null;
 
   const openAsset = (path: string) => {
+    setOpenedIn(host);
     setOpenPath(path);
   };
 

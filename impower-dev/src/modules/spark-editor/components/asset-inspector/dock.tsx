@@ -5,7 +5,7 @@ import { useContext, useState } from "preact/hooks";
 export type InspectorHost = "dock" | "sheet";
 
 export const inspectorHost = (layout: Layout, dock: HTMLElement | null): InspectorHost =>
-  layout !== "phone" && dock ? "dock" : "sheet";
+  layout === "desktop" && dock ? "dock" : "sheet";
 
 const DockContext = createContext<{
   dock: HTMLElement | null;
