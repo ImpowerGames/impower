@@ -47,7 +47,7 @@ onEnterRules:
   - beforeText: '^\s*--\[=*\[(?!.*\]=*\]).*$'
     action: { indent: indent }
 
-  - beforeText: '^\s*define\b(?:(?!\bend\b|=|--).)*(--.*)?$'
+  - beforeText: '^\s*define(\s+[^\x00-\x40\x5B-\x5E\x60\x7B-\x7F][^\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]*(\s+as\s+[^\x00-\x40\x5B-\x5E\x60\x7B-\x7F][^\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]*)?(\s+with)?)?\s*(--.*)?$'
     afterText: '^\s*end\b'
     action: { indent: indentOutdent }
 
@@ -120,7 +120,7 @@ onEnterRules:
       indent: "indent"
 
 indentationRules:
-  increaseIndentPattern: ^((?!--).)*((\b(else|then|do|repeat)\b\s*(--.*)?$)|(^\s*(define|scene|branch)\b(?:(?!\bend\b|=|--).)*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|((\{|(?<!\()\(|(?<!\[)\[)\s*(--.*)?$))
+  increaseIndentPattern: ^((?!--).)*((\b(else|then|do|repeat)\b\s*(--.*)?$)|(^\s*(scene|branch)(\s+[^\x00-\x40\x5B-\x5E\x60\x7B-\x7F][^\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]*)?\s*(--.*)?$)|(^\s*define(\s+[^\x00-\x40\x5B-\x5E\x60\x7B-\x7F][^\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]*(\s+as\s+[^\x00-\x40\x5B-\x5E\x60\x7B-\x7F][^\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]*)?(\s+with)?)?\s*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|((\{|(?<!\()\(|(?<!\[)\[)\s*(--.*)?$))
 
   decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)(?!\))|\](?!\]))'
 

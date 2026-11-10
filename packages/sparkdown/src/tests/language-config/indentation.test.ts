@@ -63,6 +63,8 @@ describe("increaseIndentPattern", () => {
       "define Hero with",
       "define companion as character with",
       "define Hero with -- comment",
+      "scene заголовок",
+      "branch side-path",
     ]) {
       expect(increase.test(line), line).toBe(true);
     }
@@ -72,6 +74,10 @@ describe("increaseIndentPattern", () => {
     for (const line of [
       "define x with a = 1 end",
       "define = 1, 2",
+      "define Hero, with",
+      "scene a, b",
+      "branch (x)",
+      "define Hero with x",
       "-- scene name",
       "The scene changes",
       'x = "scene name"',
@@ -180,5 +186,6 @@ describe("define onEnterRule", () => {
 
   it("ignores a define closed on its own line", () => {
     expect(before.test("define x with a = 1 end")).toBe(false);
+    expect(before.test("define Hero, with")).toBe(false);
   });
 });
