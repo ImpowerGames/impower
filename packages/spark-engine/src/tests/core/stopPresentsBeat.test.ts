@@ -50,6 +50,7 @@ const play = () => {
   } as never);
   const methods: string[] = [];
   let stop: number | undefined;
+  let stopBeat: string | undefined;
   game.connection.outgoing.addListener("*", (message) => {
     const { method, params } = message as unknown as {
       method: string;
@@ -58,6 +59,7 @@ const play = () => {
     methods.push(method);
     if (method === "game/hitBreakpoint" || method === "game/stepped") {
       stop = params?.location?.range?.start?.line;
+      stopBeat = params?.beat;
     }
   });
   const internal = game as any;
@@ -78,7 +80,14 @@ const play = () => {
     };
   };
   const beats = () => internal._run.beats.length as number;
-  return { game, methods, onScreen, beats, stoppedAt: () => stop };
+  return {
+    game,
+    methods,
+    onScreen,
+    beats,
+    stoppedAt: () => stop,
+    stopBeat: () => stopBeat,
+  };
 };
 
 const settledOn = (text: string) => ({ text, settled: true, typed: false });
@@ -463,5 +472,83 @@ describe("a beat a Step presents ends the sound and voice of the beat before it,
     expect(displayed).toHaveBeenCalledOnce();
     expect((await game.rollBack("beat")).moved).toBe(true);
     expect(displayed).toHaveBeenCalledOnce();
+  });
+});
+
+describe("a stop notification says whether the stopped line's beat is on screen", () => {
+  beforeAll(() => {
+    program = compileProgram(SCRIPT);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("reports shown where a Step presented the beat and none where the line has not run", () => {
+    const h = play();
+    h.game.start();
+    h.game.pause();
+    const stops: { line?: number; beat?: string }[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      h.game.step("over");
+      stops.push({ line: h.stoppedAt(), beat: h.stopBeat() });
+    }
+    expect(stops).toEqual([
+      { line: lineOf("mood = mood + 1"), beat: "none" },
+      { line: TUNNEL_LINE, beat: "shown" },
+      { line: lineOf("->->"), beat: "none" },
+      { line: lineOf(BACK), beat: "none" },
+      { line: lineOf(BACK), beat: "shown" },
+    ]);
+  });
+
+  it("reports none at a breakpoint on a dialogue line, with the previous beat on screen", () => {
+    const h = play();
+    h.game.setBreakpoints([{ file: MAIN, line: TUNNEL_LINE }]);
+    h.game.start();
+    h.game.clickedToContinue();
+    expect(h.methods).toContain("game/hitBreakpoint");
+    expect(h.stoppedAt()).toBe(TUNNEL_LINE);
+    expect(h.onScreen().text).toBe(FIRST);
+    expect(h.stopBeat()).toBe("none");
+  });
+
+  it("reports held where a Step presented a media beat that waits for Resume", () => {
+    const compiled = compileUI(
+      "scene start\n  Before.\n  [[play intro]]\n  After.\nend\n",
+      {
+        assets: [
+          {
+            uri: "inmemory:///intro.webm",
+            type: "video",
+            name: "intro",
+            ext: "webm",
+            src: "/intro.webm",
+          },
+        ] as never,
+      },
+    ).program;
+    const game = new Game({
+      program: compiled,
+      now: () => 0,
+      setTimeout: () => 0,
+      log: () => {},
+    } as never);
+    const beats: string[] = [];
+    game.connection.outgoing.addListener("game/stepped", (message) => {
+      beats.push((message as any).params.beat);
+    });
+    vi.spyOn(game.module.ui, "runCutscene").mockReturnValue(0);
+    game.start();
+    game.pause();
+    for (
+      let i = 0;
+      i < 80 && !(game as any)._shownBeatOnScreen?.cutscene;
+      i += 1
+    ) {
+      game.step("over");
+    }
+    expect((game as any)._shownBeatOnScreen?.cutscene).toBeTruthy();
+    expect(beats.at(-1)).toBe("held");
   });
 });

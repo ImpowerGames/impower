@@ -3,7 +3,10 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { GamePosition } from "@impower/spark-editor-protocol/src/types";
-import type { FileAccessor } from "@impower/spark-debug-adapter/src/SparkDebugSession";
+import type {
+  FileAccessor,
+  SparkStoppedEventBody,
+} from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import {
   RollBackDebugRequest,
@@ -219,8 +222,11 @@ export default class WorkspaceDebugClient {
     return this.command("stepOut");
   }
 
-  rollBack(to: RollDebugTarget) {
-    return this.command(RollBackDebugRequest.command, { to });
+  rollBack(to: RollDebugTarget, choice?: number) {
+    return this.command(
+      RollBackDebugRequest.command,
+      choice == null ? { to } : { to, choice },
+    );
   }
 
   rollForward(to: RollDebugTarget) {
@@ -323,7 +329,7 @@ export default class WorkspaceDebugClient {
     }
     const event = message as DebugProtocol.Event;
     if (event.event === "stopped") {
-      void this.stopped(session, (event as DebugProtocol.StoppedEvent).body);
+      void this.stopped(session, event.body as SparkStoppedEventBody);
     }
     if (event.event === "continued") {
       session.stops += 1;
@@ -334,7 +340,7 @@ export default class WorkspaceDebugClient {
 
   protected async stopped(
     session: Session,
-    stopped: DebugProtocol.StoppedEvent["body"],
+    stopped: SparkStoppedEventBody,
   ) {
     session.stops += 1;
     const stop = session.stops;

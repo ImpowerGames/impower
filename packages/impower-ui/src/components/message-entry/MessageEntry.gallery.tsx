@@ -1,4 +1,6 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
+import { UndoIcon } from "../icon/icons.generated";
+import { PanelCardAction } from "../panel-card/PanelCard";
 import MessageEntry, {
   MESSAGE_ENTRY_ROW_HEIGHT,
   type MessageEntryFit,
@@ -51,6 +53,24 @@ function MessageEntryDemo() {
             location="scripts/chapter_2.sd:17"
             onJump={() => {}}
             time={{ label: "10:15:30", dateTime: "2026-11-06T10:15:30.000Z" }}
+          />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Played choice: the whole row and its button go back to the choice">
+        <div class="rounded-card border border-edge bg-paper px-1">
+          <MessageEntry
+            severity="info"
+            title="Chose · Rest by the fire."
+            time={{ label: "10:16:02", dateTime: "2026-11-06T10:16:02.000Z" }}
+            onActivate={() => {}}
+            actions={
+              <PanelCardAction
+                label="Go back to this choice"
+                icon={<UndoIcon />}
+                class="pointer-coarse:size-11"
+                onClick={() => {}}
+              />
+            }
           />
         </div>
       </GalleryRow>

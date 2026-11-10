@@ -2248,6 +2248,13 @@ export default class WorkspaceWindow {
     return this._skipBeat(direction);
   }
 
+  async goBackToChoice(checkpoint: number): Promise<boolean> {
+    if (!this.store.preview.modes.game.running) {
+      return false;
+    }
+    return this.debug.rollBack("choice", checkpoint);
+  }
+
   toggleGameRunning() {
     if (this.store.preview.modes.game.running) {
       this.stopGame();

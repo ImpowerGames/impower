@@ -7,6 +7,7 @@ export type RollBackGameMethod = typeof RollBackGameMessage.method;
 
 export interface RollBackGameParams {
   to: RollTarget;
+  choice?: number;
   hold?: boolean;
 }
 

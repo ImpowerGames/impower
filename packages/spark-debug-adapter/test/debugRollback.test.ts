@@ -116,6 +116,22 @@ describe("rolling a debug run back and forward", () => {
     ]);
   });
 
+  it("carries a named choice in one sparkdown/rollBack, and answers a choice the run no longer holds with its reason", async () => {
+    const GONE = "That choice is no longer in this run.";
+    const { debug, response, responses, settle, requests } = session({
+      "game/rollBack": { moved: false, reason: GONE, history: {}, held: false },
+    });
+    debug.customRequest("sparkdown/rollBack", response("sparkdown/rollBack"), {
+      to: "choice",
+      choice: 4,
+    });
+    await settle();
+    expect(requests()).toEqual([
+      { method: "game/rollBack", params: { to: "choice", choice: 4, hold: true } },
+    ]);
+    expect(responses.map((r) => [r.success, r.message])).toEqual([[false, GONE]]);
+  });
+
   it("answers a roll the run refuses with its reason, and does not stop", async () => {
     const { debug, following, response, responses, stops } = session({
       "game/rollBack": { moved: false, reason: NOTHING_BEFORE, history: {}, held: false },
