@@ -60,6 +60,17 @@ export const storyScriptOf = (
   return "main.sd";
 };
 
+const caretScriptOf = (): string | undefined => {
+  const filename = storyScriptOf();
+  return filename && activeEditorOf(filename)?.selectedRange
+    ? filename
+    : undefined;
+};
+
+export function useCaretScript() {
+  return useComputed(caretScriptOf).value;
+}
+
 const editorHistoryOf = (filename: string | undefined) => {
   const entry = filename ? workspace.editorHistory.value[filename] : undefined;
   return { canUndo: !!entry?.canUndo, canRedo: !!entry?.canRedo };
