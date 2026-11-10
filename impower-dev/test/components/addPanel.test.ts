@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -110,6 +111,7 @@ beforeEach(() => {
   calls.searchClosed = 0;
   calls.context = { inScene: true };
   layout.value = "desktop";
+  workspace.layout.value = layout.value as Layout;
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local" },
@@ -244,6 +246,7 @@ describe("the Add panel on desktop", () => {
 describe("the Add panel on a phone", () => {
   it("takes the keyboard's space with its heading over the toolbar", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     await mount();
     expect(trigger()).toBeNull();
     await setOpen(true);

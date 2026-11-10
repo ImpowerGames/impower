@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { signal } from "@preact/signals";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
@@ -80,6 +81,7 @@ beforeEach(() => {
   calls.browsed = 0;
   calls.result = { status: "renamed" };
   layout.value = "desktop";
+  workspace.layout.value = layout.value as Layout;
   workspaceSettings.setPreference("lineNumbers", false);
   workspace.current = {
     ...workspace.current,
@@ -145,6 +147,7 @@ describe("ScriptHeader name field", () => {
     "on %s, draws the name's box around a hit area the shared inline-hit rule centres",
     async (value) => {
       layout.value = value;
+      workspace.layout.value = layout.value as Layout;
       await mount({ filename: "scripts/act1/intro.sd" });
       const box = field().parentElement!;
       expect(box.hasAttribute("data-script-name-box")).toBe(true);
@@ -161,6 +164,7 @@ describe("ScriptHeader name field", () => {
 
   it("on a phone, swaps Browse scripts for Done while the name is focused", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     await mount({ filename: "scripts/intro.sd" });
     expect(button("Browse scripts")).toBeTruthy();
     await act(async () => field().focus());
@@ -208,6 +212,7 @@ describe("ScriptHeader status and Browse scripts", () => {
 
   it("opens Problems to fix for its own script on a phone, returning focus to the book", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     await mount({ filename: "scripts/intro.sd" });
     const status = button("Show problems")!;
     await act(async () => status.click());

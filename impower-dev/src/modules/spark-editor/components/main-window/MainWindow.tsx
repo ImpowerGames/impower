@@ -6,7 +6,7 @@ import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { inspectedAsset } from "../../utils/assetInspector";
 import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
-import Assets from "../assets/Assets";
+import Assets from "../assets";
 import {
   DesktopShell,
   PhonePreviewBack,

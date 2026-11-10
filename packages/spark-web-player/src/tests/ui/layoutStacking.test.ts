@@ -110,4 +110,49 @@ end
       "isolate",
     );
   });
+
+  test("the textstream page paints above the stage and under the main layout's screen and a later overlay", async () => {
+    const h = createDOMHarness(
+      `define ui as config with
+  layouts_initial = { "textstream" }
+end
+
+layout hud {
+  stats {
+    text "HP"
+  }
+}
+
+scene start
+  Hello there.
+end
+`,
+      11,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    await h.preview(11);
+    await flushMicrotasks(20);
+    await h.game.module.ui.applyLayoutInstructions(
+      [{ control: "open", name: "hud" }],
+      true,
+    );
+    await flushMicrotasks(20);
+
+    stylesheet = [...h.overlay.querySelectorAll("style")]
+      .map((style) => style.textContent ?? "")
+      .join("\n");
+    const layouts = h.overlay.querySelector(".layouts")!;
+    const screen = h.overlay.querySelector(".main > .screen")!;
+    const stage = h.overlay.querySelector(".main > .stage")!;
+    const pageRoot = h.overlay.querySelector(".layouts > .layout_textstream")!;
+    const page = pageRoot?.querySelector(":scope > .textstream")!;
+    const hud = h.overlay.querySelector(".layouts > .hud")!;
+    for (const el of [screen, stage, pageRoot, page, hud]) {
+      expect(el, h.overlay.innerHTML).toBeTruthy();
+    }
+    expect(paintsAbove(screen, page, layouts)).toBe(true);
+    expect(paintsAbove(page, stage, layouts)).toBe(true);
+    expect(paintsAbove(hud, page, layouts)).toBe(true);
+  });
 });

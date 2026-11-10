@@ -87,7 +87,6 @@ import type { EditorState } from "@codemirror/state";
 import type { Command } from "@codemirror/view";
 import { onEnterRulesCommand } from "@impower/codemirror-vscode-language/src/extensions/vscodeOnEnterRules";
 import {
-  closeReferencePanel,
   findReferences,
   formatDocument,
   jumpToDefinition,
@@ -193,7 +192,6 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "signatureStep", label: "Previous or next parameter hint", group: "story", runs: [prevSignature, nextSignature] },
   { id: "definition", label: "Go to definition", group: "story", runs: [jumpToDefinition] },
   { id: "references", label: "Find references", group: "story", runs: [findReferences] },
-  { id: "closeReferences", label: "Close references", group: "story", runs: [closeReferencePanel] },
   { id: "rename", label: "Rename", group: "story", runs: [renameSymbol] },
   { id: "problems", label: "Show problems", group: "story", runs: [openProblems] },
   { id: "nextProblem", label: "Next problem", group: "story", runs: [nextDiagnostic] },

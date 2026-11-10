@@ -14,7 +14,8 @@ const rasterLayer = (file: File) => {
   const parts = path.split("/");
   const filename = parts.pop() ?? "";
   const folder = parts.at(-1);
-  if (!folder || folder === "assets" || !parts.includes("assets")) return undefined;
+  const isAssets = (part: string) => part.toLowerCase() === "assets";
+  if (!folder || isAssets(folder) || !parts.some(isAssets)) return undefined;
   const match = /^(\d+)_(.+)\.[^.]+$/.exec(filename);
   if (!match) return undefined;
   const order = Number(match[1]);

@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,11 +7,14 @@ const layout = vi.hoisted(() => ({ value: "phone", coarse: false }));
 
 vi.mock("@impower/impower-ui/layout", () => ({
   useLayout: () => layout.value,
+  layoutState: { current: () => layout.value, subscribe: () => () => {} },
   useCoarsePointer: () => layout.coarse,
 }));
 
 const { useFocusRule } =
   await import("../../src/modules/spark-editor/components/desktop-shell/naming");
+const { default: workspace } =
+  await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 
 let host: HTMLDivElement | undefined;
 
@@ -45,6 +49,7 @@ const the = <T extends HTMLElement>(selector: string) =>
 describe("the focus rule", () => {
   beforeEach(async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     layout.coarse = false;
     host = document.body.appendChild(document.createElement("div"));
     await act(async () => render(h(Harness, {}), host!));
@@ -78,6 +83,7 @@ describe("the focus rule", () => {
 
   it("does nothing on a desktop layout with a fine pointer", async () => {
     layout.value = "desktop";
+    workspace.layout.value = layout.value as Layout;
     await act(async () => render(h(Harness, { key: "desktop" }), host!));
     the("[data-script]").focus();
     expect(press(the("[data-bar-button]"))).toBe(false);

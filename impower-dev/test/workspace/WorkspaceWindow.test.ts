@@ -198,7 +198,7 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
 import { h, render } from "preact";
 import PreviewGame from "../../src/modules/spark-editor/components/preview-game/PreviewGame";
 import { Workspace } from "../../src/modules/spark-editor/workspace/Workspace";
-import { signal } from "@preact/signals";
+import { effect, signal } from "@preact/signals";
 import {
   createPlayerPreferenceSync,
   playerUrl,
@@ -460,6 +460,31 @@ describe("WorkspaceWindow store transitions", () => {
     expect(
       workspace.current.panes.logic.panels.scripts!.activeEditor?.visibleRange,
     ).toEqual(visibleRange);
+  });
+
+  describe("finishing script editing", () => {
+    it("returns an editing script to reading", () => {
+      workspace.scriptMode.value = "editing";
+      win.finishEditing();
+      expect(workspace.scriptMode.value).toBe("reading");
+    });
+
+    it("changes nothing and notifies nothing while reading", () => {
+      workspace.scriptMode.value = "reading";
+      const before = workspace.current;
+      let notified = 0;
+      const stop = effect(() => {
+        void workspace.scriptMode.value;
+        void workspace.state.value;
+        notified += 1;
+      });
+      win.finishEditing();
+      win.finishEditing();
+      stop();
+      expect(notified).toBe(1);
+      expect(workspace.scriptMode.value).toBe("reading");
+      expect(workspace.current).toBe(before);
+    });
   });
 
   describe("project name editing", () => {
@@ -2050,6 +2075,10 @@ describe("The preview's top bar", () => {
     current.window = undefined;
     win.dispose();
     resetPreviewPreferences();
+    workspace.debugSession.value = {
+      ...workspace.debugSession.peek(),
+      history: null,
+    };
   });
 
   it("shows only the skips and Play while stopped", () => {
@@ -2238,15 +2267,140 @@ describe("The preview's top bar", () => {
     }
   });
 
-  it("skips by beat from both skip buttons", async () => {
+  it("skips by beat from both skip buttons, and by choice with Shift", async () => {
     const skipBeat = vi.spyOn(win, "skipBeat").mockResolvedValue(true);
     show();
     control("Skip forward")!.click();
-    await vi.waitFor(() => expect(skipBeat.mock.calls).toEqual([[1]]));
+    await vi.waitFor(() => expect(skipBeat.mock.calls).toEqual([[1, "beat"]]));
     control("Skip back")!.click();
     await vi.waitFor(() =>
-      expect(skipBeat.mock.calls).toEqual([[1], [-1]]),
+      expect(skipBeat.mock.calls).toEqual([[1, "beat"], [-1, "beat"]]),
     );
+    control("Skip back")!.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, shiftKey: true }),
+    );
+    await vi.waitFor(() =>
+      expect(skipBeat.mock.calls.at(-1)).toEqual([-1, "choice"]),
+    );
+  });
+
+  const history = (change: Record<string, unknown> = {}) => ({
+    canRollBack: true,
+    canRollForward: true,
+    behindLatest: true,
+    canStepOut: false,
+    rollBackRefusal: null,
+    rollForwardRefusal: null,
+    stepRefusal: "Make the choice, or skip to the latest beat, to step on.",
+    stepOutRefusal: "Nothing is calling, so there is nothing to step out of.",
+    ...change,
+  });
+
+  const holding = (change: Record<string, unknown> = {}) => {
+    workspace.debugSession.value = {
+      ...workspace.debugSession.peek(),
+      history: history(change),
+    } as never;
+  };
+
+  it("rolls the run back and forward while playing, by beat and by choice", async () => {
+    const rollBack = vi.spyOn(win.debug, "rollBack").mockResolvedValue(true);
+    const rollForward = vi.spyOn(win.debug, "rollForward").mockResolvedValue(true);
+    show({ running: true });
+    holding();
+    expect(await win.skipBeat(-1)).toBe(true);
+    expect(await win.skipBeat(-1, "choice")).toBe(true);
+    expect(await win.skipBeat(1)).toBe(true);
+    expect(await win.skipBeat(1, "choice")).toBe(true);
+    expect(rollBack.mock.calls).toEqual([["beat"], ["choice"]]);
+    expect(rollForward.mock.calls).toEqual([["beat"], ["choice"]]);
+  });
+
+  it("disables Skip back at the run's first beat and Skip forward at its latest, with their reasons", async () => {
+    const rollBack = vi.spyOn(win.debug, "rollBack").mockResolvedValue(true);
+    const rollForward = vi.spyOn(win.debug, "rollForward").mockResolvedValue(true);
+    holding({
+      canRollBack: false,
+      canRollForward: false,
+      behindLatest: false,
+      rollBackRefusal: "Nothing to go back to.",
+      rollForwardRefusal: "No later played beat. Continue the story to play more.",
+      stepRefusal: null,
+    });
+    show({ running: true });
+    expect(control("Skip back")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Skip back")?.title).toBe("Nothing to go back to.");
+    expect(control("Skip forward")?.getAttribute("aria-disabled")).toBe("true");
+    expect(control("Skip forward")?.title).toBe(
+      "No later played beat. Continue the story to play more.",
+    );
+    control("Skip back")!.click();
+    control("Skip forward")!.click();
+    expect(await win.skipBeat(-1)).toBe(false);
+    expect(await win.skipBeat(1)).toBe(false);
+    expect(rollBack).not.toHaveBeenCalled();
+    expect(rollForward).not.toHaveBeenCalled();
+  });
+
+  it("disables every step behind the latest beat, with how to step on", () => {
+    holding();
+    show({ running: true, paused: true });
+    for (const step of ["Step Over", "Step Into", "Step Out"]) {
+      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+      expect(control(step)?.title).toBe(
+        "Make the choice, or skip to the latest beat, to step on.",
+      );
+    }
+    expect(control("Skip back")?.hasAttribute("aria-disabled")).toBe(false);
+    expect(control("Skip back")?.title).toBe("Skip back");
+  });
+
+  it("opens a restored choice menu to the author, and closes it on a restored beat with none", () => {
+    show();
+    win.startGame();
+    const rolled = (choices: string[]) =>
+      sendProtocolMessage({
+        jsonrpc: "2.0",
+        method: "game/rolled",
+        params: {
+          restored: { beat: 1, location: null, choices, chosen: 0 },
+          history: history(),
+          run: 1,
+        },
+      } as never);
+    expect(workspace.current.preview.modes.game.choosing).toBeFalsy();
+    rolled(["Stay.", "Leave."]);
+    expect(workspace.current.preview.modes.game.choosing).toBe(true);
+    rolled([]);
+    expect(workspace.current.preview.modes.game.choosing).toBe(false);
+  });
+
+  it("writes the workspace cache it still owes when it is disposed, and nothing after", () => {
+    vi.useFakeTimers();
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      show();
+      win.startGame();
+      setItem.mockClear();
+      win.dispose();
+      expect(setItem.mock.calls.map(([key]) => key)).toEqual([
+        "workspace/" + workspace.current.project.id,
+      ]);
+      vi.advanceTimersByTime(1000);
+      expect(setItem).toHaveBeenCalledTimes(1);
+    } finally {
+      setItem.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the source-order skip when no run is playing", async () => {
+    const rollBack = vi.spyOn(win.debug, "rollBack").mockResolvedValue(true);
+    holding({ canRollBack: false, rollBackRefusal: "Nothing to go back to." });
+    show();
+    expect(control("Skip back")?.hasAttribute("aria-disabled")).toBe(false);
+    await win.skipBeat(-1);
+    expect(rollBack).not.toHaveBeenCalled();
   });
 
   it("lists the viewing modes with the current one checked, and choosing one writes the preference", async () => {

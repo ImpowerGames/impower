@@ -107,7 +107,14 @@ import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
-import { stepRefusals, type StepTraversal } from "./stepStates";
+import {
+  skipRefusal,
+  stepRefusals,
+  type SkipDirection,
+  type StepTraversal,
+} from "./stepStates";
+import type { RollDebugTarget } from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
+import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import {
   checkName,
   joinScriptPath,
@@ -184,6 +191,7 @@ export default class WorkspaceWindow {
 
   readonly debug = new WorkspaceDebugClient({
     onStop: (position) => this.followStop(position),
+    onRoll: (restored) => this.followRoll(restored),
     onRefusal: (message) => showSnackbar({ message }),
   });
 
@@ -422,10 +430,7 @@ export default class WorkspaceWindow {
   }
 
   openAddPanel() {
-    if (
-      layoutState.current() === "phone" &&
-      workspace.scriptMode.peek() === "reading"
-    ) {
+    if (workspace.effectiveScriptMode.peek() === "reading") {
       workspace.scriptMode.value = "editing";
     }
     this.update({
@@ -508,6 +513,9 @@ export default class WorkspaceWindow {
   }
 
   finishEditing() {
+    if (workspace.scriptMode.peek() !== "editing") {
+      return;
+    }
     workspace.scriptMode.value = "reading";
   }
 
@@ -690,6 +698,7 @@ export default class WorkspaceWindow {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
     this.debug.end();
+    this.cacheProjectWorkspace.flush();
   }
 
   protected registerProtocolHandlers() {
@@ -2020,9 +2029,25 @@ export default class WorkspaceWindow {
         : this.debug.stepOut();
   }
 
+  followRoll(restored: SettledBeat) {
+    this.syncGameChoosing(restored.choices.length > 0);
+    const location = restored.location;
+    if (location) {
+      this.followPosition({
+        uri: location.uri,
+        line: location.range.start.line,
+      });
+    }
+  }
+
+  followPosition(position: GamePosition) {
+    this.syncGamePosition(position);
+    const at = { line: position.line, character: 0 };
+    void this.showDocument(position.uri, { start: at, end: at }, false);
+  }
+
   followStop(position: GamePosition) {
     this.syncGamePaused(true);
-    this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];
     if (!lines.includes(position.line)) {
@@ -2031,8 +2056,7 @@ export default class WorkspaceWindow {
         [position.uri]: [...lines, position.line].sort((a, b) => a - b),
       });
     }
-    const at = { line: position.line, character: 0 };
-    void this.showDocument(position.uri, { start: at, end: at }, false);
+    this.followPosition(position);
   }
 
   continueGame() {
@@ -2042,7 +2066,17 @@ export default class WorkspaceWindow {
     }
   }
 
-  async skipBeat(direction: -1 | 1): Promise<boolean> {
+  async skipBeat(
+    direction: SkipDirection,
+    to: RollDebugTarget = "beat",
+  ): Promise<boolean> {
+    const game = this.store.preview.modes.game;
+    if (game.running) {
+      if (skipRefusal(game, workspace.debugSession.peek(), direction)) {
+        return false;
+      }
+      return direction < 0 ? this.debug.rollBack(to) : this.debug.rollForward(to);
+    }
     const ls = this._workspace.ls;
     if (!ls) {
       return false;

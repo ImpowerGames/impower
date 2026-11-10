@@ -47,6 +47,21 @@ function NoSelectionTabs() {
   );
 }
 
+const TYPE_TABS = ["Images", "Audio", "Video", "Text", "Fonts", "Other"];
+
+function TypeTabs(props: Omit<TabsProps, "value" | "onChange" | "children">) {
+  const [value, setValue] = useState<string | null>("Audio");
+  return (
+    <Tabs value={value} onChange={setValue} variant="inline" iconLayout="beside" {...props}>
+      {TYPE_TABS.map((label) => (
+        <Tab key={label} value={label}>
+          {label}
+        </Tab>
+      ))}
+    </Tabs>
+  );
+}
+
 const frame = "w-full max-w-[480px] rounded border border-surface-border bg-surface";
 
 function TabsDemo() {
@@ -100,6 +115,16 @@ function TabsDemo() {
       <GalleryRow label="Page variant, a phone page's tab row: 48px rows, the current tab in the accent over a 2px accent underline">
         <div class="w-[360px] rounded border border-surface-border bg-bg">
           <LabelTabs variant="page" iconLayout="beside" />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Inline variant, the Assets page's type tabs: each tab as wide as its label, 50px rows, 13px type, the current tab in the accent over an underline as wide as its label">
+        <div class="w-[480px] rounded border border-surface-border bg-bg px-4">
+          <TypeTabs />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Inline variant with scroll, in a 240px frame: the row scrolls sideways without a scrollbar and fades out at its right edge">
+        <div class="w-[240px] rounded border border-surface-border bg-bg px-4">
+          <TypeTabs scroll />
         </div>
       </GalleryRow>
       <GalleryRow label="Vertical, labels only">

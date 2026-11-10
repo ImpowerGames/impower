@@ -9,6 +9,12 @@ import type { Matcher } from "../types/Matcher";
 import { analyzeCaptureGroups } from "../utils/analyzeCaptureGroups";
 import { escapeRegExpPattern } from "../utils/escapeRegExpPattern";
 import { hasCapturingGroups } from "../utils/hasCapturingGroups";
+import {
+  ONIGURUMA_CLASS_WORD_RANGES,
+  ONIGURUMA_DIGIT_RANGES,
+  ONIGURUMA_SPACE_RANGES,
+  ONIGURUMA_WORD_RANGES,
+} from "../utils/onigurumaRanges";
 
 export type RegExpMatchResult = (string | undefined)[] & {
   indices?: ([number, number] | undefined)[];
@@ -92,9 +98,265 @@ const codePointsBefore =(str: string, pos: number) => {
   return count;
 };
 
-const compile = (pattern: string, flags: string) => {
+interface UnicodeEscapes {
+  outside: Record<string, string>;
+  afterWord: Record<string, string>;
+  beforeWord: Record<string, string>;
+  inside: Record<string, string>;
+}
+
+type CodeRange = [number, number];
+
+const BMP_END = 0xffff;
+
+const MAX_CODE_POINT = 0x10ffff;
+
+const parseRanges = (ranges: string): CodeRange[] =>
+  ranges.split(",").map((range) => {
+    const [from, to = from] = range.split("-");
+    return [parseInt(from!, 16), parseInt(to!, 16)];
+  });
+
+const WORD = parseRanges(ONIGURUMA_WORD_RANGES);
+
+const CLASS_WORD = parseRanges(ONIGURUMA_CLASS_WORD_RANGES);
+
+const DIGIT = parseRanges(ONIGURUMA_DIGIT_RANGES);
+
+const SPACE = parseRanges(ONIGURUMA_SPACE_RANGES);
+
+const bmpPart = (ranges: CodeRange[]): CodeRange[] =>
+  ranges
+    .filter(([from]) => from <= BMP_END)
+    .map(([from, to]) => [from, Math.min(to, BMP_END)]);
+
+const astralPart = (ranges: CodeRange[]): CodeRange[] =>
+  ranges
+    .filter(([, to]) => to > BMP_END)
+    .map(([from, to]) => [Math.max(from, BMP_END + 1), to]);
+
+const complement = (ranges: CodeRange[]): CodeRange[] => {
+  const result: CodeRange[] = [];
+  let next = 0;
+  for (const [from, to] of ranges) {
+    if (from > next) {
+      result.push([next, from - 1]);
+    }
+    next = to + 1;
+  }
+  if (next <= MAX_CODE_POINT) {
+    result.push([next, MAX_CODE_POINT]);
+  }
+  return result;
+};
+
+const codePoint = (c: number) => "\\u{" + c.toString(16) + "}";
+
+const classBody = (ranges: CodeRange[]) =>
+  ranges
+    .map(([from, to]) =>
+      from === to ? codePoint(from) : `${codePoint(from)}-${codePoint(to)}`,
+    )
+    .join("");
+
+const unicodeEscapes = (
+  word: CodeRange[],
+  classWord: CodeRange[],
+  digit: CodeRange[],
+): UnicodeEscapes => {
+  const isWord = `[${classBody(word)}]`;
+  return {
+    outside: {
+      w: isWord,
+      W: `[^${classBody(word)}]`,
+      d: `[${classBody(digit)}]`,
+      D: `[^${classBody(digit)}]`,
+      s: `[${classBody(SPACE)}]`,
+      S: `[^${classBody(SPACE)}]`,
+      b: `(?:(?<=${isWord})(?!${isWord})|(?<!${isWord})(?=${isWord}))`,
+      B: `(?:(?<=${isWord})(?=${isWord})|(?<!${isWord})(?!${isWord}))`,
+    },
+    afterWord: { b: `(?!${isWord})`, B: `(?=${isWord})` },
+    beforeWord: { b: `(?<!${isWord})`, B: `(?<=${isWord})` },
+    inside: {
+      w: classBody(classWord),
+      W: classBody(complement(classWord)),
+      d: classBody(digit),
+      D: classBody(complement(digit)),
+      s: classBody(SPACE),
+      S: classBody(complement(SPACE)),
+    },
+  };
+};
+
+const REWRITE_MARKERS: UnicodeEscapes = {
+  outside: { w: "", W: "", d: "", D: "", s: "", S: "", b: "", B: "" },
+  afterWord: { b: "", B: "" },
+  beforeWord: { b: "", B: "" },
+  inside: { w: "", W: "", d: "", D: "", s: "", S: "" },
+};
+
+let bmpEscapesCache: UnicodeEscapes | undefined;
+
+const bmpEscapes = () =>
+  (bmpEscapesCache ??= unicodeEscapes(
+    bmpPart(WORD),
+    bmpPart(CLASS_WORD),
+    bmpPart(DIGIT),
+  ));
+
+let fullEscapesCache: UnicodeEscapes | undefined;
+
+const fullEscapes = () =>
+  (fullEscapesCache ??= unicodeEscapes(WORD, CLASS_WORD, DIGIT));
+
+const isAsciiWord = (c: number) =>
+  (c >= 48 && c <= 57) ||
+  (c >= 65 && c <= 90) ||
+  (c >= 97 && c <= 122) ||
+  c === 95;
+
+const literalWordBefore = (pattern: string, at: number) => {
+  let i = at - 1;
+  if (i < 0 || !isAsciiWord(pattern.charCodeAt(i))) {
+    return false;
+  }
+  while (i >= 0 && isAsciiWord(pattern.charCodeAt(i))) {
+    i--;
+  }
+  if (i < 0 || pattern.charCodeAt(i) !== 92) {
+    return true;
+  }
+  return i + 2 < at && !/[xupPkc0-9]/.test(pattern[i + 1]!);
+};
+
+const literalWordAfter = (pattern: string, at: number) =>
+  isAsciiWord(pattern.charCodeAt(at)) && !/[?*{]/.test(pattern[at + 1] ?? "");
+
+const WORD_ALTERNATIVES = /^\w+(?:\|\w+)*$/;
+
+const isAlternativeChar = (c: number) => isAsciiWord(c) || c === 124;
+
+const wordGroupBefore = (pattern: string, at: number) => {
+  if (pattern[at - 1] !== ")") {
+    return false;
+  }
+  let i = at - 2;
+  while (i >= 0 && isAlternativeChar(pattern.charCodeAt(i))) {
+    i--;
+  }
+  if (!WORD_ALTERNATIVES.test(pattern.slice(i + 1, at - 1))) {
+    return false;
+  }
+  const open = pattern.startsWith("(?:", i - 2) ? i - 2 : i;
+  return pattern[open] === "(" && pattern[open - 1] !== "\\";
+};
+
+const wordGroupAfter = (pattern: string, at: number) => {
+  const start = pattern.startsWith("(?:", at)
+    ? at + 3
+    : pattern[at] === "(" && pattern[at + 1] !== "?"
+      ? at + 1
+      : -1;
+  if (start < 0) {
+    return false;
+  }
+  let i = start;
+  while (i < pattern.length && isAlternativeChar(pattern.charCodeAt(i))) {
+    i++;
+  }
+  return (
+    pattern[i] === ")" &&
+    WORD_ALTERNATIVES.test(pattern.slice(start, i)) &&
+    !/[?*{]/.test(pattern[i + 1] ?? "")
+  );
+};
+
+const boundaryEscape = (
+  pattern: string,
+  at: number,
+  escapes: UnicodeEscapes,
+) => {
+  const kind = pattern[at + 1]!;
+  if (literalWordBefore(pattern, at) || wordGroupBefore(pattern, at)) {
+    return escapes.afterWord[kind];
+  }
+  if (literalWordAfter(pattern, at + 2) || wordGroupAfter(pattern, at + 2)) {
+    return escapes.beforeWord[kind];
+  }
+  return escapes.outside[kind];
+};
+
+const resolveUnicodeEscapes = (
+  pattern: string,
+  escapes: UnicodeEscapes,
+  nestedClasses: boolean,
+) => {
+  let resolved = "";
+  let from = 0;
+  let classDepth = 0;
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern.charCodeAt(i);
+    if (c === 91 && (classDepth === 0 || nestedClasses)) {
+      classDepth++;
+    } else if (c === 93 && classDepth > 0) {
+      classDepth--;
+    }
+    if (c !== 92) {
+      continue;
+    }
+    const kind = pattern[i + 1]!;
+    const replacement =
+      classDepth > 0
+        ? escapes.inside[kind]
+        : kind === "b" || kind === "B"
+          ? boundaryEscape(pattern, i, escapes)
+          : escapes.outside[kind];
+    if (replacement !== undefined) {
+      resolved += pattern.slice(from, i) + replacement;
+      from = i + 2;
+    }
+    i++;
+  }
+  return from === 0 ? pattern : resolved + pattern.slice(from);
+};
+
+const ASCII_TEXT = 0;
+
+const BMP_TEXT = 1;
+
+const ASTRAL_WORD_TEXT = 2;
+
+const ASTRAL_WORD = new RegExp(`[${classBody(astralPart(WORD))}]`, "u");
+
+let checkedText: string | undefined;
+
+let checkedTextRange = ASCII_TEXT;
+
+const textRange = (str: string) => {
+  if (str !== checkedText) {
+    checkedText = str;
+    checkedTextRange = !/[^\x00-\x7f]/.test(str)
+      ? ASCII_TEXT
+      : /[\ud800-\udfff]/.test(str) && ASTRAL_WORD.test(str)
+        ? ASTRAL_WORD_TEXT
+        : BMP_TEXT;
+  }
+  return checkedTextRange;
+};
+
+const compile = (
+  pattern: string,
+  flags: string,
+  escapes: UnicodeEscapes | undefined,
+) => {
   try {
-    return new RegExp(pattern, flags);
+    return new RegExp(
+      escapes
+        ? resolveUnicodeEscapes(pattern, escapes, flags.includes("v"))
+        : pattern,
+      flags,
+    );
   } catch {
     return undefined!;
   }
@@ -144,15 +406,34 @@ export class RegExpMatcher implements Matcher {
 
   declare protected _source: string;
 
-  constructor(pattern: string, flags = "muy") {
+  declare private readonly escapes: UnicodeEscapes | undefined;
+
+  declare private readonly readsUnicodeText: boolean;
+
+  declare private bmpMatcher: RegExpMatcher | undefined;
+
+  declare private astralMatcher: RegExpMatcher | undefined;
+
+  constructor(pattern: string, flags = "muy", escapes?: UnicodeEscapes) {
     this._pattern = pattern;
     this._source = pattern;
     this._flags = flags;
+    this.escapes = escapes;
+    this.readsUnicodeText =
+      !escapes &&
+      /[uv]/.test(flags) &&
+      resolveUnicodeEscapes(pattern, REWRITE_MARKERS, flags.includes("v")) !==
+        pattern;
     this.hasAnchor = resolveAnchor(pattern, ANCHOR_REFUSED) != null;
     this.compileSource(pattern);
-    this.hasCapturingGroups = this.regexp
-      ? hasCapturingGroups(this.regexp)
-      : false;
+    const groupsOf = escapes
+      ? compile(
+          resolveAnchor(pattern, ANCHOR_REFUSED) ?? pattern,
+          flags,
+          undefined,
+        )
+      : this.regexp;
+    this.hasCapturingGroups = groupsOf ? hasCapturingGroups(groupsOf) : false;
     this.groupParents = this.hasCapturingGroups
       ? analyzeCaptureGroups(pattern)
       : [0];
@@ -163,12 +444,13 @@ export class RegExpMatcher implements Matcher {
     this.anchoredByPosition.clear();
     this.leadingAnchoredRegexp = undefined;
     if (!this.hasAnchor) {
-      this.regexp = compile(source, this._flags);
+      this.regexp = compile(source, this._flags, this.escapes);
       return;
     }
     this.regexp = compile(
       resolveAnchor(source, ANCHOR_REFUSED) ?? source,
       this._flags,
+      this.escapes,
     );
     const rest = source.slice(ANCHOR.length);
     if (
@@ -178,8 +460,38 @@ export class RegExpMatcher implements Matcher {
       this.leadingAnchoredRegexp = compile(
         LEADING_ANCHOR_ALLOWED + rest,
         this._flags,
+        this.escapes,
       );
     }
+  }
+
+  private delegate(str: string, pos: number): RegExpMatcher {
+    if (isExhaustedLineEnd(str, pos)) {
+      const lineEnd = this.atLineEnd();
+      if (lineEnd !== this) {
+        return lineEnd;
+      }
+    }
+    const range = this.readsUnicodeText ? textRange(str) : ASCII_TEXT;
+    if (range === ASCII_TEXT) {
+      return this;
+    }
+    const matcher =
+      range === BMP_TEXT
+        ? (this.bmpMatcher ??= new RegExpMatcher(
+            this._pattern,
+            this._flags,
+            bmpEscapes(),
+          ))
+        : (this.astralMatcher ??= new RegExpMatcher(
+            this._pattern,
+            this._flags,
+            fullEscapes(),
+          ));
+    if (matcher._source !== this._source) {
+      matcher.backReferences = this._backReferences;
+    }
+    return matcher;
   }
 
   private select(str: string, pos: number, anchored: boolean) {
@@ -197,6 +509,7 @@ export class RegExpMatcher implements Matcher {
       regexp = compile(
         resolveAnchor(this._source, anchorAt(before)) ?? this._source,
         this._flags,
+        this.escapes,
       );
       this.anchoredByPosition.set(before, regexp);
     }
@@ -208,13 +521,15 @@ export class RegExpMatcher implements Matcher {
       this.lineEndSource = this._source;
       const pattern = resolveLineStart(this._source);
       this.lineEndMatcher =
-        pattern == null ? this : new RegExpMatcher(pattern, this._flags);
+        pattern == null
+          ? this
+          : new RegExpMatcher(pattern, this._flags, this.escapes);
     }
     return this.lineEndMatcher;
   }
 
   test(str: string, pos: number, anchored = false): boolean {
-    const matcher = isExhaustedLineEnd(str, pos) ? this.atLineEnd() : this;
+    const matcher = this.delegate(str, pos);
     if (matcher !== this) {
       return matcher.test(str, pos, anchored);
     }
@@ -251,7 +566,7 @@ export class RegExpMatcher implements Matcher {
     pos: number,
     anchored = false,
   ): RegExpMatchResult | null {
-    const matcher = isExhaustedLineEnd(str, pos) ? this.atLineEnd() : this;
+    const matcher = this.delegate(str, pos);
     if (matcher !== this) {
       return matcher.match(str, pos, anchored);
     }
