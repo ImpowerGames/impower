@@ -115,8 +115,14 @@ export class InteractiveFictionPresenter implements Presenter {
     const continued = lineTarget
       ? (instructions.extended?.[lineTarget] ?? 0)
       : 0;
-    let keep = before.length;
-    if (continued > 0) {
+    const cleared = Object.values(instructions.layout ?? {})
+      .flat()
+      .some(
+        (event) =>
+          event.control === "clear" && event.name === TEXTSTREAM_LAYOUT,
+      );
+    let keep = cleared ? 0 : before.length;
+    if (continued > 0 && !cleared) {
       const last = before.at(-1);
       if (last && LINE_KINDS[last.kind ?? ""] !== undefined) {
         keep -= 1;
