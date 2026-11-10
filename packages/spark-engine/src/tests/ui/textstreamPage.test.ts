@@ -370,3 +370,56 @@ describe("with textbox and textstream both open (#1990)", () => {
   });
 });
 
+describe("opening the page mid-run types the beat that opens it (#1990)", () => {
+  test("the opening beat and the reopening beat reveal with the typewriter, and the page's history is shown at once", async () => {
+    const h = createHarness(
+      `scene start
+  Before the page.
+  [[open textstream]] The page opens on this line.
+  [[close textstream]] Back in the box.
+  [[open textstream]] The page opens again.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    (h.game.context.system as any).previewing = undefined;
+    h.jumpToFlow("start");
+    const writes = (text: string) =>
+      flattenMessages(h.messages).filter(
+        (m: any) =>
+          m.method === "ui/write-text" &&
+          m.params.elements?.length === 1 &&
+          m.params.instructions.map((e: any) => e.text).join("") === text,
+      );
+    let beat = h.nextBeat();
+    const shown: string[] = [];
+    while (beat) {
+      const coordinator = new Coordinator(h.game, beat);
+      for (let i = 0; i < 30; i += 1) {
+        await flushMicrotasks(20);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        coordinator.onUpdate({ deltaMS: 1000 } as Clock);
+      }
+      shown.push(words(h.game.module.ui.page.entries.at(-1)));
+      beat = h.nextBeat();
+    }
+    expect(shown).toContain("The page opens again.");
+
+    const opening = writes("The page opens on this line.");
+    expect(opening.length).toBeGreaterThan(0);
+    expect(opening[0].params.instant).toBe(false);
+    expect(opening[0].params.time).toBeTypeOf("number");
+
+    const reopening = writes("The page opens again.");
+    expect(reopening.length).toBeGreaterThan(0);
+    expect(reopening[0].params.instant).toBe(false);
+    expect(reopening[0].params.time).toBeTypeOf("number");
+
+    const history = opening.slice(1);
+    expect(history.length).toBeGreaterThan(0);
+    expect(history.every((m: any) => m.params.instant === true)).toBe(true);
+  });
+});
+

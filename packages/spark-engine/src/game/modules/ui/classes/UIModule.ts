@@ -2129,7 +2129,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
     this.mountChildren(uiEl, layout.children, scope, null);
     if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
-      this.page.show(true);
+      this.page.mounted();
     }
     return uiEl;
   }
@@ -5084,6 +5084,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected _restored = false;
 
+      protected _presented?: { instant: boolean; time?: number };
+
       get state(): PageState {
         return ($._state.page ??= { entries: [], current: 0 });
       }
@@ -5104,6 +5106,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const page = this.state;
         const repeat = again || (this._restored && page.key === key);
         this._restored = false;
+        this._presented = undefined;
         const before = repeat
           ? [...page.entries.slice(0, page.current), ...(page.absorbed ?? [])]
           : page.entries;
@@ -5163,9 +5166,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       show(instant: boolean, time?: number): void {
+        this._presented = { instant, time };
+        this.sync(this._presented);
+      }
+
+      mounted(): void {
+        this.sync(this._presented);
+      }
+
+      protected sync(presented?: { instant: boolean; time?: number }): void {
         if ($.context?.system?.simulating) {
           return;
         }
+        const instant = presented?.instant ?? true;
+        const time = presented?.time;
         const column = $.findElements(PAGE_COLUMN)[0];
         if (!column) {
           this.forget();
@@ -5176,8 +5190,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this._column = column;
         }
         const page = $._state.page;
-        const entries = page?.entries ?? [];
         const current = page?.current ?? 0;
+        const entries = (page?.entries ?? []).slice(
+          0,
+          presented ? undefined : current,
+        );
         const signatures = entries.map((entry) => JSON.stringify(entry));
         let kept = 0;
         while (
