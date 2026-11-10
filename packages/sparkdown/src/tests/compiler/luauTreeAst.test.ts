@@ -19,7 +19,7 @@ import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type L
 import { runWrapperText } from "../../compiler/utils/runWrapper";
 import { parseSource } from "./grammarSnapshot";
 import { checkerView, NoCheckerView } from "./luauCheckerView";
-import { reportStalePin } from "./knownDifferences";
+import { expectWithinPin } from "./knownDifferences";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
 import { expressionDocument, generatedExpressions } from "./luauGeneratedExpressions";
 
@@ -36,6 +36,11 @@ const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 
 const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
+const STRUCTURAL_DIFFERENCE = "a difference from Luau's parser's AST";
+
+function structuralPin(entry: StructuralDisagreement, subject: string) {
+  return { ticket: `#${entry.issue}`, subject, list: "KNOWN_STRUCTURAL_DISAGREEMENTS" };
+}
 
 function firstDifference(luau: string, tree: string): string {
   const a = luau.split("\n");
@@ -105,9 +110,7 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
       const differences = fixtureDifferences(input);
       const entry = structuralKnown.get(input.name);
       if (entry) {
-        if (differences.length === 0) {
-          reportStalePin({ ticket: `#${entry.issue}`, subject: input.name, list: "KNOWN_STRUCTURAL_DISAGREEMENTS" }, ["a difference from Luau's parser's AST"]);
-        }
+        expectWithinPin(structuralPin(entry, input.name), [STRUCTURAL_DIFFERENCE], differences.length ? [STRUCTURAL_DIFFERENCE] : []);
       } else {
         expect(differences, `${input.name}: the tree's AST differs from Luau's parser's`).toEqual([]);
       }
@@ -129,8 +132,8 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
           ...compareUnit("expression", parsed.root, parsed.errors.length, units.prelude, units.prelude.root, undefined),
         ];
         const entry = structuralKnown.get(expression);
-        if (entry && differences.length === 0) {
-          reportStalePin({ ticket: `#${entry.issue}`, subject: JSON.stringify(expression), list: "KNOWN_STRUCTURAL_DISAGREEMENTS" }, ["a difference from Luau's parser's AST"]);
+        if (entry) {
+          expectWithinPin(structuralPin(entry, JSON.stringify(expression)), [STRUCTURAL_DIFFERENCE], differences.length ? [STRUCTURAL_DIFFERENCE] : []);
         }
         if (!entry && differences.length > 0) failures.push(`${JSON.stringify(expression)}\n${differences.join("\n")}`);
       }
