@@ -291,6 +291,45 @@ describe("Scripts through the workspace, under concurrent reloads", () => {
     );
     error.mockRestore();
   });
+
+  it("answers which scripts reference an item only from references read for the open project", async () => {
+    const { scripts, ls } = fakeWorkspace(PATHS, FOLDERS);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
+    await scripts.load();
+    expect(workspace.scriptReferences.value).toEqual([]);
+    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
+    expect(await scripts.referencing(["Scripts/intro.sd"])).toBeNull();
+    expect(await scripts.referencing(["Scripts/intro.sd"])).toEqual(["main.sd"]);
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toEqual([]);
+    expect(ls.getScriptReferences).toHaveBeenCalledTimes(3);
+    error.mockRestore();
+  });
+});
+
+describe("downloading several items", () => {
+  it("keeps each script's folders under the items' shared folder, so scripts with one name stay apart", async () => {
+    const { scripts, fs } = fakeWorkspace(
+      [...PATHS, "Scripts/A/chapter.sd", "Scripts/B/chapter.sd"],
+      [...FOLDERS, "Scripts/A", "Scripts/B"],
+    );
+    await scripts.load();
+    await scripts.download(["Scripts/A/chapter.sd", "Scripts/B/chapter.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [
+        { uri: uri("Scripts/A/chapter.sd"), path: "A/chapter.sd" },
+        { uri: uri("Scripts/B/chapter.sd"), path: "B/chapter.sd" },
+      ],
+    });
+    expect(downloadFile).toHaveBeenLastCalledWith("Scripts.zip", "application/zip", "zip bytes");
+    await scripts.download(["Scripts/Drafts", "Scripts/intro.sd"]);
+    expect(fs.zipFiles).toHaveBeenLastCalledWith({
+      files: [
+        { uri: uri("Scripts/intro.sd"), path: "intro.sd" },
+        { uri: uri("Scripts/Drafts/old.sd"), path: "Drafts/old.sd" },
+      ],
+    });
+  });
 });
 
 describe("browsing one folder at a time", () => {

@@ -10,7 +10,7 @@ import { itemsLabel } from "../../workspace/scriptsListing";
 
 export type DeleteDialogProps = {
   paths: readonly string[] | null;
-  referencing: readonly string[];
+  referencing: readonly string[] | null;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -24,7 +24,11 @@ export default function DeleteDialog({
   return (
     <Dialog open={!!paths} onOpenChange={(open) => !open && onClose()}>
       <DialogTitle>Delete {paths ? itemsLabel(paths) : ""}?</DialogTitle>
-      <DialogDescription>{referencedByLabel(referencing)}</DialogDescription>
+      <DialogDescription>
+        {referencing
+          ? referencedByLabel(referencing)
+          : `Couldn't check which scripts reference ${paths?.length === 1 ? "it" : "them"}.`}
+      </DialogDescription>
       <DialogActions class="pt-4">
         <Button variant="quiet" onClick={onClose}>
           Cancel

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const scripts = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
   remove: vi.fn(async (_paths: string[]) => undefined),
+  referencing: vi.fn(async (_paths: string[]): Promise<string[] | null> => []),
   move: vi.fn(async (paths: string[], _folder: string) => paths),
   download: vi.fn(async (_paths: string[]) => undefined),
   duplicate: vi.fn(async () => ""),
@@ -26,6 +27,7 @@ const { default: workspace } = await import("../../src/modules/spark-editor/work
 const { default: selection } = await import("../../src/modules/spark-editor/workspace/scriptsSelection");
 const { default: ScriptsPage } = await import("../../src/modules/spark-editor/components/scripts-page");
 const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
+const { referencedBy } = await import("../../src/modules/spark-editor/utils/fileListModel");
 
 const PROJECT = "p";
 const facts = { modified: 1, size: 10 };
@@ -47,6 +49,7 @@ const all = <T extends Element>(selector: string) => [...document.querySelectorA
 const byLabel = (label: string) => all<HTMLElement>(`[aria-label="${label}"]`)[0];
 const buttonNamed = (name: string) =>
   all<HTMLButtonElement>("button").find((b) => b.textContent?.trim() === name);
+const rootCrumb = () => document.querySelector<HTMLElement>('button[aria-label="Scripts"]') ?? undefined;
 const mark = (name: string) => byLabel(`Select ${name}`) as HTMLInputElement | undefined;
 const rowButton = (name: string) =>
   all<HTMLButtonElement>("button").find((b) => b.getAttribute("aria-label")?.startsWith(`Open script ${name}`) || b.getAttribute("aria-label")?.startsWith(`Open folder ${name}`));
@@ -82,9 +85,13 @@ const dragEvent = (type: string, transfer: ReturnType<typeof dataTransfer>) => {
 
 beforeEach(() => {
   for (const fn of [...Object.values(scripts), ...Object.values(window)]) fn.mockClear();
+  scripts.referencing.mockImplementation(async (paths: string[]) =>
+    referencedBy(workspace.scriptReferences.value, paths),
+  );
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: PROJECT },
+    lists: { ...workspace.current.lists, scriptsFolder: "" },
   };
   workspace.scriptListing.value = {
     projectId: PROJECT,
@@ -188,6 +195,17 @@ describe("selecting scripts on the Scripts page", () => {
     expect(scripts.remove).not.toHaveBeenCalled();
   });
 
+  it("asks first, saying so, when it cannot tell which scripts reference the rows", async () => {
+    scripts.referencing.mockResolvedValueOnce(null);
+    await mount();
+    await pick("intro.sd");
+    await click(buttonNamed("Delete…"));
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("Delete intro.sd?");
+    expect(dialog.textContent).toContain("Couldn't check which scripts reference it.");
+    expect(scripts.remove).not.toHaveBeenCalled();
+  });
+
   it("downloads and moves every picked row", async () => {
     await mount();
     await pick("intro.sd", "outro.sd");
@@ -260,5 +278,66 @@ describe("dragging scripts on the Scripts page", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("only picks a folder row on a long press released where it began, never dropping it into itself", async () => {
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        host = document.body.appendChild(document.createElement("div"));
+        render(h(ScriptsPage, {}), host);
+      });
+      const pointer = (type: string) => {
+        const event = new MouseEvent(type, { bubbles: true, clientX: 5, clientY: 5 });
+        Object.defineProperty(event, "pointerType", { value: "touch" });
+        return event;
+      };
+      const original = document.elementFromPoint;
+      document.elementFromPoint = () => rowButton("Drafts")!;
+      try {
+        await act(async () => {
+          rowButton("Drafts")!.dispatchEvent(pointer("pointerdown"));
+          vi.advanceTimersByTime(600);
+        });
+        await act(async () => {
+          rowButton("Drafts")!.dispatchEvent(pointer("pointermove"));
+          rowButton("Drafts")!.dispatchEvent(pointer("pointerup"));
+        });
+      } finally {
+        document.elementFromPoint = original;
+      }
+      expect(selection.selected.value).toEqual(["Scripts/Drafts"]);
+      expect(snackbar.value).toBeNull();
+      expect(scripts.move).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the trail's crumbs as drop targets while picked rows are dragged, and brings the bar back after", async () => {
+    workspace.current = {
+      ...workspace.current,
+      lists: { ...workspace.current.lists, scriptsFolder: "Scripts/Drafts" },
+    };
+    await mount();
+    await pick("old.sd");
+    expect(byLabel("Folder path")).toBeUndefined();
+    const transfer = dataTransfer();
+    await act(async () => {
+      rowButton("old.sd")!.dispatchEvent(dragEvent("dragstart", transfer));
+    });
+    await settle();
+    const root = rootCrumb()!;
+    expect(root.closest('nav[aria-label="Folder path"]')).toBeTruthy();
+    await act(async () => {
+      root.dispatchEvent(dragEvent("dragover", transfer));
+    });
+    expect(rootCrumb()!.className).toContain("ring-accent");
+    await act(async () => {
+      rootCrumb()!.dispatchEvent(dragEvent("drop", transfer));
+    });
+    await settle();
+    expect(scripts.move).toHaveBeenCalledWith(["Scripts/Drafts/old.sd"], "");
+    expect(byLabel("Folder path")).toBeTruthy();
   });
 });

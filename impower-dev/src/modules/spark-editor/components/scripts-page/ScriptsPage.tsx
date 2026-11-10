@@ -22,7 +22,7 @@ import {
 import { useComputed } from "@preact/signals";
 import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { plural, referencedBy, rowLine } from "../../utils/fileListModel";
+import { plural, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   browseParent,
@@ -85,7 +85,6 @@ function Trail({
   onOpen: (folder: string) => void;
 }) {
   const dropAt = (target: string) => ({ [DROP_FOLDER]: target });
-  const lit = (target: string) => (dropTarget === target ? DROP_HIGHLIGHT : "");
   if (!folder) {
     return (
       <nav aria-label="Folder path" class="flex min-w-0 items-center gap-0.5 text-[12px]">
@@ -116,7 +115,7 @@ function Trail({
         size="icon"
         aria-label="Parent folder"
         {...dropAt(browseParent(folder, home))}
-        class={`flex-none text-muted ${lit(browseParent(folder, home))}`}
+        class={dropTarget === browseParent(folder, home) ? `flex-none text-muted ${DROP_HIGHLIGHT}` : "flex-none text-muted"}
         onClick={() => onOpen(browseParent(folder, home))}
       >
         <BackIcon />
@@ -126,7 +125,7 @@ function Trail({
         size="icon"
         aria-label="Scripts"
         {...dropAt("")}
-        class={`flex-none text-muted ${lit("")}`}
+        class={dropTarget === "" ? `flex-none text-muted ${DROP_HIGHLIGHT}` : "flex-none text-muted"}
         onClick={() => onOpen("")}
       >
         <RootIcon />
@@ -149,7 +148,7 @@ function Trail({
               variant="quiet"
               size="compact"
               {...dropAt(crumb.path)}
-              class={`max-w-40 text-muted [--fade:14px] fade-edge ${lit(crumb.path)}`}
+              class={dropTarget === crumb.path ? `max-w-40 text-muted [--fade:14px] fade-edge ${DROP_HIGHLIGHT}` : "max-w-40 text-muted [--fade:14px] fade-edge"}
               onClick={() => onOpen(crumb.path)}
             >
               {crumb.name}
@@ -180,7 +179,7 @@ export default function ScriptsPage() {
   const [fromMenu, setFromMenu] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [moving, setMoving] = useState<readonly string[] | null>(null);
-  const [deleting, setDeleting] = useState<{ paths: string[]; referencing: string[] } | null>(null);
+  const [deleting, setDeleting] = useState<{ paths: string[]; referencing: string[] | null } | null>(null);
   const selecting = selection.active.value;
   const picked = selection.selected.value;
 
@@ -260,9 +259,11 @@ export default function ScriptsPage() {
     });
 
   const requestDelete = (paths: string[]) => {
-    const referencing = referencedBy(references, paths);
-    if (referencing.length) setDeleting({ paths, referencing });
-    else remove(paths);
+    void run(async () => {
+      const referencing = await (await intents()).scripts.referencing(paths);
+      if (referencing?.length === 0) remove(paths);
+      else setDeleting({ paths, referencing });
+    });
   };
 
   const onAction = (row: ScriptRow, action: RowAction) => {
@@ -413,7 +414,7 @@ export default function ScriptsPage() {
             </DropdownRoot>
           </div>
           <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
-            {selecting ? (
+            {selecting && !drag.dragging ? (
               <SelectionBar
                 count={picked.length}
                 onSelectAll={() => selection.selectAll(rows.map((row) => row.path))}
@@ -502,7 +503,7 @@ export default function ScriptsPage() {
       />
       <DeleteDialog
         paths={deleting?.paths ?? null}
-        referencing={deleting?.referencing ?? []}
+        referencing={deleting?.referencing ?? null}
         onClose={() => setDeleting(null)}
         onDelete={() => {
           const paths = deleting!.paths;

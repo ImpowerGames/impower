@@ -69,7 +69,21 @@ export const INTO_ITSELF = "A folder cannot be moved inside itself.";
 export const itemsLabel = (paths: readonly string[]): string =>
   paths.length === 1 ? nameOf(paths[0]!) : plural(paths.length, "item");
 
-export const outermost = (paths: readonly string[]): string[] =>
+export const commonFolder = (paths: readonly string[]): string => {
+  const [first, ...rest] = paths.map((p) => parentOf(p).split("/"));
+  if (!first) {
+    return "";
+  }
+  let shared = first.length;
+  for (const parts of rest) {
+    let i = 0;
+    while (i < shared && parts[i] === first[i]) i++;
+    shared = i;
+  }
+  return first.slice(0, shared).join("/");
+};
+
+export const outermost =(paths: readonly string[]): string[] =>
   [...new Set(paths)]
     .filter((p) => !paths.some((other) => other !== p && isInside(p, other)))
     .sort();

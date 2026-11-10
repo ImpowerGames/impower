@@ -3,13 +3,14 @@ import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
 import { recordMove, recordTrashDeletion } from "../utils/fileUndo";
-import { availableName, copyName, NameError, plural } from "../utils/fileListModel";
+import { availableName, copyName, NameError, plural, referencedBy } from "../utils/fileListModel";
 import { renameOrReport } from "../utils/renameOrReport";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import {
   isInside,
   joinPath,
   MAIN_SCRIPT,
+  commonFolder,
   MAIN_STAYS,
   moveCheck,
   nameOf,
@@ -61,6 +62,8 @@ export default class WorkspaceScripts {
 
   protected _generation = 0;
 
+  protected _referencesFor: string | null = null;
+
   constructor(deps: Deps) {
     this._workspace = deps;
   }
@@ -102,6 +105,7 @@ export default class WorkspaceScripts {
     }
     if (workspace.scriptListing.peek()?.projectId !== projectId) {
       workspace.scriptReferences.value = [];
+      this._referencesFor = null;
     }
     workspace.scriptListing.value = listing;
     await this.loadReferences(generation, projectId);
@@ -122,9 +126,23 @@ export default class WorkspaceScripts {
         to: fs.getRelativePath(projectId, r.to),
         divert: r.divert,
       }));
+      this._referencesFor = projectId;
     } catch (error) {
       console.error("[WorkspaceScripts] sparkdown/scriptReferences failed; Uses and Story order keep the last references read:", error);
     }
+  }
+
+  async referencing(paths: readonly string[]): Promise<string[] | null> {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return null;
+    }
+    if (this._referencesFor !== projectId) {
+      await this.loadReferences(this._generation, projectId);
+    }
+    return this._referencesFor === projectId
+      ? referencedBy(workspace.scriptReferences.peek(), paths)
+      : null;
   }
 
   watch(): () => void {
@@ -280,14 +298,13 @@ export default class WorkspaceScripts {
       downloadFile(nameOf(only), "text/plain", data);
       return;
     }
-    const files = Object.keys(this.listing.files).flatMap((p) => {
-      const item = items.find((i) => isInside(p, i));
-      if (!item) {
-        return [];
-      }
-      const base = only ?? parentOf(item);
-      return [{ uri: fs.getFileUri(projectId, p), path: base ? p.slice(base.length + 1) : p }];
-    });
+    const base = only ?? commonFolder(items);
+    const files = Object.keys(this.listing.files)
+      .filter((p) => items.some((item) => isInside(p, item)))
+      .map((p) => ({
+        uri: fs.getFileUri(projectId, p),
+        path: base ? p.slice(base.length + 1) : p,
+      }));
     const zip = await fs.zipFiles({ files });
     downloadFile(only ? `${nameOf(only)}.zip` : "Scripts.zip", "application/zip", zip);
   }

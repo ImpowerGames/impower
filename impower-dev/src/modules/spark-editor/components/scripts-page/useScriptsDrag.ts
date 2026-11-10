@@ -21,6 +21,7 @@ type Press = {
   y: number;
   timer: ReturnType<typeof setTimeout>;
   armed: boolean;
+  moved: boolean;
 };
 
 const folderAt = (element: EventTarget | Element | null): string | null => {
@@ -36,6 +37,7 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
   const latest = useRef(options);
   latest.current = options;
   const [target, setTarget] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const carried = useRef<string[] | null>(null);
   const press = useRef<Press | null>(null);
   const swallowClick = useRef(false);
@@ -49,6 +51,12 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
   };
 
   useEffect(() => release, []);
+
+  const finish = () => {
+    carried.current = null;
+    setTarget(null);
+    setDragging(false);
+  };
 
   const check = (folder: string | null) =>
     carried.current && folder !== null
@@ -64,8 +72,7 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
   const drop = (folder: string | null) => {
     const paths = carried.current;
     const result = check(folder);
-    carried.current = null;
-    setTarget(null);
+    finish();
     if (!paths || !result) {
       return;
     }
@@ -87,11 +94,13 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
       if (event.dataTransfer) {
         event.dataTransfer.effectAllowed = "move";
       }
+      setTimeout(() => {
+        if (carried.current) {
+          setDragging(true);
+        }
+      });
     },
-    onDragEnd: () => {
-      carried.current = null;
-      setTarget(null);
-    },
+    onDragEnd: finish,
     onPointerDown: (event: PointerEvent) => {
       swallowClick.current = false;
       if (!coarse || event.button > 0) {
@@ -103,11 +112,13 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
         x: event.clientX,
         y: event.clientY,
         armed: false,
+        moved: false,
         timer: setTimeout(() => {
           pressed.armed = true;
           swallowClick.current = true;
           latest.current.onLongPress(path);
           carried.current = latest.current.carried(path);
+          setDragging(true);
           document.addEventListener("touchmove", stopScroll, { passive: false });
         }, LONG_PRESS_MS),
       };
@@ -124,26 +135,26 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
         }
         return;
       }
+      pressed.moved ||=
+        Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > SLOP_PX;
       hover(folderAt(document.elementFromPoint?.(event.clientX, event.clientY) ?? null));
     },
     onPointerUp: (event: PointerEvent) => {
       const pressed = press.current;
       release();
-      if (pressed?.armed) {
+      if (pressed?.armed && pressed.moved) {
         const folder = folderAt(
           document.elementFromPoint?.(event.clientX, event.clientY) ?? null,
         );
         if (folder !== null) {
           drop(folder);
         }
-        carried.current = null;
-        setTarget(null);
+        finish();
       }
     },
     onPointerCancel: () => {
       release();
-      carried.current = null;
-      setTarget(null);
+      finish();
     },
     onContextMenu: (event: MouseEvent) => {
       if (coarse) {
@@ -187,5 +198,5 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
     return true;
   };
 
-  return { target, source, area, clicked };
+  return { target, dragging, source, area, clicked };
 }
