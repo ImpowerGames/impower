@@ -1,4 +1,10 @@
-import { computed, effect, signal, type ReadonlySignal } from "@preact/signals";
+import {
+  computed,
+  effect,
+  signal,
+  type ReadonlySignal,
+  type Signal,
+} from "@preact/signals";
 import type {
   SyncStatus,
   WorkspaceCache,
@@ -157,7 +163,18 @@ class WorkspaceStore {
 
   readonly scriptMode = signal<ScriptMode>("reading");
 
-  readonly layout = signal<Layout>(layoutState.current());
+  private _layout: Signal<Layout> | undefined;
+
+  get layout(): Signal<Layout> {
+    if (!this._layout) {
+      const layout = signal<Layout>(layoutState.current());
+      layoutState.subscribe((next) => {
+        layout.value = next;
+      });
+      this._layout = layout;
+    }
+    return this._layout;
+  }
 
   readonly effectiveScriptMode = computed<ScriptMode | undefined>(() =>
     this.layout.value === "phone" ? this.scriptMode.value : undefined,
@@ -207,9 +224,6 @@ class WorkspaceStore {
   } as const satisfies Record<string, ReadonlySignal<unknown>>;
 
   constructor() {
-    layoutState.subscribe((next) => {
-      this.layout.value = next;
-    });
     let previous: SyncStatus | undefined;
     effect(() => {
       const status = this.signals.syncStatus.value;

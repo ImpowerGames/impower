@@ -82,7 +82,9 @@ export default function PhoneShell({
 
   useEffect(
     () => () => {
-      void withWindow((win) => win.finishEditing());
+      if (workspace.scriptMode.peek() === "editing") {
+        void withWindow((win) => win.finishEditing());
+      }
     },
     [],
   );
