@@ -144,8 +144,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
-        const skipBeat = (direction: -1 | 1) =>
-          Workspace.window.skipBeat(direction);
+        const skipBeat = (direction: -1 | 1, to?: "choice") =>
+          Workspace.window.skipBeat(direction, to);
 
         let heldSelection: unknown = null;
         const releaseHeldSelection = () => {
@@ -425,6 +425,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
             void skipBeat(-1);
           } else if (workspaceShortcuts.matches(e, "nextBeat")) {
             void skipBeat(1);
+          } else if (workspaceShortcuts.matches(e, "previousChoice")) {
+            void skipBeat(-1, "choice");
+          } else if (workspaceShortcuts.matches(e, "nextChoice")) {
+            void skipBeat(1, "choice");
           }
         };
 

@@ -386,7 +386,6 @@ Component variables of the editor's own chrome:
 
 | Variable | Role | Midnight value |
 |---|---|---|
-| `--editor-ink` | Chrome text: menus, the reference list, the keyboard toolbar, the status bar's reveal arrow | `#cccccc` |
 | `--editor-line-number` | Gutter line numbers | `#2b83b7` |
 | `--editor-line-number-active` | The current line's number | `#99d9ff` |
 | `--editor-indent-guide` | Indentation guide | `#1a293a` |
@@ -394,12 +393,11 @@ Component variables of the editor's own chrome:
 | `--editor-field-edge` | Go-to-line and rename field border | `hsl(210.6 30% 20%)` |
 | `--editor-field-edge-hover` | Field border under the pointer or pressed | `hsl(210.6 30% 30%)` |
 | `--editor-focus` | Focus outline and the focused field's border | `#0da2e7` |
-| `--editor-focus-edge` | Selected reference outline, the dialog close button under the pointer | `#007acc` |
 | `--editor-selection-match` | Other occurrences of the selection | `#62331599` |
 | `--editor-panel-edge` | Rule above the bottom panels | `hsl(210.6 70% 15%)` |
 | `--editor-toolbar-ink` | Keyboard toolbar text | `hsl(211 24% 60%)` |
 | `--editor-status-ink` | Status bar text | `hsl(211 24% 42%)` |
-| `--editor-list-selected` | Selected row: completion, problems, references | `#04395e` |
+| `--editor-list-selected` | Selected row: completion, problems | `#04395e` |
 | `--editor-problem-range` | The active problem's range | `#ffdd991a` |
 | `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
 | `--editor-problem-warning` | Status bar warning count | `#cca700` |
@@ -409,7 +407,6 @@ Component variables of the editor's own chrome:
 | `--editor-faint` | Fold placeholder, link shortcut hint | `#808080` |
 | `--editor-placeholder` | Go-to-line placeholder | `#888888` |
 | `--editor-swatch-edge` | Colour swatch border | `#888888` |
-| `--editor-reference-line` | Line number in the reference list | `#858585` |
 | `--editor-lens-ink` | Code lens text | `#999999` |
 | `--editor-link` | Code lens and link under the pointer | `#4e94ce` |
 | `--editor-link-active` | A followable link while the modifier is held | `#4daafc` |
@@ -503,7 +500,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--focus-ring` | `var(--accent)` | Focus edge |
 | `--error-strong` | `var(--error)` | Problem colour: error |
 | `--warning-strong` | `var(--warning)` | Problem colour: warning |
-| `--editor-ink` | `var(--ink)` | Ink |
 | `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
 | `--editor-line-number-active` | `var(--ink)` | Ink |
 | `--editor-indent-guide` | `color-mix(in srgb, var(--muted) 22%, transparent)` | `--guide`, `folio-themes.css:905` |
@@ -511,7 +507,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-field-edge` | `var(--edge)` | Divider |
 | `--editor-field-edge-hover` | `var(--muted)` | Muted ink |
 | `--editor-focus` | `var(--accent)` | Focus edge |
-| `--editor-focus-edge` | `var(--accent)` | Focus edge |
 | `--editor-selection-match` | `color-mix(in srgb, var(--accent) 25%, transparent)` | Accent wash |
 | `--editor-panel-edge` | `var(--edge)` | Divider |
 | `--editor-toolbar-ink` | `var(--muted)` | Muted ink |
@@ -526,7 +521,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-faint` | `var(--muted)` | Muted ink |
 | `--editor-placeholder` | `var(--muted)` | Muted ink |
 | `--editor-swatch-edge` | `var(--muted)` | Muted ink |
-| `--editor-reference-line` | `var(--muted)` | Muted ink |
 | `--editor-lens-ink` | `var(--muted)` | Muted ink |
 | `--editor-link` | `var(--accent)` | Links |
 | `--editor-link-active` | `var(--accent)` | Links |

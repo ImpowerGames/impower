@@ -15,8 +15,10 @@ import {
   UsesIcon,
 } from "@impower/impower-ui/components";
 import {
+  SORT_FIELDS,
   sortLabel,
   sortMenu,
+  type SortField,
   type SortIcon as SortIconName,
 } from "../../utils/fileListModel";
 
@@ -31,12 +33,15 @@ const FIELD_ICONS: Record<SortIconName, typeof SortIcon> = {
 const USES_HINT =
   "Other scripts' diverts, calls and character cues. Uses of a define's properties are not counted yet.";
 
+const ALL_FIELDS = SORT_FIELDS.map((spec) => spec.field);
+
 export type SortMenuProps = {
   value: string | undefined;
+  fields?: readonly SortField[];
   onChange: (key: string) => void;
 };
 
-export default function SortMenu({ value, onChange }: SortMenuProps) {
+export default function SortMenu({ value, fields = ALL_FIELDS, onChange }: SortMenuProps) {
   const label = sortLabel(value);
   const menu = sortMenu(value);
   const fieldKey = menu.fields.find((f) => f.checked)!.key;
@@ -58,7 +63,7 @@ export default function SortMenu({ value, onChange }: SortMenuProps) {
       <DropdownContent align="end" class="min-w-[196px]">
         <DropdownLabel variant="heading">Sort by</DropdownLabel>
         <DropdownRadioGroup label="Sort by" value={fieldKey} onValueChange={onChange}>
-          {menu.fields.map((field) => {
+          {menu.fields.filter((field) => fields.includes(field.field)).map((field) => {
             const Icon = FIELD_ICONS[field.icon];
             return (
               <DropdownRadioItem key={field.field} value={field.key} indicator="end">

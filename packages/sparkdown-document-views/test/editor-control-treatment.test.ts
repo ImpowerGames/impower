@@ -129,12 +129,10 @@ describe("the code editor's icons under forced colours", () => {
     ".cm-activeDiagnosticIcon",
     ".cm-navLeftIcon",
     ".cm-navRightIcon",
-    ".cm-problemsToggleIcon",
     ".cm-toolbar-icon",
     ".cm-menu-back-icon",
     ".cm-menu-more-icon",
     ".cm-fold-arrow",
-    ".cm-lsp-collapse-icon",
   ])("keeps the masked icon %s painted in CanvasText", (selector) => {
     expect(block).toContain(`.sparkdown-script-editor-root ${selector}`);
     expect(block).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);

@@ -23,16 +23,15 @@ vi.mock("../../src/modules/spark-editor/components/file-dropzone/FileDropzone", 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
   const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
   const { stateForRoute } = await import("../../src/modules/spark-editor/workspace/routes");
+  const { shellWindow } = await import("../shellWindow");
   return {
     Workspace: {
       sync: { google: { getCurrentAccount: async () => null } },
-      window: {
-        setAccount: () => {},
-        loadProject: async () => {},
+      window: shellWindow(() => workspace, {
         navigateTo: (route: Parameters<typeof stateForRoute>[1]) => {
           workspace.current = stateForRoute(workspace.current, route);
         },
-      },
+      }),
     },
   };
 });

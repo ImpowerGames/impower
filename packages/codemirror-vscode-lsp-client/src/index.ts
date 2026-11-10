@@ -138,15 +138,6 @@ export {
   convertToChangeEvents,
   convertToPosition,
 } from "./pos";
-export {
-  closeReferencePanel,
-  findReferences,
-  forEachReference,
-  isReferencePanelOpen,
-  serverReferences,
-  setReferencePanel,
-  type ReferenceLocation,
-} from "./references";
 export { renameSymbol, serverRenaming } from "./rename";
 export {
   convertFromServerSemanticTokens,
@@ -241,7 +232,6 @@ import { serverHovers } from "./hover";
 import { serverCodeLenses } from "./lens";
 import { serverDocumentLinks } from "./link";
 import { contextMenu } from "./menu";
-import { serverReferences } from "./references";
 import { serverRenaming } from "./rename";
 import { serverSemanticHighlighting } from "./semantics";
 import { serverSignatureHelp } from "./signature";
@@ -263,7 +253,6 @@ export function languageServerExtensions(): readonly (
     serverHovers(),
     serverDocumentHighlights(),
     serverRenaming(),
-    serverReferences(),
     serverFormatting(),
     serverDefinitions(),
     serverSignatureHelp(),
@@ -276,6 +265,7 @@ export {
   editorToolCommands,
   findNextMatch,
   findPreviousMatch,
+  findReferences,
   openFind,
   openProblems,
   type EditorToolCommands,

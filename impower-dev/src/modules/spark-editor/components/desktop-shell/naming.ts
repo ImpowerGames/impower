@@ -135,7 +135,7 @@ export function useNameField({
       }
       if (
         !e.relatedTarget &&
-        workspace.scriptMode.peek() === "editing"
+        workspace.effectiveScriptMode.peek() === "editing"
       ) {
         const script = storyScriptOf();
         if (script) {

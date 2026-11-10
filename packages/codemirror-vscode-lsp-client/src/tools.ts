@@ -34,3 +34,5 @@ export const openProblems = editorTool("problems", openLintPanel);
 export const findNextMatch = editorTool("findNext");
 
 export const findPreviousMatch = editorTool("findPrevious");
+
+export const findReferences = editorTool("references");

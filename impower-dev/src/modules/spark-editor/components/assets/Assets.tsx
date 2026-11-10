@@ -1,209 +1,427 @@
 import {
+  ArtIcon,
   Button,
-  FileIcon,
+  ChevronIcon,
+  DropdownItem,
+  FolderIcon,
+  FolderPlusIcon,
+  FontIcon,
+  type IconComponent,
+  ImageIcon,
   LinkIcon,
-  PlusIcon,
-  Router,
+  ListRow,
+  MusicIcon,
+  OtherIcon,
+  SearchIcon,
   Tab,
+  TabbedPage,
   Tabs,
+  TextIcon,
   UploadIcon,
+  VideoIcon,
 } from "@impower/impower-ui/components";
+import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
-import { startTransition } from "preact/compat";
-import { useRef, useState } from "preact/hooks";
-import { recordCreate } from "../../utils/fileUndo";
-import getUniqueFileName from "../../utils/getUniqueFileName";
-import getValidFileName from "../../utils/getValidFileName";
-import { importDroppedFiles } from "../../utils/importDroppedFiles";
+import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  ASSET_TYPES,
+  assetEndings,
+  assetTypeOf,
+  assetTypeSpec,
+  isAssetType,
+  type AssetType,
+} from "../../utils/assetTypes";
+import { plural, rowLine } from "../../utils/fileListModel";
+import { showSnackbar } from "../../utils/snackbar";
+import {
+  ASSET_SORT_FIELDS,
+  assetLevel,
+  assetSearch,
+  assetSort,
+  assetTrail,
+  type AssetListing,
+  type AssetRow,
+} from "../../workspace/assetsListing";
+import { parentOf } from "../../workspace/scriptsListing";
 import workspace from "../../workspace/WorkspaceStore";
-import FileList from "../file-list/FileList";
-import FileListBorder from "../file-list/FileListBorder";
+import type { PreviewItem } from "../file-preview/FilePreviewOverlay";
+import {
+  EmptyState,
+  LibraryPage,
+  NameRow,
+  SortMenu,
+  Trail,
+  useSavedScroll,
+  useTabQuery,
+} from "../library-page";
 import AddUrlDialog from "./AddUrlDialog";
-import type { PanelType } from "@impower/spark-editor-protocol/src/types";
+import { useAssetPreview } from "./AssetPreview";
+import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
 
-type Panel = "files" | "urls";
+const EMPTY: AssetListing = { files: {}, folders: [] };
 
-const URLS_DIR = "assets/urls";
-const FILES_EXCLUDE_DIRS = [URLS_DIR];
+const PAGE_TAB = "all";
 
-export default function Assets(_props: AssetsProps) {
-  const panel = (workspace.state.value.panes?.assets?.panel ||
-    "files") as Panel;
+const HEADING_HEIGHT = 48;
+const ROW_HEIGHT = 63;
 
-  const [fabCollapsed, setFabCollapsed] = useState(false);
-  const [filesScope, setFilesScope] = useState("assets");
-  const [urlsScope, setUrlsScope] = useState("assets/urls");
+const TYPE_ICONS: Record<AssetType, IconComponent> = {
+  image: ImageIcon,
+  audio: MusicIcon,
+  video: VideoIcon,
+  text: TextIcon,
+  font: FontIcon,
+  other: OtherIcon,
+};
 
-  const onPanelChange = (next: string) => {
-    startTransition(() => {
-      void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openPanel("assets", next as PanelType);
-      });
-    });
+const TYPE_NOUNS: Record<AssetType, string> = {
+  image: "image",
+  audio: "audio",
+  video: "video",
+  text: "text",
+  font: "font",
+  other: "file",
+};
+
+const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
+  image: ["No images yet", "Upload portraits and backgrounds with the New button."],
+  audio: ["No audio yet", "Upload sounds and music with the New button."],
+  video: ["No video yet", "Upload a video with the New button."],
+  text: ["No text yet", "Upload notes with the New button."],
+  font: ["No fonts yet", "Upload a font with the New button."],
+  other: ["Nothing yet", "Files of any other type land here when you upload them."],
+};
+
+type Heading = { kind: "heading"; type: AssetType; title: string };
+
+type Item = Heading | AssetRow;
+
+const intents = async () => (await import("../../workspace/Workspace")).Workspace;
+
+const run = async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
+  try {
+    return await action();
+  } catch (e) {
+    showSnackbar({ message: e instanceof Error ? e.message : String(e) });
+    return undefined;
+  }
+};
+
+const stemAndExtension = (name: string) => {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+};
+
+const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+
+const previewItemOf = (listing: AssetListing, row: AssetRow): PreviewItem => {
+  const facts = listing.files[row.path];
+  const kind = row.type === "image" || row.type === "audio" || row.type === "video" ? row.type : "text";
+  return {
+    path: row.path,
+    name: leafOf(row.path),
+    src: facts?.src,
+    kind,
+    url: row.link ? facts?.address : undefined,
+    size: row.link ? undefined : facts?.size,
+    modified: facts?.modified,
   };
+};
 
-  return (
-    <>
-      <div class="sticky top-0 z-10 flex-none bg-panel">
-        <Tabs
-          value={panel}
-          onChange={onPanelChange}
-          indicator="underline"
-          iconLayout="beside"
-        >
-          <Tab value="files" icon={FileIcon}>
-            Files
-          </Tab>
-          <Tab value="urls" icon={LinkIcon}>
-            URLs
-          </Tab>
-        </Tabs>
-      </div>
-      <div class="relative flex-1 min-h-0">
-        <Router active={panel} mode="slide-x">
-          <FileList
-            key="files"
-            rootDir="assets"
-            enablePreview
-            exclude="*.{sd,url,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
-            excludeDirs={FILES_EXCLUDE_DIRS}
-            onScrolledChange={setFabCollapsed}
-            onScopeChange={setFilesScope}
-            emptyState={
-              <FileListBorder>
-                <FileIcon class="size-12 m-2" />
-                <span class="text-sm">No Files</span>
-              </FileListBorder>
-            }
-          />
-          <FileList
-            key="urls"
-            rootDir={URLS_DIR}
-            enablePreview
-            onScrolledChange={setFabCollapsed}
-            onScopeChange={setUrlsScope}
-            emptyState={
-              <FileListBorder>
-                <LinkIcon class="size-12 m-2" />
-                <span class="text-sm">No URLs</span>
-              </FileListBorder>
-            }
-          />
-        </Router>
-
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
-          <AssetsFab
-            panel={panel}
-            collapsed={fabCollapsed}
-            scope={panel === "files" ? filesScope : urlsScope}
-          />
-        </div>
-      </div>
-    </>
-  );
+function RowGlyph({ row }: { row: AssetRow }) {
+  if (row.kind === "folder") return <FolderIcon />;
+  const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
+  return <Glyph />;
 }
 
-function AssetsFab({
-  panel,
-  collapsed,
-  scope,
-}: {
-  panel: Panel;
-  collapsed: boolean;
-  scope: string;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
-  const disabledSig = useComputed(() => {
+function AssetsBrowser() {
+  const projectId = workspace.signals.projectId.value;
+  const current = workspace.assetListing.value;
+  const loaded = current?.projectId === projectId ? current : null;
+  const listing = loaded ?? EMPTY;
+  const endings = assetEndings.value;
+  const lists = useComputed(() => workspace.state.value.lists).value;
+  const busy = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
-      (panel === "files" && workspace.importProgress.value != null) ||
+      workspace.importProgress.value != null ||
       status === "syncing" ||
       status === "loading" ||
       status === "importing" ||
       status === "exporting"
     );
-  });
+  }).value;
+  const [query, setQuery] = useTabQuery("assetsQueries", PAGE_TAB);
+  const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const upload = useRef<HTMLInputElement | null>(null);
 
-  async function uploadFiles(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const fileList = input.files;
-    if (!fileList) return;
-    const projectId = workspace.signals.projectId.value;
-    if (!projectId) return;
-    const fileArr = Array.from(fileList);
-    input.value = "";
-    await importDroppedFiles(
-      projectId,
-      fileArr.map((file) => {
-        const name = getValidFileName(file.name);
-        return {
-          rel: scope ? `${scope}/${name}` : name,
-          getBuffer: () => file.arrayBuffer(),
-        };
-      }),
-    );
-  }
-
-  async function createUrlAsset(url: string, name: string) {
-    const projectId = workspace.signals.projectId.value;
-    if (!projectId) return;
-    const { Workspace } = await import("../../workspace/Workspace");
-    const files = await Workspace.fs.getFiles(projectId);
-    const filenames = Object.keys(files).map((uri) =>
-      Workspace.fs.getFilename(uri),
-    );
-    const base = getValidFileName(name) || "asset";
-    const uniqueFilename = getUniqueFileName(filenames, `${base}.url`);
-    const rel = scope ? `${scope}/${uniqueFilename}` : uniqueFilename;
-    const uri = Workspace.fs.getFileUri(projectId, rel);
-    await Workspace.fs.createFiles({
-      files: [
-        {
-          uri,
-          data: new TextEncoder().encode(url).buffer,
-        },
-      ],
+  useEffect(() => {
+    let dispose: (() => void) | undefined;
+    let cancelled = false;
+    void intents().then((Workspace) => {
+      if (!cancelled) {
+        dispose = Workspace.assets.watch();
+      }
     });
-    await Workspace.window.recordAssetChange();
-    recordCreate(projectId, [uri], uniqueFilename);
-  }
+    return () => {
+      cancelled = true;
+      dispose?.();
+    };
+  }, [projectId]);
 
-  const onClick =
-    panel === "files"
-      ? () => inputRef.current?.click()
-      : () => setUrlDialogOpen(true);
+  const type: AssetType = isAssetType(lists?.assetsType) ? lists.assetsType : "image";
+  const folders = lists?.assetsFolders ?? {};
+  const sort = assetSort(lists?.assetsSort);
+  const searching = !!query.trim();
+  const level = assetLevel({ listing, type, folder: folders[type], sort, endings });
+  const groups = searching ? assetSearch({ listing, query, sort, endings }) : [];
+  const items: Item[] = searching
+    ? groups.flatMap((group) => [
+        { kind: "heading", type: group.type, title: group.title } as Heading,
+        ...group.rows,
+      ])
+    : level.rows;
+  const files = items.filter((item): item is AssetRow => item.kind === "file");
+  const preview = useAssetPreview(files.map((row) => previewItemOf(listing, row)));
+  const scrollKey = searching ? "search" : `${type}:${level.folder}`;
+  const scroller = useSavedScroll("assetsScrolls", scrollKey);
+
+  const setLists = (lists: Partial<ListsState>) =>
+    void intents().then((Workspace) => Workspace.window.setListState(lists));
+
+  const openFolder = (path: string) => {
+    setQuery("");
+    setLists({ assetsFolders: { ...folders, [type]: path } });
+  };
+
+  const show = (landed: readonly string[]) => {
+    const last = landed[landed.length - 1];
+    if (!last || landed.some((path) => parentOf(path) === level.folder)) {
+      return;
+    }
+    const facts = workspace.assetListing.peek()?.files[last];
+    const landedType = assetTypeOf(last, assetEndings.peek(), facts?.address);
+    setQuery("");
+    setLists({
+      assetsType: landedType,
+      assetsFolders: { ...folders, [landedType]: parentOf(last) },
+    });
+  };
+
+  const onUpload = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const chosen = Array.from(input.files ?? []);
+    input.value = "";
+    if (!chosen.length) return;
+    void run(async () => {
+      const landed = await (await intents()).assets.upload(
+        chosen.map((file) => ({ name: file.name, getBuffer: () => file.arrayBuffer() })),
+        level.folder,
+      );
+      show(landed);
+    });
+  };
+
+  const onAction = (row: AssetRow, action: AssetRowAction) => {
+    if (action === "rename") setRenaming(row.path);
+    else void run(async () => (await intents()).assets.remove([row.path]));
+  };
+
+  const renderItem = (item: Item) => {
+    if (item.kind === "heading") {
+      return (
+        <div class="flex h-full items-end border-b border-edge pb-2 pl-1.5">
+          <h2 class="text-[13px] font-semibold text-ink">{item.title}</h2>
+        </div>
+      );
+    }
+    const row = item;
+    if (renaming === row.path) {
+      const [stem, extension] = row.kind === "file" ? stemAndExtension(leafOf(row.path)) : [row.name, ""];
+      return (
+        <NameRow
+          icon={<RowGlyph row={row} />}
+          label={`Rename ${row.name}`}
+          refocusOnce
+          initial={stem}
+          suffix={extension}
+          onCancel={() => setRenaming(null)}
+          onCommit={async (name) => {
+            await (await intents()).assets.rename(row.path, name);
+            setRenaming(null);
+          }}
+        />
+      );
+    }
+    const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
+    const folder = row.kind === "folder";
+    return (
+      <ListRow
+        icon={<RowGlyph row={row} />}
+        label={row.name}
+        description={line}
+        aria-label={`${folder ? "Open folder" : `Open ${row.link ? "link" : TYPE_NOUNS[row.type]}`} ${row.name}${line ? `, ${line.toLowerCase()}` : ""}`}
+        trailing={folder ? <ChevronIcon /> : undefined}
+        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        onClick={() => (folder ? openFolder(row.path) : preview.open(row.path))}
+      />
+    );
+  };
+
+  const TypeGlyph = TYPE_ICONS[type];
+  const trail = assetTrail(listing, level.root, level.folder);
+  const atRoot = level.folder === level.root;
+  const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
+  const uploadAction = (
+    <Button disabled={busy} onClick={() => upload.current?.click()}>
+      <UploadIcon />
+      Upload files
+    </Button>
+  );
 
   return (
-    <div class="mx-4 my-6 flex flex-col">
-      <Button
-        variant="primary"
-        disabled={disabledSig.value}
-        onClick={onClick}
-        size={collapsed ? "icon" : "default"}
-        class={collapsed ? "ml-auto" : "w-full"}
-      >
-        {panel === "files" ? <UploadIcon /> : <PlusIcon />}
-        <span class={collapsed ? "sr-only" : undefined}>
-          {panel === "files" ? "Upload Files" : "Add URL"}
-        </span>
-      </Button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*, audio/*, video/*, .txt"
-        multiple
-        class="hidden"
-        onChange={uploadFiles}
-      />
+    <LibraryPage<Item>
+      searchLabel="Search assets"
+      query={query}
+      onQueryChange={setQuery}
+      newAttributes={{ "data-assets-action": "add" }}
+      newMenu={
+        <>
+          <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
+            <UploadIcon class="text-muted" />
+            Upload files
+          </DropdownItem>
+          <DropdownItem disabled={busy} onSelect={() => setLinking(true)}>
+            <LinkIcon class="text-muted" />
+            Link a file by address
+          </DropdownItem>
+          <DropdownItem onSelect={() => { setQuery(""); setCreating(true); }}>
+            <FolderPlusIcon class="text-muted" />
+            New folder
+          </DropdownItem>
+        </>
+      }
+      tabs={
+        searching ? undefined : (
+          <Tabs
+            variant="inline"
+            iconLayout="beside"
+            scroll
+            value={type}
+            onChange={(next) => setLists({ assetsType: next })}
+            class="flex-none border-b border-edge"
+          >
+            {ASSET_TYPES.map((spec) => (
+              <Tab key={spec.type} value={spec.type}>
+                {spec.title}
+              </Tab>
+            ))}
+          </Tabs>
+        )
+      }
+      bar={
+        <>
+          {searching ? (
+            <span class="pl-2 text-[12px] text-muted">Results in all types</span>
+          ) : !loaded ? (
+            <span />
+          ) : (
+            <Trail
+              label={assetTypeSpec(type).title}
+              icon={<TypeGlyph />}
+              summary={plural(level.files, "file")}
+              crumbs={trail.crumbs}
+              root={level.root}
+              parent={trail.parent}
+              onOpen={openFolder}
+            />
+          )}
+          <SortMenu
+            value={sort}
+            fields={ASSET_SORT_FIELDS}
+            onChange={(key) => setLists({ assetsSort: key })}
+          />
+        </>
+      }
+      creating={
+        creating && (
+          <NameRow
+            icon={<FolderIcon />}
+            label="New folder name"
+            refocusOnce
+            onCancel={() => setCreating(false)}
+            onCommit={async (name) => {
+              const path = await (await intents()).assets.createFolder(level.folder, name);
+              setCreating(false);
+              openFolder(path);
+            }}
+          />
+        )
+      }
+      list={{
+        listRef: scroller,
+        label: searching ? "Search results" : "Assets and folders",
+        items,
+        getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
+        renderItem,
+        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : ROW_HEIGHT),
+      }}
+      empty={
+        !loaded ? null : searching ? (
+          <EmptyState
+            icon={<SearchIcon />}
+            title="No files match."
+            action={<Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>}
+          />
+        ) : level.none ? (
+          <EmptyState
+            icon={<ImageIcon />}
+            title="A collection of your art"
+            body="Your portraits, backgrounds, sounds and music will appear here."
+            action={uploadAction}
+          />
+        ) : atRoot ? (
+          <EmptyState icon={<TypeGlyph />} title={emptyTitle} body={emptyBody} />
+        ) : (
+          <EmptyState
+            icon={<FolderIcon />}
+            title="This folder is empty"
+            body="Upload into it with the New button."
+          />
+        )
+      }
+    >
+      <input ref={upload} type="file" multiple class="hidden" onChange={onUpload} />
       <AddUrlDialog
-        open={urlDialogOpen}
-        onClose={() => setUrlDialogOpen(false)}
-        onSubmit={createUrlAsset}
+        open={linking}
+        onClose={() => setLinking(false)}
+        onSubmit={(url, name) =>
+          void run(async () => {
+            const path = await (await intents()).assets.addLink(url, name, level.folder);
+            show([path]);
+          })
+        }
       />
-    </div>
+      {preview.overlay}
+    </LibraryPage>
+  );
+}
+
+export default function Assets(_props: AssetsProps) {
+  return (
+    <TabbedPage
+      title="Assets"
+      icon={<ArtIcon class="size-5 flex-none text-accent" />}
+      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
+      showTabs={false}
+      value={PAGE_TAB}
+      onValueChange={() => {}}
+      tabs={[{ value: PAGE_TAB, label: "Assets", content: <AssetsBrowser /> }]}
+    />
   );
 }

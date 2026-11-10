@@ -618,6 +618,12 @@ export class Game<T extends M = {}> {
     return this._destroyed;
   }
 
+  protected _settleDestroyed: () => void = () => {};
+
+  protected _whenDestroyed = new Promise<void>((resolve) => {
+    this._settleDestroyed = resolve;
+  });
+
   protected _paused = false;
   get paused() {
     return this._paused;
@@ -2556,6 +2562,7 @@ export class Game<T extends M = {}> {
   destroy(): void {
     this.cancelPreview();
     this._destroyed = true;
+    this._settleDestroyed();
     this._clock?.stop();
     this._clock?.dispose();
     for (const k of this._moduleNames) {
@@ -2704,16 +2711,19 @@ export class Game<T extends M = {}> {
     };
     this._rollsDrawing += 1;
     try {
-      await Promise.all([
-        ...this.clearStageBeyond(stage),
-        ui.onRestore(),
-        this.module.assets.onRestore(),
+      await Promise.race([
+        Promise.all([
+          ...this.clearStageBeyond(stage),
+          ui.onRestore(),
+          this.module.assets.onRestore(),
+        ]),
+        this._whenDestroyed,
       ]);
     } finally {
       this._rollsDrawing -= 1;
     }
     const history = this.history;
-    if (roll !== this._rolls) {
+    if (roll !== this._rolls || this._destroyed) {
       return { moved: false, superseded: true, history };
     }
     this.noteShownChoices(beat.shown);
@@ -3786,6 +3796,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this._announcedStop = true;
+    this._run.markHeld();
     this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
