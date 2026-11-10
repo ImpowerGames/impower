@@ -573,12 +573,12 @@ variables:
   # display text. No consumed character marks the spot, so only
   # the anchor with nothing after it does.
   CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
-  # lookaround: `SparkdownBlockComment` owns a comment in choice text. A comment that closes on its line stays inside the text capture, read whole so a `[` or `]` in it is not a suppression bracket; one that does not close there is left to `Choice`, which carries it across lines, because a capture cannot hold a scope past its own line. Reordering cannot split the line, since the text rules are single matches.
-  CHOICE_TEXT_UNIT: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?:(?![*][/]).)*[*][/]|(?!{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}).)
-  # lookaround: as `CHOICE_TEXT_UNIT`; the choice text rules end before a `/*` with no `*/` after it on its line, which `SparkdownBlockComment` in `Choice` reads.
-  CHOICE_TEXT_BEFORE_OPEN_COMMENT: (?={{CHOICE_OPEN_COMMENT_ON_LINE}})
-  # lookaround: as `CHOICE_TEXT_UNIT`; a `/*` with no `*/` after it on its line.
-  CHOICE_OPEN_COMMENT_ON_LINE: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?!.*[*][/]))
+  # lookaround: `SparkdownBlockComment` owns a comment in choice text and on a chained display line. A comment that closes on its line stays inside the text capture, read whole so a `[`, `]` or `\` in it is not a suppression bracket or a chain; one that does not close there is left to a begin/end rule (`Choice`, `ActionLineEnd`, `LineEnd`) that carries it across lines, because a capture cannot hold a scope past its own line. Reordering cannot split the line, since the text rules are single matches.
+  STORY_TEXT_UNIT: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?:(?![*][/]).)*[*][/]|(?!{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}).)
+  # lookaround: as `STORY_TEXT_UNIT`; the choice text rules end before a `/*` with no `*/` after it on its line, which `SparkdownBlockComment` in `Choice` reads.
+  STORY_TEXT_BEFORE_OPEN_COMMENT: (?={{STORY_OPEN_COMMENT_ON_LINE}})
+  # lookaround: as `STORY_TEXT_UNIT`; a `/*` with no `*/` after it on its line.
+  STORY_OPEN_COMMENT_ON_LINE: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?!.*[*][/]))
   # lookaround: `LuauEscapeLine` refuses its `$` end at the spot where its
   # begin took the line break and the line's input ends. Both engines try the
   # `end:` once more there, where `$` would close the escape and then the
@@ -1630,7 +1630,7 @@ repository:
     name: keyword.operator.expression.list.sd
 
   ChoiceWithSuppressedText:
-    match: ({{CHOICE_TEXT_UNIT}}*?)(\[)({{CHOICE_TEXT_UNIT}}*?)(\])({{CHOICE_TEXT_UNIT}}*?)(?:({{WS}}*)$|({{WS}}*)([-][>]{{CHOICE_TEXT_UNIT}}*)(?:$|{{CHOICE_TEXT_BEFORE_OPEN_COMMENT}})|{{CHOICE_TEXT_BEFORE_OPEN_COMMENT}})
+    match: ({{STORY_TEXT_UNIT}}*?)(\[)({{STORY_TEXT_UNIT}}*?)(\])({{STORY_TEXT_UNIT}}*?)(?:({{WS}}*)$|({{WS}}*)([-][>]{{STORY_TEXT_UNIT}}*)(?:$|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})
     captures:
       1:
         patterns:
@@ -1662,7 +1662,7 @@ repository:
   # in vscode-textmate; `CHOICE_HEADER_LINE_BREAK_TAKEN` says why only the
   # anchor at the input's end shows that spot.
   ChoiceWithNoSuppressedText:
-    match: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})({{CHOICE_TEXT_UNIT}}*?)(?:({{WS}}*)$|({{WS}}*)([-][>]{{CHOICE_TEXT_UNIT}}*)(?:$|{{CHOICE_TEXT_BEFORE_OPEN_COMMENT}})|{{CHOICE_TEXT_BEFORE_OPEN_COMMENT}})
+    match: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})({{STORY_TEXT_UNIT}}*?)(?:({{WS}}*)$|({{WS}}*)([-][>]{{STORY_TEXT_UNIT}}*)(?:$|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})|{{STORY_TEXT_BEFORE_OPEN_COMMENT}})
     captures:
       1:
         patterns:
@@ -2868,7 +2868,7 @@ repository:
           - { include: "#Whitespace" }
 
   ActionLineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{STORY_TEXT_UNIT}}*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -2998,7 +2998,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{STORY_TEXT_UNIT}}*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:

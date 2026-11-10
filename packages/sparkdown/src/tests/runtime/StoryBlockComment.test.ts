@@ -192,6 +192,26 @@ end
     expect(unclosed.map((e) => [e.line, e.character])).toEqual([[2, 9]]);
   });
 
+  test("a line chain mark inside a comment does not chain the line, and one after a comment does", () => {
+    const out = run(String.raw`scene start
+  Before /* note \
+  still */ after
+  One /* a \ b */ two\
+  three
+  done
+end
+`);
+    expect(out).toBe(
+      run(String.raw`scene start
+  Before after
+  One two\
+  three
+  done
+end
+`),
+    );
+  });
+
   test("a comment after `end` is not read as a line of story text", () => {
     const { result } = compile(`scene start
   if true then

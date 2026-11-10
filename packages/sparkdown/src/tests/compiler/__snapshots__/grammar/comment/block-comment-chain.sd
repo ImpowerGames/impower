@@ -1,0 +1,7 @@
+scene start
+  Before /* note \
+  still */ after
+  One /* a \ b */ two\
+  three
+  done
+end

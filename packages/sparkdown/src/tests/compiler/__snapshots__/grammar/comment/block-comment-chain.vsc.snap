@@ -1,0 +1,43 @@
+text.source.sparkdown [0..90]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..20]
+ │   └─ markup.raw.text.sd [14..20]: "Before"
+ ├─ comment.block.sd [20..30]
+ │   ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [21..23]: "/*"
+ │   └─ comment.block.content.sd [23..30]: " note \\"
+ ├─ Newline [30..31]: "\n"
+ ├─ comment.block.sd [31..41]
+ │   ├─ comment.block.content.sd [31..39]: "  still "
+ │   └─ punctuation.definition.comment.end.sd [39..41]: "*/"
+ ├─ string.display.text.chunk.sd [41..47]
+ │   ├─ markup.raw.space.sd [41..42]: " "
+ │   └─ markup.raw.text.sd [42..47]: "after"
+ ├─ Newline [47..48]: "\n"
+ ├─ punctuation.whitespace.optional.sd [48..50]: "  "
+ ├─ string.display.text.chunk.sd [50..53]
+ │   └─ markup.raw.text.sd [50..53]: "One"
+ ├─ comment.block.sd [53..65]
+ │   ├─ punctuation.whitespace.optional.sd [53..54]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [54..56]: "/*"
+ │   ├─ comment.block.content.sd [56..63]: " a \\ b "
+ │   └─ punctuation.definition.comment.end.sd [63..65]: "*/"
+ ├─ string.display.text.chunk.sd [65..69]
+ │   ├─ markup.raw.space.sd [65..66]: " "
+ │   └─ markup.raw.text.sd [66..69]: "two"
+ ├─ meta.chain.sd [69..70]
+ │   └─ keyword.other.chain.sd [69..70]: "\\"
+ ├─ Newline [70..71]: "\n"
+ ├─ punctuation.whitespace.optional.sd [71..73]: "  "
+ ├─ string.display.text.chunk.sd [73..78]
+ │   └─ markup.raw.text.sd [73..78]: "three"
+ ├─ Newline [78..79]: "\n"
+ ├─ punctuation.whitespace.optional.sd [79..81]: "  "
+ ├─ keyword.control.divert.done.sd [81..85]: "done"
+ ├─ Newline [85..86]: "\n"
+ ├─ keyword.control.end.luau [86..89]: "end"
+ └─ Newline [89..90]: "\n"
