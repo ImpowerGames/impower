@@ -609,6 +609,36 @@ Both attach to the same node, both control highlighting, but they target **diffe
 
 See `parseTag` in `packages/codemirror-vscode-language/src/utils/parseTag.ts` for the parser, and `@lezer/highlight`'s `tags` for the full vocabulary.
 
+### 8.1 Luau regions: the language at a position
+
+A `.sd` script holds two languages, story (`sparkdown`) and Luau (`sparkdown-luau`). An editor picks comment markers, snippets, Enter rules and pairs by the language at a position, and learns it only from a scope that the manifest's `embeddedLanguages` maps to a language. A position takes the language of the body it sits in, not of the statement it belongs to.
+
+- **Luau:** the lines of a function body and of a `define … end` body, through the line that closes them, its `end` included; a brace body (`layout`, `style`, `component`, `screen`, `animation`, `theme`, `morph`) through its `}`; and, within a story line, the expression part of a statement: after `&`, after `store`, `const` or `local`, a story-level assignment after its targets, the condition of a narrative `if`, `elseif`, `for`, `while` or `until`, and inside `{…}` in display text. A multi-line table or bracket in such an expression carries the expression's region through the line that closes it.
+- **Story:** everything else, including the first token of a statement that opens on a story line (`store`, `&`, `function`, `define`, `layout`, `if`) and every line of a narrative block's body, its closing `end` included.
+- **A `.luau` document** is Luau at every position through its document language (§1.5). Its root carries no mark.
+
+Two scopes mark the Luau regions, and `vscode-sparkdown/package.json` maps both to `sparkdown-luau` on the `text.source.sparkdown` grammar:
+
+| Scope | Marks | Placed on |
+| --- | --- | --- |
+| `meta.embedded.block.luau` | a body that spans lines | the rule's `contentName`, and a `name` on each of its `endCaptures`, so the closing line is Luau and the header's first token is not |
+| `meta.embedded.line.luau` | the expression part of a statement on a story line, and an interpolation | the rule's `contentName` |
+
+The marks satisfy one rule about lines: **the line-comment marker of the language at a line's first column, written at the start of that line, makes the grammar read the line as a comment.** The markers are `//` for story and `--` for Luau. A whole `Luau*` rule is never marked: the first column of `store x = 1`, `& x = 1` and a top-level `function` header is story, since only `//` comments those lines out.
+
+Three more invariants hold:
+
+- **No story text inside a Luau region.** No rule with a `string.display` scope, and none of `SparkdownStatement`, `DisplayStatements` and `Choice`, is reachable from a marked region or from the `.luau` root. Only the narrative block rules reach display text, and they are story, so one mark is enough and nothing maps back to story.
+- **A mark adds no node.** It goes on an existing rule's `contentName`, `name` or capture names. A new wrapping rule would add a node to the tree the lowerer reads.
+- **A marked rule never closes incomplete partway across a line** (§17.2), because the tree would then leave the rest of the line outside the region while vscode-textmate keeps it inside, and the two editors would disagree on the language there. `LuauVariableDefinition` ends before a character Luau never reads outside a string or comment (`LUAU_UNREADABLE_CHARACTER`), as `LuauReturnStatement` does.
+
+`createLanguageReader` in `packages/textmate-grammar-tree/src/tree/utils/createLanguageReader.ts` gives the language at an offset from the tree, the document's language and an `embeddedLanguages` map, by vscode-textmate's rule: walking out from the innermost node, the first scope that equals a key of the map, or extends it at a dot, decides, and with none the document's language applies. Four checks in `src/tests/compiler/` hold the regions:
+
+- `languageEquality.test.ts` compares the reader with vscode-textmate's token language ids at every character of every grammar fixture, for the `.sd` and `.luau` roots.
+- `languageContext.test.ts` asserts the language at each position of the feature's sample script (I-2019).
+- `lineComments.test.ts` writes the marker of each line's language at its start and requires the line to read as a comment; the classes of line it skips are named in the test with their reasons.
+- `languageReachability.test.ts` walks the generated grammar from every marked region and from the `.luau` root.
+
 ## 9. Other rule properties
 
 Beyond `tag` and `name`, rules accept optional properties that opt into specific editor behaviors — bracket matching, smart indent, end-pattern timing. None are required to make a rule "work"; each is an opt-in. The two that come up most often:
@@ -1309,7 +1339,7 @@ A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|
 cd packages/sparkdown && npx vitest run src/tests/compiler/scopeEquality.test.ts
 ```
 
-The comparison maps each tree node back to the TextMate scope it contributes (`name` on the rule's whole span, `contentName` on its `<Rule>_content` sub-span — read from the live grammar nodes, not by parsing node-name suffixes) and ignores `tag` (a CodeMirror-only highlight hint vscode-textmate never sees). Newlines are excluded from the comparison: vscode-textmate strips the trailing `\n` per line and structurally never scopes a line break, so requiring equality there would test an impossible condition without reflecting any real highlighting difference.
+The comparison maps each tree node back to the TextMate scope it contributes (`name` on the rule's whole span, `contentName` on its `<Rule>_content` sub-span — read from the live grammar nodes, not by parsing node-name suffixes), counts a capture's scope once where an `emit: true` capture appears as two nested nodes of the same type, and ignores `tag` (a CodeMirror-only highlight hint vscode-textmate never sees). Newlines are excluded from the comparison: vscode-textmate strips the trailing `\n` per line and structurally never scopes a line break, so requiring equality there would test an impossible condition without reflecting any real highlighting difference.
 
 ### 17.5 Audit: every multiline `begin`/`end` rule
 

@@ -2,90 +2,102 @@ text.source.sparkdown [0..130]
  ├─ meta.theme.luau [0..14]
  │   ├─ keyword.control.theme.luau [0..5]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
- │   ├─ entity.name.type.define.luau [6..12]: "sample"
- │   ├─ punctuation.whitespace.sd [12..13]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [13..14]: "{"
+ │   └─ meta.embedded.block.luau [6..14]
+ │       ├─ entity.name.type.define.luau [6..12]: "sample"
+ │       ├─ punctuation.whitespace.sd [12..13]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [13..14]: "{"
  ├─ Newline [14..15]: "\n"
  ├─ meta.theme.luau [15..23]
- │   ├─ entity.name.type.class.view.sd [15..21]: "values"
- │   ├─ punctuation.whitespace.sd [21..22]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [22..23]: "{"
+ │   └─ meta.embedded.block.luau [15..23]
+ │       ├─ entity.name.type.class.view.sd [15..21]: "values"
+ │       ├─ punctuation.whitespace.sd [21..22]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [22..23]: "{"
  ├─ Newline [23..24]: "\n"
  ├─ meta.theme.luau [24..33]
- │   ├─ constant.numeric.sd [24..25]
- │   │   └─ constant.numeric.sd [24..25]: "2"
- │   └─ comment.line.double-dash.luau [25..33]
- │       ├─ comment.luau [25..27]: "--"
- │       └─ punctuation.definition.comment.content.sd [27..33]: " note:"
+ │   └─ meta.embedded.block.luau [24..33]
+ │       ├─ constant.numeric.sd [24..25]
+ │       │   └─ constant.numeric.sd [24..25]: "2"
+ │       └─ comment.line.double-dash.luau [25..33]
+ │           ├─ comment.luau [25..27]: "--"
+ │           └─ punctuation.definition.comment.content.sd [27..33]: " note:"
  ├─ Newline [33..34]: "\n"
  ├─ meta.theme.luau [34..46]
- │   ├─ constant.language.boolean.true.sd [34..38]
- │   │   └─ constant.language.boolean.true.sd [34..38]: "true"
- │   └─ comment.line.double-slash.sd [38..46]
- │       ├─ punctuation.definition.comment.sd [38..40]: "//"
- │       └─ comment.line.double-slash.content.sd [40..46]: " note:"
+ │   └─ meta.embedded.block.luau [34..46]
+ │       ├─ constant.language.boolean.true.sd [34..38]
+ │       │   └─ constant.language.boolean.true.sd [34..38]: "true"
+ │       └─ comment.line.double-slash.sd [38..46]
+ │           ├─ punctuation.definition.comment.sd [38..40]: "//"
+ │           └─ comment.line.double-slash.content.sd [40..46]: " note:"
  ├─ Newline [46..47]: "\n"
  ├─ meta.theme.luau [47..59]
- │   ├─ string.quoted.double.sd [47..51]
- │   │   ├─ punctuation.definition.string.begin.sd [47..48]: "\""
- │   │   ├─ markup.raw.whitespace.sd [48..49]: "h"
- │   │   ├─ markup.raw.whitespace.sd [49..50]: "i"
- │   │   └─ punctuation.definition.string.end.sd [50..51]: "\""
- │   └─ comment.line.double-dash.luau [51..59]
- │       ├─ comment.luau [51..53]: "--"
- │       └─ punctuation.definition.comment.content.sd [53..59]: " note:"
+ │   └─ meta.embedded.block.luau [47..59]
+ │       ├─ string.quoted.double.sd [47..51]
+ │       │   ├─ punctuation.definition.string.begin.sd [47..48]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [48..49]: "h"
+ │       │   ├─ markup.raw.whitespace.sd [49..50]: "i"
+ │       │   └─ punctuation.definition.string.end.sd [50..51]: "\""
+ │       └─ comment.line.double-dash.luau [51..59]
+ │           ├─ comment.luau [51..53]: "--"
+ │           └─ punctuation.definition.comment.content.sd [53..59]: " note:"
  ├─ Newline [59..60]: "\n"
  ├─ meta.theme.luau [60..72]
- │   ├─ string.quoted.double.sd [60..64]
- │   │   ├─ punctuation.definition.string.begin.sd [60..61]: "\""
- │   │   ├─ markup.raw.whitespace.sd [61..62]: "h"
- │   │   ├─ markup.raw.whitespace.sd [62..63]: "i"
- │   │   └─ punctuation.definition.string.end.sd [63..64]: "\""
- │   └─ comment.line.double-slash.sd [64..72]
- │       ├─ punctuation.definition.comment.sd [64..66]: "//"
- │       └─ comment.line.double-slash.content.sd [66..72]: " note:"
+ │   └─ meta.embedded.block.luau [60..72]
+ │       ├─ string.quoted.double.sd [60..64]
+ │       │   ├─ punctuation.definition.string.begin.sd [60..61]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [61..62]: "h"
+ │       │   ├─ markup.raw.whitespace.sd [62..63]: "i"
+ │       │   └─ punctuation.definition.string.end.sd [63..64]: "\""
+ │       └─ comment.line.double-slash.sd [64..72]
+ │           ├─ punctuation.definition.comment.sd [64..66]: "//"
+ │           └─ comment.line.double-slash.content.sd [66..72]: " note:"
  ├─ Newline [72..73]: "\n"
  ├─ meta.theme.luau [73..83]
- │   ├─ constant.numeric.sd [73..74]
- │   │   └─ constant.numeric.sd [73..74]: "2"
- │   └─ comment.line.double-dash.luau [74..83]
- │       ├─ punctuation.whitespace.sd [74..75]: " "
- │       ├─ comment.luau [75..77]: "--"
- │       └─ punctuation.definition.comment.content.sd [77..83]: " note:"
+ │   └─ meta.embedded.block.luau [73..83]
+ │       ├─ constant.numeric.sd [73..74]
+ │       │   └─ constant.numeric.sd [73..74]: "2"
+ │       └─ comment.line.double-dash.luau [74..83]
+ │           ├─ punctuation.whitespace.sd [74..75]: " "
+ │           ├─ comment.luau [75..77]: "--"
+ │           └─ punctuation.definition.comment.content.sd [77..83]: " note:"
  ├─ Newline [83..84]: "\n"
  ├─ meta.theme.luau [84..97]
- │   ├─ constant.language.boolean.true.sd [84..88]
- │   │   └─ constant.language.boolean.true.sd [84..88]: "true"
- │   └─ comment.line.double-slash.sd [88..97]
- │       ├─ punctuation.whitespace.sd [88..89]: " "
- │       ├─ punctuation.definition.comment.sd [89..91]: "//"
- │       └─ comment.line.double-slash.content.sd [91..97]: " note:"
+ │   └─ meta.embedded.block.luau [84..97]
+ │       ├─ constant.language.boolean.true.sd [84..88]
+ │       │   └─ constant.language.boolean.true.sd [84..88]: "true"
+ │       └─ comment.line.double-slash.sd [88..97]
+ │           ├─ punctuation.whitespace.sd [88..89]: " "
+ │           ├─ punctuation.definition.comment.sd [89..91]: "//"
+ │           └─ comment.line.double-slash.content.sd [91..97]: " note:"
  ├─ Newline [97..98]: "\n"
  ├─ meta.theme.luau [98..111]
- │   ├─ string.quoted.double.sd [98..102]
- │   │   ├─ punctuation.definition.string.begin.sd [98..99]: "\""
- │   │   ├─ markup.raw.whitespace.sd [99..100]: "h"
- │   │   ├─ markup.raw.whitespace.sd [100..101]: "i"
- │   │   └─ punctuation.definition.string.end.sd [101..102]: "\""
- │   └─ comment.line.double-dash.luau [102..111]
- │       ├─ punctuation.whitespace.sd [102..103]: " "
- │       ├─ comment.luau [103..105]: "--"
- │       └─ punctuation.definition.comment.content.sd [105..111]: " note:"
+ │   └─ meta.embedded.block.luau [98..111]
+ │       ├─ string.quoted.double.sd [98..102]
+ │       │   ├─ punctuation.definition.string.begin.sd [98..99]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [99..100]: "h"
+ │       │   ├─ markup.raw.whitespace.sd [100..101]: "i"
+ │       │   └─ punctuation.definition.string.end.sd [101..102]: "\""
+ │       └─ comment.line.double-dash.luau [102..111]
+ │           ├─ punctuation.whitespace.sd [102..103]: " "
+ │           ├─ comment.luau [103..105]: "--"
+ │           └─ punctuation.definition.comment.content.sd [105..111]: " note:"
  ├─ Newline [111..112]: "\n"
  ├─ meta.theme.luau [112..125]
- │   ├─ string.quoted.double.sd [112..116]
- │   │   ├─ punctuation.definition.string.begin.sd [112..113]: "\""
- │   │   ├─ markup.raw.whitespace.sd [113..114]: "h"
- │   │   ├─ markup.raw.whitespace.sd [114..115]: "i"
- │   │   └─ punctuation.definition.string.end.sd [115..116]: "\""
- │   └─ comment.line.double-slash.sd [116..125]
- │       ├─ punctuation.whitespace.sd [116..117]: " "
- │       ├─ punctuation.definition.comment.sd [117..119]: "//"
- │       └─ comment.line.double-slash.content.sd [119..125]: " note:"
+ │   └─ meta.embedded.block.luau [112..125]
+ │       ├─ string.quoted.double.sd [112..116]
+ │       │   ├─ punctuation.definition.string.begin.sd [112..113]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [113..114]: "h"
+ │       │   ├─ markup.raw.whitespace.sd [114..115]: "i"
+ │       │   └─ punctuation.definition.string.end.sd [115..116]: "\""
+ │       └─ comment.line.double-slash.sd [116..125]
+ │           ├─ punctuation.whitespace.sd [116..117]: " "
+ │           ├─ punctuation.definition.comment.sd [117..119]: "//"
+ │           └─ comment.line.double-slash.content.sd [119..125]: " note:"
  ├─ Newline [125..126]: "\n"
  ├─ meta.theme.luau [126..127]
- │   └─ punctuation.definition.template-expression.end.sd [126..127]: "}"
+ │   └─ meta.embedded.block.luau [126..127]
+ │       └─ punctuation.definition.template-expression.end.sd [126..127]: "}"
  ├─ Newline [127..128]: "\n"
  ├─ meta.theme.luau [128..129]
- │   └─ punctuation.definition.template-expression.end.sd [128..129]: "}"
+ │   └─ meta.embedded.block.luau [128..129]
+ │       └─ punctuation.definition.template-expression.end.sd [128..129]: "}"
  └─ Newline [129..130]: "\n"

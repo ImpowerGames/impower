@@ -6,13 +6,14 @@ text.source.sparkdown [0..41]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ keyword.other.statement.explicit.luau.mark.sd [14..15]: "&"
  ├─ punctuation.whitespace.required.sd [15..16]: " "
- ├─ variable.other.readwrite.luau [16..17]: "x"
- ├─ punctuation.whitespace.optional.sd [17..18]: " "
- ├─ keyword.operator.assignment.luau [18..19]: "="
- ├─ punctuation.whitespace.optional.sd [19..20]: " "
- ├─ keyword.operator.logical.luau [20..23]
- │   └─ keyword.operator.wordlike.luau [20..23]: "not"
- ├─ punctuation.whitespace.optional.sd [23..24]: " "
- ├─ variable.other.readwrite.luau [24..37]: "foundTheAlley"
+ ├─ meta.embedded.line.luau [16..37]
+ │   ├─ variable.other.readwrite.luau [16..17]: "x"
+ │   ├─ punctuation.whitespace.optional.sd [17..18]: " "
+ │   ├─ keyword.operator.assignment.luau [18..19]: "="
+ │   ├─ punctuation.whitespace.optional.sd [19..20]: " "
+ │   ├─ keyword.operator.logical.luau [20..23]
+ │   │   └─ keyword.operator.wordlike.luau [20..23]: "not"
+ │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   └─ variable.other.readwrite.luau [24..37]: "foundTheAlley"
  ├─ Newline [37..38]: "\n"
  └─ keyword.control.end.luau [38..41]: "end"

@@ -12,18 +12,19 @@ text.source.sparkdown [0..79]
  ├─ meta.function.luau [22..47]
  │   ├─ keyword.control.luau [22..30]: "function"
  │   ├─ punctuation.whitespace.optional.sd [30..31]: " "
- │   ├─ entity.name.function.luau [31..32]: "f"
- │   ├─ meta.parameter.luau [32..34]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [32..33]: "("
- │   │   └─ punctuation.definition.template-expression.end.sd [33..34]: ")"
- │   ├─ meta.function.body.luau [34..43]
- │   │   └─ meta.function.luau [34..43]
- │   │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
- │   │       ├─ keyword.control.luau [35..41]: "return"
- │   │       ├─ punctuation.whitespace.optional.sd [41..42]: " "
- │   │       └─ constant.numeric.decimal.luau [42..43]: "7"
- │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
- │   └─ keyword.control.end.luau [44..47]: "end"
+ │   └─ meta.embedded.block.luau [31..47]
+ │       ├─ entity.name.function.luau [31..32]: "f"
+ │       ├─ meta.parameter.luau [32..34]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [32..33]: "("
+ │       │   └─ punctuation.definition.template-expression.end.sd [33..34]: ")"
+ │       ├─ meta.function.body.luau [34..43]
+ │       │   └─ meta.function.luau [34..43]
+ │       │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │       │       ├─ keyword.control.luau [35..41]: "return"
+ │       │       ├─ punctuation.whitespace.optional.sd [41..42]: " "
+ │       │       └─ constant.numeric.decimal.luau [42..43]: "7"
+ │       ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │       └─ keyword.control.end.luau [44..47]: "end"
  ├─ Newline [47..48]: "\n"
  ├─ keyword.control.scene.sd [48..53]: "scene"
  ├─ punctuation.whitespace.required.sd [53..54]: " "
