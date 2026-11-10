@@ -52,7 +52,10 @@ const scene = (name: string, line: number, children: DocumentSymbol[] = []): Doc
 });
 
 const SYMBOLS: DocumentSymbol[] = [
-  scene("harbor", 0, [{ name: "Where now", kind: 10, range: at(1), selectionRange: at(1) }]),
+  scene("harbor", 0, [
+    { name: "Where now", kind: 10, range: at(1), selectionRange: at(1) },
+    { name: "storm", kind: 11, range: at(2), selectionRange: at(2) },
+  ]),
   scene("dock", 4),
 ];
 
@@ -136,7 +139,9 @@ describe("the phone Scripts page", () => {
   it("lists the open script's scenes and choices, filtered by label, and keeps the search", async () => {
     workspace.current = { ...workspace.current, lists: { scriptsTab: "outline" } };
     await mount();
-    expect(rowLabels()).toEqual(["Scene: harbor", "Choose: Where now", "Scene: dock"]);
+    expect(rowLabels()).toEqual(["Scene: harbor", "Choose: Where now", "Branch: storm", "Scene: dock"]);
+    await type(search("Search this script"), "Storm");
+    expect(rowLabels()).toEqual(["Branch: storm"]);
     await type(search("Search this script"), "DOCK");
     expect(rowLabels()).toEqual(["Scene: dock"]);
     expect(workspace.current.lists?.scriptsQueries?.["outline"]).toBe("DOCK");
