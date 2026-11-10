@@ -24,7 +24,7 @@ const AUDIO_CONTROL_KEYWORDS: string[] = VARIABLES["AUDIO_CONTROL_KEYWORDS"] ?? 
 ];
 const LAYOUT_CONTROL_KEYWORDS: string[] = VARIABLES[
   "LAYOUT_CONTROL_KEYWORDS"
-] ?? ["open", "close", "navigate"];
+] ?? ["open", "close", "navigate", "clear"];
 const LOAD_CONTROL_KEYWORDS: string[] = VARIABLES["LOAD_CONTROL_KEYWORDS"] ?? [
   "load",
 ];

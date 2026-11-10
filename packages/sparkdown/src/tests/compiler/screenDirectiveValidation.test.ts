@@ -137,3 +137,15 @@ describe("layout `in SCREEN` clause validation", () => {
     expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
   });
 });
+
+describe("[[clear LAYOUT]] (#1991)", () => {
+  test("[[clear textstream]] produces no diagnostics", () => {
+    expect(diagnosticsFor(inStart("[[clear textstream]]"))).toEqual([]);
+  });
+
+  test("[[clear textbox]] warns that only textstream has a page to clear", () => {
+    expect(diagnosticsFor(inStart("[[clear textbox]]"))).toEqual([
+      "Only textstream has a page to clear.",
+    ]);
+  });
+});
