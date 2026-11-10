@@ -148,12 +148,12 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       const { divergences } = await compareLanguages(source);
       expect(divergences.map((d) => d.lineCol)).toEqual(positions);
     });
+  });
 
-    test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {
-      const { divergences } = await compareLanguages("function名 text\nHello\n");
-      expect(divergences).toHaveLength(14);
-      expect(divergences.every((d) => d.vscode === STORY && d.tree === LUAU)).toBe(true);
-    });
+  test("a keyword glued to a non-ASCII letter opens no Luau rule in either engine (I-2037)", async () => {
+    const source = "function名 text\nHello\n";
+    const { divergences } = await compareLanguages(source);
+    expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
   });
 
   test("a cursor before a CRLF line break reads the line as before an LF one", () => {
