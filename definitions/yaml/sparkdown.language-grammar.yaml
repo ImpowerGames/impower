@@ -7026,6 +7026,9 @@ repository:
   LuauUnreadableCharacter:
     match: "{{LUAU_UNREADABLE_CHARACTER}}"
 
+  LuauUnreadStatementMark:
+    match: "[&]"
+
   LuauStrayCloser:
     tag: invalid
     name: invalid.illegal.unread.luau
@@ -7247,7 +7250,9 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   LuauSparkdownDoBlock:
@@ -7369,6 +7374,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[)\]}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
@@ -7400,7 +7406,9 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: (?={{BEAT}}|{{END}}|[)\]}]|{{WS}}*do\b)|$
 
   LuauSparkdownExplicitRepeatLoop:
@@ -7796,7 +7804,10 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -8673,7 +8684,9 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   SparkdownExplicitTag:
@@ -10631,7 +10644,9 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: (?=$)|([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10653,7 +10668,9 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10675,7 +10692,9 @@ repository:
       - include: "#ExtraWhitespace"
       - include: "#Newline"
       - include: "#LuauCommaSeparator"
+      - include: "#LuauSemicolonSeparator"
       - include: "#LuauUnreadableCharacter"
+      - include: "#LuauUnreadStatementMark"
     end: ([}])|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       "1":
@@ -10726,7 +10745,10 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10753,7 +10775,10 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       1:

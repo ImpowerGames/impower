@@ -40,6 +40,15 @@ const UNREADABLE: Record<string, string> = {
   "store x = [1\nHello\n": "[1",
   "Hello {x,1}\nAfter\n": ",1",
   "if x; then\nHello\nend\n": ";",
+  "Hello {{x,1}}\nAfter\n": ",1",
+  "Hello {{x, 1}}\nAfter\n": ", 1",
+  "Hello {x;1}\nAfter\n": ";1",
+  "while x; do\nHello\nend\n": ";",
+  "for x; do\nHello\nend\n": ";",
+  "repeat\n  Hi.\nuntil a, b\nHello\n": ", b",
+  "Hello {a&b}\nAfter\n": "&b",
+  "Hello {{a & b}}\nAfter\n": "& b",
+  "if a & b then\n  Hi.\nend\n": "& b",
 };
 
 const INCOMPLETE_HEADERS: Record<string, string> = {
@@ -89,6 +98,16 @@ describe("language at every cursor position: vscode-textmate and the tree reader
         "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
       );
       expect(divergences.map((d) => d.lineCol)).toEqual(["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"]);
+    });
+
+    test.each([
+      ["store x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
+      ["store x = a & b\nHello\n", ["1:12", "1:14", "1:15"]],
+      ["local x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
+      ["x = a&b\nHello\n", ["1:5", "1:6", "1:7"]],
+    ])("I-2038: an `&` inside a declaration's or reassignment's value, %j", async (source, positions) => {
+      const { divergences } = await compareLanguages(source);
+      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
     });
 
     test("I-2037: a keyword glued to a non-ASCII letter opens a Luau rule only in the tree", async () => {
