@@ -1,4 +1,4 @@
-sparkdown [0..125]
+sparkdown [0..175]
  ├─ Scene [0..11]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
@@ -186,13 +186,99 @@ sparkdown [0..125]
  │   │       └─ ActionLineEnd_end 113
  │   └─ ImplicitAction_end 113
  ├─ Newline [113..114]: "\n"
- ├─ DoneStatement [114..120]
- │   ├─ DoneStatement_c1 [114..116]
- │   │   └─ OptionalWhitespace [114..116]: "  "
- │   ├─ DoneStatement_c2 [116..120]
- │   │   └─ DoneKeyword [116..120]: "done"
- │   └─ DoneStatement_c3 120
- │       └─ OptionalWhitespace 120
- ├─ Newline [120..121]: "\n"
- ├─ LuauEndKeyword [121..124]: "end"
- └─ Newline [124..125]: "\n"
+ ├─ ImplicitAction [114..135]
+ │   ├─ ImplicitAction_begin [114..116]
+ │   │   └─ ImplicitAction_begin_c1 [114..116]
+ │   │       └─ OptionalWhitespace [114..116]: "  "
+ │   ├─ ImplicitAction_content [116..135]
+ │   │   ├─ ActionLineChain [116..130]
+ │   │   │   ├─ ActionLineChain_c1 116
+ │   │   │   │   └─ OptionalWhitespace 116
+ │   │   │   ├─ ActionLineChain_c2 [116..128]
+ │   │   │   │   ├─ TextChunk [116..120]
+ │   │   │   │   │   ├─ TextChunk_begin 116
+ │   │   │   │   │   ├─ TextChunk_content [116..120]
+ │   │   │   │   │   │   └─ Word [116..120]: "Five"
+ │   │   │   │   │   └─ TextChunk_end 120
+ │   │   │   │   └─ SparkdownInlineComment [120..128]
+ │   │   │   │       ├─ SparkdownInlineComment_c1 [120..121]
+ │   │   │   │       │   └─ OptionalWhitespace [120..121]: " "
+ │   │   │   │       ├─ SparkdownInlineComment_c2 [121..123]: "//"
+ │   │   │   │       └─ SparkdownInlineComment_c3 [123..128]: " note"
+ │   │   │   ├─ ActionLineChain_c3 [128..129]
+ │   │   │   │   └─ Chain [128..129]
+ │   │   │   │       ├─ Chain_c1 128
+ │   │   │   │       ├─ Chain_c2 [128..129]: "\\"
+ │   │   │   │       ├─ Chain_c3 129
+ │   │   │   │       └─ Chain_c4 129
+ │   │   │   ├─ ActionLineChain_c4 129
+ │   │   │   └─ ActionLineChain_c5 [129..130]
+ │   │   │       └─ Newline [129..130]: "\n"
+ │   │   └─ ActionLineEnd [130..135]
+ │   │       ├─ ActionLineEnd_begin [130..132]
+ │   │       │   └─ ActionLineEnd_begin_c1 [130..132]
+ │   │       │       └─ OptionalWhitespace [130..132]: "  "
+ │   │       ├─ ActionLineEnd_content [132..135]
+ │   │       │   └─ TextChunk [132..135]
+ │   │       │       ├─ TextChunk_begin 132
+ │   │       │       ├─ TextChunk_content [132..135]
+ │   │       │       │   └─ Word [132..135]: "six"
+ │   │       │       └─ TextChunk_end 135
+ │   │       └─ ActionLineEnd_end 135
+ │   └─ ImplicitAction_end 135
+ ├─ Newline [135..136]: "\n"
+ ├─ ImplicitAction [136..155]
+ │   ├─ ImplicitAction_begin [136..138]
+ │   │   └─ ImplicitAction_begin_c1 [136..138]
+ │   │       └─ OptionalWhitespace [136..138]: "  "
+ │   ├─ ImplicitAction_content [138..155]
+ │   │   └─ ActionLineEnd [138..155]
+ │   │       ├─ ActionLineEnd_begin 138
+ │   │       │   └─ ActionLineEnd_begin_c1 138
+ │   │       │       └─ OptionalWhitespace 138
+ │   │       ├─ ActionLineEnd_content [138..155]
+ │   │       │   ├─ TextChunk [138..143]
+ │   │       │   │   ├─ TextChunk_begin 138
+ │   │       │   │   ├─ TextChunk_content [138..143]
+ │   │       │   │   │   └─ Word [138..143]: "Seven"
+ │   │       │   │   └─ TextChunk_end 143
+ │   │       │   └─ SparkdownBlockComment [143..155]
+ │   │       │       ├─ SparkdownBlockComment_begin [143..146]
+ │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [143..144]
+ │   │       │       │   │   └─ OptionalWhitespace [143..144]: " "
+ │   │       │       │   └─ SparkdownBlockComment_begin_c2 [144..146]: "/*"
+ │   │       │       ├─ SparkdownBlockComment_content [146..153]
+ │   │       │       │   └─ SparkdownBlockCommentContent [146..153]: " note \\"
+ │   │       │       └─ SparkdownBlockComment_end [153..155]
+ │   │       │           └─ SparkdownBlockComment_end_c1 [153..155]: "*/"
+ │   │       └─ ActionLineEnd_end 155
+ │   └─ ImplicitAction_end 155
+ ├─ Newline [155..156]: "\n"
+ ├─ ImplicitAction [156..163]
+ │   ├─ ImplicitAction_begin [156..158]
+ │   │   └─ ImplicitAction_begin_c1 [156..158]
+ │   │       └─ OptionalWhitespace [156..158]: "  "
+ │   ├─ ImplicitAction_content [158..163]
+ │   │   └─ ActionLineEnd [158..163]
+ │   │       ├─ ActionLineEnd_begin 158
+ │   │       │   └─ ActionLineEnd_begin_c1 158
+ │   │       │       └─ OptionalWhitespace 158
+ │   │       ├─ ActionLineEnd_content [158..163]
+ │   │       │   └─ TextChunk [158..163]
+ │   │       │       ├─ TextChunk_begin 158
+ │   │       │       ├─ TextChunk_content [158..163]
+ │   │       │       │   └─ Word [158..163]: "eight"
+ │   │       │       └─ TextChunk_end 163
+ │   │       └─ ActionLineEnd_end 163
+ │   └─ ImplicitAction_end 163
+ ├─ Newline [163..164]: "\n"
+ ├─ DoneStatement [164..170]
+ │   ├─ DoneStatement_c1 [164..166]
+ │   │   └─ OptionalWhitespace [164..166]: "  "
+ │   ├─ DoneStatement_c2 [166..170]
+ │   │   └─ DoneKeyword [166..170]: "done"
+ │   └─ DoneStatement_c3 170
+ │       └─ OptionalWhitespace 170
+ ├─ Newline [170..171]: "\n"
+ ├─ LuauEndKeyword [171..174]: "end"
+ └─ Newline [174..175]: "\n"

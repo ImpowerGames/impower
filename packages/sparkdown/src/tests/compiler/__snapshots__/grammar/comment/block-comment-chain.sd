@@ -5,5 +5,9 @@ scene start
   three
   Two /*one*//*two*/ notes\
   four
+  Five // note\
+  six
+  Seven /* note \*/
+  eight
   done
 end

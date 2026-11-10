@@ -310,6 +310,43 @@ end
       );
     });
 
+    describe("a bracket or an arrow inside a comment in choice text is read by the choice rule, for `//` and `/* */` alike", () => {
+      const chooseThenNext = (line: string) =>
+        `scene start\n  choose\n    ${line}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n`;
+
+      test("a bracket inside a line comment suppresses as it does on main", () => {
+        expect(outcome(chooseThenNext("+ Go // [secret] home"))).toEqual({
+          errors: [],
+          choices: ["Gosecret"],
+          chosen: "Go home\nBody.\n",
+        });
+      });
+
+      test("a bracket inside a same-line block comment suppresses as it does on main", () => {
+        expect(outcome(chooseThenNext("+ Go /* [secret] */ home"))).toEqual({
+          errors: [],
+          choices: ["Go /* secret"],
+          chosen: "Go /* */ home\nBody.\n",
+        });
+      });
+
+      test("an arrow inside a line comment diverts as it does on main", () => {
+        expect(outcome(chooseThenNext("+ Go // -> next"))).toEqual({
+          errors: [],
+          choices: ["Go"],
+          chosen: "Go Next.\n",
+        });
+      });
+
+      test("an arrow inside a same-line block comment diverts as it does on main", () => {
+        expect(outcome(chooseThenNext("+ Go /* -> next */ home"))).toEqual({
+          errors: [],
+          choices: ["Go /*"],
+          chosen: "Go /* Next.\n",
+        });
+      });
+    });
+
     test("adjacent comments after a divert are left out", () => {
       expect(
         run(`scene start

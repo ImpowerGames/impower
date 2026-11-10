@@ -1,4 +1,4 @@
-text.source.sparkdown [0..125]
+text.source.sparkdown [0..175]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -63,7 +63,34 @@ text.source.sparkdown [0..125]
  │   └─ markup.raw.text.sd [109..113]: "four"
  ├─ Newline [113..114]: "\n"
  ├─ punctuation.whitespace.optional.sd [114..116]: "  "
- ├─ keyword.control.divert.done.sd [116..120]: "done"
- ├─ Newline [120..121]: "\n"
- ├─ keyword.control.end.luau [121..124]: "end"
- └─ Newline [124..125]: "\n"
+ ├─ string.display.text.chunk.sd [116..120]
+ │   └─ markup.raw.text.sd [116..120]: "Five"
+ ├─ comment.line.double-slash.sd [120..128]
+ │   ├─ punctuation.whitespace.optional.sd [120..121]: " "
+ │   ├─ punctuation.definition.comment.sd [121..123]: "//"
+ │   └─ comment.line.double-slash.content.sd [123..128]: " note"
+ ├─ meta.chain.sd [128..129]
+ │   └─ keyword.other.chain.sd [128..129]: "\\"
+ ├─ Newline [129..130]: "\n"
+ ├─ punctuation.whitespace.optional.sd [130..132]: "  "
+ ├─ string.display.text.chunk.sd [132..135]
+ │   └─ markup.raw.text.sd [132..135]: "six"
+ ├─ Newline [135..136]: "\n"
+ ├─ punctuation.whitespace.optional.sd [136..138]: "  "
+ ├─ string.display.text.chunk.sd [138..143]
+ │   └─ markup.raw.text.sd [138..143]: "Seven"
+ ├─ comment.block.sd [143..155]
+ │   ├─ punctuation.whitespace.optional.sd [143..144]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [144..146]: "/*"
+ │   ├─ comment.block.content.sd [146..153]: " note \\"
+ │   └─ punctuation.definition.comment.end.sd [153..155]: "*/"
+ ├─ Newline [155..156]: "\n"
+ ├─ punctuation.whitespace.optional.sd [156..158]: "  "
+ ├─ string.display.text.chunk.sd [158..163]
+ │   └─ markup.raw.text.sd [158..163]: "eight"
+ ├─ Newline [163..164]: "\n"
+ ├─ punctuation.whitespace.optional.sd [164..166]: "  "
+ ├─ keyword.control.divert.done.sd [166..170]: "done"
+ ├─ Newline [170..171]: "\n"
+ ├─ keyword.control.end.luau [171..174]: "end"
+ └─ Newline [174..175]: "\n"
