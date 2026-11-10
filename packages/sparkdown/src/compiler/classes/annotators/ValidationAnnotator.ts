@@ -7,6 +7,10 @@ import { Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
+import {
+  LAYOUT_VERBS,
+  LayoutVerb,
+} from "../../../../language/sparkdown.layout-verbs";
 import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
 import {
   CUSTOM_PROPERTY_ALIASES,
@@ -45,15 +49,13 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
-const LAYOUT_CONTROL_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 const LOAD_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
-  ...LAYOUT_CONTROL_KEYWORDS,
+  ...LAYOUT_VERBS,
   ...LOAD_CONTROL_KEYWORDS,
   ...MOVIE_CONTROL_KEYWORDS,
 ];
@@ -1407,7 +1409,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (
         context.includes("ImageCommand") &&
-        this.read(nodeRef.from, nodeRef.to) === "navigate"
+        this.read(nodeRef.from, nodeRef.to) === LayoutVerb.navigate
       ) {
         const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
         if (command && !this.hasNavigateDestination(command)) {
@@ -1423,7 +1425,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (
         context.includes("ImageCommand") &&
-        this.read(nodeRef.from, nodeRef.to) === "clear"
+        this.read(nodeRef.from, nodeRef.to) === LayoutVerb.clear
       ) {
         const instruction = ancestorMatching(
           nodeRef.node,
@@ -1799,7 +1801,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
         if (
-          control !== "navigate" &&
+          control !== LayoutVerb.navigate &&
           (nextValueNodeType !== "NumberValue" ||
             (nextValueNodeType === "NumberValue" &&
               Number(nextValueNodeText) < 0))

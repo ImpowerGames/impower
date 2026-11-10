@@ -126,6 +126,18 @@ export const activateDebugger = (
     ),
   );
 
+  context.subscriptions.push(
+    vscode.debug.onDidStartDebugSession(() => {
+      SparkdownPreviewGamePanelManager.instance.syncDebugSession();
+    }),
+    vscode.debug.onDidChangeActiveDebugSession(() => {
+      SparkdownPreviewGamePanelManager.instance.syncDebugSession();
+    }),
+    vscode.debug.onDidTerminateDebugSession((session) => {
+      SparkdownPreviewGamePanelManager.instance.syncDebugSession(session);
+    }),
+  );
+
   if (!factory) {
     factory = new InlineDebugAdapterFactory(context);
   }

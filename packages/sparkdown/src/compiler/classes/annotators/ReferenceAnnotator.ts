@@ -22,6 +22,10 @@ import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
+import {
+  LayoutVerb,
+  isLayoutVerb,
+} from "../../../../language/sparkdown.layout-verbs";
 import type { SparkDeclaration } from "../../types/SparkDeclaration";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { SparkSelector } from "../../types/SparkSelector";
@@ -183,9 +187,6 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauTheme: "theme",
   LuauMorph: "morph",
 };
-
-const LAYOUT_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
 const LOAD_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
@@ -791,7 +792,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const control = controlNode
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
-        if (control === "navigate") {
+        if (control === LayoutVerb.navigate) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["screen"], name, displayType: "screen" }],
@@ -802,7 +803,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           );
           return annotations;
         }
-        if (LAYOUT_CONTROL_KEYWORDS.includes(control)) {
+        if (isLayoutVerb(control)) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["layout"], name, displayType: "layout" }],
@@ -989,7 +990,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           const control = controlNode
             ? this.read(controlNode.from, controlNode.to).trim()
             : "";
-          if (control === "navigate") {
+          if (control === LayoutVerb.navigate) {
             annotations.push(
               SparkdownAnnotation.mark<Reference>({
                 selectors: [{ types: ["layout"], name, displayType: "layout" }],
