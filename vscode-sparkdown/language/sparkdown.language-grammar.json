@@ -140,7 +140,8 @@
     "LAYOUT_CONTROL_KEYWORDS": [
       "open",
       "close",
-      "navigate"
+      "navigate",
+      "clear"
     ],
     "LOAD_CONTROL_KEYWORDS": [
       "load"
@@ -4802,7 +4803,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate)\\b|\\b(?:load)\\b|\\b(?:play)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate|clear)\\b|\\b(?:load)\\b|\\b(?:play)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
       "captures": {
         "1": {
           "patterns": [

@@ -72,6 +72,21 @@ Pictures and sounds still play on the stage and through the audio channels, and 
 
 The page keeps growing across choices and scenes. Restarting the game clears it. Saves and checkpoints keep it, so loading a save shows the page as it was, and a preview or a step back shows the page the game would have at that line.
 
+To start a fresh page, write `[[clear textstream]]`. Every entry is removed, and the line the directive is on becomes the first entry of the new page, typed out like any other:
+
+```sparkdown
+scene hall
+  choose
+    + [Go upstairs.]
+      [[clear textstream]] The landing is dark.
+    + [Stay down.]
+      The hall stays quiet.
+  end
+end
+```
+
+A clear after a menu is a good place for one, when the next part of the story reads better on its own page. Saves and checkpoints taken after it keep the cleared page. `clear` only works on `textstream`: on any other layout the editor warns "Only textstream has a page to clear." and the game ignores it.
+
 The page follows the newest entry. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
 
 With both `textbox` and `textstream` open, each beat shows in both, and a choice can be picked from either.

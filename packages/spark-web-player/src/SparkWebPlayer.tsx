@@ -90,7 +90,7 @@ export default function SparkWebPlayer({
           savesMenu: savesMenuRef.current,
           saveNote: saveNoteRef.current,
         },
-        { resizable: !flag(hostDisplay) },
+        { resizable: !flag(hostDisplay), hostsRoute: flag(hostDisplay) },
       );
       unsubscribe = controller.subscribeBar((state, view) =>
         setBar({ state, view }),
@@ -146,6 +146,7 @@ export default function SparkWebPlayer({
             step: flag(stepButtons),
             fullscreen: flag(fullscreenButton) && !flag(hostDisplay),
             resize: !flag(hostDisplay),
+            location: !flag(hostDisplay),
           }}
           workspace={bar.view.workspace}
           routeShown={bar.view.routeShown}

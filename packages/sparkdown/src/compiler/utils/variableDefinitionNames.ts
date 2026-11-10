@@ -2,6 +2,8 @@ import { isExplicitRuleName } from "./explicitRuleNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { nodeNameSet } from "./nodeNameSet";
+import { ancestorMatching } from "./ancestorMatching";
+import { soleVariableName } from "../lint/luauTree";
 
 export const VARIABLE_DEFINITION_NAMES = nodeNameSet([
   "LuauVariableDefinition",
@@ -73,4 +75,30 @@ export function isValueListName(nameNode: SyntaxNode): boolean {
     }
   }
   return false;
+}
+
+const ACCESS_PATH = nodeNameSet(["LuauAccessPath"]);
+const BEFORE_BARE_TARGET = nodeNameSet([
+  "LuauVariableAssignment",
+  "LuauAccessPath",
+  "LuauCommaSeparator",
+  "LuauCommaLineBreak",
+  "OptionalWhitespace",
+  "ExtraWhitespace",
+  "RequiredWhitespace",
+]);
+
+export function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
+  const path = ancestorMatching(node, ACCESS_PATH, 6);
+  if (!path?.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(path.parent.name)) {
+    return false;
+  }
+  if (soleVariableName(path)?.from !== node?.from) return false;
+  for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
+    if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
+    if (isExplicitRuleName(prev.name, "LuauVariableAssignment") && ownAssignmentOperation(prev)) {
+      return false;
+    }
+  }
+  return true;
 }

@@ -15,6 +15,7 @@ import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 import { highlightLines } from "../../../cm-highlight-lines/highlightLines";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
+import { choiceMarkers } from "../../../cm-choice-markers/choiceMarkers";
 import { lineBands } from "../../../cm-line-bands/lineBands";
 import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 import { problemMarks } from "../../../cm-problem-marks/problemMarks";
@@ -52,6 +53,7 @@ const EDITOR_EXTENSIONS = [
   indentedLineWrapping(),
   drawSelection(),
   lineBands(),
+  choiceMarkers(),
   problemMarks(),
   findMatches(),
   dropCursor(),

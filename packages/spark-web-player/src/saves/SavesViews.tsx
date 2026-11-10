@@ -1,4 +1,7 @@
+import { useLayoutEffect, useRef } from "preact/hooks";
 import { checkStartingValue } from "@impower/sparkdown/src/program/startingValueLiterals";
+import { useStylesheet } from "../utils/useStylesheet";
+import savesCss from "./saves.css?inline";
 import { RouteIconSvg } from "../route/RouteIcons";
 import {
   SAVE_TEXT,
@@ -32,6 +35,10 @@ export interface SavesEvents {
 }
 
 const keepKeys = (e: KeyboardEvent) => e.stopPropagation();
+
+export const SAVES_STYLESHEET_ID = "swp-saves-css";
+
+const useSavesStylesheet = () => useStylesheet(SAVES_STYLESHEET_ID, savesCss);
 
 export function SaveIcon({ icon }: { icon: "saves" | "back" | "more" }) {
   return (
@@ -70,6 +77,7 @@ export function SavesButton({
   state: SavesViewState;
   events: SavesEvents;
 }) {
+  useSavesStylesheet();
   return (
     <button
       type="button"
@@ -374,6 +382,7 @@ export function SavesMenu({
   state: SavesViewState;
   events: SavesEvents;
 }) {
+  useSavesStylesheet();
   if (!state.open) {
     return null;
   }
@@ -427,6 +436,7 @@ export function SaveNote({
   note: SaveNoteState | null;
   events: SavesEvents;
 }) {
+  useSavesStylesheet();
   if (!note) {
     return null;
   }
@@ -457,9 +467,37 @@ export interface LoadSaveProps {
 }
 
 export function LoadSave({ saves, open, onOpen, onPick }: LoadSaveProps) {
+  useSavesStylesheet();
+  const root = useRef<HTMLSpanElement>(null);
   const none = saves.length === 0;
+  const shown = open && !none;
+  useLayoutEffect(() => {
+    if (!shown) {
+      return undefined;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node && root.current?.contains(target))) {
+        onOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [shown, onOpen]);
   return (
-    <span class="sv-load" title={none ? SAVE_TEXT.none : undefined}>
+    <span ref={root} class="sv-load" title={none ? SAVE_TEXT.none : undefined}>
       <button
         type="button"
         class="sv-load-button"

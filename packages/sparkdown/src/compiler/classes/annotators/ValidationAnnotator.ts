@@ -1423,6 +1423,33 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (
         context.includes("ImageCommand") &&
+        this.read(nodeRef.from, nodeRef.to) === "clear"
+      ) {
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const target = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
+          : null;
+        const targetText = target
+          ? this.read(target.from, target.to).trim()
+          : "";
+        if (targetText !== "textstream") {
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message: "Only textstream has a page to clear.",
+              severity: "warning",
+            }).range(
+              targetText ? target!.from : nodeRef.from,
+              targetText ? target!.to : nodeRef.to,
+            ),
+          );
+        }
+        return annotations;
+      }
+      if (
+        context.includes("ImageCommand") &&
         MOVIE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
       ) {
         const instruction = ancestorMatching(
