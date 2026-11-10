@@ -227,10 +227,7 @@ export class SparkdownPreviewGamePanelManager {
         args,
       );
       return { moved: Boolean(result?.moved) };
-    } catch (e) {
-      void vscode.window.showInformationMessage(
-        e instanceof Error ? e.message : String(e),
-      );
+    } catch {
       return { moved: false };
     }
   }
