@@ -45,13 +45,14 @@ const playing = async () => {
   return { h, c, onward };
 };
 
-const attach = (c: any) => {
+const attach = (c: any, rollAnswered: () => Promise<void> = async () => {}) => {
   const handlers: Record<string, string> = {
     "game/rollBack": "handleRollBackGame",
     "game/rollForward": "handleRollForwardGame",
     "game/threads": "handleGetGameThreads",
     "game/pause": "handlePauseGame",
   };
+  const sent: string[] = [];
   const connection = new Connection({
     onSend: (m: any) => {
       if ("id" in m) {
@@ -59,7 +60,13 @@ const attach = (c: any) => {
         if (!handler) {
           throw new Error(`Unhandled ${m.method}`);
         }
-        void Promise.resolve(c[handler](m)).then((r) => connection.receive(r));
+        sent.push(m.method);
+        void Promise.resolve(c[handler](m)).then(async (r) => {
+          if (m.method === "game/rollBack") {
+            await rollAnswered();
+          }
+          connection.receive(r);
+        });
       }
     },
   });
@@ -94,6 +101,7 @@ const attach = (c: any) => {
   return {
     debug,
     responses,
+    sent,
     stops,
     dispose: () => c.host.removeEventListener("jsonrpc", listen),
   };
@@ -147,6 +155,41 @@ describe("a roll of a run the debugger holds", () => {
       }
     }, 120_000);
   }
+
+  it("neither pauses nor stops the run that replaced the one a delayed roll answered for", async () => {
+    const { h, c } = await playing();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let answered!: () => void;
+    const rollAnswered = new Promise<void>((resolve) => (answered = resolve));
+    let session: ReturnType<typeof attach> | undefined;
+    try {
+      await c.handlePauseGame(PauseGameMessage.type.request({}));
+      const before = c.getGameState().run;
+      session = attach(c, async () => {
+        answered();
+        await released;
+      });
+      const rolling = session.debug.stepBackRequest(request("stepBack"), {
+        threadId: 0,
+      });
+      await rollAnswered;
+      expect(await c.restartGame(true)).toBe(true);
+      await settle(30);
+      expect(c.getGameState().run).not.toBe(before);
+      expect(c.getGameState().paused).toBe(false);
+      release();
+      await rolling;
+      await settle(20);
+      expect(c.getGameState()).toMatchObject({ paused: false });
+      expect(session.sent).not.toContain("game/pause");
+      expect(session.stops()).toEqual([]);
+    } finally {
+      release();
+      session?.dispose();
+      h.dispose();
+    }
+  }, 120_000);
 
   it("rolls a playing run without stopping or pausing it", async () => {
     const { h, c, onward } = await playing();

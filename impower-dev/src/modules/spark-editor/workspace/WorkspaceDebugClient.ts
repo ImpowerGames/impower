@@ -14,6 +14,7 @@ import {
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import workspace, { IDLE_DEBUG_SESSION, type DebugSessionState } from "./WorkspaceStore";
 
@@ -25,7 +26,7 @@ export interface DebugAdapter {
 
 export interface WorkspaceDebugClientOptions {
   onStop?: (position: GamePosition) => void;
-  onRoll?: (position: GamePosition) => void;
+  onRoll?: (restored: SettledBeat) => void;
   onRefusal?: (message: string) => void;
   createAdapter?: (connection: Connection) => Promise<DebugAdapter>;
   target?: EventTarget;
@@ -102,13 +103,7 @@ export default class WorkspaceDebugClient {
         this.update({ history: message.params.history });
       }
       if (GameRolledMessage.type.isNotification(message)) {
-        const location = message.params.restored.location;
-        if (location) {
-          this._options.onRoll?.({
-            uri: location.uri,
-            line: location.range.start.line,
-          });
-        }
+        this._options.onRoll?.(message.params.restored);
       }
       if (message.method.startsWith("game/") || message.method.startsWith("preview/")) {
         connection.receive(message);

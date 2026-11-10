@@ -2330,6 +2330,26 @@ describe("The preview's top bar", () => {
     expect(control("Skip back")?.title).toBe("Skip back");
   });
 
+  it("opens a restored choice menu to the author, and closes it on a restored beat with none", () => {
+    show();
+    win.startGame();
+    const rolled = (choices: string[]) =>
+      sendProtocolMessage({
+        jsonrpc: "2.0",
+        method: "game/rolled",
+        params: {
+          restored: { beat: 1, location: null, choices, chosen: 0 },
+          history: history(),
+          run: 1,
+        },
+      } as never);
+    expect(workspace.current.preview.modes.game.choosing).toBeFalsy();
+    rolled(["Stay.", "Leave."]);
+    expect(workspace.current.preview.modes.game.choosing).toBe(true);
+    rolled([]);
+    expect(workspace.current.preview.modes.game.choosing).toBe(false);
+  });
+
   it("keeps the source-order skip when no run is playing", async () => {
     const rollBack = vi.spyOn(win.debug, "rollBack").mockResolvedValue(true);
     holding({ canRollBack: false, rollBackRefusal: "Nothing to go back to." });

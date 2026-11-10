@@ -289,7 +289,7 @@ describe("the web editor's debug client", () => {
     expect(onRefusal).toHaveBeenCalledWith("Nothing to go back to.");
   });
 
-  it("follows a roll to its restored beat's line", async () => {
+  it("hands each restored beat to the window", async () => {
     const onRoll = vi.fn();
     const fake = fakeAdapter();
     const debug = new WorkspaceDebugClient({
@@ -298,18 +298,18 @@ describe("the web editor's debug client", () => {
     });
     ending = debug;
     await debug.start(MAIN);
+    const restored = {
+      beat: 1,
+      location: { uri: MAIN, range: { start: { line: 7, character: 2 }, end: { line: 7, character: 9 } } },
+      choices: ["Stay.", "Leave."],
+      chosen: 0,
+    };
     sendProtocolMessage({
       jsonrpc: "2.0",
       method: "game/rolled",
-      params: {
-        restored: {
-          beat: 1,
-          location: { uri: MAIN, range: { start: { line: 7, character: 2 }, end: { line: 7, character: 9 } } },
-        },
-        history: {},
-      },
+      params: { restored, history: {} },
     } as never);
-    expect(onRoll).toHaveBeenCalledWith({ uri: MAIN, line: 7 });
+    expect(onRoll).toHaveBeenCalledWith(restored);
   });
 });
 

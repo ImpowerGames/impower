@@ -173,6 +173,16 @@ describe("rolling a debug run back and forward", () => {
     expect(stops()).toEqual([]);
   });
 
+  it("neither pauses nor stops a later run when the roll answered for an earlier one", async () => {
+    const { debug, state, response, methods, stops } = session({
+      "game/rollBack": { ...moved(0), run: 0 },
+    });
+    await state("pause");
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    expect(methods()).toEqual(["game/rollBack"]);
+    expect(stops()).toEqual([]);
+  });
+
   it("does not stop on the engine's roll notification", async () => {
     const { debug, stops } = session();
     await debug.onReceiveNotification({

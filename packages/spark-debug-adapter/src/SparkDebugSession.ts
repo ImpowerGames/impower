@@ -44,10 +44,13 @@ import {
   RestartGameMessage,
   RestartGameParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
-import { RollBackGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
+import {
+  RollBackGameMessage,
+  type RollBackGameResult,
+} from "@impower/spark-engine/src/game/core/classes/messages/RollBackGameMessage";
 import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
-import type { RollResult, RollTarget } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import type { RollTarget } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
@@ -618,16 +621,24 @@ export class SparkDebugSession extends LoggingDebugSession {
     type: typeof RollBackGameMessage.type | typeof RollForwardGameMessage.type,
     to: RollTarget,
   ) {
-    let result: RollResult;
-    let held: PauseGameResult | undefined;
+    let result: RollBackGameResult;
+    let held = false;
     try {
       const ended = this._launchState === "ended";
-      const { stopped } = await this._connection.emit(
+      const threads = await this._connection.emit(
         GetGameThreadsMessage.type.request({}),
       );
       result = await this._connection.emit(type.request({ to }));
-      if (result.moved && (ended || stopped)) {
-        held = await this._connection.emit(PauseGameMessage.type.request({}));
+      if (
+        result.moved &&
+        (ended || threads.stopped) &&
+        this.answersRun(threads.run, result.run) &&
+        this.answersRun(result.run, this._run)
+      ) {
+        const paused = await this._connection.emit(
+          PauseGameMessage.type.request({}),
+        );
+        held = this.answersRun(paused.run, result.run);
       }
     } catch (e) {
       this.sendRefusal(response, e);
@@ -641,7 +652,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body = body;
     this.sendResponse(response);
     if (held) {
-      await this.sendStoppedEvent("step", held.run);
+      await this.sendStoppedEvent("step", result.run);
     }
   }
 

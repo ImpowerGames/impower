@@ -104,6 +104,7 @@ import {
   type StepTraversal,
 } from "./stepStates";
 import type { RollDebugTarget } from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
+import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import {
   checkName,
   joinScriptPath,
@@ -180,7 +181,7 @@ export default class WorkspaceWindow {
 
   readonly debug = new WorkspaceDebugClient({
     onStop: (position) => this.followStop(position),
-    onRoll: (position) => this.followPosition(position),
+    onRoll: (restored) => this.followRoll(restored),
     onRefusal: (message) => showSnackbar({ message }),
   });
 
@@ -1929,6 +1930,17 @@ export default class WorkspaceWindow {
       : traversal === "in"
         ? this.debug.stepIn()
         : this.debug.stepOut();
+  }
+
+  followRoll(restored: SettledBeat) {
+    this.syncGameChoosing(restored.choices.length > 0);
+    const location = restored.location;
+    if (location) {
+      this.followPosition({
+        uri: location.uri,
+        line: location.range.start.line,
+      });
+    }
   }
 
   followPosition(position: GamePosition) {
