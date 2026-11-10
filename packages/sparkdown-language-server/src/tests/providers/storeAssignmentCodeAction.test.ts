@@ -130,6 +130,7 @@ describe("the store-inside-a-flow quick fix", () => {
     expect(store?.data).toEqual([
       {
         name: "Change to an assignment",
+        done: "Changed to an assignment.",
         changes: [
           { from: start, to: start + "store gold = 1".length, insert: "& gold = 1" },
         ],
