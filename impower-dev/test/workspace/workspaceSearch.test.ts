@@ -136,7 +136,6 @@ const setup = (opened: string | undefined = MAIN) => {
     setMatches: vi.fn(),
     revealRail: vi.fn(),
     autoRenameFiles: () => autoRenameFiles.value,
-    phone: () => true,
     onTextChanged: (listener: () => void) => {
       textListeners.push(listener);
       return () => {};
@@ -164,6 +163,7 @@ let disposers: (() => void)[] = [];
 
 beforeEach(() => {
   workspace.search.value = INITIAL_SEARCH;
+  workspace.layout.value = "phone";
   workspace.scriptMode.value = "editing";
 });
 
@@ -372,13 +372,23 @@ describe("reading mode", () => {
     expect(sources.applyEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("replaces on desktop and tablet, where scripts have no reading mode", async () => {
-    const { search, sources } = await replaceReady();
-    sources.phone = () => false;
-    workspace.scriptMode.value = "reading";
-    await search.replaceAll();
-    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
-  });
+  it.each([
+    ["phone", "reading", 0],
+    ["phone", "editing", 1],
+    ["compact", "reading", 1],
+    ["compact", "editing", 1],
+    ["desktop", "reading", 1],
+    ["desktop", "editing", 1],
+  ] as const)(
+    "on a %s layout with the stored mode %s, Replace all edits %i times",
+    async (layout, stored, edits) => {
+      const { search, sources } = await replaceReady();
+      workspace.layout.value = layout;
+      workspace.scriptMode.value = stored;
+      await search.replaceAll();
+      expect(sources.applyEdit).toHaveBeenCalledTimes(edits);
+    },
+  );
 });
 
 describe("References", () => {

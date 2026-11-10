@@ -1,4 +1,10 @@
-import { computed, effect, signal, type ReadonlySignal } from "@preact/signals";
+import {
+  computed,
+  effect,
+  signal,
+  type ReadonlySignal,
+  type Signal,
+} from "@preact/signals";
 import type {
   SyncStatus,
   WorkspaceCache,
@@ -6,6 +12,7 @@ import type {
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import type {
   Diagnostic,
   DocumentSymbol,
@@ -159,6 +166,23 @@ class WorkspaceStore {
   readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
 
   readonly scriptMode = signal<ScriptMode>("reading");
+
+  private _layout: Signal<Layout> | undefined;
+
+  get layout(): Signal<Layout> {
+    if (!this._layout) {
+      const layout = signal<Layout>(layoutState.current());
+      layoutState.subscribe((next) => {
+        layout.value = next;
+      });
+      this._layout = layout;
+    }
+    return this._layout;
+  }
+
+  readonly effectiveScriptMode = computed<ScriptMode | undefined>(() =>
+    this.layout.value === "phone" ? this.scriptMode.value : undefined,
+  );
 
   readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
 

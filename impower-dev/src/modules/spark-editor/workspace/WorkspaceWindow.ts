@@ -430,10 +430,7 @@ export default class WorkspaceWindow {
   }
 
   openAddPanel() {
-    if (
-      layoutState.current() === "phone" &&
-      workspace.scriptMode.peek() === "reading"
-    ) {
+    if (workspace.effectiveScriptMode.peek() === "reading") {
       workspace.scriptMode.value = "editing";
     }
     this.update({
@@ -516,6 +513,9 @@ export default class WorkspaceWindow {
   }
 
   finishEditing() {
+    if (workspace.scriptMode.peek() !== "editing") {
+      return;
+    }
     workspace.scriptMode.value = "reading";
   }
 
