@@ -11,6 +11,7 @@ const REPOSITORY = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..
 
 interface Comparison {
   compared: number;
+  misplaced: number;
   disagreements: string[];
 }
 
@@ -33,9 +34,13 @@ function compare(text: string): Comparison {
   }
   const declarations = new Map(lints.names.declarations.map((declaration) => [declaration.local, declaration.from]));
   const bindings = new LocalBindings(tree, read);
-  const result: Comparison = { compared: 0, disagreements: [] };
+  const result: Comparison = { compared: 0, misplaced: 0, disagreements: [] };
   for (const reference of lints.names.references) {
-    if (reference.inType || !resolved.has(reference.node) || read(reference.from, reference.to) !== reference.name) {
+    if (reference.inType || !resolved.has(reference.node)) {
+      continue;
+    }
+    if (read(reference.from, reference.to) !== reference.name) {
+      result.misplaced += 1;
       continue;
     }
     result.compared += 1;
@@ -141,5 +146,29 @@ describe("LocalBindings agrees with the compiler's name resolution (I-1969)", ()
     for (const [form, body] of Object.entries(FORMS)) {
       expect(compare(CONTAINERS["a function"]!(body)).compared, form).toBeGreaterThan(0);
     }
+  });
+
+  test("each container compares reads, except the ones the compiler's name facts do not resolve", () => {
+    const compared = Object.fromEntries(
+      Object.entries(CONTAINERS).map(([container, wrap]) => [
+        container,
+        Object.values(FORMS).reduce((total, body) => total + compare(wrap(body)).compared, 0) > 0,
+      ]),
+    );
+    expect(compared).toEqual({
+      "a function": true,
+      "a type function": true,
+      "a define method": false,
+      "a scene's one-line explicit statement": true,
+      "a scene's explicit lines": true,
+    });
+  });
+
+  test("no compared read is skipped because its recorded name differs from its source text", () => {
+    const misplaced = [
+      ...sources.map((path) => readFileSync(join(REPOSITORY, "packages", path), "utf8").replace(/\r\n/g, "\n")),
+      ...generated.map(([, source]) => source),
+    ].reduce((total, text) => total + compare(text).misplaced, 0);
+    expect(misplaced).toBe(0);
   });
 });
