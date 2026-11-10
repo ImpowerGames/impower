@@ -178,6 +178,18 @@ try {
       return [r.closed, g.calls];
     };
     assert.deepEqual(lateRead((t) => (t.number === BLOCKED ? { ...t, blockers: [] } : t), [met(CRITERIA[0]), moved]), [false, ["comment"]], "a moved owner's blocking link lost in the last read before the close stops it");
+    {
+      const f = newRecord(), g = github();
+      const inner = (reason) => snapshotOf([ticket(CONTAINER, { container: true }), ticket(210, { parent: CONTAINER, container: true, state: "closed", stateReason: reason, closedAt: "2030-01-01T00:00:00Z" }), child(211, { parent: 210 }), blockedBy("open")]);
+      let n = 0;
+      const r = closeWith(f, g, [met(CRITERIA[0]), met(CRITERIA[1])], { snapshot: inner("completed"), takeSnapshot: () => (++n >= 5 ? inner("not_planned") : inner("completed")) });
+      assert.deepEqual([r.closed, g.calls], [false, ["comment"]], "a nested container reclosed as not planned in the last read before the close stops it");
+    }
+    {
+      const f = newRecord(), record = run.readRecord(f);
+      const dependent = (more) => snapshotOf([ticket(CONTAINER, { container: true, state: "closed", stateReason: "completed", closedAt: "2030-02-01T00:00:00Z" }), child(201), ticket(BLOCKED, { blockers: [{ number: CONTAINER, state: "closed", delivered: false }] }), ticket(400, more)]);
+      assert.notDeepEqual(ig.mergeScope(dependent({ parent: PARENT }), BLOCKED, record), ig.mergeScope(dependent({ parent: CONTAINER }), BLOCKED, record), "an open slice reparented under a closed container blocker changes the merge's scope");
+    }
     assert.deepEqual(lateRead((t) => (t.number === CONTAINER ? { ...t, worktrees: [{ path: "w", branch: "fix/200-x" }] } : t), [met(CRITERIA[0]), met(CRITERIA[1])]), [false, ["comment"]], "a worktree for the container in the last read before the close stops it");
   }
   {

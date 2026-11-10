@@ -247,10 +247,11 @@ export function mergeScope(snapshot, ticket, record = {}) {
     prs: (t.prs ?? []).filter((p) => branchTicket(p.branch) === t.number && ["OPEN", "MERGED"].includes(p.state)).map((p) => [p.number, p.state]).sort((a, b) => a[0] - b[0]),
     worktrees: t.worktrees?.length ?? 0,
   } : null;
+  const finished = finishedContainers(record, snapshot).closed;
   const slices = members.map((t) => JSON.stringify({
     number: t.number, state: t.state, stateReason: t.stateReason ?? null, closedAt: t.closedAt ?? null,
     container: t.container, deliveredBy: t.deliveredBy ? { ticket: t.deliveredBy.ticket, via: t.deliveredBy.via, pr: t.deliveredBy.pr } : null,
-    blockers: [...(requiresDependencies(record, t, ticket) ? t.blockers ?? [] : [])].sort((a, b) => a.number - b.number).map((b) => ({ ...b, history: history(snapshot.tickets.find((x) => x.number === b.number)) })),
+    blockers: [...(requiresDependencies(record, t, ticket) ? t.blockers ?? [] : [])].sort((a, b) => a.number - b.number).map((b) => ({ ...b, history: history(snapshot.tickets.find((x) => x.number === b.number)), finishedContainer: finished.has(b.number) })),
     delivered: t.delivered ?? false, worktrees: (t.worktrees ?? []).map((w) => w.path).sort(),
     prs: (t.prs ?? []).map((p) => ({ number: p.number, state: p.state, head: p.head, branch: p.branch })).sort((a, b) => a.number - b.number),
   })).sort();
@@ -568,7 +569,8 @@ export function closeContainer(file, { coordinator, expectRevision, ticket, evid
     const base = snapshotScope(snap);
     const tree = new Set([ticket]);
     for (let grew = true; grew;) { grew = false; for (const t of snap.tickets) if (tree.has(t.parent) && !tree.has(t.number)) { tree.add(t.number); grew = true; } }
-    const members = snap.tickets.filter((t) => tree.has(t.number) && t.number !== ticket).map((t) => `#${t.number} under #${t.parent} ${t.state} ${t.delivered ? "delivered" : "undelivered"}`).sort();
+    const members = snap.tickets.filter((t) => tree.has(t.number) && t.number !== ticket).map((t) => `#${t.number} under #${t.parent} ${t.state} ${t.stateReason ?? "-"} ${t.delivered ? "delivered" : "undelivered"}`).sort();
+    members.push(`#${ticket} ready ${finishedContainers(readRecord(file), snap).ready.has(ticket)}`);
     const root = snap.tickets.find((t) => t.number === ticket);
     const self = `#${ticket} ${root?.state} ${root?.container ? "container" : "not-container"} claimed ${Boolean(root?.claimedContainer)} worktrees ${(root?.worktrees ?? []).map((w) => w.path).sort().join(",")} open ${(root?.prs ?? []).filter((p) => p.state === "OPEN").map((p) => p.number).sort().join(",")}`;
     const owners = rows.filter((r) => r.status === "moved").map((r) => `#${r.movedTo} owns criterion ${r.index} ${movedOwnerHolds(snap, ticket, r.movedTo) ? "holds" : "lost"}`);
