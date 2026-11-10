@@ -27,6 +27,8 @@ export class MatchRule implements Rule {
 
   declare captures: (GrammarNode | SwitchRule)[];
 
+  readonly skipped = false;
+
   constructor(repo: GrammarRepository, def: MatchRuleDefinition) {
     this.repo = repo;
 
@@ -35,7 +37,7 @@ export class MatchRule implements Rule {
     this.node = new GrammarNode(
       repo.nextTypeIndex(),
       def,
-      repo.grammar.declarator,
+      repo.declarator,
     );
 
     this.matcher = new RegExpMatcher(def.match, def.flags);

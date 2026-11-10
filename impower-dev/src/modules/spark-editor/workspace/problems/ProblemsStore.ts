@@ -20,6 +20,7 @@ import {
   plural,
   toProblems,
   type ConsoleEntry,
+  type CardName,
   type ConsoleSeverity,
   type PanelCard,
   type PlayedEntry,
@@ -47,7 +48,10 @@ export type PreviewPanel = "problems" | "route";
 const CARD_SETTING = {
   script: "problemsScriptCardOpen",
   played: "problemsPlayedCardOpen",
-} as const;
+  variables: "problemsVariablesCardOpen",
+  watch: "problemsWatchCardOpen",
+  callStack: "problemsCallStackCardOpen",
+} as const satisfies Record<CardName, string>;
 
 export class ProblemsStore {
   readonly diagnostics = signal<
@@ -98,11 +102,14 @@ export class ProblemsStore {
     () => this.panelOpen.value && this.panelShows.value === "route",
   );
 
-  readonly cards = computed<Readonly<Record<PanelCard, boolean>>>(() => {
+  readonly cards = computed<Readonly<Record<CardName, boolean>>>(() => {
     const settings = workspaceSettings.projectSettings.value;
     return {
       script: settings[CARD_SETTING.script],
       played: settings[CARD_SETTING.played],
+      variables: settings[CARD_SETTING.variables],
+      watch: settings[CARD_SETTING.watch],
+      callStack: settings[CARD_SETTING.callStack],
     };
   });
 
@@ -189,7 +196,7 @@ export class ProblemsStore {
     this.shown.value = { ...this.shown.value, [severity]: shown };
   }
 
-  setCardOpen(card: PanelCard, open: boolean) {
+  setCardOpen(card: CardName, open: boolean) {
     workspaceSettings.setProjectSetting(CARD_SETTING[card], open);
   }
 

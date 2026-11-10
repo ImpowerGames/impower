@@ -191,6 +191,7 @@ export interface DebugState {
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
   startingValues?: Record<string, Record<string, string>>;
+  watch?: string[];
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
