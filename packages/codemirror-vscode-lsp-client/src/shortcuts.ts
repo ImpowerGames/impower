@@ -100,7 +100,6 @@ import {
 } from "@codemirror/view";
 import { jumpToDefinition } from "./definition";
 import { formatDocument } from "./formatting";
-import { closeReferencePanel, findReferences } from "./references";
 import { renameSymbol } from "./rename";
 import { noteEditorKeydown, noteShortcutHandled } from "./shortcutDispatch";
 import {
@@ -125,7 +124,13 @@ import {
   type ShortcutPrecedence,
 } from "./shortcutTable";
 import { nextSignature, prevSignature, showSignatureHelp } from "./signature";
-import { findNextMatch, findPreviousMatch, openFind, openProblems } from "./tools";
+import {
+  findNextMatch,
+  findPreviousMatch,
+  findReferences,
+  openFind,
+  openProblems,
+} from "./tools";
 
 export type ShortcutCommand =
   | Command
@@ -231,7 +236,6 @@ export const EDITOR_SHORTCUT_COMMANDS: ShortcutCommands = {
   macSplitLine: splitLine,
   macTranspose: transposeChars,
   macPageDown: cursorPageDown,
-  closeReferences: closeReferencePanel,
 };
 
 export interface EditorShortcutsState {

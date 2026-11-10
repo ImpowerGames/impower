@@ -48,6 +48,55 @@ A layout's name styles its root unless the layout holds an element of that name,
 
 The `textbox` layout stacks above `main`'s `stage` and below `main`'s `screen`, so a `screen` animation such as a fade or flash covers the dialogue box. A layout opened later stacks above them both.
 
+### The `textstream` layout: Interactive Fiction
+
+The built-in `textstream` layout shows the story as a page of text and choices that keeps growing, the way interactive fiction reads. Open it at any point with `[[open textstream]]`, and the page covers the stage and the dialogue box. `[[close textstream]]` goes back to them. The run carries on either way. To start a game on the page, name it in `ui.layouts_initial`:
+
+```sparkdown
+define ui as config with
+  layouts_initial = { "textstream" }
+end
+```
+
+Each beat becomes an entry below the last:
+
+- Narration is an italic paragraph.
+- Dialogue is the speaker's name in small capitals above the line. The name is left out while the same speaker keeps talking.
+- A title, a scene heading or a transition is a centred heading.
+- A horizontal rule comes before the first entry of a new scene.
+- A menu is a list of option buttons. Pick one by clicking it, by pressing its number (1 to 9), or by moving to it with the arrow keys and pressing Enter. The picked option stays on the page as a muted line marked ▸, and the others are removed. The number and arrow keys work in the dialogue box's menus too.
+
+Text is typed out with the same timing as the dialogue box, so pauses read as pauses, a click finishes the line, and bold, italic, underline, centring and the wavy and shaky effects all show. Set the typing speed to 0 to show each entry at once.
+
+Pictures and sounds still play on the stage and through the audio channels, and each one also leaves a small muted caption on the page, named after its layer or channel and its asset: "Backdrop: int_subway_aisle", "Portrait: mara_smile", "Music: theme" or "Sound: door_slam". The typewriter's blips get no caption. The page is opaque, so the stage only shows through if a game restyles the page's ground to be see-through.
+
+The page keeps growing across choices and scenes. Restarting the game clears it. Saves and checkpoints keep it, so loading a save shows the page as it was, and a preview or a step back shows the page the game would have at that line.
+
+The page follows the newest entry. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
+
+With both `textbox` and `textstream` open, each beat shows in both, and a choice can be picked from either.
+
+The page draws every colour from four styles, so a game re-themes the whole page by redefining them:
+
+| Style | What it colours | Built-in value |
+| --- | --- | --- |
+| `paper` | The page's ground | `neutral_99` |
+| `ink` | The text | `slate_20` |
+| `accent` | Speaker names and option buttons | `orange_30` |
+| `muted` | Headings, captions and the picked option | `slate_60` |
+
+```sparkdown
+style paper {
+  background-color = slate_10
+}
+
+style ink {
+  text-color = slate_95
+}
+```
+
+The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen` and `textstream_caption`, can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
+
 ---
 
 ## 6.2 Overlays: `open` and `close`

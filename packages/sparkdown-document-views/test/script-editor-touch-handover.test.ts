@@ -93,7 +93,6 @@ const mount = async () => {
   vi.spyOn(view, "posAtCoords").mockReturnValue(0);
   cleanups.push(() => {
     touch(view, "touchcancel", 0);
-    clearInterval(controller["_focusIntervalTimeout"]);
     controller.dispose();
     host.remove();
   });

@@ -1,5 +1,8 @@
 import { runScopeHandlers, type EditorView } from "@codemirror/view";
-import type { LSPClient } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  findReferences,
+  type LSPClient,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCodemirrorWorkspace } from "../src/modules/script-editor/classes/SparkdownCodemirrorWorkspace";
 import createEditorView from "../src/modules/script-editor/utils/createEditorView";
@@ -16,11 +19,16 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+let sent: string[] = [];
+
 const mount = (withTools: boolean) => {
   const tools = { find: vi.fn(), rename: vi.fn(), references: vi.fn() };
   const parent = document.body.appendChild(document.createElement("div"));
+  sent = [];
   const worker = Object.assign(new EventTarget(), {
-    postMessage: () => {},
+    postMessage: (message: { method?: string }) => {
+      if (message.method) sent.push(message.method);
+    },
   }) as unknown as Worker;
   [view] = createEditorView(parent, {
     ...(withTools ? { tools } : {}),
@@ -64,6 +72,14 @@ describe("the editor's own name-tool keys", () => {
     const tools = mount(true);
     expect(press("F12", true)).toBe(true);
     expect(tools.references).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the server for no references where no host supplies References", async () => {
+    mount(false);
+    press("F12", true);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(sent).not.toContain("textDocument/references");
+    expect(findReferences(view)).toBe(false);
   });
 
   it("keeps the editor's own Rename where no host supplies one", () => {

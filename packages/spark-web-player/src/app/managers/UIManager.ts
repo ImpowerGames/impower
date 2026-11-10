@@ -60,6 +60,8 @@ type WriteDecision =
 
 type WriteKind = typeof WriteTextMessage.type | typeof WriteImageMessage.type;
 
+const FOLLOW_END_SLACK_PX = 4;
+
 type WriteParams = { target: string; instructions: any[]; elements?: string[] };
 
 interface HeldState {
@@ -440,6 +442,59 @@ export default class UIManager extends Manager {
           );
         }
       }
+    }
+  }
+
+  protected followEnd(el: HTMLElement) {
+    if ((el as any).__sdFollow) {
+      return;
+    }
+    const follow = { pinned: true, moving: false };
+    (el as any).__sdFollow = follow;
+    const atEnd = () =>
+      el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_END_SLACK_PX;
+    const toEnd = () => {
+      const reduce =
+        el.ownerDocument.defaultView?.matchMedia?.(
+          "(prefers-reduced-motion: reduce)",
+        ).matches ?? false;
+      follow.moving = true;
+      if (typeof el.scrollTo === "function") {
+        el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+      if (reduce || atEnd()) {
+        follow.moving = false;
+      }
+    };
+    const reading = () => {
+      follow.moving = false;
+    };
+    for (const event of ["wheel", "touchstart", "pointerdown", "keydown"]) {
+      el.addEventListener(event, reading, { passive: true });
+    }
+    el.addEventListener(
+      "scroll",
+      () => {
+        if (follow.moving) {
+          if (atEnd()) {
+            follow.moving = false;
+          }
+          return;
+        }
+        follow.pinned = atEnd();
+      },
+      { passive: true },
+    );
+    const view = el.ownerDocument.defaultView;
+    const Observer = view?.MutationObserver;
+    if (Observer) {
+      new Observer(() => {
+        if (follow.pinned) {
+          toEnd();
+        }
+      }).observe(el, { childList: true, subtree: true });
     }
   }
 
@@ -1085,6 +1140,9 @@ export default class UIManager extends Manager {
           }
           (el as any).__sdAttrs = written;
         }
+        if (el.getAttribute("data-follow") === "end") {
+          this.followEnd(el);
+        }
         (el as any).__sdCreate = sig;
       } else if ((el as any).__sdUpdatedContent && params.content) {
         this.morphs?.releaseWithin(el);
@@ -1150,6 +1208,9 @@ export default class UIManager extends Manager {
         if (params.attributes != undefined) {
           if (params.attributes) {
             applyAttributes(element, params.attributes);
+            if (element.getAttribute("data-follow") === "end") {
+              this.followEnd(element);
+            }
           } else {
             Array.from(element.attributes).forEach((attr) =>
               element.removeAttribute(attr.name),

@@ -71,12 +71,10 @@ sparkdown-script-editor {
   .sparkdown-script-editor-root .cm-activeDiagnosticIcon,
   .sparkdown-script-editor-root .cm-navLeftIcon,
   .sparkdown-script-editor-root .cm-navRightIcon,
-  .sparkdown-script-editor-root .cm-problemsToggleIcon,
   .sparkdown-script-editor-root .cm-toolbar-icon,
   .sparkdown-script-editor-root .cm-menu-back-icon,
   .sparkdown-script-editor-root .cm-menu-more-icon,
-  .sparkdown-script-editor-root .cm-fold-arrow,
-  .sparkdown-script-editor-root .cm-lsp-collapse-icon {
+  .sparkdown-script-editor-root .cm-fold-arrow {
     forced-color-adjust: none;
     background-color: CanvasText !important;
   }

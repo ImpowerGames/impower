@@ -38,6 +38,20 @@ export const APP_SHORTCUT_ROWS = [
     keys: { key: "Shift+F11", mac: "Ctrl+Shift+F11" },
     aliases: ["Ctrl+Shift+F11"],
   },
+  {
+    id: "previousChoice",
+    group: "story",
+    name: "Previous choice in the preview",
+    detail: "While playing, roll the story back to the last choice it played.",
+    keys: "Shift+PageUp",
+  },
+  {
+    id: "nextChoice",
+    group: "story",
+    name: "Next choice in the preview",
+    detail: "While playing, roll the story on to the next choice it played.",
+    keys: "Shift+PageDown",
+  },
 ] as const satisfies readonly ShortcutRow[];
 
 export type AppShortcutId = (typeof APP_SHORTCUT_ROWS)[number]["id"];

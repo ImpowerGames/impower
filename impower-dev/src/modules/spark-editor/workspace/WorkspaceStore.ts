@@ -5,6 +5,7 @@ import type {
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
+import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import type {
   Diagnostic,
@@ -12,6 +13,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { AssetListing } from "./assetsListing";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
 import {
@@ -38,14 +40,14 @@ export interface OutlineSnapshot {
 export interface DebugSessionState {
   stopped: DebugProtocol.StoppedEvent["body"] | null;
   stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
-  canStepOut: boolean;
+  history: GameHistory | null;
   breakpoints: Record<string, EditorBreakpoint[]>;
 }
 
 export const IDLE_DEBUG_SESSION: DebugSessionState = {
   stopped: null,
   stackTrace: null,
-  canStepOut: false,
+  history: null,
   breakpoints: {},
 };
 
@@ -182,6 +184,8 @@ class WorkspaceStore {
   readonly scriptListing = signal<ScriptListing | null>(null);
 
   readonly scriptReferences = signal<readonly Reference[]>([]);
+
+  readonly assetListing = signal<AssetListing | null>(null);
 
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 

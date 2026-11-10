@@ -42,6 +42,7 @@ import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMes
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
 import { HISTORY_REASONS } from "../game/core/constants/HISTORY_REASONS";
 import type { GameConfiguration } from "../game/core/types/GameConfiguration";
+import type { RollResult } from "../game/core/types/RunHistory";
 import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 import { sharedNow } from "../game/core/utils/sharedClock";
 
@@ -56,6 +57,21 @@ export class RefusedStepError extends Error implements ResponseError {
 }
 
 export const PAGE_FRAME_TIMEOUT_MS = 100;
+
+const rollHolding = async (
+  game: Game,
+  hold: boolean | undefined,
+  roll: () => Promise<RollResult>,
+) => {
+  const held =
+    hold === true &&
+    (game.paused || game.awaitingResume || game.ending !== null);
+  const result = await roll();
+  if (held && result.moved) {
+    game.pause();
+  }
+  return { ...result, held: held && result.moved };
+};
 
 export function installGameWorker(connection: MessageConnection) {
   console.log("running spark-engine v1.0");
@@ -329,24 +345,24 @@ export function installGameWorker(connection: MessageConnection) {
       return;
     }
     if (RollBackGameMessage.type.isRequest(message)) {
-      const { to } = message.params;
+      const { to, hold } = message.params;
       connection.sendResponse(message, () => {
         const game = target();
         if (!game) {
           throw new NoGameError();
         }
-        return game.rollBack(to);
+        return rollHolding(game, hold, () => game.rollBack(to));
       });
       return;
     }
     if (RollForwardGameMessage.type.isRequest(message)) {
-      const { to } = message.params;
+      const { to, hold } = message.params;
       connection.sendResponse(message, () => {
         const game = target();
         if (!game) {
           throw new NoGameError();
         }
-        return game.rollForward(to);
+        return rollHolding(game, hold, () => game.rollForward(to));
       });
       return;
     }
