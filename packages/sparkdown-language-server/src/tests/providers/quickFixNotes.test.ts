@@ -164,7 +164,7 @@ describe("the close-match quick fix", () => {
     ).toEqual([]);
   });
 
-  test.each(["alciex", "alcie_2", "xalcie"])(
+  test.each(["alciex", "alcie_2", "alcie-extra", "xalcie"])(
     "refuses a fix whose name was extended to %s since the diagnostic",
     (edited) => {
       const diagnostics = cannotFind(compile(show("alcie"), ["alice"]));

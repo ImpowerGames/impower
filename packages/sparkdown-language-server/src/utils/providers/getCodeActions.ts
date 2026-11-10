@@ -243,7 +243,7 @@ const removeNote = (
   };
 };
 
-const NAME_CHARACTER = /[\p{L}\p{N}_]/u;
+const NAME_CHARACTER = /[\p{L}\p{N}_-]/u;
 
 const continuesName = (
   document: TextDocument,
