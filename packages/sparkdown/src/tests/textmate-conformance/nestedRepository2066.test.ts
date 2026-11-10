@@ -119,6 +119,74 @@ describe("a rule-level repository resolves as vscode-textmate resolves it (I-206
     expect(scopesOf(outer, text, [inner])).toEqual(vscode);
   });
 
+  test.each([
+    [
+      "a qualified include into the same grammar resolves in that grammar's top-level repository",
+      {
+        scopeName: "source.probe",
+        repository: { Shared: block([{ include: "#Inner" }, { name: "fallback", match: "a" }]) },
+        patterns: [{ repository: { Inner: { name: "nested", match: "a" } }, patterns: [{ include: "source.probe#Shared" }] }],
+      },
+      "(a)",
+    ],
+    [
+      "a nested rule and a top-level rule named like its generated id stay distinct",
+      {
+        scopeName: "source.probe",
+        repository: {
+          Owner: { repository: { Inner: { name: "nested", match: "a" } }, patterns: [block([{ include: "#Inner" }])] },
+          "Owner#Inner": { name: "unrelated", match: "a" },
+        },
+        patterns: [{ include: "#Owner" }, { include: "#Owner#Inner" }],
+      },
+      "(a) a",
+    ],
+  ])("%s", async (_, grammar, text) => {
+    const vscode = await vscodeScopes(structuredClone(grammar), text);
+    expect(scopesOf(grammar, text)).toEqual(vscode);
+  });
+
+  test("a rule included from another grammar binds before that grammar's root patterns", async () => {
+    const outer = { scopeName: "source.outer", patterns: [{ include: "source.inner#Shared" }] };
+    const inner = {
+      scopeName: "source.inner",
+      repository: { Shared: block([{ include: "#Inner" }, { name: "fallback", match: "a" }]) },
+      patterns: [{ repository: { Inner: { name: "nested", match: "a" } }, patterns: [{ include: "#Shared" }] }],
+    };
+    const text = "(a)";
+    const vscode = await vscodeScopes(structuredClone(outer), text, [structuredClone(inner)]);
+    expect(vscode[1]).toBe("source.outer block fallback");
+    expect(scopesOf(outer, text, [inner])).toEqual(vscode);
+  });
+
+  test("a grammar's $self first reached inside a nested repository resolves its includes there", async () => {
+    const outer = { scopeName: "source.outer", patterns: [{ include: "source.inner#Wrap" }] };
+    const inner = {
+      scopeName: "source.inner",
+      repository: {
+        Wrap: { repository: { X: { name: "nested", match: "a" }, Y: { name: "nested", match: "b" } }, patterns: [block([{ include: "$self" }])] },
+        Y: { name: "top", match: "b" },
+      },
+      patterns: [{ include: "#X" }, { include: "#Y" }],
+    };
+    const text = "(ab)";
+    const vscode = await vscodeScopes(structuredClone(outer), text, [structuredClone(inner)]);
+    expect(scopesOf(outer, text, [inner])).toEqual(vscode);
+  });
+
+  test("a grammar's root patterns that an include never reaches are not built", async () => {
+    const outer = { scopeName: "source.outer", patterns: [{ include: "source.inner#Good" }] };
+    const inner = {
+      scopeName: "source.inner",
+      repository: { Good: { name: "good", match: "a" } },
+      patterns: [{ patterns: [{ begin: "x", while: "y", patterns: [] }] }],
+    };
+    const text = "a";
+    const vscode = await vscodeScopes(structuredClone(outer), text, [structuredClone(inner)]);
+    expect(vscode[0]).toBe("source.outer good");
+    expect(scopesOf(outer, text, [inner])).toEqual(vscode);
+  });
+
   test("a nested rule that names only a scope reads as the same rule does at the top level", () => {
     const text = "(a)";
     const nested = {

@@ -100,8 +100,10 @@ export class GrammarRepository {
         }
       }
     }
-    this.bind(this.self, undefined);
-    this.resolveAll();
+  }
+
+  enter(rule: Rule) {
+    this.bind(rule, undefined);
   }
 
   nodes() {
@@ -254,23 +256,38 @@ export class GrammarRepository {
     }
   }
 
-  private nested(name: string, scope: RuleScope | undefined): Rule[] | undefined {
+  private bound<T extends Rule>(rule: T, scope: RuleScope | undefined): T {
+    this.bind(rule, scope);
+    return rule;
+  }
+
+  private nestedId(owner: string, name: string) {
+    const local = `${this.local(owner)}#${name}`;
+    let id = nodeName(this.prefix, local);
+    for (let n = 1; this.map.has(id); n++) {
+      id = nodeName(this.prefix, `${local}#${n}`);
+    }
+    return id;
+  }
+
+  private lookup(name: string, scope: RuleScope | undefined): Rule[] {
     for (let s = scope; s; s = s.parent) {
       if (Object.hasOwn(s.repository, name)) {
         const item = s.repository[name];
         if (item == null) {
           return [];
         }
-        const local = `${this.local(s.owner)}#${name}`;
-        const rule = this.add(item, nodeName(this.prefix, local), true);
+        const id = this.ids.get(item) ?? this.nestedId(s.owner, name);
+        const rule = this.add(item, id, true);
         return isRule(rule) ? [rule] : [];
       }
     }
-    return undefined;
+    return this.rule(name);
   }
 
   include(str: string, scope?: RuleScope): Rule[] {
     if (str === "$self") {
+      this.bind(this.self, scope);
       return [this.self];
     }
     if (str === "$base") {
@@ -278,8 +295,9 @@ export class GrammarRepository {
     }
     const sharp = str.indexOf("#");
     if (sharp === 0) {
-      const name = str.slice(1);
-      return this.nested(name, scope) ?? this.rule(name);
+      const rules = this.lookup(str.slice(1), scope);
+      rules.forEach((rule) => this.bind(rule, scope));
+      return rules;
     }
     const repository = this.grammar.repositoryOf(
       sharp < 0 ? str : str.slice(0, sharp),
@@ -288,7 +306,9 @@ export class GrammarRepository {
       return [];
     }
     const name = sharp < 0 ? "" : str.slice(sharp + 1);
-    return name ? repository.rule(name) : [repository.self];
+    const rules = name ? repository.rule(name) : [repository.self];
+    rules.forEach((rule) => repository.enter(rule));
+    return rules;
   }
 
   rule(name: string): Rule[] {
@@ -314,21 +334,17 @@ export class GrammarRepository {
     if (items) {
       items.forEach((item, i) => {
         const patternId = idPrefix + `-p${i}`;
-        const found: Rule[] = [];
         if (isIncludeDefinition(item)) {
-          found.push(...this.include(item.include, scope));
-          missing ||= found.length === 0;
+          const included = this.include(item.include, scope);
+          missing ||= included.length === 0;
+          rules.push(...included);
         } else if (isMatchRuleDefinition(item)) {
-          found.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         } else if (isScopedRuleDefinition(item)) {
-          found.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         } else if (isSwitchRuleDefinition(item)) {
-          found.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         }
-        for (const rule of found) {
-          this.bind(rule, scope);
-        }
-        rules.push(...found);
       });
     }
     return { rules, missing };
