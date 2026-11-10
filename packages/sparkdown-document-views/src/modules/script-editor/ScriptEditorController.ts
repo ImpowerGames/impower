@@ -78,6 +78,7 @@ import {
   SelectEditorMethod,
   SelectEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
+import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
 import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
 import { SetEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
@@ -168,6 +169,7 @@ import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
 import {
+  closeHoverCards,
   setEditorShortcuts,
   type ShortcutCombos,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -399,6 +401,11 @@ export class ScriptEditorController {
     p.onNotification(SelectEditorMessage.type, (m) =>
       this.handleSelectEditor(m),
     );
+    p.onNotification(HideEditorHoverValuesMessage.type, () => {
+      if (this._view) {
+        closeHoverCards(this._view);
+      }
+    });
     p.onNotification(HoveredOnPreviewMessage.type, () =>
       this.handlePointerLeaveScroller(),
     );

@@ -2,6 +2,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  closeHoverCards,
   coarsePointer,
   hoverExpressionAt,
   hoverValues,
@@ -75,6 +76,44 @@ describe("a variable's value in the hover card", () => {
     await vi.waitFor(() => expect(value).toHaveBeenCalledWith("mood"));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(v.dom.querySelector(".cm-lsp-hover-value")).toBeNull();
+  });
+
+  const openCard = async (v: EditorView) => {
+    tap(v, doc.indexOf("mood") + 1);
+    await vi.waitFor(() =>
+      expect(v.dom.querySelector(".cm-lsp-hover-value")?.textContent).toBe("mood = 1"),
+    );
+  };
+
+  it("keeps the card open after the tap that opened it", async () => {
+    const v = mount(true, async () => "1");
+    await openCard(v);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(v.dom.querySelector(".cm-lsp-hover-value")?.textContent).toBe("mood = 1");
+  });
+
+  it("closes the tapped card on Escape", async () => {
+    const v = mount(true, async () => "1");
+    await openCard(v);
+    v.contentDOM.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+    expect(v.dom.querySelector(".cm-lsp-hover-value")).toBeNull();
+  });
+
+  it("closes the tapped card when the page scrolls", async () => {
+    const v = mount(true, async () => "1");
+    await openCard(v);
+    document.dispatchEvent(new Event("scroll"));
+    expect(v.dom.querySelector(".cm-lsp-hover-value")).toBeNull();
+  });
+
+  it("closes the tapped card when the run resumes", async () => {
+    const v = mount(true, async () => "1");
+    await openCard(v);
+    expect(closeHoverCards(v)).toBe(true);
+    expect(v.dom.querySelector(".cm-lsp-hover-value")).toBeNull();
+    expect(closeHoverCards(v)).toBe(false);
   });
 
   it("leaves a fine pointer's taps to the hover", async () => {

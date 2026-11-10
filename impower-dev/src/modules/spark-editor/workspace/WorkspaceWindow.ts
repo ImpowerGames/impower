@@ -38,6 +38,7 @@ import {
   SelectedEditorMethod,
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
 import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
 import {
   type EditorBreakpoint,
@@ -630,6 +631,7 @@ export default class WorkspaceWindow {
         }),
       ),
       this.followVerifiedBreakpoints(),
+      this.followStopEnds(),
       onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
         this.handleChangedEditorPinpoints(m),
       ),
@@ -821,6 +823,17 @@ export default class WorkspaceWindow {
         if (verified !== previous[uri]) {
           this.applyVerifiedBreakpoints(uri, verified);
         }
+      }
+    });
+  }
+
+  protected followStopEnds() {
+    let stopped = workspace.debugSession.peek().stopped;
+    return workspace.debugSession.subscribe((session) => {
+      const ended = stopped != null && session.stopped !== stopped;
+      stopped = session.stopped;
+      if (ended) {
+        sendProtocolMessage(HideEditorHoverValuesMessage.type.notification({}));
       }
     });
   }
@@ -1958,6 +1971,7 @@ export default class WorkspaceWindow {
   }
 
   followStop(position: GamePosition) {
+    this.syncGamePaused(true);
     this.syncGamePosition(position);
     const highlights = this.store.debug.highlights ?? {};
     const lines = highlights[position.uri] ?? [];

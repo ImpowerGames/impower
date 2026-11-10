@@ -209,11 +209,18 @@ export interface ServerHoversConfig {
   hoverTime?: number;
 }
 
-const closeHover = (view: EditorView) => {
-  if (!hasHoverTooltips(view.state)) {
+export const closeHoverCards = (view: EditorView) => {
+  const hovering = hasHoverTooltips(view.state);
+  const tapped = view.state.field(tapValueTooltip, false) != null;
+  if (!hovering && !tapped) {
     return false;
   }
-  view.dispatch({ effects: closeHoverTooltips });
+  view.dispatch({
+    effects: [
+      ...(hovering ? [closeHoverTooltips] : []),
+      ...(tapped ? [showTapValue.of(null)] : []),
+    ],
+  });
   return true;
 };
 
@@ -223,10 +230,10 @@ const hoverDismissal = [
       if (event.key !== "Escape") {
         return false;
       }
-      return closeHover(view);
+      return closeHoverCards(view);
     },
     blur(_event, view) {
-      closeHover(view);
+      closeHoverCards(view);
       return false;
     },
   }),
@@ -235,11 +242,11 @@ const hoverDismissal = [
       const target = event.target;
       if (
         target instanceof Element &&
-        target.closest(".cm-tooltip-hover")
+        target.closest(".cm-tooltip-hover, .cm-lsp-hover-card")
       ) {
         return;
       }
-      closeHover(view);
+      closeHoverCards(view);
     };
     window.addEventListener("scroll", onScroll, true);
     return {

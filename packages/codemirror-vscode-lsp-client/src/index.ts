@@ -78,6 +78,7 @@ export { formatDocument, serverFormatting } from "./formatting";
 export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { type LSPClientIcons } from "./icons";
 export {
+  closeHoverCards,
   hoverExpressionAt,
   hoverPreviews,
   hoverValues,
