@@ -5,10 +5,13 @@ import {
   DropdownItem,
   FolderIcon,
   FolderPlusIcon,
+  FolderCover,
   FontIcon,
+  GridIcon,
   type IconComponent,
   ImageIcon,
   LinkIcon,
+  ListIcon,
   ListRow,
   MusicIcon,
   OtherIcon,
@@ -17,7 +20,16 @@ import {
   TabbedPage,
   Tabs,
   TextIcon,
+  Thumbnail,
+  Tile,
+  TILE_GAP,
+  TILE_MIN_WIDTH,
+  tileHeight,
+  type TileShape,
   UploadIcon,
+  VariantsBadge,
+  VariantsChip,
+  variantsLabel,
   VideoIcon,
 } from "@impower/impower-ui/components";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
@@ -31,7 +43,9 @@ import {
   isAssetType,
   type AssetType,
 } from "../../utils/assetTypes";
+import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { plural, rowLine } from "../../utils/fileListModel";
+import { majorityShape } from "../../utils/imageSize";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   ASSET_SORT_FIELDS,
@@ -43,6 +57,7 @@ import {
   type AssetRow,
 } from "../../workspace/assetsListing";
 import { parentOf } from "../../workspace/scriptsListing";
+import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import type { PreviewItem } from "../file-preview/FilePreviewOverlay";
 import {
@@ -51,6 +66,7 @@ import {
   NameRow,
   SortMenu,
   Trail,
+  useFolderLayout,
   useSavedScroll,
   useTabQuery,
 } from "../library-page";
@@ -99,7 +115,9 @@ type Heading = { kind: "heading"; type: AssetType; title: string };
 
 type Item = Heading | AssetRow;
 
-const intents = async () => (await import("../../workspace/Workspace")).Workspace;
+let workspaceModule: Promise<typeof import("../../workspace/Workspace")> | undefined;
+
+const intents = async () => (await (workspaceModule ??= import("../../workspace/Workspace"))).Workspace;
 
 const run = async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
   try {
@@ -131,8 +149,11 @@ const previewItemOf = (listing: AssetListing, row: AssetRow): PreviewItem => {
   };
 };
 
-function RowGlyph({ row }: { row: AssetRow }) {
+const srcOf = (listing: AssetListing, path: string) => listing.files[path]?.src;
+
+function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
+  if (row.type === "image" && !row.link) return <Thumbnail src={srcOf(listing, row.path)} />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
   return <Glyph />;
 }
@@ -188,6 +209,36 @@ function AssetsBrowser() {
     : level.rows;
   const files = items.filter((item): item is AssetRow => item.kind === "file");
   const preview = useAssetPreview(files.map((row) => previewItemOf(listing, row)));
+  const [layout, setLayout] = useFolderLayout(
+    "assetsLayouts",
+    level.folder,
+    type === "image" ? "tiles" : "rows",
+  );
+  const { projectSettings } = useSettings();
+  const tiles = !searching && type === "image" && layout === "tiles";
+  const kinds = addMenuKindsOf(
+    { path: `${level.folder}/_`, type: "image" },
+    addMenuFolders(projectSettings),
+  );
+  const namedShape: TileShape | undefined = kinds.includes("portrait")
+    ? "portrait"
+    : kinds.includes("backdrop")
+      ? "landscape"
+      : undefined;
+  const pictures = tiles && !namedShape
+    ? level.rows.filter((row) => row.kind === "file" && !row.link).map((row) => row.path)
+    : [];
+  const sizes = workspace.assetSizes.value;
+  const pictureSources = pictures.map((path) => srcOf(listing, path));
+  const measuring = pictureSources.some((src) => src && !Object.hasOwn(sizes, src));
+  const shape: TileShape =
+    namedShape ?? majorityShape(pictureSources.map((src) => (src ? sizes[src] ?? undefined : undefined)));
+  const measureKey = JSON.stringify(pictures.map((path, index) => [path, pictureSources[index]]));
+  useEffect(() => {
+    if (pictures.length) {
+      void intents().then((Workspace) => Workspace.assets.measureImages(pictures));
+    }
+  }, [measureKey]);
   const scrollKey = searching ? "search" : `${type}:${level.folder}`;
   const scroller = useSavedScroll("assetsScrolls", scrollKey);
 
@@ -229,7 +280,39 @@ function AssetsBrowser() {
 
   const onAction = (row: AssetRow, action: AssetRowAction) => {
     if (action === "rename") setRenaming(row.path);
-    else void run(async () => (await intents()).assets.remove([row.path]));
+    else void run(async () => (await intents()).assets.remove(row.paths ?? [row.path]));
+  };
+
+  const openLabel = (row: AssetRow, line: string) => {
+    const opens = row.kind === "folder" ? "Open folder" : `Open ${row.link ? "link" : TYPE_NOUNS[row.type]}`;
+    const variants = row.variantCount ? `, ${variantsLabel(row.variantCount)}` : "";
+    return `${opens} ${row.name}${variants}${line ? `, ${line.toLowerCase()}` : ""}`;
+  };
+
+  const openRow = (row: AssetRow) => (row.kind === "folder" ? openFolder(row.path) : preview.open(row.path));
+
+  const renderTile = (row: AssetRow) => {
+    const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
+    const folder = row.kind === "folder";
+    return (
+      <Tile
+        shape={shape}
+        kind={folder ? "folder" : "file"}
+        media={
+          folder ? (
+            <FolderCover sources={(row.covers ?? []).map((path) => srcOf(listing, path))} />
+          ) : (
+            <Thumbnail size="fill" src={srcOf(listing, row.path)} />
+          )
+        }
+        badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
+        label={row.name}
+        description={line}
+        aria-label={openLabel(row, line)}
+        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
+        onClick={() => openRow(row)}
+      />
+    );
   };
 
   const renderItem = (item: Item) => {
@@ -245,9 +328,10 @@ function AssetsBrowser() {
       const [stem, extension] = row.kind === "file" ? stemAndExtension(leafOf(row.path)) : [row.name, ""];
       return (
         <NameRow
-          icon={<RowGlyph row={row} />}
+          icon={<RowGlyph row={row} listing={listing} />}
           label={`Rename ${row.name}`}
           refocusOnce
+          wrapError={tiles}
           initial={stem}
           suffix={extension}
           onCancel={() => setRenaming(null)}
@@ -258,17 +342,29 @@ function AssetsBrowser() {
         />
       );
     }
+    if (tiles) {
+      return renderTile(row);
+    }
     const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
     const folder = row.kind === "folder";
     return (
       <ListRow
-        icon={<RowGlyph row={row} />}
-        label={row.name}
+        icon={<RowGlyph row={row} listing={listing} />}
+        label={
+          row.variantCount ? (
+            <span class="flex min-w-0 items-center gap-[7px]">
+              <span class="min-w-0 truncate">{row.name}</span>
+              <VariantsChip count={row.variantCount} />
+            </span>
+          ) : (
+            row.name
+          )
+        }
         description={line}
-        aria-label={`${folder ? "Open folder" : `Open ${row.link ? "link" : TYPE_NOUNS[row.type]}`} ${row.name}${line ? `, ${line.toLowerCase()}` : ""}`}
+        aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
-        onClick={() => (folder ? openFolder(row.path) : preview.open(row.path))}
+        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
+        onClick={() => openRow(row)}
       />
     );
   };
@@ -341,6 +437,19 @@ function AssetsBrowser() {
               onOpen={openFolder}
             />
           )}
+          {!searching && loaded && type === "image" && !level.empty && (
+            <Button
+              variant="quiet"
+              size="icon"
+              class="ml-auto flex-none text-muted"
+              aria-label={tiles ? "Show this folder as rows" : "Show this folder as tiles"}
+              title={tiles ? "Show as rows" : "Show as tiles"}
+              data-assets-action="layout"
+              onClick={() => setLayout(tiles ? "rows" : "tiles")}
+            >
+              {tiles ? <ListIcon /> : <GridIcon />}
+            </Button>
+          )}
           <SortMenu
             value={sort}
             fields={ASSET_SORT_FIELDS}
@@ -363,16 +472,19 @@ function AssetsBrowser() {
           />
         )
       }
-      list={{
+      list={measuring ? null : {
         listRef: scroller,
         label: searching ? "Search results" : "Assets and folders",
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
         itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : ROW_HEIGHT),
+        grid: tiles
+          ? { minWidth: TILE_MIN_WIDTH[shape], gap: TILE_GAP, height: (width) => tileHeight(shape, width) }
+          : undefined,
       }}
       empty={
-        !loaded ? null : searching ? (
+        !loaded || measuring ? null : searching ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No files match."

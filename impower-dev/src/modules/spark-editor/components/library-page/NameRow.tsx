@@ -8,6 +8,7 @@ export type NameRowProps = {
   initial?: string;
   suffix?: string;
   refocusOnce?: boolean;
+  wrapError?: boolean;
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
 };
@@ -18,6 +19,7 @@ export default function NameRow({
   initial = "",
   suffix,
   refocusOnce = false,
+  wrapError = false,
   onCommit,
   onCancel,
 }: NameRowProps) {
@@ -57,6 +59,7 @@ export default function NameRow({
   return (
     <ListRow
       icon={icon}
+      descriptionFit={wrapError ? "wrap" : undefined}
       label={
         <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
           <TextField
