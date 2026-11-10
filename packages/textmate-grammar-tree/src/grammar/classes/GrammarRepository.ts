@@ -15,6 +15,7 @@ import { isIncludeDefinition } from "../utils/isIncludeDefinition";
 import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
 import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";
 import { isSwitchRuleDefinition } from "../utils/isSwitchRuleDefinition";
+import { splitTag } from "../utils/splitTag";
 import type { Grammar } from "./Grammar";
 import { GrammarNode } from "./GrammarNode";
 import { MatchRule } from "./rules/MatchRule";
@@ -73,11 +74,11 @@ export class GrammarRepository {
   }
 
   private qualifyTag(tag: string | undefined) {
-    const modified = tag && /^\((\S*?)\)(\s+\S+)$/.exec(tag);
-    if (!modified) {
+    const split = tag ? splitTag(tag) : null;
+    if (split?.modifier === undefined) {
       return tag;
     }
-    return `(${this.qualifyPath(modified[1]!)})${modified[2]}`;
+    return `(${this.qualifyPath(split.modifier)}) ${split.expression}`;
   }
 
   private qualifyPath(path: string) {

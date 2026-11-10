@@ -1,6 +1,5 @@
+import { splitTag } from "@impower/textmate-grammar-tree/src/grammar/utils/splitTag";
 import { type Tag, tags } from "@lezer/highlight";
-
-const PARSE_TAG_REGEX = /^(?:\((\S*?)\))?(?:\s+|^)(\S+)$/;
 
 export const parseTag = (
   node: string,
@@ -8,13 +7,13 @@ export const parseTag = (
 ): {
   [selector: string]: Tag | readonly Tag[];
 } => {
-  const match = PARSE_TAG_REGEX.exec(str);
+  const split = splitTag(str);
 
-  if (!match) {
+  if (!split) {
     throw new Error(`Invalid tag format: ${str}`);
   }
 
-  const [, modifier, tagExpression] = match;
+  const { modifier, expression: tagExpression } = split;
 
   const parts = tagExpression?.split("(") || [];
 
