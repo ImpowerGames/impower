@@ -1,12 +1,8 @@
 import {
-  BackIcon,
   BookIcon,
   Button,
   ChevronIcon,
-  DropdownContent,
   DropdownItem,
-  DropdownRoot,
-  DropdownTrigger,
   FileIcon,
   FolderIcon,
   ListRow,
@@ -15,12 +11,9 @@ import {
   RootIcon,
   SearchIcon,
   TabbedPage,
-  TrashIcon,
-  VirtualList,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
-import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
@@ -36,15 +29,13 @@ import {
 } from "../../workspace/scriptsListing";
 import selection from "../../workspace/scriptsSelection";
 import workspace from "../../workspace/WorkspaceStore";
+import { EmptyState, LibraryPage, NameRow, SortMenu, Trail } from "../library-page";
 import DeleteDialog from "./DeleteDialog";
 import MoveDialog from "./MoveDialog";
-import NameRow from "./NameRow";
 import { useSavedScroll, useTabQuery } from "./pageState";
 import RowMenu, { type RowAction } from "./RowMenu";
 import SelectionBar, { type SelectionAction } from "./SelectionBar";
 import ScriptOutlineTab, { OUTLINE_TAB } from "./ScriptOutlineTab";
-import SearchBox from "./SearchBox";
-import SortMenu from "./SortMenu";
 import { DROP_FOLDER, useScriptsDrag } from "./useScriptsDrag";
 
 const EMPTY: ScriptListing = { files: {}, folders: [] };
@@ -70,97 +61,6 @@ function RowIcon({ row }: { row: ScriptRow }) {
   if (row.kind === "folder") return <FolderIcon />;
   if (row.pinned) return <PinIcon />;
   return <FileIcon />;
-}
-
-const DROP_HIGHLIGHT = "bg-tint text-accent ring-2 ring-inset ring-accent";
-
-function Trail({
-  folder,
-  home,
-  count,
-  dropTarget,
-  onOpen,
-}: {
-  folder: string;
-  home: string;
-  count: number;
-  dropTarget: string | null;
-  onOpen: (folder: string) => void;
-}) {
-  const dropAt = (target: string) => ({ [DROP_FOLDER]: target });
-  if (!folder) {
-    return (
-      <nav aria-label="Folder path" class="flex min-w-0 items-center gap-0.5 text-[12px]">
-        <DropdownRoot>
-          <DropdownTrigger asChild>
-            <Button variant="quiet" size="icon" aria-label="Scripts options" class="flex-none text-muted [&_svg]:size-[17px]">
-              <RootIcon />
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent align="start" class="min-w-[196px]">
-            <DropdownItem onSelect={() => void intents().then((Workspace) => Workspace.window.openTrash())}>
-              <TrashIcon class="text-muted" />
-              Recycle bin
-            </DropdownItem>
-          </DropdownContent>
-        </DropdownRoot>
-        <span aria-current="location" class="min-w-0 pr-3.5 pl-2 font-medium [--fade:14px] fade-edge">
-          {plural(count, "script")}
-        </span>
-      </nav>
-    );
-  }
-  const crumbs = crumbsOf(folder, home);
-  return (
-    <nav aria-label="Folder path" class="flex min-w-0 items-center gap-0.5 overflow-x-clip text-[12px] [&>svg]:size-3 [&>svg]:flex-none [&>svg]:text-muted">
-      <Button
-        variant="quiet"
-        size="icon"
-        aria-label="Parent folder"
-        {...dropAt(browseParent(folder, home))}
-        class={dropTarget === browseParent(folder, home) ? `flex-none text-muted ${DROP_HIGHLIGHT}` : "flex-none text-muted"}
-        onClick={() => onOpen(browseParent(folder, home))}
-      >
-        <BackIcon />
-      </Button>
-      <Button
-        variant="quiet"
-        size="icon"
-        aria-label="Scripts"
-        {...dropAt("")}
-        class={dropTarget === "" ? `flex-none text-muted ${DROP_HIGHLIGHT}` : "flex-none text-muted"}
-        onClick={() => onOpen("")}
-      >
-        <RootIcon />
-      </Button>
-      {crumbs.map((crumb, i) =>
-        i === crumbs.length - 1 ? (
-          <Fragment key={crumb.path}>
-            <ChevronIcon />
-            <span
-              aria-current="location"
-              class="min-w-7 pr-3.5 pl-2 font-medium [--fade:14px] fade-edge"
-            >
-              {crumb.name}
-            </span>
-          </Fragment>
-        ) : (
-          <Fragment key={crumb.path}>
-            <ChevronIcon />
-            <Button
-              variant="quiet"
-              size="compact"
-              {...dropAt(crumb.path)}
-              class={dropTarget === crumb.path ? `max-w-40 text-muted [--fade:14px] fade-edge ${DROP_HIGHLIGHT}` : "max-w-40 text-muted [--fade:14px] fade-edge"}
-              onClick={() => onOpen(crumb.path)}
-            >
-              {crumb.name}
-            </Button>
-          </Fragment>
-        ),
-      )}
-    </nav>
-  );
 }
 
 const ALL_TAB = "all";
@@ -357,108 +257,108 @@ function AllScripts() {
     );
   };
 
+  const searching = !!query.trim();
   return (
-    <div class="flex min-h-0 flex-1 flex-col" {...drag.area}>
-      <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
-        <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
-          <div class="flex flex-none items-center gap-2.5 pt-4 pb-2">
-            <SearchBox label="Search scripts" value={query} onChange={setQuery} />
-            <DropdownRoot>
-              <DropdownTrigger asChild>
-                <Button class="bg-transparent text-accent">
-                  <PlusIcon />
-                  New
-                </Button>
-              </DropdownTrigger>
-              <DropdownContent align="end" class="min-w-[196px]">
-                <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("script"); }}>
-                  <FileIcon class="text-muted" />
-                  Script
-                </DropdownItem>
-                <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("folder"); }}>
-                  <FolderIcon class="text-muted" />
-                  Folder
-                </DropdownItem>
-              </DropdownContent>
-            </DropdownRoot>
-          </div>
-          <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
-            {selecting && !drag.dragging ? (
-              <SelectionBar
-                count={picked.length}
-                onSelectAll={() => selection.selectAll(rows.map((row) => row.path))}
-                onAction={onSelectionAction}
-                onClose={() => selection.end()}
-              />
+    <LibraryPage
+      area={drag.area}
+      searchLabel="Search scripts"
+      query={query}
+      onQueryChange={setQuery}
+      newMenu={
+        <>
+          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("script"); }}>
+            <FileIcon class="text-muted" />
+            Script
+          </DropdownItem>
+          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("folder"); }}>
+            <FolderIcon class="text-muted" />
+            Folder
+          </DropdownItem>
+        </>
+      }
+      bar={
+        selecting && !drag.dragging ? (
+          <SelectionBar
+            count={picked.length}
+            onSelectAll={() => selection.selectAll(rows.map((row) => row.path))}
+            onAction={onSelectionAction}
+            onClose={() => selection.end()}
+          />
+        ) : (
+          <>
+            {searching ? (
+              <span class="pl-2 text-[12px] text-muted">Results in all folders</span>
+            ) : !loaded ? (
+              <span />
             ) : (
-              <>
-                {query.trim() ? (
-                  <span class="pl-2 text-[12px] text-muted">Results in all folders</span>
-                ) : !loaded ? (
-                  <span />
-                ) : (
-                  <Trail
-                    folder={folder}
-                    home={home}
-                    count={Object.keys(listing.files).length}
-                    dropTarget={drag.target}
-                    onOpen={openFolder}
-                  />
-                )}
-                <SortMenu
-                  value={sort}
-                  onChange={(key) =>
-                    void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
-                  }
-                />
-              </>
-            )}
-          </div>
-          {creating && (
-            <div class="flex-none pt-2">
-              <NameRow
-                icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
-                label={creating === "script" ? "New script name" : "New folder name"}
-                refocusOnce={fromMenu}
-                suffix={creating === "script" ? ".sd" : undefined}
-                onCancel={() => setCreating(null)}
-                onCommit={async (name) => {
-                  const { scripts, window } = await intents();
-                  const path = await scripts.create(creating, folder, name);
-                  setCreating(null);
-                  if (creating === "folder") openFolder(path);
-                  else window.openScript(path);
-                }}
+              <Trail
+                label="Scripts"
+                icon={<RootIcon />}
+                glyph="small"
+                summary={plural(Object.keys(listing.files).length, "script")}
+                crumbs={folder ? crumbsOf(folder, home) : []}
+                root=""
+                parent={browseParent(folder, home)}
+                dropTarget={drag.target}
+                dropAttribute={DROP_FOLDER}
+                onOpen={openFolder}
               />
-            </div>
-          )}
-          {rows.length ? (
-            <VirtualList
-              listRef={scroller}
-              label={query.trim() ? "Search results" : "Scripts and folders"}
-              class="-mr-4 flex-1 pt-2 pr-4 pb-5"
-              items={rows}
-              getKey={(row) => row.path}
-              renderItem={renderRow}
+            )}
+            <SortMenu
+              value={sort}
+              onChange={(key) =>
+                void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
+              }
             />
-          ) : !loaded ? null : (
-            <div class="flex flex-col items-center gap-3 px-5 py-14 text-center text-muted">
-              {query.trim() ? <SearchIcon class="size-8" /> : <FolderIcon class="size-8" />}
-              <h2 class="text-[16px] font-medium text-ink">
-                {query.trim() ? "No scripts match." : "This folder is empty"}
-              </h2>
-              {query.trim() ? (
-                <Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>
-              ) : (
-                <Button onClick={() => { setFromMenu(false); setCreating("script"); }}>
-                  <PlusIcon />
-                  New script
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+          </>
+        )
+      }
+      creating={
+        creating && (
+          <NameRow
+            icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
+            label={creating === "script" ? "New script name" : "New folder name"}
+            refocusOnce={fromMenu}
+            suffix={creating === "script" ? ".sd" : undefined}
+            onCancel={() => setCreating(null)}
+            onCommit={async (name) => {
+              const { scripts, window } = await intents();
+              const path = await scripts.create(creating, folder, name);
+              setCreating(null);
+              if (creating === "folder") openFolder(path);
+              else window.openScript(path);
+            }}
+          />
+        )
+      }
+      list={{
+        listRef: scroller,
+        label: searching ? "Search results" : "Scripts and folders",
+        items: rows,
+        getKey: (row) => row.path,
+        renderItem: renderRow,
+      }}
+      empty={
+        !loaded ? null : searching ? (
+          <EmptyState
+            icon={<SearchIcon />}
+            title="No scripts match."
+            action={<Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>}
+          />
+        ) : (
+          <EmptyState
+            icon={<FolderIcon />}
+            title="This folder is empty"
+            action={
+              <Button onClick={() => { setFromMenu(false); setCreating("script"); }}>
+                <PlusIcon />
+                New script
+              </Button>
+            }
+          />
+        )
+      }
+    >
       <MoveDialog
         paths={moving}
         listing={listing}
@@ -481,7 +381,7 @@ function AllScripts() {
           remove(paths);
         }}
       />
-    </div>
+    </LibraryPage>
   );
 }
 

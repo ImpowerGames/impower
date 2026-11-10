@@ -32,7 +32,6 @@
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@preact/signals": "^2.9.0",
-    "@tanstack/react-virtual": "^3.13.25",
     "@vscode/debugprotocol": "^1.68.0",
     "dotenv": "^16.3.1",
     "fastify": "^5.8.4",

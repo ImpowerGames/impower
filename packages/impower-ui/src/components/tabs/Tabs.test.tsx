@@ -112,3 +112,44 @@ describe("Tabs rail variant", () => {
     expect(onChange).toHaveBeenCalledWith("share");
   });
 });
+
+describe("Tabs inline variant", () => {
+  it("sizes each tab to its label and puts the current one in the accent", async () => {
+    const { tabs } = await mount({ variant: "inline", iconLayout: "beside" });
+    const list = host!.querySelector('[role="tablist"]')!;
+    expect(classes(host!.firstElementChild!)).toEqual(expect.arrayContaining(["min-h-[52px]", "items-center"]));
+    expect(classes(host!.firstElementChild!)).not.toContain("items-stretch");
+    expect(classes(list)).toEqual(expect.arrayContaining(["gap-[18px]", "phone:gap-2"]));
+    for (const tab of tabs) {
+      expect(classes(tab)).toEqual(
+        expect.arrayContaining(["flex-none", "min-h-[50px]", "min-w-11", "px-1", "text-[13px]", "font-normal"]),
+      );
+      expect(classes(tab)).not.toContain("flex-1");
+    }
+    expect(tabs[0]!.querySelector(".text-accent")).not.toBeNull();
+    expect(list.querySelector('[aria-hidden="true"].bg-accent')).not.toBeNull();
+  });
+
+  it("does not scroll unless asked", async () => {
+    await mount({ variant: "inline" });
+    expect(classes(host!.querySelector('[role="tablist"]')!)).not.toContain("overflow-x-auto");
+  });
+
+  it("scrolls sideways without a scrollbar and fades its right edge when asked", async () => {
+    const { tabs, onChange } = await mount({ variant: "inline", scroll: true });
+    const list = host!.querySelector('[role="tablist"]')!;
+    expect(classes(list)).toEqual(
+      expect.arrayContaining([
+        "overflow-x-auto",
+        "[scrollbar-width:none]",
+        "pr-5",
+        "[mask-image:linear-gradient(to_right,#000_calc(100%_-_20px),transparent)]",
+      ]),
+    );
+    await act(async () => {
+      tabs[1]!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      tabs[1]!.click();
+    });
+    expect(onChange).toHaveBeenCalledWith("assets");
+  });
+});

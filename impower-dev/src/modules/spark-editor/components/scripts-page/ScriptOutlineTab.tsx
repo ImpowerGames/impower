@@ -3,7 +3,7 @@ import { useMemo } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 import { filterOutlineRows, OutlineRowIcon, outlineRows, type OutlineRow } from "../outline";
 import { useSavedScroll, useTabQuery } from "./pageState";
-import SearchBox from "./SearchBox";
+import { SearchBox } from "../library-page";
 
 export const OUTLINE_TAB = "outline";
 

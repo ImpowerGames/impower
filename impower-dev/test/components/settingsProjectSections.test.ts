@@ -33,7 +33,8 @@ const { extensionDefaults, projectSettingsJson } = await import(
 );
 const { default: extensionManifest } = await import("../../../vscode-sparkdown/package.json");
 const { SparkdownCompiler } = await import("@impower/sparkdown/src/compiler/classes/SparkdownCompiler");
-const { fileCategory, isImagePath } = await import("../../src/modules/spark-editor/utils/fileIcon");
+const { assetEndings, assetTypeOf } = await import("../../src/modules/spark-editor/utils/assetTypes");
+const assetType = (path: string) => assetTypeOf(path, assetEndings.value);
 const { isScriptPath } = await import("../../src/modules/spark-editor/utils/scriptFiles");
 
 const PROJECT = "proj";
@@ -298,16 +299,15 @@ describe("File types", () => {
 
   it("makes the editor classify files of an added ending as their type, until Reset", async () => {
     await mount(h(FileTypesSection, { section: { id: "file-types", label: "File types", title: "File types" } }));
-    expect(fileCategory("assets/lighthouse.avif")).toBe("other");
+    expect(assetType("assets/lighthouse.avif")).toBe("other");
     expect(isScriptPath("scripts/chapter.story")).toBe(false);
     await type("file-type-images", "png, avif");
     await type("file-type-scripts", "sd, luau, story");
-    expect(fileCategory("assets/lighthouse.avif")).toBe("image");
-    expect(isImagePath("assets/lighthouse.avif")).toBe(true);
+    expect(assetType("assets/lighthouse.avif")).toBe("image");
     expect(isScriptPath("scripts/chapter.story")).toBe(true);
     await act(async () => host!.querySelector<HTMLButtonElement>("[data-reset-all]")!.click());
     await settle();
-    expect(fileCategory("assets/lighthouse.avif")).toBe("other");
+    expect(assetType("assets/lighthouse.avif")).toBe("other");
     expect(isScriptPath("scripts/chapter.story")).toBe(false);
   });
 
