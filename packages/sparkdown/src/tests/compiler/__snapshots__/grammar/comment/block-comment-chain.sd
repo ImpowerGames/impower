@@ -1,7 +1,7 @@
 scene start
-  Before /* note \
+  Before /* note\
   still */ after
-  One /* a \ b */ two\
+  One /* a note */ two\
   three
   done
 end

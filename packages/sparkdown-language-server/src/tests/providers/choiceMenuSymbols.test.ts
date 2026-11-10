@@ -245,16 +245,25 @@ end
   test("an option's name leaves out its comments", () => {
     const [scene] = symbolsOf(`scene Hall
   choose
-    * Go /* draft
-      hidden */ left
+    * Go /* draft */ left
       Gone.
     * Wait /* aside */ here // note
       Waiting.
+    * Stay /* not closed on its line
+      Staying.
   end
 end
 `);
     expect(shape(scene?.children)).toEqual([
-      ["Enum", "Go left", [["EnumMember", "Go left"], ["EnumMember", "Wait here"]]],
+      [
+        "Enum",
+        "Go left",
+        [
+          ["EnumMember", "Go left"],
+          ["EnumMember", "Wait here"],
+          ["EnumMember", "Stay /* not closed on its line"],
+        ],
+      ],
     ]);
   });
 });

@@ -9,6 +9,12 @@ import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
 const COMPILER_FIELDS = new Set(["typecheck"]);
 
+const SAME_LINE_TEXT_SEPARATORS = new Set([
+  "SparkdownBlockComment",
+  "SparkdownBlockCommentOnLine",
+  "SparkdownOpenCommentText",
+]);
+
 const ROOT_FUNCTION_WRAPPERS = new Set([
   "LuauFunctionAttributes",
   "LuauFunctionAttributes_content",
@@ -50,18 +56,26 @@ export default class ScreenplayParser {
       return text;
     };
 
-    const continuesAfterComment = (node: SyntaxNode): boolean => {
+    const precedingText = (node: SyntaxNode) => {
       let before = node.prevSibling;
-      if (before?.name !== "SparkdownBlockComment") return false;
-      while (before?.name === "SparkdownBlockComment") {
+      let between = "";
+      while (before && SAME_LINE_TEXT_SEPARATORS.has(before.name)) {
+        if (before.name === "SparkdownOpenCommentText") {
+          between = read(before.from, before.to) + between;
+        }
         before = before.prevSibling;
       }
-      return before?.name === "TextChunk";
+      return {
+        continues: before !== node.prevSibling && before?.name === "TextChunk",
+        between,
+      };
     };
-    const appendLine = (lines: string, node: SyntaxNode, text: string) =>
-      continuesAfterComment(node)
-        ? `${lines.replace(/\n$/, "")}${text}\n`
-        : `${lines}${text}\n`;
+    const appendLine = (lines: string, node: SyntaxNode, text: string) => {
+      const { continues, between } = precedingText(node);
+      return continues
+        ? `${lines.replace(/\n$/, "")}${between}${text}\n`
+        : `${lines}${between}${text}\n`;
+    };
     const readWithoutComments = (node: SyntaxNode): string =>
       readSkipping(node, read, (child) => child.name === "SparkdownBlockComment");
 
@@ -245,12 +259,10 @@ export default class ScreenplayParser {
           stack.includes("InlineDialogue_content")
         ) {
           if (name === "TextChunk") {
-            const text = readWords(nodeRef.node);
+            const { continues, between } = precedingText(nodeRef.node);
+            const text = between + readWords(nodeRef.node);
             const last = tokens.at(-1);
-            if (
-              continuesAfterComment(nodeRef.node) &&
-              last?.tag === "dialogue_content"
-            ) {
+            if (continues && last?.tag === "dialogue_content") {
               last.text = `${last.text ?? ""}${text}`;
             } else {
               tokens.push({

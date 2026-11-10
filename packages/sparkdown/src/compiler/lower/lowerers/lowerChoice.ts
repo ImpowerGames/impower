@@ -73,19 +73,19 @@ export function lowerChoice(
   const choiceOnlyContent = new ContentList();
   let innerContent = new ContentList();
 
-  const segments = choiceTextSegments(nodeRef.node);
-  const hasWeaveStyleInlineBrackets = distributeChoiceText(segments, ctx, {
-    start: startContent,
-    only: choiceOnlyContent,
-    inner: innerContent,
-  });
-  const appendStartText = (list: ContentList) => {
-    distributeChoiceText(segments, ctx, {
-      start: list,
-      only: new ContentList(),
-      inner: new ContentList(),
-    });
-  };
+  const bracketed = getDescendent("ChoiceWithSuppressedText", nodeRef.node);
+  const unbracketed = getDescendent("ChoiceWithNoSuppressedText", nodeRef.node);
+
+  let hasWeaveStyleInlineBrackets = false;
+
+  if (bracketed) {
+    hasWeaveStyleInlineBrackets = true;
+    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent, true);
+    appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
+    appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
+  } else if (unbracketed) {
+    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent, true);
+  }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
   const divertObjects = divertNode ? buildDivert(divertNode, ctx) : [];
@@ -124,7 +124,11 @@ export function lowerChoice(
     chosenTail,
     () => {
       const fresh = new ContentList();
-      appendStartText(fresh);
+      if (bracketed) {
+        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh, true);
+      } else if (unbracketed) {
+        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh, true);
+      }
       return fresh;
     },
     endsFlow,
@@ -282,91 +286,6 @@ function collectChoiceCondition(
   return lowerExpressionFromContainer(condCapture, ctx, "expression");
 }
 
-
-const CHOICE_TEXT_SEGMENTS: ReadonlySet<string> = nodeNameSet([
-  "ChoiceWithSuppressedText",
-  "ChoiceWithNoSuppressedText",
-  "ChoiceOpenSuppressedText",
-  "ChoiceCloseSuppressedText",
-]);
-
-const CHOICE_SEGMENT_TEXT_CAPTURES = [
-  "ChoicePlainText",
-  "ChoiceStartText",
-  "ChoiceOnlyText",
-  "ChoiceInnerText",
-];
-
-interface ChoiceTextLists {
-  start: ContentList;
-  only: ContentList;
-  inner: ContentList;
-}
-
-function choiceTextSegments(choice: SyntaxNode): SyntaxNode[] {
-  const content = choice.getChild("Choice_content");
-  const segments: SyntaxNode[] = [];
-  for (let child = content?.firstChild; child; child = child.nextSibling) {
-    if (CHOICE_TEXT_SEGMENTS.has(child.name)) segments.push(child);
-  }
-  return segments;
-}
-
-function distributeChoiceText(
-  segments: SyntaxNode[],
-  ctx: LowerContext,
-  lists: ChoiceTextLists,
-): boolean {
-  let phase: keyof ChoiceTextLists = "start";
-  let bracketed = false;
-  const append = (
-    segment: SyntaxNode,
-    capture: string,
-    into: keyof ChoiceTextLists,
-  ) => appendTextFromCapture(segment, capture, ctx, lists[into], into === "start");
-  const appendAsText = (segment: SyntaxNode) => {
-    for (let part = segment.firstChild; part; part = part.nextSibling) {
-      const text = ctx.read(part.from, part.to);
-      if (text === "[" || text === "]") {
-        lists[phase].AddContent(new Text(text));
-        continue;
-      }
-      for (const capture of CHOICE_SEGMENT_TEXT_CAPTURES) {
-        appendTextFromCapture(part, capture, ctx, lists[phase], phase === "start");
-      }
-    }
-  };
-  segments.forEach((segment, index) => {
-    if (segment.name === "ChoiceWithSuppressedText" && phase === "start") {
-      append(segment, "ChoiceStartText", "start");
-      append(segment, "ChoiceOnlyText", "only");
-      append(segment, "ChoiceInnerText", "inner");
-      phase = "inner";
-      bracketed = true;
-    } else if (
-      segment.name === "ChoiceOpenSuppressedText" &&
-      phase === "start" &&
-      segments
-        .slice(index + 1)
-        .some((later) => later.name === "ChoiceCloseSuppressedText")
-    ) {
-      append(segment, "ChoiceStartText", "start");
-      append(segment, "ChoiceOnlyText", "only");
-      phase = "only";
-    } else if (
-      segment.name === "ChoiceCloseSuppressedText" &&
-      phase === "only"
-    ) {
-      append(segment, "ChoiceOnlyText", "only");
-      append(segment, "ChoiceInnerText", "inner");
-      phase = "inner";
-      bracketed = true;
-    } else {
-      appendAsText(segment);
-    }
-  });
-  return bracketed;
-}
 
 function appendTextFromCapture(
   parent: SyntaxNode,

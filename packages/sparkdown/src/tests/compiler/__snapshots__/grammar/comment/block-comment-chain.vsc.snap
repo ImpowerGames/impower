@@ -6,25 +6,30 @@ text.source.sparkdown [0..90]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ string.display.text.chunk.sd [14..20]
  │   └─ markup.raw.text.sd [14..20]: "Before"
- ├─ comment.block.sd [20..30]
- │   ├─ punctuation.whitespace.optional.sd [20..21]: " "
- │   ├─ punctuation.definition.comment.begin.sd [21..23]: "/*"
- │   └─ comment.block.content.sd [23..30]: " note \\"
- ├─ Newline [30..31]: "\n"
- ├─ comment.block.sd [31..41]
- │   ├─ comment.block.content.sd [31..39]: "  still "
- │   └─ punctuation.definition.comment.end.sd [39..41]: "*/"
- ├─ string.display.text.chunk.sd [41..47]
- │   ├─ markup.raw.space.sd [41..42]: " "
- │   └─ markup.raw.text.sd [42..47]: "after"
- ├─ Newline [47..48]: "\n"
- ├─ punctuation.whitespace.optional.sd [48..50]: "  "
- ├─ string.display.text.chunk.sd [50..53]
- │   └─ markup.raw.text.sd [50..53]: "One"
- ├─ comment.block.sd [53..65]
- │   ├─ punctuation.whitespace.optional.sd [53..54]: " "
- │   ├─ punctuation.definition.comment.begin.sd [54..56]: "/*"
- │   ├─ comment.block.content.sd [56..63]: " a \\ b "
+ ├─ string.display.text.chunk.sd [20..23]: " /*"
+ ├─ string.display.text.chunk.sd [23..28]
+ │   ├─ markup.raw.space.sd [23..24]: " "
+ │   └─ markup.raw.text.sd [24..28]: "note"
+ ├─ meta.chain.sd [28..29]
+ │   └─ keyword.other.chain.sd [28..29]: "\\"
+ ├─ Newline [29..30]: "\n"
+ ├─ punctuation.whitespace.optional.sd [30..32]: "  "
+ ├─ string.display.text.chunk.sd [32..46]
+ │   ├─ markup.raw.text.sd [32..37]: "still"
+ │   ├─ markup.raw.space.sd [37..38]: " "
+ │   └─ markup.other.italic.sd [38..46]
+ │       ├─ markup.raw.text.sd [38..39]: "*"
+ │       ├─ markup.raw.punctuation.sd [39..40]: "/"
+ │       ├─ markup.raw.space.sd [40..41]: " "
+ │       └─ markup.raw.text.sd [41..46]: "after"
+ ├─ Newline [46..47]: "\n"
+ ├─ punctuation.whitespace.optional.sd [47..49]: "  "
+ ├─ string.display.text.chunk.sd [49..52]
+ │   └─ markup.raw.text.sd [49..52]: "One"
+ ├─ comment.block.sd [52..65]
+ │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [53..55]: "/*"
+ │   ├─ comment.block.content.sd [55..63]: " a note "
  │   └─ punctuation.definition.comment.end.sd [63..65]: "*/"
  ├─ string.display.text.chunk.sd [65..69]
  │   ├─ markup.raw.space.sd [65..66]: " "

@@ -877,6 +877,7 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "SparkdownLineComment",
   "SparkdownInlineComment",
   "SparkdownBlockComment",
+  "SparkdownBlockCommentOnLine",
   "Tags",
 ]);
 

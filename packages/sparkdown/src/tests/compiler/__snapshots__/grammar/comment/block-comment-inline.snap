@@ -229,15 +229,19 @@ sparkdown [0..281]
  │   │   │   │       │       └─ DivertPartName [161..165]: "next"
  │   │   │   │       └─ DivertPath_end 165
  │   │   │   └─ DivertTarget_end 165
- │   │   └─ SparkdownBlockComment [165..175]
- │   │       ├─ SparkdownBlockComment_begin [165..168]
- │   │       │   ├─ SparkdownBlockComment_begin_c1 [165..166]
- │   │       │   │   └─ OptionalWhitespace [165..166]: " "
- │   │       │   └─ SparkdownBlockComment_begin_c2 [166..168]: "/*"
- │   │       ├─ SparkdownBlockComment_content [168..173]
- │   │       │   └─ SparkdownBlockCommentContent [168..173]: " why "
- │   │       └─ SparkdownBlockComment_end [173..175]
- │   │           └─ SparkdownBlockComment_end_c1 [173..175]: "*/"
+ │   │   └─ SparkdownBlockCommentOnLine [165..175]
+ │   │       ├─ SparkdownBlockCommentOnLine_begin 165
+ │   │       ├─ SparkdownBlockCommentOnLine_content [165..175]
+ │   │       │   └─ SparkdownBlockComment [165..175]
+ │   │       │       ├─ SparkdownBlockComment_begin [165..168]
+ │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [165..166]
+ │   │       │       │   │   └─ OptionalWhitespace [165..166]: " "
+ │   │       │       │   └─ SparkdownBlockComment_begin_c2 [166..168]: "/*"
+ │   │       │       ├─ SparkdownBlockComment_content [168..173]
+ │   │       │       │   └─ SparkdownBlockCommentContent [168..173]: " why "
+ │   │       │       └─ SparkdownBlockComment_end [173..175]
+ │   │       │           └─ SparkdownBlockComment_end_c1 [173..175]: "*/"
+ │   │       └─ SparkdownBlockCommentOnLine_end 175
  │   └─ Divert_end 175
  ├─ Newline [175..176]: "\n"
  ├─ Choice [176..227]
@@ -260,15 +264,19 @@ sparkdown [0..281]
  │   │       │       └─ ChoiceTextContent [181..198]
  │   │       │           └─ ChoiceTextContent_c1 [181..198]
  │   │       │               ├─ Word [181..183]: "Go"
- │   │       │               ├─ SparkdownBlockComment [183..195]
- │   │       │               │   ├─ SparkdownBlockComment_begin [183..186]
- │   │       │               │   │   ├─ SparkdownBlockComment_begin_c1 [183..184]
- │   │       │               │   │   │   └─ OptionalWhitespace [183..184]: " "
- │   │       │               │   │   └─ SparkdownBlockComment_begin_c2 [184..186]: "/*"
- │   │       │               │   ├─ SparkdownBlockComment_content [186..193]
- │   │       │               │   │   └─ SparkdownBlockCommentContent [186..193]: " inner "
- │   │       │               │   └─ SparkdownBlockComment_end [193..195]
- │   │       │               │       └─ SparkdownBlockComment_end_c1 [193..195]: "*/"
+ │   │       │               ├─ SparkdownBlockCommentOnLine [183..195]
+ │   │       │               │   ├─ SparkdownBlockCommentOnLine_begin 183
+ │   │       │               │   ├─ SparkdownBlockCommentOnLine_content [183..195]
+ │   │       │               │   │   └─ SparkdownBlockComment [183..195]
+ │   │       │               │   │       ├─ SparkdownBlockComment_begin [183..186]
+ │   │       │               │   │       │   ├─ SparkdownBlockComment_begin_c1 [183..184]
+ │   │       │               │   │       │   │   └─ OptionalWhitespace [183..184]: " "
+ │   │       │               │   │       │   └─ SparkdownBlockComment_begin_c2 [184..186]: "/*"
+ │   │       │               │   │       ├─ SparkdownBlockComment_content [186..193]
+ │   │       │               │   │       │   └─ SparkdownBlockCommentContent [186..193]: " inner "
+ │   │       │               │   │       └─ SparkdownBlockComment_end [193..195]
+ │   │       │               │   │           └─ SparkdownBlockComment_end_c1 [193..195]: "*/"
+ │   │       │               │   └─ SparkdownBlockCommentOnLine_end 195
  │   │       │               ├─ Space [195..196]: " "
  │   │       │               └─ Word [196..198]: "on"
  │   │       ├─ ChoiceWithSuppressedText_c4 [198..199]: "]"
@@ -278,15 +286,19 @@ sparkdown [0..281]
  │   │       │   ├─ ChoiceInnerText [200..203]
  │   │       │   │   └─ Word [200..203]: "You"
  │   │       │   ├─ ChoiceInnerText [203..215]
- │   │       │   │   └─ SparkdownBlockComment [203..215]
- │   │       │   │       ├─ SparkdownBlockComment_begin [203..206]
- │   │       │   │       │   ├─ SparkdownBlockComment_begin_c1 [203..204]
- │   │       │   │       │   │   └─ OptionalWhitespace [203..204]: " "
- │   │       │   │       │   └─ SparkdownBlockComment_begin_c2 [204..206]: "/*"
- │   │       │   │       ├─ SparkdownBlockComment_content [206..213]
- │   │       │   │       │   └─ SparkdownBlockCommentContent [206..213]: " outer "
- │   │       │   │       └─ SparkdownBlockComment_end [213..215]
- │   │       │   │           └─ SparkdownBlockComment_end_c1 [213..215]: "*/"
+ │   │       │   │   └─ SparkdownBlockCommentOnLine [203..215]
+ │   │       │   │       ├─ SparkdownBlockCommentOnLine_begin 203
+ │   │       │   │       ├─ SparkdownBlockCommentOnLine_content [203..215]
+ │   │       │   │       │   └─ SparkdownBlockComment [203..215]
+ │   │       │   │       │       ├─ SparkdownBlockComment_begin [203..206]
+ │   │       │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [203..204]
+ │   │       │   │       │       │   │   └─ OptionalWhitespace [203..204]: " "
+ │   │       │   │       │       │   └─ SparkdownBlockComment_begin_c2 [204..206]: "/*"
+ │   │       │   │       │       ├─ SparkdownBlockComment_content [206..213]
+ │   │       │   │       │       │   └─ SparkdownBlockCommentContent [206..213]: " outer "
+ │   │       │   │       │       └─ SparkdownBlockComment_end [213..215]
+ │   │       │   │       │           └─ SparkdownBlockComment_end_c1 [213..215]: "*/"
+ │   │       │   │       └─ SparkdownBlockCommentOnLine_end 215
  │   │       │   ├─ ChoiceInnerText [215..216]
  │   │       │   │   └─ Space [215..216]: " "
  │   │       │   ├─ ChoiceInnerText [216..218]
@@ -338,15 +350,19 @@ sparkdown [0..281]
  │   │       │       └─ ChoiceTextContent [232..255]
  │   │       │           └─ ChoiceTextContent_c1 [232..255]
  │   │       │               ├─ Word [232..237]: "Plain"
- │   │       │               ├─ SparkdownBlockComment [237..248]
- │   │       │               │   ├─ SparkdownBlockComment_begin [237..240]
- │   │       │               │   │   ├─ SparkdownBlockComment_begin_c1 [237..238]
- │   │       │               │   │   │   └─ OptionalWhitespace [237..238]: " "
- │   │       │               │   │   └─ SparkdownBlockComment_begin_c2 [238..240]: "/*"
- │   │       │               │   ├─ SparkdownBlockComment_content [240..246]
- │   │       │               │   │   └─ SparkdownBlockCommentContent [240..246]: " note "
- │   │       │               │   └─ SparkdownBlockComment_end [246..248]
- │   │       │               │       └─ SparkdownBlockComment_end_c1 [246..248]: "*/"
+ │   │       │               ├─ SparkdownBlockCommentOnLine [237..248]
+ │   │       │               │   ├─ SparkdownBlockCommentOnLine_begin 237
+ │   │       │               │   ├─ SparkdownBlockCommentOnLine_content [237..248]
+ │   │       │               │   │   └─ SparkdownBlockComment [237..248]
+ │   │       │               │   │       ├─ SparkdownBlockComment_begin [237..240]
+ │   │       │               │   │       │   ├─ SparkdownBlockComment_begin_c1 [237..238]
+ │   │       │               │   │       │   │   └─ OptionalWhitespace [237..238]: " "
+ │   │       │               │   │       │   └─ SparkdownBlockComment_begin_c2 [238..240]: "/*"
+ │   │       │               │   │       ├─ SparkdownBlockComment_content [240..246]
+ │   │       │               │   │       │   └─ SparkdownBlockCommentContent [240..246]: " note "
+ │   │       │               │   │       └─ SparkdownBlockComment_end [246..248]
+ │   │       │               │   │           └─ SparkdownBlockComment_end_c1 [246..248]: "*/"
+ │   │       │               │   └─ SparkdownBlockCommentOnLine_end 248
  │   │       │               ├─ Space [248..249]: " "
  │   │       │               └─ Word [249..255]: "choice"
  │   │       ├─ ChoiceWithNoSuppressedText_c2 255

@@ -81,6 +81,9 @@ const STRINGS: [string, string][] = [
   ["HERO: Hi  there.", "HERO: Hi there."],
   ["HERO:\n  Hello  there.", "HERO:\n  Hello there."],
   ["* Choice  one", "* Choice one"],
+  [String.raw`Open  /* note\
+Next.`, String.raw`Open /* note\
+Next.`],
   ["# tag  one", "# tag one"],
   ["Line #tag  x", "Line #tag x"],
   [

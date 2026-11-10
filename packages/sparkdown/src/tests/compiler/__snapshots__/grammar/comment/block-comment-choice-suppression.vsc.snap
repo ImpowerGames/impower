@@ -9,24 +9,28 @@ text.source.sparkdown [0..250]
  ├─ entity.choice.sd [21..41]
  │   ├─ punctuation.whitespace.optional.sd [21..25]: "    "
  │   ├─ keyword.operator.expression.list.sd [25..27]: "+ "
- │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [27..28]: "["
- │   ├─ string.choice.sd [28..32]
- │   │   └─ markup.raw.text.sd [28..32]: "Wait"
- │   └─ comment.block.sd [32..41]
- │       ├─ punctuation.whitespace.optional.sd [32..33]: " "
- │       ├─ punctuation.definition.comment.begin.sd [33..35]: "/*"
- │       └─ comment.block.content.sd [35..41]: " draft"
+ │   └─ string.choice.sd [27..41]
+ │       ├─ markup.raw.punctuation.sd [27..28]: "["
+ │       ├─ markup.raw.text.sd [28..32]: "Wait"
+ │       ├─ markup.raw.space.sd [32..33]: " "
+ │       ├─ markup.raw.punctuation.sd [33..34]: "/"
+ │       └─ markup.other.italic.sd [34..41]
+ │           ├─ markup.raw.text.sd [34..35]: "*"
+ │           ├─ markup.raw.space.sd [35..36]: " "
+ │           └─ markup.raw.text.sd [36..41]: "draft"
  ├─ Newline [41..42]: "\n"
- ├─ entity.choice.sd [42..67]
- │   ├─ comment.block.sd [42..57]
- │   │   ├─ comment.block.content.sd [42..55]: "      hidden "
- │   │   └─ punctuation.definition.comment.end.sd [55..57]: "*/"
- │   ├─ string.choice.sd [57..62]
- │   │   ├─ markup.raw.space.sd [57..58]: " "
- │   │   └─ markup.raw.text.sd [58..62]: "here"
- │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [62..63]: "]"
- │   ├─ markup.raw.space.sd [63..64]: " "
- │   └─ markup.raw.text.sd [64..67]: "now"
+ ├─ punctuation.whitespace.optional.sd [42..48]: "      "
+ ├─ string.display.text.chunk.sd [48..67]
+ │   ├─ markup.raw.text.sd [48..54]: "hidden"
+ │   ├─ markup.raw.space.sd [54..55]: " "
+ │   └─ markup.other.italic.sd [55..67]
+ │       ├─ markup.raw.text.sd [55..56]: "*"
+ │       ├─ markup.raw.punctuation.sd [56..57]: "/"
+ │       ├─ markup.raw.space.sd [57..58]: " "
+ │       ├─ markup.raw.text.sd [58..62]: "here"
+ │       ├─ markup.raw.punctuation.sd [62..63]: "]"
+ │       ├─ markup.raw.space.sd [63..64]: " "
+ │       └─ markup.raw.text.sd [64..67]: "now"
  ├─ Newline [67..68]: "\n"
  ├─ punctuation.whitespace.optional.sd [68..74]: "      "
  ├─ keyword.control.divert.done.sd [74..78]: "done"
@@ -34,35 +38,43 @@ text.source.sparkdown [0..250]
  ├─ entity.choice.sd [79..100]
  │   ├─ punctuation.whitespace.optional.sd [79..83]: "    "
  │   ├─ keyword.operator.expression.list.sd [83..85]: "+ "
- │   ├─ string.choice.sd [85..88]
- │   │   ├─ markup.raw.text.sd [85..87]: "Go"
- │   │   └─ markup.raw.space.sd [87..88]: " "
- │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [88..89]: "["
- │   ├─ string.choice.sd [89..93]
- │   │   └─ markup.raw.text.sd [89..93]: "left"
- │   └─ comment.block.sd [93..100]
- │       ├─ punctuation.whitespace.optional.sd [93..94]: " "
- │       ├─ punctuation.definition.comment.begin.sd [94..96]: "/*"
- │       └─ comment.block.content.sd [96..100]: " one"
+ │   └─ string.choice.sd [85..100]
+ │       ├─ markup.raw.text.sd [85..87]: "Go"
+ │       ├─ markup.raw.space.sd [87..88]: " "
+ │       ├─ markup.raw.punctuation.sd [88..89]: "["
+ │       ├─ markup.raw.text.sd [89..93]: "left"
+ │       ├─ markup.raw.space.sd [93..94]: " "
+ │       ├─ markup.raw.punctuation.sd [94..95]: "/"
+ │       └─ markup.other.italic.sd [95..100]
+ │           ├─ markup.raw.text.sd [95..96]: "*"
+ │           ├─ markup.raw.space.sd [96..97]: " "
+ │           └─ markup.raw.text.sd [97..100]: "one"
  ├─ Newline [100..101]: "\n"
- ├─ entity.choice.sd [101..122]
- │   └─ comment.block.sd [101..122]
- │       ├─ comment.block.content.sd [101..111]: "      two "
- │       ├─ punctuation.definition.comment.end.sd [111..113]: "*/"
- │       ├─ punctuation.whitespace.optional.sd [113..114]: " "
- │       ├─ punctuation.definition.comment.begin.sd [114..116]: "/*"
- │       └─ comment.block.content.sd [116..122]: " three"
+ ├─ punctuation.whitespace.optional.sd [101..107]: "      "
+ ├─ string.display.text.chunk.sd [107..122]
+ │   ├─ markup.raw.text.sd [107..110]: "two"
+ │   ├─ markup.raw.space.sd [110..111]: " "
+ │   ├─ markup.other.italic.sd [111..116]
+ │   │   ├─ markup.raw.text.sd [111..112]: "*"
+ │   │   ├─ markup.raw.punctuation.sd [112..113]: "/"
+ │   │   ├─ markup.raw.space.sd [113..114]: " "
+ │   │   ├─ markup.raw.punctuation.sd [114..115]: "/"
+ │   │   └─ markup.raw.text.sd [115..116]: "*"
+ │   ├─ markup.raw.space.sd [116..117]: " "
+ │   └─ markup.raw.text.sd [117..122]: "three"
  ├─ Newline [122..123]: "\n"
- ├─ entity.choice.sd [123..146]
- │   ├─ comment.block.sd [123..136]
- │   │   ├─ comment.block.content.sd [123..134]: "      four "
- │   │   └─ punctuation.definition.comment.end.sd [134..136]: "*/"
- │   ├─ string.choice.sd [136..141]
- │   │   ├─ markup.raw.space.sd [136..137]: " "
- │   │   └─ markup.raw.text.sd [137..141]: "side"
- │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [141..142]: "]"
- │   ├─ markup.raw.space.sd [142..143]: " "
- │   └─ markup.raw.text.sd [143..146]: "way"
+ ├─ punctuation.whitespace.optional.sd [123..129]: "      "
+ ├─ string.display.text.chunk.sd [129..146]
+ │   ├─ markup.raw.text.sd [129..133]: "four"
+ │   ├─ markup.raw.space.sd [133..134]: " "
+ │   └─ markup.other.italic.sd [134..146]
+ │       ├─ markup.raw.text.sd [134..135]: "*"
+ │       ├─ markup.raw.punctuation.sd [135..136]: "/"
+ │       ├─ markup.raw.space.sd [136..137]: " "
+ │       ├─ markup.raw.text.sd [137..141]: "side"
+ │       ├─ markup.raw.punctuation.sd [141..142]: "]"
+ │       ├─ markup.raw.space.sd [142..143]: " "
+ │       └─ markup.raw.text.sd [143..146]: "way"
  ├─ Newline [146..147]: "\n"
  ├─ punctuation.whitespace.optional.sd [147..153]: "      "
  ├─ keyword.control.divert.done.sd [153..157]: "done"
@@ -91,22 +103,25 @@ text.source.sparkdown [0..250]
  ├─ entity.choice.sd [190..211]
  │   ├─ punctuation.whitespace.optional.sd [190..194]: "    "
  │   ├─ keyword.operator.expression.list.sd [194..196]: "+ "
- │   ├─ string.choice.sd [196..199]
- │   │   ├─ markup.raw.text.sd [196..198]: "Go"
- │   │   └─ markup.raw.space.sd [198..199]: " "
- │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [199..200]: "["
- │   ├─ string.choice.sd [200..204]
- │   │   └─ markup.raw.text.sd [200..204]: "left"
- │   └─ comment.block.sd [204..211]
- │       ├─ punctuation.whitespace.optional.sd [204..205]: " "
- │       ├─ punctuation.definition.comment.begin.sd [205..207]: "/*"
- │       └─ comment.block.content.sd [207..211]: " one"
+ │   └─ string.choice.sd [196..211]
+ │       ├─ markup.raw.text.sd [196..198]: "Go"
+ │       ├─ markup.raw.space.sd [198..199]: " "
+ │       ├─ markup.raw.punctuation.sd [199..200]: "["
+ │       ├─ markup.raw.text.sd [200..204]: "left"
+ │       ├─ markup.raw.space.sd [204..205]: " "
+ │       ├─ markup.raw.punctuation.sd [205..206]: "/"
+ │       └─ markup.other.italic.sd [206..211]
+ │           ├─ markup.raw.text.sd [206..207]: "*"
+ │           ├─ markup.raw.space.sd [207..208]: " "
+ │           └─ markup.raw.text.sd [208..211]: "one"
  ├─ Newline [211..212]: "\n"
- ├─ entity.choice.sd [212..228]
- │   ├─ comment.block.sd [212..224]
- │   │   ├─ comment.block.content.sd [212..222]: "      two "
- │   │   └─ punctuation.definition.comment.end.sd [222..224]: "*/"
- │   └─ string.choice.sd [224..228]
+ ├─ punctuation.whitespace.optional.sd [212..218]: "      "
+ ├─ string.display.text.chunk.sd [218..228]
+ │   ├─ markup.raw.text.sd [218..221]: "two"
+ │   ├─ markup.raw.space.sd [221..222]: " "
+ │   └─ markup.other.italic.sd [222..228]
+ │       ├─ markup.raw.text.sd [222..223]: "*"
+ │       ├─ markup.raw.punctuation.sd [223..224]: "/"
  │       ├─ markup.raw.space.sd [224..225]: " "
  │       └─ markup.raw.text.sd [225..228]: "way"
  ├─ Newline [228..229]: "\n"

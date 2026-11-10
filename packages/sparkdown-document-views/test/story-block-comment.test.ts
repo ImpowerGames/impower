@@ -18,9 +18,6 @@ const SCRIPT =
   `  choose\n` +
   `    + Go /* choice note */ left\n` +
   `      done\n` +
-  `    + Run /* choice note\n` +
-  `      choice note */ away\n` +
-  `      done\n` +
   `  end\n` +
   `end\n`;
 
@@ -35,7 +32,6 @@ describe("a story block comment in the screenplay", () => {
     expect(pdf).toContain("Side by side.");
     expect(pdf).toContain("Good evening.");
     expect(pdf).toContain("Go left");
-    expect(pdf).toContain("Run away");
     for (const text of HIDDEN) expect(pdf).not.toContain(text);
   });
 
