@@ -85,6 +85,8 @@
   --button-ink: rgb(255 255 255);
   --error-strong: oklch(63.7% 0.237 25.331);
   --warning-strong: oklch(76.9% 0.188 70.08);
+  --media-badge: rgb(0 0 0 / 0.67);
+  --media-badge-ink: rgb(255 255 255);
   --scrim: rgb(0 0 0 / 0.5);
 }
 
@@ -537,6 +539,8 @@
   --button-ink: var(--accent-ink);
   --error-strong: var(--error);
   --warning-strong: var(--warning);
+  --media-badge: rgb(0 0 0 / 0.67);
+  --media-badge-ink: rgb(255 255 255);
 
   --editor-line-number: var(--muted);
   --editor-line-number-active: var(--ink);

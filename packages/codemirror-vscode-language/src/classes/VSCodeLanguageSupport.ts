@@ -9,6 +9,7 @@ import { NodeType } from "@lezer/common";
 
 import { NodeID } from "@impower/textmate-grammar-tree/src/core/enums/NodeID";
 import { type Grammar } from "@impower/textmate-grammar-tree/src/grammar/classes/Grammar";
+import { type GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 
@@ -18,7 +19,7 @@ import { defineNodeTypeWithLanguageNodeProps } from "../utils/defineNodeTypeWith
 export class VSCodeLanguageSupport extends LanguageSupport {
   constructor(
     name: string,
-    grammarDefinition: GrammarDefinition,
+    grammar: GrammarDefinition | GrammarRegistry,
     languageData?: CodeMirrorLanguageData,
     support?: Extension[] | ((grammar: Grammar) => Extension[]),
   ) {
@@ -30,7 +31,7 @@ export class VSCodeLanguageSupport extends LanguageSupport {
       props: [[languageDataProp, facet]],
     });
     const parser = new TextmateGrammarParser(
-      grammarDefinition,
+      grammar,
       topNodeType,
       defineNodeTypeWithLanguageNodeProps,
     );

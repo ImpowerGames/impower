@@ -112,19 +112,20 @@ export const listRowMarkVariants = cva(
   },
 );
 
-export const listRowDescriptionVariants = cva(
-  "text-muted [--fade:24px] fade-edge",
-  {
-    variants: {
-      size: {
-        default: "text-[11px]/[1.4]",
-        compact: "text-[11px]/[1.4]",
-        block: "text-[12px]/[1.5]",
-      },
+export const listRowDescriptionVariants = cva("text-muted", {
+  variants: {
+    size: {
+      default: "text-[11px]/[1.4]",
+      compact: "text-[11px]/[1.4]",
+      block: "text-[12px]/[1.5]",
     },
-    defaultVariants: { size: "default" },
+    fit: {
+      line: "[--fade:24px] fade-edge",
+      wrap: "whitespace-normal break-words",
+    },
   },
-);
+  defaultVariants: { size: "default", fit: "line" },
+});
 
 export const listRowLabelVariants = cva("min-w-0", {
   variants: {
@@ -147,6 +148,9 @@ export type ListRowTone = NonNullable<
 >;
 export type ListRowLabelOverflow = NonNullable<
   VariantProps<typeof listRowLabelVariants>["overflow"]
+>;
+export type ListRowDescriptionFit = NonNullable<
+  VariantProps<typeof listRowDescriptionVariants>["fit"]
 >;
 export type ListRowSelection = NonNullable<
   VariantProps<typeof listRowVariants>["selection"]
@@ -174,6 +178,7 @@ export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   icon?: ComponentChildren;
   label: ComponentChildren;
   description?: ComponentChildren;
+  descriptionFit?: ListRowDescriptionFit;
   trailing?: ComponentChildren;
   actions?: ComponentChildren;
   current?: boolean | "location";
@@ -219,6 +224,7 @@ export default function ListRow({
   icon,
   label,
   description,
+  descriptionFit,
   trailing,
   actions,
   current = false,
@@ -251,7 +257,7 @@ export default function ListRow({
         {label}
       </span>
       {description && (
-        <small class={listRowDescriptionVariants({ size })}>
+        <small class={listRowDescriptionVariants({ size, fit: descriptionFit })}>
           {description}
         </small>
       )}

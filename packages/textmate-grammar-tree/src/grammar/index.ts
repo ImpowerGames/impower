@@ -1,5 +1,6 @@
 export * from "./classes/Grammar";
 export * from "./classes/GrammarNode";
+export * from "./classes/GrammarRegistry";
 export * from "./classes/GrammarRepository";
 export * from "./classes/GrammarStack";
 export * from "./classes/GrammarState";

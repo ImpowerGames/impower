@@ -296,6 +296,25 @@ end
     expect(messages.filter((m) => m.includes("The text after this"))).toEqual([]);
   });
 
+  test("a colon inside a comment does not make the line dialogue", () => {
+    const out = run(`scene start
+  Hello there. /* note: x */
+  Hello /* aside: y */ there.
+  RAFFLES: Hi /* cue: z */ there.
+  done
+end
+`);
+    expect(out).toBe(
+      run(`scene start
+  Hello there.
+  Hello there.
+  RAFFLES: Hi there.
+  done
+end
+`),
+    );
+  });
+
   test("a lone `*/` is text", () => {
     const out = run(`scene start
   A */ B

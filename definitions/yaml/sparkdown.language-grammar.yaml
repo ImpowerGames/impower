@@ -419,6 +419,14 @@ variables:
   CHAIN: (?:[\\])
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))
+  # lookaround: SparkdownInlineComment owns a `//` followed by whitespace or
+  # the line end, and SparkdownBlockComment a `/*`. BlockDialogue and
+  # InlineDialogue begin at the line's first character and the comment after
+  # the display text, so the dialogue begin matches first under every order
+  # of DisplayStatements, and a begin that reads to a colon cannot be stopped
+  # by any rule's `end:`. The name's character is the variable to tighten: a
+  # slash is a name character unless it opens one of those comments.
+  DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}})|[*])|[^{}:/\\\r\n])
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
   # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock; GRAMMAR.md §10.1 gives why neither ordering nor `\G` replaces it.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
@@ -2678,7 +2686,7 @@ repository:
   BlockDialogue:
     tag: definition(string)
     name: string.display.dialogue.block.sd
-    begin: ^({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -2704,7 +2712,7 @@ repository:
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
+    begin: ({{WS}}*)((?=\S){{DIALOGUE_CHARACTER_NAME_CHARACTER}}+)((?<!\\)[:])($|{{WS}}+)({{INLINE_LEADING_GLUE}})?
     beginCaptures:
       1:
         patterns:

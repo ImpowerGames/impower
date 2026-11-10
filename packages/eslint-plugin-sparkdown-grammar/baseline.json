@@ -337,7 +337,6 @@
     "variables.STRUCT_BLOCK_QUOTED": 1
   },
   "no-repeated-fragment": {
-    "repository.BlockDialogue": 1,
     "repository.BlockWrite": 1,
     "repository.ChoiceWithNoSuppressedText": 1,
     "repository.ChoiceWithSuppressedText": 1,
@@ -348,7 +347,6 @@
     "repository.ImageAndAudioLine": 1,
     "repository.ImageCommandContent": 1,
     "repository.ImageLine": 1,
-    "repository.InlineDialogue": 1,
     "repository.InlineWrite": 1,
     "repository.LineChain": 1,
     "repository.LuauConditionalAlternatorCondition": 1,
