@@ -828,4 +828,52 @@ describe("ScriptEditorController withheld diagnostic", () => {
       range: null,
     });
   });
+
+  const withholdHello = async () => {
+    const loaded = await loadedEditor();
+    loaded.view.dispatch({
+      effects: StateEffect.appendConfig.of([
+        versioning(4),
+        serverDiagnostics().editorExtension!,
+      ]),
+    });
+    const reported = withheldReports(loaded.host);
+    loaded.view.dispatch({
+      selection: { anchor: 0, head: 5 },
+      effects: withholdDiagnostic.of({ from: 0, to: 5 }),
+    });
+    const textDocument = {
+      uri: "file:///main.sd",
+      version: getDocumentVersion(loaded.view.state),
+    };
+    return { ...loaded, reported, textDocument };
+  };
+
+  it("releases the withheld range when the editor is disposed", async () => {
+    const { controller, reported, textDocument } = await withholdHello();
+    controller.dispose();
+    expect(reported).toEqual([
+      { textDocument, range: HELLO },
+      { textDocument, range: null },
+    ]);
+  });
+
+  it("releases the withheld range through the window when the host is already detached", async () => {
+    const { controller, host, textDocument } = await withholdHello();
+    const released: unknown[] = [];
+    const listener = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (ChangedEditorWithheldDiagnosticMessage.type.is(message)) {
+        released.push(message.params);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    try {
+      host.remove();
+      controller.dispose();
+    } finally {
+      window.removeEventListener(MessageProtocol.event, listener);
+    }
+    expect(released).toEqual([{ textDocument, range: null }]);
+  });
 });

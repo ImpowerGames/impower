@@ -312,6 +312,7 @@ export class ScriptEditorController {
   }
 
   dispose(): void {
+    this.releaseWithheld();
     if (this._revealTimeout) {
       clearTimeout(this._revealTimeout);
       this._revealTimeout = 0;
@@ -829,16 +830,7 @@ export class ScriptEditorController {
     }
     const version = getDocumentVersion(state);
     if (last && (last.uri !== uri || !range)) {
-      sendProtocolMessage(
-        ChangedEditorWithheldDiagnosticMessage.type.notification({
-          textDocument: {
-            uri: last.uri,
-            version: last.uri === uri ? version : last.version,
-          },
-          range: null,
-        }),
-        this.host,
-      );
+      this.releaseWithheld(last.uri === uri ? version : undefined);
     }
     this._withheld = uri && range ? { uri, version, ...range } : null;
     if (uri && range) {
@@ -853,6 +845,21 @@ export class ScriptEditorController {
         this.host,
       );
     }
+  }
+
+  protected releaseWithheld(version?: number) {
+    const last = this._withheld;
+    if (!last) {
+      return;
+    }
+    this._withheld = null;
+    sendProtocolMessage(
+      ChangedEditorWithheldDiagnosticMessage.type.notification({
+        textDocument: { uri: last.uri, version: version ?? last.version },
+        range: null,
+      }),
+      this.host.isConnected ? this.host : window,
+    );
   }
 
   protected handleShowEditorStatusBar = (
