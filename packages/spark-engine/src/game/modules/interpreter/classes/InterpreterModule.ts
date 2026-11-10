@@ -1,5 +1,9 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
+import {
+  LayoutVerb,
+  isLayoutVerb,
+} from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { Module } from "../../../core/classes/Module";
 import type {
 AudioInstruction,
@@ -97,8 +101,6 @@ export class InterpreterModule extends Module<
     "clear",
     "load",
   ];
-
-  LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate", "clear"];
 
   LOAD_CONTROL_KEYWORDS = ["load"];
 
@@ -832,10 +834,14 @@ export class InterpreterModule extends Module<
   protected createLayoutChunk(layoutTagContent: string): Chunk {
     const verb = layoutTagContent.replaceAll("\t", " ").trim().split(" ")[0];
     const layoutChunk =
-      verb === "navigate"
+      verb === LayoutVerb.navigate
         ? this.createNavigateChunk(layoutTagContent)
-        :
-          this.createAssetChunk(layoutTagContent, "layout", "open", "");
+        : this.createAssetChunk(
+            layoutTagContent,
+            "layout",
+            LayoutVerb.open,
+            "",
+          );
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
   }
@@ -862,7 +868,7 @@ export class InterpreterModule extends Module<
     const clauses = this.parseAssetClauses(tokens.slice(i));
     return {
       tag: "layout",
-      control: "navigate",
+      control: LayoutVerb.navigate,
       target: screen,
       assets: destination ? [destination] : [],
       clauses,
@@ -1136,7 +1142,7 @@ export class InterpreterModule extends Module<
                       .trimStart()
                       .split(" ")[0];
                     const isScreenDirective =
-                      !!verb && this.LAYOUT_CONTROL_KEYWORDS.includes(verb);
+                      !!verb && isLayoutVerb(verb);
                     const isLoadDirective =
                       !!verb && this.LOAD_CONTROL_KEYWORDS.includes(verb);
                     const isCutsceneDirective =
@@ -1781,14 +1787,14 @@ export class InterpreterModule extends Module<
             result.cutscene.push(event);
           }
           if (c.tag === "layout") {
-            const isNavigate = c.control === "navigate";
+            const isNavigate = c.control === LayoutVerb.navigate;
             const screen = isNavigate ? c.target || "" : "";
             const layoutName = isNavigate
               ? c.assets?.[0] || ""
               : c.target || "";
             if (layoutName || screen) {
               const event: LayoutInstruction = {
-                control: (c.control || "open") as LayoutInstruction["control"],
+                control: (c.control || LayoutVerb.open) as LayoutVerb,
                 name: layoutName,
               };
               if (screen) {
