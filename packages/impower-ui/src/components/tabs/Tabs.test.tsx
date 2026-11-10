@@ -153,3 +153,47 @@ describe("Tabs inline variant", () => {
     expect(onChange).toHaveBeenCalledWith("assets");
   });
 });
+
+describe("Tabs scroll reveal", () => {
+  const values = ["image", "audio", "video", "text", "font", "other"];
+  const TAB_STEP = 80;
+  const TAB_WIDTH = 64;
+  const VIEWPORT = 180;
+
+  const strip = (value: string) => (
+    <Tabs value={value} onChange={() => {}} variant="inline" iconLayout="beside" scroll>
+      {values.map((v) => (
+        <Tab key={v} value={v}>
+          {v}
+        </Tab>
+      ))}
+    </Tabs>
+  );
+
+  it("scrolls an overflowing strip to show the selected tab, either way", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const list = this.closest<HTMLElement>('[role="tablist"]');
+      if (this.getAttribute("role") === "tab" && list) {
+        const index = Array.from(list.querySelectorAll('[role="tab"]')).indexOf(this);
+        return new DOMRect(index * TAB_STEP - list.scrollLeft, 0, TAB_WIDTH, 50);
+      }
+      return new DOMRect(0, 0, VIEWPORT, 50);
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(VIEWPORT);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(TAB_WIDTH);
+    try {
+      host = document.body.appendChild(document.createElement("div"));
+      await act(async () => render(strip("other"), host!));
+      const list = host.querySelector<HTMLElement>('[role="tablist"]')!;
+      const selected = () => list.querySelector<HTMLElement>('[data-state="active"]')!.getBoundingClientRect();
+      expect(list.scrollLeft).toBeGreaterThan(0);
+      expect(selected().left).toBeGreaterThanOrEqual(0);
+      expect(selected().right).toBeLessThanOrEqual(VIEWPORT);
+      await act(async () => render(strip("image"), host!));
+      expect(list.scrollLeft).toBe(0);
+      expect(selected().left).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});
