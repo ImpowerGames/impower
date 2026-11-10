@@ -980,6 +980,17 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.EvaluateResponse,
     args: DebugProtocol.EvaluateArguments,
   ): Promise<void> {
+    if (
+      (args.context === "watch" || args.context === "repl") &&
+      !/^[A-Za-z_$][\w$]*(\.[\w$]+)*$/.test(args.expression)
+    ) {
+      this.sendErrorResponse(response, {
+        id: 2004,
+        format: "Only a name or a path such as party.1 can be watched for now.",
+        showUser: false,
+      });
+      return;
+    }
 
     const frame =
       args.frameId != null ? this._frames.get(args.frameId) : undefined;

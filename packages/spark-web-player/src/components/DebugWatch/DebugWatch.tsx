@@ -114,7 +114,10 @@ function WatchValue({ entry, status }: { entry: DebugWatchEntry; status: DebugSt
   }
   if (entry.error) {
     return (
-      <span class="inline-flex items-center gap-1 font-sans text-warning [&>svg]:size-3.5 [&>svg]:flex-none">
+      <span
+        title={entry.error}
+        class="inline-flex items-center gap-1 font-sans text-warning [&>svg]:size-3.5 [&>svg]:flex-none"
+      >
         <WarningIcon />
         {entry.error}
       </span>

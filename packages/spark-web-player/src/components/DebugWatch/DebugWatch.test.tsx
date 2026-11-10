@@ -80,6 +80,24 @@ describe("the Watch card", () => {
     expect(warning.querySelector("svg")).not.toBeNull();
   });
 
+  it("shows the debugger's refusal of an operator expression in place of a value, never as a value", async () => {
+    const sum: DebugWatchEntry = {
+      key: "2",
+      expression: "gold + 1",
+      error: "Only a name or a path such as party.1 can be watched for now.",
+    };
+    const { root } = await mount({ status: "paused", open: true, entries: [gold, sum], editing: null });
+    expect(rowTexts(root)[2]).toBe(
+      "gold + 1 Only a name or a path such as party.1 can be watched for now.",
+    );
+    const warning = Array.from(root.querySelectorAll(".text-warning")).find((el) =>
+      el.textContent?.includes("Only a name or a path"),
+    )!;
+    expect(warning.querySelector("svg")).not.toBeNull();
+    expect(warning.getAttribute("title")).toBe(sum.error);
+    expect(rowTexts(root)[2]).not.toContain("undefined");
+  });
+
   it("edits and removes an expression from its row menu", async () => {
     const { root, h } = await mount({ status: "paused", open: true, entries: [gold], editing: null });
     let menu = await openMenu(root.querySelector('[aria-label="Options for gold"]')!);

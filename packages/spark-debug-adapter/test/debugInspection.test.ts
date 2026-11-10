@@ -23,6 +23,18 @@ const session = (refuse?: string) => {
           totalFrames: 2,
         };
       }
+      if (message.method === "game/evaluationContext") {
+        return { context: { gold: 3, party: { "1": "Ada" } } };
+      }
+      if (message.method === "game/variables") {
+        const { value } = message.params;
+        return {
+          variables:
+            value === undefined
+              ? []
+              : [{ name: "", value: JSON.stringify(value), variablesReference: 0 }],
+        };
+      }
       if (message.method === "game/setVariable") {
         if (refuse) {
           throw { code: 1, message: refuse };
@@ -64,9 +76,11 @@ const session = (refuse?: string) => {
   };
   const setSent = () =>
     sent.filter((m) => m.method === "game/setVariable").map((m) => m.params);
+  const contextsSent = () =>
+    sent.filter((m) => m.method === "game/evaluationContext").length;
   const variablesSent = () =>
     sent.filter((m) => m.method === "game/variables").map((m) => m.params);
-  return { call, scope, setSent, variablesSent };
+  return { call, scope, setSent, variablesSent, contextsSent };
 };
 
 describe("the debug adapter's inspection requests", () => {
@@ -146,5 +160,29 @@ describe("the debug adapter's inspection requests", () => {
     expect(s.setSent()).toEqual([]);
     expect(response.success).toBe(false);
     expect(response.message).toBe("Only story and local values can be changed.");
+  });
+
+  it("answers a watch or Debug Console expression that is not a name or path with one message, and still reads names and paths", async () => {
+    const s = session();
+    const { body } = await s.call("stackTraceRequest", { threadId: 0 });
+    const frameId = body.stackFrames[0].id;
+    const evaluate = (expression: string, context: string) =>
+      s.call("evaluateRequest", { expression, frameId, context });
+    for (const context of ["watch", "repl"]) {
+      for (const expression of ["gold + 1", "gold == 3", "#party", "party[1]", "gold.", "f()"]) {
+        const refused = await evaluate(expression, context);
+        expect(refused.success, `${context} ${expression}`).toBe(false);
+        expect(refused.message).toBe("Only a name or a path such as party.1 can be watched for now.");
+      }
+      expect((await evaluate("gold", context)).body.result).toBe("3");
+      expect((await evaluate("party.1", context)).body.result).toBe('"Ada"');
+      const missing = await evaluate("silver", context);
+      expect([missing.success, missing.body.result]).toEqual([true, "undefined"]);
+    }
+    const contexts = s.contextsSent();
+    await evaluate("gold + 1", "watch");
+    expect(s.contextsSent()).toBe(contexts);
+    const hovered = await evaluate("gold + 1", "hover");
+    expect([hovered.success, hovered.message]).toEqual([false, "not available in this frame"]);
   });
 });
