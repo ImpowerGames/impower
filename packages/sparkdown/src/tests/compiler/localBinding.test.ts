@@ -151,6 +151,54 @@ describe("LocalBindings · a use's root resolves to the binding in scope (I-1969
     expect(bindingOf("picked", 2)).toBe(offset("picked", 1));
   });
 
+  test("a define method's parameter and const bind inside the method", () => {
+    const { bindingOf, offset } = bindingsOf(
+      "define Bird with\n  sing(settings)\n    const other = 2\n    return settings.score + other\n  end\nend\n",
+    );
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("other", 2)).toBe(offset("other", 1));
+  });
+
+  test("a scene's and a branch's parameters bind inside their section and not after it", () => {
+    const { bindingOf, offset } = bindingsOf(
+      "scene start(settings)\n  {settings.score}\n  branch sub(other)\n    {settings} {other}\n  end\n  {other}\nend\nscene next\n  {settings}\nend\n",
+    );
+    expect(bindingOf("settings", 1)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBe(offset("settings", 1));
+    expect(bindingOf("other", 2)).toBe(offset("other", 1));
+    expect(bindingOf("other", 3)).toBeNull();
+    expect(bindingOf("settings", 4)).toBeNull();
+  });
+
+  test.each([
+    ["a story for loop", "scene start\n  for settings = 1, 3 do\n    {settings}\n  end\n  {settings}\nend\n"],
+    ["a story for-in loop", "scene start\n  for settings in pairs({1}) do\n    {settings}\n  end\n  {settings}\nend\n"],
+    ["an explicit for loop", "scene start\n  & for settings = 1, 3 do print(settings) end\n  {settings}\nend\n"],
+  ])("%s binds its variable in its body and not after it", (_, source) => {
+    const { bindingOf, offset } = bindingsOf(source);
+    expect(bindingOf("settings", 1)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 3)).toBeNull();
+  });
+
+  test("a while condition is not a loop variable", () => {
+    const { bindingOf } = bindingsOf("function show()\n  while settings do\n    x = settings\n  end\nend\n");
+    expect(bindingOf("settings", 1)).toBeNull();
+    expect(bindingOf("settings", 2)).toBeNull();
+  });
+
+  test("a story repeat body's local binds its until condition", () => {
+    const { bindingOf, offset } = bindingsOf("scene start\n  repeat\n    local settings = 1\n  until settings > 0\nend\n");
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
+  test("a bare local declaration binds a statement after it on the same line", () => {
+    const { bindingOf, offset } = bindingsOf("function f()\n  local settings return settings\nend\n");
+    expect(bindingOf("settings", 1)).toBe(offset("settings", 1));
+    expect(bindingOf("settings", 2)).toBe(offset("settings", 1));
+  });
+
   test("a top-level use with no local declaration is unbound", () => {
     const { bindingOf } = bindingsOf("scene s\n  {settings.score}\nend\n");
     expect(bindingOf("settings")).toBeNull();

@@ -210,6 +210,12 @@ describe("provider · script references read access paths and bindings from the 
       "function show()\n  local function settings(n)\n    if n > 0 then\n      return settings(n - 1)\n    end\n    return 0\n  end\n  return settings(2)\nend\n",
     ],
     ["a scene's local", "scene show\n  local settings = {score = 2}\n  {settings.score}\nend\n"],
+    ["a define method's parameter", "define Bird with\n  sing(settings)\n    return settings.score\n  end\nend\n"],
+    ["a scene's parameter", "scene start(settings)\n  {settings.score}\nend\n"],
+    ["a branch's parameter", "scene start\n  branch sub(settings)\n    {settings.score}\n  end\nend\n"],
+    ["a story loop's variable", "scene start\n  for settings = 1, 3 do\n    {settings}\n  end\nend\n"],
+    ["a story repeat body's local", "scene start\n  repeat\n    local settings = 1\n  until settings > 0\nend\n"],
+    ["a bare local", "function f()\n  local settings return settings\nend\n"],
   ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
   });

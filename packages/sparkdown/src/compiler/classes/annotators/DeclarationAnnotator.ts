@@ -38,7 +38,7 @@ const BEFORE_BARE_TARGET = nodeNameSet([
   "RequiredWhitespace",
 ]);
 
-function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
+export function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
   const path = ancestorMatching(node, ACCESS_PATH, 6);
   if (!path?.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(path.parent.name)) {
     return false;
