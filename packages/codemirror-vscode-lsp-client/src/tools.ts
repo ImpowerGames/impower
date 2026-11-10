@@ -1,10 +1,11 @@
+import { openLintPanel } from "@codemirror/lint";
 import { findNext, findPrevious, openSearchPanel } from "@codemirror/search";
 import { Facet } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 export type EditorToolCommands = Partial<
   Record<
-    "find" | "findNext" | "findPrevious" | "rename" | "references",
+    "find" | "findNext" | "findPrevious" | "rename" | "references" | "problems",
     (view: EditorView) => void
   >
 >;
@@ -24,6 +25,8 @@ export const editorTool =
   };
 
 export const openFind = editorTool("find", openSearchPanel);
+
+export const openProblems = editorTool("problems", openLintPanel);
 
 export const findNextMatch = editorTool("findNext", findNext);
 

@@ -74,6 +74,7 @@ beforeEach(() => {
   host = document.body.appendChild(document.createElement("div"));
   workspace.search.value = INITIAL_SEARCH;
   workspace.searchPosition.value = INITIAL_SEARCH_POSITION;
+  workspace.scriptMode.value = "reading";
   workspace.current = stateForRoute(
     {
       ...workspace.current,
@@ -149,6 +150,7 @@ describe("the phone's find bar", () => {
   });
 
   it("runs every control on the search", async () => {
+    workspace.scriptMode.value = "editing";
     await mount();
     await import("../../src/modules/spark-editor/workspace/Workspace");
     for (const name of ["next", "prev", "replace", "replaceAll", "re", "close"]) {

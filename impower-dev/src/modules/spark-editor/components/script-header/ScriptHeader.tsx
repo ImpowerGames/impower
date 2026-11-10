@@ -10,6 +10,7 @@ import { finishNaming, useNaming } from "../desktop-shell";
 import { splitScriptPath } from "../../utils/nameRules";
 import { useSettings } from "../../workspace/settings/useSettings";
 import { useEditorScrolled } from "../../workspace/useActiveEditor";
+import problems from "../../workspace/problems/ProblemsStore";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import ScriptNameField from "./ScriptNameField";
 
@@ -39,11 +40,10 @@ function ScriptStatusButton({ filename }: { filename: string }) {
       aria-label="Show problems"
       title="Show problems"
       class="-ml-1.5 min-w-9 [&_svg]:size-5"
-      onClick={() =>
-        withWorkspace((w) =>
-          w.window.executeEditorCommand(filename, "problems"),
-        )
-      }
+      onClick={(event) => {
+        const trigger = event.currentTarget as HTMLElement;
+        problems.showProblems(() => trigger, filename);
+      }}
     >
       <BookIcon class={problemColor || "text-accent"} />
     </Button>
@@ -160,6 +160,7 @@ export default function ScriptHeader({
               ? "min-w-[62px] bg-transparent px-2.5 text-[12px] font-normal text-accent"
               : "min-w-[60px] border-transparent bg-transparent px-2 text-[12px] font-normal text-accent"
           }
+          data-browse-scripts
           onClick={() => withWorkspace((w) => w.window.browseScripts())}
         >
           Browse scripts

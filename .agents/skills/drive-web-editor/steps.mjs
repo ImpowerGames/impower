@@ -9,7 +9,7 @@ export const NAMED_STEPS = {
   "add-menu": { does: "open the Add menu" },
   "preview-settings": { does: "open the preview's settings menu" },
   play: { does: "press Play" },
-  problems: { does: "open the Problems panel", builtBy: 1022 },
+  problems: { does: "open the Problems panel" },
   settings: { does: "open Settings and a named section", argument: "section" },
   "focus-project-name": { does: "focus the project name" },
   "focus-script-name": { does: "focus the script name" },

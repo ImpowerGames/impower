@@ -2,12 +2,15 @@ import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import {
   ChevronIcon,
+  ErrorIcon,
   FileIcon,
   FolderIcon,
   MoreVerticalIcon,
   PinIcon,
+  SceneIcon,
+  WarningIcon,
 } from "../icon/icons.generated";
-import ListRow, { type ListRowSize } from "./ListRow";
+import ListRow, { ListRowBadge, type ListRowSize } from "./ListRow";
 
 const SIZES: Record<ListRowSize, string> = {
   default: "Default: 60px, the Scripts and Assets pages' rows",
@@ -64,6 +67,41 @@ function ListRowDemo() {
           <ListRow size="compact" tone="muted" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
+      <GalleryRow label="A badge in the glyph's place, its own button (the Outline's problem badge), in each size, beside a row with its glyph">
+        <div class="w-[300px] space-y-1">
+          {(Object.keys(SIZES) as ListRowSize[]).map((size) => (
+            <ListRow
+              key={size}
+              size={size}
+              leading={
+                <ListRowBadge
+                  size={size}
+                  label="2 errors in the_rumour"
+                  icon={<ErrorIcon class="text-error" />}
+                  onClick={() => {}}
+                />
+              }
+              label="the_rumour"
+              onClick={() => {}}
+            />
+          ))}
+          <ListRow
+            size="compact"
+            tone="muted"
+            leading={
+              <ListRowBadge
+                size="compact"
+                label="1 warning in notebook"
+                icon={<WarningIcon class="text-warning" />}
+                onClick={() => {}}
+              />
+            }
+            label="notebook"
+            onClick={() => {}}
+          />
+          <ListRow size="compact" tone="muted" icon={<SceneIcon />} label="meet_downtown" onClick={() => {}} />
+        </div>
+      </GalleryRow>
       <GalleryRow label="A long label clamped to two lines instead of fading">
         <ListRow
           size="compact"
@@ -82,6 +120,6 @@ function ListRowDemo() {
 
 export const listRowGallery: GalleryEntry = {
   title: "ListRow",
-  exports: ["ListRow"],
+  exports: ["ListRow", "ListRowBadge"],
   Demo: ListRowDemo,
 };

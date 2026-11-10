@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import ListRow from "./ListRow";
+import ListRow, { ListRowBadge } from "./ListRow";
 
 let host: HTMLDivElement | undefined;
 
@@ -100,6 +100,37 @@ describe("ListRow", () => {
     expect(ink).toContain("text-ink");
   });
 
+  it("puts a leading badge before the row's button as a button of its own, in the glyph's column", async () => {
+    const onBadge = vi.fn();
+    const onRow = vi.fn();
+    const root = await mount(
+      <ListRow
+        size="compact"
+        leading={
+          <ListRowBadge
+            size="compact"
+            label="2 errors in the_rumour"
+            icon={<span data-glyph />}
+            onClick={onBadge}
+          />
+        }
+        label="the_rumour"
+        onClick={onRow}
+      />,
+    );
+    const [badge, row] = Array.from(root.querySelectorAll("button"));
+    expect(badge!.getAttribute("aria-label")).toBe("2 errors in the_rumour");
+    expect(badge!.getAttribute("title")).toBe("2 errors in the_rumour");
+    expect(badge!.contains(row!)).toBe(false);
+    expect(badge!.className).toContain("w-9");
+    expect(row!.className).toContain("pl-0");
+    await act(async () => badge!.click());
+    expect(onBadge).toHaveBeenCalledTimes(1);
+    expect(onRow).not.toHaveBeenCalled();
+    await act(async () => row!.click());
+    expect(onRow).toHaveBeenCalledTimes(1);
+  });
+
   it("clamps a long label to two lines instead of fading it", async () => {
     const root = await mount(
       <ListRow overflow="clamp" label="A long prompt" onClick={() => {}} />,
@@ -122,5 +153,14 @@ describe("ListRow", () => {
       render(<ListRow label="main.sd" description="2 kB" onClick={() => {}} />, host!),
     );
     expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
+  });
+
+  it("sizes a block row's badge to the block row's glyph", async () => {
+    const root = await mount(
+      <ListRowBadge size="block" label="Scene" icon={<span />} onClick={() => {}} />,
+    );
+    const badge = root.querySelector<HTMLButtonElement>("[data-list-row-badge]")!;
+    expect(badge.className).toContain("[&>svg]:size-[22px]");
+    expect(badge.className).toContain("pl-2.5");
   });
 });

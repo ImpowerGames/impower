@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
+const { default: store } = await import(
+  "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+);
 const { useDiagnosticColor } = await import(
   "../../src/modules/spark-editor/workspace/useDiagnosticColor"
 );
@@ -27,19 +30,16 @@ describe("useDiagnosticColor identifies Main by its root path", () => {
   };
 
   const problems = (summary: Record<string, { errors: number; warnings: number }>) => {
-    workspace.current = {
-      ...workspace.current,
-      project: { ...workspace.current.project, id: PROJECT },
-      debug: {
-        ...workspace.current.debug,
-        diagnosticsSummary: Object.fromEntries(
-          Object.entries(summary).map(([path, counts]) => [
-            uriOf(path),
-            { ...counts, infos: 0 },
-          ]),
-        ),
-      },
-    } as typeof workspace.current;
+    const at = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
+    store.diagnostics.value = Object.fromEntries(
+      Object.entries(summary).map(([path, { errors, warnings }]) => [
+        uriOf(path),
+        [
+          ...Array.from({ length: errors }, () => ({ range: at, severity: 1 as const, message: "e" })),
+          ...Array.from({ length: warnings }, () => ({ range: at, severity: 2 as const, message: "w" })),
+        ],
+      ]),
+    );
   };
 
   beforeEach(() => {

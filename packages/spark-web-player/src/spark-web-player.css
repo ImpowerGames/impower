@@ -1724,8 +1724,7 @@ spark-web-player .sv-undo {
   --swp-console-link-color: #66baff;
 }
 
-.swp-console,
-.swp-problems {
+.swp-console {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1837,27 +1836,6 @@ spark-web-player .sv-undo {
 
 .swp-console-empty {
   margin: 0;
-  color: var(--swp-console-muted-color);
-}
-
-.swp-problems-script {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.swp-problems-heading {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  font-size: inherit;
-  font-weight: 600;
-}
-
-.swp-problems-path {
-  font-weight: normal;
   color: var(--swp-console-muted-color);
 }
 

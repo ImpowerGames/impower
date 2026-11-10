@@ -34,7 +34,7 @@ const answer = async (
 
 const REQUESTS = [
   ["pause", "pauseRequest", "game/pause"],
-  ["continue", "continueRequest", "game/unpause"],
+  ["continue", "continueRequest", "game/continue"],
   ["next", "nextRequest", "game/step"],
   ["stepIn", "stepInRequest", "game/step"],
   ["stepOut", "stepOutRequest", "game/step"],

@@ -76,7 +76,7 @@ import {
   undoSelection,
 } from "@codemirror/commands";
 import { foldAll, foldCode, unfoldAll, unfoldCode } from "@codemirror/language";
-import { nextDiagnostic, openLintPanel } from "@codemirror/lint";
+import { nextDiagnostic } from "@codemirror/lint";
 import {
   closeSearchPanel,
   gotoLine,
@@ -104,6 +104,7 @@ import {
   findNextMatch,
   findPreviousMatch,
   openFind,
+  openProblems,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import type {
   EditorKeybinding,
@@ -196,7 +197,7 @@ export const EDITOR_SHORTCUT_COMMANDS: readonly ShortcutCommand[] = [
   { id: "references", label: "Find references", group: "story", runs: [findReferences] },
   { id: "closeReferences", label: "Close references", group: "story", runs: [closeReferencePanel] },
   { id: "rename", label: "Rename", group: "story", runs: [renameSymbol] },
-  { id: "problems", label: "Show problems", group: "story", runs: [openLintPanel] },
+  { id: "problems", label: "Show problems", group: "story", runs: [openProblems] },
   { id: "nextProblem", label: "Next problem", group: "story", runs: [nextDiagnostic] },
   { id: "previewBeat", label: "Previous or next beat in the preview", group: "story", runs: [leavePageKeysToPreview], claims: true },
 ];

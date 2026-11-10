@@ -2259,6 +2259,34 @@ export async function openPreviewSettings(page, { timeout = 5000 } = {}) {
   return { step: "preview-settings", ran: true, toggles };
 }
 
+const PROBLEMS_TOGGLE_SELECTOR = '[role="group"][aria-label="Problems and display"] > button:first-of-type';
+
+export async function openProblems(page, { timeout = 5000 } = {}) {
+  const toggle = page.locator(PROBLEMS_TOGGLE_SELECTOR).first();
+  if (!(await toggle.isVisible().catch(() => false))) return { step: "problems", ran: false, reason: "the problems toggle under the game is not on screen; the preview pane may be hidden" };
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  try {
+    await page.waitForFunction(() => {
+      const shown = (el) => !!el && el.getBoundingClientRect().height > 0;
+      return shown(document.getElementById("problems-panel")) || [...document.querySelectorAll('[role="dialog"]')].some((dialog) => shown(dialog) && dialog.textContent.includes("Problems to fix"));
+    }, null, { timeout });
+  } catch {
+    return { step: "problems", ran: false, reason: `neither the Problems panel nor the Problems to fix dialog opened within ${timeout / 1000} s of pressing the problems toggle` };
+  }
+  const opened = await page.evaluate(async () => {
+    const panel = document.getElementById("problems-panel");
+    const root = panel ?? [...document.querySelectorAll('[role="dialog"]')].find((dialog) => dialog.textContent.includes("Problems to fix"));
+    const settling = [root, root.closest('[role="presentation"], [data-state]')].filter(Boolean).flatMap((el) => el.getAnimations({ subtree: true }));
+    await Promise.all(settling.filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)).map((animation) => animation.finished.catch(() => null)));
+    return {
+      surface: panel ? "panel" : "dialog",
+      cards: [...root.querySelectorAll("[aria-expanded]")].filter((button) => button.closest("#problems-panel")).map((button) => ({ name: button.getAttribute("aria-label"), open: button.getAttribute("aria-expanded") === "true" })),
+      entries: root.querySelectorAll("[data-message-entry]").length,
+    };
+  });
+  return { step: "problems", ran: true, toggle: (await toggle.textContent())?.trim() ?? "", ...opened };
+}
+
 export async function openSettings(page, section, { timeout = 10000 } = {}) {
   await page.evaluate((id) => {
     window.location.hash = `#project?section=${id}`;
@@ -3578,6 +3606,10 @@ async function ui(args, deps = liveDeps) {
             }
             if (step.step === "preview-settings") {
               result.steps.push(await openPreviewSettings(page));
+              continue;
+            }
+            if (step.step === "problems") {
+              result.steps.push(await openProblems(page));
               continue;
             }
             const ready = await requireEditor(page, "PLAY", stepNo);

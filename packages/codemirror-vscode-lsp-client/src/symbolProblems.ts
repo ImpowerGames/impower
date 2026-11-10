@@ -5,11 +5,6 @@ export interface ProblemCounts {
   warnings: number;
 }
 
-export interface SymbolProblems {
-  total: ProblemCounts;
-  direct: ProblemCounts;
-}
-
 const ERROR = 1;
 const WARNING = 2;
 const CLASS = 5;
@@ -41,11 +36,16 @@ export const countProblems = (
 export const hasProblems = (counts: ProblemCounts) =>
   counts.errors > 0 || counts.warnings > 0;
 
-export function countSymbolProblems(
+export interface SymbolDiagnostics {
+  total: readonly lsp.Diagnostic[];
+  direct: readonly lsp.Diagnostic[];
+}
+
+export function collectSymbolDiagnostics(
   symbols: readonly lsp.DocumentSymbol[],
   diagnostics: readonly lsp.Diagnostic[],
-): Map<lsp.DocumentSymbol, SymbolProblems> {
-  const result = new Map<lsp.DocumentSymbol, SymbolProblems>();
+): Map<lsp.DocumentSymbol, SymbolDiagnostics> {
+  const result = new Map<lsp.DocumentSymbol, SymbolDiagnostics>();
   const visit = (
     symbol: lsp.DocumentSymbol,
     candidates: readonly lsp.Diagnostic[],
@@ -61,8 +61,8 @@ export function countSymbolProblems(
       }
     }
     result.set(symbol, {
-      total: countProblems(inside),
-      direct: countProblems(inside.filter((d) => !nested.has(d))),
+      total: inside,
+      direct: inside.filter((d) => !nested.has(d)),
     });
     return inside;
   };
