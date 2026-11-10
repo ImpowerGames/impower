@@ -198,7 +198,7 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
 import { h, render } from "preact";
 import PreviewGame from "../../src/modules/spark-editor/components/preview-game/PreviewGame";
 import { Workspace } from "../../src/modules/spark-editor/workspace/Workspace";
-import { signal } from "@preact/signals";
+import { effect, signal } from "@preact/signals";
 import {
   createPlayerPreferenceSync,
   playerUrl,
@@ -460,6 +460,31 @@ describe("WorkspaceWindow store transitions", () => {
     expect(
       workspace.current.panes.logic.panels.scripts!.activeEditor?.visibleRange,
     ).toEqual(visibleRange);
+  });
+
+  describe("finishing script editing", () => {
+    it("returns an editing script to reading", () => {
+      workspace.scriptMode.value = "editing";
+      win.finishEditing();
+      expect(workspace.scriptMode.value).toBe("reading");
+    });
+
+    it("changes nothing and notifies nothing while reading", () => {
+      workspace.scriptMode.value = "reading";
+      const before = workspace.current;
+      let notified = 0;
+      const stop = effect(() => {
+        void workspace.scriptMode.value;
+        void workspace.state.value;
+        notified += 1;
+      });
+      win.finishEditing();
+      win.finishEditing();
+      stop();
+      expect(notified).toBe(1);
+      expect(workspace.scriptMode.value).toBe("reading");
+      expect(workspace.current).toBe(before);
+    });
   });
 
   describe("project name editing", () => {

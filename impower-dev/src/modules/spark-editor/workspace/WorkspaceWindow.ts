@@ -505,6 +505,9 @@ export default class WorkspaceWindow {
   }
 
   finishEditing() {
+    if (workspace.scriptMode.peek() !== "editing") {
+      return;
+    }
     workspace.scriptMode.value = "reading";
   }
 

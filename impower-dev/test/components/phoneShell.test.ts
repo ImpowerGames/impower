@@ -1,4 +1,5 @@
 import { h, render } from "preact";
+import { effect } from "@preact/signals";
 import { act } from "preact/test-utils";
 import {
   afterEach,
@@ -15,7 +16,6 @@ const calls = vi.hoisted(() => ({
   commands: [] as [string, string][],
   routes: [] as string[],
   finds: 0,
-  finishedEditing: { count: 0 },
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -91,7 +91,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
           env.store.scriptMode.value = "editing";
         },
         finishEditing: () => {
-          calls.finishedEditing.count += 1;
+          if (env.store.scriptMode.peek() !== "editing") {
+            return;
+          }
           env.store.scriptMode.value = "reading";
         },
         renameScript: async () => ({ status: "renamed" }),
@@ -164,7 +166,6 @@ beforeEach(() => {
   calls.commands.length = 0;
   calls.routes.length = 0;
   calls.finds = 0;
-  calls.finishedEditing.count = 0;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
   workspace.current = stateForRoute(
@@ -557,17 +558,25 @@ describe("the phone's reading and editing modes", () => {
     expect(workspace.scriptMode.value).toBe("editing");
   });
 
-  it("finishes editing on unmount only when it is editing", async () => {
+  it("returns to reading on unmount while editing, and changes nothing while reading", async () => {
     await mount();
+    const before = workspace.current;
+    let notified = 0;
+    const stop = effect(() => {
+      void workspace.scriptMode.value;
+      notified += 1;
+    });
     await act(async () => render(null, host!));
     await settle();
-    expect(calls.finishedEditing.count).toBe(0);
+    stop();
+    expect(notified).toBe(1);
+    expect(workspace.scriptMode.value).toBe("reading");
+    expect(workspace.current).toBe(before);
 
     await mount();
     await edit();
     await act(async () => render(null, host!));
     await settle();
-    expect(calls.finishedEditing.count).toBe(1);
     expect(workspace.scriptMode.value).toBe("reading");
   });
 
