@@ -154,8 +154,23 @@ export type ListRowSelection = NonNullable<
 
 export const LIST_ROW_INDENT = 18;
 
-export type ListRowProps = {
+type ListRowLeadingProps = {
   leading?: ComponentChildren;
+  selection?: never;
+  selected?: never;
+  selectLabel?: never;
+  onSelectedChange?: never;
+};
+
+type ListRowSelectionProps = {
+  leading?: never;
+  selection?: ListRowSelection;
+  selected?: boolean;
+  selectLabel?: string;
+  onSelectedChange?: (selected: boolean) => void;
+};
+
+export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   icon?: ComponentChildren;
   label: ComponentChildren;
   description?: ComponentChildren;
@@ -167,10 +182,6 @@ export type ListRowProps = {
   size?: ListRowSize;
   overflow?: ListRowLabelOverflow;
   tone?: ListRowTone;
-  selection?: ListRowSelection;
-  selected?: boolean;
-  selectLabel?: string;
-  onSelectedChange?: (selected: boolean) => void;
   dropTarget?: boolean;
   class?: string;
   onClick?: (event: MouseEvent) => void;

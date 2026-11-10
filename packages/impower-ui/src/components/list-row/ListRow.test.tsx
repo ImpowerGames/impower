@@ -228,4 +228,12 @@ describe("ListRow", () => {
     expect(mark).toContain("[&>span]:size-[22px]");
     expect(mark).toContain("left-2.5");
   });
+
+  it("rejects a leading slot together with a selection mark at compile time", () => {
+    const both = () => (
+      // @ts-expect-error
+      <ListRow leading={<span />} selection="available" label="Scene" />
+    );
+    expect(typeof both).toBe("function");
+  });
 });
