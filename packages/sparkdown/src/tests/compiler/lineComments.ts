@@ -1,4 +1,8 @@
-import { parseFor, treeLanguagesPerChar } from "./languageEquality";
+import {
+  parseFor,
+  treeLanguagesPerCharacter,
+  treeLanguagesPerPosition,
+} from "./languageEquality";
 import { type EngineOptions, treeNodeScope } from "./scopeEquality";
 import { tokenize } from "./vscodeGrammarSnapshot";
 
@@ -26,12 +30,12 @@ export interface LineCommentResult {
 function skipReasonAt(
   tree: any,
   lineStart: number,
-  languages: string[],
+  characterLanguages: string[],
 ): SkipReason | undefined {
   if (
     lineStart > 0 &&
-    languages[lineStart - 1] !== languages[lineStart] &&
-    LINE_COMMENT_MARKERS[languages[lineStart]!] === "//"
+    characterLanguages[lineStart - 1] !== characterLanguages[lineStart] &&
+    LINE_COMMENT_MARKERS[characterLanguages[lineStart]!] === "//"
   ) {
     return "closes an open Luau body";
   }
@@ -71,7 +75,8 @@ export async function lineCommentResults(
 ): Promise<LineCommentResult[]> {
   const source = rawSource.replace(/\r\n?/g, "\n");
   const tree = parseFor(source, options);
-  const languages = treeLanguagesPerChar(source, options);
+  const languages = treeLanguagesPerPosition(source, options);
+  const characterLanguages = treeLanguagesPerCharacter(source, options);
   const lines = source.split("\n");
   const results: LineCommentResult[] = [];
   let lineStart = 0;
@@ -84,7 +89,7 @@ export async function lineCommentResults(
     if (indent < 0) {
       result.skipped = "blank";
     } else {
-      result.skipped = skipReasonAt(tree, lineStart, languages);
+      result.skipped = skipReasonAt(tree, lineStart, characterLanguages);
     }
     if (!result.skipped) {
       const marker = LINE_COMMENT_MARKERS[language];

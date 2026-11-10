@@ -3,11 +3,20 @@ import { type Grammar } from "../../grammar/classes/Grammar";
 
 export type EmbeddedLanguages = Readonly<Record<string, string>>;
 
-export type LanguageReader = (
-  tree: Tree,
-  offset: number,
-  documentLanguage: string,
-) => string;
+export interface DocumentText {
+  readonly length: number;
+  sliceString(from: number, to: number): string;
+}
+
+export interface LanguageReader {
+  character(tree: Tree, offset: number, documentLanguage: string): string;
+  cursor(
+    tree: Tree,
+    text: string | DocumentText,
+    position: number,
+    documentLanguage: string,
+  ): string;
+}
 
 const CONTENT_SUFFIX = "_content";
 
@@ -42,6 +51,23 @@ const languageOfScopeName = (
   return undefined;
 };
 
+const charAt = (text: string | DocumentText, index: number): string =>
+  typeof text === "string" ? text.charAt(index) : text.sliceString(index, index + 1);
+
+const cursorCharacter = (
+  text: string | DocumentText,
+  position: number,
+): number | null => {
+  if (position < text.length && charAt(text, position) !== "\n") {
+    return position;
+  }
+  if (position > 0 && charAt(text, position - 1) !== "\n") {
+    return position - 1;
+  }
+  if (position < text.length) return position;
+  return position > 0 ? position - 1 : null;
+};
+
 export const createLanguageReader = (
   grammar: Grammar,
   embeddedLanguages: EmbeddedLanguages,
@@ -73,7 +99,11 @@ export const createLanguageReader = (
     languageByNode.set(nodeName, language);
     return language;
   };
-  return (tree, offset, documentLanguage) => {
+  const character: LanguageReader["character"] = (
+    tree,
+    offset,
+    documentLanguage,
+  ) => {
     for (
       let node: ReturnType<Tree["resolveInner"]> | null = tree.resolveInner(
         offset,
@@ -86,5 +116,14 @@ export const createLanguageReader = (
       if (language !== null) return language;
     }
     return documentLanguage;
+  };
+  return {
+    character,
+    cursor: (tree, text, position, documentLanguage) => {
+      const offset = cursorCharacter(text, position);
+      return offset === null
+        ? documentLanguage
+        : character(tree, offset, documentLanguage);
+    },
   };
 };

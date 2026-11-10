@@ -1,7 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
 
-export const UNREAD_TOKENS: ReadonlySet<string> = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter", "LuauStrayCloser", "LuauTypeIntersectionLineOperator"]);
+export const UNREAD_TOKENS: ReadonlySet<string> = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter", "LuauUnreadableCharacter", "LuauStrayCloser", "LuauTypeIntersectionLineOperator"]);
 
 export function isUnreadTokenAt(anyNode: SyntaxNode, offset: number): boolean {
   let root = anyNode;

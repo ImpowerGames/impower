@@ -127,7 +127,22 @@ export function parseFor(source: string, { luauFile = false }: EngineOptions = {
   return parserFor(luauFile).parse(source);
 }
 
-export function treeLanguagesPerChar(
+export function treeLanguagesPerCharacter(
+  source: string,
+  { luauFile = false }: EngineOptions = {},
+): string[] {
+  const parser = parserFor(luauFile);
+  const tree = parser.parse(source);
+  const reader = readerFor(parser, luauFile);
+  const { language } = documentLanguageOf({ luauFile });
+  const perChar: string[] = new Array(source.length);
+  for (let i = 0; i < source.length; i++) {
+    perChar[i] = reader.character(tree, i, language);
+  }
+  return perChar;
+}
+
+export function treeLanguagesPerPosition(
   source: string,
   { luauFile = false }: EngineOptions = {},
   parser: Parser = parserFor(luauFile),
@@ -135,11 +150,11 @@ export function treeLanguagesPerChar(
   const tree = parser.parse(source);
   const reader = readerFor(parser, luauFile);
   const { language } = documentLanguageOf({ luauFile });
-  const perChar: string[] = new Array(source.length);
-  for (let i = 0; i < source.length; i++) {
-    perChar[i] = reader(tree, i, language);
+  const perPosition: string[] = new Array(source.length + 1);
+  for (let p = 0; p <= source.length; p++) {
+    perPosition[p] = reader.cursor(tree, source, p, language);
   }
-  return perChar;
+  return perPosition;
 }
 
 const grammars = new Map<boolean, Promise<any>>();
@@ -168,28 +183,29 @@ function vscodeGrammarFor(luauFile: boolean): Promise<any> {
 
 const LANGUAGE_ID_MASK = 0xff;
 
-export async function vscodeLanguagesPerChar(
+export async function vscodeLanguagesPerPosition(
   source: string,
   { luauFile = false }: EngineOptions = {},
 ): Promise<string[]> {
   const grammar = await vscodeGrammarFor(luauFile);
-  const perChar: string[] = new Array(source.length);
+  const perPosition: string[] = new Array(source.length + 1);
   const lines = source.split("\n");
   let lineStart = 0;
   let ruleStack: any = null;
   for (const line of lines) {
     const result = grammar.tokenizeLine2(line, ruleStack);
     const tokens: Uint32Array = result.tokens;
-    for (let t = 0; t < tokens.length; t += 2) {
-      const start = tokens[t]!;
-      const end = t + 2 < tokens.length ? tokens[t + 2]! : line.length;
-      const language = decodeLanguage(tokens[t + 1]! & LANGUAGE_ID_MASK);
-      for (let c = start; c < end; c++) perChar[lineStart + c] = language;
+    let t = 0;
+    for (let column = 0; column <= line.length; column++) {
+      while (t + 2 < tokens.length && tokens[t + 2]! <= column) t += 2;
+      perPosition[lineStart + column] = decodeLanguage(
+        tokens[t + 1]! & LANGUAGE_ID_MASK,
+      );
     }
     ruleStack = result.ruleStack;
     lineStart += line.length + 1;
   }
-  return perChar;
+  return perPosition;
 }
 
 export interface LanguageDivergence {
@@ -205,26 +221,26 @@ export async function compareLanguages(
   treeParser?: Parser,
 ): Promise<{ source: string; divergences: LanguageDivergence[] }> {
   const source = rawSource.replace(/\r\n?/g, "\n");
-  const vscode = await vscodeLanguagesPerChar(source, options);
-  const tree = treeLanguagesPerChar(source, options, treeParser);
+  const vscode = await vscodeLanguagesPerPosition(source, options);
+  const tree = treeLanguagesPerPosition(source, options, treeParser);
   const divergences: LanguageDivergence[] = [];
   let line = 1;
   let col = 0;
-  for (let i = 0; i < source.length; i++) {
-    if (source[i] === "\n") {
-      line++;
-      col = 0;
-      continue;
-    }
-    if (vscode[i] !== tree[i]) {
+  for (let p = 0; p <= source.length; p++) {
+    if (vscode[p] !== tree[p]) {
       divergences.push({
-        offset: i,
+        offset: p,
         lineCol: `${line}:${col}`,
-        vscode: vscode[i]!,
-        tree: tree[i]!,
+        vscode: vscode[p]!,
+        tree: tree[p]!,
       });
     }
-    col++;
+    if (source[p] === "\n") {
+      line++;
+      col = 0;
+    } else {
+      col++;
+    }
   }
   return { source, divergences };
 }
@@ -233,9 +249,9 @@ export function formatLanguageDivergences(
   source: string,
   divergences: LanguageDivergence[],
 ): string {
-  if (divergences.length === 0) return "(engines agree at every character)";
+  if (divergences.length === 0) return "(engines agree at every cursor position)";
   const out = [
-    `${divergences.length} character(s) where vscode-textmate and the tree reader disagree on the language:`,
+    `${divergences.length} cursor position(s) where vscode-textmate and the tree reader disagree on the language (text from the position on):`,
   ];
   let i = 0;
   while (i < divergences.length) {

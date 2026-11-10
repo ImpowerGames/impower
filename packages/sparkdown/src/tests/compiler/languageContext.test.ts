@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { treeLanguagesPerChar, vscodeLanguagesPerChar } from "./languageEquality";
+import { treeLanguagesPerPosition, vscodeLanguagesPerPosition } from "./languageEquality";
 
 const STORY = "sparkdown";
 const LUAU = "sparkdown-luau";
@@ -63,8 +63,8 @@ describe("language at each position of the #2019 table", () => {
         test(row.cursor, async () => {
           const languages =
             engine === "tree reader"
-              ? treeLanguagesPerChar(SOURCE)
-              : await vscodeLanguagesPerChar(SOURCE);
+              ? treeLanguagesPerPosition(SOURCE)
+              : await vscodeLanguagesPerPosition(SOURCE);
           expect(row.offsets.map((offset) => languages[offset])).toEqual(
             row.offsets.map(() => row.language),
           );

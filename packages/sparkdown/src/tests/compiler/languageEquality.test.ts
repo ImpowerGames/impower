@@ -5,9 +5,37 @@ import {
   compareLanguages,
   formatLanguageDivergences,
   loadGrammarCorpus,
+  treeLanguagesPerPosition,
 } from "./languageEquality";
 
 const FIXTURES = loadGrammarCorpus();
+
+const LUAU = "sparkdown-luau";
+const STORY = "sparkdown";
+
+const AT_DOCUMENT_END: Record<string, string> = {
+  "function f()\n  return 1": LUAU,
+  "function f()\n": LUAU,
+  "store x = {\n  a = 1": LUAU,
+  "store x = 1": LUAU,
+  "function f()\n  return 1\nend": LUAU,
+  "function f()\n  return 1\nend\n": STORY,
+  "Hello.\n": STORY,
+  "": STORY,
+};
+
+const UNREADABLE: Record<string, string> = {
+  "store x = !1\n": "!1",
+  "local x = !1\n": "!1",
+  "x = !1\n": "!1",
+  "if x! then\n  Hello\nend\n": "!",
+  "while x$ do\n  Hello\nend\n": "$",
+  "repeat\n  Hello\nuntil x?\n": "?",
+  "store x = name名 + 1\n": "名",
+  "local x名 = 1\n": "名 = 1",
+  "& x = @@1\n": "@@1",
+  "function f()\n  local x = 1 + y名\nend\n": "名",
+};
 
 function withoutLuauMarks(ruleName: string) {
   const grammar = structuredClone(GRAMMAR_DEFINITION) as any;
@@ -24,7 +52,29 @@ function withoutLuauMarks(ruleName: string) {
   return grammar;
 }
 
-describe("language at every character: vscode-textmate and the tree reader agree", () => {
+describe("language at every cursor position: vscode-textmate and the tree reader agree", () => {
+  describe("at the end of a line and of the document", () => {
+    for (const [source, language] of Object.entries(AT_DOCUMENT_END)) {
+      test(JSON.stringify(source), async () => {
+        const { divergences } = await compareLanguages(source);
+        expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
+        expect(treeLanguagesPerPosition(source)[source.length]).toBe(language);
+      });
+    }
+  });
+
+  describe("past a character Luau never reads, inside a Luau region", () => {
+    for (const [source, rest] of Object.entries(UNREADABLE)) {
+      test(JSON.stringify(source), async () => {
+        const { divergences } = await compareLanguages(source);
+        expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
+        const from = source.indexOf(rest);
+        const languages = treeLanguagesPerPosition(source).slice(from, from + rest.length);
+        expect(languages).toEqual([...rest].map(() => LUAU));
+      });
+    }
+  });
+
   for (const luauFile of [false, true]) {
     describe(luauFile ? ".luau root" : ".sd root", () => {
       for (const fixture of FIXTURES) {
