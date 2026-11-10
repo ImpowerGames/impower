@@ -465,17 +465,11 @@ const createEditorView = (
           }
           onViewUpdate?.(u);
           const snippet = Boolean(parent.querySelector(".cm-snippetField"));
-          const lint = Boolean(parent.querySelector(".cm-panel-lint"));
           if (parent) {
             if (snippet) {
               parent.classList.add("cm-snippet");
             } else {
               parent.classList.remove("cm-snippet");
-            }
-            if (lint) {
-              parent.classList.add("cm-lint");
-            } else {
-              parent.classList.remove("cm-lint");
             }
           }
           if (setEditorState) {
