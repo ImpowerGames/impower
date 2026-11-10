@@ -138,8 +138,12 @@ describe("LocalBindings agrees with the compiler's name resolution (I-1969)", ()
       .map(([form, body]) => [`${form} in ${container}`, wrap(body)] as const),
   );
 
-  test.each(generated)("%s", (_, source) => {
-    expect(compare(source).disagreements).toEqual([]);
+  test.each(generated)("%s", (name, source) => {
+    const result = compare(source);
+    expect(result.disagreements).toEqual([]);
+    if (!name.endsWith(" in a define method")) {
+      expect(result.compared).toBeGreaterThan(0);
+    }
   });
 
   test("every generated form in a function is resolved by the compiler, so the comparison covers it", () => {
