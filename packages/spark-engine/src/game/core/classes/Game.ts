@@ -4006,6 +4006,7 @@ export class Game<T extends M = {}> {
     const forcedLines = this.linesRunAfter(
       route,
       reported.find((decision) => decision.kind === "forced")?.override,
+      structureOf,
     );
     for (const decision of reported) {
       const location = decision.loop
@@ -4083,6 +4084,7 @@ export class Game<T extends M = {}> {
   protected linesRunAfter(
     route: RoutePlan,
     override: number | undefined,
+    structureOf?: (script: number) => ScriptStructure,
   ): Record<string, number[]> | undefined {
     const decision = override === undefined ? undefined : route.decisions[override];
     const verdict = decision && this.scriptLocationOf(decision.site);
@@ -4100,6 +4102,20 @@ export class Game<T extends M = {}> {
         set.add(line);
       }
     };
+    const bodyOf = (script: number, line: number) => {
+      let found: { start: number; end: number } | undefined;
+      for (const body of structureOf?.(script).bodies ?? []) {
+        if (
+          body.start <= line &&
+          line <= body.end &&
+          (!found || body.start >= found.start)
+        ) {
+          found = body;
+        }
+      }
+      return found;
+    };
+    const verdictBody = bodyOf(verdict[0], verdict[1]);
     let branchEnd = verdict[3];
     for (const step of route.steps) {
       if (step.decision < override) {
@@ -4113,7 +4129,11 @@ export class Game<T extends M = {}> {
         continue;
       }
       add(at[0], at[1], at[3]);
-      if (at[0] === verdict[0] && at[1] > verdict[3]) {
+      if (
+        at[0] === verdict[0] &&
+        at[1] > verdict[3] &&
+        bodyOf(at[0], at[1]) === verdictBody
+      ) {
         branchEnd = Math.max(branchEnd, at[3]);
       }
     }

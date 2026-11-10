@@ -346,6 +346,53 @@ describe("the bar under the game", () => {
     expect(stored().previewPanelHeight).toBe(44);
   });
 
+  it("closes the Load a save menu on an outside press or Escape, keeping the route list open, and styles it as the player does", async () => {
+    const sent: unknown[] = [];
+    const listen = (event: Event) => sent.push((event as CustomEvent).detail);
+    window.addEventListener("jsonrpc", listen);
+    const closeMenu = expect.objectContaining({
+      method: "preview/routeViewAction",
+      params: { action: { kind: "values", event: { kind: "loadOpen", open: false } } },
+    });
+    try {
+      await mount();
+      await act(() => {
+        route.view.value = {
+          ...forcedRoute,
+          tab: "values",
+          values: { start: "interrogation", values: {}, drafts: {}, unsaved: {}, search: "" },
+          load: {
+            saves: [
+              { id: "s1", kind: "saved", name: "Before the trial", scene: "start", line: 4, time: 0, gone: false },
+            ],
+            open: true,
+          },
+        };
+      });
+      await act(async () => route.toggle());
+      await settle();
+      const menu = document.querySelector<HTMLElement>("#route-panel .sv-load-menu");
+      expect(menu).not.toBeNull();
+      menu!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      expect(sent).not.toContainEqual(closeMenu);
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      expect(sent).toContainEqual(closeMenu);
+      sent.length = 0;
+      await key(document.body, "Escape");
+      await settle();
+      expect(sent).toContainEqual(closeMenu);
+      expect(document.getElementById("route-panel")).not.toBeNull();
+      const { readFileSync } = await import("node:fs");
+      const savesCss = readFileSync(
+        "../packages/spark-web-player/src/saves/saves.css",
+        "utf8",
+      );
+      expect(savesCss).toContain(":is(spark-web-player, swp-route-view) .sv-load-menu {");
+    } finally {
+      window.removeEventListener("jsonrpc", listen);
+    }
+  });
+
   it("keeps the Starting values tab in the route list and sends its tab and value changes to the player", async () => {
     const sent: unknown[] = [];
     const listen = (event: Event) => sent.push((event as CustomEvent).detail);

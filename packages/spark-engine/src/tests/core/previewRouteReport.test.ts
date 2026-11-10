@@ -155,6 +155,73 @@ describe("the route the preview reports", () => {
     expect(forced).not.toContain(12);
   }, 120_000);
 
+  test("a function written below the scene is forced only where the forced branch calls it", () => {
+    const { route, count } = preview(
+      [
+        "store flag = false",
+        "store count = 0",
+        "scene start",
+        "  count += earlier()",
+        "  choose",
+        "    * [Continue.]",
+        "      count += 0",
+        "  end",
+        "  if flag then",
+        "    count += forced()",
+        "    Target {count}.",
+        "  end",
+        "end",
+        "",
+        "function earlier()",
+        "  return 10",
+        "end",
+        "",
+        "function forced()",
+        "  return 1",
+        "end",
+        "",
+      ],
+      11,
+      "count",
+    );
+    expect(count).toBe(11);
+    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
+      (line) => line + 1,
+    );
+    expect(forced).toEqual(expect.arrayContaining([10, 11, 20]));
+    expect(forced).not.toContain(16);
+    expect(forced).not.toContain(9);
+    expect(forced).not.toContain(4);
+  }, 120_000);
+
+  test("a branch forced inside a forced branch is forced from the outer verdict", () => {
+    const { route } = preview(
+      [
+        "store a = false",
+        "store b = false",
+        "",
+        "scene start",
+        "  Before.",
+        "  if a then",
+        "    Outer.",
+        "    if b then",
+        "      Inner.",
+        "    end",
+        "  end",
+        "end",
+        "",
+      ],
+      9,
+    );
+    expect(route.decisions.filter((d) => d.kind === "forced")).toHaveLength(2);
+    const forced = expandLineRanges(route.forcedLines?.[URI] ?? []).map(
+      (line) => line + 1,
+    );
+    expect(forced).toEqual(expect.arrayContaining([7, 8, 9]));
+    expect(forced).not.toContain(5);
+    expect(forced).not.toContain(6);
+  }, 120_000);
+
   test("a route that forced nothing reports no forced lines", () => {
     const { route } = preview(interrogation, 9);
     expect(route.decisions.some((d) => d.kind === "forced")).toBe(false);

@@ -87,6 +87,25 @@ export class RouteStore {
     }
   }
 
+  dismissLoadMenu(event: KeyboardEvent | PointerEvent) {
+    if (!this.view.peek()?.load?.open) {
+      return;
+    }
+    if (event instanceof KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    } else if (
+      event.target instanceof Element &&
+      event.target.closest(".sv-load")
+    ) {
+      return;
+    }
+    this.act({ kind: "values", event: { kind: "loadOpen", open: false } });
+  }
+
   dismiss(event: KeyboardEvent) {
     if (
       event.key !== "Escape" ||

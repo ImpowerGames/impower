@@ -267,6 +267,25 @@ describe("the choice popover", () => {
     expect(note?.getAttribute("role")).toBe("status");
   });
 
+  it("opens from its marker by keyboard and closes on Escape with focus still on the marker", async () => {
+    mount();
+    setChoiceMarkers(view!, [choice(3, "pinned")]);
+    await nextFrame();
+    const mark = view!.dom.querySelector<HTMLButtonElement>(".cm-choice-marker")!;
+    mark.focus();
+    expect(document.activeElement).toBe(mark);
+    mark.click();
+    expect(openChoiceLine(view!.state)).toBe(3);
+    const escape = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    mark.dispatchEvent(escape);
+    expect(openChoiceLine(view!.state)).toBeNull();
+    expect(escape.defaultPrevented).toBe(true);
+  });
+
   it("follows its line through an edit above it", () => {
     mount();
     setChoiceMarkers(view!, [choice(5, "auto")]);

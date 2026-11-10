@@ -367,13 +367,27 @@ const choiceMarkerEvents = [
       }
       openChoicePopover(view, null);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        markerAt(event.target) === null ||
+        openChoiceLine(view.state) === null
+      ) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      openChoicePopover(view, null);
+    };
     view.scrollDOM.addEventListener("click", onClick);
     view.scrollDOM.addEventListener("mouseover", onOver);
+    view.scrollDOM.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown, true);
     return {
       destroy() {
         view.scrollDOM.removeEventListener("click", onClick);
         view.scrollDOM.removeEventListener("mouseover", onOver);
+        view.scrollDOM.removeEventListener("keydown", onKeyDown);
         document.removeEventListener("pointerdown", onPointerDown, true);
       },
     };
