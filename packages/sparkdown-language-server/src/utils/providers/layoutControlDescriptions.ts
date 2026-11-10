@@ -1,4 +1,6 @@
-export const LAYOUT_CONTROL_DESCRIPTIONS: Record<string, string> = {
+import type { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+
+export const LAYOUT_CONTROL_DESCRIPTIONS: Record<LayoutVerb, string> = {
   open: "Shows the layout on screen, with its enter transition if one is named.",
   close: "Takes the layout off screen, with its exit transition if one is named.",
   navigate:
