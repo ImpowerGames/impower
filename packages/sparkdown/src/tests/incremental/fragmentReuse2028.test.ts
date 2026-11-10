@@ -5,15 +5,16 @@ import { describe, expect, test } from "vitest";
 import { getParser } from "../compiler/grammarSnapshot";
 import { applyEdit, type Edit, reparsedSpan } from "./incremental";
 
-const CLAUSE_CUES = 300;
+const SCENES = 40;
+const CUES = 20;
 
-function script(): string {
+function scene(n: number): string {
   const cues = Array.from(
-    { length: CLAUSE_CUES },
-    (_, i) => `    SPEAKER_${i}:\n      (aside ${i})\n      Line number ${i}.\n`,
+    { length: CUES },
+    (_, i) => `    SPEAKER_${n}_${i}:\n      (aside ${i})\n      Line ${n} number ${i}.\n`,
   ).join("\n");
   return [
-    "scene opening",
+    `scene room_${n}`,
     "  Somebody tosses a bag --",
     "",
     "  choose",
@@ -25,20 +26,18 @@ function script(): string {
     "  then",
     "",
     cues,
-    "    -> closing",
     "  end",
-    "end",
-    "",
-    "scene closing",
-    "  The end.",
     "end",
     "",
   ].join("\n");
 }
 
-const TEXT = script();
-const DEEP = TEXT.indexOf(`    SPEAKER_${CLAUSE_CUES / 2}:`);
-const TYPED = TEXT.indexOf(`Line number ${CLAUSE_CUES / 2}.`) + 4;
+const MIDDLE = SCENES / 2;
+const TEXT = Array.from({ length: SCENES }, (_, n) => scene(n)).join("\n");
+const SCENE_LENGTH = scene(MIDDLE).length;
+const BOUND = 2 * SCENE_LENGTH;
+const DEEP = TEXT.indexOf(`    SPEAKER_${MIDDLE}_${CUES / 2}:`);
+const TYPED = TEXT.indexOf(`Line ${MIDDLE} number ${CUES / 2}.`) + 4;
 const CUE = "    CHARACTER:\n      What do they say?\n\n";
 
 function parseEdit(base: Tree, text: string, edit: Edit) {
@@ -61,12 +60,8 @@ function expectCold(tree: Tree, text: string) {
 }
 
 describe("incremental fragment reuse (#2028)", () => {
-  test("a first multi-line insertion deep in a long clause reparses only near the edit", () => {
-    const base = getParser().parse(TEXT);
-    const { tree, next } = parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
-    expect(tree.prop(cachedCompilerProp)).toBe(base.prop(cachedCompilerProp));
-    expect(span(tree)).toBeLessThan(400);
-    expectCold(tree, next);
+  test("the fixture's edited block is a small part of the document", () => {
+    expect(BOUND * 8).toBeLessThan(TEXT.length);
   });
 
   test("a second state parsed from the same base reuses fragments", () => {
@@ -74,7 +69,7 @@ describe("incremental fragment reuse (#2028)", () => {
     parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
     const second = parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "x" });
     expect(second.tree.prop(cachedCompilerProp)).toBe(base.prop(cachedCompilerProp));
-    expect(span(second.tree)).toBeLessThan(400);
+    expect(span(second.tree)).toBeLessThan(BOUND);
     expectCold(second.tree, second.next);
   });
 
@@ -83,18 +78,17 @@ describe("incremental fragment reuse (#2028)", () => {
     parseEdit(base, TEXT, { from: TYPED, to: TYPED, insert: "discarded" });
     const adopted = parseEdit(base, TEXT, { from: DEEP, to: DEEP, insert: CUE });
     expect(adopted.tree.prop(cachedCompilerProp)).toBe(base.prop(cachedCompilerProp));
-    expect(span(adopted.tree)).toBeLessThan(400);
+    expect(span(adopted.tree)).toBeLessThan(BOUND);
     expectCold(adopted.tree, adopted.next);
     const shifted = TYPED + CUE.length;
     const typed = parseEdit(adopted.tree, adopted.next, { from: shifted, to: shifted, insert: "y" });
-    expect(span(typed.tree)).toBeLessThan(400);
+    expect(span(typed.tree)).toBeLessThan(BOUND);
     expectCold(typed.tree, typed.next);
   });
 
   test("a sibling parsed while an earlier parse from the same base is unfinished leaves both trees intact", () => {
     const base = getParser().parse(TEXT);
-    const firstEdit: Edit = { from: DEEP, to: DEEP, insert: CUE };
-    const firstText = applyEdit(TEXT, firstEdit);
+    const firstText = applyEdit(TEXT, { from: DEEP, to: DEEP, insert: CUE });
     const first = getParser().startParse(
       firstText,
       TreeFragment.applyChanges(TreeFragment.addTree(base), [

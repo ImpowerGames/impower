@@ -106,7 +106,7 @@ export class TextmateGrammarParse implements PartialParse {
     } else if (this.region.from > anchor) {
       this.tokenizer.skip(this.region.from - anchor);
     }
-    this.tokenizer.emitSplitSignals = true;
+    this.tokenizer.emitSplitSignals = this.region.from > 0 || !!this.region.edit;
   }
 
   get done() {
