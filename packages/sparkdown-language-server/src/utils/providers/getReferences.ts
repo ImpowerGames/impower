@@ -157,7 +157,7 @@ export const collectReferencesForTarget = (
   resolvedSymbolIds.push(...targetIds, ...targetInterdependentIds);
   const bindingAt = referenceBindings(workspace);
   const targetBinding =
-    seedUri && symbolFrom != null
+    seedUri && symbolFrom != null && symbolReference?.root == null
       ? bindingAt(seedUri, symbolFrom, symbolReference)
       : undefined;
 
@@ -170,9 +170,21 @@ export const collectReferencesForTarget = (
     if (!reference) {
       return;
     }
+    if (targetBinding !== undefined) {
+      if (
+        uri === seedUri &&
+        reference.root == null &&
+        (context.includeDeclaration || !reference.declaration) &&
+        (!context.excludeUses || reference.declaration) &&
+        bindingAt(uri, r.from, reference) === targetBinding
+      ) {
+        addSymbol(uri, r);
+      }
+      return;
+    }
     let sameBinding: boolean | undefined;
     const add = () => {
-      sameBinding ??= bindingAt(uri, r.from, reference) === targetBinding;
+      sameBinding ??= bindingAt(uri, r.from, reference) === undefined;
       if (sameBinding) {
         addSymbol(uri, r);
       }

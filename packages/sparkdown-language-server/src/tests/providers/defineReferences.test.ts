@@ -161,6 +161,23 @@ describe("provider · references through access paths and bindings (I-1969)", ()
     ]);
   });
 
+  test("find-references and go-to-definition from a parameter's use reach the parameter", () => {
+    expect(referencesAt(HELPERS, "settings", 2)).toEqual([
+      { uri: HELPERS, text: "settings", line: 0 },
+      { uri: HELPERS, text: "settings", line: 1 },
+    ]);
+    const { documents, workspace } = workspaceOf();
+    const { references } = getReferences(
+      documents.get(HELPERS),
+      documents.tree(HELPERS),
+      undefined,
+      workspace,
+      posAt(sources[HELPERS]!, "settings", 2),
+      { searchOtherFiles: true, includeDeclaration: true, excludeUses: true, includeInterdependent: false, includeLinks: false },
+    );
+    expect((references ?? []).map((r) => r.range.start)).toEqual([{ line: 0, character: 14 }]);
+  });
+
   test("find-references on a parameter reaches its uses and not a local of the same name", () => {
     expect(referencesAt(HELPERS, "settings", 1)).toEqual([
       { uri: HELPERS, text: "settings", line: 0 },
