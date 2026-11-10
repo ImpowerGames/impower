@@ -19,6 +19,7 @@ import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type L
 import { runWrapperText } from "../../compiler/utils/runWrapper";
 import { parseSource } from "./grammarSnapshot";
 import { checkerView, NoCheckerView } from "./luauCheckerView";
+import { reportStalePin } from "./knownDifferences";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
 import { expressionDocument, generatedExpressions } from "./luauGeneratedExpressions";
 
@@ -104,7 +105,9 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
       const differences = fixtureDifferences(input);
       const entry = structuralKnown.get(input.name);
       if (entry) {
-        expect(differences.length, `${input.name} now reads as Luau reads it. Remove its entry (#${entry.issue}) from KNOWN_STRUCTURAL_DISAGREEMENTS.`).toBeGreaterThan(0);
+        if (differences.length === 0) {
+          reportStalePin({ ticket: `#${entry.issue}`, subject: input.name, list: "KNOWN_STRUCTURAL_DISAGREEMENTS" }, ["a difference from Luau's parser's AST"]);
+        }
       } else {
         expect(differences, `${input.name}: the tree's AST differs from Luau's parser's`).toEqual([]);
       }
@@ -116,7 +119,6 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
   for (const [group, expressions] of groups) {
     test(`generated: ${group} (${expressions.length} expressions)`, () => {
       const failures: string[] = [];
-      const fixed: string[] = [];
       for (const expression of expressions) {
         const text = expressionDocument(expression);
         const units = readLuauUnits(parseSource(text), text);
@@ -127,10 +129,11 @@ describe("The AST read from the syntax tree is the AST Luau's parser reads", () 
           ...compareUnit("expression", parsed.root, parsed.errors.length, units.prelude, units.prelude.root, undefined),
         ];
         const entry = structuralKnown.get(expression);
-        if (entry && differences.length === 0) fixed.push(`${JSON.stringify(expression)} (#${entry.issue})`);
+        if (entry && differences.length === 0) {
+          reportStalePin({ ticket: `#${entry.issue}`, subject: JSON.stringify(expression), list: "KNOWN_STRUCTURAL_DISAGREEMENTS" }, ["a difference from Luau's parser's AST"]);
+        }
         if (!entry && differences.length > 0) failures.push(`${JSON.stringify(expression)}\n${differences.join("\n")}`);
       }
-      expect(fixed, "These now read as Luau reads them; remove their entries from KNOWN_STRUCTURAL_DISAGREEMENTS.").toEqual([]);
       expect(failures).toEqual([]);
     }, 120_000);
   }

@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from "vitest";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { PortedCase } from "../luau-conformance/typecheck/portedCases";
+import { reportStalePin } from "./knownDifferences";
 import { officialSyntaxErrors } from "./officialSyntax";
 import {
   CORPUS_INVENTORY,
@@ -91,8 +92,9 @@ function incompleteNodes(input: CorpusInput, fn: SyntaxNode): string[] {
 function expectGate(input: CorpusInput, check: CorpusCheck, failed: boolean, report: string): void {
   const entry = known.get(`${input.name} ${check}`);
   if (entry) {
-    const why = entry.issue ? `#${entry.issue}` : entry.divergence;
-    expect(failed, `${input.name} now passes the ${check} check. Remove its entry (${why}) from KNOWN_CORPUS_FAILURES.\n${report}`).toBe(true);
+    if (!failed) {
+      reportStalePin({ ticket: entry.issue ? `#${entry.issue}` : entry.divergence!, subject: input.name, list: "KNOWN_CORPUS_FAILURES" }, [`a failure of the ${check} check`]);
+    }
   } else {
     expect(
       failed,
