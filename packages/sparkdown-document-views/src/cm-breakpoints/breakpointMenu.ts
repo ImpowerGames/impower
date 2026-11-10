@@ -5,9 +5,10 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { hasBreakpointAt, toggleBreakpointAtCaret } from "./breakpoints";
 
-const offers = (on: boolean) => (state: EditorState, pos: number) =>
+const offers = (on: boolean) => (state: EditorState) =>
   state.facet(coarsePointer) &&
-  hasBreakpointAt(state, state.doc.lineAt(pos).from) === on;
+  hasBreakpointAt(state, state.doc.lineAt(state.selection.main.head).from) ===
+    on;
 
 export const breakpointMenu = () =>
   contextMenu({
@@ -17,11 +18,13 @@ export const breakpointMenu = () =>
         label: "Add breakpoint",
         command: (view) => toggleBreakpointAtCaret(view),
         when: offers(false),
+        keepsSelection: true,
       },
       {
         label: "Remove breakpoint",
         command: (view) => toggleBreakpointAtCaret(view),
         when: offers(true),
+        keepsSelection: true,
       },
     ],
   });

@@ -169,6 +169,23 @@ describe("the caret line's breakpoint action on a phone", () => {
     expect(markers(view)).toHaveLength(0);
   });
 
+  it("toggles the caret's line, not the first selected line, and keeps the selection, for a selection made forward", async () => {
+    const { view, reported, openMenu } = await mount(true);
+    const anchor = view.state.doc.line(3).from + 4;
+    const head = view.state.doc.line(5).from + 8;
+    view.dispatch({ selection: { anchor, head } });
+    const first = openMenu();
+    entry(first, "Add breakpoint")!.run();
+    expect(reported).toEqual([[4]]);
+    expect(view.state.selection.main).toMatchObject({ anchor, head });
+
+    const second = openMenu();
+    expect(entry(second, "Add breakpoint")).toBeUndefined();
+    entry(second, "Remove breakpoint")!.run();
+    expect(reported).toEqual([[4], []]);
+    expect(action.calls).toEqual([view, view]);
+  });
+
   it("offers the item after the menu's other items, behind a separator", async () => {
     const { caretOn, openMenu } = await mount(true);
     caretOn(3);
