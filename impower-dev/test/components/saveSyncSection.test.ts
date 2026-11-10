@@ -7,7 +7,7 @@ const actions = vi.hoisted(() => ({
   signOutOfGoogleDrive: vi.fn(),
   openProjectFromDrive: vi.fn(),
   exportLocalProject: vi.fn(),
-  recordProjectBackup: vi.fn(async () => {}),
+  backUpProject: vi.fn<(backUp: () => Promise<unknown>) => Promise<unknown>>(),
   importLocalProject: vi.fn(),
   requestProjectReplace: vi.fn(),
   cancelProjectReplace: vi.fn(),
@@ -91,6 +91,7 @@ const mountSection = () =>
 
 beforeEach(async () => {
   Object.values(actions).forEach((fn) => typeof fn === "function" && fn.mockReset());
+  actions.backUpProject.mockImplementation((backUp) => backUp());
   downloads.mockReset();
   workspace.account.value = null;
   workspace.replaceProject.value = null;
@@ -143,7 +144,7 @@ describe("the Save & sync section", () => {
     expect(downloads).toHaveBeenCalledTimes(1);
     expect(downloads.mock.calls[0]![0]).toBe("Raffles.zip");
     expect(downloads.mock.calls[0]![2]).toBe(zip);
-    expect(actions.recordProjectBackup).toHaveBeenCalledTimes(1);
+    expect(actions.backUpProject).toHaveBeenCalledTimes(1);
     expect(row("save-backup").textContent).toContain("Every script and asset as a .zip");
   });
 

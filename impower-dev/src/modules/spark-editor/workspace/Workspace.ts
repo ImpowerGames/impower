@@ -52,6 +52,9 @@ export namespace Workspace {
 }
 
 registerWorkspaceProtocol(Workspace);
+Workspace.fs.onProjectEdit(
+  (projectId) => void Workspace.window.recordProjectChange(projectId),
+);
 problems.addPlayedSource(runtimeErrorSource);
 problems.addPanelSource(consoleToggleSource);
 if (typeof window !== "undefined") {

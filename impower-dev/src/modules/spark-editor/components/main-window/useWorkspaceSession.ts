@@ -12,11 +12,7 @@ export function useWorkspaceSession(): void {
     let cancelled = false;
     let recheck = 0;
     let review: (() => void) | null = null;
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        review?.();
-      }
-    };
+    const onVisible = () => review?.();
     (async () => {
       const { Workspace } = await import("../../workspace/Workspace");
       try {
@@ -35,7 +31,11 @@ export function useWorkspaceSession(): void {
       if (cancelled) {
         return;
       }
-      review = () => void Workspace.window.reviewDeviceStorage();
+      review = () => {
+        if (document.visibilityState === "visible") {
+          void Workspace.window.reviewDeviceStorage();
+        }
+      };
       review();
       recheck = window.setInterval(review, BACKUP_REMINDER_CHECK_MS);
       document.addEventListener("visibilitychange", onVisible);

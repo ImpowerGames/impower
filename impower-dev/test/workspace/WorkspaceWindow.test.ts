@@ -30,6 +30,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
       writeProjectMetadata: vi.fn(),
+      readProjectMetadata: vi.fn(async () => ""),
       getFiles: async () => ({}),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
@@ -218,7 +219,11 @@ import workspace, {
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
-import { projectFingerprint } from "../../src/modules/spark-editor/utils/storagePersistence";
+import { DAY_MS } from "../../src/modules/spark-editor/utils/storagePersistence";
+import {
+  dismissSnackbar,
+  snackbar,
+} from "../../src/modules/spark-editor/utils/snackbar";
 
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
@@ -573,36 +578,92 @@ describe("WorkspaceWindow store transitions", () => {
       }
     });
 
-    it("an export records when the project was last backed up", async () => {
-      vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-        new Uint8Array([1]) as never,
-      );
-      const write = vi.mocked(Workspace.fs.writeProjectMetadata);
-      write.mockClear();
-      workspace.current = {
-        ...workspace.current,
-        project: { ...workspace.current.project, id: "local", name: "Story" },
-      };
-      current.window = win;
-      const now = Date.UTC(2026, 10, 10, 12, 0, 0);
-      vi.spyOn(Date, "now").mockReturnValue(now);
-      vi.spyOn(Workspace.fs, "getFiles").mockResolvedValue({
-        "file://local/main.sd": { uri: "file://local/main.sd", modified: 7, size: 3, text: "end" },
-        "file://local/.remindedAt": { uri: "file://local/.remindedAt", modified: 9, size: 13, text: "1794339454460" },
-      } as never);
-      try {
-        expect(await downloadProjectZip()).toBe(true);
-        expect(write).toHaveBeenCalledWith("local", "backedUpAt", String(now));
-        expect(write).toHaveBeenCalledWith(
-          "local",
-          "backedUpFiles",
-          projectFingerprint([{ path: "main.sd", size: 3, text: "end" }]),
+    describe("the backup record", () => {
+      const started = Date.UTC(2026, 10, 10, 12, 0, 0);
+      let metadata: Map<string, string>;
+      let now: number;
+
+      beforeEach(() => {
+        metadata = new Map();
+        now = started;
+        vi.spyOn(Date, "now").mockImplementation(() => now);
+        vi.mocked(Workspace.fs.readProjectMetadata).mockImplementation(
+          async (_id: string, field: string) => metadata.get(field) ?? "",
         );
-      } finally {
-        vi.mocked(Workspace.fs.getFiles).mockRestore();
+        vi.mocked(Workspace.fs.writeProjectMetadata).mockImplementation(
+          async (_id: string, field: string, value: string) => {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            metadata.set(field, value);
+          },
+        );
+        workspace.current = {
+          ...workspace.current,
+          project: { ...workspace.current.project, id: "local", name: "Story" },
+        };
+        current.window = win;
+      });
+
+      afterEach(() => {
+        vi.mocked(Workspace.fs.readProjectMetadata).mockImplementation(
+          async () => "",
+        );
+        vi.mocked(Workspace.fs.writeProjectMetadata).mockReset();
         vi.mocked(Date.now).mockRestore();
         current.window = undefined;
-      }
+        dismissSnackbar(snackbar.value);
+      });
+
+      it("an export records when it started as the last backup", async () => {
+        vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
+          now = started + 900;
+          return new Uint8Array([1]) as never;
+        });
+        expect(await downloadProjectZip()).toBe(true);
+        expect(metadata.get("backedUpAt")).toBe(String(started));
+      });
+
+      it("an edit made while the export runs is not counted as backed up", async () => {
+        metadata.set("changedAt", String(started - DAY_MS));
+        vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
+          now = started + 500;
+          await win.recordProjectChange("local");
+          now = started + 900;
+          return new Uint8Array([1]) as never;
+        });
+        expect(await downloadProjectZip()).toBe(true);
+        expect(metadata.get("backedUpAt")).toBe(String(started));
+        expect(metadata.get("changedAt")).toBe(String(started + 500));
+      });
+
+      it("a failed export records no backup", async () => {
+        vi.spyOn(win, "exportLocalProject").mockResolvedValue(undefined);
+        expect(await downloadProjectZip()).toBe(false);
+        expect(metadata.has("backedUpAt")).toBe(false);
+        await win.recordProjectChange("local");
+        expect(metadata.get("changedAt")).toBe(String(started));
+      });
+
+      it("runs one storage review at a time, so two checks never show the reminder twice", async () => {
+        metadata.set("createdAt", String(started - 30 * DAY_MS));
+        metadata.set("backedUpAt", String(started - 9 * DAY_MS));
+        metadata.set("changedAt", String(started - 8 * DAY_MS));
+        const shown: string[] = [];
+        const stop = snackbar.subscribe((value) => {
+          if (value) {
+            shown.push(value.message);
+          }
+        });
+        try {
+          await Promise.all([
+            win.reviewDeviceStorage(),
+            win.reviewDeviceStorage(),
+          ]);
+        } finally {
+          stop();
+        }
+        expect(shown).toEqual(["9 days since your last backup."]);
+        expect(metadata.get("remindedAt")).toBe(String(started));
+      });
     });
   });
 

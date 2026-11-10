@@ -123,12 +123,11 @@ import {
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
 import { downloadProjectZip } from "../utils/downloadProjectZip";
-import { isProjectMetadata } from "../utils/fileTree";
 import {
   installOfferOf,
   keepOnDevice,
-  projectFingerprint,
   recordBackup,
+  recordChange,
   remindBackupIfDue,
   settleStorage,
   type InstallPromptEvent,
@@ -657,7 +656,18 @@ export default class WorkspaceWindow {
 
   protected _installPrompt: InstallPromptEvent | null = null;
 
-  async reviewDeviceStorage() {
+  protected _storageReview: Promise<void> = Promise.resolve();
+
+  protected _backupStartedAt: number | null = null;
+
+  reviewDeviceStorage() {
+    this._storageReview = this._storageReview
+      .then(() => this.reviewStorageNow())
+      .catch((err) => console.error(err));
+    return this._storageReview;
+  }
+
+  protected async reviewStorageNow() {
     await this.refreshDeviceStorage();
     const id = this.store.project.id;
     if (!id) {
@@ -711,14 +721,36 @@ export default class WorkspaceWindow {
     }
   }
 
-  async recordProjectBackup(id = this.store.project.id) {
-    if (!id) {
-      return;
-    }
+  async recordProjectChange(id: string) {
     try {
-      await recordBackup(this.backupRecord(id), Date.now());
+      await recordChange(
+        this.backupRecord(id),
+        Date.now(),
+        this._backupStartedAt,
+      );
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  async backUpProject<T>(
+    backUp: () => Promise<T>,
+    id = this.store.project.id,
+  ): Promise<T> {
+    const startedAt = Date.now();
+    this._backupStartedAt = startedAt;
+    try {
+      const backedUp = await backUp();
+      if (backedUp && id) {
+        await recordBackup(this.backupRecord(id), startedAt).catch((err) =>
+          console.error(err),
+        );
+      }
+      return backedUp;
+    } finally {
+      if (this._backupStartedAt === startedAt) {
+        this._backupStartedAt = null;
+      }
     }
   }
 
@@ -741,15 +773,6 @@ export default class WorkspaceWindow {
     return {
       read: (field) => fs.readProjectMetadata(id, field),
       write: (field, value) => fs.writeProjectMetadata(id, field, value),
-      fingerprint: async () =>
-        projectFingerprint(
-          Object.values(await fs.getFiles(id)).flatMap((file) => {
-            const path = fs.getRelativePath(id, file.uri);
-            return isProjectMetadata(path)
-              ? []
-              : [{ path, size: file.size ?? 0, text: file.text }];
-          }),
-        ),
     };
   }
 
@@ -2811,24 +2834,32 @@ export default class WorkspaceWindow {
         const projectName =
           (await this._workspace.fs.readProjectMetadata(projectId, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
-        const projectTextContent =
-          await this._workspace.fs.readProjectScriptBundle(projectId);
-        const projectZipContent =
-          await this._workspace.fs.readProjectAssetBundle(projectId);
         const filename =
           this._workspace.sync.google.getProjectFilename(projectName);
-        const remoteProjectZipFile =
-          await this._workspace.sync.google.createProjectFile(
-            folderId,
-            createZipFile(filename, projectZipContent),
-          );
-        const projectFileId = remoteProjectZipFile?.id;
-        if (projectFileId) {
+        const uploaded = await this.backUpProject(async () => {
+          const projectTextContent =
+            await this._workspace.fs.readProjectScriptBundle(projectId);
+          const projectZipContent =
+            await this._workspace.fs.readProjectAssetBundle(projectId);
+          const remoteProjectZipFile =
+            await this._workspace.sync.google.createProjectFile(
+              folderId,
+              createZipFile(filename, projectZipContent),
+            );
+          const projectFileId = remoteProjectZipFile?.id;
+          if (!projectFileId) {
+            return null;
+          }
           const remoteProjectTextFile =
             await this._workspace.sync.google.updateProjectFile(
               projectFileId,
               createTextFile(filename, projectTextContent),
             );
+          return { projectFileId, remoteProjectZipFile, remoteProjectTextFile };
+        }, projectId);
+        if (uploaded) {
+          const { projectFileId, remoteProjectZipFile, remoteProjectTextFile } =
+            uploaded;
           await Promise.all([
             this._workspace.fs.writeProjectMetadata(
               projectFileId,
@@ -2856,7 +2887,6 @@ export default class WorkspaceWindow {
               String(true),
             ),
           ]);
-          await this.recordProjectBackup(projectId);
           this.loadNewProject(projectFileId);
         } else {
           this.update({

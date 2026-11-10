@@ -86,6 +86,34 @@ describe("the session's storage review", () => {
     expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(2);
   });
 
+  it("does not look while the editor is hidden, so no reminder comes and goes unseen", async () => {
+    visibility = "hidden";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.advanceTimersByTimeAsync(3 * BACKUP_REMINDER_CHECK_MS);
+    });
+    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
+    visibility = "visible";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for an editor opened in the background to come into view", async () => {
+    await act(async () => render(null, host!));
+    intents.reviewDeviceStorage.mockClear();
+    visibility = "hidden";
+    await act(async () => render(h(Session, null), host!));
+    await settle();
+    expect(intents.reviewDeviceStorage).not.toHaveBeenCalled();
+    visibility = "visible";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
+  });
+
   it("stops looking once the session unmounts", async () => {
     await act(async () => render(null, host!));
     await act(async () => {
