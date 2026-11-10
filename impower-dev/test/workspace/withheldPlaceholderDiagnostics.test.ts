@@ -148,6 +148,17 @@ describe("the app withholds the placeholder warning the editor withholds", () =>
     expect(recorded()).toEqual(["Cannot find character named `NOBODY`"]);
   });
 
+  it("drops the range at the release, so no later publish can stay hidden", () => {
+    withheld(5, PLACEHOLDER);
+    published(5, [placeholderWarning]);
+    withheld(6, null);
+    expect(problems.counts.value.problems).toBe(0);
+    published(5, [placeholderWarning]);
+    expect(recorded()).toEqual([WARNING]);
+    expect(problems.counts.value.problems).toBe(1);
+    expect(lastHeard()).toEqual([WARNING]);
+  });
+
   it("re-evaluates diagnostics already received when the range goes live", () => {
     published(5, [placeholderWarning]);
     expect(problems.counts.value.problems).toBe(1);

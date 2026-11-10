@@ -213,10 +213,7 @@ export default class WorkspaceLanguageServer {
 
   protected readonly _published = new Map<string, PublishDiagnosticsParams>();
 
-  protected readonly _withheld = new Map<
-    string,
-    { range: Range; until?: number }
-  >();
+  protected readonly _withheld = new Map<string, Range>();
 
   protected readonly _disposeWithheldListener: () => void;
 
@@ -279,13 +276,6 @@ export default class WorkspaceLanguageServer {
       PublishDiagnosticsMessage.method,
       (params: PublishDiagnosticsParams) => {
         this._published.set(params.uri, params);
-        const withheld = this._withheld.get(params.uri);
-        if (
-          withheld?.until != null &&
-          (params.version ?? Infinity) >= withheld.until
-        ) {
-          this._withheld.delete(params.uri);
-        }
         this.showPublishedDiagnostics(params.uri);
       },
     );
@@ -516,25 +506,27 @@ export default class WorkspaceLanguageServer {
     range,
   }: ChangedEditorWithheldDiagnosticParams) {
     const previous = this._withheld.get(uri);
+    const published = this._published.get(uri);
     if (range) {
-      this._withheld.set(uri, { range });
+      this._withheld.set(uri, range);
     } else if (!previous) {
       return;
     } else {
-      const published = this._published.get(uri)?.version;
-      if (published != null && published < version) {
-        this._withheld.set(uri, { range: previous.range, until: version });
+      this._withheld.delete(uri);
+      if (published?.version != null && published.version < version) {
+        this._published.set(uri, {
+          ...published,
+          diagnostics: published.diagnostics.filter(
+            (d) => !isWithheldDiagnostic(d, previous),
+          ),
+        });
         return;
       }
-      this._withheld.delete(uri);
     }
-    const affected = this._published
-      .get(uri)
-      ?.diagnostics.some(
-        (d) =>
-          isWithheldDiagnostic(d, previous?.range) ||
-          isWithheldDiagnostic(d, range),
-      );
+    const affected = published?.diagnostics.some(
+      (d) =>
+        isWithheldDiagnostic(d, previous) || isWithheldDiagnostic(d, range),
+    );
     if (affected) {
       this.showPublishedDiagnostics(uri);
     }
@@ -545,7 +537,7 @@ export default class WorkspaceLanguageServer {
     if (!published) {
       return;
     }
-    const withheld = this._withheld.get(uri)?.range;
+    const withheld = this._withheld.get(uri);
     const params = withheld
       ? {
           ...published,

@@ -226,6 +226,58 @@ describe("the missing-character warning on the Add > Dialogue placeholder", () =
     expect(shown(view)).toEqual(["  IMANI:: Something else"]);
   });
 
+  it("keeps every other diagnostic at its lint position when the caret leaves during an edit elsewhere", () => {
+    const others = (text: string) => {
+      const door = text.split(LF).findIndex((l) => l.includes("The door"));
+      return [
+        {
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 6 } },
+          severity: 1,
+          message: "First",
+        },
+        {
+          range: { start: { line: door, character: 2 }, end: { line: door, character: 6 } },
+          severity: 1,
+          message: "Second",
+        },
+      ];
+    };
+    const { view, server } = mount(SOURCE);
+    addDialogue(view);
+    const { from, to } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+    const text = view.state.doc.toString();
+    server.publish(view, [
+      {
+        range: {
+          start: { line: line.number - 1, character: from - line.from },
+          end: { line: line.number - 1, character: to - line.from },
+        },
+        severity: 2,
+        message: { kind: "markdown", value: WARNING },
+      },
+      ...others(text),
+    ]);
+    const control = mount(text);
+    control.server.publish(control.view, others(text));
+    const door = text.indexOf("The door");
+    const leaveWhileEditing = (target: EditorView) =>
+      target.dispatch({
+        changes: [
+          { from: 0, insert: "X" },
+          { from: door, insert: "Y" },
+        ],
+        selection: { anchor: to + 4 },
+      });
+    leaveWhileEditing(view);
+    leaveWhileEditing(control.view);
+    expect(shown(control.view)).toEqual(["define: First", "The : Second"]);
+    expect(shown(view)).toEqual([
+      ...shown(control.view),
+      `CHARACTER: ${WARNING}`,
+    ]);
+  });
+
   it("still shows another diagnostic on the placeholder's line", () => {
     const { view, server } = mount(SOURCE);
     addDialogue(view);

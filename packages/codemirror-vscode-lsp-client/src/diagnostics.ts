@@ -1,11 +1,11 @@
 import {
   Action,
   Diagnostic,
+  forEachDiagnostic,
   setDiagnostics,
   setDiagnosticsEffect,
 } from "@codemirror/lint";
 import {
-  ChangeDesc,
   EditorSelection,
   EditorState,
   Extension,
@@ -26,15 +26,24 @@ export interface WithheldRange {
   to: number;
 }
 
+export interface Withheld extends WithheldRange {
+  diagnostics: readonly Diagnostic[];
+}
+
 export const withholdDiagnostic = StateEffect.define<WithheldRange>();
 
+const receivedWithheld = StateEffect.define<readonly Diagnostic[]>();
+
 const nextWithheld = (
-  value: WithheldRange | null,
+  value: Withheld | null,
   tr: Transaction,
-): WithheldRange | null => {
+): Withheld | null => {
   for (const effect of tr.effects) {
     if (effect.is(withholdDiagnostic)) {
-      return effect.value;
+      return { ...effect.value, diagnostics: [] };
+    }
+    if (effect.is(receivedWithheld) && value) {
+      value = { ...value, diagnostics: effect.value };
     }
   }
   if (!value || tr.changes.touchesRange(value.from, value.to)) {
@@ -46,78 +55,41 @@ const nextWithheld = (
   if (ranges.length !== 1 || main.from !== from || main.to !== to) {
     return null;
   }
-  return from === value.from && to === value.to ? value : { from, to };
+  return from === value.from && to === value.to
+    ? value
+    : { ...value, from, to };
 };
 
-export const withheldDiagnosticField = StateField.define<WithheldRange | null>(
-  {
-    create: () => null,
-    update: nextWithheld,
-  },
-);
-
-interface ReceivedDiagnostics {
-  shown: readonly Diagnostic[];
-  withheld: readonly Diagnostic[];
-}
-
-const receivedDiagnostics = StateEffect.define<ReceivedDiagnostics>();
-
-const mapDiagnostics = (
-  diagnostics: readonly Diagnostic[],
-  changes: ChangeDesc,
-): readonly Diagnostic[] =>
-  changes.empty
-    ? diagnostics
-    : diagnostics.flatMap((d) => {
-        if (d.from === d.to) {
-          const at = changes.mapPos(d.from);
-          return [{ ...d, from: at, to: at }];
-        }
-        const from = changes.mapPos(d.from, 1);
-        const to = changes.mapPos(d.to, -1);
-        return from < to ? [{ ...d, from, to }] : [];
-      });
-
-const receivedDiagnosticsField = StateField.define<ReceivedDiagnostics>({
-  create: () => ({ shown: [], withheld: [] }),
-  update: (value, tr) => {
-    for (const effect of tr.effects) {
-      if (effect.is(receivedDiagnostics)) {
-        return effect.value;
-      }
-    }
-    return tr.changes.empty
-      ? value
-      : {
-          shown: mapDiagnostics(value.shown, tr.changes),
-          withheld: mapDiagnostics(value.withheld, tr.changes),
-        };
-  },
+export const withheldDiagnosticField = StateField.define<Withheld | null>({
+  create: () => null,
+  update: nextWithheld,
 });
 
 const showReleasedDiagnostics = EditorState.transactionExtender.of((tr) => {
   const withheld = tr.startState.field(withheldDiagnosticField, false);
-  const received = tr.startState.field(receivedDiagnosticsField, false);
   if (
-    !withheld ||
-    !received?.withheld.length ||
+    !withheld?.diagnostics.length ||
     nextWithheld(withheld, tr) ||
     tr.changes.touchesRange(withheld.from, withheld.to) ||
     tr.effects.some((effect) => effect.is(setDiagnosticsEffect))
   ) {
     return null;
   }
-  return {
-    effects: setDiagnosticsEffect.of(
-      mapDiagnostics([...received.shown, ...received.withheld], tr.changes),
-    ),
-  };
+  const from = tr.changes.mapPos(withheld.from);
+  const to = tr.changes.mapPos(withheld.to);
+  const diagnostics: Diagnostic[] = withheld.diagnostics.map((d) => ({
+    ...d,
+    from,
+    to,
+  }));
+  forEachDiagnostic(tr.state, (d, from, to) => {
+    diagnostics.push({ ...d, from, to });
+  });
+  return { effects: setDiagnosticsEffect.of(diagnostics) };
 });
 
 const withheldDiagnostics = (): Extension => [
   withheldDiagnosticField,
-  receivedDiagnosticsField,
   showReleasedDiagnostics,
 ];
 
@@ -230,7 +202,7 @@ function showServerDiagnostics(
     (isWithheld ? withheld : shown).push(diagnostic);
   }
   view.dispatch(setDiagnostics(state, shown), {
-    effects: receivedDiagnostics.of({ shown, withheld }),
+    effects: withheldRange ? receivedWithheld.of(withheld) : [],
   });
 }
 
