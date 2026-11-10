@@ -1869,6 +1869,13 @@ const restoreTrashBatch = async (
   };
   const recorded = m.folders ?? [];
   const directories = new Map<string, string>();
+  const claimed = new Set<string>();
+  const sources = new Set(
+    [...recorded, ...m.entries.map((e) => e.relPath)].flatMap((p) => {
+      const parts = p.split("/");
+      return parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+    }),
+  );
   const restoredDirectory = async (path: string): Promise<string> => {
     if (!path) {
       return "";
@@ -1881,11 +1888,16 @@ const restoreTrashBatch = async (
     const parent = await restoredDirectory(slash >= 0 ? path.slice(0, slash) : "");
     const name = slash >= 0 ? path.slice(slash + 1) : path;
     const at = (leaf: string) => (parent ? `${parent}/${leaf}` : leaf);
+    const taken = async (candidate: string) =>
+      claimed.has(candidate) ||
+      (candidate !== path && sources.has(candidate)) ||
+      (await fileExists(getUriFromPath(`${projectId}/${candidate}`)));
     let target = at(name);
-    for (let i = 1; await fileExists(getUriFromPath(`${projectId}/${target}`)); i++) {
+    for (let i = 1; await taken(target); i++) {
       target = at(`${name}${i === 1 ? " (restored)" : ` (restored ${i})`}`);
     }
     directories.set(path, target);
+    claimed.add(target);
     return target;
   };
   const restoredPath = async (relPath: string) => {

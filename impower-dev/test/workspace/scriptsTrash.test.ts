@@ -173,3 +173,17 @@ it("undoes a creation again from where its redo restored it, never the script th
   expect(files).not.toContain(h.uri("Scripts/new (restored).sd"));
   expect(await h.read("Scripts/new.sd")).toBe("other script");
 });
+
+it("redo leaves an empty folder that appeared inside a restored folder after Undo", async () => {
+  const h = await harness();
+  await h.write("Scripts/Drafts/old.sd", "deleted version");
+  await h.scripts.load();
+  await h.scripts.remove(["Scripts/Drafts"]);
+  expect(await h.history.undo()).toBe(true);
+  await h.fs.createFolder("local", "Scripts/Drafts/KeepEmpty");
+  expect(await h.history.redo()).toBe(true);
+  expect(Object.keys(await h.fs.getFiles("local"))).not.toContain(h.uri("Scripts/Drafts/old.sd"));
+  expect(await h.fs.listFolders("local")).toContain("Scripts/Drafts/KeepEmpty");
+  expect(await h.history.undo()).toBe(true);
+  expect(await h.read("Scripts/Drafts/old.sd")).toBe("deleted version");
+});

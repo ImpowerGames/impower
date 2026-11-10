@@ -82,7 +82,14 @@ export async function recordTrashDeletion(
           mode: "trash",
         });
       }
-      await Workspace.fs.deleteFolders(projectId, folders);
+      const recorded = new Set(folders);
+      const unrecorded = (await Workspace.fs.getFolders(projectId)).filter(
+        (f) => !recorded.has(f) && folders.some((r) => f.startsWith(`${r}/`)),
+      );
+      await Workspace.fs.deleteFolders(
+        projectId,
+        folders.filter((r) => !unrecorded.some((f) => f.startsWith(`${r}/`))),
+      );
       batchIds = await findBatchesForUris(projectId, uris, redoSince, folders);
       await markProjectDirty();
     },

@@ -181,6 +181,34 @@ it("restores a file whose name a folder now holds under a restored name", async 
   expect(response.result.restored.map((f: { uri: string }) => f.uri)).toEqual(["file://p/Scripts/a (restored).sd"]);
 });
 
+it("keeps two deleted folders apart when one's restored name is the other's own name", async () => {
+  const h = await worker();
+  const text = (s: string) => new TextEncoder().encode(s);
+  writeMemoryFile(h.root, "p/Root/A.sd/one.sd", text("One"));
+  writeMemoryFile(h.root, "p/Root/A.sd (restored)/two.sd", text("Two"));
+  await h.request("workspace/willDeleteFiles", {
+    files: [{ uri: "file://p/Root/A.sd/one.sd" }, { uri: "file://p/Root/A.sd (restored)/two.sd" }],
+    folders: [{ uri: "file://p/Root" }, { uri: "file://p/Root/A.sd" }, { uri: "file://p/Root/A.sd (restored)" }],
+    mode: "trash",
+  });
+  await h.request("workspace/directories", { action: "delete", uris: ["file://p/Root"] });
+  writeMemoryFile(h.root, "p/Root/A.sd", text("Live"));
+  const [batch] = (await h.trash({ action: "list" })).result.batches;
+  const response = await h.trash({ action: "restore", batchId: batch.batchId });
+  expect(response.error).toBeUndefined();
+  const folders: string[] = response.result.restoredFolders;
+  expect(new Set(folders).size).toBe(folders.length);
+  expect(folders).toEqual(["Root", "Root/A.sd (restored 2)", "Root/A.sd (restored)"]);
+  expect(live(h)).toEqual([
+    "Root/",
+    "Root/A.sd",
+    "Root/A.sd (restored 2)/",
+    "Root/A.sd (restored 2)/one.sd",
+    "Root/A.sd (restored)/",
+    "Root/A.sd (restored)/two.sd",
+  ]);
+});
+
 it("records no folders for a deletion of files alone", async () => {
   const h = await worker();
   writeMemoryFile(h.root, "p/a.sd", new TextEncoder().encode("A"));
