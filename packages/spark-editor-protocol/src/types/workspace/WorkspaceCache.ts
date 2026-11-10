@@ -153,6 +153,11 @@ export interface ListsState {
   scriptsTab?: string;
   scriptsQueries?: Record<string, string>;
   scriptsScrolls?: Record<string, number>;
+  assetsSort?: string;
+  assetsType?: string;
+  assetsFolders?: Record<string, string>;
+  assetsQueries?: Record<string, string>;
+  assetsScrolls?: Record<string, number>;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";

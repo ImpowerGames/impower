@@ -73,6 +73,7 @@ import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
 import type { Image } from "../types/Image";
 import type { ImageState } from "../types/ImageState";
+import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
@@ -220,7 +221,12 @@ export interface UIState {
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
   layout?: { name: string; screen?: string }[];
+  page?: PageState;
 }
+
+const PAGE_COLUMN = "textstream_column";
+
+const PAGE_SCROLLER = "textstream";
 
 type ReactiveEnv = Record<string, unknown>;
 
@@ -468,6 +474,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onStart(): void {
     this._refreshAll = true;
+    this.page.started();
   }
 
   protected evalBinding(binding: Binding, env?: ReactiveEnv): unknown {
@@ -529,6 +536,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onLoad() {
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
+    this.page.loaded();
   }
 
   override onPreview() {
@@ -877,6 +885,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const themeVariables = this.getThemeVariables();
     this.loadTheme(themeVariables);
     this._root = undefined;
+    this.page.forget();
     this._root = this.getOrCreateRootElement();
     this._events = {};
     this._reactive = true;
@@ -959,6 +968,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         tasks.push(this.attributes.restore(target));
       }
     }
+    this.page.restore();
     await Promise.all(tasks);
   }
 
@@ -1501,6 +1511,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style: { display: "none" },
       });
     }
+  }
+
+  markFocused(targets: string[], index: number | null): void {
+    if (this.context?.system?.simulating) {
+      return;
+    }
+    targets.forEach((target, i) => {
+      for (const el of this.findElements(target)) {
+        this.updateElement(el, {
+          attributes: { "data-focused": i === index ? "" : null },
+        });
+      }
+    });
   }
 
   hideAll(targets: string[]): void {
@@ -2046,6 +2069,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
+      this.page.mounted();
+    }
     return uiEl;
   }
 
@@ -2108,6 +2134,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...(layout.screen ? { screen: layout.screen } : {}),
     });
     this.mountChildren(uiEl, layout.children, scope, null);
+    if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
+      this.page.mounted();
+    }
     return uiEl;
   }
 
@@ -4450,7 +4479,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
-        const targetEls = $.findElements(target, true);
+        await this.writeElements(
+          target,
+          $.findElements(target, true),
+          sequence,
+          instant,
+          time,
+          shown,
+        );
+      }
+
+      async writeElements(
+        target: string,
+        targetEls: Element[],
+        sequence: TextInstruction[] | null,
+        instant: boolean,
+        time?: number,
+        shown = 0,
+      ) {
         if (!sequence && $.knownEmpty("text", targetEls)) {
           return;
         }
@@ -5030,7 +5076,297 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Attributes;
   })(this);
 
+  Page = (($) => {
+    class Page {
+      protected _column?: Element;
+
+      protected _elements: Element[] = [];
+
+      protected _rendered: string[] = [];
+
+      protected _options: Element[] = [];
+
+      protected _choose?: (index: number) => void;
+
+      protected _loaded = false;
+
+      protected _resumed = false;
+
+      protected _presented?: { instant: boolean; time?: number };
+
+      get state(): PageState {
+        return ($._state.page ??= { entries: [], current: 0 });
+      }
+
+      get entries(): readonly PageEntry[] {
+        return $._state.page?.entries ?? [];
+      }
+
+      loaded(): void {
+        this._loaded = true;
+      }
+
+      started(): void {
+        this._resumed = this._loaded;
+        this._loaded = false;
+      }
+
+      record(
+        key: string,
+        again: boolean,
+        build: (before: readonly PageEntry[]) => PageRecord,
+      ): void {
+        const page = this.state;
+        const repeat = again || (this._resumed && page.key === key);
+        this._loaded = false;
+        this._resumed = false;
+        this._presented = undefined;
+        const before = repeat
+          ? [...page.entries.slice(0, page.current), ...(page.absorbed ?? [])]
+          : page.entries;
+        const { keep, entries } = build(before);
+        const absorbed = before.slice(keep);
+        page.entries = [...before.slice(0, keep), ...entries];
+        page.current = keep;
+        page.key = key;
+        if (absorbed.length > 0) {
+          page.absorbed = absorbed;
+        } else {
+          delete page.absorbed;
+        }
+      }
+
+      choose(index: number): void {
+        const page = $._state.page;
+        if (!page) {
+          return;
+        }
+        const at = page.entries.findIndex(
+          (entry, i) => i >= page.current && entry.kind === "options",
+        );
+        const option = at >= 0 ? page.entries[at]!.options?.[index] : undefined;
+        if (!option) {
+          return;
+        }
+        page.entries[at] = {
+          ...page.entries[at],
+          kind: "chosen",
+          text: option.map(({ after, over, ...event }) => event),
+        };
+        delete page.entries[at]!.options;
+        this.show(true);
+      }
+
+      onChoose(choose: (index: number) => void): void {
+        this._choose = choose;
+      }
+
+      focus(index: number | null): void {
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        this._options.forEach((button, i) => {
+          $.updateElement(button, {
+            attributes: { "data-focused": i === index ? "" : null },
+          });
+        });
+      }
+
+      forget(): void {
+        this._column = undefined;
+        this._elements = [];
+        this._rendered = [];
+        this._options = [];
+      }
+
+      show(instant: boolean, time?: number): void {
+        this._presented = { instant, time };
+        this.sync(this._presented);
+      }
+
+      mounted(): void {
+        this.sync(this._presented);
+      }
+
+      restore(): void {
+        this._presented = { instant: true };
+        this.sync(this._presented, 0);
+      }
+
+      protected scroller(column: Element): Element | null {
+        for (let el = column.parent; el; el = el.parent) {
+          if (el.name.split(" ").includes(PAGE_SCROLLER)) {
+            return el;
+          }
+        }
+        return column.parent;
+      }
+
+      protected sync(
+        presented?: { instant: boolean; time?: number },
+        rewriteFrom?: number,
+      ): void {
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        const instant = presented?.instant ?? true;
+        const time = presented?.time;
+        const column = $.findElements(PAGE_COLUMN)[0];
+        if (!column) {
+          this.forget();
+          return;
+        }
+        if (column !== this._column) {
+          this.forget();
+          this._column = column;
+          const scroller = this.scroller(column);
+          if (scroller) {
+            $.updateElement(scroller, {
+              attributes: { "data-follow": "end" },
+            });
+          }
+        }
+        const page = $._state.page;
+        const current = page?.current ?? 0;
+        const entries = (page?.entries ?? []).slice(
+          0,
+          presented ? undefined : current,
+        );
+        const signatures = entries.map((entry) => JSON.stringify(entry));
+        let kept = 0;
+        while (
+          kept < entries.length &&
+          kept < this._rendered.length &&
+          this._rendered[kept] === signatures[kept]
+        ) {
+          kept += 1;
+        }
+        for (let i = this._elements.length - 1; i >= kept; i -= 1) {
+          $.destroyElement(this._elements[i]!);
+        }
+        this._elements.length = kept;
+        this._rendered.length = kept;
+        if (instant) {
+          for (let i = rewriteFrom ?? current; i < kept; i += 1) {
+            this.writeEntry(this._elements[i]!, entries[i]!, true);
+          }
+        }
+        for (let i = kept; i < entries.length; i += 1) {
+          const entry = entries[i]!;
+          const typed = !instant && i >= current;
+          this._elements.push(this.build(column, entry, i >= current, typed, time));
+          this._rendered.push(signatures[i]!);
+        }
+      }
+
+      protected build(
+        column: Element,
+        entry: PageEntry,
+        current: boolean,
+        typed: boolean,
+        time?: number,
+      ): Element {
+        if (entry.kind === "rule") {
+          return $.createElement(column, { type: "hr", name: "textstream_rule" });
+        }
+        if (entry.kind === "caption") {
+          return $.createElement(column, {
+            name: "textstream_caption muted",
+            content: { text: entry.caption ?? "" },
+          });
+        }
+        if (entry.kind === "options") {
+          const group = $.createElement(column, {
+            name: "textstream_options",
+            attributes: { role: "group", "aria-label": "Choices" },
+          });
+          const buttons = (entry.options ?? []).map((option, index) => {
+            const button = $.createElement(group, {
+              type: "button",
+              name: "textstream_option",
+              attributes: { type: "button", ...(current ? {} : { disabled: "" }) },
+            });
+            $.createElement(button, { name: "text accent" });
+            void $.text.writeElements(button.id, [button], option, !typed, time);
+            if (current) {
+              $.markHandler(button);
+              $.enqueueUI(
+                ObserveElementMessage.type.notification({
+                  element: button.id,
+                  event: "click",
+                  stopPropagation: true,
+                  once: false,
+                }),
+              );
+              ($._events["click"] ??= {})[button.id] = () => {
+                if (!$._game.ending) {
+                  this._choose?.(index);
+                }
+              };
+            }
+            return button;
+          });
+          if (current) {
+            this._options = buttons;
+          }
+          return group;
+        }
+        const names: Record<string, string> = {
+          action: "textstream_action",
+          dialogue: "textstream_dialogue",
+          heading: "textstream_heading muted",
+          chosen: "textstream_chosen muted",
+        };
+        const el = $.createElement(column, { name: names[entry.kind] });
+        if (entry.name) {
+          $.createElement(el, {
+            type: "span",
+            name: "textstream_name accent",
+            content: { text: entry.name },
+          });
+        }
+        $.createElement(el, { name: "text" });
+        this.writeEntry(el, entry, !typed, time);
+        return el;
+      }
+
+      protected writeEntry(
+        el: Element,
+        entry: PageEntry,
+        instant: boolean,
+        time?: number,
+      ): void {
+        if (entry.kind === "options") {
+          const buttons = el.children.filter((child) =>
+            child.name.split(" ").includes("textstream_option"),
+          );
+          buttons.forEach((button, index) => {
+            const option = entry.options?.[index];
+            if (option) {
+              void $.text.writeElements(button.id, [button], option, instant, time);
+            }
+          });
+          return;
+        }
+        if (!entry.text) {
+          return;
+        }
+        void $.text.writeElements(
+          el.id,
+          [el],
+          entry.text,
+          instant,
+          time,
+          instant ? 0 : (entry.shown ?? 0),
+        );
+      }
+    }
+    return Page;
+  })(this);
+
   text = new this.Text();
+
+  page = new this.Page();
 
   image = new this.Image();
 

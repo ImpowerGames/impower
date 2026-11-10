@@ -2,7 +2,7 @@ import { Button, SearchIcon, VirtualList } from "@impower/impower-ui/components"
 import { useMemo } from "preact/hooks";
 import { filterOutlineRows, OutlineListRow, useOutlineModel, type OutlineRow } from "../outline";
 import { useSavedScroll, useTabQuery } from "./pageState";
-import SearchBox from "./SearchBox";
+import { SearchBox } from "../library-page";
 
 export const OUTLINE_TAB = "outline";
 

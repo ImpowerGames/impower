@@ -1,4 +1,3 @@
-import { useLayout } from "@impower/impower-ui/layout";
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import { computed, useComputed } from "@preact/signals";
 import { useMemo } from "preact/hooks";
@@ -41,9 +40,7 @@ export function useScriptReadonly() {
 }
 
 export function useScriptMode(): ScriptMode | undefined {
-  const phone = useLayout() === "phone";
-  const mode = workspace.scriptMode.value;
-  return phone ? mode : undefined;
+  return workspace.effectiveScriptMode.value;
 }
 
 export const storyScriptOf = (

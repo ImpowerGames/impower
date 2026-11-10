@@ -751,6 +751,9 @@ spark-web-player #game .stage {
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
+spark-web-player #game .layout_textstream {
+  z-index: -1;
+}
 spark-web-player #game .backdrop {
   &:where([data-display-target~=backdrop]) {
     position: absolute;
@@ -806,6 +809,10 @@ spark-web-player #game .choice {
     &:hover {
       background-color: var(--theme-color-black);
       transition: all 0.15s linear;
+    }
+    &:where([data-focused]) {
+      outline: 2px solid;
+      outline-offset: 2px;
     }
   }
 }
@@ -1370,6 +1377,15 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+}
+spark-web-player #game .paper {
+  background-color: var(--theme-color-neutral_99);
+}
+spark-web-player #game .ink {
+  color: var(--theme-color-slate_20);
+}
+spark-web-player #game .accent {
+  color: var(--theme-color-orange_30);
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -2154,6 +2170,89 @@ spark-web-player #game .end_mark {
   font-size: 16px;
   text-align: center;
   color: var(--theme-color-white);
+}
+spark-web-player #game .textstream {
+  position: absolute;
+  inset: 0px;
+  overflow-y: auto;
+  pointer-events: auto;
+  container-type: inline-size;
+}
+spark-web-player #game .textstream_column {
+  max-width: 36em;
+  margin: 0px auto;
+  padding: clamp(20px, 6cqi, 40px) clamp(16px, 6cqi, 40px) 56px;
+  font-family: Georgia, serif;
+  font-size: clamp(14px, 3.2cqi, 17px);
+  line-height: 1.65;
+  font-weight: 400;
+  cursor: default;
+}
+spark-web-player #game .textstream_action {
+  margin: 1.5em 0px;
+  font-style: italic;
+}
+spark-web-player #game .textstream_dialogue {
+  margin: 0px 4em;
+}
+spark-web-player #game .textstream_name {
+  display: block;
+  margin-top: 1.5em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+spark-web-player #game .textstream_heading {
+  margin: 0px;
+  text-align: center;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_rule {
+  margin: 1.5em 0px;
+  border: 0;
+  border-top: 1px solid;
+  opacity: 0.3;
+}
+spark-web-player #game .textstream_options {
+  display: grid;
+  gap: 6px;
+  margin: 1em 0px 1.2em;
+}
+spark-web-player #game .textstream_option {
+  min-height: 44px;
+  padding: 8px 14px;
+  text-align: left;
+  font: inherit;
+  line-height: 1.4;
+  color: inherit;
+  background: none;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 9px;
+  cursor: pointer;
+  &:hover {
+    background-color: color-mix(in srgb, currentColor 6%, transparent);
+  }
+  &:where([data-focused]) {
+    outline: 2px solid;
+    outline-offset: 2px;
+  }
+}
+spark-web-player #game .textstream_chosen {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  margin: 0px;
+  font-style: italic;
+  &::before {
+    content: "▸";
+    margin-right: 0.35em;
+    font-style: normal;
+  }
+}
+spark-web-player #game .textstream_caption {
+  margin: 0px;
+  font-size: 0.8em;
 }",
             },
           ],
@@ -3032,6 +3131,26 @@ spark-web-player #game .end_mark {
                 },
               ],
               "class": "layout_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "attrs": {
+                    "data-follow": "end",
+                  },
+                  "children": [
+                    {
+                      "class": "textstream_column",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textstream paper ink",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_textstream",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

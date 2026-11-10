@@ -9,25 +9,18 @@ export interface DroppedItem {
   getBuffer: () => Promise<ArrayBuffer>;
 }
 
-export async function importDroppedFiles(
+export async function importFiles(
   projectId: string,
   items: DroppedItem[],
-): Promise<void> {
+): Promise<string[]> {
+  const written: string[] = [];
   if (items.length === 0) {
-    return;
+    return written;
   }
   const { Workspace } = await import("../workspace/Workspace");
-  const existingPaths = Object.keys(await Workspace.fs.getFiles(projectId)).map(
-    (uri) => Workspace.fs.getRelativePath(projectId, uri),
-  );
-  const routed = routeIntoLayout(
-    items.map((it) => it.rel),
-    existingPaths,
-    layoutSubtreeFor,
-  );
   await resolveUploadConflicts(
     projectId,
-    items.map((it, i) => ({ rel: routed[i]!, payload: it })),
+    items.map((it) => ({ rel: it.rel, payload: it })),
     async ({ survivors, trashedOldUris, since }) => {
       const newUris = survivors.map((s) => s.uri);
       let wrote = false;
@@ -48,6 +41,9 @@ export async function importDroppedFiles(
             await Workspace.window.recordAssetChange();
           });
           wrote = true;
+          written.push(
+            ...newUris.map((uri) => Workspace.fs.getRelativePath(projectId, uri)),
+          );
         }
       } finally {
         const label =
@@ -63,5 +59,28 @@ export async function importDroppedFiles(
         );
       }
     },
+  );
+  return written;
+}
+
+export async function importDroppedFiles(
+  projectId: string,
+  items: DroppedItem[],
+): Promise<void> {
+  if (items.length === 0) {
+    return;
+  }
+  const { Workspace } = await import("../workspace/Workspace");
+  const existingPaths = Object.keys(await Workspace.fs.getFiles(projectId)).map(
+    (uri) => Workspace.fs.getRelativePath(projectId, uri),
+  );
+  const routed = routeIntoLayout(
+    items.map((it) => it.rel),
+    existingPaths,
+    layoutSubtreeFor,
+  );
+  await importFiles(
+    projectId,
+    items.map((it, i) => ({ ...it, rel: routed[i]! })),
   );
 }

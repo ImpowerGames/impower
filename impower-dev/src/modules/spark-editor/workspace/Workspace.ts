@@ -8,6 +8,7 @@ import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
+import WorkspaceAssets from "./WorkspaceAssets";
 import WorkspaceScripts from "./WorkspaceScripts";
 import WorkspaceSearch from "./WorkspaceSearch";
 import { searchSources } from "./searchSources";
@@ -28,6 +29,12 @@ export namespace Workspace {
     configuration,
   );
   export const scripts = new WorkspaceScripts({ fs, ls, window });
+  export const assets = new WorkspaceAssets({
+    fs,
+    ls,
+    window,
+    autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+  });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
   export const search = new WorkspaceSearch(

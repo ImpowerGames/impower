@@ -7,10 +7,12 @@ export type RollForwardGameMethod = typeof RollForwardGameMessage.method;
 
 export interface RollForwardGameParams {
   to: RollTarget;
+  hold?: boolean;
 }
 
 export type RollForwardGameResult = RollResult & {
   run?: number | null;
+  held?: boolean;
 };
 
 export class RollForwardGameMessage {

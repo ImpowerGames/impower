@@ -5,8 +5,16 @@ import {
 import type { GamePosition } from "@impower/spark-editor-protocol/src/types";
 import type { FileAccessor } from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import {
+  RollBackDebugRequest,
+  RollForwardDebugRequest,
+  type RollDebugArguments,
+  type RollDebugTarget,
+} from "@impower/spark-editor-protocol/src/protocols/debug/RollDebugRequest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import workspace, { IDLE_DEBUG_SESSION, type DebugSessionState } from "./WorkspaceStore";
 
@@ -18,6 +26,7 @@ export interface DebugAdapter {
 
 export interface WorkspaceDebugClientOptions {
   onStop?: (position: GamePosition) => void;
+  onRoll?: (restored: SettledBeat) => void;
   onRefusal?: (message: string) => void;
   createAdapter?: (connection: Connection) => Promise<DebugAdapter>;
   target?: EventTarget;
@@ -87,10 +96,14 @@ export default class WorkspaceDebugClient {
       }
       if (
         (GameSteppedMessage.type.isNotification(message) ||
-          GameExecutedMessage.type.isNotification(message)) &&
+          GameExecutedMessage.type.isNotification(message) ||
+          GameRolledMessage.type.isNotification(message)) &&
         message.params.history
       ) {
-        this.update({ canStepOut: message.params.history.canStepOut });
+        this.update({ history: message.params.history });
+      }
+      if (GameRolledMessage.type.isNotification(message)) {
+        this._options.onRoll?.(message.params.restored);
       }
       if (message.method.startsWith("game/") || message.method.startsWith("preview/")) {
         connection.receive(message);
@@ -187,6 +200,14 @@ export default class WorkspaceDebugClient {
     return this.command("stepOut");
   }
 
+  rollBack(to: RollDebugTarget) {
+    return this.command(RollBackDebugRequest.command, { to });
+  }
+
+  rollForward(to: RollDebugTarget) {
+    return this.command(RollForwardDebugRequest.command, { to });
+  }
+
   async setBreakpoints(uri: string, lines: number[]) {
     const session = this._session;
     if (!session || !(await session.ready) || this._session !== session) {
@@ -242,13 +263,13 @@ export default class WorkspaceDebugClient {
     return response;
   }
 
-  protected async command(command: string) {
+  protected async command(command: string, args?: RollDebugArguments) {
     const session = this._session;
     if (!session || !(await session.ready)) {
       return false;
     }
     const threadId = workspace.debugSession.peek().stopped?.threadId ?? 0;
-    const response = await this.request(session, command, { threadId });
+    const response = await this.request(session, command, args ?? { threadId });
     if (!response) {
       return false;
     }

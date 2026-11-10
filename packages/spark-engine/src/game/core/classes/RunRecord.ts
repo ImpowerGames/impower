@@ -6,6 +6,7 @@ export interface RunBeat {
   readonly shown: Instructions;
   readonly menus: number;
   chosen?: number;
+  held?: boolean;
 }
 
 export class RunRecord {
@@ -56,6 +57,13 @@ export class RunRecord {
     this._moves += 1;
   }
 
+  markHeld(): void {
+    const beat = this.current;
+    if (beat) {
+      beat.held = true;
+    }
+  }
+
   moveTo(index: number): void {
     this._at = index;
     this._moves += 1;
@@ -69,9 +77,10 @@ export class RunRecord {
     if (!this.canRollBack) {
       return null;
     }
-    if (to === "choice") {
+    if (to !== "beat") {
+      const found = TARGETS[to];
       for (let i = this._at - 1; i > 0; i -= 1) {
-        if (isMenu(this._beats[i]!)) {
+        if (found(this._beats[i]!)) {
           return i;
         }
       }
@@ -85,9 +94,10 @@ export class RunRecord {
       return null;
     }
     const last = this._beats.length - 1;
-    if (to === "choice") {
+    if (to !== "beat") {
+      const found = TARGETS[to];
       for (let i = this._at + 1; i < last; i += 1) {
-        if (isMenu(this._beats[i]!)) {
+        if (found(this._beats[i]!)) {
           return i;
         }
       }
@@ -107,4 +117,10 @@ export class RunRecord {
   }
 }
 
-const isMenu = (beat: RunBeat): boolean => (beat.shown.choices?.length ?? 0) > 0;
+const TARGETS: Record<
+  Exclude<RollTarget, "beat">,
+  (beat: RunBeat) => boolean
+> = {
+  choice: (beat) => (beat.shown.choices?.length ?? 0) > 0,
+  breakpoint: (beat) => beat.held === true,
+};

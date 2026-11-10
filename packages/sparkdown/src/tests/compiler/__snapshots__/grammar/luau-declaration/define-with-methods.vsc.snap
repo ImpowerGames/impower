@@ -2,115 +2,126 @@ text.source.sparkdown [0..206]
  ├─ meta.function.luau [0..27]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
- │   ├─ entity.name.type.define.luau [7..14]: "Penguin"
- │   ├─ punctuation.whitespace.optional.sd [14..15]: " "
- │   ├─ keyword.control.as.luau [15..17]: "as"
- │   ├─ punctuation.whitespace.optional.sd [17..18]: " "
- │   ├─ entity.name.type.define.parent.luau [18..22]: "Bird"
- │   ├─ punctuation.whitespace.optional.sd [22..23]: " "
- │   └─ keyword.control.as.luau [23..27]: "with"
+ │   └─ meta.embedded.block.luau [7..27]
+ │       ├─ entity.name.type.define.luau [7..14]: "Penguin"
+ │       ├─ punctuation.whitespace.optional.sd [14..15]: " "
+ │       ├─ keyword.control.as.luau [15..17]: "as"
+ │       ├─ punctuation.whitespace.optional.sd [17..18]: " "
+ │       ├─ entity.name.type.define.parent.luau [18..22]: "Bird"
+ │       ├─ punctuation.whitespace.optional.sd [22..23]: " "
+ │       └─ keyword.control.as.luau [23..27]: "with"
  ├─ Newline [27..28]: "\n"
  ├─ meta.function.luau [28..44]
- │   ├─ punctuation.whitespace.optional.sd [28..30]: "  "
- │   ├─ variable.other.readwrite.luau [30..36]: "canFly"
- │   ├─ punctuation.whitespace.optional.sd [36..37]: " "
- │   ├─ keyword.operator.assignment.luau [37..38]: "="
- │   ├─ punctuation.whitespace.optional.sd [38..39]: " "
- │   └─ constant.language.boolean.luau [39..44]: "false"
+ │   └─ meta.embedded.block.luau [28..44]
+ │       ├─ punctuation.whitespace.optional.sd [28..30]: "  "
+ │       ├─ variable.other.readwrite.luau [30..36]: "canFly"
+ │       ├─ punctuation.whitespace.optional.sd [36..37]: " "
+ │       ├─ keyword.operator.assignment.luau [37..38]: "="
+ │       ├─ punctuation.whitespace.optional.sd [38..39]: " "
+ │       └─ constant.language.boolean.luau [39..44]: "false"
  ├─ Newline [44..45]: "\n"
  ├─ meta.function.luau [45..65]
- │   ├─ punctuation.whitespace.optional.sd [45..47]: "  "
- │   ├─ variable.other.readwrite.luau [47..57]: "isSwimming"
- │   ├─ punctuation.whitespace.optional.sd [57..58]: " "
- │   ├─ keyword.operator.assignment.luau [58..59]: "="
- │   ├─ punctuation.whitespace.optional.sd [59..60]: " "
- │   └─ constant.language.boolean.luau [60..65]: "false"
+ │   └─ meta.embedded.block.luau [45..65]
+ │       ├─ punctuation.whitespace.optional.sd [45..47]: "  "
+ │       ├─ variable.other.readwrite.luau [47..57]: "isSwimming"
+ │       ├─ punctuation.whitespace.optional.sd [57..58]: " "
+ │       ├─ keyword.operator.assignment.luau [58..59]: "="
+ │       ├─ punctuation.whitespace.optional.sd [59..60]: " "
+ │       └─ constant.language.boolean.luau [60..65]: "false"
  ├─ Newline [65..66]: "\n"
  ├─ meta.function.luau [66..73]
- │   └─ meta.function.luau [66..73]
- │       ├─ punctuation.whitespace.optional.sd [66..68]: "  "
- │       ├─ entity.name.function.luau [68..71]: "fly"
- │       └─ meta.parameter.luau [71..73]
- │           ├─ punctuation.definition.template-expression.begin.sd [71..72]: "("
- │           └─ punctuation.definition.template-expression.end.sd [72..73]: ")"
+ │   └─ meta.embedded.block.luau [66..73]
+ │       └─ meta.function.luau [66..73]
+ │           ├─ punctuation.whitespace.optional.sd [66..68]: "  "
+ │           ├─ entity.name.function.luau [68..71]: "fly"
+ │           └─ meta.parameter.luau [71..73]
+ │               ├─ punctuation.definition.template-expression.begin.sd [71..72]: "("
+ │               └─ punctuation.definition.template-expression.end.sd [72..73]: ")"
  ├─ Newline [73..74]: "\n"
  ├─ meta.function.luau [74..108]
- │   └─ meta.function.luau [74..108]
- │       ├─ punctuation.whitespace.extra.sd [74..78]: "    "
- │       ├─ support.function.luau [78..83]: "print"
- │       └─ meta.parameter.luau [83..108]
- │           ├─ punctuation.definition.template-expression.begin.sd [83..84]: "("
- │           ├─ string.quoted.double.luau [84..107]
- │           │   ├─ punctuation.definition.string.double.begin.sd [84..85]: "\""
- │           │   ├─ markup.raw.text.sd [85..93]: "Penguins"
- │           │   ├─ markup.raw.space.sd [93..94]: " "
- │           │   ├─ markup.raw.text.sd [94..97]: "can"
- │           │   ├─ markup.raw.punctuation.sd [97..98]: "'"
- │           │   ├─ markup.raw.text.sd [98..99]: "t"
- │           │   ├─ markup.raw.space.sd [99..100]: " "
- │           │   ├─ markup.raw.text.sd [100..103]: "fly"
- │           │   ├─ markup.raw.punctuation.sd [103..104]: "."
- │           │   ├─ markup.raw.punctuation.sd [104..105]: "."
- │           │   ├─ markup.raw.punctuation.sd [105..106]: "."
- │           │   └─ punctuation.definition.string.double.end.sd [106..107]: "\""
- │           └─ punctuation.definition.template-expression.end.sd [107..108]: ")"
+ │   └─ meta.embedded.block.luau [74..108]
+ │       └─ meta.function.luau [74..108]
+ │           ├─ punctuation.whitespace.extra.sd [74..78]: "    "
+ │           ├─ support.function.luau [78..83]: "print"
+ │           └─ meta.parameter.luau [83..108]
+ │               ├─ punctuation.definition.template-expression.begin.sd [83..84]: "("
+ │               ├─ string.quoted.double.luau [84..107]
+ │               │   ├─ punctuation.definition.string.double.begin.sd [84..85]: "\""
+ │               │   ├─ markup.raw.text.sd [85..93]: "Penguins"
+ │               │   ├─ markup.raw.space.sd [93..94]: " "
+ │               │   ├─ markup.raw.text.sd [94..97]: "can"
+ │               │   ├─ markup.raw.punctuation.sd [97..98]: "'"
+ │               │   ├─ markup.raw.text.sd [98..99]: "t"
+ │               │   ├─ markup.raw.space.sd [99..100]: " "
+ │               │   ├─ markup.raw.text.sd [100..103]: "fly"
+ │               │   ├─ markup.raw.punctuation.sd [103..104]: "."
+ │               │   ├─ markup.raw.punctuation.sd [104..105]: "."
+ │               │   ├─ markup.raw.punctuation.sd [105..106]: "."
+ │               │   └─ punctuation.definition.string.double.end.sd [106..107]: "\""
+ │               └─ punctuation.definition.template-expression.end.sd [107..108]: ")"
  ├─ Newline [108..109]: "\n"
  ├─ meta.function.luau [109..114]
- │   └─ meta.function.luau [109..114]
- │       ├─ punctuation.whitespace.optional.sd [109..111]: "  "
- │       └─ keyword.control.end.luau [111..114]: "end"
+ │   └─ meta.embedded.block.luau [109..114]
+ │       └─ meta.function.luau [109..114]
+ │           ├─ punctuation.whitespace.optional.sd [109..111]: "  "
+ │           └─ keyword.control.end.luau [111..114]: "end"
  ├─ Newline [114..115]: "\n"
  ├─ meta.function.luau [115..123]
- │   └─ meta.function.luau [115..123]
- │       ├─ punctuation.whitespace.optional.sd [115..117]: "  "
- │       ├─ entity.name.function.luau [117..121]: "swim"
- │       └─ meta.parameter.luau [121..123]
- │           ├─ punctuation.definition.template-expression.begin.sd [121..122]: "("
- │           └─ punctuation.definition.template-expression.end.sd [122..123]: ")"
+ │   └─ meta.embedded.block.luau [115..123]
+ │       └─ meta.function.luau [115..123]
+ │           ├─ punctuation.whitespace.optional.sd [115..117]: "  "
+ │           ├─ entity.name.function.luau [117..121]: "swim"
+ │           └─ meta.parameter.luau [121..123]
+ │               ├─ punctuation.definition.template-expression.begin.sd [121..122]: "("
+ │               └─ punctuation.definition.template-expression.end.sd [122..123]: ")"
  ├─ Newline [123..124]: "\n"
  ├─ meta.function.luau [124..150]
- │   └─ meta.function.luau [124..150]
- │       ├─ punctuation.whitespace.optional.sd [124..128]: "    "
- │       ├─ variable.language.self.luau [128..132]: "self"
- │       ├─ meta.template.expression.accessor.sd [132..133]: "."
- │       ├─ variable.other.property.luau [133..143]: "isSwimming"
- │       ├─ punctuation.whitespace.optional.sd [143..144]: " "
- │       ├─ keyword.operator.assignment.luau [144..145]: "="
- │       ├─ punctuation.whitespace.optional.sd [145..146]: " "
- │       └─ constant.language.boolean.luau [146..150]: "true"
+ │   └─ meta.embedded.block.luau [124..150]
+ │       └─ meta.function.luau [124..150]
+ │           ├─ punctuation.whitespace.optional.sd [124..128]: "    "
+ │           ├─ variable.language.self.luau [128..132]: "self"
+ │           ├─ meta.template.expression.accessor.sd [132..133]: "."
+ │           ├─ variable.other.property.luau [133..143]: "isSwimming"
+ │           ├─ punctuation.whitespace.optional.sd [143..144]: " "
+ │           ├─ keyword.operator.assignment.luau [144..145]: "="
+ │           ├─ punctuation.whitespace.optional.sd [145..146]: " "
+ │           └─ constant.language.boolean.luau [146..150]: "true"
  ├─ Newline [150..151]: "\n"
  ├─ meta.function.luau [151..195]
- │   └─ meta.function.luau [151..195]
- │       ├─ punctuation.whitespace.extra.sd [151..155]: "    "
- │       ├─ support.function.luau [155..160]: "print"
- │       └─ meta.parameter.luau [160..195]
- │           ├─ punctuation.definition.template-expression.begin.sd [160..161]: "("
- │           ├─ string.quoted.double.luau [161..194]
- │           │   ├─ punctuation.definition.string.double.begin.sd [161..162]: "\""
- │           │   ├─ markup.raw.text.sd [162..163]: "I"
- │           │   ├─ markup.raw.punctuation.sd [163..164]: "'"
- │           │   ├─ markup.raw.text.sd [164..165]: "m"
- │           │   ├─ markup.raw.space.sd [165..166]: " "
- │           │   ├─ markup.raw.text.sd [166..167]: "a"
- │           │   ├─ markup.raw.space.sd [167..168]: " "
- │           │   ├─ markup.raw.text.sd [168..175]: "penguin"
- │           │   ├─ markup.raw.space.sd [175..176]: " "
- │           │   ├─ markup.raw.text.sd [176..179]: "and"
- │           │   ├─ markup.raw.space.sd [179..180]: " "
- │           │   ├─ markup.raw.text.sd [180..181]: "I"
- │           │   ├─ markup.raw.punctuation.sd [181..182]: "'"
- │           │   ├─ markup.raw.text.sd [182..183]: "m"
- │           │   ├─ markup.raw.space.sd [183..184]: " "
- │           │   ├─ markup.raw.text.sd [184..192]: "swimming"
- │           │   ├─ markup.raw.punctuation.sd [192..193]: "!"
- │           │   └─ punctuation.definition.string.double.end.sd [193..194]: "\""
- │           └─ punctuation.definition.template-expression.end.sd [194..195]: ")"
+ │   └─ meta.embedded.block.luau [151..195]
+ │       └─ meta.function.luau [151..195]
+ │           ├─ punctuation.whitespace.extra.sd [151..155]: "    "
+ │           ├─ support.function.luau [155..160]: "print"
+ │           └─ meta.parameter.luau [160..195]
+ │               ├─ punctuation.definition.template-expression.begin.sd [160..161]: "("
+ │               ├─ string.quoted.double.luau [161..194]
+ │               │   ├─ punctuation.definition.string.double.begin.sd [161..162]: "\""
+ │               │   ├─ markup.raw.text.sd [162..163]: "I"
+ │               │   ├─ markup.raw.punctuation.sd [163..164]: "'"
+ │               │   ├─ markup.raw.text.sd [164..165]: "m"
+ │               │   ├─ markup.raw.space.sd [165..166]: " "
+ │               │   ├─ markup.raw.text.sd [166..167]: "a"
+ │               │   ├─ markup.raw.space.sd [167..168]: " "
+ │               │   ├─ markup.raw.text.sd [168..175]: "penguin"
+ │               │   ├─ markup.raw.space.sd [175..176]: " "
+ │               │   ├─ markup.raw.text.sd [176..179]: "and"
+ │               │   ├─ markup.raw.space.sd [179..180]: " "
+ │               │   ├─ markup.raw.text.sd [180..181]: "I"
+ │               │   ├─ markup.raw.punctuation.sd [181..182]: "'"
+ │               │   ├─ markup.raw.text.sd [182..183]: "m"
+ │               │   ├─ markup.raw.space.sd [183..184]: " "
+ │               │   ├─ markup.raw.text.sd [184..192]: "swimming"
+ │               │   ├─ markup.raw.punctuation.sd [192..193]: "!"
+ │               │   └─ punctuation.definition.string.double.end.sd [193..194]: "\""
+ │               └─ punctuation.definition.template-expression.end.sd [194..195]: ")"
  ├─ Newline [195..196]: "\n"
  ├─ meta.function.luau [196..201]
- │   └─ meta.function.luau [196..201]
- │       ├─ punctuation.whitespace.optional.sd [196..198]: "  "
- │       └─ keyword.control.end.luau [198..201]: "end"
+ │   └─ meta.embedded.block.luau [196..201]
+ │       └─ meta.function.luau [196..201]
+ │           ├─ punctuation.whitespace.optional.sd [196..198]: "  "
+ │           └─ keyword.control.end.luau [198..201]: "end"
  ├─ Newline [201..202]: "\n"
  ├─ meta.function.luau [202..205]
- │   └─ keyword.control.end.luau [202..205]: "end"
+ │   └─ meta.embedded.block.luau [202..205]
+ │       └─ keyword.control.end.luau [202..205]: "end"
  └─ Newline [205..206]: "\n"

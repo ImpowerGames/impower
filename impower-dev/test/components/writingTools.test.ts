@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -126,6 +127,7 @@ beforeEach(() => {
   calls.names.length = 0;
   calls.finds = 0;
   layout.value = "desktop";
+  workspace.layout.value = layout.value as Layout;
   layout.coarse = false;
   workspace.current = {
     ...workspace.current,
@@ -211,6 +213,7 @@ describe("Writing tools menu", () => {
   it("disables Rename while the script cannot be edited, and says so on a phone", async () => {
     calls.name = imani;
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     layout.coarse = true;
     await mount(false);
     await open();
@@ -240,6 +243,7 @@ describe("Writing tools menu", () => {
   it("lists every editor command row on a coarse pointer and runs each", async () => {
     layout.coarse = true;
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     await mount();
     await open();
     await until(() => row("Find and replace"));
@@ -380,6 +384,7 @@ describe("Writing tools focus", () => {
 
   it("keeps the field's focus when the trigger is tapped, and gives it back on Close", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     layout.coarse = true;
     await mount();
     const input = field();
@@ -398,6 +403,7 @@ describe("Writing tools focus", () => {
 
   it("on a phone, stands in the keyboard's place and registers while it is open", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     layout.coarse = true;
     await mount();
     const input = field();
@@ -416,6 +422,7 @@ describe("Writing tools focus", () => {
 
   it("on a phone, closes on a press outside without giving focus back", async () => {
     layout.value = "phone";
+    workspace.layout.value = layout.value as Layout;
     layout.coarse = true;
     await mount();
     const input = field();

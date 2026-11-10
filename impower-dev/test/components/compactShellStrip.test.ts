@@ -43,15 +43,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
       shell: { ...store.current.shell, ...patch },
     };
   };
+  const { shellWindow } = await import("../shellWindow");
   return {
     Workspace: {
       sync: { google: { getCurrentAccount: async () => null } },
-      window: {
-        setAccount: () => {},
-        loadProject: async () => {},
-        navigateTo: () => {},
-        closeSettings: () => {},
-        setAppMenuOpen: () => {},
+      window: shellWindow(() => store, {
         setRailWidth: (railWidth: number | undefined) =>
           setShell({ railWidth }),
         setRailCompactWidth: (railCompactWidth: number | undefined) =>
@@ -60,7 +56,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
           stripHeights.push(stripHeight);
           setShell({ stripHeight });
         },
-      },
+      }),
     },
   };
 });

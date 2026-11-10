@@ -109,16 +109,6 @@ const EDITOR_THEME: {
   "& .cm-lsp-rename-input": {
     backgroundColor: "var(--paper)",
   },
-  "& .cm-lsp-reference-panel:focus": {
-    outline: "none",
-  },
-  "& .cm-lsp-reference-file": {
-    paddingLeft: "16px",
-  },
-  "& .cm-lsp-reference": {
-    fontFamily: 'var(--font-script, "Courier Prime Sans", monospace)',
-    paddingLeft: "40px",
-  },
   "& .cm-dialog-close": {
     display: "none",
     padding: "4px 8px",

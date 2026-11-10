@@ -65,7 +65,9 @@ export class VisualNovelPresenter implements Presenter {
     const transientLayers = this._transientLayers;
     const extended = Boolean(instructions.extended);
 
-    const layoutsFirst = opensTextLayout(game, instructions);
+    const stage = this._options.stage;
+
+    const layoutsFirst = stage && opensTextLayout(game, instructions);
     if (layoutsFirst) {
       applyLayoutDirectives(game, instructions, instant);
     }
@@ -73,15 +75,39 @@ export class VisualNovelPresenter implements Presenter {
     if (!extended || instructions.text) {
       game.module.ui.text.clearAll(transientLayers);
     }
-    clearStage(game, instructions, transientLayers);
+    if (stage) {
+      clearStage(game, instructions, transientLayers);
+    }
 
     game.module.ui.reveal();
 
     this.writeContent(instant, time);
     const written = this.textElementIds();
 
-    writeStage(game, instructions, instant, time, layoutsFirst);
+    if (stage) {
+      writeStage(game, instructions, instant, time, layoutsFirst);
+    }
     return written;
+  }
+
+  chose(index: number): void {
+    const ui = this._game.module.ui;
+    const choiceTargets = this._instructions.choices;
+    const target = choiceTargets?.[index];
+    if (!choiceTargets || !target) {
+      return;
+    }
+    ui.text.clearAll(choiceTargets);
+    ui.image.clearAll(choiceTargets);
+    ui.unobserve("click", target);
+    ui.hideAll(choiceTargets);
+  }
+
+  focus(index: number | null): void {
+    const choiceTargets = this._instructions.choices;
+    if (choiceTargets) {
+      this._game.module.ui.markFocused(choiceTargets, index);
+    }
   }
 
   protected writeContent(instant?: boolean, time?: number): void {
@@ -117,10 +143,6 @@ export class VisualNovelPresenter implements Presenter {
           if (game.ending) {
             return;
           }
-          game.module.ui.text.clearAll(choiceTargets);
-          game.module.ui.image.clearAll(choiceTargets);
-          game.module.ui.unobserve("click", target);
-          game.module.ui.hideAll(choiceTargets);
           choose(index);
         };
         game.module.ui.observe("click", target, handleClick);

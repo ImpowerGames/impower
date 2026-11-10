@@ -17,6 +17,7 @@ const tabsContainer = cva("relative flex w-full", {
       rail: "@container",
       bar: "",
       page: "",
+      inline: "min-h-[52px] items-center",
     },
   },
   defaultVariants: { orientation: "horizontal", variant: "default" },
@@ -33,9 +34,17 @@ const tabsList = cva("flex w-full", {
       rail: "",
       bar: "items-center justify-evenly",
       page: "",
+      inline: "min-w-0 gap-[18px] phone:gap-2",
+    },
+    scroll: {
+      true: [
+        "overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "pr-5 [mask-image:linear-gradient(to_right,#000_calc(100%_-_20px),transparent)]",
+      ],
+      false: "",
     },
   },
-  defaultVariants: { orientation: "horizontal", variant: "default" },
+  defaultVariants: { orientation: "horizontal", variant: "default", scroll: false },
 });
 
 const tabTrigger = cva(
@@ -63,6 +72,7 @@ const tabTrigger = cva(
         ],
         bar: "flex-none flex-col gap-1 size-16 min-h-16 p-0 rounded-control text-[10px]/none font-normal",
         page: "min-h-12 rounded-none px-4 text-[14px] font-semibold",
+        inline: "flex-none min-h-[50px] min-w-11 px-1 text-[13px] font-normal phone:px-px",
       },
     },
     defaultVariants: {
@@ -96,6 +106,7 @@ export type TabsProps = {
   value: string | null;
   onChange: (value: string) => void;
   variant?: TabsVariant;
+  scroll?: boolean;
   indicator?: "underline" | "none";
   vertical?: boolean;
   iconLayout?: "above" | "beside";
@@ -108,6 +119,7 @@ export default function Tabs({
   value,
   onChange,
   variant = "default",
+  scroll = false,
   indicator = "underline",
   vertical = false,
   iconLayout = "above",
@@ -143,18 +155,35 @@ export default function Tabs({
       }
       const lr = list.getBoundingClientRect();
       const ar = active.getBoundingClientRect();
+      const style = getComputedStyle(active);
+      const inset =
+        variant === "inline"
+          ? { left: parseFloat(style.paddingLeft) || 0, right: parseFloat(style.paddingRight) || 0 }
+          : { left: 0, right: 0 };
       setIndicatorRect({
-        x: ar.left - lr.left,
-        y: ar.top - lr.top,
-        w: ar.width,
+        x: ar.left - lr.left + list.scrollLeft + inset.left,
+        y: ar.top - lr.top + list.scrollTop,
+        w: ar.width - inset.left - inset.right,
         h: ar.height,
       });
     };
+    const reveal = () => {
+      const active = list.querySelector<HTMLElement>('[data-state="active"]');
+      if (!active) return;
+      const left = active.getBoundingClientRect().left - list.getBoundingClientRect().left + list.scrollLeft;
+      const right = left + active.offsetWidth + (parseFloat(getComputedStyle(list).paddingRight) || 0);
+      if (left < list.scrollLeft) {
+        list.scrollLeft = left;
+      } else if (right > list.scrollLeft + list.clientWidth) {
+        list.scrollLeft = right - list.clientWidth;
+      }
+    };
+    if (scroll) reveal();
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(list);
     return () => ro.disconnect();
-  }, [value, indicator, vertical]);
+  }, [value, indicator, vertical, variant, scroll]);
 
   return (
     <TabsContext.Provider
@@ -184,6 +213,7 @@ export default function Tabs({
                 tabsList({
                   orientation: vertical ? "vertical" : "horizontal",
                   variant,
+                  scroll,
                 }),
                 "relative",
               )}
@@ -194,7 +224,7 @@ export default function Tabs({
                   aria-hidden="true"
                   class={cn(
                     "pointer-events-none absolute motion-safe:transition-transform motion-safe:duration-150",
-                    variant === "page" ? "bg-accent" : "bg-tab-ink",
+                    variant === "page" || variant === "inline" ? "bg-accent" : "bg-tab-ink",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",
