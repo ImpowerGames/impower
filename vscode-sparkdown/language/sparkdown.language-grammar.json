@@ -456,6 +456,7 @@
     "CHAIN": "(?:[\\\\])",
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
     "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))",
+    "DIALOGUE_CHARACTER_NAME_CHARACTER": "(?:\\\\.|[/](?![/](?:$|{{WS}}))|[^{}:/\\r\\n])",
     "LEADING_GLUE": "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})",
     "INLINE_LEADING_GLUE": "(?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})",
     "ALTERNATOR_GLUE": "(?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))",
