@@ -115,6 +115,10 @@ describe("undoing a rename after a script starts using the file", () => {
     expect(await undo()).toBe(true);
     expect(state.files.has("Scripts/intro.sd")).toBe(true);
     expect(stems()).toContain(referenced("main.sd", "include"));
+
+    expect(await redo()).toBe(true);
+    expect(state.files.has("Scripts/opening.sd")).toBe(true);
+    expect(referenced("main.sd", "include")).toBe("opening");
   });
 
   it("moves a referenced script to another folder and back with the setting on", async () => {
