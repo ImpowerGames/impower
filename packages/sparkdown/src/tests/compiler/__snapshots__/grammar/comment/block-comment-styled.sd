@@ -1,0 +1,34 @@
+scene start
+  Go *far /*n*/ away* home
+  Go **far /*n*/ away** home
+  Go ***far /*n*/ away*** home
+  Go _far /*n*/ away_ home
+  Go ^far /*n*/ away^ home
+  Go ~~far /*n*/ away~~ home
+  Go ::far /*n*/ away:: home
+  Go *//*n*/ home
+  Go *italic*/* n */ after
+  Go *a*/ b
+  Go *x /* open
+  Go *far // note* home
+  choose
+    + Go *far /*n*/ away* home
+      done
+    + Go **far /*n*/ away** home
+      done
+    + Go ***far /*n*/ away*** home
+      done
+    + Go _far /*n*/ away_ home
+      done
+    + Go ^far /*n*/ away^ home
+      done
+    + Go ~~far /*n*/ away~~ home
+      done
+    + Go ::far /*n*/ away:: home
+      done
+    + Go *a*/ b
+      done
+    + Go *x /* open
+      done
+  end
+end

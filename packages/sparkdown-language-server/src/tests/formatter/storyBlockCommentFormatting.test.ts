@@ -26,6 +26,21 @@ describe("formatting a `/* */` story block comment", () => {
     expect(formatSource(source)).toContain("/*   spaced    note  */");
   });
 
+  test("leaves a block comment inside a styled span as written", () => {
+    const source = [
+      "scene start",
+      "  Go *far /*   spaced    note  */ away* home",
+      "  Go _far /*   spaced    note  */ away_ home",
+      "  choose",
+      "    + Go **far /*   spaced    note  */ away** home",
+      "      done",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    expect(formatSource(source)).toBe(source);
+  });
+
   test("leaves the rest of an unclosed block comment as written", () => {
     const source = [
       "scene start",

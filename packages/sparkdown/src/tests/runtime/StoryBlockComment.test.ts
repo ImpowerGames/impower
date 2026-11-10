@@ -362,6 +362,59 @@ end
     });
   });
 
+  describe("a comment inside a styled span", () => {
+    const SPANS = [
+      ["*", "*"],
+      ["**", "**"],
+      ["***", "***"],
+      ["_", "_"],
+      ["^", "^"],
+      ["~~", "~~"],
+      ["::", "::"],
+    ] as const;
+
+    test.each(SPANS)("is not shown inside %s on a display line, and the span's marks stay around its text", (open, close) => {
+      expect(
+        run(`scene start\n  Go ${open}far /*note*/ away${close} home\n  done\nend\n`),
+      ).toBe(`Go ${open}far away${close} home\n`);
+    });
+
+    test.each(SPANS)("is not shown inside %s in choice text, and the span's marks stay around its text", (open, close) => {
+      const { result, errors } = compile(
+        `scene start\n  choose\n    + Go ${open}far /*note*/ away${close} home\n      done\n  end\nend\n`,
+      );
+      expect(errors).toEqual([]);
+      const story = testStory(result.program.chunks);
+      story.Continue();
+      expect(story.currentChoices.map((c: any) => c.text)).toEqual([
+        `Go ${open}far away${close} home`,
+      ]);
+    });
+
+    test("a lone `*/` before a comment stays text and the comment is not shown", () => {
+      expect(run("scene start\n  Go *//*note*/ home\n  done\nend\n")).toBe("Go */ home\n");
+    });
+
+    test("an italic span followed by a comment, and a closing `*` before a `/` with no comment, read as they do without the rule", () => {
+      expect(run("scene start\n  Go *italic*/* note */ after\n  done\nend\n")).toBe(
+        "Go *italic* after\n",
+      );
+      expect(run("scene start\n  Go *a*/ b\n  done\nend\n")).toBe("Go *a*/ b\n");
+    });
+
+    test("a comment that opens inside a span and does not close on its line is text, with no error", () => {
+      expect(run("scene start\n  Go *x /* open\n  Next.\n  done\nend\n")).toBe(
+        "Go *x /* open\nNext.\n",
+      );
+    });
+
+    test("a `//` inside a span is text, as on main", () => {
+      expect(run("scene start\n  Go *far // note* home\n  done\nend\n")).toBe(
+        "Go *far // note* home\n",
+      );
+    });
+  });
+
   test("a comment after `end` is not read as a line of story text", () => {
     const { result } = compile(`scene start
   if true then

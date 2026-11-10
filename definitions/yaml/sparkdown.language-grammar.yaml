@@ -3531,6 +3531,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3547,6 +3548,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3563,6 +3565,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3579,6 +3582,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3600,6 +3604,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3616,6 +3621,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:

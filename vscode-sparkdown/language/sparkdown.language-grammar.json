@@ -5367,6 +5367,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
+        {
           "include": "#InlineTextAndLogic"
         }
       ],
@@ -5395,6 +5398,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
         {
           "include": "#InlineTextAndLogic"
         }
@@ -5425,6 +5431,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
+        {
           "include": "#InlineTextAndLogic"
         }
       ],
@@ -5453,6 +5462,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
         {
           "include": "#InlineTextAndLogic"
         }
@@ -5493,6 +5505,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
+        {
           "include": "#InlineTextAndLogic"
         }
       ],
@@ -5521,6 +5536,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
         {
           "include": "#InlineTextAndLogic"
         }
