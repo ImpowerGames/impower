@@ -57,9 +57,11 @@ export class InteractiveFictionPresenter implements Presenter {
 
   record(): void {
     const { hold, ...beat } = this._instructions;
-    this._game.module.ui.page.record(
-      JSON.stringify(beat),
-      Boolean(this._options.again || hold),
+    const page = this._game.module.ui.page;
+    const key = JSON.stringify(beat);
+    page.record(
+      key,
+      Boolean(hold || (this._options.again && page.state.key === key)),
       (before) => this.entries(before),
     );
   }

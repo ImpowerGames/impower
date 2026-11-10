@@ -29,11 +29,8 @@ export function previewAspectRatioFor(
   preferences: ReadonlySignal<Pick<Preferences, "previewMode">>,
 ): ReadonlySignal<Pick<ProjectSettings, "previewAspectRatio">> {
   return computed(() => ({
-    previewAspectRatio: effectiveAspectRatio(
-      layout.value,
-      fillsPane(preferences.value.previewMode)
-        ? "auto"
-        : settings.value.previewAspectRatio,
-    ),
+    previewAspectRatio: fillsPane(preferences.value.previewMode)
+      ? "auto"
+      : effectiveAspectRatio(layout.value, settings.value.previewAspectRatio),
   }));
 }

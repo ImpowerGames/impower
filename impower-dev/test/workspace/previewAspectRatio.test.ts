@@ -132,7 +132,7 @@ describe("the strip's ratio through the shared sender", () => {
 });
 
 describe("the ratio while Interactive Fiction fills the pane", () => {
-  it("asks for Auto in Interactive Fiction and for the chosen ratio again in Visual Novel", async () => {
+  it("asks for Auto in Interactive Fiction, in the strip too, and for the chosen ratio again in Visual Novel", async () => {
     const { previewAspectRatioFor, createAspectRatioSync } = await load();
     const settings = signal<{ previewAspectRatio: Ratio }>({
       previewAspectRatio: "9:16",
@@ -154,7 +154,7 @@ describe("the ratio while Interactive Fiction fills the pane", () => {
       ["9:16"],
       ["auto"],
       ["4:3"],
-      ["16:9"],
+      ["auto"],
     ]);
     sync.dispose();
   });

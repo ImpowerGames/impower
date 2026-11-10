@@ -187,6 +187,31 @@ describe("the starting display mode chooses the text layout a game opens with (#
     expect(h.open()).toEqual(["main", "textbox"]);
   });
 
+  test("returning to Interactive Fiction after Visual Novel beats keeps every page entry", () => {
+    const h = play(STORY, "textstream");
+    h.game.start();
+    h.tapTo("Did you hear that?");
+    expect(h.page().map(words)).toEqual([
+      "The train rattles on.",
+      "Did you hear that?",
+    ]);
+    h.game.setStartingDisplayMode("textbox");
+    h.tapTo("Something is wrong.");
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.page().map(words)).toEqual([
+      "The train rattles on.",
+      "Did you hear that?",
+      "Something is wrong.",
+    ]);
+    h.game.setStartingDisplayMode("textbox");
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.page().map(words)).toEqual([
+      "The train rattles on.",
+      "Did you hear that?",
+      "Something is wrong.",
+    ]);
+  });
+
   test("Skip back in Visual Novel keeps the page a script opened", async () => {
     const h = play(OPENS_PAGE);
     h.game.start();
