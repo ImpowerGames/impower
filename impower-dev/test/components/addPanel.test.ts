@@ -338,12 +338,11 @@ const openPicker = async (construct: string, title: string) => {
 };
 
 describe("the pickers on desktop", () => {
-  it("open from their row, headed by their kind with Back, listing each picture and alternate with its subfolder", async () => {
+  it("open from their row, headed by their kind with Back, listing each picture by its base name with its subfolder", async () => {
     const picker = await openPicker("backdrop", "Backdrop");
     expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
     expect(cards("Backdrop").map((card) => [card.dataset["pickerItem"], card.getAttribute("aria-label")])).toEqual([
       ["beach", "Preview beach"],
-      ["beach@night", "Preview beach, night"],
       ["plaza", "Preview plaza, city"],
     ]);
     expect(document.activeElement).toBe(cards("Backdrop")[0]);
@@ -355,12 +354,12 @@ describe("the pickers on desktop", () => {
     await openPicker("backdrop", "Backdrop");
     await act(async () => cards("Backdrop")[1]!.click());
     await settle();
-    expect(calls.auditions).toEqual(["show beach@night"]);
+    expect(calls.auditions).toEqual(["show plaza"]);
     expect(cards("Backdrop")[1]!.getAttribute("aria-pressed")).toBe("true");
     expect(pickerPanel("Backdrop")!.querySelector("[data-picker-status]")!.textContent).toBe("Previewing");
     await act(async () => button("Backdrop", "Use backdrop").click());
     await settle();
-    expect(calls.inserted).toEqual([["main.sd", "backdrop", "beach@night"]]);
+    expect(calls.inserted).toEqual([["main.sd", "backdrop", "plaza"]]);
     expect(calls.auditions.slice(1, 2)).toEqual(["commit"]);
     expect(panel()).toBeNull();
     expect(pickerPanel("Backdrop")).toBeNull();
@@ -375,14 +374,14 @@ describe("the pickers on desktop", () => {
     expect(panel()!.querySelector('[data-add-construct="backdrop"]')).not.toBeNull();
     await act(async () => row("portrait").click());
     await settle();
-    await act(async () => cards("Portrait")[1]!.click());
+    await act(async () => cards("Portrait")[0]!.click());
     await setOpen(false);
-    expect(calls.auditions).toEqual(["show beach", "revert", "show imani:happy", "revert"]);
+    expect(calls.auditions).toEqual(["show beach", "revert", "show imani", "revert"]);
   });
 
-  it("offer a portrait's options and a sound's length, playing a pressed sound", async () => {
+  it("offer a portrait by its base name and a sound with its length, playing a pressed sound", async () => {
     await openPicker("portrait", "Portrait");
-    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "imani:happy"]);
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani"]);
     await act(async () => button("Portrait", "Back to add options").click());
     await act(async () => row("sound").click());
     await settle();
@@ -431,13 +430,13 @@ describe("the pickers on a phone", () => {
     await settle();
     const picker = pickerPanel("Backdrop")!;
     expect(picker.querySelector("h2")?.textContent).toBe("Backdrop");
-    expect(picker.querySelector("[aria-live]")!.textContent).toContain("1 / 3");
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("1 / 2");
     await act(async () => button("Backdrop", "Next backdrops").click());
-    expect(picker.querySelector("[aria-live]")!.textContent).toContain("2 / 3");
-    expect(cards("Backdrop")[1]!.getAttribute("aria-label")).toBe("Add beach, night");
+    expect(picker.querySelector("[aria-live]")!.textContent).toContain("2 / 2");
+    expect(cards("Backdrop")[1]!.getAttribute("aria-label")).toBe("Add plaza, city");
     await act(async () => cards("Backdrop")[1]!.click());
     await settle();
-    expect(calls.inserted).toEqual([["main.sd", "backdrop", "beach@night"]]);
+    expect(calls.inserted).toEqual([["main.sd", "backdrop", "plaza"]]);
     expect(calls.auditions.filter((entry) => entry.startsWith("show"))).toEqual([]);
   });
 

@@ -1,6 +1,18 @@
+import {
+  planInsertion,
+  type InsertConstruct,
+} from "@impower/codemirror-vscode-lsp-client/src/insert";
+import { getName } from "../../../packages/opfs-workspace/src/utils/getName";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { describe, expect, it } from "vitest";
 import { lengthLabel, pickerItems } from "../../src/modules/spark-editor/components/add-panel/pickerItems";
-import type { AddMenuFolders } from "../../src/modules/spark-editor/utils/addMenuFolders";
+import {
+  ADD_MENU_KINDS,
+  type AddMenuFolders,
+  type AddMenuKind,
+} from "../../src/modules/spark-editor/utils/addMenuFolders";
 
 const FOLDERS: AddMenuFolders = {
   backdrop: "Backdrops",
@@ -15,69 +27,126 @@ const FILES = [
   file("assets/Backdrops/beach.png"),
   file("assets/Backdrops/beach@night.png"),
   file("assets/Backdrops/beach@dusk.png"),
+  file("assets/Backdrops/harbor@storm.png"),
+  file("assets/art/BACKDROPS/city/plaza.jpg"),
   file("assets/art/backdrops/city/plaza.v2.jpg"),
   file("assets/Portraits/imani.png"),
   file("assets/Portraits/imani~mood.happy.png"),
   file("assets/Portraits/imani~mood.sad.png"),
   file("assets/Portraits/imani~hat.on.png"),
-  file("assets/Portraits/Side/kai.png"),
+  file("assets/Portraits/kai~eyes.closed.png"),
+  file("assets/Portraits/Side/mia.png"),
   file("assets/Sounds/door.wav", "audio"),
   file("assets/Sounds/ui/click.ogg", "audio"),
+  file("assets/Sounds/ui/click.v2.ogg", "audio"),
+  file("assets/Sounds/door knock.wav", "audio"),
   file("assets/Music/theme.mp3", "audio"),
   file("assets/Sounds/door.png"),
   file("assets/Backdrops/notes.txt", "text"),
 ];
 
-const summary = (kind: Parameters<typeof pickerItems>[0]) =>
-  pickerItems(kind, FILES, FOLDERS).map((item) => [item.reference, item.name, item.caption, item.src]);
+const summary = (kind: AddMenuKind) =>
+  pickerItems(kind, FILES, FOLDERS).map((item) => [item.reference, item.caption, item.src]);
 
 describe("the pickers' cards", () => {
-  it("offer a backdrop's base and then each alternate, captioned with its subfolder, at any depth and case", () => {
+  it("offer each backdrop by its base name, captioned with its subfolder, at any depth and case", () => {
     expect(summary("backdrop")).toEqual([
-      ["beach", "beach", "", "blob:assets/Backdrops/beach.png"],
-      ["beach@dusk", "beach", "dusk", "blob:assets/Backdrops/beach@dusk.png"],
-      ["beach@night", "beach", "night", "blob:assets/Backdrops/beach@night.png"],
-      ["plaza", "plaza", "city", "blob:assets/art/backdrops/city/plaza.v2.jpg"],
+      ["beach", "", "blob:assets/Backdrops/beach.png"],
+      ["plaza", "city", "blob:assets/art/BACKDROPS/city/plaza.jpg"],
     ]);
   });
 
-  it("offer a portrait's base and then each option of its first group of options, never a switch", () => {
+  it("offer no alternate, no thing without a base picture, and no file whose name a script cannot write", () => {
+    const references = ADD_MENU_KINDS.flatMap((kind) => pickerItems(kind, FILES, FOLDERS).map((item) => item.reference));
+    expect(references.filter((reference) => /[@~. ]|^(harbor|kai)$/.test(reference))).toEqual([]);
+  });
+
+  it("offer each portrait by its base name, without its layer options", () => {
     expect(summary("portrait")).toEqual([
-      ["imani", "imani", "", "blob:assets/Portraits/imani.png"],
-      ["imani:happy", "imani", "happy", "blob:assets/Portraits/imani.png"],
-      ["imani:sad", "imani", "sad", "blob:assets/Portraits/imani.png"],
-      ["kai", "kai", "Side", "blob:assets/Portraits/Side/kai.png"],
-    ]);
-  });
-
-  it("write an option with its group when the bare option could mean another group's", () => {
-    const shared = [
-      file("assets/Portraits/mia.png"),
-      file("assets/Portraits/mia~eyes.left.png"),
-      file("assets/Portraits/mia~eyes.right.png"),
-      file("assets/Portraits/mia~look.left.png"),
-    ];
-    expect(pickerItems("portrait", shared, FOLDERS).map((item) => item.reference)).toEqual([
-      "mia",
-      "mia:eyes.left",
-      "mia:right",
+      ["imani", "", "blob:assets/Portraits/imani.png"],
+      ["mia", "Side", "blob:assets/Portraits/Side/mia.png"],
     ]);
   });
 
   it("offer each sound or piece of music by its name, captioned with its subfolder, and only audio", () => {
     expect(summary("sound")).toEqual([
-      ["door", "door", "", "blob:assets/Sounds/door.wav"],
-      ["click", "click", "ui", "blob:assets/Sounds/ui/click.ogg"],
+      ["door", "", "blob:assets/Sounds/door.wav"],
+      ["click", "ui", "blob:assets/Sounds/ui/click.ogg"],
     ]);
-    expect(summary("music")).toEqual([["theme", "theme", "", "blob:assets/Music/theme.mp3"]]);
+    expect(summary("music")).toEqual([["theme", "", "blob:assets/Music/theme.mp3"]]);
   });
 
   it("give every card its own id, and offer nothing from a folder the menu does not name", () => {
-    const ids = (["backdrop", "portrait", "sound", "music"] as const).flatMap((kind) =>
-      pickerItems(kind, FILES, FOLDERS).map((item) => item.id),
-    );
+    const ids = ADD_MENU_KINDS.flatMap((kind) => pickerItems(kind, FILES, FOLDERS).map((item) => item.id));
     expect(new Set(ids).size).toBe(ids.length);
     expect(pickerItems("backdrop", FILES, { ...FOLDERS, backdrop: "Places" })).toEqual([]);
+  });
+});
+
+const LF = String.fromCharCode(10);
+const MAIN_URI = "file:///main.sd";
+const SCRIPT = ["scene start", "  Hello.", "end", ""].join(LF);
+const CONSTRUCTS: Record<AddMenuKind, InsertConstruct> = {
+  backdrop: "backdrop",
+  portrait: "portrait",
+  music: "music",
+  sound: "sound",
+};
+
+const inserted = (construct: InsertConstruct, name: string) => {
+  const documents = new SparkdownDocumentRegistry(["declarations"]);
+  documents.set({ textDocument: { uri: MAIN_URI, text: SCRIPT, version: 1, languageId: "sparkdown" } });
+  const plan = planInsertion(
+    SCRIPT,
+    SCRIPT.indexOf("Hello."),
+    construct,
+    {
+      scenes: [{ startLine: 0, endLine: 2 }],
+      branches: [],
+      tree: documents.tree(MAIN_URI)!,
+      endsDialogue: endsDialogueBlock,
+    },
+    name,
+  )!;
+  return SCRIPT.slice(0, plan.from) + plan.insert + SCRIPT.slice(plan.to);
+};
+
+const diagnosticsOf = (text: string) => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: MAIN_URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+      ...FILES.filter(({ type }) => type === "image" || type === "audio").map(({ path, type, src }) => ({
+        uri: `file:///${path}`,
+        type,
+        name: getName(path),
+        ext: path.slice(path.lastIndexOf(".") + 1),
+        src,
+      })),
+    ] as never,
+  });
+  const { warn, error, log } = console;
+  console.warn = console.error = console.log = () => {};
+  try {
+    const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
+    return (program.diagnostics?.[MAIN_URI] ?? []).map((diagnostic) =>
+      typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
+    );
+  } finally {
+    Object.assign(console, { warn, error, log });
+  }
+};
+
+describe("what the pickers insert", () => {
+  it("compiles with no diagnostic for every card the pickers offer", () => {
+    expect(diagnosticsOf(SCRIPT)).toEqual([]);
+    const problems = ADD_MENU_KINDS.flatMap((kind) =>
+      pickerItems(kind, FILES, FOLDERS).flatMap((item) => {
+        const text = inserted(CONSTRUCTS[kind], item.reference);
+        return diagnosticsOf(text).map((message) => `${kind} ${item.reference}: ${message}`);
+      }),
+    );
+    expect(problems).toEqual([]);
   });
 });
 
