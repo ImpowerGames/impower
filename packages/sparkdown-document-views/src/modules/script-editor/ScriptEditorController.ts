@@ -1053,6 +1053,7 @@ export class ScriptEditorController {
             findPrevious: () => this.requestEditorTool("findPrevious"),
             rename: () => this.requestEditorTool("rename"),
             references: () => this.requestEditorTool("references"),
+            problems: () => this.requestEditorTool("problems"),
           },
           onChangeColor: this.options.onChangeColor
             ? ({ from, to, text, color }) => {

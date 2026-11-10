@@ -78,6 +78,9 @@ const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar
 const { GameEncounteredRuntimeErrorMessage } = await import(
   "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError"
 );
+const { RequestedEditorToolMessage } = await import(
+  "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage"
+);
 const { GameToggledConsoleMessage } = await import(
   "@impower/spark-engine/src/game/core/classes/messages/GameToggledConsoleMessage"
 );
@@ -323,6 +326,24 @@ describe("the Problems panel", () => {
       start: { line: 7, character: 0 },
       end: { line: 7, character: 0 },
     });
+  });
+
+  it("opens on In the script when the script editor asks for the problems (Ctrl+Shift+M)", async () => {
+    problems.record({ uri: MAIN, diagnostics: [diagnostic(1, 1, "Broken")] });
+    workspaceSettings.setProjectSetting("problemsScriptCardOpen", false);
+    await mount();
+    expect(panel()).toBeNull();
+    await act(async () => {
+      problems.receive(RequestedEditorToolMessage.type.notification({ tool: "problems" }));
+    });
+    await settle();
+    expect(stored().previewPanelHeight).toBe(260);
+    expect(stored().problemsScriptCardOpen).toBe(true);
+    expect(entries()).toEqual(["Error · Broken"]);
+    await act(async () => {
+      problems.receive(RequestedEditorToolMessage.type.notification({ tool: "find" }));
+    });
+    expect(stored().previewPanelHeight).toBe(260);
   });
 
   it("opens and collapses from the game's console messages", async () => {

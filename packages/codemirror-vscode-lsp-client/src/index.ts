@@ -252,5 +252,6 @@ export {
   findNextMatch,
   findPreviousMatch,
   openFind,
+  openProblems,
   type EditorToolCommands,
 } from "./tools";

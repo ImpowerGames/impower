@@ -1,4 +1,5 @@
 import { layoutState } from "@impower/impower-ui/layout";
+import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { computed, signal } from "@preact/signals";
 import type { Diagnostic } from "vscode-languageserver-protocol";
 import {
@@ -297,6 +298,13 @@ export class ProblemsStore {
   }
 
   receive(message: unknown) {
+    if (
+      RequestedEditorToolMessage.type.isNotification(message) &&
+      message.params.tool === "problems"
+    ) {
+      this.showProblems();
+      return;
+    }
     for (const source of this._playedSources) {
       const entry = source(message);
       if (entry) {
