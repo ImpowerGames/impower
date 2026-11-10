@@ -127,6 +127,54 @@ const depth = (inCapture: boolean) => {
 cases.push(["110 nested zero-width scopes", depth(false), "a;\n"]);
 cases.push(["110 nested zero-width scopes in a capture", depth(true), "-a;\n"]);
 
+for (const begin of ["<", "(?=<)", "(?:\\G<|(?=<))"]) {
+  for (const end of [">", "(?=>)", "(?=<)", "$"]) {
+    for (const applyEndPatternLast of [false, true]) {
+      const block = { name: "block.probe", begin, end, applyEndPatternLast, patterns: [{ match: ".", name: "inner.probe" }] };
+      const label = `begin ${begin} end ${end} last=${applyEndPatternLast}`;
+      const inCapture = {
+        name: "probe",
+        scopeName: "source.probe",
+        patterns: [
+          {
+            match: "^-(.+)(;)(.+)$",
+            captures: {
+              "1": { name: "cap.probe", patterns: [{ include: "#Block" }, { match: ".", name: "letter.probe" }] },
+              "2": { name: "separator.probe" },
+              "3": { name: "tail.probe" },
+            },
+          },
+          { match: ".|\\n" },
+        ],
+        repository: { Block: block },
+      };
+      cases.push([`capture: ${label}`, inCapture, "-<abc> x;tail\n"]);
+      cases.push([`capture on a later line: ${label}`, inCapture, "prefix\n-<abc> x;tail\n"]);
+    }
+  }
+}
+
+cases.push([
+  "capture that takes a line break keeps a rule it opened",
+  {
+    name: "probe",
+    scopeName: "source.probe",
+    patterns: [
+      {
+        match: "^(.+\\n)",
+        captures: {
+          "1": {
+            name: "cap.probe",
+            patterns: [{ begin: "<", end: ">", name: "block.probe", patterns: [{ match: ".|\\n" }] }, { match: ".|\\n" }],
+          },
+        },
+      },
+      { match: ".|\\n" },
+    ],
+  },
+  "<abc\nxyz>\n",
+]);
+
 describe("capture patterns run through the line tokenizer", () => {
   test.each(cases)("%s", async (_label, g, text) => {
     const expected = await vscodeScopes(structuredClone(g), text);

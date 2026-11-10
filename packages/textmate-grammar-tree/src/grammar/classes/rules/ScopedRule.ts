@@ -88,7 +88,7 @@ export class ScopedRule implements Rule {
     return beginMatched;
   }
 
-  protected matchEnd(state: GrammarState, from: number) {
+  matchEnd(state: GrammarState, from: number) {
     const beginCaptures = state.stack.at(-1)?.beginCaptures;
     if (beginCaptures) {
       this.endRule.matcher.backReferences = beginCaptures;

@@ -93,7 +93,7 @@ export class ResumableTokenizer {
 
   protected rootRules?: Rule[];
 
-  protected stopsAtEmptyRootMatch = false;
+  protected tokenizesCapture = false;
 
   protected stoppedAtRoot = false;
 
@@ -121,7 +121,7 @@ export class ResumableTokenizer {
   ): { tokens: GrammarToken[]; to: number } {
     const tokenizer = new ResumableTokenizer(grammar, () => "", offset);
     tokenizer.rootRules = rules;
-    tokenizer.stopsAtEmptyRootMatch = true;
+    tokenizer.tokenizesCapture = true;
     tokenizer.state.str = text;
     tokenizer.state.enclosing = enclosing;
     tokenizer.pos = from;
@@ -344,6 +344,15 @@ export class ResumableTokenizer {
 
   protected tryEnd(out: GrammarToken[], allowLimitClose = true): boolean {
     const frame = this.frames[this.frames.length - 1]!;
+    if (
+      this.tokenizesCapture &&
+      frame.openedAt === this.pos &&
+      this.pos < this.state.str.length &&
+      frame.rule.matchEnd(this.state, this.pos)?.length === 0
+    ) {
+      this.stopLine(out);
+      return true;
+    }
     const endMatched = frame.rule.end(this.state, this.pos);
     if (!endMatched) {
       return false;
@@ -429,14 +438,14 @@ export class ResumableTokenizer {
       return result;
     }
     if (result.kind === "repeated") {
-      if (this.stopsAtEmptyRootMatch) {
+      if (this.tokenizesCapture) {
         this.pos = this.state.str.length;
         this.stoppedAtRoot = true;
       }
       return result;
     }
     if (
-      this.stopsAtEmptyRootMatch &&
+      this.tokenizesCapture &&
       result.kind === "leaf" &&
       result.matched.length === 0 &&
       this.pos < this.state.str.length
