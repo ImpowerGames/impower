@@ -451,4 +451,25 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
     await click(all<HTMLElement>('button[aria-label^="Open folder Portraits"]')[0]);
     expect(tileShapes()).toEqual(["portrait"]);
   });
+
+  it("measures a picture again when its file changes, and keeps drawing the folder", async () => {
+    withPictures({
+      "Assets/Images/Cast/ada.png": [5001, 300, 400],
+      "Assets/Images/Cast/kai.png": [5002, 640, 400],
+    });
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Cast" } } };
+    await mount();
+    await settle();
+    expect(tileShapes()).toEqual(["landscape", "landscape"]);
+    await act(async () => {
+      withPictures({
+        "Assets/Images/Cast/ada.png": [5001, 300, 400],
+        "Assets/Images/Cast/kai.png": [5012, 300, 400],
+      });
+    });
+    await settle();
+    await settle();
+    expect(workspace.assetSizes.value["/p/5012"]).toEqual({ width: 300, height: 400 });
+    expect(tileShapes()).toEqual(["portrait", "portrait"]);
+  });
 });

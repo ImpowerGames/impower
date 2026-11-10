@@ -1,7 +1,5 @@
 import { buildAttributeVocabulary } from "@impower/sparkdown/src/attributes/vocabulary";
 
-export const PLAIN_ALTERNATE = "plain";
-
 export interface StackGroup {
   name: string;
   options: string[];
@@ -9,7 +7,7 @@ export interface StackGroup {
 }
 
 export interface StackPicture {
-  alternate: string;
+  alternate: string | null;
   name: string;
   path?: string;
   layers: string[];
@@ -63,7 +61,7 @@ const groupsOf = (layers: readonly string[]): StackGroup[] => {
   }));
 };
 
-const pictureOf = (alternate: string, name: string, own: string | undefined, layers: string[]): StackPicture => {
+const pictureOf = (alternate: string | null, name: string, own: string | undefined, layers: string[]): StackPicture => {
   const groups = groupsOf(layers);
   return {
     alternate,
@@ -76,20 +74,20 @@ const pictureOf = (alternate: string, name: string, own: string | undefined, lay
 };
 
 const stackOf = (folder: string, base: string, paths: string[]): ImageStack => {
-  const pictures = new Map<string, { name: string; own?: string; layers: string[] }>();
+  const pictures = new Map<string | null, { name: string; own?: string; layers: string[] }>();
   for (const path of paths) {
     const stem = stemOf(path);
     const cut = stem.indexOf("~");
     const name = cut < 0 ? stem : stem.slice(0, cut);
     const at = name.indexOf("@");
-    const alternate = at < 0 ? PLAIN_ALTERNATE : name.slice(at + 1);
+    const alternate = at < 0 ? null : name.slice(at + 1);
     const picture = pictures.get(alternate) ?? { name, layers: [] };
     pictures.set(alternate, picture);
     if (cut < 0) picture.own ??= path;
     else picture.layers.push(path);
   }
   const ordered = [...pictures.entries()]
-    .sort(([a], [b]) => (a === PLAIN_ALTERNATE ? -1 : b === PLAIN_ALTERNATE ? 1 : compare(a, b)))
+    .sort(([a], [b]) => (a === null ? -1 : b === null ? 1 : compare(a, b)))
     .map(([alternate, picture]) =>
       pictureOf(alternate, picture.name, picture.own, picture.layers.sort(compare)),
     );

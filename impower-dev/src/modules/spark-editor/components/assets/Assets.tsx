@@ -232,10 +232,10 @@ function AssetsBrowser() {
   const measuring = pictureSources.some((src) => src && !Object.hasOwn(sizes, src));
   const shape: TileShape =
     namedShape ?? majorityShape(pictureSources.map((src) => (src ? sizes[src] ?? undefined : undefined)));
-  const measureKey = pictures.join("\n");
+  const measureKey = JSON.stringify(pictures.map((path, index) => [path, pictureSources[index]]));
   useEffect(() => {
-    if (measureKey) {
-      void intents().then((Workspace) => Workspace.assets.measureImages(measureKey.split("\n")));
+    if (pictures.length) {
+      void intents().then((Workspace) => Workspace.assets.measureImages(pictures));
     }
   }, [measureKey]);
   const scrollKey = searching ? "search" : `${type}:${level.folder}`;

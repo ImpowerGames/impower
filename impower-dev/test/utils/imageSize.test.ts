@@ -74,6 +74,18 @@ describe("reading a picture's size from its header", () => {
     ]);
   });
 
+  it("reads an SVG from its width and height, or else its viewBox", () => {
+    const svg = (root: string) =>
+      new TextEncoder().encode(`<?xml version="1.0"?>\n<!-- art -->\n${root}<rect/></svg>`);
+    expect(imageSizeOf(svg('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="200px">'))).toEqual({
+      width: 100,
+      height: 200,
+    });
+    expect(imageSizeOf(svg('<svg width="100%" viewBox="0 0 300,150">'))).toEqual({ width: 300, height: 150 });
+    expect(imageSizeOf(svg("<svg height='12.5' width='40'>"))).toEqual({ width: 40, height: 12.5 });
+    expect(imageSizeOf(svg("<svg width='10em'>"))).toBeUndefined();
+  });
+
   it("knows nothing of a file that is not a picture or is cut short", () => {
     expect(imageSizeOf(new TextEncoder().encode("not a png"))).toBeUndefined();
     expect(imageSizeOf(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBeUndefined();

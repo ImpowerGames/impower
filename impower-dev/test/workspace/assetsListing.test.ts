@@ -408,3 +408,23 @@ describe("a stack of one file", () => {
     ]);
   });
 });
+
+describe("searching stacked pictures", () => {
+  it("shows the whole thing when any of its pictures matches", () => {
+    const [images] = assetSearch({
+      listing: listing({
+        "Assets/Images/Portraits/imani.png": 100,
+        "Assets/Images/Portraits/imani@night.png": 200,
+        "Assets/Images/Portraits/imani~face.happy.png": 10,
+        "Assets/Images/Portraits/imani@night~face.sad.png": 20,
+        "Assets/Images/Portraits/bunny.png": 50,
+      }),
+      query: "night",
+      sort: "name-asc",
+      endings: ENDINGS,
+    });
+    expect(images!.rows.map((row) => [row.name, row.path, row.paths?.length, row.variantCount])).toEqual([
+      ["imani", "Assets/Images/Portraits/imani.png", 4, 2],
+    ]);
+  });
+});

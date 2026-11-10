@@ -70,6 +70,31 @@ const jpegSize = (bytes: Uint8Array, view: DataView) => {
   return undefined;
 };
 
+const SVG_TAG = /<svg\b[^>]*>/i;
+const SVG_LENGTH = /^\s*([0-9]*\.?[0-9]+)\s*(px)?\s*$/i;
+
+const svgAttribute = (tag: string, name: string) =>
+  new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(tag)?.slice(2).find((value) => value !== undefined);
+
+const svgLength = (value: string | undefined) => {
+  const match = value === undefined ? null : SVG_LENGTH.exec(value);
+  return match ? Number(match[1]) : undefined;
+};
+
+const svgSize = (bytes: Uint8Array) => {
+  const tag = SVG_TAG.exec(new TextDecoder().decode(bytes))?.[0];
+  if (!tag) {
+    return undefined;
+  }
+  const width = svgLength(svgAttribute(tag, "width"));
+  const height = svgLength(svgAttribute(tag, "height"));
+  if (width !== undefined && height !== undefined) {
+    return sized(width, height);
+  }
+  const box = svgAttribute(tag, "viewBox")?.trim().split(/[\s,]+/).map(Number);
+  return box?.length === 4 && box.every(Number.isFinite) ? sized(box[2]!, box[3]!) : undefined;
+};
+
 export const imageSizeOf = (bytes: Uint8Array): ImageSize | undefined => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   return (
@@ -77,7 +102,8 @@ export const imageSizeOf = (bytes: Uint8Array): ImageSize | undefined => {
     jpegSize(bytes, view) ??
     gifSize(bytes, view) ??
     webpSize(bytes, view) ??
-    bmpSize(bytes, view)
+    bmpSize(bytes, view) ??
+    svgSize(bytes)
   );
 };
 

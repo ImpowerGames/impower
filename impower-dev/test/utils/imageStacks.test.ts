@@ -33,11 +33,11 @@ describe("the image stack rule", () => {
     expect(named("Assets/Images/Portraits", "imani").paths).toHaveLength(6);
   });
 
-  it("names the plain alternate first and sets each layer on the picture named before its first ~", () => {
+  it("names the untagged picture first and sets each layer on the picture named before its first ~", () => {
     const imani = named("Assets/Images/Portraits", "imani");
     expect(imani.pictures.map((picture) => [picture.alternate, picture.path, picture.layers])).toEqual([
       [
-        "plain",
+        null,
         "Assets/Images/Portraits/imani.png",
         ["Assets/Images/Portraits/imani~face.happy.png", "Assets/Images/Portraits/imani~face.sad.png"],
       ],
@@ -85,7 +85,16 @@ describe("the image stack rule", () => {
     const [only] = imageStacks(["Assets/Images/bunny.png"]);
     expect(only).toMatchObject({ name: "bunny", variantCount: 1, cover: "Assets/Images/bunny.png" });
     expect(only!.pictures).toEqual([
-      { alternate: "plain", name: "bunny", path: "Assets/Images/bunny.png", layers: [], groups: [], variants: 1 },
+      { alternate: null, name: "bunny", path: "Assets/Images/bunny.png", layers: [], groups: [], variants: 1 },
     ]);
+  });
+
+  it("keeps an alternate named plain apart from the untagged picture", () => {
+    const [imani] = imageStacks(["A/imani.png", "A/imani@plain.png"]);
+    expect(imani!.pictures.map((picture) => [picture.alternate, picture.path])).toEqual([
+      [null, "A/imani.png"],
+      ["plain", "A/imani@plain.png"],
+    ]);
+    expect(imani!.variantCount).toBe(2);
   });
 });

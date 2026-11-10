@@ -329,24 +329,31 @@ export const assetSearch = ({
     return [];
   }
   const homes = assetHomes(listing);
-  const hits = assetFiles(listing).filter((path) =>
-    words.every((word) =>
-      path.slice((homeOf(path, homes) ?? "").length + 1).toLowerCase().includes(word),
+  const files = assetFiles(listing);
+  const hits = new Set(
+    files.filter((path) =>
+      words.every((word) =>
+        path.slice((homeOf(path, homes) ?? "").length + 1).toLowerCase().includes(word),
+      ),
     ),
   );
-  return ASSET_TYPES.map(({ type, title }) => ({
-    type,
-    title,
-    rows: sortEntries(
-      stackedRows(
-        listing,
-        hits.filter((path) => typeOf(listing, path, endings) === type),
-        type,
-        (path) => placeOf(listing, path, type),
+  return ASSET_TYPES.map(({ type, title }) => {
+    const ofType = files.filter((path) => typeOf(listing, path, endings) === type);
+    const shown =
+      type === "image"
+        ? imageStacks(ofType)
+            .filter((stack) => stack.paths.some((path) => hits.has(path)))
+            .flatMap((stack) => stack.paths)
+        : ofType.filter((path) => hits.has(path));
+    return {
+      type,
+      title,
+      rows: sortEntries(
+        stackedRows(listing, shown, type, (path) => placeOf(listing, path, type)),
+        sort,
       ),
-      sort,
-    ),
-  })).filter((group) => group.rows.length > 0);
+    };
+  }).filter((group) => group.rows.length > 0);
 };
 
 export const landingFolder = (
