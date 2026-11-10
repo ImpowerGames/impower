@@ -470,6 +470,11 @@ export default class WorkspaceWindow {
       textDocument: { uri },
       construct,
     });
+    if (!result?.inserted) {
+      showSnackbar({
+        message: "Couldn't add that here. Move to another line and try again.",
+      });
+    }
     return !!result?.inserted;
   }
 

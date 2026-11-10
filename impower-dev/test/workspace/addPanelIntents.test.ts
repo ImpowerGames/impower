@@ -19,6 +19,8 @@ vi.mock("@impower/impower-ui/layout", async (importOriginal) => {
 
 const { default: WorkspaceWindow } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceWindow");
+const { snackbar } =
+  await import("../../src/modules/spark-editor/utils/snackbar");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 
@@ -26,6 +28,7 @@ let win: InstanceType<typeof WorkspaceWindow> | undefined;
 const stops: (() => void)[] = [];
 
 beforeEach(() => {
+  snackbar.value = null;
   layout.value = "desktop";
   workspace.scriptMode.value = "reading";
   workspace.current = {
@@ -188,5 +191,21 @@ describe("the Add panel intents", () => {
       },
     ]);
     expect(workspace.state.value.screen.addPanel).toBeUndefined();
+    expect(snackbar.value).toBeNull();
+  });
+
+  it("says so when the editor could not add the construct where the caret is", async () => {
+    const w = mount();
+    stops.push(
+      onProtocolRequest(InsertEditorConstructMessage.type, (message) =>
+        InsertEditorConstructMessage.type.response(message.id, {
+          inserted: false,
+        }),
+      ),
+    );
+    expect(await w.insertConstruct("main.sd", "dialogue")).toBe(false);
+    expect(snackbar.value?.message).toBe(
+      "Couldn't add that here. Move to another line and try again.",
+    );
   });
 });

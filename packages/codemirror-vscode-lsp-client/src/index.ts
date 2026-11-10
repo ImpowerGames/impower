@@ -85,6 +85,7 @@ export {
   insertContext,
   isInsertConstruct,
   planInsertion,
+  branchSpansOf,
   sceneSpansOf,
   storyBlocksOf,
   TOP_LEVEL_CONSTRUCTS,

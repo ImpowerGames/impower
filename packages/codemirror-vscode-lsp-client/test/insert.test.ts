@@ -7,6 +7,7 @@ import { getDocumentSymbols } from "../../sparkdown-language-server/src/utils/pr
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LSPClient } from "../src/client";
 import {
+  branchSpansOf,
   INSERT_CONSTRUCTS,
   insertConstruct,
   insertConstructFromServer,
@@ -82,10 +83,27 @@ const treeOf = (source: string) => parsed(source).tree(SYMBOLS_URI)!;
 
 const scenesOf = (source: string) => sceneSpansOf(symbolsOf(source));
 
-const structureOf = (source: string) => ({
-  scenes: scenesOf(source),
-  blocks: storyBlocksOf(treeOf(source), source),
-});
+const structureOf = (source: string) => {
+  const lf = source.split(CRLF).join(LF);
+  return {
+    scenes: scenesOf(lf),
+    branches: branchSpansOf(symbolsOf(lf)),
+    blocks: storyBlocksOf(treeOf(lf), lf),
+    parse: treeOf,
+  };
+};
+
+const nodeNamesOf = (source: string) => {
+  const names: string[] = [];
+  for (
+    let node = treeOf(source).topNode.firstChild;
+    node;
+    node = node.nextSibling
+  ) {
+    names.push(node.name);
+  }
+  return names;
+};
 
 const contextAt = (source: string, offset: number) =>
   insertContext(source, offset, scenesOf(source));
@@ -695,6 +713,132 @@ describe("statement boundaries read from the syntax tree", () => {
   });
 });
 
+describe("insertions checked against the reparsed script", () => {
+  it("never writes a new Dialogue into a following multiline string", () => {
+    const source = lines(
+      'store example = ""',
+      "scene start",
+      "    & example = [[",
+      "Example.",
+      "    ]]",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    const dialogue = apply(source, caretAt(source, "scene start"), "dialogue")!;
+    expect(nodeNamesOf(dialogue.text)).toContain("BlockDialogue");
+    expect(dialogue.text).toContain(lines("    ]]", "end"));
+    expect(dialogue.text.includes("[[" + LF + "Example.")).toBe(true);
+    expect(dialogue.selected).toBe("CHARACTER");
+  });
+
+  it("never turns existing narration into the new cue's speech across a comment line", () => {
+    const source = lines(
+      "scene start",
+      "  Before.",
+      "// note",
+      "    Existing narration.",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    expect(nodeNamesOf(source)).not.toContain("BlockDialogue");
+    const dialogue = apply(source, caretAt(source, "Before."), "dialogue")!;
+    const tree = treeOf(dialogue.text);
+    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+      if (node.name === "BlockDialogue") {
+        expect(dialogue.text.slice(node.from, node.to)).not.toContain(
+          "Existing narration.",
+        );
+      }
+    }
+    expect(nodeNamesOf(dialogue.text)).toContain("BlockDialogue");
+  });
+
+  it.each([
+    lines(
+      "scene start",
+      "  if true then",
+      "    Hello.",
+      "  else",
+      "    Goodbye.",
+      "  end",
+      "end",
+      "",
+    ),
+    lines("scene start", "  for i = 1, 2 do", "    Hello.", "  end", "end", ""),
+    lines("scene start", "  while false do", "    Hello.", "  end", "end", ""),
+    lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  IMANI:",
+      "    Hello.",
+      "",
+      "// note",
+      "    Goodbye.",
+      "",
+      "end",
+      "",
+    ),
+  ])(
+    "adds every text construct on every scene line without new problems: %s",
+    (source) => {
+      expect(diagnosticsOf(source)).toEqual([]);
+      const start = source.indexOf("scene start");
+      const lineStarts = [start];
+      for (
+        let at = source.indexOf(LF, start);
+        at >= 0;
+        at = source.indexOf(LF, at + 1)
+      ) {
+        if (at + 1 < source.length) lineStarts.push(at + 1);
+      }
+      for (const caret of lineStarts) {
+        for (const construct of ["branch", "choose", "dialogue"] as const) {
+          const result = apply(source, caret, construct);
+          expect(result, construct + "@" + caret).not.toBeNull();
+          const problems = diagnosticsOf(result!.text).filter(
+            (message) => !message.startsWith("Cannot find character named"),
+          );
+          expect(problems, construct + "@" + caret + LF + result!.text).toEqual(
+            [],
+          );
+        }
+      }
+    },
+  );
+
+  it("adds a Branch beside the branch the caret is in, never inside it", () => {
+    const source = lines(
+      "define IMANI as character with",
+      '  name = "Imani"',
+      "end",
+      "",
+      "scene start",
+      "  branch hall",
+      "    IMANI:",
+      "      Hello.",
+      "  end",
+      "end",
+      "",
+    );
+    expect(diagnosticsOf(source)).toEqual([]);
+    for (const marker of ["branch hall", "Hello."]) {
+      const branch = apply(source, caretAt(source, marker), "branch")!;
+      expect(branch.text, marker).toBe(
+        source.replace(
+          lines("  end", "end"),
+          lines("  end", "  branch new_branch", "    ", "  end", "end"),
+        ),
+      );
+      expect(diagnosticsOf(branch.text), marker).toEqual([]);
+    }
+  });
+});
+
 describe("inserted syntax", () => {
   it("compiles without diagnostics for each text construct", () => {
     expect(diagnosticsOf(SCRIPT)).toEqual([]);
@@ -754,11 +898,11 @@ describe("insertConstruct command", () => {
   it("inserts in one undo step and selects the placeholder", () => {
     const editor = mount(SCRIPT, caretAt(SCRIPT, "quiet"));
     editor.dispatch({
-      changes: { from: 0, insert: "x" },
+      changes: { from: caretAt(SCRIPT, "quiet"), insert: "x" },
       userEvent: "input.type",
     });
     const typed = editor.state.doc.toString();
-    expect(insertConstruct("choose", structureOf(SCRIPT))(editor)).toBe(true);
+    expect(insertConstruct("choose", structureOf(typed))(editor)).toBe(true);
     const { from, to } = editor.state.selection.main;
     expect(editor.state.sliceDoc(from, to)).toBe("What happens next?");
     expect(undo(editor)).toBe(true);
