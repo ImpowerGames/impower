@@ -215,12 +215,16 @@ describe("the debugger during PLAY", () => {
     expect(on.stepOver.result.done).toBe(true);
     expect(on.continue.result.done).toBe(true);
     expect(
-      (on.reported as any[]).map((m) => [m.method, m.params.location?.range.start.line]),
+      (on.reported as any[]).map((m) => [
+        m.method,
+        m.params.location?.range.start.line,
+        m.params.beat,
+      ]),
     ).toEqual([
-      ["game/hitBreakpoint", WRITE],
-      ["game/hitBreakpoint", SECOND],
-      ["game/stepped", SECOND],
-      ["game/hitBreakpoint", WRITE_AGAIN],
+      ["game/hitBreakpoint", WRITE, "none"],
+      ["game/hitBreakpoint", SECOND, "none"],
+      ["game/stepped", SECOND, "shown"],
+      ["game/hitBreakpoint", WRITE_AGAIN, "none"],
     ]);
   }, 120_000);
 });

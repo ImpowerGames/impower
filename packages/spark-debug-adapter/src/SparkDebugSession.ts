@@ -51,6 +51,7 @@ import {
 import { RollForwardGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RollForwardGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
 import type { RollTarget } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import type { StoppedBeat } from "@impower/spark-engine/src/game/core/types/StoppedBeat";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import {
@@ -78,6 +79,10 @@ import {
   Variable,
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
+
+export type SparkStoppedEventBody = DebugProtocol.StoppedEvent["body"] & {
+  beat?: StoppedBeat;
+};
 
 export interface SparkDebugSessionHost {
   readonly syncCursorToExecution: boolean;
@@ -216,10 +221,20 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendEvent(new ThreadEvent("exited", threadId));
     }
     if (GameSteppedMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("step", message.params.run);
+      await this.sendStoppedEvent(
+        "step",
+        message.params.run,
+        false,
+        message.params.beat,
+      );
     }
     if (GameHitBreakpointMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("breakpoint", message.params.run);
+      await this.sendStoppedEvent(
+        "breakpoint",
+        message.params.run,
+        false,
+        message.params.beat,
+      );
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
       if (this._host.syncCursorToExecution) {
@@ -334,6 +349,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       | "end",
     run: number | null | undefined = this._run,
     once = false,
+    beat?: StoppedBeat,
   ) {
     let answer: GetGameThreadsResult;
     let resuming: Promise<void> | undefined;
@@ -365,7 +381,11 @@ export class SparkDebugSession extends LoggingDebugSession {
     const { threads } = answer;
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
-      this.sendEvent(new StoppedEvent(reason, thread.id));
+      const event = new StoppedEvent(reason, thread.id);
+      if (beat) {
+        (event.body as SparkStoppedEventBody).beat = beat;
+      }
+      this.sendEvent(event);
     }
   }
 
