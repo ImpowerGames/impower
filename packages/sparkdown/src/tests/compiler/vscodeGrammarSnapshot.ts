@@ -42,27 +42,24 @@ function loadOnig(): Promise<void> {
   return wasmLoaded;
 }
 
-async function getRegistry(): Promise<{
+export async function createRegistry(): Promise<{
   registry: InstanceType<typeof Registry>;
   scopeName: string;
 }> {
   await loadOnig();
-  if (registry && scopeName) return { registry, scopeName };
-
   const grammarText = readFileSync(GRAMMAR_PATH, "utf8");
   const luauFileGrammarText = readFileSync(LUAU_FILE_GRAMMAR_PATH, "utf8");
-  scopeName = JSON.parse(grammarText).scopeName;
-  if (!scopeName) {
+  const rootScopeName: string | undefined = JSON.parse(grammarText).scopeName;
+  if (!rootScopeName) {
     throw new Error(`No scopeName in ${GRAMMAR_PATH}`);
   }
-
-  registry = new Registry({
+  const created = new Registry({
     onigLib: Promise.resolve({
       createOnigScanner: (patterns: string[]) => new OnigScanner(patterns),
       createOnigString: (s: string) => new OnigString(s),
     }),
     loadGrammar: async (requested: string) => {
-      if (requested === scopeName) {
+      if (requested === rootScopeName) {
         return parseRawGrammar(grammarText, GRAMMAR_PATH);
       }
       if (requested === LUAU_FILE_SCOPE_NAME) {
@@ -71,6 +68,15 @@ async function getRegistry(): Promise<{
       return null;
     },
   });
+  return { registry: created, scopeName: rootScopeName };
+}
+
+async function getRegistry(): Promise<{
+  registry: InstanceType<typeof Registry>;
+  scopeName: string;
+}> {
+  if (registry && scopeName) return { registry, scopeName };
+  ({ registry, scopeName } = await createRegistry());
   return { registry, scopeName };
 }
 

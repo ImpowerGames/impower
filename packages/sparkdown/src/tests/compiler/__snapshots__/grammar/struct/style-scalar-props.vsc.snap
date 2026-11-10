@@ -2,27 +2,31 @@ text.source.sparkdown [0..59]
  ├─ meta.style.luau [0..13]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
- │   ├─ entity.name.type.define.luau [6..11]: "panel"
- │   ├─ punctuation.whitespace.sd [11..12]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ │   └─ meta.embedded.block.luau [6..13]
+ │       ├─ entity.name.type.define.luau [6..11]: "panel"
+ │       ├─ punctuation.whitespace.sd [11..12]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
  ├─ Newline [13..14]: "\n"
  ├─ meta.style.luau [14..35]
- │   ├─ punctuation.whitespace.sd [14..16]: "  "
- │   ├─ variable.other.property.define.sd [16..24]: "position"
- │   ├─ markup.raw.whitespace.separator.optional.sd [24..25]: " "
- │   ├─ keyword.operator.assignment.sd [25..26]: "="
- │   ├─ markup.raw.whitespace.separator.optional.sd [26..27]: " "
- │   └─ string.unquoted.identifier.sd [27..35]: "absolute"
+ │   └─ meta.embedded.block.luau [14..35]
+ │       ├─ punctuation.whitespace.sd [14..16]: "  "
+ │       ├─ variable.other.property.define.sd [16..24]: "position"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [24..25]: " "
+ │       ├─ keyword.operator.assignment.sd [25..26]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [26..27]: " "
+ │       └─ string.unquoted.identifier.sd [27..35]: "absolute"
  ├─ Newline [35..36]: "\n"
  ├─ meta.style.luau [36..56]
- │   ├─ punctuation.whitespace.sd [36..38]: "  "
- │   ├─ variable.other.property.define.sd [38..47]: "font_size"
- │   ├─ markup.raw.whitespace.separator.optional.sd [47..48]: " "
- │   ├─ keyword.operator.assignment.sd [48..49]: "="
- │   ├─ markup.raw.whitespace.separator.optional.sd [49..50]: " "
- │   ├─ constant.numeric.amount.sd [50..53]: "3.4"
- │   └─ constant.numeric.unit.sd [53..56]: "cqh"
+ │   └─ meta.embedded.block.luau [36..56]
+ │       ├─ punctuation.whitespace.sd [36..38]: "  "
+ │       ├─ variable.other.property.define.sd [38..47]: "font_size"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [47..48]: " "
+ │       ├─ keyword.operator.assignment.sd [48..49]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [49..50]: " "
+ │       ├─ constant.numeric.amount.sd [50..53]: "3.4"
+ │       └─ constant.numeric.unit.sd [53..56]: "cqh"
  ├─ Newline [56..57]: "\n"
  ├─ meta.style.luau [57..58]
- │   └─ punctuation.definition.template-expression.end.sd [57..58]: "}"
+ │   └─ meta.embedded.block.luau [57..58]
+ │       └─ punctuation.definition.template-expression.end.sd [57..58]: "}"
  └─ Newline [58..59]: "\n"

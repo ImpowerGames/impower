@@ -2,21 +2,24 @@ text.source.sparkdown [0..97]
  ├─ meta.screen.luau [0..14]
  │   ├─ keyword.control.screen.luau [0..6]: "screen"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
- │   ├─ entity.name.type.define.luau [7..11]: "menu"
- │   ├─ punctuation.whitespace.sd [11..12]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
- │   └─ punctuation.definition.template-expression.end.sd [13..14]: "}"
+ │   └─ meta.embedded.block.luau [7..14]
+ │       ├─ entity.name.type.define.luau [7..11]: "menu"
+ │       ├─ punctuation.whitespace.sd [11..12]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ │       └─ punctuation.definition.template-expression.end.sd [13..14]: "}"
  ├─ Newline [14..15]: "\n"
  ├─ Newline [15..16]: "\n"
  ├─ meta.screen.luau [16..28]
  │   ├─ keyword.control.screen.luau [16..22]: "screen"
  │   ├─ punctuation.whitespace.optional.sd [22..23]: " "
- │   ├─ entity.name.type.define.luau [23..26]: "hud"
- │   ├─ punctuation.whitespace.sd [26..27]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [27..28]: "{"
+ │   └─ meta.embedded.block.luau [23..28]
+ │       ├─ entity.name.type.define.luau [23..26]: "hud"
+ │       ├─ punctuation.whitespace.sd [26..27]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [27..28]: "{"
  ├─ Newline [28..29]: "\n"
  ├─ meta.screen.luau [29..30]
- │   └─ punctuation.definition.template-expression.end.sd [29..30]: "}"
+ │   └─ meta.embedded.block.luau [29..30]
+ │       └─ punctuation.definition.template-expression.end.sd [29..30]: "}"
  ├─ Newline [30..31]: "\n"
  ├─ Newline [31..32]: "\n"
  ├─ meta.screen.luau [32..96]
@@ -47,12 +50,13 @@ text.source.sparkdown [0..97]
  │   │   ├─ comment.luau [62..63]: "]"
  │   │   ├─ comment.luau [63..64]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [64..65]: " "
- │   ├─ entity.name.type.define.luau [65..70]: "pause"
- │   ├─ punctuation.whitespace.sd [70..71]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [71..72]: "{"
- │   ├─ punctuation.definition.template-expression.end.sd [72..73]: "}"
- │   └─ comment.line.double-dash.luau [73..96]
- │       ├─ punctuation.whitespace.sd [73..74]: " "
- │       ├─ comment.luau [74..76]: "--"
- │       └─ punctuation.definition.comment.content.sd [76..96]: " shown over the game"
+ │   └─ meta.embedded.block.luau [65..96]
+ │       ├─ entity.name.type.define.luau [65..70]: "pause"
+ │       ├─ punctuation.whitespace.sd [70..71]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [71..72]: "{"
+ │       ├─ punctuation.definition.template-expression.end.sd [72..73]: "}"
+ │       └─ comment.line.double-dash.luau [73..96]
+ │           ├─ punctuation.whitespace.sd [73..74]: " "
+ │           ├─ comment.luau [74..76]: "--"
+ │           └─ punctuation.definition.comment.content.sd [76..96]: " shown over the game"
  └─ Newline [96..97]: "\n"

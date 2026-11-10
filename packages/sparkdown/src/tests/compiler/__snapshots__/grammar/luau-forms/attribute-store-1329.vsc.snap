@@ -1,26 +1,28 @@
 text.source.sparkdown [0..73]
  ├─ storage.modifier.scope.luau [0..5]: "store"
  ├─ punctuation.whitespace.optional.sd [5..6]: " "
- ├─ variable.other.readwrite.luau [6..7]: "f"
- ├─ punctuation.whitespace.optional.sd [7..8]: " "
- ├─ keyword.operator.assignment.luau [8..9]: "="
- ├─ punctuation.whitespace.optional.sd [9..10]: " "
- ├─ keyword.operator.attribute.luau [10..11]: "@"
- ├─ storage.type.attribute.luau [11..17]: "native"
- ├─ punctuation.whitespace.required.sd [17..18]: " "
- ├─ meta.function.luau [18..41]
- │   ├─ keyword.control.luau [18..26]: "function"
- │   ├─ meta.parameter.luau [26..28]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [26..27]: "("
- │   │   └─ punctuation.definition.template-expression.end.sd [27..28]: ")"
- │   ├─ meta.function.body.luau [28..37]
- │   │   └─ meta.function.luau [28..37]
- │   │       ├─ punctuation.whitespace.optional.sd [28..29]: " "
- │   │       ├─ keyword.control.luau [29..35]: "return"
- │   │       ├─ punctuation.whitespace.optional.sd [35..36]: " "
- │   │       └─ constant.numeric.decimal.luau [36..37]: "7"
- │   ├─ punctuation.whitespace.optional.sd [37..38]: " "
- │   └─ keyword.control.end.luau [38..41]: "end"
+ ├─ meta.embedded.line.luau [6..41]
+ │   ├─ variable.other.readwrite.luau [6..7]: "f"
+ │   ├─ punctuation.whitespace.optional.sd [7..8]: " "
+ │   ├─ keyword.operator.assignment.luau [8..9]: "="
+ │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ │   ├─ keyword.operator.attribute.luau [10..11]: "@"
+ │   ├─ storage.type.attribute.luau [11..17]: "native"
+ │   ├─ punctuation.whitespace.required.sd [17..18]: " "
+ │   └─ meta.function.luau [18..41]
+ │       ├─ keyword.control.luau [18..26]: "function"
+ │       └─ meta.embedded.block.luau [26..41]
+ │           ├─ meta.parameter.luau [26..28]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [26..27]: "("
+ │           │   └─ punctuation.definition.template-expression.end.sd [27..28]: ")"
+ │           ├─ meta.function.body.luau [28..37]
+ │           │   └─ meta.function.luau [28..37]
+ │           │       ├─ punctuation.whitespace.optional.sd [28..29]: " "
+ │           │       ├─ keyword.control.luau [29..35]: "return"
+ │           │       ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ │           │       └─ constant.numeric.decimal.luau [36..37]: "7"
+ │           ├─ punctuation.whitespace.optional.sd [37..38]: " "
+ │           └─ keyword.control.end.luau [38..41]: "end"
  ├─ Newline [41..42]: "\n"
  ├─ keyword.control.scene.sd [42..47]: "scene"
  ├─ punctuation.whitespace.required.sd [47..48]: " "

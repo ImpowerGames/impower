@@ -166,6 +166,8 @@ variables:
   # word at the same character.
   LUAU_NAME_END: (?![a-zA-Z0-9_])
   LUAU_UNREAD_SYMBOL: (?:\.\.\.|\.\.=|//=|\.\.|::|==|~=|<=|>=|\+=|-=|\*=|/=|%=|\^=|->|//|&&|\|\||!=)
+  # lookaround: LuauAttribute and LuauAttributeList own an `@` before an identifier or `[`; LuauUnreadableCharacter, last in its rules' patterns, must leave that `@` to them, and no order of patterns can, since it is the catch-all for what they decline. An `@` before a keyword opens neither.
+  LUAU_UNREADABLE_CHARACTER: (?:[$!?%^|~\[\\]|@(?![\[]|{{LUAU_IDENTIFIER}})|[^\x00-\x7F])
 
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
@@ -3659,6 +3661,7 @@ repository:
       - { include: "#LuauLabel" }
 
   LuauSparkdownExplicitStatement:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)([&])($|{{WS}}+)
     beginCaptures:
       1:
@@ -3708,9 +3711,11 @@ repository:
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=^{{WS}}*)(?={{LUAU_LIST_LINE_START_STATEMENT}})"
 
   LuauSparkdownReassignment:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*(?:{{LUAU_ASSIGNMENT_OPERATORS}}))
     beginCaptures:
       1:
@@ -3727,6 +3732,7 @@ repository:
       - { include: "#LuauSparkdownAssignmentOperation" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})"
 
   LuauReassignmentTargets:
@@ -3771,6 +3777,7 @@ repository:
   LuauDefine:
     tag: meta
     name: meta.function.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)
     beginCaptures:
       1:
@@ -3798,13 +3805,16 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
@@ -3872,7 +3882,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|({{WS}}*)(with)\b|$
     endCaptures:
       1:
         emit: true
@@ -3973,6 +3983,7 @@ repository:
   LuauStyle:
     tag: meta
     name: meta.style.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(style)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -3998,19 +4009,23 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
   LuauAnimation:
     tag: meta
     name: meta.animation.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(animation)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -4036,19 +4051,23 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
   LuauTheme:
     tag: meta
     name: meta.theme.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(theme)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -4074,19 +4093,23 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
   LuauMorph:
     tag: meta
     name: meta.morph.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(morph)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -4112,13 +4135,16 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
@@ -6349,6 +6375,7 @@ repository:
   LuauLayout:
     tag: meta
     name: meta.layout.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(layout)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -6374,19 +6401,23 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
   LuauScreen:
     tag: meta
     name: meta.screen.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(screen)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -6412,13 +6443,16 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
@@ -6439,6 +6473,7 @@ repository:
   LuauComponent:
     tag: meta
     name: meta.component.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(component)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
@@ -6464,13 +6499,16 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
 
@@ -6639,6 +6677,7 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
+    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{_LUAU_LEVEL_BLOCK_COMMENT_}}*))?(function)\b({{WS}}*)
     beginCaptures:
       1:
@@ -6673,16 +6712,20 @@ repository:
     end: (?={{BEAT}})|({{WS}}*)(end)\b(?:({{_LUAU_END_TRAILING_COMMENTS_}})|({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}}))?
     endCaptures:
       1:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauEndKeyword" }
       3:
+        name: meta.embedded.block.luau
         patterns:
           - { include: "#LuauComment" }
       5:
+        name: meta.embedded.block.luau
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -6768,6 +6811,7 @@ repository:
     match: ({{LUAU_IDENTIFIER}})
 
   LuauVariableDefinition:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)({{LUAU_CODE_SCOPE_MODIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -6788,9 +6832,11 @@ repository:
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauVariableDefinitionValue" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}"
 
   LuauSparkdownVariableDefinition:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*(?:{{LUAU_BLOCK_COMMENT_ON_LINE}})*)
     beginCaptures:
       1:
@@ -6812,6 +6858,7 @@ repository:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauSparkdownExplicitExpression" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})"
 
   LuauVariableDefinitionValue:
@@ -6975,6 +7022,12 @@ repository:
 
   LuauUnreadCharacter:
     match: "{{LUAU_UNREAD_NOT_CLOSER}}(?:{{LUAU_UNREAD_SYMBOL}}|[^\\s])"
+
+  LuauUnreadableCharacter:
+    match: "{{LUAU_UNREADABLE_CHARACTER}}"
+
+  LuauUnreadStatementMark:
+    match: "[&]"
 
   LuauStrayCloser:
     tag: invalid
@@ -7187,6 +7240,7 @@ repository:
   # cannot begin with it; without the lookbehind it would take any
   # expression of the body around the loop, which `LuauExpression` reads.
   LuauUntilCondition:
+    contentName: meta.embedded.line.luau
     begin: (?<=\buntil)({{WS}}*){{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
@@ -7196,6 +7250,8 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   LuauSparkdownDoBlock:
@@ -7308,12 +7364,16 @@ repository:
 
   LuauSparkdownExplicitIfCondition:
     # lookaround: `(?!$)` leaves a header with no condition on its line to LuauSparkdownBlockBody.
+    contentName: meta.embedded.line.luau
     begin: \G(?!$)
     patterns:
       - { include: "#LuauParenthetical" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[)\]}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
@@ -7337,6 +7397,7 @@ repository:
 
   LuauSparkdownExplicitLoopCondition:
     # lookaround: `(?!$|do\b)` leaves a header with no condition on its line, and its `do`, to LuauSparkdownExplicitDoBlock.
+    contentName: meta.embedded.line.luau
     begin: \G(?!$|do\b)
     patterns:
       - { include: "#LuauInKeyword" }
@@ -7344,6 +7405,9 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: (?={{BEAT}}|{{END}}|[)\]}]|{{WS}}*do\b)|$
 
   LuauSparkdownExplicitRepeatLoop:
@@ -7739,6 +7803,10 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -8397,6 +8465,7 @@ repository:
     end: (?=$|{{TAG_START}})
 
   LuauSparkdownExplicitVariableDefinition:
+    contentName: meta.embedded.line.luau
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
       1:
@@ -8417,6 +8486,7 @@ repository:
       - { include: "#LuauSparkdownExplicitVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownExplicitVariableDefinitionValue" }
+      - { include: "#LuauUnreadableCharacter" }
     # lookaround: LuauAssignmentOperation and LuauTypeAnnotationOperation own declaration values and annotations; this declaration ends only after their content is complete.
     # See bounded-exit rationale above for the structural alternatives.
     end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}"
@@ -8603,6 +8673,7 @@ repository:
   # lookaround: as for `LuauUntilCondition`, the loop's end takes the
   # `until`, and `LuauSparkdownExplicitExpression` reads anything else.
   LuauSparkdownExplicitUntilCondition:
+    contentName: meta.embedded.line.luau
     begin: (?<=\buntil)({{WS}}*){{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
@@ -8612,6 +8683,8 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   SparkdownExplicitTag:
@@ -10568,6 +10641,10 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: (?=$)|([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10588,6 +10665,10 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10608,6 +10689,10 @@ repository:
       - include: "#LuauExpression"
       - include: "#ExtraWhitespace"
       - include: "#Newline"
+      - include: "#LuauCommaSeparator"
+      - include: "#LuauSemicolonSeparator"
+      - include: "#LuauUnreadableCharacter"
+      - include: "#LuauUnreadStatementMark"
     end: ([}])|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       "1":
@@ -10658,6 +10743,10 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|(?={{WS}}*[)\]])
     endCaptures:
       1:
@@ -10684,6 +10773,10 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauUnreadableCharacter" }
+      - { include: "#LuauUnreadStatementMark" }
     end: ([}])([}])?|(?=["])|$|(?={{WS}}*[)\]])
     endCaptures:
       1:
