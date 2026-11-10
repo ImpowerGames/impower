@@ -1739,7 +1739,7 @@ export class Game<T extends M = {}> {
       }
       return this.programBreakpoint(
         address,
-        "No instruction found at the breakpoint",
+        "No statement to stop at here.",
       );
     });
     this.joinBreakAddresses();

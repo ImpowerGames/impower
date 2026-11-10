@@ -49,7 +49,7 @@ const verifying = (moves: Record<number, number | null>) => (request: DebugProto
         breakpoints: (args.breakpoints ?? []).map((b) => {
           const moved = moves[b.line];
           return moved === null
-            ? { verified: false, message: "No instruction found at the breakpoint" }
+            ? { verified: false, message: "No statement to stop at here." }
             : { verified: true, line: moved ?? b.line, source: args.source };
         }),
       },
@@ -133,7 +133,7 @@ describe("breakpoints through the web editor's debug client", () => {
     expect(workspace.debugSession.value.breakpoints).toEqual({
       [MAIN]: [
         { line: 5, verified: true },
-        { line: 7, verified: false },
+        { line: 7, verified: false, message: "No statement to stop at here." },
       ],
     });
   });
