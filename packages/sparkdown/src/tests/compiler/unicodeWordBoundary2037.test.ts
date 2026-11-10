@@ -35,6 +35,9 @@ const SAMPLES = [
   "\u{1d7ce}",
   "\u{1e4d0}",
   "\u{11f02}",
+  "\u{85}",
+  "\u{feff}",
+  "\u{3000}",
 ];
 
 const PATTERNS = [
@@ -51,6 +54,11 @@ const PATTERNS = [
   "[^\\d]",
   "[\\w-]",
   "[\\W-]",
+  "\\s",
+  "\\S",
+  "[\\s]",
+  "[\\S]",
+  "[^\\S\\n\\r]",
   "a\\b",
   "a\\B",
   "\\ba",
@@ -91,7 +99,7 @@ beforeAll(async () => {
   await loadWASM(readFileSync(createRequire(import.meta.url).resolve("vscode-oniguruma/release/onig.wasm")));
 });
 
-describe("word and digit escapes read Unicode text as Oniguruma does (I-2037)", () => {
+describe("word, digit and space escapes read Unicode text as Oniguruma does (I-2037)", () => {
   test.each(PATTERNS)("%s", (pattern) => {
     const texts = cases(pattern);
     expect(texts.map(([text, pos]) => treeMatch(pattern, text, pos))).toEqual(
@@ -99,7 +107,7 @@ describe("word and digit escapes read Unicode text as Oniguruma does (I-2037)", 
     );
   });
 
-  test.each(["\\w", "[\\w]", "\\d"])("%s agrees with Oniguruma at every code point", (pattern) => {
+  test.each(["\\w", "[\\w]", "\\d", "\\s"])("%s agrees with Oniguruma at every code point", (pattern) => {
     const scanner = new OnigScanner([pattern]);
     const matcher = new RegExpMatcher(pattern, "muy");
     const disagreements: string[] = [];

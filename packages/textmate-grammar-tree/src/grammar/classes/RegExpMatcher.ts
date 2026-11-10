@@ -12,6 +12,7 @@ import { hasCapturingGroups } from "../utils/hasCapturingGroups";
 import {
   ONIGURUMA_CLASS_WORD_RANGES,
   ONIGURUMA_DIGIT_RANGES,
+  ONIGURUMA_SPACE_RANGES,
   ONIGURUMA_WORD_RANGES,
 } from "../utils/onigurumaRanges";
 
@@ -122,6 +123,8 @@ const CLASS_WORD = parseRanges(ONIGURUMA_CLASS_WORD_RANGES);
 
 const DIGIT = parseRanges(ONIGURUMA_DIGIT_RANGES);
 
+const SPACE = parseRanges(ONIGURUMA_SPACE_RANGES);
+
 const bmpPart = (ranges: CodeRange[]): CodeRange[] =>
   ranges
     .filter(([from]) => from <= BMP_END)
@@ -168,6 +171,8 @@ const unicodeEscapes = (
       W: `[^${classBody(word)}]`,
       d: `[${classBody(digit)}]`,
       D: `[^${classBody(digit)}]`,
+      s: `[${classBody(SPACE)}]`,
+      S: `[^${classBody(SPACE)}]`,
       b: `(?:(?<=${isWord})(?!${isWord})|(?<!${isWord})(?=${isWord}))`,
       B: `(?:(?<=${isWord})(?=${isWord})|(?<!${isWord})(?!${isWord}))`,
     },
@@ -178,15 +183,17 @@ const unicodeEscapes = (
       W: classBody(complement(classWord)),
       d: classBody(digit),
       D: classBody(complement(digit)),
+      s: classBody(SPACE),
+      S: classBody(complement(SPACE)),
     },
   };
 };
 
 const REWRITE_MARKERS: UnicodeEscapes = {
-  outside: { w: "", W: "", d: "", D: "", b: "", B: "" },
+  outside: { w: "", W: "", d: "", D: "", s: "", S: "", b: "", B: "" },
   afterWord: { b: "", B: "" },
   beforeWord: { b: "", B: "" },
-  inside: { w: "", W: "", d: "", D: "" },
+  inside: { w: "", W: "", d: "", D: "", s: "", S: "" },
 };
 
 let bmpEscapesCache: UnicodeEscapes | undefined;
