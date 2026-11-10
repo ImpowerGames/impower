@@ -3,7 +3,14 @@ import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { downloadFile } from "../utils/downloadFile";
 import { recordMove, recordTrashDeletion } from "../utils/fileUndo";
-import { availableName, copyName, NameError, plural, referencedBy } from "../utils/fileListModel";
+import {
+  availableName,
+  copyName,
+  NameError,
+  plural,
+  referencedBy,
+  type Reference,
+} from "../utils/fileListModel";
 import { renameOrReport } from "../utils/renameOrReport";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import {
@@ -62,8 +69,6 @@ export default class WorkspaceScripts {
 
   protected _generation = 0;
 
-  protected _referencesFor: string | null = null;
-
   constructor(deps: Deps) {
     this._workspace = deps;
   }
@@ -105,28 +110,30 @@ export default class WorkspaceScripts {
     }
     if (workspace.scriptListing.peek()?.projectId !== projectId) {
       workspace.scriptReferences.value = [];
-      this._referencesFor = null;
     }
     workspace.scriptListing.value = listing;
     await this.loadReferences(generation, projectId);
     return listing;
   }
 
-  protected async loadReferences(generation: number, projectId: string) {
+  protected async readReferences(projectId: string): Promise<Reference[]> {
     const { fs, ls } = this._workspace;
+    const references = await ls.getScriptReferences(
+      fs.getFileUri(projectId, MAIN_SCRIPT),
+    );
+    return references.map((r) => ({
+      from: fs.getRelativePath(projectId, r.from),
+      to: fs.getRelativePath(projectId, r.to),
+      divert: r.divert,
+    }));
+  }
+
+  protected async loadReferences(generation: number, projectId: string) {
     try {
-      const references = await ls.getScriptReferences(
-        fs.getFileUri(projectId, MAIN_SCRIPT),
-      );
-      if (!this.isCurrent(generation, projectId)) {
-        return;
+      const references = await this.readReferences(projectId);
+      if (this.isCurrent(generation, projectId)) {
+        workspace.scriptReferences.value = references;
       }
-      workspace.scriptReferences.value = references.map((r) => ({
-        from: fs.getRelativePath(projectId, r.from),
-        to: fs.getRelativePath(projectId, r.to),
-        divert: r.divert,
-      }));
-      this._referencesFor = projectId;
     } catch (error) {
       console.error("[WorkspaceScripts] sparkdown/scriptReferences failed; Uses and Story order keep the last references read:", error);
     }
@@ -137,12 +144,12 @@ export default class WorkspaceScripts {
     if (!projectId) {
       return null;
     }
-    if (this._referencesFor !== projectId) {
-      await this.loadReferences(this._generation, projectId);
+    try {
+      const references = await this.readReferences(projectId);
+      return projectId === this.projectId ? referencedBy(references, paths) : null;
+    } catch {
+      return null;
     }
-    return this._referencesFor === projectId
-      ? referencedBy(workspace.scriptReferences.peek(), paths)
-      : null;
   }
 
   watch(): () => void {

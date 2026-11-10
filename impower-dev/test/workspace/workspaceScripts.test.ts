@@ -292,18 +292,17 @@ describe("Scripts through the workspace, under concurrent reloads", () => {
     error.mockRestore();
   });
 
-  it("answers which scripts reference an item only from references read for the open project", async () => {
+  it("answers which scripts reference an item from a fresh read, and not at all when that read fails", async () => {
     const { scripts, ls } = fakeWorkspace(PATHS, FOLDERS);
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
     await scripts.load();
-    expect(workspace.scriptReferences.value).toEqual([]);
-    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
-    expect(await scripts.referencing(["Scripts/intro.sd"])).toBeNull();
-    expect(await scripts.referencing(["Scripts/intro.sd"])).toEqual(["main.sd"]);
     expect(await scripts.referencing(["Scripts/outro.sd"])).toEqual([]);
-    expect(ls.getScriptReferences).toHaveBeenCalledTimes(3);
-    error.mockRestore();
+    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toBeNull();
+    ls.getScriptReferences.mockResolvedValueOnce([
+      { from: uri("main.sd"), to: uri("Scripts/outro.sd"), divert: true },
+    ]);
+    expect(await scripts.referencing(["Scripts/outro.sd"])).toEqual(["main.sd"]);
+    expect(await scripts.referencing(["Scripts/intro.sd"])).toEqual(["main.sd"]);
   });
 });
 

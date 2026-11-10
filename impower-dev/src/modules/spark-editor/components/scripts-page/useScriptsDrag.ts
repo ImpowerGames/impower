@@ -142,15 +142,16 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
     onPointerUp: (event: PointerEvent) => {
       const pressed = press.current;
       release();
-      if (pressed?.armed && pressed.moved) {
-        const folder = folderAt(
-          document.elementFromPoint?.(event.clientX, event.clientY) ?? null,
-        );
-        if (folder !== null) {
-          drop(folder);
-        }
-        finish();
+      if (!pressed?.armed) {
+        return;
       }
+      const folder = pressed.moved
+        ? folderAt(document.elementFromPoint?.(event.clientX, event.clientY) ?? null)
+        : null;
+      if (folder !== null) {
+        drop(folder);
+      }
+      finish();
     },
     onPointerCancel: () => {
       release();

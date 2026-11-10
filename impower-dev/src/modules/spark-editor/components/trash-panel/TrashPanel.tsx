@@ -26,15 +26,30 @@ function timeAgo(ms: number): string {
   return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
+function topFolders(batch: TrashBatch): string[] {
+  const folders = batch.folders ?? [];
+  return folders.filter(
+    (f) => !folders.some((other) => other !== f && f.startsWith(`${other}/`)),
+  );
+}
+
 function batchLabel(batch: TrashBatch): string {
-  if (batch.entries.length === 1) {
-    const rel = batch.entries[0]!.relPath;
-    return rel.split("/").pop() || rel;
+  const tops = topFolders(batch);
+  const loose = batch.entries.filter(
+    (e) => !tops.some((t) => e.relPath.startsWith(`${t}/`)),
+  );
+  const [only] = [...tops, ...loose.map((e) => e.relPath)];
+  if (only && tops.length + loose.length === 1) {
+    return only.split("/").pop() || only;
   }
-  return `${batch.entries.length} items`;
+  return `${tops.length + loose.length} items`;
 }
 
 function batchLocation(batch: TrashBatch): string {
+  const [top, ...others] = topFolders(batch);
+  if (top && others.length === 0) {
+    return top.includes("/") ? top.slice(0, top.lastIndexOf("/")) : "";
+  }
   const rel = batch.entries[0]?.relPath ?? "";
   const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
   if (batch.entries.length > 1) {
@@ -200,7 +215,7 @@ export default function TrashPanel() {
               <ListRow
                 key={batch.batchId}
                 class="px-2"
-                icon={batch.entries.length === 1 ? <FileIcon /> : <FolderIcon />}
+                icon={batch.entries.length === 1 && !batch.folders?.length ? <FileIcon /> : <FolderIcon />}
                 label={batchLabel(batch)}
                 description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
                 actions={

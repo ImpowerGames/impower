@@ -7,13 +7,18 @@ async function findBatchesForUris(
   projectId: string,
   uris: string[],
   sinceMs: number,
+  folders: string[] = [],
 ): Promise<string[]> {
   const { Workspace } = await import("../workspace/Workspace");
   const batches = await Workspace.fs.listTrash(projectId);
   const set = new Set(uris);
+  const folderSet = new Set(folders);
   return batches
     .filter(
-      (b) => b.deletedAt >= sinceMs && b.entries.some((e) => set.has(e.originalUri)),
+      (b) =>
+        b.deletedAt >= sinceMs &&
+        (b.entries.some((e) => set.has(e.originalUri)) ||
+          !!b.folders?.some((f) => folderSet.has(f))),
     )
     .map((b) => b.batchId);
 }
@@ -31,7 +36,7 @@ export async function recordTrashDeletion(
   since: number,
   deletedFolders: string[] = [],
 ) {
-  let batchIds = await findBatchesForUris(projectId, deletedUris, since);
+  let batchIds = await findBatchesForUris(projectId, deletedUris, since, deletedFolders);
   if (batchIds.length === 0 && deletedFolders.length === 0) {
     return;
   }
@@ -48,14 +53,17 @@ export async function recordTrashDeletion(
     redo: async () => {
       const redoSince = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
-      if (deletedUris.length > 0) {
+      if (deletedUris.length > 0 || deletedFolders.length > 0) {
         await Workspace.fs.deleteFiles({
           files: deletedUris.map((uri) => ({ uri })),
+          folders: deletedFolders.map((f) => ({
+            uri: Workspace.fs.getFileUri(projectId, f),
+          })),
           mode: "trash",
         });
       }
       await Workspace.fs.deleteFolders(projectId, deletedFolders);
-      batchIds = await findBatchesForUris(projectId, deletedUris, redoSince);
+      batchIds = await findBatchesForUris(projectId, deletedUris, redoSince, deletedFolders);
       await markProjectDirty();
     },
   });

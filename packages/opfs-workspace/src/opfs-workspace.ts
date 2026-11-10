@@ -913,11 +913,11 @@ onmessage = async (e) => {
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
-      const { files, mode } = message.params;
+      const { files, mode, folders } = message.params;
       let deleted: DeleteResult[];
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        deleted = await moveFilesToTrash(files);
+        deleted = await moveFilesToTrash(files, folders);
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -944,10 +944,14 @@ onmessage = async (e) => {
       const { projectId, action, batchId, retentionMs } = message.params;
       let result: TrashFilesResult = {};
       const restored: WriteResult[] = [];
+      const folderLog = new CommitLog();
+      const restoredFolders: string[] = [];
       if (action === "list") {
         result = { batches: await listTrash(projectId) };
       } else if (action === "restore" && batchId) {
-        restored.push(...(await restoreTrashBatch(projectId, batchId)));
+        const { written, folders } = await restoreTrashBatch(projectId, batchId, folderLog);
+        restored.push(...written);
+        restoredFolders.push(...folders);
         result = { restored: restored.map((r) => r.file) };
       } else if (action === "deleteBatch" && batchId) {
         await removeTrashBatch(projectId, batchId);
@@ -960,6 +964,17 @@ onmessage = async (e) => {
         );
       }
       respond(TrashFilesMessage.type.response(message.id, result));
+      const createdFolders = restoredFolders.filter((uri) => folderLog.isCurrent(uri));
+      if (createdFolders.length > 0) {
+        broadcast(
+          DidChangeDirectoriesMessage.type.notification({
+            created: createdFolders,
+            deleted: [],
+            commits: folderLog.stamp(createdFolders),
+          }),
+        );
+        await announceUnordered(folderLog);
+      }
       if (restored.length > 0) {
         const log = new CommitLog();
         restored.forEach((r) => log.wrote(r));
@@ -1706,16 +1721,28 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   return result;
 };
 
-const moveFilesToTrash = async (files: { uri: string }[]) => {
+const moveFilesToTrash = async (
+  files: { uri: string }[],
+  folders: { uri: string }[] = [],
+) => {
   const deleted: DeleteResult[] = [];
-  if (files.length === 0) {
+  const first = files[0] ?? folders[0];
+  if (!first) {
     return deleted;
   }
   const seen = new Set<string>();
   const uniqueFiles = files.filter((f) =>
     seen.has(f.uri) ? false : (seen.add(f.uri), true),
   );
-  const projectId = getPathFromUri(uniqueFiles[0]!.uri).split("/")[0]!;
+  const projectId = getPathFromUri(first.uri).split("/")[0]!;
+  const folderPaths = [
+    ...new Set(
+      folders.map((f) => getPathFromUri(f.uri).slice(projectId.length + 1)),
+    ),
+  ].filter(Boolean);
+  if (uniqueFiles.length === 0 && folderPaths.length === 0) {
+    return deleted;
+  }
   const deletedAt = Date.now();
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
@@ -1732,7 +1759,11 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
     }
   }
-  const manifest = JSON.stringify({ deletedAt, entries });
+  const manifest = JSON.stringify(
+    folderPaths.length
+      ? { deletedAt, entries, folders: folderPaths }
+      : { deletedAt, entries },
+  );
   const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
   await createFiles([
     {
@@ -1772,7 +1803,12 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
       const dir = handle as FileSystemDirectoryHandle;
       const file = await (await dir.getFileHandle(TRASH_MANIFEST)).getFile();
       const m = JSON.parse(await file.text()) as Omit<TrashBatch, "batchId">;
-      batches.push({ batchId: handle.name, deletedAt: m.deletedAt, entries: m.entries });
+      batches.push({
+        batchId: handle.name,
+        deletedAt: m.deletedAt,
+        entries: m.entries,
+        ...(m.folders?.length ? { folders: m.folders } : {}),
+      });
     } catch {
     }
   }
@@ -1809,23 +1845,29 @@ const deconflictRestoreUri = async (uri: string): Promise<string> => {
 const restoreTrashBatch = async (
   projectId: string,
   batchId: string,
-): Promise<WriteResult[]> => {
+  folderLog: CommitLog,
+): Promise<{ written: WriteResult[]; folders: string[] }> => {
   const trash = await getTrashDirHandle(projectId);
   if (!trash) {
-    return [];
+    return { written: [], folders: [] };
   }
   let batchHandle: FileSystemDirectoryHandle;
   try {
     batchHandle = await trash.getDirectoryHandle(batchId);
   } catch {
-    return [];
+    return { written: [], folders: [] };
   }
   const manifestFile = await (
     await batchHandle.getFileHandle(TRASH_MANIFEST)
   ).getFile();
   const m = JSON.parse(await manifestFile.text()) as {
     entries: { relPath: string; originalUri: string }[];
+    folders?: string[];
   };
+  const folders = await createDirectories(
+    (m.folders ?? []).map((f) => getUriFromPath(`${projectId}/${f}`)),
+    folderLog,
+  );
   const restored: WriteResult[] = [];
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   for (const entry of m.entries) {
@@ -1839,7 +1881,7 @@ const restoreTrashBatch = async (
     }
   }
   await removeTrashBatch(projectId, batchId);
-  return restored;
+  return { written: restored, folders };
 };
 
 const emptyTrash = async (projectId: string) => {

@@ -973,10 +973,14 @@ export default class WorkspaceFileSystem {
         this.getRelativePath(projectId, uri).startsWith(`${folder}/`),
       )
       .map((uri) => ({ uri }));
+    const trashed =
+      mode === "trash"
+        ? folders.map((p) => ({ uri: this.getFileUri(projectId, p) }))
+        : [];
     const deleted =
-      toDelete.length === 0
+      toDelete.length === 0 && trashed.length === 0
         ? []
-        : await this.deleteFiles({ files: toDelete, mode });
+        : await this.deleteFiles({ files: toDelete, folders: trashed, mode });
     const removed = new Set(await this.deleteFolders(projectId, [folder]));
     return {
       files: deleted,

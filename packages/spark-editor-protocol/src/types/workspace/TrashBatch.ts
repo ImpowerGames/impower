@@ -8,4 +8,5 @@ export interface TrashBatch {
   batchId: string;
   deletedAt: number;
   entries: TrashEntry[];
+  folders?: string[];
 }

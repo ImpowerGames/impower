@@ -261,7 +261,7 @@ describe("dragging scripts on the Scripts page", () => {
     expect(snackbar.value?.message).toBe("A folder cannot be moved inside itself.");
   });
 
-  it("enters selection with the row picked on a long press", async () => {
+  it("enters selection with the row picked on a long press, showing the bar once released", async () => {
     vi.useFakeTimers();
     try {
       await act(async () => {
@@ -275,6 +275,13 @@ describe("dragging scripts on the Scripts page", () => {
         vi.advanceTimersByTime(600);
       });
       expect(selection.selected.value).toEqual(["Scripts/intro.sd"]);
+      const up = new MouseEvent("pointerup", { bubbles: true, clientX: 5, clientY: 5 });
+      Object.defineProperty(up, "pointerType", { value: "touch" });
+      await act(async () => {
+        rowButton("intro.sd")!.dispatchEvent(up);
+      });
+      expect(byLabel("Stop selecting")).toBeTruthy();
+      expect(byLabel("Folder path")).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -307,6 +314,7 @@ describe("dragging scripts on the Scripts page", () => {
         document.elementFromPoint = original;
       }
       expect(selection.selected.value).toEqual(["Scripts/Drafts"]);
+      expect(byLabel("Stop selecting")).toBeTruthy();
       expect(snackbar.value).toBeNull();
       expect(scripts.move).not.toHaveBeenCalled();
     } finally {
