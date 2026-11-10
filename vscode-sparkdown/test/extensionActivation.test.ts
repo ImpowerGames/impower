@@ -50,9 +50,6 @@ vi.mock("../src/utils/activateInspector", () => ({
 vi.mock("../src/utils/activateLanguageClient", () => ({
   activateLanguageClient: () => state.activated.push("activateLanguageClient"),
 }));
-vi.mock("../src/utils/activateNewlineHelper", () => ({
-  activateNewlineHelper: () => state.activated.push("activateNewlineHelper"),
-}));
 vi.mock("../src/utils/activateOutlineView", () => ({
   activateOutlineView: () => state.activated.push("activateOutlineView"),
 }));
