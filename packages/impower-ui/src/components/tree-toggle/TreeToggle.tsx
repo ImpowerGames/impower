@@ -1,10 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../utils/cn";
-import Button from "../button/Button";
 import { ChevronDownIcon } from "../icon/icons.generated";
 
 export const treeToggleVariants = cva(
-  "flex-none text-muted [&_svg]:size-3.5 [&_svg]:motion-safe:transition-transform [&_svg]:motion-safe:duration-180",
+  [
+    "relative control-overlay inline-flex size-11 flex-none cursor-pointer items-center justify-center rounded-control text-muted focus-inset",
+    "[&_svg]:size-3.5 [&_svg]:motion-safe:transition-transform [&_svg]:motion-safe:duration-180",
+  ],
   {
     variants: {
       expanded: {
@@ -33,9 +35,8 @@ export default function TreeToggle({
   class: className,
 }: TreeToggleProps) {
   return (
-    <Button
-      variant="quiet"
-      size="icon"
+    <button
+      type="button"
       class={cn(treeToggleVariants({ expanded }), className)}
       aria-expanded={expanded}
       aria-label={label}
@@ -43,6 +44,6 @@ export default function TreeToggle({
       onClick={onToggle}
     >
       <ChevronDownIcon />
-    </Button>
+    </button>
   );
 }
