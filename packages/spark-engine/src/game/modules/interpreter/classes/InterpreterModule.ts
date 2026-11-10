@@ -95,10 +95,6 @@ export class InterpreterModule extends Module<
     "queue",
     "await",
     "write",
-    "open",
-    "close",
-    "navigate",
-    "clear",
     "load",
   ];
 
@@ -841,6 +837,7 @@ export class InterpreterModule extends Module<
             "layout",
             LayoutVerb.open,
             "",
+            isLayoutVerb,
           );
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
@@ -962,6 +959,8 @@ export class InterpreterModule extends Module<
     tag: string,
     defaultControl: string,
     defaultTarget: string | undefined,
+    isControl: (word: string) => boolean = (word) =>
+      this.ASSET_CONTROL_KEYWORDS.includes(word),
   ): Chunk {
     let parts = assetTagContent
       .replaceAll("\t", " ")
@@ -971,7 +970,7 @@ export class InterpreterModule extends Module<
     let target = defaultTarget;
     const assets: string[] = [];
     const args: string[] = [];
-    if (parts[0] && this.ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
+    if (parts[0] && isControl(parts[0])) {
       control = parts[0];
       if (parts[1]) {
         target = parts[1];

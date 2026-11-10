@@ -27,6 +27,24 @@ const warnings = (log: ReturnType<typeof vi.spyOn>) =>
     .filter(([, severity]) => severity === "warning")
     .map(([message]) => String(message));
 
+const directiveFor = (verb: string) =>
+  verb === "navigate" ? `[[${verb} menu to hud]]` : `[[${verb} hud]]`;
+
+describe("every layout verb the grammar defines reaches the engine", () => {
+  test.each(LAYOUT_VERBS)("`[[%s ...]]` becomes a layout instruction with that control", async (verb) => {
+    const h = createHarness(
+      SOURCE.replace("  Hello.", `  ${directiveFor(verb)}\n  Hello.`),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    h.reset();
+    const beat = h.nextBeat();
+    expect(beat?.layout?.["hud"]?.map((e) => e.control)).toEqual([verb]);
+  });
+});
+
 describe("layout verbs the engine does not handle", () => {
   test("an unknown verb opens no layout and is reported once", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
