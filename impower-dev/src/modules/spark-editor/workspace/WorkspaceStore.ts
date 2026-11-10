@@ -10,6 +10,7 @@ import type {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
@@ -20,6 +21,7 @@ import type {
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
+import type { ImageSize } from "../utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
 import type { Reference } from "../utils/fileListModel";
 import {
@@ -55,6 +57,38 @@ export const IDLE_DEBUG_SESSION: DebugSessionState = {
   stackTrace: null,
   history: null,
   breakpoints: {},
+};
+
+export interface InspectedFrame {
+  id: number;
+  name: string;
+  uri: string;
+  line: number;
+  character: number;
+  path: string;
+  inProject: boolean;
+}
+
+export type WatchResult = { value: string } | { error: string };
+
+export interface DebugInspectionState {
+  status: "none" | "running" | "paused";
+  frames: readonly InspectedFrame[];
+  frameId: number | null;
+  variables: readonly DebugVariableNode[];
+  editing: string | null;
+  watch: ReadonlyMap<string, WatchResult>;
+  watchEditing: number | null;
+}
+
+export const IDLE_DEBUG_INSPECTION: DebugInspectionState = {
+  status: "none",
+  frames: [],
+  frameId: null,
+  variables: [],
+  editing: null,
+  watch: new Map(),
+  watchEditing: null,
 };
 
 const defaults: WorkspaceCache = {
@@ -161,6 +195,8 @@ class WorkspaceStore {
 
   readonly assetListing = signal<AssetListing | null>(null);
 
+  readonly assetSizes = signal<Readonly<Record<string, ImageSize | null>>>({});
+
   readonly search = signal<SearchSnapshot>(INITIAL_SEARCH);
 
   readonly searchPosition = signal<SearchPosition>(INITIAL_SEARCH_POSITION);
@@ -210,6 +246,12 @@ class WorkspaceStore {
   readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
 
   readonly debugSession = signal<DebugSessionState>(IDLE_DEBUG_SESSION);
+
+  readonly debugInspection = signal<DebugInspectionState>(IDLE_DEBUG_INSPECTION);
+
+  readonly watchExpressions = computed<readonly string[]>(
+    () => this.state.value.debug?.watch ?? [],
+  );
 
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),

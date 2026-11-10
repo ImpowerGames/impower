@@ -7,6 +7,7 @@ import {
   loadGrammarCorpus,
   treeLanguagesPerPosition,
 } from "./languageEquality";
+import { expectLanguagePin } from "./languagePins";
 
 const FIXTURES = loadGrammarCorpus();
 
@@ -95,10 +96,11 @@ describe("language at every cursor position: vscode-textmate and the tree reader
 
   describe("known differences, each tracked by its ticket", () => {
     test("I-2038: a declaration or reassignment followed by an `&` statement on its line", async () => {
-      const { divergences } = await compareLanguages(
+      await expectLanguagePin(
+        2038,
         "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
+        ["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"],
       );
-      expect(divergences.map((d) => d.lineCol)).toEqual(["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"]);
     });
 
     test.each([
@@ -112,8 +114,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       ],
       ["repeat\n  Hi.\nuntil a&b\nHello\n", ["3:7", "3:8", "3:9"]],
     ])("I-2038: an `&` after a declaration's, reassignment's or `until` condition's value, %j", async (source, positions) => {
-      const { divergences } = await compareLanguages(source);
-      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
+      await expectLanguagePin(2038, source, positions);
     });
 
     const span = (line: number, from: number, to: number) =>
@@ -145,8 +146,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       ["for i = 1, x else do\n  Hi.\nend\n", span(1, 13, 16)],
       ["for i = 1, x elseif do\n  Hi.\nend\n", span(1, 13, 18)],
     ])("I-2048: a structural word inside a marked interpolation, shorthand or condition, %j", async (source, positions) => {
-      const { divergences } = await compareLanguages(source);
-      expect(divergences.map((d) => d.lineCol)).toEqual(positions);
+      await expectLanguagePin(2048, source, positions);
     });
   });
 

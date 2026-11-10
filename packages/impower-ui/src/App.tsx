@@ -35,7 +35,13 @@ import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { textFieldGallery } from "./components/text-field/TextField.gallery";
 import { themeSwatchGallery } from "./components/theme-swatch/ThemeSwatch.gallery";
 import { toastGallery } from "./components/toast/Toast.gallery";
+import { treeToggleGallery } from "./components/tree-toggle/TreeToggle.gallery";
 import { virtualListGallery } from "./components/virtual-list/VirtualList.gallery";
+import { thumbnailGallery } from "./components/thumbnail/Thumbnail.gallery";
+import { folderCoverGallery } from "./components/folder-cover/FolderCover.gallery";
+import { variantsChipGallery } from "./components/variants-chip/VariantsChip.gallery";
+import { variantsBadgeGallery } from "./components/variants-badge/VariantsBadge.gallery";
+import { tileGallery } from "./components/tile/Tile.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
@@ -75,7 +81,13 @@ export const galleryEntries: readonly GalleryEntry[] = [
   textFieldGallery,
   themeSwatchGallery,
   toastGallery,
+  treeToggleGallery,
   virtualListGallery,
+  thumbnailGallery,
+  folderCoverGallery,
+  variantsChipGallery,
+  variantsBadgeGallery,
+  tileGallery,
 ];
 
 export function App() {

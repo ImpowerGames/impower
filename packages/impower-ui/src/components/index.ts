@@ -58,6 +58,7 @@ export {
   type ListRowProps,
   type ListRowBadgeProps,
   type ListRowSize,
+  type ListRowDescriptionFit,
   type ListRowState,
   type ListRowTone,
   type ListRowLabelOverflow,
@@ -82,6 +83,7 @@ export {
   PanelCardHead,
   PanelCardRow,
   PanelCardAction,
+  PanelCardNote,
   panelCardHeadVariants,
   panelCardRowVariants,
   PANEL_CARD_HEIGHT,
@@ -89,15 +91,23 @@ export {
   type PanelCardRowProps,
   type PanelCardRowPart,
   type PanelCardActionProps,
+  type PanelCardNoteProps,
 } from "./panel-card/PanelCard";
 export {
   default as VirtualList,
   virtualListVariants,
   virtualListSlotVariants,
   VIRTUAL_LIST_ROW_HEIGHT,
+  virtualListColumns,
+  type VirtualListGrid,
   type VirtualListProps,
   type VirtualListSize,
 } from "./virtual-list/VirtualList";
+export {
+  default as TreeToggle,
+  treeToggleVariants,
+  type TreeToggleProps,
+} from "./tree-toggle/TreeToggle";
 export {
   default as SparkLogo,
   sparkLogoVariants,
@@ -303,3 +313,43 @@ export {
   type TabbedPageTab,
   type TabbedPageVariantProps,
 } from "./tabbed-page/TabbedPage";
+export {
+  default as Thumbnail,
+  thumbnailVariants,
+  thumbnailImageVariants,
+  type ThumbnailProps,
+  type ThumbnailSize,
+  type ThumbnailFit,
+} from "./thumbnail/Thumbnail";
+export {
+  default as FolderCover,
+  folderCoverVariants,
+  FOLDER_COVER_LIMIT,
+  type FolderCoverProps,
+  type FolderCoverCount,
+} from "./folder-cover/FolderCover";
+export {
+  default as VariantsChip,
+  variantsChipVariants,
+  variantsLabel,
+  type VariantsChipProps,
+  type VariantsChipSize,
+} from "./variants-chip/VariantsChip";
+export {
+  default as VariantsBadge,
+  variantsBadgeVariants,
+  type VariantsBadgeProps,
+  type VariantsBadgeSize,
+} from "./variants-badge/VariantsBadge";
+export {
+  default as Tile,
+  tileVariants,
+  tileMediaVariants,
+  tileLabelVariants,
+  tileHeight,
+  TILE_GAP,
+  TILE_MIN_WIDTH,
+  type TileProps,
+  type TileShape,
+  type TileKind,
+} from "./tile/Tile";

@@ -22,6 +22,10 @@ import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
+import {
+  LayoutVerb,
+  isLayoutVerb,
+} from "../../../../language/sparkdown.layout-verbs";
 import type { SparkDeclaration } from "../../types/SparkDeclaration";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { SparkSelector } from "../../types/SparkSelector";
@@ -54,6 +58,7 @@ export interface Reference {
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
   asset?: { types: string[]; name: string; typed?: boolean };
+  root?: number;
 }
 
 export const DEFINE_ASSET_TYPES = ["image", "layered_image", "filtered_image"];
@@ -110,6 +115,38 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const PROPERTY_NAME = nodeNameSet(["LuauPropertyName"]);
+const VARIABLE = nodeNameSet(["LuauVariable"]);
+const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
+
+function isTrivia(node: SyntaxNode): boolean {
+  return node.name.endsWith("Whitespace") || node.name.endsWith("Comment");
+}
+
+function significantBefore(node: SyntaxNode): SyntaxNode | null {
+  let sibling = node.prevSibling;
+  while (sibling && isTrivia(sibling)) sibling = sibling.prevSibling;
+  return sibling;
+}
+
+function significantAfter(node: SyntaxNode): SyntaxNode | null {
+  let sibling = node.nextSibling;
+  while (sibling && isTrivia(sibling)) sibling = sibling.nextSibling;
+  return sibling;
+}
+
+function lineContinuationAfter(node: SyntaxNode): SyntaxNode | null {
+  for (let current: SyntaxNode | null = node; current?.parent; current = current.parent) {
+    let next = current.nextSibling;
+    while (next && (isTrivia(next) || next.name === "Newline" || next.name.endsWith("_end"))) {
+      next = next.nextSibling;
+    }
+    if (next) return isExplicitRuleName(next.name, "LuauLineContinuation") ? next : null;
+  }
+  return null;
+}
+
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 const PARAMETER_OWNER = nodeNameSet([
   "LuauFunctionDefinition",
@@ -150,9 +187,6 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauTheme: "theme",
   LuauMorph: "morph",
 };
-
-const LAYOUT_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
 const LOAD_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
@@ -270,6 +304,89 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             : [],
       kind: "write",
     }).range(from, to);
+  }
+
+  private pushSegments(
+    annotations: Range<SparkdownAnnotation<Reference>>[],
+    root: SyntaxNode,
+    path: string[],
+    first: SyntaxNode | null,
+  ): boolean {
+    for (let part = first; part; part = part.nextSibling) {
+      if (isTrivia(part)) continue;
+      const accessor = isExplicitRuleName(part.name, "LuauAccessPart") ? part.firstChild : part;
+      const segment = accessor && this.segmentName(accessor);
+      if (!segment) return false;
+      path.push(this.read(segment.from, segment.to));
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: [path.join(".")],
+          kind: "read",
+          root: segment.from - root.from,
+        }).range(segment.from, segment.to),
+      );
+    }
+    return true;
+  }
+
+  private segmentName(accessor: SyntaxNode): SyntaxNode | null {
+    if (accessor.name === "LuauPropertyAccessor") {
+      return firstDescendant(accessor, PROPERTY_NAME);
+    }
+    if (accessor.name === "LuauPropertyIndexer") {
+      const content = findChildByName(accessor, "LuauPropertyIndexer_content");
+      const index: SyntaxNode[] = [];
+      for (let child = content?.firstChild; child; child = child.nextSibling) {
+        if (!isTrivia(child)) index.push(child);
+      }
+      const string = index.length === 1 && STRING_INDEX.has(index[0]!.name) ? index[0]! : null;
+      const name = string && findChildByName(string, `${string.name}_content`);
+      if (name && IDENTIFIER.test(this.read(name.from, name.to))) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  private pushAccessPathSegments(
+    annotations: Range<SparkdownAnnotation<Reference>>[],
+    root: SyntaxNode,
+    name: string,
+  ) {
+    const part = ancestorMatching(root, VARIABLE, 2)?.parent;
+    const path = part?.parent?.parent;
+    if (
+      !part ||
+      !path ||
+      !isExplicitRuleName(part.name, "LuauAccessPart") ||
+      !isExplicitRuleName(path.name, "LuauAccessPath") ||
+      !onlyTrivia(part.prevSibling, "prevSibling")
+    ) {
+      return;
+    }
+    if (definePropertyReference(path)?.property && DEFINE_ASSET_TYPES.includes(name)) return;
+    const segments = [name];
+    if (!this.pushSegments(annotations, root, segments, part.nextSibling)) return;
+    let first: SyntaxNode = path;
+    let last: SyntaxNode = path;
+    for (;;) {
+      const next = significantAfter(last);
+      if (next && isExplicitRuleName(next.name, "LuauChainedPropertyAccess")) {
+        const content = findChildByName(next, `${next.name}_content`);
+        if (!this.pushSegments(annotations, root, segments, content?.firstChild ?? null)) return;
+        last = next;
+        continue;
+      }
+      if (next && next.name !== "Newline") return;
+      if (!next && first.parent?.name === "LuauParenthetical_content" && !significantBefore(first)) {
+        first = last = first.parent.parent!;
+        continue;
+      }
+      const continuation = lineContinuationAfter(last);
+      const content = continuation && findChildByName(continuation, `${continuation.name}_content`);
+      if (!content || !this.pushSegments(annotations, root, segments, content.firstChild)) return;
+      first = last = continuation;
+    }
   }
 
   private typeNameSelector(type: string): SparkSelector[] {
@@ -627,6 +744,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           ...(asset ? { asset } : {}),
         }).range(nodeRef.from, nodeRef.to),
       );
+      this.pushAccessPathSegments(annotations, nodeRef.node, name);
       return annotations;
     }
     if (nodeRef.name === "LuauPropertyName") {
@@ -639,6 +757,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           const name = this.read(nodeRef.from, nodeRef.to);
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
+              symbolIds: [`${type}.${name}`],
               kind: "read",
               asset: { types: [type], name, typed: true },
             }).range(nodeRef.from, nodeRef.to),
@@ -673,7 +792,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const control = controlNode
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
-        if (control === "navigate") {
+        if (control === LayoutVerb.navigate) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["screen"], name, displayType: "screen" }],
@@ -684,7 +803,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           );
           return annotations;
         }
-        if (LAYOUT_CONTROL_KEYWORDS.includes(control)) {
+        if (isLayoutVerb(control)) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["layout"], name, displayType: "layout" }],
@@ -871,7 +990,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           const control = controlNode
             ? this.read(controlNode.from, controlNode.to).trim()
             : "";
-          if (control === "navigate") {
+          if (control === LayoutVerb.navigate) {
             annotations.push(
               SparkdownAnnotation.mark<Reference>({
                 selectors: [{ types: ["layout"], name, displayType: "layout" }],

@@ -52,16 +52,19 @@ import {
   applyStartValues,
   bindStartArguments,
   carryStoreListing,
+  globalsDeclaredBy,
   startPlanKey,
   startPlanOf,
   startStoryAt,
   startingValueListing,
   startingValueTargets,
+  valueOfLiteral,
   type StartPlan,
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
 import {
   ownEntry,
+  parseLiteral,
   type StartingValueListing,
   type StartingValueSet,
   type StartingValues,
@@ -102,6 +105,7 @@ import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
 import {
+  NullValue,
   ObjectValue,
   VariablePointerValue,
 } from "@impower/sparkdown/src/runtime/Value";
@@ -218,6 +222,13 @@ const restsAfter = (
   );
 };
 
+interface VariableOrigin {
+  scope: "vars" | "temps";
+  threadId?: number;
+  frameId?: number;
+  path: string[];
+}
+
 const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
     return false;
@@ -233,6 +244,21 @@ const isEvaluable =(value: unknown, depth = 0): boolean => {
   );
 };
 
+export const evaluationRecord = (
+  values: ReadonlyMap<string, unknown>,
+): Record<string, unknown> => {
+  const record: Record<string, unknown> = Object.create(null);
+  for (const [key, value] of values) {
+    Object.defineProperty(record, key, {
+      value: value instanceof Map ? evaluationRecord(value) : value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  }
+  return record;
+};
+
 const sameLocation = (
   a: ScriptLocation | null | undefined,
   b: ScriptLocation | null | undefined,
@@ -242,6 +268,14 @@ const sameLocation = (
   }
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
+
+const drawsSettled = (beat: Instructions): boolean =>
+  !beat.load?.length &&
+  !beat.cutscene?.length &&
+  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
+  Object.entries(beat.audio ?? {}).every(
+    ([target, events]) => target === "typewriter" || events.length === 0,
+  );
 
 interface Stage {
   text: string[];
@@ -453,6 +487,8 @@ export class Game<T extends M = {}> {
   protected _nextObjectVariableRef = 2000;
 
   protected _objectVariableRefMap = new Map<number, object>();
+
+  protected _objectVariableOrigins = new Map<number, VariableOrigin>();
 
   protected _tableRecords = new WeakMap<object, string[]>();
 
@@ -2728,7 +2764,9 @@ export class Game<T extends M = {}> {
     }
     this.noteShownChoices(beat.shown);
     this._shownBeatOnScreen = beat.shown;
-    this._coordinator = new Coordinator(this, beat.shown, { settled: true });
+    this._coordinator = new Coordinator(this, beat.shown, {
+      settled: "restored",
+    });
     this.connection.emit(
       GameRolledMessage.type.notification({ restored, history }),
     );
@@ -3506,48 +3544,16 @@ export class Game<T extends M = {}> {
       }
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
+        if (traversal !== "continue" && this.presentsAtStop()) {
+          this.notifyStepped();
+          return true;
+        }
         const instructions = this.module.interpreter.flush();
         if (this._holdingFlush) {
           this._held = { instructions: instructions ?? null };
           return true;
         }
-        const ending = this.storyEnding(instructions ?? null);
-        if (instructions) {
-          this._coordinator = new Coordinator(this, instructions);
-          if (this._simulation !== "simulating") {
-            this.noteShownChoices(instructions);
-            this._shownBeatOnScreen = instructions;
-          } else {
-            this._shownBeat = instructions;
-          }
-          if (
-            !ending &&
-            !this._coordinator.shouldContinue() &&
-            this._simulation !== "simulating" &&
-            (!(instructions.load || instructions.cutscene) ||
-              (instructions.choices?.length ?? 0) > 0)
-          ) {
-            this.notifyAwaitingInteraction(
-              (instructions.choices?.length ?? 0) > 0,
-            );
-          }
-        }
-        if (instructions || this._simulation !== "simulating") {
-          this.checkpoint();
-        }
-        if (instructions && this.recordsRun()) {
-          this.recordBeat(instructions);
-        }
-        if (
-          instructions &&
-          this._sceneSaveDue !== null &&
-          this._simulation !== "simulating"
-        ) {
-          this.writeSceneSave();
-        }
-        if (ending) {
-          this.endStory(ending);
-        }
+        this.showBeat(instructions ?? null, false);
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
@@ -3701,6 +3707,68 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected showBeat(instructions: Instructions | null, settled: boolean) {
+    const ending = this.storyEnding(instructions);
+    if (instructions) {
+      this._coordinator = new Coordinator(this, instructions, {
+        settled: settled ? "presented" : undefined,
+      });
+      if (this._simulation !== "simulating") {
+        this.noteShownChoices(instructions);
+        this._shownBeatOnScreen = instructions;
+      } else {
+        this._shownBeat = instructions;
+      }
+      if (
+        !ending &&
+        !this._coordinator.shouldContinue() &&
+        this._simulation !== "simulating" &&
+        (!(instructions.load || instructions.cutscene) ||
+          (instructions.choices?.length ?? 0) > 0)
+      ) {
+        this.notifyAwaitingInteraction(
+          (instructions.choices?.length ?? 0) > 0,
+        );
+      }
+    }
+    if (instructions || this._simulation !== "simulating") {
+      this.checkpoint();
+    }
+    if (instructions && this.recordsRun()) {
+      this.recordBeat(instructions);
+    }
+    if (
+      instructions &&
+      this._sceneSaveDue !== null &&
+      this._simulation !== "simulating"
+    ) {
+      this.writeSceneSave();
+    }
+    if (ending) {
+      this.endStory(ending);
+    }
+  }
+
+  protected presentsAtStop(): boolean {
+    return (
+      this._state === "running" &&
+      this._simulation !== "simulating" &&
+      !this._holdingFlush &&
+      !this._run.behindLatest &&
+      this.module.interpreter.hasQueuedBeats
+    );
+  }
+
+  protected stopAt(reason: HeldStop["reason"]) {
+    this._announcedStop = true;
+    this.holdStop(reason);
+    if (this.presentsAtStop()) {
+      const beat = this.module.interpreter.flush()!;
+      this.showBeat(beat, drawsSettled(beat));
+      this.pause();
+    }
+  }
+
   autoAdvancedToContinue() {
     if (this._ending || this._run.behindLatest) {
       return;
@@ -3795,9 +3863,8 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyHitBreakpoint() {
-    this._announcedStop = true;
+    this.stopAt("breakpoint");
     this._run.markHeld();
-    this.holdStop("breakpoint");
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4014,12 +4081,12 @@ export class Game<T extends M = {}> {
       });
     const pinned = this.pinnedOptions;
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(
+    const reported = routeDecisions(route, lineOf, structureOf, pinned);
+    const forcedLines = this.forcedLinesOf(
       route,
-      lineOf,
-      structureOf,
-      pinned,
-    )) {
+      reported.find((decision) => decision.kind === "forced")?.override,
+    );
+    for (const decision of reported) {
       const location = decision.loop
         ? this.lineLocation(
             this.scriptUri(decision.loop.script),
@@ -4088,7 +4155,51 @@ export class Game<T extends M = {}> {
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
+      ...(forcedLines ? { forcedLines } : {}),
     };
+  }
+
+  protected forcedLinesOf(
+    route: RoutePlan,
+    override: number | undefined,
+  ): Record<string, number[]> | undefined {
+    const decision = override === undefined ? undefined : route.decisions[override];
+    if (override === undefined || !decision) {
+      return undefined;
+    }
+    const lineKeys = (address: ProgramAddress): string[] => {
+      const at = this.scriptLocationOf(address);
+      const keys: string[] = [];
+      for (let line = at?.[1] ?? 0; at && line <= at[3]; line++) {
+        keys.push(`${at[0]}:${line}`);
+      }
+      return keys;
+    };
+    const before = new Set<string>(lineKeys(decision.site));
+    const after = new Set<string>();
+    for (const step of route.steps) {
+      for (const key of lineKeys(step.address)) {
+        (step.decision < override ? before : after).add(key);
+      }
+    }
+    const lines = new Map<number, number[]>();
+    for (const key of after) {
+      if (before.has(key)) {
+        continue;
+      }
+      const [script, line] = key.split(":").map(Number) as [number, number];
+      const list = lines.get(script) ?? [];
+      list.push(line);
+      lines.set(script, list);
+    }
+    if (lines.size === 0) {
+      return undefined;
+    }
+    const ranges: Record<string, number[]> = {};
+    for (const [script, list] of lines) {
+      ranges[this.scriptUri(script)] = lineRanges(list);
+    }
+    return ranges;
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {
@@ -4192,8 +4303,7 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStepped() {
-    this._announcedStop = true;
-    this.holdStop("step");
+    this.stopAt("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
@@ -4202,8 +4312,24 @@ export class Game<T extends M = {}> {
     );
   }
 
-  getEvaluationContext(threadId?: number, frameId?: number) {
-    const context: any = {};
+  getEvaluationContext(threadId?: number, frameId?: number, named?: string): any {
+    return evaluationRecord(this.getEvaluationValues(threadId, frameId, named));
+  }
+
+  getEvaluationValues(
+    threadId?: number,
+    frameId?: number,
+    named?: string,
+  ): Map<string, unknown> {
+    const context = new Map<string, unknown>();
+    const read = (valueObj: InkObject | null) =>
+      named === undefined
+        ? this.getRuntimeValue(valueObj)
+        : this.plainValue(valueObj);
+    const keep = (valueObj: InkObject | null, value: unknown) =>
+      named === undefined
+        ? isEvaluable(value) && !this.isTableRecord(value)
+        : valueObj instanceof ObjectValue || isEvaluable(value);
     const variableState = this._story.state.variablesState;
     const callStack = variableState.callStack;
     const thread =
@@ -4212,13 +4338,16 @@ export class Game<T extends M = {}> {
       ? thread.callstack[frameId ?? thread.callstack.length - 1]
       : undefined;
     for (const name of variableState["_globalVariables"].keys()) {
+      if (named !== undefined && name !== named) {
+        continue;
+      }
       const valueObj =
         selected && thread
           ? this.valueInFrame(thread, selected, name)
           : variableState.GetVariableWithName(name);
-      const value = this.getRuntimeValue(valueObj);
-      if (isEvaluable(value) && !this.isTableRecord(value)) {
-        context[name] = value;
+      const value = read(valueObj);
+      if (keep(valueObj, value)) {
+        context.set(name, value);
       }
     }
     const contextThread = selected && thread ? thread : callStack.currentThread;
@@ -4226,19 +4355,50 @@ export class Game<T extends M = {}> {
       selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     for (const scope of contextElement?.temporaryScopes ?? []) {
       for (const [name, scoped] of scope) {
+        if (named !== undefined && name !== named) {
+          continue;
+        }
         const valueObj =
           scoped instanceof VariablePointerValue
             ? this.valueAtPointerInThread(contextThread, scoped)
             : scoped;
-        const value = this.getRuntimeValue(valueObj);
-        if (isEvaluable(value) && !this.isTableRecord(value)) {
-          context[name] = value;
+        const value = read(valueObj);
+        if (keep(valueObj, value)) {
+          context.set(name, value);
         } else {
-          delete context[name];
+          context.delete(name);
         }
       }
     }
     return context;
+  }
+
+  protected plainValue(
+    valueObj: InkObject | null,
+    within: ReadonlySet<InkObject> = new Set(),
+  ): unknown {
+    if (!(valueObj instanceof ObjectValue)) {
+      return this.getRuntimeValue(valueObj);
+    }
+    const path = new Set(within).add(valueObj);
+    const table = new Map<string, unknown>();
+    for (const [key, entry] of valueObj.value ?? []) {
+      if (entry instanceof ObjectValue && (path.has(entry) || path.size > 8)) {
+        continue;
+      }
+      if (entry instanceof ObjectValue) {
+        table.set(key, this.plainValue(entry, path));
+        continue;
+      }
+      const plain =
+        entry && typeof entry === "object" && "value" in entry
+          ? entry.value
+          : entry;
+      if (isEvaluable(plain)) {
+        table.set(key, plain);
+      }
+    }
+    return table;
   }
 
   protected valueInFrame(
@@ -4268,11 +4428,38 @@ export class Game<T extends M = {}> {
     );
   }
 
+  protected _storyGlobals?: { root: unknown; names: Set<string> };
+
+  protected storyGlobalNames(): Set<string> {
+    const root = this._story.root;
+    if (this._storyGlobals?.root !== root) {
+      const names = new Set<string>();
+      for (const uri of Object.keys(this._program.scripts ?? {})) {
+        for (const chunk of root?.declarations(uri)?.arrays.chunks ?? []) {
+          for (const name of globalsDeclaredBy(root!, chunk)) {
+            names.add(name);
+          }
+        }
+      }
+      this._storyGlobals = { root, names };
+    }
+    return this._storyGlobals.names;
+  }
+
   getVarVariables(): Variable[] {
+    return this.globalVariables(true);
+  }
+
+  getBuiltinVariables(): Variable[] {
+    return this.globalVariables(false);
+  }
+
+  protected globalVariables(story: boolean): Variable[] {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
+    const declared = this.storyGlobalNames();
     for (const name of variableState["_globalVariables"].keys()) {
-      if (name.indexOf("$") > 0) {
+      if (name.indexOf("$") > 0 || declared.has(name) !== story) {
         continue;
       }
       const globalObj = variableState.GetGlobalVariableValue(name);
@@ -4283,10 +4470,16 @@ export class Game<T extends M = {}> {
       const value = this.getRuntimeValue(valueObj);
       if (value !== undefined) {
         variables.push(
-          this.getVariableInfo(name, value, {
-            kind: "data",
-            visibility: "public",
-          }),
+          this.getVariableInfo(
+            name,
+            value,
+            {
+              kind: "data",
+              visibility: "public",
+            },
+            undefined,
+            story ? { scope: "vars", path: [name] } : undefined,
+          ),
         );
       }
     }
@@ -4308,10 +4501,8 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  getTempVariables(threadId?: number, frameId?: number): Variable[] {
-    const variables: Variable[] = [];
-    const variableState = this._story.state.variablesState;
-    const callStack = variableState.callStack;
+  protected tempFrame(threadId?: number, frameId?: number) {
+    const callStack = this._story.state.variablesState.callStack;
     const thread =
       threadId != null
         ? callStack.ThreadWithIndex(threadId)
@@ -4321,7 +4512,118 @@ export class Game<T extends M = {}> {
       (threadId != null && thread
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
-    const contextElement = thread?.callstack[frameIndex];
+    return { thread, frameIndex, element: thread?.callstack[frameIndex] };
+  }
+
+  setVariable(
+    scope: "vars" | "temps",
+    name: string,
+    text: string,
+    threadId?: number,
+    frameId?: number,
+  ): Variable {
+    const value = this.literalValue(text);
+    const variableState = this._story.state.variablesState;
+    if (scope === "vars") {
+      if (
+        name.includes("$") ||
+        !variableState.GlobalVariableExistsWithName(name)
+      ) {
+        throw new Error(`${name} is not a story value.`);
+      }
+      variableState.SetGlobal(name, value);
+    } else {
+      const scopes = this.tempFrame(threadId, frameId).element?.temporaryScopes ?? [];
+      const held = name.includes("$")
+        ? undefined
+        : scopes.findLast((scoped) => scoped.has(name));
+      if (!held) {
+        throw new Error(`${name} is not a local value in this frame.`);
+      }
+      if (held.get(name) instanceof VariablePointerValue) {
+        throw new Error(`Change ${name} where it is declared.`);
+      }
+      held.set(name, value);
+    }
+    return this.getVariableInfo(name, this.getRuntimeValue(value), {
+      kind: "data",
+      visibility: scope === "vars" ? "public" : "private",
+    });
+  }
+
+  setChildVariable(varRef: number, key: string, text: string): Variable {
+    const origin = this._objectVariableOrigins.get(varRef);
+    if (!origin) {
+      throw new Error("Only story and local values can be changed.");
+    }
+    const value = this.literalValue(text);
+    let table: unknown = this.originValue(origin);
+    for (const field of origin.path.slice(1)) {
+      table =
+        table instanceof ObjectValue
+          ? (table.value as Map<string, InkObject>).get(field)
+          : undefined;
+    }
+    const where = origin.path.join(".");
+    if (!(table instanceof ObjectValue)) {
+      throw new Error(`${where} is no longer a table.`);
+    }
+    const entries = table.value as Map<string, InkObject>;
+    if (!entries.has(key)) {
+      throw new Error(`${key} is not in ${where}.`);
+    }
+    if (table.isFrozen) {
+      throw new Error(`${where} is read-only.`);
+    }
+    const variableState = this._story.state.variablesState;
+    variableState.WriteBarrier(table);
+    if (value instanceof NullValue) {
+      entries.delete(key);
+    } else {
+      entries.set(key, value);
+    }
+    if (variableState.reactiveDepsEnabled) {
+      variableState.recordReactiveTableChange(entries);
+    }
+    return this.getVariableInfo(key, this.getRuntimeValue(value), {
+      kind: "property",
+      visibility: "public",
+    });
+  }
+
+  protected literalValue(text: string) {
+    const parsed = parseLiteral(text);
+    if (!parsed.ok) {
+      throw new Error(
+        `${parsed.error.charAt(0).toUpperCase()}${parsed.error.slice(1)}.`,
+      );
+    }
+    return valueOfLiteral(parsed.value);
+  }
+
+  protected originValue(origin: VariableOrigin): InkObject | null {
+    const name = origin.path[0]!;
+    const variableState = this._story.state.variablesState;
+    if (origin.scope === "vars") {
+      const globalObj = variableState.GetGlobalVariableValue(name);
+      return globalObj instanceof VariablePointerValue
+        ? variableState.ValueAtVariablePointer(globalObj)
+        : globalObj;
+    }
+    const { thread, element } = this.tempFrame(origin.threadId, origin.frameId);
+    const held = element?.temporaryScopes.findLast((scoped) => scoped.has(name));
+    const scoped = held?.get(name) ?? null;
+    return scoped instanceof VariablePointerValue && thread
+      ? this.valueAtPointerInThread(thread, scoped)
+      : scoped;
+  }
+
+  getTempVariables(threadId?: number, frameId?: number): Variable[] {
+    const variables: Variable[] = [];
+    const { thread, frameIndex, element: contextElement } = this.tempFrame(
+      threadId,
+      frameId,
+    );
     const programScope = this._story.debugFrames(thread?.threadIndex ?? 0)?.[
       frameIndex
     ]?.scope;
@@ -4347,6 +4649,7 @@ export class Game<T extends M = {}> {
                   visibility: "private",
                 },
                 scopePath,
+                { scope: "temps", threadId, frameId, path: [name] },
               ),
             );
           }
@@ -4413,13 +4716,20 @@ export class Game<T extends M = {}> {
     } else if (typeof value === "object" && value) {
       const tableKeys = this._tableRecords.get(value);
       const record = value as Record<string, unknown>;
+      const origin = tableKeys ? this._objectVariableOrigins.get(varRef) : undefined;
       for (const k of tableKeys ?? Object.keys(record)) {
         if (tableKeys || !k.startsWith("$")) {
           variables.push(
-            this.getVariableInfo(k, record[k], {
-              kind: "property",
-              visibility: "public",
-            }),
+            this.getVariableInfo(
+              k,
+              record[k],
+              {
+                kind: "property",
+                visibility: "public",
+              },
+              undefined,
+              origin ? { ...origin, path: [...origin.path, k] } : undefined,
+            ),
           );
         }
       }
@@ -4491,6 +4801,7 @@ export class Game<T extends M = {}> {
     value: unknown,
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
+    origin?: VariableOrigin,
   ): Variable {
     if (value instanceof ObjectValue) {
       value = this.getTableRecord(value);
@@ -4499,6 +4810,9 @@ export class Game<T extends M = {}> {
     if (typeof value === "object" && value != null) {
       variablesReference = this._nextObjectVariableRef;
       this._objectVariableRefMap.set(variablesReference, value);
+      if (origin && this.isTableRecord(value)) {
+        this._objectVariableOrigins.set(variablesReference, origin);
+      }
       this._nextObjectVariableRef++;
     }
     const indexedVariables =
@@ -4554,6 +4868,7 @@ export class Game<T extends M = {}> {
 
   clearVariableReferences() {
     this._objectVariableRefMap.clear();
+    this._objectVariableOrigins.clear();
     this._nextObjectVariableRef = 2000;
   }
 

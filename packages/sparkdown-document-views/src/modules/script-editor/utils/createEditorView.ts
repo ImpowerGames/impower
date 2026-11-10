@@ -49,6 +49,7 @@ import {
   breakpointStatesSet,
   getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
+import { breakpointMenu } from "../../../cm-breakpoints/breakpointMenu";
 import { foldedField } from "../../../cm-folded/foldedField";
 import {
   getHighlightLineNumbers,
@@ -62,6 +63,10 @@ import {
   pinpointsChanged,
   pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
+import {
+  choiceMarkerActions,
+  type ChoiceMarkerHandler,
+} from "../../../cm-choice-markers/choiceMarkers";
 import {
   getRoutePins,
   routePins,
@@ -164,6 +169,7 @@ interface EditorConfig {
   ) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
+  onChoiceMark?: ChoiceMarkerHandler;
   onHeightChanged?: () => void;
   hoverValue?: HoverValueSource;
   onCompletionPreview?: (
@@ -353,6 +359,7 @@ const createEditorView = (
           return decorations;
         }),
         routePins(config?.routePins ?? [], initialText),
+        config.onChoiceMark ? choiceMarkerActions.of(config.onChoiceMark) : [],
         sparkdownLanguageExtension({
           textDocument,
           serverWorker,
@@ -522,6 +529,7 @@ const createEditorView = (
         ),
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
+        breakpointMenu(),
         config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
         config.tools ? editorToolCommands.of(config.tools) : [],
         config.onChangeColor ? presentColorPicker(config.onChangeColor) : [],

@@ -140,7 +140,8 @@
     "LAYOUT_CONTROL_KEYWORDS": [
       "open",
       "close",
-      "navigate"
+      "navigate",
+      "clear"
     ],
     "LOAD_CONTROL_KEYWORDS": [
       "load"
@@ -455,6 +456,7 @@
     "CHAIN": "(?:[\\\\])",
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
     "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))",
+    "DIALOGUE_CHARACTER_NAME_CHARACTER": "(?:\\\\.|[/](?![/](?:$|{{WS}}))|[^{}:/\\\\\\r\\n])",
     "LEADING_GLUE": "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})",
     "INLINE_LEADING_GLUE": "(?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})",
     "ALTERNATOR_GLUE": "(?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))",
@@ -3585,7 +3587,7 @@
     "BlockDialogue": {
       "tag": "definition(string)",
       "name": "string.display.dialogue.block.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "begin": "^((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[/](?![/](?:$|(?:[^\\S\\n\\r])))|[^{}:/\\\\\\r\\n])+)((?<!\\\\)[:])((?:[^\\S\\n\\r])*)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3641,7 +3643,7 @@
     "InlineDialogue": {
       "tag": "definition(string)",
       "name": "string.display.dialogue.inline.sd",
-      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*)?(?:\\b(?:queue|cycle|chain)\\b)?(?:[^\\S\\n\\r])*(?=[|])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
+      "begin": "((?:[^\\S\\n\\r])*)((?=\\S)(?:\\\\.|[/](?![/](?:$|(?:[^\\S\\n\\r])))|[^{}:/\\\\\\r\\n])+)((?<!\\\\)[:])($|(?:[^\\S\\n\\r])+)((?:(?!(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(?:\\b(?:shuffle)\\b)(?:[^\\S\\n\\r])*)?(?:\\b(?:queue|cycle|chain)\\b)?(?:[^\\S\\n\\r])*(?=[|])|(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*(?=[(]))))(?:[.][.](?![.]))))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4729,7 +4731,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate)\\b|\\b(?:load)\\b|\\b(?:play)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate|clear)\\b|\\b(?:load)\\b|\\b(?:play)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
       "captures": {
         "1": {
           "patterns": [

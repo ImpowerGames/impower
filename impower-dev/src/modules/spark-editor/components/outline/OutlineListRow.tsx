@@ -1,14 +1,12 @@
 import {
   BranchIcon,
-  Button,
-  ChevronDownIcon,
-  ChevronIcon,
   ChooseIcon,
   ErrorIcon,
   FileIcon,
   ListRow,
   ListRowBadge,
   SceneIcon,
+  TreeToggle,
   WarningIcon,
   type ListRowSize,
   type ListRowTone,
@@ -97,27 +95,6 @@ function RowIcon({ row }: { row: OutlineRow }) {
   return <Glyph />;
 }
 
-function Disclosure({ uri, row }: { uri: string; row: OutlineRow }) {
-  const label = `${row.expanded ? "Collapse" : "Expand"} scene ${row.label}`;
-  return (
-    <Button
-      variant="quiet"
-      size="icon"
-      class="text-muted [&_svg]:size-3.5"
-      aria-expanded={row.expanded}
-      aria-label={label}
-      title={label}
-      onClick={() =>
-        withWindow((win) =>
-          win.setOutlineSceneCollapsed(uri, row.scene!, !!row.expanded),
-        )
-      }
-    >
-      {row.expanded ? <ChevronDownIcon /> : <ChevronIcon />}
-    </Button>
-  );
-}
-
 export default function OutlineListRow({
   uri,
   row,
@@ -156,7 +133,15 @@ export default function OutlineListRow({
       }
       actions={
         collapsible && row.expanded !== undefined ? (
-          <Disclosure uri={uri} row={row} />
+          <TreeToggle
+            expanded={!!row.expanded}
+            label={`${row.expanded ? "Collapse" : "Expand"} scene ${row.label}`}
+            onToggle={() =>
+              withWindow((win) =>
+                win.setOutlineSceneCollapsed(uri, row.scene!, !!row.expanded),
+              )
+            }
+          />
         ) : undefined
       }
     />

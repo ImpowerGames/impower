@@ -20,6 +20,7 @@ import {
   plural,
   toProblems,
   type ConsoleEntry,
+  type CardName,
   type ConsoleSeverity,
   type PanelCard,
   type PlayedEntry,
@@ -42,10 +43,15 @@ export type PlayedSource = (message: unknown) => ConsoleEntry | null;
 
 export type PanelSource = (message: unknown) => boolean | null;
 
+export type PreviewPanel = "problems" | "route";
+
 const CARD_SETTING = {
   script: "problemsScriptCardOpen",
   played: "problemsPlayedCardOpen",
-} as const;
+  variables: "problemsVariablesCardOpen",
+  watch: "problemsWatchCardOpen",
+  callStack: "problemsCallStackCardOpen",
+} as const satisfies Record<CardName, string>;
 
 export class ProblemsStore {
   readonly diagnostics = signal<
@@ -86,11 +92,24 @@ export class ProblemsStore {
       PANEL_BAR_HEIGHT,
   );
 
-  readonly cards = computed<Readonly<Record<PanelCard, boolean>>>(() => {
+  readonly panelShows = signal<PreviewPanel>("problems");
+
+  readonly problemsShown = computed(
+    () => this.panelOpen.value && this.panelShows.value === "problems",
+  );
+
+  readonly routeShown = computed(
+    () => this.panelOpen.value && this.panelShows.value === "route",
+  );
+
+  readonly cards = computed<Readonly<Record<CardName, boolean>>>(() => {
     const settings = workspaceSettings.projectSettings.value;
     return {
       script: settings[CARD_SETTING.script],
       played: settings[CARD_SETTING.played],
+      variables: settings[CARD_SETTING.variables],
+      watch: settings[CARD_SETTING.watch],
+      callStack: settings[CARD_SETTING.callStack],
     };
   });
 
@@ -177,7 +196,7 @@ export class ProblemsStore {
     this.shown.value = { ...this.shown.value, [severity]: shown };
   }
 
-  setCardOpen(card: PanelCard, open: boolean) {
+  setCardOpen(card: CardName, open: boolean) {
     workspaceSettings.setProjectSetting(CARD_SETTING[card], open);
   }
 
@@ -187,16 +206,32 @@ export class ProblemsStore {
     }
   }
 
-  openPanel(card?: PanelCard) {
+  showPanel(panel: PreviewPanel) {
     const layout = layoutState.current();
     if (layout === "phone") {
       return false;
     }
+    this.panelShows.value = panel;
     if (!this.panelOpen.value) {
       workspaceSettings.setProjectSetting("previewPanelHeight", this._openHeight);
     }
     if (layout === "compact") {
       this.makeRoomInStrip();
+    }
+    return true;
+  }
+
+  toggleRoute() {
+    if (this.routeShown.value) {
+      this.collapsePanel();
+      return true;
+    }
+    return this.showPanel("route");
+  }
+
+  openPanel(card?: PanelCard) {
+    if (!this.showPanel("problems")) {
+      return false;
     }
     if (card) {
       if (!this.cards.value[card]) {
@@ -233,7 +268,7 @@ export class ProblemsStore {
   togglePanel(returnFocus?: () => HTMLElement | null) {
     if (layoutState.current() === "phone") {
       this.openDialog({ kind: "story" }, returnFocus);
-    } else if (this.panelOpen.value) {
+    } else if (this.problemsShown.value) {
       this.collapsePanel();
     } else {
       this.openPanel();

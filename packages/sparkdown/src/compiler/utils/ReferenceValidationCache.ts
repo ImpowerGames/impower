@@ -1,9 +1,14 @@
 import type { DiagnosticSeverity } from "../types/SparkDiagnostic";
+import type { CloseMatchData } from "./closeMatch";
 
 export interface ReferenceOutcome {
   from: number;
   to: number;
-  diagnostic?: { severity: DiagnosticSeverity; message: string };
+  diagnostic?: {
+    severity: DiagnosticSeverity;
+    message: string;
+    data?: CloseMatchData;
+  };
   color?: boolean;
   declared?: string;
 }

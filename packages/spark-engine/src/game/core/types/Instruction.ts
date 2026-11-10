@@ -1,3 +1,5 @@
+import type { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+
 export interface IInstruction {
   control?: string;
   after?: number;
@@ -70,10 +72,7 @@ export interface AudioInstruction extends IInstruction {
 }
 
 export interface LayoutInstruction extends IInstruction {
-  control: "open" | "close" | "navigate";
-  /** The layout to mount (`open`), tear down (`close`), or navigate TO
-   *  (`navigate` — the destination after `to`). May be empty for an incomplete
-   *  `[[navigate <screen>]]` (the LSP warns; the runtime no-ops). */
+  control: LayoutVerb;
   name: string;
   /** For `navigate` (`[[navigate <screen> to <layout>]]`): the screen to route
    *  within. Closing is scoped to open layouts in this screen; layouts in other

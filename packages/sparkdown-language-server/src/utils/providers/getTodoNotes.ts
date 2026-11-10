@@ -33,6 +33,7 @@ export const getTodoNotes = (
             severity: DiagnosticSeverity.Information,
             source: TODO_NOTE_SOURCE,
             message: rest ? `${TODO_NOTE_TITLE}: ${rest}` : TODO_NOTE_TITLE,
+            data: { expect: document.read(mark.from, body.to) },
           });
         }
       }

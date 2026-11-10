@@ -1,6 +1,11 @@
 import type { ProgramAddress } from "../types/ProgramAddress";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import {
+  LAYOUT_VERBS,
+  LayoutVerb,
+  isLayoutVerb,
+} from "../../../language/sparkdown.layout-verbs";
+import {
   type SceneAssetCapture,
   type SceneBeat,
 } from "../types/SceneAssets";
@@ -22,9 +27,6 @@ const AUDIO_CONTROL_KEYWORDS: string[] = VARIABLES["AUDIO_CONTROL_KEYWORDS"] ?? 
   "queue",
   "await",
 ];
-const LAYOUT_CONTROL_KEYWORDS: string[] = VARIABLES[
-  "LAYOUT_CONTROL_KEYWORDS"
-] ?? ["open", "close", "navigate"];
 const LOAD_CONTROL_KEYWORDS: string[] = VARIABLES["LOAD_CONTROL_KEYWORDS"] ?? [
   "load",
 ];
@@ -36,7 +38,7 @@ const OTHER_CONTROL_KEYWORDS: string[] = ["write"];
 const CONTROL_KEYWORDS = new Set<string>([
   ...IMAGE_CONTROL_KEYWORDS,
   ...AUDIO_CONTROL_KEYWORDS,
-  ...LAYOUT_CONTROL_KEYWORDS,
+  ...LAYOUT_VERBS,
   ...LOAD_CONTROL_KEYWORDS,
   ...MOVIE_CONTROL_KEYWORDS,
   ...OTHER_CONTROL_KEYWORDS,
@@ -45,7 +47,6 @@ const CLAUSE_KEYWORDS = new Set<string>([
   ...(VARIABLES["IMAGE_CLAUSE_KEYWORDS"] ?? []),
   ...(VARIABLES["AUDIO_CLAUSE_KEYWORDS"] ?? []),
 ]);
-const LAYOUT_CONTROLS = new Set<string>(LAYOUT_CONTROL_KEYWORDS);
 const LOAD_CONTROLS = new Set<string>(LOAD_CONTROL_KEYWORDS);
 const MOVIE_CONTROLS = new Set<string>(MOVIE_CONTROL_KEYWORDS);
 
@@ -56,7 +57,7 @@ const NON_LOADING_CONTROLS = new Set<string>([
   "stop",
   "fade",
   "await",
-  "close",
+  LayoutVerb.close,
   "write",
 ]);
 
@@ -113,14 +114,14 @@ const scanBody = (
     }
     return;
   }
-  if (LAYOUT_CONTROLS.has(verb)) {
-    if (verb === "navigate") {
+  if (isLayoutVerb(verb)) {
+    if (verb === LayoutVerb.navigate) {
       const toIndex = tokens.indexOf("to");
       const destination = toIndex >= 0 ? tokens[toIndex + 1] : undefined;
       if (destination && !CLAUSE_KEYWORDS.has(destination)) {
         names.layouts.push(destination);
       }
-    } else if (verb === "open") {
+    } else if (verb === LayoutVerb.open) {
       const layout = tokens[1];
       if (layout && !CLAUSE_KEYWORDS.has(layout)) {
         names.layouts.push(layout);

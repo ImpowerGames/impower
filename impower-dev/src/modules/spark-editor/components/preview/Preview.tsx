@@ -8,6 +8,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import PreviewBar from "../preview-bar/PreviewBar";
 import { ProblemsPanel } from "../problems";
 import PreviewGame from "../preview-game/PreviewGame";
+import { RoutePanel } from "../preview-route";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
 import PreviewTopBar from "../preview-top-bar/PreviewTopBar";
 
@@ -51,6 +52,7 @@ export default function Preview(_props: PreviewProps) {
   const layout = useLayout();
   const phone = layout === "phone";
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
+  const panelShows = problems.panelShows.value;
   useEffect(() => {
     if (layout === "compact" && panelHeight > BAR_HEIGHT) {
       problems.makeRoomInStrip();
@@ -116,7 +118,11 @@ export default function Preview(_props: PreviewProps) {
             <div class="flex h-full flex-col">
               {bar}
               <div data-preview-panel class="min-h-0 flex-1">
-                {panelHeight > BAR_HEIGHT ? <ProblemsPanel /> : null}
+                {panelHeight <= BAR_HEIGHT ? null : panelShows === "route" ? (
+                  <RoutePanel />
+                ) : (
+                  <ProblemsPanel />
+                )}
               </div>
             </div>
           }

@@ -16,10 +16,6 @@ export const getSparkdownPreviewConfig = (
     "sparkdown.screenplay",
     uri,
   );
-  const editorConfig = vscode.workspace.getConfiguration(
-    "sparkdown.editor",
-    uri,
-  );
   return {
     game_preview_synchronized_with_cursor:
       gameConfig["previewSynchronizedWithCursor"],
@@ -54,7 +50,5 @@ export const getSparkdownPreviewConfig = (
       screenplayConfig["pdf"].bookmarks.printBookmarks,
     screenplay_print_bookmarks_for_invisible_headings:
       screenplayConfig["pdf"].bookmarks.printBookmarksForInvisibleHeadings,
-    editor_newline_helper: editorConfig["newlineHelper"],
-    editor_refresh_stats_on_save: editorConfig["refreshStatsOnSave"],
   };
 };

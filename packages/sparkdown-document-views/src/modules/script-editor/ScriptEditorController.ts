@@ -87,6 +87,7 @@ import {
 import { HideEditorHoverValuesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorHoverValuesMessage";
 import { EvaluateEditorHoverMessage } from "@impower/spark-editor-protocol/src/protocols/editor/EvaluateEditorHoverMessage";
 import { SetEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorBreakpointsMessage";
+import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
@@ -146,9 +147,22 @@ import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/Re
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
 import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../cm-highlight-lines/highlightLines";
-import { setBreakpointStates } from "../../cm-breakpoints/breakpoints";
+import {
+  setBreakpointStates,
+  toggleBreakpointAtCaret,
+} from "../../cm-breakpoints/breakpoints";
 import { setPinpoints } from "../../cm-pinpoints/pinpoints";
 import { setRoutePinsEffect } from "../../cm-route-pins/routePins";
+import {
+  setChoiceMarkersEffect,
+  type ChoiceMarkerAction,
+} from "../../cm-choice-markers/choiceMarkers";
+import { setForcedLinesEffect } from "../../cm-line-bands/lineBands";
+import {
+  SetEditorRouteMarksMessage,
+  type SetEditorRouteMarksParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRouteMarksMessage";
+import { PressedEditorChoiceMarkMessage } from "@impower/spark-editor-protocol/src/protocols/editor/PressedEditorChoiceMarkMessage";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
@@ -516,6 +530,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      ToggleEditorBreakpointMessage.type,
+      (m) => this.handleToggleEditorBreakpoint(m),
+      this.host,
+    );
+    p.onRequest(
       SetEditorPinpointsMessage.type,
       (m) => this.handleSetEditorPinpoints(m),
       this.host,
@@ -528,6 +547,11 @@ export class ScriptEditorController {
     p.onRequest(
       SetEditorRoutePinsMessage.type,
       (m) => this.handleSetEditorRoutePins(m),
+      this.host,
+    );
+    p.onRequest(
+      SetEditorRouteMarksMessage.type,
+      (m) => this.handleSetEditorRouteMarks(m),
       this.host,
     );
     p.onRequest(
@@ -864,6 +888,17 @@ export class ScriptEditorController {
     return SetEditorBreakpointsMessage.type.response(message.id, {});
   };
 
+  protected handleToggleEditorBreakpoint = (
+    message: ToggleEditorBreakpointMessage.Request,
+  ) => {
+    const view = this._view;
+    if (!view || message.params.textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
+    }
+    const line = toggleBreakpointAtCaret(view) - 1;
+    return ToggleEditorBreakpointMessage.type.response(message.id, { line });
+  };
+
   protected awaitResponse<T>(
     request: Parameters<typeof sendProtocolMessage>[0],
     isResponse: (message: unknown) => message is T,
@@ -948,6 +983,60 @@ export class ScriptEditorController {
       });
     }
     return SetEditorRoutePinsMessage.type.response(message.id, {});
+  };
+
+  protected _routeMarks: SetEditorRouteMarksParams = { choices: [], forced: [] };
+
+  protected handleSetEditorRouteMarks = (
+    message: SetEditorRouteMarksMessage.Request,
+  ) => {
+    this._routeMarks = message.params;
+    this.applyRouteMarks();
+    return SetEditorRouteMarksMessage.type.response(message.id, {});
+  };
+
+  protected applyRouteMarks() {
+    const uri = this._textDocument?.uri;
+    if (!this._view || !uri) {
+      return;
+    }
+    const { choices, forced } = this._routeMarks;
+    this._view.dispatch({
+      effects: [
+        setChoiceMarkersEffect.of(
+          choices
+            .filter((choice) => choice.uri === uri)
+            .map((choice) => ({
+              line: choice.line + 1,
+              icon: choice.icon,
+              title: choice.title,
+              text: choice.text,
+              options: choice.options,
+              unpin: choice.unpin,
+              note: choice.note,
+            })),
+        ),
+        setForcedLinesEffect.of(
+          forced
+            .filter((script) => script.uri === uri)
+            .flatMap((script) => script.lines.map((line) => line + 1)),
+        ),
+      ],
+    });
+  }
+
+  protected handleChoiceMark = (line: number, action: ChoiceMarkerAction) => {
+    const uri = this._textDocument?.uri;
+    if (uri) {
+      sendProtocolMessage(
+        PressedEditorChoiceMarkMessage.type.notification({
+          textDocument: { uri },
+          line: line - 1,
+          action,
+        }),
+        this.host,
+      );
+    }
   };
 
   protected handleSetEditorFindMatches = (
@@ -1207,6 +1296,7 @@ export class ScriptEditorController {
           startingValueLines,
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
           routePins,
+          onChoiceMark: this.handleChoiceMark,
           scrollToLineNumber:
             visibleRange && typeof visibleRange !== "string"
               ? (visibleRange?.start.line ?? 0) + 1
@@ -1448,6 +1538,7 @@ export class ScriptEditorController {
         this._focusLeft = false;
       }
     }
+    this.applyRouteMarks();
     sendProtocolMessage(
       DidOpenTextDocumentMessage.type.notification({ textDocument }),
       this.host,

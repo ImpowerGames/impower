@@ -37,6 +37,10 @@ export const BranchIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M5 4v9a4 4 0 0 0 4 4h10m-5-5 5 5-5 5\"/>" }} />
 );
 
+export const BreakpointIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<circle cx=\"12\" cy=\"12\" r=\"5\" fill=\"currentColor\" stroke=\"none\"/>" }} />
+);
+
 export const BugIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<rect x=\"7\" y=\"7\" width=\"10\" height=\"14\" rx=\"5\"/><path d=\"M9 7V5a3 3 0 0 1 6 0v2M3 10h4m10 0h4M2 15h5m10 0h5M4 20l4-2m8 0 4 2M12 8v12\"/>" }} />
 );
@@ -99,6 +103,10 @@ export const CopyIcon: IconComponent = (props) => (
 
 export const DedentIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M20 12H9m5-5-5 5 5 5M4 5v14\"/>" }} />
+);
+
+export const DetourIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M6 21v-7.5A4.5 4.5 0 0 1 10.5 9h9M15.75 5.25 19.5 9l-3.75 3.75\"/><path d=\"M6 9.75V3\" stroke-dasharray=\"1.5 3\"/>" }} />
 );
 
 export const DeviceIcon: IconComponent = (props) => (
@@ -261,6 +269,10 @@ export const OpenIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M14 4h6v6M20 4l-9 9M18 13v6H5V6h6\"/>" }} />
 );
 
+export const OptionsIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M9 6h11M9 12h11M9 18h11\"/><circle cx=\"4.5\" cy=\"6\" r=\"0.9\" fill=\"currentColor\"/><circle cx=\"4.5\" cy=\"12\" r=\"0.9\" fill=\"currentColor\"/><circle cx=\"4.5\" cy=\"18\" r=\"0.9\" fill=\"currentColor\"/>" }} />
+);
+
 export const OtherIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M5 2h10l4 4v16H5zM14 2v6h5\"/>" }} />
 );
@@ -363,6 +375,10 @@ export const SaveIcon: IconComponent = (props) => (
 
 export const SceneIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<g transform=\"translate(1.2 1.2) scale(.9)\"><path d=\"M3.2 11 20 6.2l-.9-3.1a1.5 1.5 0 0 0-1.9-1L3.6 6.1a1.5 1.5 0 0 0-1 1.9z\"/><path d=\"m7 5.5 2.5 3.6M12.2 4l2.5 3.6\"/><path d=\"M3 11h18v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5z\"/></g>" }} />
+);
+
+export const ScissorsIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<circle cx=\"6.75\" cy=\"17.25\" r=\"3\"/><circle cx=\"17.25\" cy=\"17.25\" r=\"3\"/><path d=\"M8.7 15 18 3.75M15.3 15 6 3.75\"/>" }} />
 );
 
 export const ScreenplayIcon: IconComponent = (props) => (

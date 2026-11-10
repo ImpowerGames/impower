@@ -268,6 +268,7 @@ describe("the Wrap in scene start quick fix", { timeout: 60000 }, () => {
     expect(published?.data).toEqual([
       {
         name: "Wrap in scene start",
+        done: "Wrapped in scene start.",
         changes: [
           {
             from: 0,

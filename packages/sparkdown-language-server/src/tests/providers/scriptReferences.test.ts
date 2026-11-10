@@ -36,6 +36,7 @@ function workspaceOf(sources: Record<string, string>) {
     document: (uri: string) => documents.get(uri),
     annotations: (uri: string) => documents.annotations(uri),
     uris: () => documents.keys(),
+    tree: (uri: string) => documents.tree(uri),
     compilerConfig: undefined,
   } as Parameters<typeof getScriptReferences>[0];
 }
@@ -147,18 +148,67 @@ describe("provider · script references counted from whole references (#1009)", 
   });
 });
 
-describe("provider · script references not counted until #1969 (#1009)", () => {
+describe("provider · script references read access paths and bindings from the annotations (I-1969)", () => {
   test.each([
     ["a property access through the define's type", "{character.raffles.name}"],
+    ["whitespace around the dots", "{character . raffles . name}"],
     ["a string index", '{character["raffles"].name}'],
     ["a parenthesized root", "{(character).raffles.name}"],
+    ["a nested parenthesized continuation", "{((character).raffles).name}"],
+  ])("%s counts as a use of the define's script", (_, expression) => {
+    expect(
+      referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
+    ).toBe(1);
+  });
+
+  test.each([
+    ["a computed index", "{character[who].name}"],
+    ["a call argument followed by a property", "{f(raffles).name}"],
   ])("%s does not count as a use of the define's script", (_, expression) => {
     expect(
       referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
     ).toBe(0);
   });
 
-  test("a use through a local alias does not count as a use of the define's script", () => {
+  test("a sibling choice's read counts as a use of the define even when an earlier choice binds the name", () => {
+    expect(
+      referencedBy(
+        {
+          [SETTINGS]: SETTINGS_SOURCE,
+          [HELPERS]:
+            "scene s\n  choose\n    * First\n      local settings = {score = 1}\n      {settings.score}\n    * Second\n      {settings.score}\n  end\nend\n",
+        },
+        SETTINGS,
+      ),
+    ).toBe(1);
+  });
+
+  test.each([
+    ["a read in a local's value list", "function f()\n  local a, b = 1, settings\n  return settings.score\nend\n"],
+    [
+      "a read in a layout loop's else",
+      'layout inventory {\n  for settings in bag do\n    text "{settings.score}"\n  else\n    text "{settings.score}"\n  end\n}\n',
+    ],
+  ])("%s counts as a use of the define's script", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(1);
+  });
+
+  test("a path in an explicit statement counts as a use of the define's script", () => {
+    expect(
+      referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: "scene chapter_scene\n  & x = character.raffles.name\nend\n" }, CAST),
+    ).toBe(1);
+  });
+
+  test("a path continued on the next line counts as a use of the define's script", () => {
+    expect(
+      referencedBy(
+        { [CAST]: CAST_SOURCE, [HELPERS]: "function show()\n  return character\n    .raffles.name\nend\n" },
+        CAST,
+      ),
+    ).toBe(1);
+  });
+
+  test("a use through a local alias is deliberately not counted as a use of the define's script", () => {
     expect(
       referencedBy(
         {
@@ -176,7 +226,36 @@ describe("provider · script references not counted until #1969 (#1009)", () => 
     ["an anonymous function's parameter in the same function", "function show()\n  local f = function(settings)\n    return settings.score\n  end\n  return settings.score\nend\n"],
     ["a local declared after the use", "function show()\n  local result = settings.score\n  local settings = {score = 2}\n  return result\nend\n"],
     ["a local whose block has ended", "function show()\n  if true then\n    local settings = {score = 2}\n  end\n  return settings.score\nend\n"],
-  ])("a script that also binds the name, as %s, does not count its use of the define", (_, helpers) => {
+  ])("a script that also binds the name, as %s, counts its use of the define outside that binding", (_, helpers) => {
+    expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(1);
+  });
+
+  test.each([
+    ["a const in a function", "function show()\n  const settings = {score = 2}\n  return settings.score\nend\n"],
+    ["a repeat body's local in its until condition", "function show()\n  repeat\n    local settings = {score = 2}\n  until settings.score > 0\nend\n"],
+    ["a local function", "function show()\n  local function settings()\n    return 1\n  end\n  return settings()\nend\n"],
+    [
+      "a recursive local function",
+      "function show()\n  local function settings(n)\n    if n > 0 then\n      return settings(n - 1)\n    end\n    return 0\n  end\n  return settings(2)\nend\n",
+    ],
+    ["a scene's local", "scene show\n  local settings = {score = 2}\n  {settings.score}\nend\n"],
+    ["a define method's parameter", "define Bird with\n  sing(settings)\n    return settings.score\n  end\nend\n"],
+    ["a scene's parameter", "scene start(settings)\n  {settings.score}\nend\n"],
+    ["a branch's parameter", "scene start\n  branch sub(settings)\n    {settings.score}\n  end\nend\n"],
+    ["a story loop's variable", "scene start\n  for settings = 1, 3 do\n    {settings}\n  end\nend\n"],
+    ["a story repeat body's local", "scene start\n  repeat\n    local settings = 1\n  until settings > 0\nend\n"],
+    ["a bare local", "function f()\n  local settings return settings\nend\n"],
+    ["an event handler's const", 'layout form {\n  button "Go" @click={ const settings = 1 print(settings) }\n}\n'],
+    ["an explicit local", "scene s\n  & local settings = {score = 2}\n  {settings.score}\nend\n"],
+    ["a component's parameter", 'component Card(settings) {\n  text "{settings.score}"\n}\n'],
+    ["a typed for loop's variable", "function f()\n  for settings: number = 1, 3 do\n    x = settings\n  end\nend\n"],
+    ["a choose-preamble local read after the choose", "scene s\n  choose\n    local settings = {score = 1}\n    * Go\n  end\n  {settings.score}\nend\n"],
+    ["a then-clause local read after the choose", "scene s\n  choose\n    * Go\n  then\n    local settings = {score = 1}\n  end\n  {settings.score}\nend\n"],
+    [
+      "a layout for loop's variable",
+      'layout inventory {\n  column {\n    for settings in bag do\n      row {\n        image #src={settings.icon}\n      }\n    end\n  }\n}\n',
+    ],
+  ])("%s named like a define is the script's own, not a use of the define", (_, helpers) => {
     expect(referencedBy({ [SETTINGS]: SETTINGS_SOURCE, [HELPERS]: helpers }, SETTINGS)).toBe(0);
   });
 

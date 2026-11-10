@@ -19,6 +19,7 @@ export interface RouteOption {
 export interface RouteDecision {
   kind: RouteDecisionKind;
   site: ProgramAddress;
+  override: number;
   option?: string;
   meeting?: number;
   menu?: ProgramAddress;
@@ -101,6 +102,7 @@ export const routeDecisions = (
       decisions.push({
         kind: pinnedHere.has(decision.value) ? "pinned" : "auto",
         site: Number(decision.value),
+        override: index,
         option: menu?.options[menu.selected] ?? "",
         meeting: offers.get(decision.value) ?? 1,
         menu: decision.site,
@@ -123,10 +125,16 @@ export const routeDecisions = (
       : undefined;
     decisions.push(
       clipped === undefined
-        ? { kind: "forced", site: decision.site, verdict: decision.value }
+        ? {
+            kind: "forced",
+            site: decision.site,
+            override: index,
+            verdict: decision.value,
+          }
         : {
             kind: "clipped",
             site: decision.site,
+            override: index,
             verdict: decision.value,
             ...clipped,
           },

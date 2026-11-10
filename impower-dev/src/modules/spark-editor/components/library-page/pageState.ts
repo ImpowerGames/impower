@@ -7,6 +7,13 @@ export type QueriesKey = "scriptsQueries" | "assetsQueries";
 
 export type ScrollsKey = "scriptsScrolls" | "assetsScrolls";
 
+export type LayoutsKey = "assetsLayouts";
+
+export type FolderLayout = "tiles" | "rows";
+
+const isFolderLayout = (value: unknown): value is FolderLayout =>
+  value === "tiles" || value === "rows";
+
 const setListState = (read: (lists: Lists) => Partial<Lists>) =>
   void import("../../workspace/Workspace").then(({ Workspace }) =>
     Workspace.window.setListState(read(workspace.state.peek().lists ?? {})),
@@ -29,6 +36,22 @@ export function useTabQuery(
     [key, tab],
   );
   return [query, change];
+}
+
+export function useFolderLayout(
+  key: LayoutsKey,
+  folder: string,
+  fallback: FolderLayout,
+): [FolderLayout, (layout: FolderLayout) => void] {
+  const saved = workspace.state.value.lists?.[key]?.[folder];
+  const change = useCallback(
+    (next: FolderLayout) =>
+      setListState((lists) => ({
+        [key]: { ...lists[key], [folder]: next },
+      })),
+    [key, folder],
+  );
+  return [isFolderLayout(saved) ? saved : fallback, change];
 }
 
 export function useSavedScroll(key: ScrollsKey, tab: string) {

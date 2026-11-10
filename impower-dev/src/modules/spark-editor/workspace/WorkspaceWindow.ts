@@ -35,6 +35,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
+import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
@@ -193,6 +194,8 @@ export default class WorkspaceWindow {
     onStop: (position) => this.followStop(position),
     onRoll: (restored) => this.followRoll(restored),
     onRefusal: (message) => showSnackbar({ message }),
+    saveWatch: (expressions) => this.setWatchExpressions(expressions),
+    source: (uri) => this.scriptSource(uri),
   });
 
   constructor(workspace: {
@@ -505,6 +508,17 @@ export default class WorkspaceWindow {
       });
     }
     return !!result?.inserted;
+  }
+
+  async toggleBreakpointAtCaret(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    await this.requestEditor(ToggleEditorBreakpointMessage.type, {
+      textDocument: { uri },
+    });
   }
 
   startEditing(filename: string) {
@@ -910,6 +924,21 @@ export default class WorkspaceWindow {
         },
       },
     });
+  }
+
+  setWatchExpressions(expressions: readonly string[]) {
+    this.update({
+      ...this.store,
+      debug: { ...this.store.debug, watch: [...expressions] },
+    });
+  }
+
+  protected scriptSource(uri: string) {
+    const fs = this._workspace.fs;
+    const root = `${fs.getDirectoryUri(this.store.project.id ?? "")}/`;
+    return uri.startsWith(root)
+      ? { path: uri.slice(root.length), inProject: true }
+      : { path: fs.getFilename(uri), inProject: false };
   }
 
   protected followVerifiedBreakpoints() {

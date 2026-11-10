@@ -1,3 +1,4 @@
+import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 import {
   createLanguageReader,
@@ -23,7 +24,7 @@ export interface VSCodeLanguageFeaturesConfig {
 
   alias?: string[];
 
-  grammar: GrammarDefinition;
+  grammar: GrammarDefinition | GrammarRegistry;
 
   language?: string;
 
@@ -45,6 +46,7 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
     snippets = {},
   } = options;
   const config = configs[language] ?? {};
+  const start = grammar instanceof GrammarRegistry ? grammar.start : grammar;
 
   const dataDescription: {
     name: string;
@@ -54,14 +56,14 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
   if (alias) {
     dataDescription.alias = alias;
   }
-  if (grammar.fileTypes) {
-    dataDescription.extensions = grammar.fileTypes;
+  if (start.fileTypes) {
+    dataDescription.extensions = start.fileTypes;
   }
 
   const vscodeLanguageData: CodeMirrorLanguageData = {
     ...dataDescription,
     ...convertConfigToLanguageData(config),
-    ...convertGrammarToLanguageData(grammar),
+    ...convertGrammarToLanguageData(start),
   };
 
   return new VSCodeLanguageSupport(
