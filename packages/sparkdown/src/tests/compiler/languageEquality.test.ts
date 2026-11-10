@@ -35,6 +35,8 @@ const UNREADABLE: Record<string, string> = {
   "local x名 = 1\n": "名 = 1",
   "& x = @@1\n": "@@1",
   "function f()\n  local x = 1 + y名\nend\n": "名",
+  "store x = ~1\n": "~1",
+  "Hello {|1}\n": "|1",
 };
 
 function withoutLuauMarks(ruleName: string) {
@@ -61,6 +63,16 @@ describe("language at every cursor position: vscode-textmate and the tree reader
         expect(treeLanguagesPerPosition(source)[source.length]).toBe(language);
       });
     }
+  });
+
+  test("a cursor before a CRLF line break reads the line as before an LF one", () => {
+    const lf = "function f()\n  return 1\nend\nHello\n";
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const ends = (source: string) => [...source.matchAll(/\r?\n/g)].map((m) => m.index!);
+    const lfLanguages = treeLanguagesPerPosition(lf);
+    const crlfLanguages = treeLanguagesPerPosition(crlf);
+    expect(ends(lf).map((p) => lfLanguages[p])).toEqual([LUAU, LUAU, LUAU, STORY]);
+    expect(ends(crlf).map((p) => crlfLanguages[p])).toEqual(ends(lf).map((p) => lfLanguages[p]));
   });
 
   describe("past a character Luau never reads, inside a Luau region", () => {

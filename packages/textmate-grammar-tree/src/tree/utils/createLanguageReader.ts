@@ -54,14 +54,19 @@ const languageOfScopeName = (
 const charAt = (text: string | DocumentText, index: number): string =>
   typeof text === "string" ? text.charAt(index) : text.sliceString(index, index + 1);
 
+const isLineBreak = (text: string | DocumentText, index: number): boolean => {
+  const c = charAt(text, index);
+  return c === "\n" || c === "\r";
+};
+
 const cursorCharacter = (
   text: string | DocumentText,
   position: number,
 ): number | null => {
-  if (position < text.length && charAt(text, position) !== "\n") {
+  if (position < text.length && !isLineBreak(text, position)) {
     return position;
   }
-  if (position > 0 && charAt(text, position - 1) !== "\n") {
+  if (position > 0 && !isLineBreak(text, position - 1)) {
     return position - 1;
   }
   if (position < text.length) return position;
