@@ -1,4 +1,4 @@
-sparkdown [0..430]
+sparkdown [0..456]
  ├─ LuauDefine [0..103]
  │   ├─ LuauDefine_begin [0..39]
  │   │   ├─ LuauDefine_begin_c1 0
@@ -315,10 +315,10 @@ sparkdown [0..430]
  │       └─ LuauStyle_end_c3 206
  ├─ Newline [206..207]: "\n"
  ├─ Newline [207..208]: "\n"
- ├─ LuauFunctionAttributes [208..322]
+ ├─ LuauFunctionAttributes [208..348]
  │   ├─ LuauFunctionAttributes_begin 208
  │   │   └─ LuauFunctionAttributes_begin_c1 208
- │   ├─ LuauFunctionAttributes_content [208..322]
+ │   ├─ LuauFunctionAttributes_content [208..348]
  │   │   ├─ LuauAttribute [208..215]
  │   │   │   ├─ LuauAttribute_c1 [208..209]
  │   │   │   │   └─ LuauAttributeOperator [208..209]: "@"
@@ -326,7 +326,7 @@ sparkdown [0..430]
  │   │   │   │   └─ LuauAttributeName [209..215]: "native"
  │   │   │   └─ LuauAttribute_c3 215
  │   │   ├─ Newline [215..216]: "\n"
- │   │   └─ LuauFunctionDefinition [216..322]
+ │   │   └─ LuauFunctionDefinition [216..348]
  │   │       ├─ LuauFunctionDefinition_begin [216..225]
  │   │       │   ├─ LuauFunctionDefinition_begin_c1 216
  │   │       │   │   └─ OptionalWhitespace 216
@@ -337,7 +337,7 @@ sparkdown [0..430]
  │   │       │   └─ LuauFunctionDefinition_begin_c6 [224..225]
  │   │       │       └─ LuauFunctionDefinition_begin_c6 [224..225]
  │   │       │           └─ OptionalWhitespace [224..225]: " "
- │   │       ├─ LuauFunctionDefinition_content [225..319]
+ │   │       ├─ LuauFunctionDefinition_content [225..345]
  │   │       │   ├─ LuauFunctionDeclarationName [225..234]
  │   │       │   │   ├─ LuauFunctionDeclarationName_c1 [225..234]
  │   │       │   │   │   └─ LuauFunctionName [225..234]: "count@all"
@@ -351,9 +351,9 @@ sparkdown [0..430]
  │   │       │   │   └─ LuauFunctionParameters_end [239..240]
  │   │       │   │       └─ LuauFunctionParameters_end_c1 [239..240]
  │   │       │   │           └─ PunctuationParenClose [239..240]: ")"
- │   │       │   └─ LuauFunctionBody [240..319]
+ │   │       │   └─ LuauFunctionBody [240..345]
  │   │       │       ├─ LuauFunctionBody_begin 240
- │   │       │       ├─ LuauFunctionBody_content [240..319]
+ │   │       │       ├─ LuauFunctionBody_content [240..345]
  │   │       │       │   ├─ Newline [240..241]: "\n"
  │   │       │       │   ├─ LuauVariableDefinition [241..263]
  │   │       │       │   │   ├─ LuauVariableDefinition_begin [241..249]
@@ -436,251 +436,299 @@ sparkdown [0..430]
  │   │       │       │   │   │       └─ LuauVariableAssignment_end 287
  │   │       │       │   │   └─ LuauVariableDefinition_end 287
  │   │       │       │   ├─ Newline [287..288]: "\n"
- │   │       │       │   ├─ LuauReturnStatement [288..318]
- │   │       │       │   │   ├─ LuauReturnStatement_begin [288..297]
- │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [288..290]
+ │   │       │       │   ├─ LuauVariableDefinition [288..314]
+ │   │       │       │   │   ├─ LuauVariableDefinition_begin [288..296]
+ │   │       │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [288..290]
  │   │       │       │   │   │   │   └─ OptionalWhitespace [288..290]: "  "
- │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c2 [290..296]
- │   │       │       │   │   │   │   └─ LuauControlKeyword [290..296]: "return"
- │   │       │       │   │   │   └─ LuauReturnStatement_begin_c3 [296..297]
- │   │       │       │   │   │       └─ LuauReturnStatement_begin_c3 [296..297]
- │   │       │       │   │   │           └─ OptionalWhitespace [296..297]: " "
- │   │       │       │   │   ├─ LuauReturnStatement_content [297..318]
- │   │       │       │   │   │   ├─ LuauAccessPath [297..308]
- │   │       │       │   │   │   │   ├─ LuauAccessPath_begin 297
- │   │       │       │   │   │   │   ├─ LuauAccessPath_content [297..307]
- │   │       │       │   │   │   │   │   └─ LuauAccessPart [297..307]
- │   │       │       │   │   │   │   │       └─ LuauVariable [297..307]
- │   │       │       │   │   │   │   │           └─ LuauVariable_c1 [297..307]
- │   │       │       │   │   │   │   │               └─ LuauVariableName [297..307]: "word@count"
- │   │       │       │   │   │   │   └─ LuauAccessPath_end [307..308]
- │   │       │       │   │   │   │       └─ LuauAccessPath_end_c1 [307..308]
- │   │       │       │   │   │   │           └─ LuauAccessPath_end_c1 [307..308]
- │   │       │       │   │   │   │               └─ OptionalWhitespace [307..308]: " "
- │   │       │       │   │   │   └─ LuauArithmeticOperation [308..318]
- │   │       │       │   │   │       ├─ LuauArithmeticOperation_begin 308
- │   │       │       │   │   │       │   └─ LuauArithmeticOperation_begin_c1 308
- │   │       │       │   │   │       ├─ LuauArithmeticOperation_content [308..318]
- │   │       │       │   │   │       │   ├─ LuauArithmeticOperator [308..310]
- │   │       │       │   │   │       │   │   ├─ LuauArithmeticOperator_begin [308..310]
- │   │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 308
- │   │       │       │   │   │       │   │   │   │   └─ OptionalWhitespace 308
- │   │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [308..309]: "+"
- │   │       │       │   │   │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [309..310]
- │   │       │       │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [309..310]
- │   │       │       │   │   │       │   │   │           └─ OptionalWhitespace [309..310]: " "
- │   │       │       │   │   │       │   │   └─ LuauArithmeticOperator_end 310
- │   │       │       │   │   │       │   └─ LuauLengthOperation [310..318]
- │   │       │       │   │   │       │       ├─ LuauLengthOperation_begin 310
- │   │       │       │   │   │       │       │   └─ LuauLengthOperation_begin_c1 310
- │   │       │       │   │   │       │       ├─ LuauLengthOperation_content [310..318]
- │   │       │       │   │   │       │       │   ├─ LuauLengthOperator [310..311]
- │   │       │       │   │   │       │       │   │   ├─ LuauLengthOperator_begin [310..311]
- │   │       │       │   │   │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 310
- │   │       │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 310
- │   │       │       │   │   │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [310..311]: "#"
- │   │       │       │   │   │       │       │   │   │   └─ LuauLengthOperator_begin_c3 311
- │   │       │       │   │   │       │       │   │   └─ LuauLengthOperator_end 311
- │   │       │       │   │   │       │       │   └─ LuauAccessPath [311..318]
- │   │       │       │   │   │       │       │       ├─ LuauAccessPath_begin 311
- │   │       │       │   │   │       │       │       ├─ LuauAccessPath_content [311..318]
- │   │       │       │   │   │       │       │       │   └─ LuauAccessPart [311..318]
- │   │       │       │   │   │       │       │       │       └─ LuauVariable [311..318]
- │   │       │       │   │   │       │       │       │           └─ LuauVariable_c1 [311..318]
- │   │       │       │   │   │       │       │       │               └─ LuauVariableName [311..318]: "pattern"
- │   │       │       │   │   │       │       │       └─ LuauAccessPath_end 318
- │   │       │       │   │   │       │       │           └─ LuauAccessPath_end_c1 318
- │   │       │       │   │   │       │       └─ LuauLengthOperation_end 318
- │   │       │       │   │   │       └─ LuauArithmeticOperation_end 318
- │   │       │       │   │   └─ LuauReturnStatement_end 318
- │   │       │       │   └─ Newline [318..319]: "\n"
- │   │       │       └─ LuauFunctionBody_end 319
- │   │       └─ LuauFunctionDefinition_end [319..322]
- │   │           ├─ LuauFunctionDefinition_end_c1 319
- │   │           │   └─ LuauFunctionDefinition_end_c1 319
- │   │           │       └─ OptionalWhitespace 319
- │   │           ├─ LuauFunctionDefinition_end_c2 [319..322]
- │   │           │   └─ LuauEndKeyword [319..322]: "end"
- │   │           ├─ LuauFunctionDefinition_end_c3 322
- │   │           └─ LuauFunctionDefinition_end_c5 322
- │   └─ LuauFunctionAttributes_end 322
- ├─ Newline [322..323]: "\n"
- ├─ Newline [323..324]: "\n"
- ├─ Scene [324..335]
- │   ├─ Scene_begin [324..330]
- │   │   ├─ Scene_begin_c1 324
- │   │   │   └─ OptionalWhitespace 324
- │   │   ├─ Scene_begin_c2 [324..329]
- │   │   │   └─ SceneKeyword [324..329]: "scene"
- │   │   └─ Scene_begin_c3 [329..330]
- │   │       └─ RequiredWhitespace [329..330]: " "
- │   ├─ Scene_content [330..335]
- │   │   └─ SceneWithoutParametersDeclaration [330..335]
- │   │       ├─ SceneWithoutParametersDeclaration_c1 [330..335]
- │   │       │   └─ SceneDeclarationName [330..335]: "start"
- │   │       └─ SceneWithoutParametersDeclaration_c2 335
- │   └─ Scene_end 335
- ├─ Newline [335..336]: "\n"
- ├─ ImageLine [336..357]
- │   ├─ ImageLine_c1 [336..338]
- │   │   └─ OptionalWhitespace [336..338]: "  "
- │   ├─ ImageLine_c2 [338..357]
- │   │   └─ ImageCommand [338..357]
- │   │       ├─ ImageCommand_begin [338..340]
- │   │       │   ├─ ImageCommand_begin_c1 [338..340]
- │   │       │   │   └─ ImageBeginMark [338..340]: "[["
- │   │       │   └─ ImageCommand_begin_c2 340
- │   │       ├─ ImageCommand_content [340..355]
- │   │       │   └─ ImageCommandContent [340..355]
- │   │       │       └─ ImageCommandContent_c1 [340..355]
- │   │       │           └─ AssetCommandContent [340..355]
- │   │       │               ├─ AssetCommandContent_c1 [340..355]
- │   │       │               │   └─ AssetCommandInstruction [340..355]
- │   │       │               │       ├─ AssetCommandInstruction_c1 340
- │   │       │               │       ├─ AssetCommandInstruction_c2 340
- │   │       │               │       ├─ AssetCommandInstruction_c3 340
- │   │       │               │       ├─ AssetCommandInstruction_c4 340
- │   │       │               │       └─ AssetCommandInstruction_c5 [340..355]
- │   │       │               │           └─ AssetCommandName [340..355]
- │   │       │               │               └─ AssetCommandName_c1 [340..355]
- │   │       │               │                   └─ AssetCommandFilteredFileName [340..355]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [340..349]
- │   │       │               │                       │   └─ AssetCommandFileName [340..349]: "mia@night"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [349..355]
- │   │       │               │                           └─ AssetCommandFilter [349..355]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [349..350]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [349..350]: ":"
- │   │       │               │                               └─ AssetCommandFilter_c2 [350..355]
- │   │       │               │                                   └─ AssetCommandFilterName [350..355]: "happy"
- │   │       │               └─ AssetCommandContent_c2 355
- │   │       └─ ImageCommand_end [355..357]
- │   │           ├─ ImageCommand_end_c1 355
- │   │           ├─ ImageCommand_end_c2 [355..357]
- │   │           │   └─ ImageEndMark [355..357]: "]]"
- │   │           └─ ImageCommand_end_c3 357
- │   │               └─ ImageCommand_end_c3 357
- │   │                   └─ OptionalWhitespace 357
- │   └─ ImageLine_c3 357
- ├─ Newline [357..358]: "\n"
- ├─ ImageLine [358..377]
- │   ├─ ImageLine_c1 [358..360]
- │   │   └─ OptionalWhitespace [358..360]: "  "
- │   ├─ ImageLine_c2 [360..377]
- │   │   └─ ImageCommand [360..377]
- │   │       ├─ ImageCommand_begin [360..362]
- │   │       │   ├─ ImageCommand_begin_c1 [360..362]
- │   │       │   │   └─ ImageBeginMark [360..362]: "[["
- │   │       │   └─ ImageCommand_begin_c2 362
- │   │       ├─ ImageCommand_content [362..375]
- │   │       │   └─ ImageCommandContent [362..375]
- │   │       │       └─ ImageCommandContent_c1 [362..375]
- │   │       │           └─ AssetCommandContent [362..375]
- │   │       │               ├─ AssetCommandContent_c1 [362..375]
- │   │       │               │   └─ AssetCommandInstruction [362..375]
- │   │       │               │       ├─ AssetCommandInstruction_c1 362
- │   │       │               │       ├─ AssetCommandInstruction_c2 362
- │   │       │               │       ├─ AssetCommandInstruction_c3 362
- │   │       │               │       ├─ AssetCommandInstruction_c4 362
- │   │       │               │       └─ AssetCommandInstruction_c5 [362..375]
- │   │       │               │           └─ AssetCommandName [362..375]
- │   │       │               │               └─ AssetCommandName_c1 [362..375]
- │   │       │               │                   └─ AssetCommandFilteredFileName [362..375]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [362..371]
- │   │       │               │                       │   └─ AssetCommandFileName [362..371]: "mia@night"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [371..375]
- │   │       │               │                           └─ AssetCommandFilter [371..375]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [371..372]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [371..372]: "~"
- │   │       │               │                               └─ AssetCommandFilter_c2 [372..375]
- │   │       │               │                                   └─ AssetCommandFilterName [372..375]: "hat"
- │   │       │               └─ AssetCommandContent_c2 375
- │   │       └─ ImageCommand_end [375..377]
- │   │           ├─ ImageCommand_end_c1 375
- │   │           ├─ ImageCommand_end_c2 [375..377]
- │   │           │   └─ ImageEndMark [375..377]: "]]"
- │   │           └─ ImageCommand_end_c3 377
- │   │               └─ ImageCommand_end_c3 377
- │   │                   └─ OptionalWhitespace 377
- │   └─ ImageLine_c3 377
- ├─ Newline [377..378]: "\n"
- ├─ ImageLine [378..393]
- │   ├─ ImageLine_c1 [378..380]
- │   │   └─ OptionalWhitespace [378..380]: "  "
- │   ├─ ImageLine_c2 [380..393]
- │   │   └─ ImageCommand [380..393]
- │   │       ├─ ImageCommand_begin [380..382]
- │   │       │   ├─ ImageCommand_begin_c1 [380..382]
- │   │       │   │   └─ ImageBeginMark [380..382]: "[["
- │   │       │   └─ ImageCommand_begin_c2 382
- │   │       ├─ ImageCommand_content [382..391]
- │   │       │   └─ ImageCommandContent [382..391]
- │   │       │       └─ ImageCommandContent_c1 [382..391]
- │   │       │           └─ AssetCommandContent [382..391]
- │   │       │               ├─ AssetCommandContent_c1 [382..391]
- │   │       │               │   └─ AssetCommandInstruction [382..391]
- │   │       │               │       ├─ AssetCommandInstruction_c1 382
- │   │       │               │       ├─ AssetCommandInstruction_c2 382
- │   │       │               │       ├─ AssetCommandInstruction_c3 382
- │   │       │               │       ├─ AssetCommandInstruction_c4 382
- │   │       │               │       └─ AssetCommandInstruction_c5 [382..391]
- │   │       │               │           └─ AssetCommandName [382..391]
- │   │       │               │               └─ AssetCommandName_c1 [382..391]
- │   │       │               │                   └─ AssetCommandFileName [382..391]: "mia@party"
- │   │       │               └─ AssetCommandContent_c2 391
- │   │       └─ ImageCommand_end [391..393]
- │   │           ├─ ImageCommand_end_c1 391
- │   │           ├─ ImageCommand_end_c2 [391..393]
- │   │           │   └─ ImageEndMark [391..393]: "]]"
- │   │           └─ ImageCommand_end_c3 393
- │   │               └─ ImageCommand_end_c3 393
- │   │                   └─ OptionalWhitespace 393
- │   └─ ImageLine_c3 393
- ├─ Newline [393..394]: "\n"
- ├─ ImageLine [394..425]
- │   ├─ ImageLine_c1 [394..396]
- │   │   └─ OptionalWhitespace [394..396]: "  "
- │   ├─ ImageLine_c2 [396..425]
- │   │   └─ ImageCommand [396..425]
- │   │       ├─ ImageCommand_begin [396..398]
- │   │       │   ├─ ImageCommand_begin_c1 [396..398]
- │   │       │   │   └─ ImageBeginMark [396..398]: "[["
- │   │       │   └─ ImageCommand_begin_c2 398
- │   │       ├─ ImageCommand_content [398..423]
- │   │       │   └─ ImageCommandContent [398..423]
- │   │       │       └─ ImageCommandContent_c1 [398..423]
- │   │       │           └─ AssetCommandContent [398..423]
- │   │       │               ├─ AssetCommandContent_c1 [398..423]
- │   │       │               │   └─ AssetCommandInstruction [398..423]
- │   │       │               │       ├─ AssetCommandInstruction_c1 398
- │   │       │               │       ├─ AssetCommandInstruction_c2 398
- │   │       │               │       ├─ AssetCommandInstruction_c3 398
- │   │       │               │       ├─ AssetCommandInstruction_c4 398
- │   │       │               │       └─ AssetCommandInstruction_c5 [398..423]
- │   │       │               │           ├─ AssetCommandName [398..408]
- │   │       │               │           │   └─ AssetCommandName_c1 [398..408]
- │   │       │               │           │       ├─ AssetCommandFileName [398..407]: "mia@night"
- │   │       │               │           │       └─ RequiredWhitespace [407..408]: " "
- │   │       │               │           ├─ AssetCommandAddOperator [408..410]: "+ "
- │   │       │               │           └─ AssetCommandName [410..423]
- │   │       │               │               └─ AssetCommandName_c1 [410..423]
- │   │       │               │                   └─ AssetCommandFilteredFileName [410..423]
- │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [410..419]
- │   │       │               │                       │   └─ AssetCommandFileName [410..419]: "mia@party"
- │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [419..423]
- │   │       │               │                           └─ AssetCommandFilter [419..423]
- │   │       │               │                               ├─ AssetCommandFilter_c1 [419..420]
- │   │       │               │                               │   └─ AssetCommandFilterOperator [419..420]: ":"
- │   │       │               │                               └─ AssetCommandFilter_c2 [420..423]
- │   │       │               │                                   └─ AssetCommandFilterName [420..423]: "hat"
- │   │       │               └─ AssetCommandContent_c2 423
- │   │       └─ ImageCommand_end [423..425]
- │   │           ├─ ImageCommand_end_c1 423
- │   │           ├─ ImageCommand_end_c2 [423..425]
- │   │           │   └─ ImageEndMark [423..425]: "]]"
- │   │           └─ ImageCommand_end_c3 425
- │   │               └─ ImageCommand_end_c3 425
- │   │                   └─ OptionalWhitespace 425
- │   └─ ImageLine_c3 425
- ├─ Newline [425..426]: "\n"
- ├─ LuauEndKeyword [426..429]: "end"
- └─ Newline [429..430]: "\n"
+ │   │       │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [290..295]
+ │   │       │       │   │   │   │   └─ LuauScopeModifier [290..295]: "local"
+ │   │       │       │   │   │   └─ LuauVariableDefinition_begin_c3 [295..296]
+ │   │       │       │   │   │       └─ LuauVariableDefinition_begin_c3 [295..296]
+ │   │       │       │   │   │           └─ OptionalWhitespace [295..296]: " "
+ │   │       │       │   │   ├─ LuauVariableDefinition_content [296..314]
+ │   │       │       │   │   │   └─ LuauVariableAssignment [296..314]
+ │   │       │       │   │   │       ├─ LuauVariableAssignment_begin [296..305]
+ │   │       │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [296..304]
+ │   │       │       │   │   │       │   │   └─ LuauVariableName [296..304]: "flag@end"
+ │   │       │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [304..305]
+ │   │       │       │   │   │       │       └─ OptionalWhitespace [304..305]: " "
+ │   │       │       │   │   │       ├─ LuauVariableAssignment_content [305..314]
+ │   │       │       │   │   │       │   └─ LuauAssignmentOperation [305..314]
+ │   │       │       │   │   │       │       ├─ LuauAssignmentOperation_begin 305
+ │   │       │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 305
+ │   │       │       │   │   │       │       │       └─ OptionalWhitespace 305
+ │   │       │       │   │   │       │       ├─ LuauAssignmentOperation_content [305..314]
+ │   │       │       │   │   │       │       │   ├─ LuauAssignmentOperator [305..307]
+ │   │       │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [305..307]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 305
+ │   │       │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 305
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [305..306]: "="
+ │   │       │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [306..307]
+ │   │       │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [306..307]
+ │   │       │       │   │   │       │       │   │   │           └─ OptionalWhitespace [306..307]: " "
+ │   │       │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 307
+ │   │       │       │   │   │       │       │   ├─ LuauBoolean [307..311]
+ │   │       │       │   │   │       │       │   │   ├─ LuauBoolean_c1 [307..311]: "true"
+ │   │       │       │   │   │       │       │   │   └─ LuauBoolean_c2 311
+ │   │       │       │   │   │       │       │   └─ LuauAttributedFunctionValue [311..314]
+ │   │       │       │   │   │       │       │       ├─ LuauAttributedFunctionValue_begin 311
+ │   │       │       │   │   │       │       │       ├─ LuauAttributedFunctionValue_content [311..314]
+ │   │       │       │   │   │       │       │       │   ├─ LuauAttribute [311..313]
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauAttribute_c1 [311..312]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauAttributeOperator [311..312]: "@"
+ │   │       │       │   │   │       │       │       │   │   ├─ LuauAttribute_c2 [312..313]
+ │   │       │       │   │   │       │       │       │   │   │   └─ LuauAttributeName [312..313]: "x"
+ │   │       │       │   │   │       │       │       │   │   └─ LuauAttribute_c3 313
+ │   │       │       │   │   │       │       │       │   └─ Newline [313..314]: "\n"
+ │   │       │       │   │   │       │       │       └─ LuauAttributedFunctionValue_end 314
+ │   │       │       │   │   │       │       └─ LuauAssignmentOperation_end 314
+ │   │       │       │   │   │       └─ LuauVariableAssignment_end 314
+ │   │       │       │   │   └─ LuauVariableDefinition_end 314
+ │   │       │       │   ├─ LuauReturnStatement [314..344]
+ │   │       │       │   │   ├─ LuauReturnStatement_begin [314..323]
+ │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [314..316]
+ │   │       │       │   │   │   │   └─ OptionalWhitespace [314..316]: "  "
+ │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c2 [316..322]
+ │   │       │       │   │   │   │   └─ LuauControlKeyword [316..322]: "return"
+ │   │       │       │   │   │   └─ LuauReturnStatement_begin_c3 [322..323]
+ │   │       │       │   │   │       └─ LuauReturnStatement_begin_c3 [322..323]
+ │   │       │       │   │   │           └─ OptionalWhitespace [322..323]: " "
+ │   │       │       │   │   ├─ LuauReturnStatement_content [323..344]
+ │   │       │       │   │   │   ├─ LuauAccessPath [323..334]
+ │   │       │       │   │   │   │   ├─ LuauAccessPath_begin 323
+ │   │       │       │   │   │   │   ├─ LuauAccessPath_content [323..333]
+ │   │       │       │   │   │   │   │   └─ LuauAccessPart [323..333]
+ │   │       │       │   │   │   │   │       └─ LuauVariable [323..333]
+ │   │       │       │   │   │   │   │           └─ LuauVariable_c1 [323..333]
+ │   │       │       │   │   │   │   │               └─ LuauVariableName [323..333]: "word@count"
+ │   │       │       │   │   │   │   └─ LuauAccessPath_end [333..334]
+ │   │       │       │   │   │   │       └─ LuauAccessPath_end_c1 [333..334]
+ │   │       │       │   │   │   │           └─ LuauAccessPath_end_c1 [333..334]
+ │   │       │       │   │   │   │               └─ OptionalWhitespace [333..334]: " "
+ │   │       │       │   │   │   └─ LuauArithmeticOperation [334..344]
+ │   │       │       │   │   │       ├─ LuauArithmeticOperation_begin 334
+ │   │       │       │   │   │       │   └─ LuauArithmeticOperation_begin_c1 334
+ │   │       │       │   │   │       ├─ LuauArithmeticOperation_content [334..344]
+ │   │       │       │   │   │       │   ├─ LuauArithmeticOperator [334..336]
+ │   │       │       │   │   │       │   │   ├─ LuauArithmeticOperator_begin [334..336]
+ │   │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 334
+ │   │       │       │   │   │       │   │   │   │   └─ OptionalWhitespace 334
+ │   │       │       │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [334..335]: "+"
+ │   │       │       │   │   │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [335..336]
+ │   │       │       │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [335..336]
+ │   │       │       │   │   │       │   │   │           └─ OptionalWhitespace [335..336]: " "
+ │   │       │       │   │   │       │   │   └─ LuauArithmeticOperator_end 336
+ │   │       │       │   │   │       │   └─ LuauLengthOperation [336..344]
+ │   │       │       │   │   │       │       ├─ LuauLengthOperation_begin 336
+ │   │       │       │   │   │       │       │   └─ LuauLengthOperation_begin_c1 336
+ │   │       │       │   │   │       │       ├─ LuauLengthOperation_content [336..344]
+ │   │       │       │   │   │       │       │   ├─ LuauLengthOperator [336..337]
+ │   │       │       │   │   │       │       │   │   ├─ LuauLengthOperator_begin [336..337]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 336
+ │   │       │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 336
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [336..337]: "#"
+ │   │       │       │   │   │       │       │   │   │   └─ LuauLengthOperator_begin_c3 337
+ │   │       │       │   │   │       │       │   │   └─ LuauLengthOperator_end 337
+ │   │       │       │   │   │       │       │   └─ LuauAccessPath [337..344]
+ │   │       │       │   │   │       │       │       ├─ LuauAccessPath_begin 337
+ │   │       │       │   │   │       │       │       ├─ LuauAccessPath_content [337..344]
+ │   │       │       │   │   │       │       │       │   └─ LuauAccessPart [337..344]
+ │   │       │       │   │   │       │       │       │       └─ LuauVariable [337..344]
+ │   │       │       │   │   │       │       │       │           └─ LuauVariable_c1 [337..344]
+ │   │       │       │   │   │       │       │       │               └─ LuauVariableName [337..344]: "pattern"
+ │   │       │       │   │   │       │       │       └─ LuauAccessPath_end 344
+ │   │       │       │   │   │       │       │           └─ LuauAccessPath_end_c1 344
+ │   │       │       │   │   │       │       └─ LuauLengthOperation_end 344
+ │   │       │       │   │   │       └─ LuauArithmeticOperation_end 344
+ │   │       │       │   │   └─ LuauReturnStatement_end 344
+ │   │       │       │   └─ Newline [344..345]: "\n"
+ │   │       │       └─ LuauFunctionBody_end 345
+ │   │       └─ LuauFunctionDefinition_end [345..348]
+ │   │           ├─ LuauFunctionDefinition_end_c1 345
+ │   │           │   └─ LuauFunctionDefinition_end_c1 345
+ │   │           │       └─ OptionalWhitespace 345
+ │   │           ├─ LuauFunctionDefinition_end_c2 [345..348]
+ │   │           │   └─ LuauEndKeyword [345..348]: "end"
+ │   │           ├─ LuauFunctionDefinition_end_c3 348
+ │   │           └─ LuauFunctionDefinition_end_c5 348
+ │   └─ LuauFunctionAttributes_end 348
+ ├─ Newline [348..349]: "\n"
+ ├─ Newline [349..350]: "\n"
+ ├─ Scene [350..361]
+ │   ├─ Scene_begin [350..356]
+ │   │   ├─ Scene_begin_c1 350
+ │   │   │   └─ OptionalWhitespace 350
+ │   │   ├─ Scene_begin_c2 [350..355]
+ │   │   │   └─ SceneKeyword [350..355]: "scene"
+ │   │   └─ Scene_begin_c3 [355..356]
+ │   │       └─ RequiredWhitespace [355..356]: " "
+ │   ├─ Scene_content [356..361]
+ │   │   └─ SceneWithoutParametersDeclaration [356..361]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [356..361]
+ │   │       │   └─ SceneDeclarationName [356..361]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 361
+ │   └─ Scene_end 361
+ ├─ Newline [361..362]: "\n"
+ ├─ ImageLine [362..383]
+ │   ├─ ImageLine_c1 [362..364]
+ │   │   └─ OptionalWhitespace [362..364]: "  "
+ │   ├─ ImageLine_c2 [364..383]
+ │   │   └─ ImageCommand [364..383]
+ │   │       ├─ ImageCommand_begin [364..366]
+ │   │       │   ├─ ImageCommand_begin_c1 [364..366]
+ │   │       │   │   └─ ImageBeginMark [364..366]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 366
+ │   │       ├─ ImageCommand_content [366..381]
+ │   │       │   └─ ImageCommandContent [366..381]
+ │   │       │       └─ ImageCommandContent_c1 [366..381]
+ │   │       │           └─ AssetCommandContent [366..381]
+ │   │       │               ├─ AssetCommandContent_c1 [366..381]
+ │   │       │               │   └─ AssetCommandInstruction [366..381]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 366
+ │   │       │               │       ├─ AssetCommandInstruction_c2 366
+ │   │       │               │       ├─ AssetCommandInstruction_c3 366
+ │   │       │               │       ├─ AssetCommandInstruction_c4 366
+ │   │       │               │       └─ AssetCommandInstruction_c5 [366..381]
+ │   │       │               │           └─ AssetCommandName [366..381]
+ │   │       │               │               └─ AssetCommandName_c1 [366..381]
+ │   │       │               │                   └─ AssetCommandFilteredFileName [366..381]
+ │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [366..375]
+ │   │       │               │                       │   └─ AssetCommandFileName [366..375]: "mia@night"
+ │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [375..381]
+ │   │       │               │                           └─ AssetCommandFilter [375..381]
+ │   │       │               │                               ├─ AssetCommandFilter_c1 [375..376]
+ │   │       │               │                               │   └─ AssetCommandFilterOperator [375..376]: ":"
+ │   │       │               │                               └─ AssetCommandFilter_c2 [376..381]
+ │   │       │               │                                   └─ AssetCommandFilterName [376..381]: "happy"
+ │   │       │               └─ AssetCommandContent_c2 381
+ │   │       └─ ImageCommand_end [381..383]
+ │   │           ├─ ImageCommand_end_c1 381
+ │   │           ├─ ImageCommand_end_c2 [381..383]
+ │   │           │   └─ ImageEndMark [381..383]: "]]"
+ │   │           └─ ImageCommand_end_c3 383
+ │   │               └─ ImageCommand_end_c3 383
+ │   │                   └─ OptionalWhitespace 383
+ │   └─ ImageLine_c3 383
+ ├─ Newline [383..384]: "\n"
+ ├─ ImageLine [384..403]
+ │   ├─ ImageLine_c1 [384..386]
+ │   │   └─ OptionalWhitespace [384..386]: "  "
+ │   ├─ ImageLine_c2 [386..403]
+ │   │   └─ ImageCommand [386..403]
+ │   │       ├─ ImageCommand_begin [386..388]
+ │   │       │   ├─ ImageCommand_begin_c1 [386..388]
+ │   │       │   │   └─ ImageBeginMark [386..388]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 388
+ │   │       ├─ ImageCommand_content [388..401]
+ │   │       │   └─ ImageCommandContent [388..401]
+ │   │       │       └─ ImageCommandContent_c1 [388..401]
+ │   │       │           └─ AssetCommandContent [388..401]
+ │   │       │               ├─ AssetCommandContent_c1 [388..401]
+ │   │       │               │   └─ AssetCommandInstruction [388..401]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 388
+ │   │       │               │       ├─ AssetCommandInstruction_c2 388
+ │   │       │               │       ├─ AssetCommandInstruction_c3 388
+ │   │       │               │       ├─ AssetCommandInstruction_c4 388
+ │   │       │               │       └─ AssetCommandInstruction_c5 [388..401]
+ │   │       │               │           └─ AssetCommandName [388..401]
+ │   │       │               │               └─ AssetCommandName_c1 [388..401]
+ │   │       │               │                   └─ AssetCommandFilteredFileName [388..401]
+ │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [388..397]
+ │   │       │               │                       │   └─ AssetCommandFileName [388..397]: "mia@night"
+ │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [397..401]
+ │   │       │               │                           └─ AssetCommandFilter [397..401]
+ │   │       │               │                               ├─ AssetCommandFilter_c1 [397..398]
+ │   │       │               │                               │   └─ AssetCommandFilterOperator [397..398]: "~"
+ │   │       │               │                               └─ AssetCommandFilter_c2 [398..401]
+ │   │       │               │                                   └─ AssetCommandFilterName [398..401]: "hat"
+ │   │       │               └─ AssetCommandContent_c2 401
+ │   │       └─ ImageCommand_end [401..403]
+ │   │           ├─ ImageCommand_end_c1 401
+ │   │           ├─ ImageCommand_end_c2 [401..403]
+ │   │           │   └─ ImageEndMark [401..403]: "]]"
+ │   │           └─ ImageCommand_end_c3 403
+ │   │               └─ ImageCommand_end_c3 403
+ │   │                   └─ OptionalWhitespace 403
+ │   └─ ImageLine_c3 403
+ ├─ Newline [403..404]: "\n"
+ ├─ ImageLine [404..419]
+ │   ├─ ImageLine_c1 [404..406]
+ │   │   └─ OptionalWhitespace [404..406]: "  "
+ │   ├─ ImageLine_c2 [406..419]
+ │   │   └─ ImageCommand [406..419]
+ │   │       ├─ ImageCommand_begin [406..408]
+ │   │       │   ├─ ImageCommand_begin_c1 [406..408]
+ │   │       │   │   └─ ImageBeginMark [406..408]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 408
+ │   │       ├─ ImageCommand_content [408..417]
+ │   │       │   └─ ImageCommandContent [408..417]
+ │   │       │       └─ ImageCommandContent_c1 [408..417]
+ │   │       │           └─ AssetCommandContent [408..417]
+ │   │       │               ├─ AssetCommandContent_c1 [408..417]
+ │   │       │               │   └─ AssetCommandInstruction [408..417]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 408
+ │   │       │               │       ├─ AssetCommandInstruction_c2 408
+ │   │       │               │       ├─ AssetCommandInstruction_c3 408
+ │   │       │               │       ├─ AssetCommandInstruction_c4 408
+ │   │       │               │       └─ AssetCommandInstruction_c5 [408..417]
+ │   │       │               │           └─ AssetCommandName [408..417]
+ │   │       │               │               └─ AssetCommandName_c1 [408..417]
+ │   │       │               │                   └─ AssetCommandFileName [408..417]: "mia@party"
+ │   │       │               └─ AssetCommandContent_c2 417
+ │   │       └─ ImageCommand_end [417..419]
+ │   │           ├─ ImageCommand_end_c1 417
+ │   │           ├─ ImageCommand_end_c2 [417..419]
+ │   │           │   └─ ImageEndMark [417..419]: "]]"
+ │   │           └─ ImageCommand_end_c3 419
+ │   │               └─ ImageCommand_end_c3 419
+ │   │                   └─ OptionalWhitespace 419
+ │   └─ ImageLine_c3 419
+ ├─ Newline [419..420]: "\n"
+ ├─ ImageLine [420..451]
+ │   ├─ ImageLine_c1 [420..422]
+ │   │   └─ OptionalWhitespace [420..422]: "  "
+ │   ├─ ImageLine_c2 [422..451]
+ │   │   └─ ImageCommand [422..451]
+ │   │       ├─ ImageCommand_begin [422..424]
+ │   │       │   ├─ ImageCommand_begin_c1 [422..424]
+ │   │       │   │   └─ ImageBeginMark [422..424]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 424
+ │   │       ├─ ImageCommand_content [424..449]
+ │   │       │   └─ ImageCommandContent [424..449]
+ │   │       │       └─ ImageCommandContent_c1 [424..449]
+ │   │       │           └─ AssetCommandContent [424..449]
+ │   │       │               ├─ AssetCommandContent_c1 [424..449]
+ │   │       │               │   └─ AssetCommandInstruction [424..449]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 424
+ │   │       │               │       ├─ AssetCommandInstruction_c2 424
+ │   │       │               │       ├─ AssetCommandInstruction_c3 424
+ │   │       │               │       ├─ AssetCommandInstruction_c4 424
+ │   │       │               │       └─ AssetCommandInstruction_c5 [424..449]
+ │   │       │               │           ├─ AssetCommandName [424..434]
+ │   │       │               │           │   └─ AssetCommandName_c1 [424..434]
+ │   │       │               │           │       ├─ AssetCommandFileName [424..433]: "mia@night"
+ │   │       │               │           │       └─ RequiredWhitespace [433..434]: " "
+ │   │       │               │           ├─ AssetCommandAddOperator [434..436]: "+ "
+ │   │       │               │           └─ AssetCommandName [436..449]
+ │   │       │               │               └─ AssetCommandName_c1 [436..449]
+ │   │       │               │                   └─ AssetCommandFilteredFileName [436..449]
+ │   │       │               │                       ├─ AssetCommandFilteredFileName_c1 [436..445]
+ │   │       │               │                       │   └─ AssetCommandFileName [436..445]: "mia@party"
+ │   │       │               │                       └─ AssetCommandFilteredFileName_c2 [445..449]
+ │   │       │               │                           └─ AssetCommandFilter [445..449]
+ │   │       │               │                               ├─ AssetCommandFilter_c1 [445..446]
+ │   │       │               │                               │   └─ AssetCommandFilterOperator [445..446]: ":"
+ │   │       │               │                               └─ AssetCommandFilter_c2 [446..449]
+ │   │       │               │                                   └─ AssetCommandFilterName [446..449]: "hat"
+ │   │       │               └─ AssetCommandContent_c2 449
+ │   │       └─ ImageCommand_end [449..451]
+ │   │           ├─ ImageCommand_end_c1 449
+ │   │           ├─ ImageCommand_end_c2 [449..451]
+ │   │           │   └─ ImageEndMark [449..451]: "]]"
+ │   │           └─ ImageCommand_end_c3 451
+ │   │               └─ ImageCommand_end_c3 451
+ │   │                   └─ OptionalWhitespace 451
+ │   └─ ImageLine_c3 451
+ ├─ Newline [451..452]: "\n"
+ ├─ LuauEndKeyword [452..455]: "end"
+ └─ Newline [455..456]: "\n"

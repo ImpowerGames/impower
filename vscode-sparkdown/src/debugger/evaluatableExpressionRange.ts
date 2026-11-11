@@ -1,4 +1,6 @@
-const EXPRESSION = /\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/g;
+import { LUAU_NAME_TOKEN_SOURCE } from "@impower/sparkdown/src/compiler/utils/luauName";
+
+const EXPRESSION = new RegExp(`(?<![A-Za-z0-9_@])(?:${LUAU_NAME_TOKEN_SOURCE})(?:\\.(?:${LUAU_NAME_TOKEN_SOURCE}))*`, "g");
 
 export const evaluatableExpressionRange = (
   text: string,

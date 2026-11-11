@@ -143,15 +143,13 @@ variables:
   # lookaround: `LUAU_TYPE_BINARY_OPERATORS` reads a function type's `->` whole, so a `>` right after a `-` is the arrow's, never a generic's closer.
   LUAU_TYPE_GENERIC_CLOSER: (?:(?<![-])[>])
   LUAU_GLUED_KEYWORD: (?:(?:then|do|end|else|elseif|until){{LUAU_NAME_END}})
-  # lookaround: a name character after a word, or an `@` before one, makes
-  # it a longer name, which `LuauAccessPath` and `LuauUnreadName` read whole
-  # (`ending`, `end_x`, `end@x`), so a keyword ends here only where no name
-  # goes on. It is
+  # lookaround: a name character after a word makes it a longer name,
+  # which `LuauAccessPath` and `LuauUnreadName` read whole (`ending`,
+  # `end_x`), so a keyword ends here only where no name goes on. It is
   # spelled as a class rather than `\b`, which VS Code's Oniguruma reads as
   # Unicode-aware and JavaScript as ASCII-only, so both engines end the
   # word at the same character.
-  LUAU_NAME_END: (?![a-zA-Z0-9_]|{{LUAU_NAME_AT_PART_START}})
-  LUAU_NAME_AT_PART_START: (?:@[a-zA-Z0-9_])
+  LUAU_NAME_END: (?![a-zA-Z0-9_])
   LUAU_NAME_AT_PART: (?:@[a-zA-Z0-9_]+)
   LUAU_UNREAD_SYMBOL: (?:\.\.\.|\.\.=|//=|\.\.|::|==|~=|<=|>=|\+=|-=|\*=|/=|%=|\^=|->|//|&&|\|\||!=)
   # lookaround: LuauAttribute and LuauAttributeList own an `@` before an identifier or `[`; LuauUnreadableCharacter, last in its rules' patterns, must leave that `@` to them, and no order of patterns can, since it is the catch-all for what they decline. An `@` before a keyword opens neither.
@@ -461,7 +459,8 @@ variables:
   _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+(?=[|])|(?<=\bend){{LUAU_HEAD_SEPARATOR}}))
   LUAU_HEAD_SEPARATOR: (?:[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
   # lookaround: `LuauAlternatorHead`'s end consumed the separator.
-  LUAU_AFTER_HEAD_SEPARATOR: (?<=\bend[|]{{WS}}*(?:[a-zA-Z_][a-zA-Z0-9_]*{{WS}}*[=]{{WS}}*)?)
+  LUAU_AFTER_HEAD_SEPARATOR: (?<=\bend[|]{{WS}}*{{LUAU_ARM_KEY_BEHIND}}?)
+  LUAU_ARM_KEY_BEHIND: (?:{{LUAU_NAME_BEHIND}}{{WS}}*[=]{{WS}}*)
   # lookaround: `LuauAlternatorArms` opens there and takes the `end`.
   LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR: (?:{{LUAU_AFTER_HEAD_SEPARATOR}}(?={{WS}}*(?:end{{LUAU_NAME_END}}|$)))
   # lookaround: `LuauSparkdownExplicitAlternatorArms` opens there and takes

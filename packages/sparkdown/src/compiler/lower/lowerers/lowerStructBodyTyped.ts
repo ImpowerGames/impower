@@ -10,7 +10,7 @@ import {
 import { unescapeString } from "../utils/unescapeString";
 import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
-import { LUAU_TYPE_DOT_NAME } from "../../utils/luauName";
+import { structReference } from "../utils/structReference";
 
 
 export interface SourceSpan {
@@ -95,10 +95,7 @@ function readTypedValue(
     if (inner) return unescapeString(ctx.read(inner.from, inner.to));
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
-  const raw = ctx.read(value.from, value.to).trim();
-  const ref = LUAU_TYPE_DOT_NAME.exec(raw);
-  if (ref) return { $type: ref[1], $name: ref[2] };
-  return raw;
+  return structReference(value, ctx) ?? ctx.read(value.from, value.to).trim();
 }
 
 function readLiteralValue(

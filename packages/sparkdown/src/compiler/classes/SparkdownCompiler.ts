@@ -380,13 +380,17 @@ export function declaredGlobalNames(root: ProgramRoot): Set<string> {
 function indexOfWord(text: string, word: string): number {
   const isWordChar = (c: string | undefined): boolean =>
     c !== undefined && /[A-Za-z0-9_]/.test(c);
+  const continuesBefore = (at: number): boolean =>
+    isWordChar(text[at - 1]) || (text[at - 1] === "@" && isWordChar(text[at - 2]));
+  const continuesAfter = (at: number): boolean =>
+    isWordChar(text[at]) || (text[at] === "@" && isWordChar(text[at + 1]));
   let from = 0;
   while (from <= text.length) {
     const at = text.indexOf(word, from);
     if (at < 0) {
       return -1;
     }
-    if (!isWordChar(text[at - 1]) && !isWordChar(text[at + word.length])) {
+    if (!continuesBefore(at) && !continuesAfter(at + word.length)) {
       return at;
     }
     from = at + 1;

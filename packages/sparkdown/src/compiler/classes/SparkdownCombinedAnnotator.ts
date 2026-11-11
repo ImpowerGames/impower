@@ -71,7 +71,7 @@ function listNameEnd(child: SyntaxNode): number | null {
 }
 
 const ENDS_GOING_ON =
-  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in|return)|[=,(\[{+\-*\/%^#:<>.])$/;
+  /(?:(?<![A-Za-z0-9_]|[A-Za-z0-9_]@)(?:then|else|elseif|and|or|not|in|return)|[=,(\[{+\-*\/%^#:<>.])$/;
 
 const BEGINS_GOING_ON = /^\s*(?:["'`{(\[.:]|(?:and|or)\b|[+\-*\/%^<>=~])/;
 

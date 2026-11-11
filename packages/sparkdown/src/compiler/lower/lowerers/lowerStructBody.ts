@@ -11,7 +11,7 @@ import {
   sparklePartNodes,
 } from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
-import { LUAU_TYPE_DOT_NAME } from "../../utils/luauName";
+import { structReference } from "../utils/structReference";
 
 const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "StringFieldValueInterpolated",
@@ -252,7 +252,7 @@ function evaluateElement(
   }
   const key = keyOf(valueNode);
   if (!key) return;
-  obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
+  obj[key] = valueNode ? readScalar(valueNode, ctx) : {};
 }
 
 function evaluate(
@@ -273,7 +273,7 @@ function evaluate(
         arr.push(evaluate(entry.children, ctx, elementKeys));
       } else {
         const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
-        if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
+        if (valueNode) arr.push(readScalar(valueNode, ctx));
       }
     } else if (entry.kind === "header") {
       const key = entry.key
@@ -286,7 +286,7 @@ function evaluate(
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
       const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
-      if (key) obj[key] = parseScalar(valueNode ? readValue(valueNode, ctx) : "");
+      if (key) obj[key] = valueNode ? readScalar(valueNode, ctx) : parseScalar("");
     }
   }
   return arr ?? obj;
@@ -318,6 +318,10 @@ function readValue(value: SyntaxNode, ctx: LowerContext): string {
   return ctx.read(node.from, node.to).trim();
 }
 
+function readScalar(value: SyntaxNode, ctx: LowerContext): unknown {
+  return structReference(structValueNode(value), ctx) ?? parseScalar(readValue(value, ctx));
+}
+
 function parseScalar(raw: string): unknown {
   const s = raw.trim();
   if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
@@ -328,10 +332,6 @@ function parseScalar(raw: string): unknown {
   }
   if (s === "false") {
     return false;
-  }
-  const ref = LUAU_TYPE_DOT_NAME.exec(s);
-  if (ref) {
-    return { $type: ref[1], $name: ref[2] };
   }
   return s;
 }

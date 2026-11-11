@@ -14,6 +14,7 @@ style toggle {
 function count@all(text)
   local word@count = 0
   local pattern = @/a+/
+  local flag@end = true@x
   return word@count + #pattern
 end
 

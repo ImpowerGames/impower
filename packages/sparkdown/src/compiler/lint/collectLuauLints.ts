@@ -240,7 +240,7 @@ function uncertainNames(nodes: SyntaxNode[], text: string, facts: LuauNameFacts)
 }
 
 function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, definitions: ReadonlySet<number>, misread: boolean, name: string): boolean {
-  const word = new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`, "g");
+  const word = new RegExp(`(?<![A-Za-z0-9_]|[A-Za-z0-9_]@)${name}(?![A-Za-z0-9_]|@[A-Za-z0-9_])`, "g");
   for (const match of text.matchAll(word)) {
     if (definitions.has(match.index) || (!misread && placed.has(match.index))) continue;
     const node = tree.resolveInner(match.index, 1);

@@ -1,10 +1,15 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { stillExpected } from "../../compiler/utils/closeMatch";
 import { filterImage } from "../../compiler/utils/filterImage";
 import { getImageThing } from "../../compiler/utils/getImageThing";
 import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
 
+const LANGUAGE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "language");
 const MAIN = "file:///proj/main.sd";
 const IMAGE_URI = "file:///proj/images/mia@night.svg";
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="face.happy:default" id="happy"/><g data-name="face.sad" id="sad"/><g data-name="hat.on" id="hat"/></svg>`;
@@ -69,6 +74,10 @@ end
     expect(party).toMatch(/id=['"]sad['"]/);
     expect(party).toMatch(/id=['"]hat['"]/);
     expect(party).not.toMatch(/id=['"]happy['"]/);
+    expect(program.chunks?.table.strings.filter((s) => s.includes(" + "))).toEqual([
+      expect.stringContaining("mia@night + mia@party:hat"),
+    ]);
+    expect(program.sceneAssets?.["start"]?.image).toEqual(expect.arrayContaining(["mia@night", "mia@party"]));
   });
 
   it("reads image.thing@alternate in a struct body as a reference to the image", () => {
@@ -131,6 +140,76 @@ end
     const program = compile(`${header}\nscene start\nend\n`);
     const explained = messages(program).filter((message) => message.includes("may hold an `@` between two of those characters"));
     expect(explained, messages(program).join("\n")).toHaveLength(1);
+  });
+
+  it("reads a reserved word after an @ as part of the name", () => {
+    const program = compile(`---
+title: At names
+typecheck: strict
+---
+
+store mia@end = 1
+store mia@true = mia@end + 1
+
+scene start
+  & mia@end = mia@true + mia@end
+end
+`);
+    expect(messages(program)).toEqual([]);
+  });
+
+  it("reads a reserved word before an @ as the reserved word", () => {
+    const program = compile(`---
+title: At names
+typecheck: strict
+---
+
+function tally(): number
+  return true@x
+end
+
+scene start
+  & local n = tally()
+end
+`);
+    const found = messages(program);
+    expect(found.filter((message) => message.includes("TypeMismatch")), found.join("\n")).toEqual([
+      "6:TypeMismatch: Expected this to be 'number', but got 'boolean'",
+    ]);
+    expect(found.some((message) => message.includes("attribute")), found.join("\n")).toBe(true);
+  });
+
+  it("keeps a stale name fix from editing part of an @ name", () => {
+    expect(stillExpected("mio", 0, 3, "mio", "name")).toBe(true);
+    expect(stillExpected("mio@night", 0, 3, "mio", "name")).toBe(false);
+    expect(stillExpected("mia@mio", 4, 7, "mio", "name")).toBe(false);
+    expect(stillExpected("mio @night", 0, 3, "mio", "name")).toBe(true);
+  });
+
+  it("still reports an unused function whose name is the part after another name's @", () => {
+    const script = (other: string) => `function night()
+end
+
+function ${other}()
+end
+
+scene start
+  & ${other}()
+end
+`;
+    const unused = (other: string) => messages(compile(script(other))).filter((message) => message.includes("'night' is never used"));
+    expect(unused("mia_night")).toHaveLength(1);
+    expect(unused("mia@night")).toHaveLength(1);
+  });
+
+  it.each(["sparkdown.language-config.json", "sparkdown-luau.language-config.json"])("treats a whole @ name as one word in %s", (file) => {
+    const config = JSON.parse(readFileSync(join(LANGUAGE_DIR, file), "utf8"));
+    const word = new RegExp(config.wordPattern.pattern, `g${config.wordPattern.flags ?? ""}`);
+    const words = (text: string) => text.match(word);
+    expect(words("mia@night")).toEqual(["mia@night"]);
+    expect(words("mia@_night mia_@night")).toEqual(["mia@_night", "mia_@night"]);
+    expect(words("mia@ @night")).toEqual(["mia", "night"]);
+    expect(words("don't")).toEqual(["don't"]);
   });
 
   it("type checks an @ name as the value it holds", () => {

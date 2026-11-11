@@ -44,7 +44,7 @@ import {
 } from "../../lower/utils/structBodyEntries";
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
-import { LUAU_NAME_AT_START, LUAU_NAME_SOURCE } from "../../utils/luauName";
+import { luauNameAtStart, LUAU_NAME_TOKEN_SOURCE } from "../../utils/luauName";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -193,13 +193,12 @@ const TYPE_COLON_BEGINS = nodeNameSet([
 ]);
 const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
 const LUAU_NAME_START = /[A-Za-z_]/;
-const LUAU_NAME = LUAU_NAME_AT_START;
 const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
   GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
 );
 const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\n]*/y;
 const LUAU_BLOCK_COMMENT_OPENER = /--\[=*\[/y;
-const LUAU_TOKEN = new RegExp(String.raw`${LUAU_NAME_SOURCE}|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S`, "y");
+const LUAU_TOKEN = new RegExp(String.raw`${LUAU_NAME_TOKEN_SOURCE}|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S`, "y");
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const STRAY_CLOSING_BRACKET =
   "Expected identifier when parsing expression, got ']'";
@@ -786,7 +785,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return char;
         }
         const lineTo = Math.min(to, this.text?.lineAt(pos).to ?? pos + 1);
-        return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
+        return luauNameAtStart(this.read(pos, lineTo)) ?? char;
       }
       pos = node.to;
     }
