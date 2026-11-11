@@ -27,23 +27,28 @@ const run = (redelivers?: Instructions) => {
       return 0;
     },
   } as never);
-  const settling = vi.spyOn(Coordinator.prototype, "onSettle");
-  const typing = vi.spyOn(Coordinator.prototype, "onExecute");
+  const playing = vi.spyOn(Coordinator.prototype, "onExecute");
   const drawn = () => {
     const coordinator = (game as any)._coordinator;
-    const text = Object.values((game as any)._shownBeatOnScreen?.text ?? {})
+    const onScreen = (game as any)._shownBeatOnScreen as Instructions | undefined;
+    const text = Object.values(onScreen?.text ?? {})
       .flat()
       .map((t: any) => t.text)
       .filter((t: string) => t !== "HERO")
       .join("")
       .trim();
+    const drawnBeat = coordinator?._instructions as Instructions | undefined;
+    const allShown = Object.entries(drawnBeat?.text ?? {}).every(
+      ([target, events]) => drawnBeat?.extended?.[target] === events.length,
+    );
     return {
       text,
-      drawing: settling.mock.contexts.includes(coordinator)
-        ? "settled"
-        : typing.mock.contexts.includes(coordinator)
-          ? "typed"
-          : "none",
+      drawing: !playing.mock.contexts.includes(coordinator)
+        ? "none"
+        : allShown
+          ? "shown"
+          : "typed",
+      recordedExtended: onScreen?.extended,
     };
   };
   return { game, drawn };
@@ -58,18 +63,18 @@ describe("a run that redelivers the beat on screen (#2031)", () => {
     vi.restoreAllMocks();
   });
 
-  it("draws its first beat settled when it is the beat on screen, and types the next", () => {
+  it("draws its first beat with its text shown when it reads as the beat on screen, and types the next", () => {
     const first = run();
     first.game.start();
     const onScreen = (first.game as any)._shownBeatOnScreen as Instructions;
-    expect(first.drawn()).toEqual({ text: "The first line.", drawing: "typed" });
+    expect(first.drawn()).toMatchObject({ text: "The first line.", drawing: "typed" });
     vi.restoreAllMocks();
 
     const again = run(onScreen);
     again.game.start();
-    expect(again.drawn()).toEqual({ text: "The first line.", drawing: "settled" });
+    expect(again.drawn()).toEqual({ text: "The first line.", drawing: "shown", recordedExtended: undefined });
     again.game.clickedToContinue();
-    expect(again.drawn()).toEqual({ text: "The second line.", drawing: "typed" });
+    expect(again.drawn()).toMatchObject({ text: "The second line.", drawing: "typed" });
   });
 
   it("types its first beat when the beat on screen was another", () => {
@@ -82,6 +87,6 @@ describe("a run that redelivers the beat on screen (#2031)", () => {
 
     const again = run(onScreen);
     again.game.start();
-    expect(again.drawn()).toEqual({ text: "The first line.", drawing: "typed" });
+    expect(again.drawn()).toMatchObject({ text: "The first line.", drawing: "typed" });
   });
 });

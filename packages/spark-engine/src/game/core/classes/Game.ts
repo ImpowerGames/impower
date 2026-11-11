@@ -129,7 +129,7 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
-import { beatDrawing, drawsSettled } from "../utils/beatDrawing";
+import { beatDrawing } from "../utils/beatDrawing";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -271,6 +271,13 @@ const sameLocation = (
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
 
+const drawsSettled = (beat: Instructions): boolean =>
+  !beat.load?.length &&
+  !beat.cutscene?.length &&
+  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
+  Object.entries(beat.audio ?? {}).every(
+    ([target, events]) => target === "typewriter" || events.length === 0,
+  );
 
 interface Stage {
   text: string[];
@@ -3722,9 +3729,8 @@ export class Game<T extends M = {}> {
   protected showBeat(instructions: Instructions | null, settled: boolean) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
-      const redelivered = this.redelivered(instructions);
-      this._coordinator = new Coordinator(this, instructions, {
-        settled: settled || redelivered ? "presented" : undefined,
+      this._coordinator = new Coordinator(this, this.toDraw(instructions), {
+        settled: settled ? "presented" : undefined,
       });
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
@@ -3762,16 +3768,13 @@ export class Game<T extends M = {}> {
     }
   }
 
-  protected redelivered(beat: Instructions): boolean {
+  protected toDraw(beat: Instructions): Instructions {
     if (this._simulation === "simulating") {
-      return false;
+      return beat;
     }
     const onScreen = this._redelivers;
     this._redelivers = undefined;
-    return (
-      beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen) ===
-      "settled"
-    );
+    return beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen);
   }
 
   protected presentsAtStop(): boolean {

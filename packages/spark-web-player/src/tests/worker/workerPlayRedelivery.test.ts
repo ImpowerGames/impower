@@ -30,7 +30,7 @@ const replace = (line: number, from: string, to: string) => [
 ];
 
 const writesOf = (messages: any[], words: string): boolean[] => {
-  const instants: boolean[] = [];
+  const atOnce: boolean[] = [];
   const visit = (message: any) => {
     if (message?.method === "ui/beat") {
       for (const op of message.params?.messages ?? []) visit(op);
@@ -40,11 +40,41 @@ const writesOf = (messages: any[], words: string): boolean[] => {
     const text = (message.params?.instructions ?? [])
       .map((i: any) => i.text ?? "")
       .join("");
-    if (text.includes(words)) instants.push(Boolean(message.params.instant));
+    if (text.includes(words)) {
+      const { instant, shown, instructions } = message.params;
+      atOnce.push(Boolean(instant) || (shown ?? 0) >= instructions.length);
+    }
   };
   for (const message of messages) visit(message);
-  return instants;
+  return atOnce;
 };
+
+const imagesOf = (messages: any[]): string[] => {
+  const images: string[] = [];
+  const visit = (message: any) => {
+    if (message?.method === "ui/beat") {
+      for (const op of message.params?.messages ?? []) visit(op);
+      return;
+    }
+    if (message?.method === "ui/write-image") images.push(message.params.target);
+  };
+  for (const message of messages) visit(message);
+  return images;
+};
+
+const PORTRAIT = `define a as image with
+  src = "https://example.com/a.png"
+end
+
+scene start
+  HERO:
+    [[a]]
+    The second line.
+
+  HERO:
+    The third line.
+end
+`;
 
 const restarts = async (h: { toEditor: any[] }, before: number) => {
   for (let i = 0; i < 200; i++) {
@@ -55,16 +85,17 @@ const restarts = async (h: { toEditor: any[] }, before: number) => {
   throw new Error("The game never restarted");
 };
 
-const playing = async () => {
+const playing = async (source = SOURCE) => {
+  const second = source.split("\n").findIndex((l) => l.includes("The second line."));
   const h = await createPlayerHarness({
-    files: [{ uri: MAIN_URI, text: SOURCE }],
-    startFrom: { file: MAIN_URI, line: SECOND },
+    files: [{ uri: MAIN_URI, text: source }],
+    startFrom: { file: MAIN_URI, line: second },
     manualClock: true,
   });
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   await h.compile();
-  await h.select(SECOND);
+  await h.select(second);
   await settle(40);
   const from = h.toRouter.length;
   expect(await h.controller.startGameAndApp()).toBe(true);
@@ -94,7 +125,7 @@ describe("a line PLAY redelivers after an edit restarts the run (#2031)", () => 
     }
   }, 120_000);
 
-  it("draws the line on screen settled when an edit elsewhere leaves it unchanged", async () => {
+  it("shows the line on screen at once when an edit elsewhere leaves it unchanged", async () => {
     const { h, editAndRestart } = await playing();
     try {
       const after = await editAndRestart(THIRD, "The third line.", "The third line, edited.");
@@ -122,6 +153,18 @@ describe("a line PLAY redelivers after an edit restarts the run (#2031)", () => 
       await settle(40);
       await h.tick(1000 / 60, 120);
       expect(writesOf(h.toRouter.slice(at), "The second line.")).toEqual([false]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("shows an unchanged line with a portrait at once and draws the portrait again", async () => {
+    const { h, editAndRestart } = await playing(PORTRAIT);
+    try {
+      const third = PORTRAIT.split("\n").findIndex((l) => l.includes("The third line."));
+      const after = await editAndRestart(third, "The third line.", "The third line, edited.");
+      expect(writesOf(after, "The second line.")).toEqual([true]);
+      expect(imagesOf(after)).toContain("portrait");
     } finally {
       h.dispose();
     }

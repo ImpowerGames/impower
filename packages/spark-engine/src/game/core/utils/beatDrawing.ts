@@ -1,30 +1,34 @@
 import type { Instructions } from "../types/Instructions";
-import type { ScriptLocation } from "../types/ScriptLocation";
 
 export type Delivery = "landing" | "redelivery";
 
-export type BeatDrawing = "typed" | "settled";
-
-export const drawsSettled = (beat: Instructions): boolean =>
-  !beat.load?.length &&
-  !beat.cutscene?.length &&
-  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
-  Object.entries(beat.audio ?? {}).every(
-    ([target, events]) => target === "typewriter" || events.length === 0,
-  );
-
-const sameSource = (a?: ScriptLocation, b?: ScriptLocation): boolean =>
-  a != null && b != null && a.length === b.length && a.every((v, i) => v === b[i]);
+const reads = (beat: Instructions) =>
+  JSON.stringify([beat.kind ?? null, beat.speaker ?? null, beat.text ?? null]);
 
 export const beatDrawing = (
   beat: Instructions,
   delivery: Delivery,
   onScreen: Instructions | undefined,
-): BeatDrawing =>
-  delivery === "redelivery" &&
-  onScreen != null &&
-  sameSource(beat.source, onScreen.source) &&
-  JSON.stringify(beat.text ?? {}) === JSON.stringify(onScreen.text ?? {}) &&
-  drawsSettled(beat)
-    ? "settled"
-    : "typed";
+): Instructions => {
+  if (
+    delivery !== "redelivery" ||
+    !onScreen ||
+    !beat.text ||
+    reads(beat) !== reads(onScreen)
+  ) {
+    return beat;
+  }
+  return {
+    ...beat,
+    extended: Object.fromEntries(
+      Object.entries(beat.text).map(([target, events]) => [target, events.length]),
+    ),
+    ...(beat.audio
+      ? {
+          audio: Object.fromEntries(
+            Object.entries(beat.audio).filter(([target]) => target !== "typewriter"),
+          ),
+        }
+      : {}),
+  };
+};
