@@ -2984,7 +2984,11 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#SelectorPseudoClass" }
       - { include: "#SelectorPropertyNamePart" }
+      - { include: "#LuauSparkleElementClass" }
+      - { include: "#BuiltinComponentName" }
+      - { include: "#CustomComponentName" }
     end: $|({{WS}}*)([)])
     endCaptures:
       1:
@@ -2993,6 +2997,26 @@ repository:
       2:
         patterns:
           - { include: "#PunctuationParenClose" }
+
+  SelectorPseudoClass:
+    match: ([:]{1,2})({{IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#SelectorPseudoClassOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorPseudoClassName" }
+
+  SelectorPseudoClassOperator:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: (.+)
+
+  SelectorPseudoClassName:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: (.+)
 
   BracketPropertyIdentifierString:
     brackets: true
