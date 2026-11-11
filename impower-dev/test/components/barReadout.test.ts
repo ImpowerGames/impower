@@ -216,6 +216,15 @@ describe("the readout at a stop, while the run's last position is line 12", () =
       "phone",
       stoppedBefore,
     ],
+    [
+      "a stop before a line whose frame names no script, on a phone",
+      {
+        ...stoppedOn(16, "none"),
+        stackTrace: { stackFrames: [{ id: 0, name: "start", line: 15, column: 0 }] },
+      },
+      "phone",
+      { ...stoppedBefore, name: "Stopped before line 16", uri: undefined },
+    ],
     ["a stop before a line that has not run, on the compact layout", stoppedOn(16, "none"), "compact", asToday],
     ["a stop before a line that has not run, on the desktop", stoppedOn(16, "none"), "desktop", asToday],
   ] as const)("%s", (_name, session, layout, expected) => {

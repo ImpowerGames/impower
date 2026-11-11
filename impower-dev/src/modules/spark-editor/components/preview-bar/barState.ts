@@ -123,12 +123,14 @@ const stopSentence = (line: number) =>
 
 const stoppedReadout = (session: DebugSessionState): BarReadout | null => {
   const frame = stoppedBeforeFrame(session);
-  const uri = frame?.source?.path;
-  if (!frame || !uri) {
+  if (!frame) {
     return null;
   }
+  const uri = frame.source?.path;
   return {
-    name: `Stopped before ${scriptName(uri)} : ${frame.line + 1}`,
+    name: uri
+      ? `Stopped before ${scriptName(uri)} : ${frame.line + 1}`
+      : `Stopped before line ${frame.line + 1}`,
     lines: "",
     icon: "stopped",
     title: stopSentence(frame.line),
