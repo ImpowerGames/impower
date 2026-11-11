@@ -286,6 +286,61 @@ describe("applying a fix from a problem", () => {
 });
 
 describe("opening a script for a fix", () => {
+  it("refuses a fix that carries no expected text once the script had to be opened, since nothing proves its text is the same", async () => {
+    const before = ["include scripts/a.sd", "Hello.", ""].join(NEWLINE);
+    const after = ["include scripts/b.sd", "Hello.", ""].join(NEWLINE);
+    const deleteLine = { from: 0, to: before.indexOf("Hello."), insert: "" };
+    const choice: FixChoice = {
+      fix: {
+        uri: URI,
+        version: 1,
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 20 } },
+        changes: [deleteLine],
+      },
+      name: "Delete this line",
+      done: "Line deleted.",
+    };
+    const { opening, opened } = reopening(() => after, 4);
+    opening.pull = vi.fn(async () => ({
+      diagnostics: [
+        {
+          range: choice.fix.range,
+          message: "Include lines are not supported",
+          data: [{ name: "Delete this line", done: "Line deleted.", changes: [deleteLine] }],
+        },
+      ],
+      version: 4,
+    }));
+    expect(await applyFix(deps({ openForFix: (fix) => openForFix(opening, fix) }), choice)).toBe(false);
+    expect(opened[0]!.state.doc.toString()).toBe(after);
+    expect(snackbar.value?.message).toBe(FIX_REFUSED);
+  });
+
+  it("gives up at the deadline on a diagnostics request that never answers", async () => {
+    let clock = 0;
+    const { opening } = reopening(() => SCRIPT, 9);
+    opening.pull = vi.fn(() => new Promise<never>(() => {}));
+    opening.now = () => clock;
+    opening.wait = async (ms) => {
+      clock += ms;
+    };
+    expect(await openForFix(opening, useAlice().fix)).toBeNull();
+    expect(clock).toBeGreaterThanOrEqual(FIX_OPEN_WAIT_MS);
+  });
+
+  it("rejects a matching answer that arrives after the deadline", async () => {
+    let clock = 0;
+    const { opening } = reopening(() => SCRIPT, 9);
+    opening.pull = vi.fn(async () => {
+      clock += FIX_OPEN_WAIT_MS + 1;
+      return { diagnostics: [nameDiagnostic(SCRIPT)], version: 9 };
+    });
+    opening.now = () => clock;
+    opening.wait = () => new Promise<void>(() => {});
+    expect(await openForFix(opening, useAlice().fix)).toBeNull();
+    expect(opening.record).not.toHaveBeenCalled();
+  });
+
   it("gives the editor and the server one shared deadline, so a refusal comes within it", async () => {
     let clock = 0;
     const { opening } = reopening(() => SCRIPT, 9);
