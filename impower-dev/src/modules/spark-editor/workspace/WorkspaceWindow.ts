@@ -124,11 +124,14 @@ import {
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
 import { downloadProjectZip } from "../utils/downloadProjectZip";
-import { isProjectMetadata } from "../utils/fileTree";
+import type { FileData } from "@impower/spark-editor-protocol/src/types";
+import { foldersWithoutFiles, isProjectMetadata } from "../utils/fileTree";
 import { withProjectRecord } from "../utils/projectRecordLock";
 import {
+  contentDigest,
   installOfferOf,
   keepOnDevice,
+  projectFingerprint,
   recordBackup,
   remindBackupIfDue,
   settleStorage,
@@ -170,6 +173,7 @@ import {
   loadExtensionDefaults,
   projectSettingsFromJson,
   projectSettingsJson,
+  SETTINGS_JSON_PATH,
 } from "./settings/settingsJson";
 import workspaceSettings from "./settings/WorkspaceSettings";
 import type { PreviewMode } from "./settings/settingsSchema";
@@ -733,13 +737,61 @@ export default class WorkspaceWindow {
     id = this.store.project.id,
   ): Promise<T> {
     const startedAt = Date.now();
+    const fingerprint = id
+      ? await this.projectFingerprintOf(id).catch((err) => {
+          console.error(err);
+          return null;
+        })
+      : null;
     const backedUp = await backUp();
-    if (backedUp && id) {
+    if (backedUp && id && fingerprint) {
       await withProjectRecord(id, () =>
-        recordBackup(this.backupRecord(id), startedAt),
+        recordBackup(this.backupRecord(id), startedAt, fingerprint),
       ).catch((err) => console.error(err));
     }
     return backedUp;
+  }
+
+  protected _digests = new Map<string, { key: string; digest: string }>();
+
+  protected async digestOf(file: FileData) {
+    if (file.text !== undefined) {
+      return contentDigest(new TextEncoder().encode(file.text));
+    }
+    const key = `${file.size}:${file.modified}`;
+    const cached = this._digests.get(file.uri);
+    if (cached?.key === key) {
+      return cached.digest;
+    }
+    const bytes = await this._workspace.fs.readFile({ file: { uri: file.uri } });
+    const digest = await contentDigest(bytes);
+    this._digests.set(file.uri, { key, digest });
+    return digest;
+  }
+
+  async projectFingerprintOf(id: string) {
+    const fs = this._workspace.fs;
+    const contents = Object.values(await fs.getFiles(id))
+      .map((file) => ({ file, path: fs.getRelativePath(id, file.uri) }))
+      .filter(
+        ({ path }) => !isProjectMetadata(path) && path !== SETTINGS_JSON_PATH,
+      );
+    const files = await Promise.all(
+      contents.map(async ({ file, path }) => ({
+        path,
+        digest: await this.digestOf(file),
+      })),
+    );
+    const settings = Object.entries(workspaceSettings.projectSettings.peek())
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return projectFingerprint({
+      files,
+      folders: foldersWithoutFiles(
+        contents.map(({ path }) => path),
+        await fs.getFolders(id),
+      ),
+      settings: JSON.stringify(settings),
+    });
   }
 
   protected setDeviceStorage(probe: StorageProbe) {
@@ -761,21 +813,7 @@ export default class WorkspaceWindow {
     return {
       read: (field) => fs.readStoredProjectMetadata(id, field),
       write: (field, value) => fs.writeProjectMetadata(id, field, value),
-      lastEditAt: async () => {
-        const written = Object.values(await fs.getFiles(id))
-          .filter((file) => !isProjectMetadata(fs.getRelativePath(id, file.uri)))
-          .map((file) => file.modified ?? 0);
-        const trashed = (await fs.listTrash(id).catch(() => [])).map(
-          (batch) => batch.deletedAt,
-        );
-        const kept = [
-          Number(await fs.readStoredProjectMetadata(id, "deletedAt")),
-          Number(await fs.readStoredProjectMetadata(id, "changedAt")),
-          workspaceSettings.projectSettingsChangedAt(id) ?? 0,
-        ].filter((time) => time > 0);
-        const times = [...written, ...trashed, ...kept];
-        return times.length > 0 ? Math.max(...times) : null;
-      },
+      fingerprint: () => this.projectFingerprintOf(id),
     };
   }
 

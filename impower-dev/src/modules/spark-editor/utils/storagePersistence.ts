@@ -154,13 +154,56 @@ export const BACKUP_REMINDER_CHECK_MS = 60 * 60_000;
 
 export type BackupField = Extract<
   ProjectMetadataField,
-  "backedUpAt" | "createdAt" | "remindedAt"
+  "backedUpAt" | "backedUpFingerprint" | "createdAt" | "remindedAt"
 >;
+
+export interface ProjectContent {
+  files: readonly { path: string; digest: string }[];
+  folders: readonly string[];
+  settings: string;
+}
+
+const hashText = (text: string) => {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+};
+
+export const projectFingerprint = ({
+  files,
+  folders,
+  settings,
+}: ProjectContent): string => {
+  const lines = [
+    ...[...files]
+      .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+      .map(({ path, digest }) => `file ${JSON.stringify(path)} ${digest}`),
+    ...[...folders].sort().map((folder) => `folder ${JSON.stringify(folder)}`),
+    `settings ${JSON.stringify(settings)}`,
+  ];
+  return `${files.length}:${hashText(lines.join("\n"))}`;
+};
+
+export const contentDigest = async (bytes: BufferSource) => {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+};
 
 export interface ProjectBackupRecord {
   read: (field: BackupField) => Promise<string>;
   write: (field: BackupField, value: string) => Promise<void>;
-  lastEditAt: () => Promise<number | null>;
+  fingerprint: () => Promise<string>;
 }
 
 const timeOf = async (
@@ -174,11 +217,13 @@ const timeOf = async (
 export const recordBackup = async (
   project: ProjectBackupRecord,
   startedAt: number,
+  fingerprint: string,
 ) => {
   const backedUpAt = await timeOf(project, "backedUpAt");
   if (backedUpAt !== null && backedUpAt >= startedAt) {
     return;
   }
+  await project.write("backedUpFingerprint", fingerprint);
   await project.write("backedUpAt", String(startedAt));
 };
 
@@ -215,6 +260,11 @@ export const remindBackupIfDue = async ({
   if (!local) {
     return false;
   }
+  let baseline = await project.read("backedUpFingerprint");
+  if (!baseline) {
+    baseline = await project.fingerprint();
+    await project.write("backedUpFingerprint", baseline);
+  }
   let createdAt = await timeOf(project, "createdAt");
   if (createdAt === null) {
     createdAt = now;
@@ -223,14 +273,17 @@ export const remindBackupIfDue = async ({
   const backedUpAt = await timeOf(project, "backedUpAt");
   const remindedAt = await timeOf(project, "remindedAt");
   const since = backedUpAt ?? createdAt;
-  const due = backupReminderDue({
+  const facts = {
     local,
     persistent: persisted,
-    changed: ((await project.lastEditAt()) ?? 0) >= since,
     ageMs: now - since,
     sinceRemindedMs: remindedAt === null ? null : now - remindedAt,
-  });
-  if (!due || !stillDue()) {
+  };
+  if (!backupReminderDue({ ...facts, changed: true })) {
+    return false;
+  }
+  const changed = (await project.fingerprint()) !== baseline;
+  if (!backupReminderDue({ ...facts, changed }) || !stillDue()) {
     return false;
   }
   showSnackbar({

@@ -12,6 +12,7 @@ import {
   keepOnDevice,
   persistAskOf,
   probeStorage,
+  projectFingerprint,
   recordBackup,
   remindBackupIfDue,
   settleStorage,
@@ -19,6 +20,7 @@ import {
   type BackupField,
   type PersistencePermission,
   type ProjectBackupRecord,
+  type ProjectContent,
   type StorageProbe,
 } from "../../src/modules/spark-editor/utils/storagePersistence";
 import { DEVICE_STORAGE_COPY } from "../../src/modules/spark-editor/workspace/saveStatus";
@@ -62,26 +64,61 @@ const probe = (
   canPersist = true,
 ): StorageProbe => ({ persisted, permission, canPersist });
 
+const STORY: ProjectContent = {
+  files: [
+    { path: "main.sd", digest: "main-v1" },
+    { path: "scenes/intro.sd", digest: "intro-v1" },
+    { path: "art/forest.png", digest: "forest-v1" },
+  ],
+  folders: ["chapters"],
+  settings: "{}",
+};
+
+const without = (content: ProjectContent, path: string): ProjectContent => ({
+  ...content,
+  files: content.files.filter((file) => file.path !== path),
+});
+
+const withFile = (
+  content: ProjectContent,
+  path: string,
+  digest: string,
+): ProjectContent => ({
+  ...without(content, path),
+  files: [...without(content, path).files, { path, digest }],
+});
+
 const project = (initial: Partial<Record<BackupField, string>> = {}) => {
   const files = new Map<BackupField, string>(
     Object.entries(initial) as [BackupField, string][],
   );
-  let lastEdit: number | null = null;
+  let content = STORY;
+  if (files.has("createdAt") && !files.has("backedUpFingerprint")) {
+    files.set("backedUpFingerprint", projectFingerprint(content));
+  }
+  const fingerprint = vi.fn(async () => projectFingerprint(content));
   const record: ProjectBackupRecord = {
     read: async (field) => files.get(field) ?? "",
     write: async (field, value) => {
       files.set(field, value);
     },
-    lastEditAt: async () => lastEdit,
+    fingerprint,
   };
   return {
     files,
     record,
-    edit: (at: number) => {
-      lastEdit = Math.max(lastEdit ?? 0, at);
+    fingerprint,
+    current: () => projectFingerprint(content),
+    change: (next: (content: ProjectContent) => ProjectContent) => {
+      content = next(content);
     },
   };
 };
+
+const backUp = (
+  p: ReturnType<typeof project>,
+  startedAt: number,
+) => recordBackup(p.record, startedAt, p.current());
 
 const clearSnackbars = () => {
   while (snackbar.value) {
@@ -213,12 +250,41 @@ describe("which install route the popover offers", () => {
   });
 });
 
+describe("the fingerprint of what a backup contains", () => {
+  const base = projectFingerprint(STORY);
+  const move = (content: ProjectContent, from: string, to: string) => {
+    const file = content.files.find((f) => f.path === from)!;
+    return withFile(without(content, from), to, file.digest);
+  };
+
+  it.each<[string, ProjectContent, "changed" | "unchanged"]>([
+    ["an edit", withFile(STORY, "main.sd", "main-v2"), "changed"],
+    ["a rename", move(STORY, "scenes/intro.sd", "scenes/opening.sd"), "changed"],
+    ["a move between folders", move(STORY, "scenes/intro.sd", "chapters/intro.sd"), "changed"],
+    ["a deletion to the bin", without(STORY, "scenes/intro.sd"), "changed"],
+    ["an outright deletion", without(STORY, "art/forest.png"), "changed"],
+    ["a restore from the bin", withFile(without(STORY, "scenes/intro.sd"), "scenes/intro.sd", "intro-v1"), "unchanged"],
+    ["a settings change", { ...STORY, settings: '[["screenplayTitlePage",false]]' }, "changed"],
+    ["an empty folder created", { ...STORY, folders: ["chapters", "notes"] }, "changed"],
+    ["an empty folder removed", { ...STORY, folders: [] }, "changed"],
+    ["a file added and removed again", without(withFile(STORY, "notes.sd", "notes-v1"), "notes.sd"), "unchanged"],
+    ["the same content re-saved", withFile(STORY, "main.sd", "main-v1"), "unchanged"],
+    ["an asset replaced by different bytes of the same size", withFile(STORY, "art/forest.png", "forest-v2"), "changed"],
+    ["the same files listed in another order", { ...STORY, files: [...STORY.files].reverse(), folders: [...STORY.folders].reverse() }, "unchanged"],
+  ])("%s leaves the project %s", (_case, after, expected) => {
+    expect(projectFingerprint(after) === base ? "unchanged" : "changed").toBe(expected);
+  });
+});
+
 describe("the backup record", () => {
-  it("never moves the last backup back to an earlier start", async () => {
-    const { files, record } = project();
-    await recordBackup(record, NOW);
-    await recordBackup(record, NOW - DAY_MS);
-    expect(files.get("backedUpAt")).toBe(String(NOW));
+  it("records what the backup contains, and never moves back to an earlier backup", async () => {
+    const p = project();
+    await backUp(p, NOW);
+    const first = p.current();
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    await recordBackup(p.record, NOW - DAY_MS, p.current());
+    expect(p.files.get("backedUpAt")).toBe(String(NOW));
+    expect(p.files.get("backedUpFingerprint")).toBe(first);
   });
 });
 
@@ -281,33 +347,45 @@ describe("the backup reminder", () => {
       stillDue: options.stillDue ?? (() => true),
     });
 
+  const edited = () => {
+    const p = project({ createdAt: String(NOW - 9 * DAY_MS) });
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    return p;
+  };
+
   it("claims and shows nothing once the reminder stops being due before it shows", async () => {
-    const { files, record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
-    edit(NOW - DAY_MS);
+    const { files, record } = edited();
     expect(await remind(record, { stillDue: () => false })).toBe(false);
     expect(snackbar.value).toBeNull();
     expect(files.has("remindedAt")).toBe(false);
     expect(await remind(record)).toBe(true);
   });
 
-  it("shows nothing on load for a new project, and starts its clock", async () => {
-    const { files, record } = project();
-    expect(await remind(record)).toBe(false);
+  it("records a new project's content at its first check, shows nothing, and starts its clock", async () => {
+    const p = project();
+    expect(await remind(p.record)).toBe(false);
     expect(snackbar.value).toBeNull();
-    expect(files.get("createdAt")).toBe(String(NOW));
+    expect(p.files.get("createdAt")).toBe(String(NOW));
+    expect(p.files.get("backedUpFingerprint")).toBe(p.current());
+  });
+
+  it("compares a project never backed up with its content at its first check", async () => {
+    const p = project();
+    await remind(p.record, { now: NOW - 30 * DAY_MS });
+    expect(await remind(p.record)).toBe(false);
+    p.change((c) => withFile(c, "notes.sd", "notes-v1"));
+    expect(await remind(p.record)).toBe(true);
+    expect(snackbar.value?.message).toBe("30 days and no backup yet.");
   });
 
   it("never reminds about a project with no edits, however old", async () => {
-    const created = NOW - 30 * DAY_MS;
-    const { record } = project({ createdAt: String(created) });
+    const { record } = project({ createdAt: String(NOW - 30 * DAY_MS) });
     expect(await remind(record)).toBe(false);
     expect(snackbar.value).toBeNull();
   });
 
   it("reminds with the fact, an Export action and Remind me later, once the four conditions hold", async () => {
-    const created = NOW - 9 * DAY_MS;
-    const { files, record, edit } = project({ createdAt: String(created) });
-    edit(NOW - DAY_MS);
+    const { files, record } = edited();
     expect(await remind(record)).toBe(true);
     expect(snackbar.value?.message).toBe("9 days and no backup yet.");
     expect(snackbar.value?.actionLabel).toBe("Export");
@@ -315,47 +393,82 @@ describe("the backup reminder", () => {
     expect(files.get("remindedAt")).toBe(String(NOW));
   });
 
+  it("does not compute the fingerprint when another condition already rules the reminder out", async () => {
+    for (const [options, initial] of [
+      [{ local: false }, {}],
+      [{ persisted: true }, {}],
+      [{}, { backedUpAt: String(NOW - 6 * DAY_MS) }],
+      [{}, { remindedAt: String(NOW - DAY_MS) }],
+    ] as const) {
+      const p = project({ createdAt: String(NOW - 30 * DAY_MS), ...initial });
+      p.change((c) => withFile(c, "main.sd", "main-v2"));
+      expect(await remind(p.record, options)).toBe(false);
+      expect(p.fingerprint).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each<[string, string, (c: ProjectContent) => ProjectContent]>([
+    [
+      "a deletion with no other file edited",
+      "round 1 author-experience finding 1: deletion-only changes suppress the backup reminder",
+      (c) => without(c, "scenes/intro.sd"),
+    ],
+    [
+      "an asset replaced by different bytes of the same size",
+      "round 1 undirected finding 1: same-size binary replacements never make the reminder due",
+      (c) => withFile(c, "art/forest.png", "forest-v2"),
+    ],
+    [
+      "a saved file, whatever happened to any record of the save",
+      "round 2 blast finding 1: reloading after a saved edit can permanently omit that edit",
+      (c) => withFile(c, "notes.sd", "notes-v1"),
+    ],
+    [
+      "a deletion, whether or not the trash is emptied afterwards",
+      "round 2 undirected finding 1 and round 3 blast finding 1: emptying the trash erases an unbacked deletion",
+      (c) => without(c, "scenes/intro.sd"),
+    ],
+    [
+      "an empty folder created",
+      "round 3 blast finding 3: exported directory changes never count",
+      (c) => ({ ...c, folders: [...c.folders, "notes"] }),
+    ],
+    [
+      "a project setting changed",
+      "round 3 blast finding 3: exported settings changes never count",
+      (c) => ({ ...c, settings: '[["screenplayTitlePage",false]]' }),
+    ],
+  ])("counts %s as a change (%s)", async (_case, _finding, change) => {
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    await backUp(p, NOW - 9 * DAY_MS);
+    expect(await remind(p.record)).toBe(false);
+    p.change(change);
+    expect(await remind(p.record)).toBe(true);
+    expect(snackbar.value?.message).toBe("9 days since your last backup.");
+  });
+
   it("counts a change made after the backup, and not one made before it", async () => {
-    const { record, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-    });
-    edit(NOW - 10 * DAY_MS);
-    await recordBackup(record, NOW - 9 * DAY_MS);
-    expect(await remind(record)).toBe(false);
-    edit(NOW - 8 * DAY_MS);
-    expect(await remind(record)).toBe(true);
-    expect(snackbar.value?.message).toBe("9 days since your last backup.");
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    await backUp(p, NOW - 9 * DAY_MS);
+    expect(await remind(p.record)).toBe(false);
+    p.change((c) => withFile(c, "main.sd", "main-v3"));
+    expect(await remind(p.record)).toBe(true);
   });
 
-  it("counts a change made while the backup was being made as not backed up", async () => {
-    const started = NOW - 9 * DAY_MS;
-    const { record, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-    });
-    edit(NOW - 12 * DAY_MS);
-    edit(started + 1_000);
-    await recordBackup(record, started);
-    expect(await remind(record)).toBe(true);
-    expect(snackbar.value?.message).toBe("9 days since your last backup.");
-  });
-
-  it("starts an existing project's clock at its first check, so earlier changes do not count", async () => {
-    const { files, record, edit } = project();
-    edit(NOW - 20 * DAY_MS);
-    expect(await remind(record)).toBe(false);
-    expect(files.get("createdAt")).toBe(String(NOW));
-    expect(await remind(record, { now: NOW + 9 * DAY_MS })).toBe(false);
-    edit(NOW + DAY_MS);
-    expect(await remind(record, { now: NOW + 9 * DAY_MS })).toBe(true);
+  it("does not count a change undone before the next check", async () => {
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    await backUp(p, NOW - 9 * DAY_MS);
+    p.change((c) => withFile(c, "notes.sd", "notes-v1"));
+    p.change((c) => without(c, "notes.sd"));
+    expect(await remind(p.record)).toBe(false);
   });
 
   it("counts from the last backup when there is one", async () => {
-    const { record, edit } = project({
-      createdAt: String(NOW - 40 * DAY_MS),
-      backedUpAt: String(NOW - 12 * DAY_MS),
-    });
-    edit(NOW - DAY_MS);
-    expect(await remind(record)).toBe(true);
+    const p = project({ createdAt: String(NOW - 40 * DAY_MS) });
+    await backUp(p, NOW - 12 * DAY_MS);
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    expect(await remind(p.record)).toBe(true);
     expect(snackbar.value?.message).toBe("12 days since your last backup.");
   });
 
@@ -363,36 +476,28 @@ describe("the backup reminder", () => {
     ["synced to Drive", { local: false }],
     ["persistent storage", { persisted: true }],
   ])("stays silent for a project %s", async (_case, options) => {
-    const { files, record, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-    });
-    edit(NOW - DAY_MS);
+    const { files, record } = edited();
     expect(await remind(record, options)).toBe(false);
     expect(snackbar.value).toBeNull();
     expect(files.has("remindedAt")).toBe(false);
   });
 
   it("stays silent when nothing changed since the last backup", async () => {
-    const { record, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-      backedUpAt: String(NOW - 10 * DAY_MS),
-    });
-    edit(NOW - 11 * DAY_MS);
-    expect(await remind(record)).toBe(false);
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    await backUp(p, NOW - 10 * DAY_MS);
+    expect(await remind(p.record)).toBe(false);
   });
 
   it("stays silent within seven days of the last backup", async () => {
-    const { record, edit } = project({
-      createdAt: String(NOW - 30 * DAY_MS),
-      backedUpAt: String(NOW - 6 * DAY_MS),
-    });
-    edit(NOW - DAY_MS);
-    expect(await remind(record)).toBe(false);
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    await backUp(p, NOW - 6 * DAY_MS);
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    expect(await remind(p.record)).toBe(false);
   });
 
   it("Remind me later puts it away and it does not return within the snooze period", async () => {
-    const { record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
-    edit(NOW - DAY_MS);
+    const { record } = edited();
     await remind(record);
     dismissSnackbar(snackbar.value);
     expect(snackbar.value).toBeNull();
@@ -412,8 +517,7 @@ describe("the backup reminder", () => {
       .fn<() => Promise<boolean>>()
       .mockResolvedValueOnce(false)
       .mockRejectedValueOnce(new Error("OPFS read failed"));
-    const { record, edit } = project({ createdAt: String(NOW - 9 * DAY_MS) });
-    edit(NOW - DAY_MS);
+    const { record } = edited();
     await remind(record, { exportProject });
     const reminder = snackbar.value;
     reminder?.onAction?.();
@@ -426,13 +530,12 @@ describe("the backup reminder", () => {
     expect(snackbar.value?.message).toBe(DEVICE_STORAGE_COPY.exportFailed);
   });
 
-  it("keeps the last backup time across a reload", async () => {
-    const created = NOW - 30 * DAY_MS;
-    const before = project({ createdAt: String(created) });
-    await recordBackup(before.record, NOW - 2 * DAY_MS);
+  it("keeps the last backup across a reload", async () => {
+    const before = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    await backUp(before, NOW - 2 * DAY_MS);
 
     const reloaded = project(Object.fromEntries(before.files));
-    reloaded.edit(NOW - DAY_MS);
+    reloaded.change((c) => withFile(c, "main.sd", "main-v2"));
     expect(await remind(reloaded.record)).toBe(false);
     expect(
       await remind(reloaded.record, { now: NOW + 6 * DAY_MS }),

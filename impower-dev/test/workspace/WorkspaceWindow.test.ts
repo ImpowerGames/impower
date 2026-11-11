@@ -34,7 +34,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       writeProjectMetadata: vi.fn(),
       readProjectMetadata: vi.fn(async () => ""),
       readStoredProjectMetadata: vi.fn(async () => ""),
-      listTrash: vi.fn(async () => []),
+      getFolders: vi.fn(async () => []),
+      readFile: vi.fn(async () => new ArrayBuffer(0)),
       getFiles: async () => ({}),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
@@ -588,10 +589,13 @@ describe("WorkspaceWindow store transitions", () => {
     describe("the backup record", () => {
       const started = Date.UTC(2026, 10, 10, 12, 0, 0);
       const MAIN = "file://local/main.sd";
+      const ART = "file://local/art/forest.png";
       let metadata: Map<string, string>;
       let files: Record<string, { uri: string; modified: number; size: number; text?: string }>;
-      let trash: { batchId: string; deletedAt: number; entries: [] }[];
+      let bytes: Map<string, Uint8Array>;
+      let folders: string[];
       let now: number;
+      let onFolders: () => void;
 
       const readMetadata = async (_id: string, field: string) =>
         metadata.get(field) ?? "";
@@ -611,19 +615,37 @@ describe("WorkspaceWindow store transitions", () => {
         return shown;
       };
 
+      const exportNow = async () => {
+        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
+          new Uint8Array([1]) as never,
+        );
+        expect(await downloadProjectZip()).toBe(true);
+      };
+
+      const nineDaysLater = () => {
+        now = started + 9 * DAY_MS;
+        return remindersShownBy(() => win.reviewDeviceStorage());
+      };
+
+      const DUE = ["9 days since your last backup."];
+
       beforeEach(() => {
         metadata = new Map([["createdAt", String(started - 30 * DAY_MS)]]);
         files = {
           [MAIN]: { uri: MAIN, modified: started - 10 * DAY_MS, size: 3, text: "end" },
+          [ART]: { uri: ART, modified: started - 10 * DAY_MS, size: 4 },
           "file://local/.createdAt": {
             uri: "file://local/.createdAt",
-            modified: started + 9 * DAY_MS,
+            modified: started,
             size: 13,
             text: "",
           },
         };
-        trash = [];
+        bytes = new Map([[ART, new Uint8Array([1, 2, 3, 4])]]);
+        folders = [];
+        onFolders = () => {};
         now = started;
+        localStorage.clear();
         vi.spyOn(Date, "now").mockImplementation(() => now);
         vi.mocked(Workspace.fs.readProjectMetadata).mockImplementation(readMetadata);
         vi.mocked(Workspace.fs.readStoredProjectMetadata).mockImplementation(readMetadata);
@@ -634,7 +656,14 @@ describe("WorkspaceWindow store transitions", () => {
           },
         );
         vi.spyOn(Workspace.fs, "getFiles").mockImplementation(async () => files as never);
-        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => trash);
+        vi.mocked(Workspace.fs.getFolders).mockImplementation(async () => {
+          onFolders();
+          return folders;
+        });
+        vi.mocked(Workspace.fs.readFile).mockImplementation(
+          async ({ file }: { file: { uri: string } }) =>
+            bytes.get(file.uri)!.slice().buffer as never,
+        );
         workspace.current = {
           ...workspace.current,
           project: { ...workspace.current.project, id: "local", name: "Story" },
@@ -645,7 +674,7 @@ describe("WorkspaceWindow store transitions", () => {
       afterEach(() => {
         vi.mocked(Workspace.fs.readProjectMetadata).mockImplementation(async () => "");
         vi.mocked(Workspace.fs.readStoredProjectMetadata).mockImplementation(async () => "");
-        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => []);
+        vi.mocked(Workspace.fs.getFolders).mockImplementation(async () => []);
         vi.mocked(Workspace.fs.writeProjectMetadata).mockReset();
         vi.mocked(Workspace.fs.getFiles).mockRestore();
         vi.mocked(Date.now).mockRestore();
@@ -654,100 +683,104 @@ describe("WorkspaceWindow store transitions", () => {
         dismissSnackbar(snackbar.value);
       });
 
-      it("an export records when it started as the last backup", async () => {
+      it("an export records when it started and the fingerprint of what it contains", async () => {
         vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
           now = started + 900;
           return new Uint8Array([1]) as never;
         });
         expect(await downloadProjectZip()).toBe(true);
         expect(metadata.get("backedUpAt")).toBe(String(started));
-      });
-
-      it("nothing written since the export leaves no reminder nine days later", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
+        expect(metadata.get("backedUpFingerprint")).toBe(
+          await win.projectFingerprintOf("local"),
         );
-        await downloadProjectZip();
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([]);
       });
 
-      it("a file written while the export runs leaves the project due for a reminder", async () => {
+      it("nothing changed since the export leaves no reminder nine days later", async () => {
+        await exportNow();
+        expect(await nineDaysLater()).toEqual([]);
+      });
+
+      it("the same content saved again leaves no reminder", async () => {
+        await exportNow();
+        files[MAIN] = { ...files[MAIN]!, modified: started + DAY_MS };
+        files[ART] = { ...files[ART]!, modified: started + DAY_MS };
+        expect(await nineDaysLater()).toEqual([]);
+      });
+
+      it.each<[string, string, () => void]>([
+        [
+          "an asset replaced by different bytes of the same size",
+          "round 1 undirected finding 1",
+          () => {
+            bytes.set(ART, new Uint8Array([4, 3, 2, 1]));
+            files[ART] = { ...files[ART]!, modified: started + DAY_MS };
+          },
+        ],
+        [
+          "a deleted file, whatever became of the trash",
+          "round 1 author-experience finding 1, round 2 undirected finding 1, round 3 blast finding 1",
+          () => {
+            delete files[ART];
+          },
+        ],
+        [
+          "an empty folder created",
+          "round 3 blast finding 3",
+          () => {
+            folders = ["notes"];
+          },
+        ],
+        [
+          "a project setting changed",
+          "round 3 blast finding 3",
+          () => {
+            workspaceSettings.replaceProjectSettings("local", {
+              screenplayTitlePage: false,
+            });
+          },
+        ],
+      ])("%s after the export leaves the project due (%s)", async (_case, _finding, change) => {
+        await exportNow();
+        change();
+        expect(await nineDaysLater()).toEqual(DUE);
+      });
+
+      it("a change made while the export runs leaves the project due (round 1 undirected finding 2, round 3 undirected finding 1)", async () => {
         vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
-          now = started + 500;
-          files[MAIN] = { ...files[MAIN]!, modified: now, text: "end!" };
-          now = started + 900;
+          files[MAIN] = { ...files[MAIN]!, modified: started + 500, text: "end!" };
           return new Uint8Array([1]) as never;
         });
         expect(await downloadProjectZip()).toBe(true);
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
-          "9 days since your last backup.",
-        ]);
+        expect(await nineDaysLater()).toEqual(DUE);
       });
 
-      it("a file moved to the trash after the export leaves the project due for a reminder", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
-        );
-        await downloadProjectZip();
-        trash = [{ batchId: "b", deletedAt: started + DAY_MS, entries: [] }];
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
-          "9 days since your last backup.",
-        ]);
-      });
-
-      it("a deletion whose trash was emptied still leaves the project due for a reminder", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
-        );
-        await downloadProjectZip();
-        metadata.set("deletedAt", String(started + DAY_MS));
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
-          "9 days since your last backup.",
-        ]);
-      });
-
-      it("a folder change recorded after the export leaves the project due for a reminder", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
-        );
-        await downloadProjectZip();
-        metadata.set("changedAt", String(started + DAY_MS));
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
-          "9 days since your last backup.",
-        ]);
-      });
-
-      it("a project setting changed after the export leaves the project due for a reminder", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
-        );
-        await downloadProjectZip();
-        now = started + DAY_MS;
-        workspaceSettings.replaceProjectSettings("local", {
-          screenplayTitlePage: false,
+      it("a failed export overlapping a successful one still leaves a later change due (round 2 blast finding 2)", async () => {
+        let finish!: () => void;
+        const held = new Promise<void>((resolve) => {
+          finish = resolve;
         });
-        now = started + 9 * DAY_MS;
-        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([
-          "9 days since your last backup.",
-        ]);
+        const succeeding = win.backUpProject(async () => {
+          await held;
+          return true;
+        }, "local");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await win.backUpProject(async () => false, "local");
+        files[MAIN] = { ...files[MAIN]!, modified: started + 500, text: "end!" };
+        finish();
+        await succeeding;
+        expect(await nineDaysLater()).toEqual(DUE);
       });
 
       it("a review that finishes after the editor is hidden shows and claims nothing", async () => {
         metadata.set("backedUpAt", String(started - 9 * DAY_MS));
-        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
+        metadata.set("backedUpFingerprint", "before");
         let visibility: DocumentVisibilityState = "visible";
         const state = vi
           .spyOn(document, "visibilityState", "get")
           .mockImplementation(() => visibility);
-        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => {
+        onFolders = () => {
           visibility = "hidden";
-          return [];
-        });
+        };
         try {
           expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([]);
           expect(metadata.has("remindedAt")).toBe(false);
@@ -758,21 +791,20 @@ describe("WorkspaceWindow store transitions", () => {
 
       it("a review that finishes after the browser agreed to keep the project shows and claims nothing", async () => {
         metadata.set("backedUpAt", String(started - 9 * DAY_MS));
-        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
-        vi.mocked(Workspace.fs.listTrash).mockImplementation(async () => {
+        metadata.set("backedUpFingerprint", "before");
+        onFolders = () => {
           workspace.deviceStorage.value = {
             persisted: true,
             permission: "granted",
             canPersist: true,
             install: null,
           };
-          return [];
-        });
+        };
         expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual([]);
         expect(metadata.has("remindedAt")).toBe(false);
       });
 
-      it("two exports finishing out of order keep the later backup time", async () => {
+      it("two exports finishing out of order keep the later backup", async () => {
         let release!: () => void;
         const held = new Promise<void>((resolve) => {
           release = resolve;
@@ -789,13 +821,17 @@ describe("WorkspaceWindow store transitions", () => {
           },
         );
         const earlier = win.backUpProject(async () => true, "local");
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 5));
         now = started + 1_000;
+        files[MAIN] = { ...files[MAIN]!, text: "end!" };
         const later = win.backUpProject(async () => true, "local");
         await new Promise((resolve) => setTimeout(resolve, 5));
         release();
         await Promise.all([earlier, later]);
         expect(metadata.get("backedUpAt")).toBe(String(started + 1_000));
+        expect(metadata.get("backedUpFingerprint")).toBe(
+          await win.projectFingerprintOf("local"),
+        );
       });
 
       it("a failed export records no backup", async () => {
@@ -806,12 +842,12 @@ describe("WorkspaceWindow store transitions", () => {
 
       it("runs one storage review at a time, so two checks never show the reminder twice", async () => {
         metadata.set("backedUpAt", String(started - 9 * DAY_MS));
-        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
+        metadata.set("backedUpFingerprint", "before");
         expect(
           await remindersShownBy(() =>
             Promise.all([win.reviewDeviceStorage(), win.reviewDeviceStorage()]),
           ),
-        ).toEqual(["9 days since your last backup."]);
+        ).toEqual(DUE);
         expect(metadata.get("remindedAt")).toBe(String(started));
       });
 
@@ -821,14 +857,14 @@ describe("WorkspaceWindow store transitions", () => {
           value: memoryLocks(),
         });
         metadata.set("backedUpAt", String(started - 9 * DAY_MS));
-        files[MAIN] = { ...files[MAIN]!, modified: started - 8 * DAY_MS };
+        metadata.set("backedUpFingerprint", "before");
         const other = new WorkspaceWindow(Workspace);
         try {
           expect(
             await remindersShownBy(() =>
               Promise.all([win.reviewDeviceStorage(), other.reviewDeviceStorage()]),
             ),
-          ).toEqual(["9 days since your last backup."]);
+          ).toEqual(DUE);
         } finally {
           other.dispose();
         }

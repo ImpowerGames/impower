@@ -143,9 +143,7 @@ const seed = (files: Record<string, string>, folders: string[] = []) => {
 const MIGRATED = { ".layout": "1", ".folders": "1" };
 
 const stored = (root: MemoryDirectory) =>
-  listMemory(root, PROJECT).filter(
-    (p) => !p.startsWith(".trash") && p !== ".changedAt",
-  );
+  listMemory(root, PROJECT).filter((p) => !p.startsWith(".trash"));
 
 describe("empty folders are directories in the workspace store", () => {
   it("creates an empty folder as a directory, reports it, and keeps it across a reload", async () => {

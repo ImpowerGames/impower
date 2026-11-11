@@ -41,11 +41,6 @@ type ConfigurationListener = (params: DidChangeConfigurationParams) => void;
 const projectStorageKey = (projectId: string) =>
   PROJECT_SETTINGS_STORAGE_KEY_PREFIX + projectId;
 
-export const PROJECT_SETTINGS_CHANGED_KEY_PREFIX = "settings/project-changed/";
-
-const projectChangedKey = (projectId: string) =>
-  PROJECT_SETTINGS_CHANGED_KEY_PREFIX + projectId;
-
 const readStored = (storage: Storage | undefined, key: string) => {
   const text = storage?.getItem(key);
   if (!text) {
@@ -216,16 +211,6 @@ export class WorkspaceSettings {
     this._storage?.setItem(key, JSON.stringify(stored));
   }
 
-  protected saveProject(projectId: string, stored: StoredSettings) {
-    this.save(projectStorageKey(projectId), stored);
-    this._storage?.setItem(projectChangedKey(projectId), String(Date.now()));
-  }
-
-  projectSettingsChangedAt(projectId: string): number | null {
-    const time = Number(this._storage?.getItem(projectChangedKey(projectId)));
-    return Number.isFinite(time) && time > 0 ? time : null;
-  }
-
   setPreference = <K extends PreferenceKey>(key: K, value: Preferences[K]) => {
     assertValid(PREFERENCES_SCHEMA, key, value);
     const stored = { ...this._storedPreferences.peek(), [key]: value };
@@ -241,7 +226,7 @@ export class WorkspaceSettings {
     assertValid(PROJECT_SETTINGS_SCHEMA, key, value);
     const current = this._storedProject.peek();
     const stored = { ...current.stored, [key]: value };
-    this.saveProject(current.id, stored);
+    this.save(projectStorageKey(current.id), stored);
     this._storedProject.value = { id: current.id, stored };
     this.notifyConfigurationChanged();
   };
@@ -267,7 +252,7 @@ export class WorkspaceSettings {
     const stored = Object.fromEntries(
       Object.entries(current.stored).filter(([key]) => !keys.includes(key as ProjectSettingKey)),
     );
-    this.saveProject(current.id, stored);
+    this.save(projectStorageKey(current.id), stored);
     this._storedProject.value = { id: current.id, stored };
     this.notifyConfigurationChanged();
   };
@@ -285,7 +270,7 @@ export class WorkspaceSettings {
       ...withoutKnownKeys(previous, PROJECT_SETTINGS_SCHEMA),
       ...values,
     };
-    this.saveProject(projectId, stored);
+    this.save(projectStorageKey(projectId), stored);
     if (current.id === projectId) {
       this._storedProject.value = { id: projectId, stored };
       this.notifyConfigurationChanged();
