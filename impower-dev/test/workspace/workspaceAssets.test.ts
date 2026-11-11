@@ -3,14 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   importFiles: vi.fn(async (_projectId: string, items: { rel: string }[]) => items.map((item) => item.rel)),
   recordMove: vi.fn(),
-  recordReferenceRename: vi.fn(),
   recordTrashDeletion: vi.fn(async () => undefined),
   recordCreate: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({ importFiles: mocks.importFiles }));
-vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
+vi.mock("../../src/modules/spark-editor/utils/fileUndo", async (original) => ({
+  renameFile: (await original<typeof import("../../src/modules/spark-editor/utils/fileUndo")>()).renameFile,
   recordMove: mocks.recordMove,
-  recordReferenceRename: mocks.recordReferenceRename,
   recordTrashDeletion: mocks.recordTrashDeletion,
   recordCreate: mocks.recordCreate,
 }));
@@ -118,15 +117,6 @@ describe("the Assets page's file intents", () => {
     expect(Object.keys(listing.files).sort()).toEqual(["Assets/Images/bunny.png", "assets/Audio/theme.wav"]);
   });
 
-  it("keeps a rename reference-aware when the reference lookup fails", async () => {
-    const { assets, fs, ls } = fakeWorkspace({ "Assets/Audio/theme.wav": "wav" });
-    await assets.load();
-    ls.getFileReferences.mockRejectedValueOnce(new Error("language server busy"));
-    expect(await assets.rename("Assets/Audio/theme.wav", "sea")).toBe("Assets/Audio/sea.wav");
-    expect(fs.renameFileWithReferences).toHaveBeenCalledWith(PROJECT, "Assets/Audio/theme.wav", "Assets/Audio/sea.wav");
-    expect(fs.moveFile).not.toHaveBeenCalled();
-  });
-
   it("creates Assets/Fonts when the first font is added to a new project", async () => {
     const { assets } = fakeWorkspace({ "main.sd": "x" });
     await assets.load();
@@ -162,19 +152,17 @@ describe("the Assets page's file intents", () => {
   });
 
   it("renames a file in place, keeping its extension, and moves its references when scripts use it", async () => {
-    const { assets, fs, ls, settings } = fakeWorkspace({ "Assets/Audio/theme.wav": "wav", "Assets/Audio/rain.wav": "wav" });
+    const { assets, fs, window, settings } = fakeWorkspace({ "Assets/Audio/theme.wav": "wav", "Assets/Audio/rain.wav": "wav" });
     await assets.load();
     expect(await assets.rename("Assets/Audio/theme.wav", "harbor")).toBe("Assets/Audio/harbor.wav");
-    expect(fs.moveFile).toHaveBeenCalledWith(PROJECT, "Assets/Audio/theme.wav", "Assets/Audio/harbor.wav");
+    expect(fs.renameFileWithReferences).toHaveBeenCalledWith(PROJECT, "Assets/Audio/theme.wav", "Assets/Audio/harbor.wav");
+    expect(window.recordScriptChange).toHaveBeenCalledTimes(1);
     expect(mocks.recordMove).toHaveBeenCalledWith(PROJECT, "Assets/Audio/theme.wav", "Assets/Audio/harbor.wav", false);
-    ls.getFileReferences.mockResolvedValueOnce([{ uri: uri("main.sd") }]);
-    expect(await assets.rename("Assets/Audio/harbor.wav", "sea")).toBe("Assets/Audio/sea.wav");
-    expect(fs.renameFileWithReferences).toHaveBeenCalledWith(PROJECT, "Assets/Audio/harbor.wav", "Assets/Audio/sea.wav");
-    expect(mocks.recordReferenceRename).toHaveBeenCalledTimes(1);
     settings.autoRenameFiles = false;
-    ls.getFileReferences.mockResolvedValueOnce([{ uri: uri("main.sd") }]);
-    await assets.rename("Assets/Audio/sea.wav", "bay");
+    await assets.rename("Assets/Audio/harbor.wav", "bay");
+    expect(fs.moveFile).toHaveBeenCalledWith(PROJECT, "Assets/Audio/harbor.wav", "Assets/Audio/bay.wav");
     expect(fs.renameFileWithReferences).toHaveBeenCalledTimes(1);
+    expect(mocks.recordMove).toHaveBeenCalledTimes(2);
     await expect(assets.rename("Assets/Audio/bay.wav", "rain")).rejects.toThrow(NAME_MESSAGES.taken);
   });
 

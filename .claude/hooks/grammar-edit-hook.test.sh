@@ -54,6 +54,7 @@ assert_denies "mixed-case filename"            "packages/sparkdown/language/Spar
 assert_denies "Luau config path"               "packages/sparkdown/language/sparkdown-luau.language-config.json" "definitions/yaml/" "npm run language"
 assert_denies "Windows backslash Luau config"  'C:\Users\dev\impower\vscode-sparkdown\language\sparkdown-luau.language-config.json'
 assert_denies "Luau file grammar path"         "vscode-sparkdown/language/sparkdown-luau.language-grammar.json"
+assert_denies "Luau snippets path"             "packages/sparkdown/language/sparkdown-luau.language-snippets.json"
 
 reviewer_names=$(node -e '
 const models = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));

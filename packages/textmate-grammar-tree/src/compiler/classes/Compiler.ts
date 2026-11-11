@@ -54,13 +54,17 @@ function sameChunk(chunk: Chunk, record: ChunkRecord): boolean {
 
 let lastReuseEpoch = 0;
 
-class CompilerJournal {
+type JournalKind = "snapshot" | "parse";
+
+export class CompilerJournal {
+  finished = false;
   undo: (() => void)[] = [];
   savedFrom = Infinity;
   saved?: Int32Array;
   savedContent = new Set<Chunk>();
 
   constructor(
+    readonly kind: JournalKind,
     readonly packet: Packet,
     readonly chunks: Chunk[],
     readonly chunkCount: number,
@@ -152,10 +156,33 @@ export class Compiler {
   protected _journal?: CompilerJournal;
 
   beginJournal(): boolean {
-    if (this._journal) {
+    if (this._journal?.kind === "snapshot") {
       return false;
     }
-    this._journal = new CompilerJournal(
+    this._journal = this.openJournal("snapshot");
+    return true;
+  }
+
+  beginParseJournal(): CompilerJournal | undefined {
+    if (this._journal?.kind === "snapshot") {
+      return undefined;
+    }
+    this._journal = this.openJournal("parse");
+    return this._journal;
+  }
+
+  canRollBackTo(epoch: number): boolean {
+    return (
+      this._journal?.kind === "parse" &&
+      this._journal.finished &&
+      this._journal.reuseEpoch === epoch &&
+      epoch !== this.reuseEpoch
+    );
+  }
+
+  protected openJournal(kind: JournalKind): CompilerJournal {
+    return new CompilerJournal(
+      kind,
       this.packet,
       this.packet.chunks,
       this.packet.chunks.length,
@@ -172,7 +199,6 @@ export class Compiler {
       this.retokenized,
       this.reuseEpoch,
     );
-    return true;
   }
 
   rollback() {

@@ -62,7 +62,7 @@ beforeAll(() => {
   HTMLElement.prototype.releasePointerCapture ??= () => {};
 });
 
-const { default: workspace } = await import(
+const { default: workspace, IDLE_DEBUG_SESSION } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
 const { default: workspaceSettings } = await import(
@@ -188,6 +188,7 @@ const key = (target: Element, name: string) =>
 beforeEach(() => {
   localStorage.clear();
   workspace.current = structuredClone(initial);
+  workspace.debugSession.value = IDLE_DEBUG_SESSION;
   workspaceSettings.setProjectSetting("previewAspectRatio", "auto");
   workspaceSettings.setProjectSetting("previewPanelHeight", 44);
   workspaceSettings.setPreference("previewMode", "game");
@@ -271,6 +272,40 @@ describe("the bar under the game", () => {
       "file:///local/chapter.sd",
       { start: { line: 11, character: 0 }, end: { line: 11, character: 0 } },
     ]);
+  });
+
+  it("says beside the readout that a stop holds before a line that has not run, until the run moves on", async () => {
+    const note = () =>
+      [...bar().querySelectorAll("span")].find((span) =>
+        span.textContent?.startsWith("Stopped before"),
+      );
+    const stopAt = (beat: "shown" | "none") =>
+      act(() => {
+        workspace.debugSession.value = {
+          ...workspace.debugSession.peek(),
+          stopped: { reason: "breakpoint", threadId: 0, beat },
+          stackTrace: {
+            stackFrames: [
+              { id: 0, name: "start", line: 15, column: 0, source: { path: "file:///local/main.sd" } },
+            ],
+          },
+        };
+      });
+    await mount();
+    expect(note()).toBeUndefined();
+    await stopAt("none");
+    expect(note()?.textContent).toBe("Stopped before line 16. It has not run yet.");
+    expect(note()?.getAttribute("title")).toBe("Stopped before line 16. It has not run yet.");
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: null,
+        stackTrace: null,
+      };
+    });
+    expect(note()).toBeUndefined();
+    await stopAt("shown");
+    expect(note()).toBeUndefined();
   });
 
   it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {

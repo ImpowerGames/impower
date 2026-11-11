@@ -30,10 +30,15 @@ const OUT_GRAMMAR_PATHS = outPaths.map(
   (outPath) => `${outPath}/${GRAMMAR_NAME}.json`,
 );
 
-const SNIPPETS_NAME = "sparkdown.language-snippets";
-const IN_SNIPPETS_PATH = `./yaml/${SNIPPETS_NAME}.yaml`;
-const OUT_SNIPPETS_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${SNIPPETS_NAME}.json`,
+const SNIPPETS_NAMES = [
+  "sparkdown.language-snippets",
+  "sparkdown-luau.language-snippets",
+];
+const SNIPPETS_BUILDS = SNIPPETS_NAMES.flatMap((name) =>
+  outPaths.map((outPath) => ({
+    inPath: `./yaml/${name}.yaml`,
+    outPath: `${outPath}/${name}.json`,
+  })),
 );
 
 // The original code is licensed under the MIT License
@@ -537,7 +542,7 @@ const build = async () => {
     ),
   );
   await Promise.all(
-    OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath)),
+    SNIPPETS_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
   );
   console.log(LOG_PREFIX + `build finished`);
 };

@@ -423,6 +423,10 @@
       {
         "language": "sparkdown",
         "path": "./language/sparkdown.language-snippets.json"
+      },
+      {
+        "language": "sparkdown-luau",
+        "path": "./language/sparkdown-luau.language-snippets.json"
       }
     ],
     "viewsContainers": {

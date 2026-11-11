@@ -376,6 +376,32 @@ describe("the web editor's debug client on the shared adapter", () => {
     expect(methods).toContain("game/pause");
   });
 
+  it("keeps the player's word on whether a breakpoint stop's beat is on screen", async () => {
+    const { target } = player();
+    const onStop = vi.fn();
+    const debug = new WorkspaceDebugClient({ onStop, target });
+    ending = debug;
+    expect(await debug.start(MAIN)).toBe(true);
+    sendProtocolMessage(
+      {
+        jsonrpc: "2.0",
+        method: "game/hitBreakpoint",
+        params: {
+          location: { uri: MAIN, range: { start: { line: 3, character: 2 }, end: { line: 3, character: 12 } } },
+          run: 1,
+          beat: "none",
+        },
+      } as never,
+      target,
+    );
+    await vi.waitFor(() => expect(onStop).toHaveBeenCalledWith({ uri: MAIN, line: 3 }));
+    expect(workspace.debugSession.value.stopped).toEqual({
+      reason: "breakpoint",
+      threadId: 0,
+      beat: "none",
+    });
+  });
+
   it("shows the player's message when it refuses a step", async () => {
     const { target } = player({ "game/step": "no game loaded" });
     const onRefusal = vi.fn();

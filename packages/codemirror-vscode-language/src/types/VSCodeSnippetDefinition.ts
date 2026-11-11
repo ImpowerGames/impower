@@ -1,5 +1,7 @@
 export interface VSCodeSnippetDefinition {
-  prefix: string;
+  prefix: string | string[];
   body: string | string[];
-  description: string;
+  description?: string;
 }
+
+export type VSCodeSnippetsDefinition = Readonly<Record<string, unknown>>;

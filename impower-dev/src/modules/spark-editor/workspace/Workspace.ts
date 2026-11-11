@@ -33,13 +33,15 @@ export namespace Workspace {
     ls,
     configuration,
   );
-  export const scripts = new WorkspaceScripts({ fs, ls, window });
-  export const assets = new WorkspaceAssets({
+  export const autoRenameFiles = () =>
+    settings.preferences.peek().autoRenameFiles;
+  export const scripts = new WorkspaceScripts({
     fs,
     ls,
     window,
-    autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+    autoRenameFiles,
   });
+  export const assets = new WorkspaceAssets({ fs, window, autoRenameFiles });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
   export const search = new WorkspaceSearch(

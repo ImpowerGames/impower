@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: { moveFile: mocks.moveFile },
+    autoRenameFiles: () => false,
     window: {
       recordScriptChange: mocks.recordScriptChange,
       recordAssetChange: mocks.recordAssetChange,
