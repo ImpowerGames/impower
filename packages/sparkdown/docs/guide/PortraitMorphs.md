@@ -1,6 +1,6 @@
 # Portrait morphs
 
-A portrait drawn with layers already has its states: eyes open and eyes closed, a mouth open and shut, a door ajar and a door closed. [Character Portraits](./Portraits.md) shows how the script chooses one. A `morph` makes the portrait move between them on its own: the drawings of one state bend, fade or scale into the drawings of the next. A morph whose first and last poses are both the state the portrait was drawn in brings it back there after every play. A morph that stops after a set number of plays holds the pose its final play ends on: the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches.
+A portrait drawn with layers already has its states: eyes open and eyes closed, a mouth open and shut, a door ajar and a door closed. [Character Portraits](./Portraits.md) shows how the script chooses one. A `morph` makes the portrait move between them on its own: the drawings of one state bend, fade or scale into the drawings of the next. Wherever a morph is not moving its portrait it holds it in its rest, the state its last pose shows unless the morph names another. A morph that stops after a set number of plays holds the pose its final play ends on: the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches.
 
 A morph knows nothing about eyes. It drives whatever attribute groups its keyframes name, on every portrait that has those groups. This chapter uses a blink as its worked example because it is the most common use, but the same rules serve a mouth, a flickering lamp or a curtain.
 
@@ -22,6 +22,7 @@ This morph closes them and opens them again:
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   keyframes {
     0% {
@@ -43,13 +44,14 @@ morph blink {
 }
 ```
 
-That is all the script needs. Every portrait with an `eyes` group that has `open` and `closed` states, and that rests open, now blinks once when it appears. Nothing in a scene has to mention the morph: `[[mia]]` and `[[mia:happy]]` both play it.
+That is all the script needs. Every portrait with an `eyes` group that draws `open` and `closed` now blinks once when it appears and then rests with its eyes open, except a look whose eyes are closed. Nothing in a scene has to mention the morph: `[[mia]]` and `[[mia:happy]]` both play it.
 
 Reading it:
 
 - `morph blink { … }` declares a morph named `blink`. Like `style` and `animation`, it is written at a script's top level and takes a brace body.
-- `keyframes` lists the poses. Each pose names a group as a container, `eyes { … }`, and the `state` it shows there.
+- `keyframes` lists the poses. Each pose names a group as a container, `eyes { … }`, and the `state` it shows there. The last pose, `open`, is where the morph rests.
 - `method = bend` says how a drawing changes shape into its counterpart. The methods are described below; a morph that changes shapes has to name one.
+- `unless = eyes.closed` keeps the morph off a look whose eyes are closed, such as `[[mia:eyes.closed]]` or a face drawn with `eyes.closed:default`, so a sleeping face stays asleep. Without it the blink plays there too and rests the eyes open ([Which portraits a morph plays on](#which-portraits-a-morph-plays-on)).
 
 The drawings that change are found from the artwork, by their labels: the open `eyelash-left` becomes the closed `eyelash-left`, and the open `eyelash-right` becomes the closed `eyelash-right`.
 
@@ -110,6 +112,7 @@ morph blink {
   blend = morph
   method = bend
   fallback = fade
+  unless = eyes.closed
 
   keyframes {
     from {
@@ -153,6 +156,7 @@ The poses can be written on one line each, with `;` between entries:
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
   keyframes {
     from { eyes { state = open } }
     50% { eyes { state = closed } }
@@ -163,9 +167,9 @@ morph blink {
 
 A `state` is always the name of an option, never a variable or a number, so `state = closed`, `state = "closed"`, `state = 01` and `state = open-wide` are each read as written. It may also be qualified with its group, `state = eyes.closed`, the way a script line writes it. The qualifier has to be the container's own group: `state = mouth.closed` inside `eyes { … }` is an error. After you type `eyes.`, the editor completes the states the project's portraits draw.
 
-The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. As in CSS keyframes, a last pose that leaves a group out uses the portrait's resting state there.
+Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. Each group rests in the state of the last pose that names it, or in the state the morph's `rest` gives it ([Where a morph rests](#where-a-morph-rests)). A morph whose first and last poses are both its rest comes back to rest seamlessly whichever direction it plays in; between the rest and a first or last pose that differs, the portrait cuts, whatever the morph's `blend`. As in CSS keyframes, a group whose first pose sits after `0%`, or whose last pose sits before `100%`, holds the morph's rest there.
 
-An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
+An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). Where the look's own choice is a kind of a pose's state, the look's choice shows: a morph whose poses name `open` shows `open-wide` on a look the script or the art's `:default` gives `open-wide`, and rests it there. This is the one way a look's own choice changes what a playing morph shows. The art still has to draw the state the morph names: a folder that draws only `open-wide` does not fit a morph that names `open`.
 
 ### How shapes change
 
@@ -195,6 +199,7 @@ An option with a hyphen is a kind of the word before it ([The naming rules](./Po
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   layers {
     creases {
@@ -224,6 +229,7 @@ Two more settings help art whose drawings overlap. `depth` chooses which pose's 
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   layers {
     eyeball-shadow-left {
@@ -247,6 +253,7 @@ morph blink {
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   layers {
     eyeball-shadow-right {
@@ -275,6 +282,7 @@ A `clips` entry cuts an opening from the edges of the drawings its `between` lab
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   keyframes {
     from { eyes { state = open } }
@@ -322,11 +330,12 @@ A target need not be an eyeball. Any drawing that should show only between two m
 
 ### Colours at a pose
 
-A `paints` entry recolours the drawings of its `targets` labels at one pose: the colour moves in as the pose approaches and away as it leaves. `state` names the pose with its group. `when` limits the entry to portraits that draw a layer needing another group's state, such as a mask switched on:
+A `paints` entry recolours the drawings of its `targets` labels at one pose: the colour moves in as the pose approaches and away as it leaves. `state` names the pose with its group. The entry's own `when`, unlike the morph's, limits only the entry, to portraits that draw a layer needing another group's state, such as a mask switched on:
 
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   keyframes {
     from { eyes { state = open } }
@@ -358,6 +367,7 @@ A pose can set the state of more than one group. This blink drops the brows to t
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   layers {
     brow-left {
@@ -382,9 +392,9 @@ morph blink {
 }
 ```
 
-- Every group a morph drives has its `state` in the first pose, because the first pose is what a portrait has to rest in. A group whose first `state` comes in a later pose is an error on that `state`, and the morph plays on no portrait until it is fixed.
-- Each group moves between the nearest poses that set it, on the same timing as the others.
-- A portrait plays the morph only when it rests at the first pose in every group. If one group rests elsewhere, the whole look stays as drawn: a morph never moves half a face.
+- Every group a morph drives has its `state` in the first pose. A group whose first `state` comes in a later pose is an error on that `state`, and the morph plays on no portrait until it is fixed.
+- Each group moves between the nearest poses that set it, on the same timing as the others, and rests in its own rest: here the eyes rest `open` and the brows `up`.
+- A morph plays all of its groups or none. A look one of whose folders cannot show a state the morph names in any group stays as drawn, with a warning, and a `when` or `unless` keeps the whole morph off a look: a morph never moves half a face.
 - A drawing belongs to at most one group the morph drives. A layer whose showing depends on two or more of them together, such as a crease drawn only while the eyes are closed and the brows are down, keeps the portrait still with a `mixed-groups` error on the artwork. Draw it under one group.
 
 ### Moving layers
@@ -394,6 +404,7 @@ A container named after a layer label, rather than a group, moves the drawings w
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
 
   keyframes {
     from { eyes { state = open } }
@@ -444,6 +455,7 @@ Each property moves between the nearest poses that set it. A first or last pose 
 ```sparkdown
 morph blink {
   method = bend
+  unless = eyes.closed
   keyframes {
     from { eyes { state = open } }
     50% { eyes { state = closed } }
@@ -465,17 +477,94 @@ A problem in the parent is reported where the parent writes it.
 A morph finds its portraits itself; nothing connects them by name.
 
 - A portrait is considered when it has at least one of the groups the keyframes name. One with none of them, such as a background, is ignored silently.
-- It is compatible when it has every one of those groups, and every state the keyframes name in them. A portrait missing a group or a state is reported on the morph, naming the portrait and what it lacks.
+- It is compatible when it has every one of those groups, and every state the keyframes and `rest` name in them. A portrait missing a group or a state is reported on the morph, naming the portrait and what it lacks.
 - Each compatible portrait is then checked as each look the script asks for: the plain portrait, every named look built on it and every script line that selects attributes.
 
-For each look, every visible folder that draws the group has a resting state: the state the look selects, or the folder's `:default`. Then:
+For each look:
 
-- If every folder rests in the state of the morph's first pose, the morph plays. This check uses the first pose whatever the `direction`, though a `reverse` play begins from the last pose, which is one more reason to make the two the same state.
-- If every folder rests in another state, the look is dormant: it stays exactly as drawn and nothing is reported. `[[mia:eyes.closed]]` does not blink, and neither does a face whose eyes are marked `eyes.closed:default`. This is how a sleeping face keeps its eyes shut under a blinking morph.
-- If some folders rest in the first pose's state and others do not, the look is skipped, with a warning on the morph that names the folders and their states. Mark the same resting state in each folder, or select one in the script.
-- A folder with no resting state for the group, or with two, is reported the same way.
+- If the morph's `unless` or `when` keeps it off the look, the look shows exactly what the script and the art choose, and nothing is reported.
+- Otherwise every visible folder that draws a group the morph drives has to draw each state the keyframes and `rest` name for that group. If one does not, the look is skipped, with a warning on the morph naming the folder and the state it lacks.
+- Otherwise the morph plays on the look, whatever the look rests in. `[[mia:eyes.closed]]` blinks, and so does a face whose eyes are marked `eyes.closed:default`, unless the morph keeps itself off them.
 
-A morph that drives several groups makes these checks for each of them, and the look plays only when every group passes. One dormant group makes the whole look dormant, and one skipped group skips it.
+A morph that drives several groups plays all of them or none: one skipped group skips the whole look.
+
+### Keeping a morph off a look
+
+`unless` names states that keep the morph off a look, and `when` names states a look needs for the morph to play there. Each is one state written with its group, or a block of several:
+
+```sparkdown
+morph blink {
+  method = bend
+  unless {
+    eyes.closed
+    mask.on
+  }
+
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+}
+```
+
+- With `unless`, the morph does not play on a look where any listed state is active.
+- With `when`, the morph plays only on a look where every listed state is active.
+- A state is active on a look when the script line or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A kind of the state counts: `when = arms.phone` holds on a look in `arms.phone-left`.
+- A condition may name a group the morph drives, as the blink's `unless = eyes.closed` does, or any other group, such as `mask.on`.
+- Conditions are judged on the look as the script and the art give it, before the morph's rest replaces anything.
+- A child morph that writes `when` or `unless` replaces its parent's. There is no way to clear an inherited one.
+- A state no portrait the morph could play on draws, or a group none of them has, is reported where it is written.
+
+Nothing else keeps a morph off a look. A blink that should leave closed eyes closed writes `unless = eyes.closed`; without it a face drawn asleep opens its eyes to blink.
+
+### Where a morph rests
+
+While a morph plays on a look it owns the groups it drives:
+
+- During a play they show its keyframes.
+- In a gap between plays, and after the last of a set number of plays, they hold the pose the last play ended on.
+- Before the first play, while its `delay` runs, they show the pose that play starts from, so a morph that plays once does not show its end state first.
+- When playback is off, with `Animate portraits` off or `iterations = 0`, they show the morph's rest.
+
+Each driven group's rest is the state the morph's `rest` gives it, or else the state of the last pose that names the group. `rest` is a block of group containers, each with a `state`, written like a keyframe's pose:
+
+```sparkdown
+morph talk_smile {
+  blend = cut
+  when = mouth.teeth
+
+  rest {
+    mouth { state = teeth }
+  }
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+}
+```
+
+This morph plays only on looks whose mouth shows its teeth, flaps between `closed` and `open`, and shows the teeth whenever it is not moving.
+
+- A rest state need not appear in the keyframes. Going from the rest into a first pose that differs, and from a last pose that differs back to the rest, is a cut, whatever the morph's `blend`.
+- A group the keyframes leave unset at the start or end of a play, because its first pose sits after `0%` or its last before `100%`, holds its rest there.
+- `rest` holds group states only. A layer movement field in it, such as `translate`, is an error: a moved layer rests where it is drawn. A group the keyframes do not drive is an error too.
+
+### The look a portrait shows
+
+The look a portrait shows is the script's and the art's choices, except in the groups a playing morph drives, where the morph's rest replaces them. The image shown when hovering over a portrait or its suggestion, a portrait used as a mask and the morph's prepared still all show this look. While the morph is being prepared, the portrait shows the pose its moving drawing will show first.
+
+A script line or named look that chooses a state in a group a playing morph drives, other than the morph's rest, therefore does not show that state. The choice gets a warning naming the morph, the group and the rest shown instead:
+
+```sparkdown
+scene nap
+  [[mia:eyes.closed]]
+end
+```
+
+Under a blink with no `unless`, this warns that `blink` rests `eyes` on `open`. Add `eyes.closed` to the blink's `unless` to keep the blink off such looks, or route them to another morph that rests on the state, with that morph's `when`. A state the art's `:default` chooses is not reported.
 
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
 
@@ -488,8 +577,8 @@ Timing is set in `timing { … }`. Every value is optional:
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `duration` | `0.25` | Seconds one play lasts. |
-| `delay` | `0` | Seconds before the first play only. |
-| `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off. |
+| `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
+| `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off, and the portrait shows the morph's rest. |
 | `iteration_delay_min` | none | Shortest quiet time, in seconds, from the end of one play to the start of the next. |
 | `iteration_delay_max` | none | Longest such time. |
 | `direction` | `normal` | `normal`, `reverse`, `alternate` or `alternate-reverse`, as in CSS. A morph with a set number of plays stops on the pose its final play ends at. |
@@ -509,15 +598,15 @@ In the editor, the Game Preview plays morphs as soon as it shows a portrait.
 - During PLAY they follow the story's clock: pausing the story freezes each morph on its frame, and stepping moves it.
 - Changing the expression of a character who is already on screen keeps the morph's place in its cycle. A different character, an edited morph, a restart or previewing another line starts it again from rest.
 - Moved layers follow the same clock as the shapes: they freeze when the story pauses, return to where they are drawn when playback is off, and are let go with the portrait.
-- The image shown when hovering over a portrait, and a portrait used as a mask, show the still portrait with its clips applied. They do not move.
+- The image shown when hovering over a portrait, and a portrait used as a mask, show the look at rest with its clips applied ([The look a portrait shows](#the-look-a-portrait-shows)). They do not move.
 
-The `Animate portraits` button in the Game Preview's toolbar turns playback off and on. Off returns every morph to rest and holds it there; on starts each one on a fresh cycle. The choice is kept in this browser for the editor, not saved with the project, and it does not change what players of the game see.
+The `Animate portraits` button in the Game Preview's toolbar turns playback off and on. Off returns every morph to its rest and holds it there; on starts each one on a fresh cycle. The choice is kept in this browser for the editor, not saved with the project, and it does not change what players of the game see.
 
-A portrait shows its still image until its morph is ready, and keeps it for good if the morph cannot be prepared.
+A portrait shows a still image until its morph is ready: the pose its moving drawing will show first, or the rest while playback is off. It shows the rest for good if the morph cannot be prepared.
 
 ## When something looks wrong
 
-Problems with the declaration itself appear on the `morph` block, at the field that has them: a missing `method`, an unknown field or value, a state qualified with another group, `iteration_delay_max` without `iteration_delay_min` or below it, a `paints` entry with no `state`. Problems with how the morph fits the project's portraits also appear on the block, naming each portrait: a missing group or state, folders resting in different states. A label the morph names, in `layers`, `clips` or `paints`, that no portrait it plays on draws is reported where it is written, such as `No image the morph applies to has a layer labelled eyelash-top-right`; a label only some portraits draw is fine.
+Problems with the declaration itself appear on the `morph` block, at the field that has them: a missing `method`, an unknown field or value, a state qualified with another group, `iteration_delay_max` without `iteration_delay_min` or below it, a `paints` entry with no `state`, a `when` or `unless` state written without its group, a layer movement field inside `rest`. Problems with how the morph fits the project's portraits also appear on the block, naming each portrait: a missing group or state, a folder that lacks a state the morph names. A state in `rest`, `when` or `unless` that no portrait the morph could play on draws is reported where it is written. A script line or named look whose choice a playing morph's rest replaces is warned on the choice. A label the morph names, in `layers`, `clips` or `paints`, that no portrait it plays on draws is reported where it is written, such as `No image the morph applies to has a layer labelled eyelash-top-right`; a label only some portraits draw is fine.
 
 Problems found while preparing a portrait's movement appear on the artwork file, naming the morph, the layer and the looks it affects: a pair the method could not morph, a clip whose edges cannot form an opening, art the morph cannot move, a layer whose showing depends on two driven groups, a moved layer that draws part of a clip. They show once per artwork, even for art the script has not used yet.
 
@@ -527,7 +616,8 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A label with two drawings in one state and three in the other, which pairs none of them. Make the counts equal, or one on one side.
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
-- A look resting in another state than the morph's first pose, which is dormant by design. With several groups, check each one.
+- A look that should keep a state the morph drives, such as closed eyes, but shows the morph's rest instead: add the state to the morph's `unless`. The warning on the script line or named look that chooses it names the morph. A face drawn with that state as its `:default` gets no warning, so check its art too.
+- A morph that plays nowhere you expect: check its `when` and `unless`, which are judged on the look before the rest applies.
 - A portrait that shows still with an error on the artwork: it carries a style sheet, an inline style or a `transform` attribute the morph cannot read safely ([Art the morph can read](#art-the-morph-can-read)).
 - A single shape that fades instead of moving: its geometry or transform is one the morph cannot follow, and the warning names its layer.
 - A `spread-ignored` warning: the drawing paints a stroke, has a fill or shape `spread` cannot grow, or is not a single contour without overlaps or its own mask, so it keeps its own size; or none of its drawings moves between poses, so the `spread` changes nothing; or a clip's `spread` cannot apply to an opening cut in a target's own coordinates.
@@ -547,6 +637,7 @@ morph blink {
   blend = morph
   method = bend
   fallback = fade
+  unless = eyes.closed
 
   layers {
     creases {
