@@ -2,11 +2,13 @@ import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/cla
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { DocumentLocation } from "../../types/DocumentLocation";
 import type { GameHistory } from "../../types/RunHistory";
+import type { StoppedBeat } from "../../types/StoppedBeat";
 
 export type GameSteppedMethod = typeof GameSteppedMessage.method;
 
 export interface GameSteppedParams {
   location: DocumentLocation;
+  beat?: StoppedBeat;
   run?: number;
   history?: GameHistory;
 }

@@ -13,6 +13,7 @@ import type { EditorBreakpoint } from "@impower/spark-editor-protocol/src/protoc
 import type { DebugVariableNode } from "@impower/spark-web-player/src/components/DebugVariables/DebugVariables";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import type { DebugProtocol } from "@vscode/debugprotocol";
+import type { SparkStoppedEventBody } from "@impower/spark-debug-adapter/src/SparkDebugSession";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import type {
   Diagnostic,
@@ -46,7 +47,7 @@ export interface OutlineSnapshot {
 }
 
 export interface DebugSessionState {
-  stopped: DebugProtocol.StoppedEvent["body"] | null;
+  stopped: SparkStoppedEventBody | null;
   stackTrace: DebugProtocol.StackTraceResponse["body"] | null;
   history: GameHistory | null;
   breakpoints: Record<string, EditorBreakpoint[]>;

@@ -12,6 +12,7 @@ import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/spark
 import {
   SPARKDOWN_EMBEDDED_LANGUAGES,
   SPARKDOWN_LANGUAGE_CONFIGS,
+  SPARKDOWN_LANGUAGE_SNIPPETS,
   sparkdownLanguageFor,
 } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import {
@@ -43,6 +44,7 @@ export const sparkdownLanguageExtension = (config: {
     language: sparkdownLanguageFor(textDocument.uri),
     configs: SPARKDOWN_LANGUAGE_CONFIGS,
     embeddedLanguages: SPARKDOWN_EMBEDDED_LANGUAGES,
+    snippets: SPARKDOWN_LANGUAGE_SNIPPETS,
   });
 
   let client = new LSPClient({

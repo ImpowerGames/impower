@@ -1,0 +1,598 @@
+import {
+  type Completion,
+  nextSnippetField,
+  CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
+  snippet,
+} from "@codemirror/autocomplete";
+import { ensureSyntaxTree } from "@codemirror/language";
+import { EditorSelection, EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
+import {
+  convertSnippetToTemplate,
+  SNIPPET_DEGRADATIONS,
+  type SnippetDegradation,
+} from "@impower/codemirror-vscode-language/src/utils/convertSnippetToTemplate";
+import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
+import {
+  SPARKDOWN_EMBEDDED_LANGUAGES,
+  SPARKDOWN_LANGUAGE,
+  SPARKDOWN_LANGUAGE_CONFIGS,
+  SPARKDOWN_LANGUAGE_SNIPPETS,
+  SPARKDOWN_LUAU_LANGUAGE,
+  sparkdownLanguageFor,
+} from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
+import { parseSource } from "@impower/sparkdown/src/tests/compiler/grammarSnapshot";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
+
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () =>
+    Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+}
+
+const SD_URI = "file:///main.sd";
+const LUAU_URI = "file:///module.luau";
+
+const FIXTURE_SNIPPETS = {
+  [SPARKDOWN_LANGUAGE]: {
+    _generated_: ["not a snippet"],
+    "Story Fixture": {
+      prefix: "storyfix",
+      body: "STORY ${1:${TM_SELECTED_TEXT}} and ${2:more}$0",
+      description: "A story fixture",
+    },
+  },
+  [SPARKDOWN_LUAU_LANGUAGE]: {
+    "Luau Fixture": {
+      prefix: "luaufix",
+      body: ["local ${1:name} = ${2:value}", "$0"],
+      description: "A Luau fixture",
+    },
+  },
+};
+
+const languageExtension = (uri: string, snippets: object) =>
+  vscodeLanguage({
+    name: "sparkdown",
+    grammar: sparkdownGrammarFor(uri),
+    language: sparkdownLanguageFor(uri),
+    configs: SPARKDOWN_LANGUAGE_CONFIGS as never,
+    embeddedLanguages: SPARKDOWN_EMBEDDED_LANGUAGES,
+    snippets: snippets as never,
+  });
+
+const FIXTURE_EXTENSIONS = new Map([
+  [SD_URI, languageExtension(SD_URI, FIXTURE_SNIPPETS)],
+  [LUAU_URI, languageExtension(LUAU_URI, FIXTURE_SNIPPETS)],
+]);
+
+const SHIPPED_EXTENSION = languageExtension(
+  SD_URI,
+  SPARKDOWN_LANGUAGE_SNIPPETS,
+);
+
+const stateAt = (
+  doc: string,
+  marker: string,
+  uri = SD_URI,
+  extension = FIXTURE_EXTENSIONS.get(uri)!,
+) => {
+  const pos = doc.indexOf(marker) + marker.length;
+  expect(doc.indexOf(marker)).toBeGreaterThanOrEqual(0);
+  const state = EditorState.create({
+    doc,
+    selection: EditorSelection.cursor(pos),
+    extensions: extension,
+  });
+  expect(ensureSyntaxTree(state, state.doc.length, 10_000)).not.toBeNull();
+  return { state, pos };
+};
+
+const snippetResult = (
+  state: EditorState,
+  pos: number,
+  explicit = false,
+): CompletionResult | null => {
+  const sources = state.languageDataAt<CompletionSource>("autocomplete", pos);
+  expect(sources).toHaveLength(1);
+  return sources[0]!(
+    new CompletionContext(state, pos, explicit),
+  ) as CompletionResult | null;
+};
+
+const labels = (result: CompletionResult | null) =>
+  result?.options.map((option) => option.label) ?? [];
+
+const SCENE = (line: string) => `scene start()\n  ${line}\nend\n`;
+const LINE_START = SCENE("").indexOf("\nend");
+const FUNCTION = (line: string) => `function greet(name)\n  ${line}\nend\n`;
+
+describe("the snippet source offers the snippets of the language at the cursor", () => {
+  it("offers a story snippet on a scene line", () => {
+    const { state, pos } = stateAt(SCENE("storyf"), "storyf");
+    const result = snippetResult(state, pos);
+    expect(labels(result)).toEqual(["storyfix"]);
+    expect(result!.from).toBe(pos - "storyf".length);
+  });
+
+  it("does not offer a story snippet inside a function body", () => {
+    const { state, pos } = stateAt(FUNCTION("storyf"), "storyf");
+    expect(labels(snippetResult(state, pos))).not.toContain("storyfix");
+  });
+
+  it("offers a Luau snippet inside a function body", () => {
+    const { state, pos } = stateAt(FUNCTION("luauf"), "luauf");
+    const result = snippetResult(state, pos);
+    expect(labels(result)).toEqual(["luaufix"]);
+    expect(result!.from).toBe(pos - "luauf".length);
+  });
+
+  it("does not offer a Luau snippet on a scene line", () => {
+    const { state, pos } = stateAt(SCENE("luauf"), "luauf");
+    expect(labels(snippetResult(state, pos))).not.toContain("luaufix");
+  });
+
+  it("offers Luau snippets throughout a .luau document", () => {
+    const { state, pos } = stateAt("local x = 1\nluauf", "luauf", LUAU_URI);
+    expect(labels(snippetResult(state, pos))).toEqual(["luaufix"]);
+  });
+
+  it("lists the cursor language's snippets when opened explicitly with nothing typed", () => {
+    const { state, pos } = stateAt(SCENE("Hello "), "Hello ");
+    expect(snippetResult(state, pos)).toBeNull();
+    expect(labels(snippetResult(state, pos, true))).toEqual(["storyfix"]);
+  });
+
+  it("does not offer a snippet whose prefix starts in the middle of a word", () => {
+    const { state, pos } = stateAt(SCENE("xstoryf"), "xstoryf");
+    expect(snippetResult(state, pos)).toBeNull();
+  });
+
+  it("offers a snippet whose prefix holds a space, from the start of the typed text", () => {
+    const extension = languageExtension(SD_URI, {
+      [SPARKDOWN_LANGUAGE]: { Fade: { prefix: "fade to:", body: "FADE TO:" } },
+    });
+    const { state, pos } = stateAt(
+      SCENE("Then fade t"),
+      "fade t",
+      SD_URI,
+      extension,
+    );
+    const result = snippetResult(state, pos);
+    expect(labels(result)).toEqual(["fade to:"]);
+    expect(result!.from).toBe(pos - "fade t".length);
+  });
+});
+
+describe("a snippet is inserted with its tab stops", () => {
+  const views: EditorView[] = [];
+  afterEach(() => {
+    for (const view of views.splice(0)) view.destroy();
+  });
+
+  const accept = (doc: string, marker: string, uri: string, label: string) => {
+    const { state, pos } = stateAt(doc, marker, uri);
+    const result = snippetResult(state, pos)!;
+    const option = result.options.find((o) => o.label === label)!;
+    const view = new EditorView({ state, parent: document.body });
+    views.push(view);
+    (option.apply as Exclude<Completion["apply"], string | undefined>)(
+      view,
+      option,
+      result.from,
+      pos,
+    );
+    return view;
+  };
+
+  it("selects the first tab stop of a story snippet", () => {
+    const view = accept(SCENE("storyf"), "storyf", SD_URI, "storyfix");
+    expect(view.state.doc.toString()).toBe(SCENE("STORY  and more"));
+    const first = view.state.doc.toString().indexOf("STORY ") + 6;
+    expect(view.state.selection.main.from).toBe(first);
+    expect(view.state.selection.main.to).toBe(first);
+  });
+
+  it("selects the first placeholder of a multi-line Luau snippet", () => {
+    const view = accept(FUNCTION("luauf"), "luauf", SD_URI, "luaufix");
+    const doc = view.state.doc.toString();
+    expect(doc).toBe(FUNCTION("local name = value\n  "));
+    const name = doc.indexOf("name =");
+    expect(view.state.selection.main.from).toBe(name);
+    expect(view.state.selection.main.to).toBe(name + "name".length);
+  });
+
+  const insertView = (body: string, selected = "") => {
+    const extension = languageExtension(SD_URI, {
+      [SPARKDOWN_LANGUAGE]: { Body: { prefix: "bodyfix", body } },
+    });
+    const doc = SCENE(selected);
+    const from = LINE_START;
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.range(from, from + selected.length),
+      extensions: extension,
+    });
+    expect(ensureSyntaxTree(state, state.doc.length, 10_000)).not.toBeNull();
+    const pos = state.selection.main.head;
+    const result = snippetResult(state, pos, true)!;
+    const option = result.options.find((o) => o.label === "bodyfix")!;
+    const view = new EditorView({ state, parent: document.body });
+    views.push(view);
+    (option.apply as Exclude<Completion["apply"], string | undefined>)(
+      view,
+      option,
+      result.from,
+      pos,
+    );
+    return view;
+  };
+
+  const readInsertion = (view: EditorView) => {
+    const { main } = view.state.selection;
+    return {
+      inserted: view.state.sliceDoc(
+        LINE_START,
+        view.state.doc.length - "\nend\n".length,
+      ),
+      selected: [main.from - LINE_START, main.to - LINE_START],
+    };
+  };
+
+  const insertBody = (body: string, selected = "") =>
+    readInsertion(insertView(body, selected));
+
+  const nextField = (view: EditorView) => {
+    expect(nextSnippetField(view)).toBe(true);
+    return readInsertion(view);
+  };
+
+  it.each([
+    [
+      "round 1 finding 1: mirrors a stop's placeholder at each occurrence",
+      "local ${1:name} = 1; print($1)$0",
+      "",
+      "local name = 1; print(name)",
+      [6, 10],
+    ],
+    [
+      "mirrors a placeholder declared after a bare occurrence",
+      "print($1) ${1:name}",
+      "",
+      "print(name) name",
+      [6, 10],
+    ],
+    [
+      "round 1 finding 2: keeps braces inside the selected placeholder",
+      "${1:${TM_SELECTED_TEXT}}$0",
+      "{ value = 1 }",
+      "{ value = 1 }",
+      [0, 13],
+    ],
+    [
+      "keeps a multi-line selection inside its placeholder",
+      "f(${1:${TM_SELECTED_TEXT}})",
+      "a\nb",
+      "f(a\nb)",
+      [2, 5],
+    ],
+    [
+      "round 1 finding 3: keeps an escaped comma inside the first choice",
+      "${1|one\\,two,three|}$0",
+      "",
+      "one,two",
+      [0, 7],
+    ],
+    [
+      "keeps literal braces and an escaped dollar",
+      "t = { ${1:x} } \\$1",
+      "",
+      "t = { x } $1",
+      [6, 7],
+    ],
+    ["keeps a lone dollar sign", "$ alone", "", "$ alone", [7, 7]],
+    [
+      "round 2 finding 3: keeps a trailing literal backslash",
+      "path\\",
+      "",
+      "path\\",
+      [5, 5],
+    ],
+    [
+      "round 2 finding 1: keeps a CRLF placeholder inside its field",
+      "${1:a\r\nb}$0",
+      "",
+      "a\nb",
+      [0, 3],
+    ],
+    [
+      "round 2 finding 2: applies an identity variable transform",
+      "${TM_SELECTED_TEXT/foo/foo/} next",
+      "foo",
+      "foo next",
+      [8, 8],
+    ],
+    [
+      "applies a variable transform's case modifier",
+      "${TM_SELECTED_TEXT/(.*)/${1:/upcase}/}",
+      "foo",
+      "FOO",
+      [3, 3],
+    ],
+    [
+      "applies a variable transform's conditional",
+      "${TM_SELECTED_TEXT/(x)?.*/${1:?has x:no x}/}",
+      "abc",
+      "no x",
+      [4, 4],
+    ],
+    [
+      "round 3 finding 1: applies a conditional's else branch when the regex does not match",
+      "${TM_SELECTED_TEXT/(x)/${1:?has x:no x}/}",
+      "abc",
+      "no x",
+      [4, 4],
+    ],
+    [
+      "applies a fallback when the regex does not match",
+      "${TM_SELECTED_TEXT/(x)/${1:-fallback}/}",
+      "abc",
+      "fallback",
+      [8, 8],
+    ],
+    [
+      "keeps the selection when a non-matching format has no else branch",
+      "${TM_SELECTED_TEXT/(x)/${1:+has x}/}",
+      "abc",
+      "abc",
+      [3, 3],
+    ],
+    [
+      "round 3 finding 2: keeps internal capitals in camelcase",
+      "${TM_SELECTED_TEXT/(.*)/${1:/camelcase}/}",
+      "FooBar baz",
+      "fooBarBaz",
+      [9, 9],
+    ],
+    [
+      "round 3 finding 2: keeps internal capitals in pascalcase",
+      "${TM_SELECTED_TEXT/(.*)/${1:/pascalcase}/}",
+      "fooBar_baz",
+      "FooBarBaz",
+      [9, 9],
+    ],
+  ] as const)("%s", (_name, body, selected, inserted, range) => {
+    expect(insertBody(body, selected)).toEqual({ inserted, selected: range });
+  });
+
+  it("round 4 finding 1: keeps a selection that uses every private-use character inside its placeholder", () => {
+    let privateUse = "";
+    for (let code = 0xe000; code <= 0xf8ff; code++) {
+      privateUse += String.fromCharCode(code);
+    }
+    const selected = `${privateUse}{x}`;
+    expect(insertBody("${1:${TM_SELECTED_TEXT}}$0", selected)).toEqual({
+      inserted: selected,
+      selected: [0, selected.length],
+    });
+  });
+
+  it("round 4 finding 2: visits a tab stop above one billion before the final stop", () => {
+    const view = insertView("${1000000001:large} ${1:first}$0");
+    expect(readInsertion(view)).toEqual({
+      inserted: "large first",
+      selected: [6, 11],
+    });
+    expect(nextField(view)).toEqual({
+      inserted: "large first",
+      selected: [0, 5],
+    });
+    expect(nextField(view)).toEqual({
+      inserted: "large first",
+      selected: [11, 11],
+    });
+  });
+
+  const DEGRADATION_CASES: Record<SnippetDegradation, () => void> = {
+    "choice-first-option": () => {
+      const view = insertView("${1|left,right|} done");
+      expect(readInsertion(view)).toEqual({
+        inserted: "left done",
+        selected: [0, 4],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "left done",
+        selected: [9, 9],
+      });
+    },
+    "tab-stop-transform": () => {
+      const view = insertView("${1:name} ${1/(.*)/${1:/upcase}/}");
+      expect(readInsertion(view)).toEqual({
+        inserted: "name name",
+        selected: [0, 4],
+      });
+      expect(
+        [...view.contentDOM.querySelectorAll(".cm-snippetField")].map(
+          (field) => field.textContent,
+        ),
+      ).toEqual(["name", "name"]);
+      expect(nextField(view)).toEqual({
+        inserted: "name name",
+        selected: [9, 9],
+      });
+    },
+    "nested-placeholder": () => {
+      const view = insertView("${1:outer ${2:inner}} end");
+      expect(readInsertion(view)).toEqual({
+        inserted: "outer inner end",
+        selected: [0, 11],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "outer inner end",
+        selected: [15, 15],
+      });
+    },
+    "nested-final-tab-stop": () => {
+      const view = insertView("${1:outer $0} suffix");
+      expect(readInsertion(view)).toEqual({
+        inserted: "outer  suffix",
+        selected: [0, 6],
+      });
+      expect(nextField(view)).toEqual({
+        inserted: "outer  suffix",
+        selected: [13, 13],
+      });
+    },
+    "unsupported-variable": () => {
+      expect(
+        insertBody(
+          "${TM_FILENAME:fallback} $TM_FILENAME $UNKNOWN $TM_FILENAME",
+        ),
+      ).toEqual({
+        inserted: "fallback TM_FILENAME UNKNOWN TM_FILENAME",
+        selected: [9, 20],
+      });
+    },
+    "no-free-stand-in": () => {
+      let everyCharacter = "";
+      for (let code = 1; code <= 0xffff; code++) {
+        if (code === 0x0d || (code >= 0xd800 && code <= 0xdfff)) continue;
+        everyCharacter += String.fromCharCode(code);
+      }
+      const { template, standIns } = convertSnippetToTemplate(
+        "${1:${TM_SELECTED_TEXT}}$0",
+        { TM_SELECTED_TEXT: everyCharacter },
+      );
+      expect(standIns.size).toBe(0);
+      const view = new EditorView({
+        state: EditorState.create({ doc: "" }),
+        parent: document.body,
+      });
+      views.push(view);
+      snippet(template)(view, null, 0, 0);
+      expect(view.state.doc.toString()).toBe(everyCharacter);
+      expect(view.state.selection.main.from).toBe(everyCharacter.length);
+      expect(view.state.selection.main.to).toBe(everyCharacter.length);
+    },
+  };
+
+  it.each(Object.keys(SNIPPET_DEGRADATIONS) as SnippetDegradation[])(
+    "degrades as documented: %s",
+    (degradation) => {
+      DEGRADATION_CASES[degradation]();
+    },
+  );
+});
+
+const placeholderText = (body: string | string[]) => {
+  const { template, standIns } = convertSnippetToTemplate(body);
+  return [
+    ...template
+      .replace(/\$\{\d+:([^{}]*)\}/g, "$1")
+      .replace(/\$\{\d+\}/g, "")
+      .replace(/\\([{}])/g, "$1"),
+  ]
+    .map((c) => standIns.get(c) ?? c)
+    .join("");
+};
+
+const shippedStorySnippets = Object.entries(
+  SPARKDOWN_LANGUAGE_SNIPPETS[SPARKDOWN_LANGUAGE]!,
+).filter(([name]) => name !== "_generated_") as [
+  string,
+  { prefix: string | string[]; body: string | string[] },
+][];
+
+const SHIPPED_STORY_CONSTRUCTS: Readonly<Record<string, string>> = {};
+
+const nodesSpanning = (source: string, from: number, to: number) => {
+  const names: string[] = [];
+  const cursor = parseSource(source).cursor();
+  do {
+    if (cursor.from <= from && cursor.to >= to) names.push(cursor.name);
+  } while (cursor.next());
+  return names;
+};
+
+describe("the shipped story snippets pass the two checks", () => {
+  it.skipIf(shippedStorySnippets.length === 0).each(shippedStorySnippets)(
+    "%s has no punctuation prefix",
+    (_name, { prefix }) => {
+      for (const p of [prefix].flat()) {
+        expect(p).toMatch(/^[\p{L}\p{N}]/u);
+      }
+    },
+  );
+
+  it.skipIf(shippedStorySnippets.length === 0).each(shippedStorySnippets)(
+    "%s body parses as its construct on a scene line",
+    (name, { body }) => {
+      const construct = SHIPPED_STORY_CONSTRUCTS[name];
+      expect(construct, `no expected construct for ${name}`).toBeDefined();
+      const text = placeholderText(body);
+      const source = SCENE(text);
+      const from = source.indexOf(text);
+      expect(nodesSpanning(source, from, from + text.length)).toContain(
+        construct,
+      );
+    },
+  );
+
+  it("does not open the list on punctuation while typing a sentence of prose", () => {
+    const prose = "She said (quietly) *wow* and _then_ left! Done.";
+    const doc = SCENE(prose);
+    const start = doc.indexOf(prose);
+    for (let i = 1; i <= prose.length; i++) {
+      const typed = prose.slice(0, i);
+      const partial = SCENE(typed);
+      const { state, pos } = stateAt(partial, typed, SD_URI, SHIPPED_EXTENSION);
+      const result = snippetResult(state, pos);
+      expect({
+        typed: prose[i - 1],
+        at: start + i,
+        result: labels(result),
+      }).toEqual({ typed: prose[i - 1], at: start + i, result: [] });
+    }
+  });
+});
+
+describe("the vendored VS Code snippet parser", () => {
+  const directory =
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../codemirror-vscode-language/src/vendor/vscode",
+    ) + path.sep;
+  const upstream = JSON.parse(
+    fs.readFileSync(directory + "UPSTREAM.json", "utf8"),
+  ) as {
+    files: {
+      path: string;
+      blobSha: string;
+      adjustments: { from: string; to: string }[];
+    }[];
+  };
+
+  it.each(upstream.files.map((file) => [file.path, file] as const))(
+    "%s matches its upstream blob once the listed adjustments are reversed",
+    (_path, file) => {
+      let content = fs.readFileSync(directory + file.path, "utf8");
+      for (const adjustment of [...file.adjustments].reverse()) {
+        expect(content.split(adjustment.to)).toHaveLength(2);
+        content = content.replace(adjustment.to, adjustment.from);
+      }
+      const bytes = Buffer.from(content, "utf8");
+      const blobSha = createHash("sha1")
+        .update(`blob ${bytes.length}\0`)
+        .update(bytes)
+        .digest("hex");
+      expect(blobSha).toBe(file.blobSha);
+    },
+  );
+});

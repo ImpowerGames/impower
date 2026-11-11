@@ -149,6 +149,7 @@ import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
 import type { HeldStop } from "../types/HeldStop";
+import type { StoppedBeat } from "../types/StoppedBeat";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
 import type { SystemConfiguration } from "../types/SystemConfiguration";
@@ -3831,14 +3832,17 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected stopAt(reason: HeldStop["reason"]) {
+  protected stopAt(reason: HeldStop["reason"]): StoppedBeat {
     this._announcedStop = true;
     this.holdStop(reason);
-    if (this.presentsAtStop()) {
-      const beat = this.module.interpreter.flush()!;
-      this.showBeat(beat, drawsSettled(beat));
-      this.pause();
+    if (!this.presentsAtStop()) {
+      return "none";
     }
+    const beat = this.module.interpreter.flush()!;
+    const settled = drawsSettled(beat);
+    this.showBeat(beat, settled);
+    this.pause();
+    return settled ? "shown" : "held";
   }
 
   autoAdvancedToContinue() {
@@ -3940,11 +3944,12 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyHitBreakpoint() {
-    this.stopAt("breakpoint");
+    const beat = this.stopAt("breakpoint");
     this._run.markHeld();
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        beat,
       }),
     );
   }
@@ -4384,10 +4389,11 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStepped() {
-    this.stopAt("step");
+    const beat = this.stopAt("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        beat,
         history: this.history,
       }),
     );
