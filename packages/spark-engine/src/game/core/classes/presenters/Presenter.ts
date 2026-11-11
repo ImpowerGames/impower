@@ -1,7 +1,6 @@
 export interface PresentOptions {
   instant?: boolean;
   preview?: boolean;
-  again?: boolean;
   stage: boolean;
   choose: (index: number) => void;
 }

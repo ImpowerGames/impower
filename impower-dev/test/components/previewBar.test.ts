@@ -550,7 +550,7 @@ describe("the bar under the game", () => {
     expect(ratio().hasAttribute("aria-disabled")).toBe(false);
   });
 
-  it("reserves the width of Auto for the ratio's name in both modes, so a switch moves nothing in the bar", async () => {
+  it("lays the ratio's name over an invisible Auto in one grid cell in both modes, the rule that keeps the control's width across a switch", async () => {
     workspaceSettings.setProjectSetting("previewAspectRatio", "4:3");
     await mount();
     await setState((s) => {
@@ -560,15 +560,26 @@ describe("the bar under the game", () => {
       return s;
     });
     const name = () => ratio().querySelector<HTMLElement>("[data-reserve]");
+    const reserves = () => {
+      const cell = name();
+      expect(cell?.dataset.reserve).toBe("Auto");
+      expect(cell?.classList).toContain("inline-grid");
+      expect(cell?.classList).toContain("after:content-[attr(data-reserve)]");
+      expect(cell?.classList).toContain("after:invisible");
+      expect(cell?.classList).toContain("after:[grid-area:1/1]");
+      expect(cell?.classList).toContain("[&>*]:[grid-area:1/1]");
+      expect(cell?.children).toHaveLength(1);
+      expect(cell?.parentElement?.parentElement).toBe(ratio());
+    };
     expect(ratio().textContent).toBe("4:3 · 564×423");
     expect(name()?.textContent).toBe("4:3");
-    expect(name()?.dataset.reserve).toBe("Auto");
+    reserves();
     await act(async () =>
       workspaceSettings.setPreference("previewMode", "textstream"),
     );
     expect(ratio().textContent).toBe("Auto · 564×423");
     expect(name()?.textContent).toBe("Auto");
-    expect(name()?.dataset.reserve).toBe("Auto");
+    reserves();
   });
 
   it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {

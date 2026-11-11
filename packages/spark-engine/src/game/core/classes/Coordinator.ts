@@ -8,6 +8,7 @@ import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 import {
   InteractiveFictionPresenter,
+  pageKey,
   textstreamOpenAfter,
 } from "./presenters/InteractiveFictionPresenter";
 import type { PresentOptions, Presenter } from "./presenters/Presenter";
@@ -290,10 +291,12 @@ export class Coordinator<G extends Game> {
       Boolean(instant) || Boolean(game.context.system.simulating),
     );
 
+    if (!this._displayed) {
+      game.module.ui.page.shown(pageKey(instructions));
+    }
     const presenters = this.presenters({
       instant,
       preview: previewing,
-      again: this._displayed,
       choose: (index) => this.choose(index),
     });
     this._displayed = true;

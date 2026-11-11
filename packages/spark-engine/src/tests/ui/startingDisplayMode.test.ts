@@ -255,6 +255,51 @@ describe("the starting display mode chooses the text layout a game opens with (#
     expect(h.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
   });
 
+  test("after a save resumed in Visual Novel, a line played again is a new page entry", () => {
+    const h = play(LOOP, "textstream");
+    h.game.start();
+    h.tapTo("Echo.");
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+
+    const resumed = play(LOOP, "textbox");
+    expect(resumed.game.loadToResume(saved!.data)).toBe(true);
+    resumed.game.start();
+    expect(resumed.text()).toBe("Echo.");
+    resumed.game.clickedToContinue();
+    expect(resumed.text()).toBe("Echo.");
+    resumed.game.setStartingDisplayMode("textstream");
+    expect(resumed.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
+  });
+
+  test("a save resumed in Visual Novel and switched at once keeps one entry for its line", () => {
+    const h = play(LOOP, "textstream");
+    h.game.start();
+    h.tapTo("Echo.");
+    const saved = h.game.saveHere();
+    const resumed = play(LOOP, "textbox");
+    expect(resumed.game.loadToResume(saved!.data)).toBe(true);
+    resumed.game.start();
+    resumed.game.setStartingDisplayMode("textstream");
+    expect(resumed.page().map(words)).toEqual(["First.", "Echo."]);
+  });
+
+  test("after Skip back to a Visual Novel beat, a line played again is a new page entry", async () => {
+    const h = play(LOOP, "textstream");
+    h.game.start();
+    h.tapTo("Echo.");
+    h.game.setStartingDisplayMode("textbox");
+    h.game.clickedToContinue();
+    h.game.clickedToContinue();
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    const forward = await h.game.rollForward("beat");
+    expect(forward.moved).toBe(true);
+    expect(h.text()).toBe("Echo.");
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
+  });
+
   test("a switch that only has to open a layout opens it", () => {
     const h = play(`${WITH_BOTH}\n${STORY}`, "textstream");
     h.game.start();

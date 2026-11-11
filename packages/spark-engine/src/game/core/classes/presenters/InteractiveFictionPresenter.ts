@@ -26,6 +26,11 @@ const LINE_KINDS: Record<string, PageEntry["kind"]> = {
 
 export const TEXTSTREAM_LAYOUT = "textstream";
 
+export function pageKey(instructions: Instructions): string {
+  const { hold, ...beat } = instructions;
+  return JSON.stringify(beat);
+}
+
 export function textstreamOpenAfter(
   game: Game,
   instructions: Instructions,
@@ -57,14 +62,11 @@ export class InteractiveFictionPresenter implements Presenter {
   }
 
   record(): void {
-    const { hold, ...beat } = this._instructions;
     const page = this._game.module.ui.page;
-    const key = JSON.stringify(beat);
     page.record(
-      key,
-      Boolean(hold || (this._options.again && page.holds(this._instructions, key))),
+      pageKey(this._instructions),
+      Boolean(this._instructions.hold || page.holds()),
       (before) => this.entries(before),
-      this._instructions,
     );
   }
 
