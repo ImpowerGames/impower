@@ -5,11 +5,6 @@ import type {
   AttributeVocabulary,
 } from "./types";
 
-export const matchesAttributeOption = (
-  selection: string,
-  option: string,
-): boolean => selection === option || selection.startsWith(`${option}-`);
-
 export const resolveAttributes = (
   vocabulary: AttributeVocabulary,
   attributes: readonly string[],
@@ -24,9 +19,7 @@ export const resolveAttributes = (
     return (
       !!entry &&
       ((entry.switch && (option === "on" || option === "off")) ||
-        entry.options.some((candidate) =>
-          matchesAttributeOption(option, candidate),
-        ))
+        entry.options.includes(option))
     );
   };
   for (const [group, option] of Object.entries(initial))
