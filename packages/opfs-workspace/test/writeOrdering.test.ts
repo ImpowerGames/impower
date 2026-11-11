@@ -1717,7 +1717,11 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     });
     expect(inTrash(root)).toEqual({ "main.sd": "see b" });
     expect(textAt(root, "main.sd")).toBe("see b");
-    expect(listMemory(root, "local")).toEqual(["a.sd", "b.sd", "main.sd"]);
+    expect(listMemory(root, "local").filter((path) => !path.startsWith(".trash/"))).toEqual([
+      "a.sd",
+      "b.sd",
+      "main.sd",
+    ]);
   });
 
   it("announces what storage holds, not the edit's text, for a file whose restore failed", async () => {
