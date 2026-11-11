@@ -259,6 +259,14 @@ describe("PlayerBar controls", () => {
       skips(reducePlayerBar(rolledToFirst, gameState({ run: null }))),
     ).toEqual([backOpen, forwardOpen]);
     expect(skips(playing(true))).toEqual([back, forward]);
+    const restarted = reducePlayerBar(
+      reducePlayerBar(between, gameState({ run: null })),
+      gameState({ launchState: "pause", run: 2, paused: true }),
+    );
+    expect(skips(restarted)).toEqual([back, forward]);
+    expect(
+      skips(reducePlayerBar(between, gameState({ launchState: "pause", run: 2, paused: true }))),
+    ).toEqual([back, forward]);
   });
 
   it("skips nothing from a press on a skip at its end of the history, nor from a hold that reaches it", () => {

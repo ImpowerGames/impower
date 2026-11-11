@@ -23,6 +23,7 @@ export interface PlayerBarState {
   paused: boolean;
   stepping: boolean;
   playing: boolean;
+  run: number | null;
   completion: CompletionPreviewStatus | null;
   ending: GameStateEnding | null;
   executed: GameExecutedParams | null;
@@ -35,6 +36,7 @@ export const initialPlayerBarState: PlayerBarState = {
   paused: false,
   stepping: false,
   playing: false,
+  run: null,
   completion: null,
   ending: null,
   executed: null,
@@ -60,8 +62,11 @@ export const reducePlayerBar = (
 ): PlayerBarState => {
   if (DidChangeGameStateMessage.type.isNotification(message)) {
     const game = message.params;
+    const run = game.run ?? null;
     return {
       ...state,
+      run,
+      history: run === state.run ? state.history : null,
       launchState: game.launchState,
       paused: game.paused,
       stepping: game.stepping,
