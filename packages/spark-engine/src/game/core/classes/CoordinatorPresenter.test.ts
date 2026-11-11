@@ -65,6 +65,7 @@ const createGame = (previewing?: boolean) => {
     image: recorder("image"),
     style: recorder("style"),
     initialLayoutsOpened: true,
+    page: { shown: () => {} },
     openedLayoutsAfter: () => ["main", "textbox"],
     layoutHolds: () => true,
     afterCompose: (work: () => void) => work(),

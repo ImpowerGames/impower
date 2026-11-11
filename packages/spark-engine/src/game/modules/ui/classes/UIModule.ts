@@ -1,6 +1,7 @@
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { StartingDisplayMode } from "../../../core/classes/messages/SetStartingDisplayModeMessage";
 import { ErrorType } from "../../../core/enums/ErrorType";
 import {
   LAYOUT_VERBS,
@@ -226,6 +227,7 @@ export interface UIState {
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
   layout?: { name: string; screen?: string }[];
+  displayMode?: StartingDisplayMode;
   page?: PageState;
 }
 
@@ -3583,8 +3585,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this._state.layout !== undefined;
   }
 
-  openInitialLayouts(names: string[], settle: boolean): void {
+  get displayMode(): StartingDisplayMode {
+    return this._state.displayMode ?? "textbox";
+  }
+
+  set displayMode(mode: StartingDisplayMode) {
+    this._state.displayMode = mode;
+  }
+
+  openInitialLayouts(
+    names: string[],
+    settle: boolean,
+    mode: StartingDisplayMode,
+  ): void {
     this._state.layout ??= [];
+    this._state.displayMode = mode;
     const closed = names.filter(
       (name) =>
         !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
@@ -5145,6 +5160,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._loaded = true;
       }
 
+      shown(key: string): void {
+        const page = this.state;
+        const resumed =
+          this._resumed &&
+          page.key === key &&
+          page.beat === page.shown;
+        this._resumed = false;
+        page.shown = (page.shown ?? 0) + 1;
+        if (resumed) {
+          page.beat = page.shown;
+        }
+      }
+
+      holds(): boolean {
+        const page = this.state;
+        return page.beat !== undefined && page.beat === page.shown;
+      }
+
       started(): void {
         this._resumed = this._loaded;
         this._loaded = false;
@@ -5152,11 +5185,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       record(
         key: string,
-        again: boolean,
+        repeat: boolean,
         build: (before: readonly PageEntry[]) => PageRecord,
       ): void {
         const page = this.state;
-        const repeat = again || (this._resumed && page.key === key);
+        page.beat = page.shown;
         this._loaded = false;
         this._resumed = false;
         this._presented = undefined;

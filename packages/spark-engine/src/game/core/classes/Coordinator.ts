@@ -2,6 +2,7 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
+import { pageKey } from "../utils/pageKey";
 import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
@@ -290,10 +291,12 @@ export class Coordinator<G extends Game> {
       Boolean(instant) || Boolean(game.context.system.simulating),
     );
 
+    if (!this._displayed) {
+      game.module.ui.page.shown(pageKey(instructions));
+    }
     const presenters = this.presenters({
       instant,
       preview: previewing,
-      again: this._displayed,
       choose: (index) => this.choose(index),
     });
     this._displayed = true;
