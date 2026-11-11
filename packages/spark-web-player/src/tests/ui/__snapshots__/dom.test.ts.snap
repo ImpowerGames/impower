@@ -1382,6 +1382,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -1430,6 +1431,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -1664,6 +1666,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -1779,6 +1782,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -1873,6 +1877,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -3850,6 +3855,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -3898,6 +3904,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -4132,6 +4139,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -4247,6 +4255,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -4341,6 +4350,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -6284,6 +6294,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -6332,6 +6343,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -6566,6 +6578,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -6681,6 +6694,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -6775,6 +6789,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -8836,6 +8851,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -8884,6 +8900,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -9118,6 +9135,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -9233,6 +9251,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -9327,6 +9346,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -11251,6 +11271,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -11299,6 +11320,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -11533,6 +11555,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -11648,6 +11671,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -11742,6 +11766,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -13650,6 +13675,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -13698,6 +13724,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -13932,6 +13959,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -14047,6 +14075,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -14141,6 +14170,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -16093,6 +16123,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -16141,6 +16172,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -16375,6 +16407,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -16490,6 +16523,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -16584,6 +16618,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -18766,6 +18801,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -18814,6 +18850,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -19048,6 +19085,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -19163,6 +19201,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -19257,6 +19296,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -21439,6 +21479,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -21487,6 +21528,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -21721,6 +21763,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -21836,6 +21879,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -21930,6 +21974,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -24112,6 +24157,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -24160,6 +24206,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -24394,6 +24441,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -24509,6 +24557,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -24603,6 +24652,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;
@@ -26785,6 +26835,7 @@ spark-web-player #game .muted {
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
+  color: var(--theme-color-slate_20);
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
@@ -26833,6 +26884,7 @@ spark-web-player #game .code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
@@ -27067,6 +27119,7 @@ spark-web-player #game .menu {
     border-style: solid;
     border-color: var(--theme-color-slate_40);
     background-color: var(--theme-color-slate_30);
+    color: var(--theme-color-slate_80);
   }
   >.list>.item {
     margin-top: 0px;
@@ -27182,6 +27235,7 @@ spark-web-player #game .article {
   display: block;
   margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.25rem;
   padding: 1rem;
   >:last-child {
@@ -27276,6 +27330,7 @@ spark-web-player #game .card {
   flex-direction: column;
   gap: 1rem;
   background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_80);
   border-radius: 0.5rem;
   padding: 1.5rem;
   border-width: 0.0625rem;

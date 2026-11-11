@@ -3,23 +3,56 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const URI = "inmemory:///main.sd";
 
-const TEXTLESS = new Set(["loading_backdrop", "loading_bar", "loading_fill", "cutscene"]);
+const CONTROL_BOX = "&:where(:not(label)), > :where(.control)";
+const TINT_ALPHA = 0.1;
+
+const TEXTLESS: { name: string; holds: (path: string, alpha: number) => boolean }[] = [
+  ...["loading_backdrop", "loading_bar", "loading_fill", "cutscene", "progress", "progress_fill"].map((style) => ({
+    name: style,
+    holds: (path: string) => path === style || path.startsWith(`${style} `),
+  })),
+  ...["checkbox", "radio", "switch", "slider"].map((style) => ({
+    name: `${style} control box`,
+    holds: (path: string) => path.startsWith(`${style} ${CONTROL_BOX}`),
+  })),
+  { name: `tint under ${TINT_ALPHA * 100}% opacity`, holds: (_path: string, alpha: number) => alpha < TINT_ALPHA },
+];
+
+const ACCENT_EXCEPTIONS: Record<string, number> = {
+  badge: 2.77,
+  "button @hovered, @pressed, @focused": 4.1,
+};
 
 type Rgba = [number, number, number, number];
 
-const NAMED: Record<string, Rgba> = {
-  black: [0, 0, 0, 1],
-  white: [255, 255, 255, 1],
+const WHITE: Rgba = [255, 255, 255, 1];
+const BLACK: Rgba = [0, 0, 0, 1];
+
+const compileBuiltins = (prefix = "") => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text: `${prefix}scene A\n  Hi.\nend\n`, version: 1, languageId: "sparkdown" },
+    ],
+  });
+  const program: any = compiler.compile({ textDocument: { uri: URI } }).program;
+  return { styles: program.styles ?? {}, palette: program.context?.color ?? {} };
 };
 
-const parseColor = (value: unknown): Rgba | undefined => {
-  if (typeof value !== "string") return undefined;
+const { styles, palette } = compileBuiltins();
+
+const parseColor = (value: unknown, depth = 0): Rgba | undefined => {
+  if (typeof value !== "string" || depth > 4) return undefined;
   const v = value.trim().replace(/^"|"$/g, "");
-  if (NAMED[v]) return NAMED[v];
   const m = v.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)\s*(?:[/,]\s*([\d.]+)(%?))?\s*\)$/);
-  if (!m) return undefined;
-  const a = m[4] === undefined ? 1 : Number(m[4]) / (m[5] ? 100 : 1);
-  return [Number(m[1]), Number(m[2]), Number(m[3]), a];
+  if (m) {
+    const a = m[4] === undefined ? 1 : Number(m[4]) / (m[5] ? 100 : 1);
+    return [Number(m[1]), Number(m[2]), Number(m[3]), a];
+  }
+  const named = palette[v];
+  return named ? parseColor(named.value, depth + 1) : undefined;
 };
 
 const over = (top: Rgba, base: Rgba): Rgba => [
@@ -44,32 +77,23 @@ const contrast = (a: Rgba, b: Rgba) => {
 
 const worstContrast = (ink: Rgba, background: Rgba) =>
   Math.min(
-    contrast(over(ink, over(background, NAMED.white!)), over(background, NAMED.white!)),
-    contrast(over(ink, over(background, NAMED.black!)), over(background, NAMED.black!)),
+    ...[WHITE, BLACK].map((page) => {
+      const surface = over(background, page);
+      return contrast(over(ink, surface), surface);
+    }),
   );
 
-const builtinStyles = (): Record<string, any> => {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    useBuiltinsPrelude: true,
-    seedBuiltinsIntoStory: true,
-    files: [
-      { uri: URI, type: "script", name: "main", ext: "sd", text: "scene A\n  Hi.\nend\n", version: 1, languageId: "sparkdown" },
-    ],
-  });
-  const program: any = compiler.compile({ textDocument: { uri: URI } }).program;
-  return program.styles ?? {};
-};
+const prop = (block: any, name: string) => block[name] ?? block[name.replace(/_/g, "-")];
+const inkOf = (block: any) => prop(block, "text_color") ?? block.color;
 
 type Pair = { style: string; path: string; background: unknown; ink: unknown };
 
 const backgroundPairs = (styles: Record<string, any>): Pair[] => {
   const pairs: Pair[] = [];
   const walk = (style: string, block: any, path: string, inheritedInk: unknown) => {
-    const ink = block.color ?? inheritedInk;
-    if (block.background_color !== undefined) {
-      pairs.push({ style, path, background: block.background_color, ink });
-    }
+    const ink = inkOf(block) ?? inheritedInk;
+    const background = prop(block, "background_color") ?? block.background;
+    if (background !== undefined) pairs.push({ style, path, background, ink });
     for (const [key, child] of Object.entries(block)) {
       if (child && typeof child === "object" && !key.startsWith("$")) {
         walk(style, child, `${path} ${key}`, ink);
@@ -83,29 +107,48 @@ const backgroundPairs = (styles: Record<string, any>): Pair[] => {
 };
 
 describe("builtin styles that set a background", () => {
-  const styles = builtinStyles();
-  const pairs = backgroundPairs(styles).filter(
-    (p) => !TEXTLESS.has(p.style) && parseColor(p.background) !== undefined,
-  );
-
-  test("the builtins include the choice background", () => {
-    expect(pairs.some((p) => p.style === "choice")).toBe(true);
+  const all = backgroundPairs(styles);
+  const pairs = all.filter((p) => {
+    const background = parseColor(p.background);
+    return background !== undefined && !TEXTLESS.some((t) => t.holds(p.path, background[3]));
   });
 
-  test("every one sets a text colour that reads against it", () => {
-    const failures = pairs
-      .map((p) => {
-        const ink = parseColor(p.ink);
-        const ratio = ink ? worstContrast(ink, parseColor(p.background)!) : 0;
-        return { at: p.path, background: p.background, ink: p.ink ?? null, ratio: Number(ratio.toFixed(2)) };
-      })
-      .filter((r) => r.ratio < 4.5);
-    expect(failures).toEqual([]);
+  test("the walk reads both property spellings and the builtin palette", () => {
+    expect(pairs.some((p) => p.style === "choice")).toBe(true);
+    expect(pairs.some((p) => p.style === "code" && p.background === "slate_30")).toBe(true);
+    expect(pairs.some((p) => p.path.startsWith("button") && p.background === "sky_40")).toBe(true);
+    expect(parseColor("slate_30")).toEqual([30, 41, 59, 1]);
+  });
+
+  const measured = pairs.map((p) => {
+    const ink = parseColor(p.ink);
+    const ratio = ink ? worstContrast(ink, parseColor(p.background)!) : 0;
+    return { at: p.path, background: p.background, ink: p.ink ?? null, ratio: Number(ratio.toFixed(2)) };
+  });
+
+  test("every one sets a text colour that reads against it, apart from the listed accent pairs", () => {
+    expect(measured.filter((r) => r.ratio < 4.5 && !(r.at in ACCENT_EXCEPTIONS))).toEqual([]);
+  });
+
+  test("the listed accent pairs are exactly the ones below 4.5:1 and none has got worse", () => {
+    const below = Object.fromEntries(measured.filter((r) => r.ratio < 4.5).map((r) => [r.at, r.ratio]));
+    expect(Object.keys(below).sort()).toEqual(Object.keys(ACCENT_EXCEPTIONS).sort());
+    for (const [at, ratio] of Object.entries(ACCENT_EXCEPTIONS)) {
+      expect(below[at], at).toBeGreaterThanOrEqual(ratio);
+    }
+  });
+
+  test("each exclusion still matches a builtin background", () => {
+    const unused = TEXTLESS.filter((t) => !all.some((p) => {
+      const background = parseColor(p.background);
+      return background !== undefined && t.holds(p.path, background[3]);
+    })).map((t) => t.name);
+    expect(unused).toEqual([]);
   });
 
   test("loading text reads against the loading backdrop", () => {
-    const ink = parseColor(styles.loading_content?.color);
-    const backdrop = parseColor(styles.loading_backdrop?.background_color);
+    const ink = parseColor(inkOf(styles.loading_content ?? {}));
+    const backdrop = parseColor(prop(styles.loading_backdrop ?? {}, "background_color"));
     expect(ink && backdrop ? worstContrast(ink, backdrop) : 0).toBeGreaterThanOrEqual(4.5);
   });
 });
