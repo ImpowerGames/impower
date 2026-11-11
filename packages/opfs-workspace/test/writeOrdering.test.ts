@@ -1713,7 +1713,9 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
       complete: false,
       failed: [uriOf("main.sd"), uriOf("b.sd")],
       kept: [],
+      trashed: [uriOf("main.sd")],
     });
+    expect(inTrash(root)).toEqual({ "main.sd": "see b" });
     expect(textAt(root, "main.sd")).toBe("see b");
     expect(listMemory(root, "local")).toEqual(["a.sd", "b.sd", "main.sd"]);
   });
@@ -2159,6 +2161,94 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(inTrash(root)).toEqual({ "b.sd": "!ORIGINAL-A", "c.sd": "C!" });
   });
 
+  const renameOver = {
+    edit: {
+      documentChanges: [
+        { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+        insert("missing.sd", 0, "x"),
+      ],
+    },
+  };
+
+  it("keeps the copy of a file whose restore write failed after it started", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    failWrite(fileAt(root, "b.sd")!, 2, 3);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", renameOver);
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("b.sd")],
+      kept: [],
+      trashed: [uriOf("b.sd")],
+    });
+    expect(inTrash(root)).toEqual({ "b.sd": "ORIGINAL-A" });
+  });
+
+  it("reports a save that lands while the rollback cleans up its copies", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    const original = fileAt(root, "b.sd")!;
+    const getFile = MemoryFile.prototype.getFile;
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(MemoryFile.prototype, "getFile").mockImplementation(async function (this: MemoryFile) {
+      if (!reached && this.name === "b.sd" && this !== original) {
+        reached = true;
+        await held;
+      }
+      return getFile.call(this);
+    });
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", renameOver);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(reached).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED-LATE", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED-LATE" }] });
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toMatchObject({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED-LATE");
+    expect(textAt(root, "b.sd")).toBe("ORIGINAL-B");
+  });
+
+  it("answers with the rollback's outcome when its Trash manifest cannot be written", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const get = MemoryDirectory.prototype.getFileHandle;
+    vi.spyOn(MemoryDirectory.prototype, "getFileHandle").mockImplementation(async function (
+      this: MemoryDirectory,
+      name: string,
+      options: { create?: boolean } = {},
+    ) {
+      if (name === "__manifest.json" && options.create) {
+        throw new DOMException("manifest quota", "QuotaExceededError");
+      }
+      return get.call(this, name, options);
+    });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(250);
+    await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor"));
+    fileAt(root, "b.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result).toMatchObject({ applied: false, failedChange: 2, rollback: keptA });
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
   it("keeps a file another tab writes between the rollback's look at it and its restore, and removes nothing after", async () => {
     const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
     const a = fileAt(root, "a.sd")!;
@@ -2202,7 +2292,11 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
         ],
       },
     });
-    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 1,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
     expect(listMemory(root, "local")).toEqual(["kept/", "main.sd"]);
   });
 

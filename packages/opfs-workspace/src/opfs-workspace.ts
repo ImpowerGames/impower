@@ -1254,11 +1254,14 @@ class UndoLog {
     }
   }
 
-  async settleTrash(clean: boolean) {
-    if (clean && !this.copies.some((c) => this.changedElsewhere(c.uri))) {
-      for (const copy of [...this.copies]) {
-        await this.discardCopy(copy);
+  async settleTrash(clean: () => boolean) {
+    const unchanged = () =>
+      clean() && !this.copies.some((c) => this.changedElsewhere(c.uri));
+    for (const copy of [...this.copies]) {
+      if (!unchanged()) {
+        break;
       }
+      await this.discardCopy(copy);
     }
     if (this.copies.length === 0) {
       try {
@@ -1277,12 +1280,16 @@ class UndoLog {
         type,
       })),
     });
-    await createFiles([
-      {
-        uri: getUriFromPath(`${projectId}/${TRASH_DIR}/${id}/${TRASH_MANIFEST}`),
-        data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
-      },
-    ]);
+    try {
+      await createFiles([
+        {
+          uri: getUriFromPath(`${projectId}/${TRASH_DIR}/${id}/${TRASH_MANIFEST}`),
+          data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+    }
     return this.copies.map((c) => c.originalUri);
   }
 
@@ -1327,6 +1334,7 @@ class UndoLog {
           kept.push(entry.uri);
         } else if (!(await isStoredDirectory(entry.uri))) {
           await createDirectories([entry.uri], log);
+          this.commit(State.localVersions.get(entry.uri)!);
         }
       } catch (err) {
         console.error(err);
@@ -1364,11 +1372,11 @@ class UndoLog {
       try {
         const done = await this.put(target, log, effects);
         (done ? restored : kept).push(target.entry.uri);
-        return done;
+        return done ? "restored" : "refused";
       } catch (err) {
         console.error(err);
         unknown.push(target.entry.uri);
-        return false;
+        return "failed";
       }
     };
     for (const target of creates) {
@@ -1383,7 +1391,7 @@ class UndoLog {
         unknown.push(target.entry.uri);
         return;
       }
-      if (!(await settle(target))) {
+      if ((await settle(target)) === "refused") {
         await this.discardCopy(copy);
       }
     };
@@ -1401,22 +1409,25 @@ class UndoLog {
         await destroy(target);
       }
     }
-    for (const entry of entries) {
-      if (
-        this.movedOn(entry) &&
-        !kept.includes(entry.uri) &&
-        !unknown.includes(entry.uri)
-      ) {
-        kept.push(entry.uri);
-        const at = restored.indexOf(entry.uri);
-        if (at >= 0) {
-          restored.splice(at, 1);
+    const promote = () => {
+      for (const entry of entries) {
+        if (
+          this.movedOn(entry) &&
+          !kept.includes(entry.uri) &&
+          !unknown.includes(entry.uri)
+        ) {
+          kept.push(entry.uri);
+          const at = restored.indexOf(entry.uri);
+          if (at >= 0) {
+            restored.splice(at, 1);
+          }
         }
       }
-    }
-    const trashed = await this.settleTrash(
-      unknown.length === 0 && kept.length === 0,
-    );
+      return unknown.length === 0 && kept.length === 0;
+    };
+    promote();
+    const trashed = await this.settleTrash(promote);
+    promote();
     try {
       await deleteEmptyDirectories([...this.directories], log);
     } catch (err) {
@@ -1537,7 +1548,17 @@ const applyWorkspaceEdit = async (
       } catch (err: any) {
         console.error(err, err?.stack);
         const reason = err?.message ?? String(err);
-        const { effects, unknown, kept, trashed } = await undo.restore(log);
+        const { effects, unknown, kept, trashed } = await undo
+          .restore(log)
+          .catch((restoreError) => {
+            console.error(restoreError);
+            return {
+              effects: noEffects(),
+              unknown: [...undo.prior.keys()],
+              kept: [] as string[],
+              trashed: undo.copies.map((c) => c.originalUri),
+            };
+          });
         const partial = [
           ...(unknown.length > 0
             ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]

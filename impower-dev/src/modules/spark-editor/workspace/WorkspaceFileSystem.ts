@@ -1147,7 +1147,11 @@ export default class WorkspaceFileSystem {
     );
     if (!result.applied) {
       const reason = result.failureReason ?? "the change was not saved";
-      const scripts = await this.putBackScripts(collected);
+      const kept = new Set(result.rollback?.kept ?? []);
+      const scripts = await this.putBackScripts({
+        ...collected,
+        texts: collected.texts.filter((change) => !kept.has(change.textDocument.uri)),
+      });
       const files = await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
       const relative = (uris: string[]) =>
         uris.map((uri) => this.getRelativePath(projectId, uri));

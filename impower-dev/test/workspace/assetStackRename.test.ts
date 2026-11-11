@@ -458,9 +458,9 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     h.failWriting("zz.sd", async () =>
       h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL),
     );
-    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
-      "main.sd holds neither its old lines nor the renamed ones, so it was left as it is; check it.",
-    );
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toMatchObject({
+      rollback: { complete: false, kept: ["main.sd"] },
+    });
     expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|~face)/g, "zadie$1"));
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });

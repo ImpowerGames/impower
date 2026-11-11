@@ -21,7 +21,7 @@ const bytes = (text: string) => new TextEncoder().encode(text);
 async function harness() {
   vi.resetModules();
   const root = memoryRoot();
-  for (const [path, text] of Object.entries({ "main.sd": "see a", "assets/a.png": "PNG" })) {
+  for (const [path, text] of Object.entries({ "main.sd": "see a", "scripts/zz.sd": "see a", "assets/a.png": "PNG" })) {
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
@@ -64,10 +64,10 @@ async function harness() {
     start: async () => {},
     getFileRenameEdits: async (oldUri: string, newName: string) => ({
       documentChanges: [
-        {
-          textDocument: { uri: fs.getFileUri("local", "main.sd"), version: null },
+        ...["main.sd", "scripts/zz.sd"].map((script) => ({
+          textDocument: { uri: fs.getFileUri("local", script), version: null },
           edits: [{ range: { start: { line: 0, character: 4 }, end: { line: 0, character: 5 } }, newText: newName }],
-        },
+        })),
         { kind: "rename", oldUri, newUri: fs.getFileUri("local", `assets/${newName}.png`) },
       ],
     }),
@@ -83,7 +83,9 @@ async function harness() {
     );
   const read = async (path: string) =>
     new TextDecoder().decode(await fs.readFile({ file: { uri: fs.getFileUri("local", path) } }));
-  return { assets, fileAt, rename, read, snackbar };
+  const write = (path: string, text: string) =>
+    fs.createFiles({ files: [{ uri: fs.getFileUri("local", path), data: new TextEncoder().encode(text).buffer }] });
+  return { assets, fileAt, rename, read, write, snackbar };
 }
 
 const failCreating = (directory: MemoryDirectory, name: string) => {
@@ -133,4 +135,18 @@ it("names the files left changed when the rollback of a rename with references i
   );
   expect([...h.assets.entries.keys()]).toEqual(["b.png"]);
   expect(await h.read("main.sd")).toBe("see a");
+}, 15_000);
+
+it("leaves a script saved with the renamed text during a failed rename as it was saved", async () => {
+  const h = await harness();
+  const zz = (h.fileAt("scripts") as unknown as MemoryDirectory).entries.get("zz.sd") as MemoryFile;
+  zz.createSyncAccessHandle = async () => {
+    await h.write("main.sd", "see b");
+    throw new DOMException("The script could not be written", "NoModificationAllowedError");
+  };
+  expect(await h.rename()).toEqual({ renamed: false });
+  expect(await h.read("main.sd")).toBe("see b");
+  expect(await h.read("scripts/zz.sd")).toBe("see a");
+  expect([...h.assets.entries.keys()]).toEqual(["a.png"]);
+  expect(h.snackbar.value?.message).toContain("main.sd");
 }, 15_000);
