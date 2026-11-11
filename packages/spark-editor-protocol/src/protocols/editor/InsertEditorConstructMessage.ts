@@ -9,6 +9,7 @@ export type InsertEditorConstructMethod =
 export interface InsertEditorConstructParams {
   textDocument: TextDocumentIdentifier;
   construct: string;
+  name?: string;
 }
 
 export interface InsertEditorConstructResult {

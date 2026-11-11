@@ -1,20 +1,28 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { canMoveFolder } from "../utils/fileTree";
-import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
+import { downloadFile } from "../utils/downloadFile";
+import { recordCreate, recordMove, recordReplace, renameFile, REPLACED_MESSAGE } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameOrReport } from "../utils/renameOrReport";
+import { showSnackbar } from "../utils/snackbar";
+import { replacementOf } from "../utils/replaceRule";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
+import type { SearchGroup } from "./searchState";
+import { groupLocations } from "./WorkspaceSearch";
 import { isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
+import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
 import workspace from "./WorkspaceStore";
 
@@ -33,7 +41,11 @@ type Deps = {
     | "renameFileWithReferences"
     | "deleteFiles"
     | "deleteFolder"
+    | "readFile"
+    | "getFileText"
+    | "writeTextDocument"
   >;
+  ls: Pick<WorkspaceLanguageServer, "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics">;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
 };
@@ -51,6 +63,31 @@ const extensionOf = (path: string) => {
 
 const MEASURE_BATCH = 8;
 
+export interface InspectorFacts {
+  uses: SearchGroup[] | null;
+  problems: SparkDiagnostic[] | null;
+}
+
+const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
+  if (a.byteLength !== b.byteLength) {
+    return false;
+  }
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  return x.every((byte, index) => byte === y[index]);
+};
+
+const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+const failedWrite = (
+  prefix: string,
+  written: { unchanged: boolean; error: unknown },
+  unchanged: string,
+) =>
+  `${prefix}: ${reasonOf(written.error)}. ${
+    written.unchanged ? unchanged : "What it holds now could not be confirmed, so open it to check."
+  }`;
+
 const readImageSize = async (src: string): Promise<ImageSize | null> => {
   try {
     const response = await fetch(src, { headers: { Range: `bytes=0-${IMAGE_HEADER_BYTES - 1}` } });
@@ -63,6 +100,26 @@ const readImageSize = async (src: string): Promise<ImageSize | null> => {
     return null;
   }
 };
+
+const DURATION_TIMEOUT_MS = 5000;
+
+const readAudioDuration = (src: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const audio = new Audio();
+    const done = (seconds: number | null) => {
+      clearTimeout(timer);
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.removeAttribute("src");
+      resolve(seconds);
+    };
+    const timer = setTimeout(() => done(null), DURATION_TIMEOUT_MS);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () =>
+      done(Number.isFinite(audio.duration) ? audio.duration : null);
+    audio.onerror = () => done(null);
+    audio.src = src;
+  });
 
 export default class WorkspaceAssets {
   protected readonly _workspace: Deps;
@@ -252,6 +309,32 @@ export default class WorkspaceAssets {
     workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
   }
 
+  async measureDurations(paths: readonly string[]): Promise<void> {
+    const files = this.listing.files;
+    const known = workspace.assetDurations.peek();
+    const wanted = [
+      ...new Set(
+        paths
+          .map((path) => files[path]?.src)
+          .filter((src): src is string => !!src && !Object.hasOwn(known, src) && !this._measuring.has(src)),
+      ),
+    ];
+    if (!wanted.length) {
+      return;
+    }
+    for (const src of wanted) this._measuring.add(src);
+    const measured: Record<string, number | null> = {};
+    for (let at = 0; at < wanted.length; at += MEASURE_BATCH) {
+      await Promise.all(
+        wanted.slice(at, at + MEASURE_BATCH).map(async (src) => {
+          measured[src] = await readAudioDuration(src);
+        }),
+      );
+    }
+    for (const src of wanted) this._measuring.delete(src);
+    workspace.assetDurations.value = { ...workspace.assetDurations.peek(), ...measured };
+  }
+
   protected async moveFolder(projectId: string, from: string, to: string): Promise<string> {
     if (!canMoveFolder(from, to)) {
       return from;
@@ -279,5 +362,159 @@ export default class WorkspaceAssets {
     await moveToTrash(this._workspace.fs, projectId, trashed, label);
     await this._workspace.window.recordAssetChange();
     await this.load();
+  }
+  async uses(paths: readonly string[]): Promise<SearchGroup[]> {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return [];
+    }
+    const { fs, ls } = this._workspace;
+    const found = await Promise.all(
+      paths.map((path) => ls.getFileReferences(fs.getFileUri(projectId, path))),
+    );
+    return groupLocations(found.flat(), (uri) => fs.getFileText(uri));
+  }
+
+  async problems(paths: readonly string[]): Promise<SparkDiagnostic[]> {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return [];
+    }
+    const { fs, ls } = this._workspace;
+    const found = await Promise.all(
+      paths.map((path) => ls.getFileDiagnostics(fs.getFileUri(projectId, path))),
+    );
+    const seen = new Set<string>();
+    return found.flat().filter((problem) => {
+      const key = `${problem.severity}:${typeof problem.message === "string" ? problem.message : problem.message.value}`;
+      return seen.has(key) ? false : (seen.add(key), true);
+    });
+  }
+
+  watchFacts(paths: readonly string[], listener: (facts: InspectorFacts) => void): () => void {
+    let alive = true;
+    let request = 0;
+    const refresh = async () => {
+      const mine = ++request;
+      const [uses, problems] = await Promise.all([
+        this.uses(paths).catch(() => null),
+        this.problems(paths).catch(() => null),
+      ]);
+      if (alive && mine === request) {
+        listener({ uses, problems });
+      }
+    };
+    const projectId = this.projectId;
+    const { fs, ls } = this._workspace;
+    const uris = new Set(projectId ? paths.map((path) => fs.getFileUri(projectId, path)) : []);
+    const detachCompiled = onProtocolMessage(CompiledProgramMessage.type, () => void refresh());
+    const detachPublished = ls.onPublishedDiagnostics(({ uri }) => {
+      if (uris.has(uri)) {
+        void refresh();
+      }
+    });
+    void refresh();
+    return () => {
+      alive = false;
+      detachCompiled();
+      detachPublished();
+    };
+  }
+
+  async readText(path: string): Promise<string> {
+    const projectId = this.requireProject();
+    const { fs } = this._workspace;
+    return fs.getFileText(fs.getFileUri(projectId, path));
+  }
+
+  async setAddress(path: string, address: string): Promise<void> {
+    const projectId = this.requireProject();
+    if (!isLinkPath(path)) {
+      throw new NameError(`${nameOf(path)} is not a link.`);
+    }
+    const text = address.trim();
+    if (!text) {
+      throw new NameError("Enter the address the link points to.");
+    }
+    const { fs, window } = this._workspace;
+    await fs.writeTextDocument({ textDocument: { uri: fs.getFileUri(projectId, path), version: 0, text } });
+    await window.recordAssetChange();
+    await this.load();
+  }
+
+  async download(path: string): Promise<void> {
+    const projectId = this.requireProject();
+    const { fs } = this._workspace;
+    const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, path) } });
+    downloadFile(nameOf(path), "application/octet-stream", data);
+  }
+
+  async replace(path: string, file: DroppedFile): Promise<string> {
+    const projectId = this.requireProject();
+    const facts = this.listing.files[path];
+    const rule = replacementOf(
+      {
+        path,
+        type: assetTypeOf(path, assetEndings.peek(), facts?.address),
+        link: isLinkPath(path),
+      },
+      file.name,
+      assetEndings.peek(),
+    );
+    if ("refused" in rule) {
+      throw new NameError(rule.refused);
+    }
+    const { fs } = this._workspace;
+    const uri = fs.getFileUri(projectId, rule.path);
+    const leaf = nameOf(rule.path);
+    const before = await fs.readFile({ file: { uri } });
+    const data = await file.getBuffer();
+    const written = await this.writeChecked(uri, data, before);
+    if (!written.landed) {
+      throw new NameError(failedWrite(`Couldn't replace ${leaf}`, written, "The old file is still there."));
+    }
+    const restore = (bytes: ArrayBuffer, from: ArrayBuffer, verb: string) => async () => {
+      const restored = await this.writeChecked(uri, bytes, from);
+      if (!restored.landed) {
+        showSnackbar({
+          message: failedWrite(`Couldn't ${verb} the replace of ${leaf}`, restored, "Its contents are unchanged."),
+        });
+      }
+    };
+    recordReplace({
+      label: leaf,
+      message: written.error
+        ? `Replaced, though saving ${leaf} reported a problem: ${reasonOf(written.error)}`
+        : REPLACED_MESSAGE,
+      undo: restore(before, data, "undo"),
+      redo: restore(data, before, "redo"),
+    });
+    return rule.path;
+  }
+
+  protected async writeChecked(
+    uri: string,
+    data: ArrayBuffer,
+    previous: ArrayBuffer,
+  ): Promise<{ landed: true; error?: unknown } | { landed: false; unchanged: boolean; error: unknown }> {
+    const { fs, window } = this._workspace;
+    try {
+      await fs.createFiles({ files: [{ uri, data: data.slice(0) }] });
+    } catch (error) {
+      const now = await fs.readFile({ file: { uri } }).catch(() => null);
+      if (now && sameBytes(now, data)) {
+        await window.recordAssetChange();
+        await this.load();
+        return { landed: true, error };
+      }
+      const unchanged = !!now && sameBytes(now, previous);
+      if (!unchanged) {
+        await this.load().catch(() => null);
+      }
+      return { landed: false, unchanged, error };
+    }
+    await window.recordAssetChange();
+    await this.load();
+    return { landed: true };
   }
 }

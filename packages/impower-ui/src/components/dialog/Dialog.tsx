@@ -62,11 +62,15 @@ export const dialogVariants = cva(
 export const sheetVariants = cva(
   [
     surface,
-    "max-h-[80vh] overflow-y-auto rounded-t-card border-b-0",
+    "overflow-y-auto",
     "motion-safe:transition-transform motion-safe:duration-180",
   ],
   {
     variants: {
+      size: {
+        auto: "max-h-[80vh] rounded-t-card border-b-0",
+        full: "h-full max-h-none rounded-none border-0 pb-[env(safe-area-inset-bottom)]",
+      },
       flush: {
         true: "flex flex-col overflow-hidden",
         false: "p-5",
@@ -76,9 +80,11 @@ export const sheetVariants = cva(
         false: "translate-y-full ease-[ease-in]",
       },
     },
-    defaultVariants: { flush: false, visible: true },
+    defaultVariants: { size: "auto", flush: false, visible: true },
   },
 );
+
+export type SheetSize = NonNullable<VariantProps<typeof sheetVariants>["size"]>;
 
 export type DialogSize = NonNullable<
   VariantProps<typeof dialogVariants>["size"]
@@ -96,7 +102,7 @@ type ModalProps = {
   children?: ComponentChildren;
 };
 
-export type SheetProps = ModalProps;
+export type SheetProps = ModalProps & { size?: SheetSize };
 
 export type DialogProps = ModalProps & {
   size?: DialogSize;
@@ -184,12 +190,12 @@ function Modal({
   );
 }
 
-export function Sheet({ flush, class: className, ...rest }: SheetProps) {
+export function Sheet({ size, flush, class: className, ...rest }: SheetProps) {
   return (
     <Modal
       {...rest}
       placement="bottom"
-      card={(visible) => cn(sheetVariants({ flush, visible }), className)}
+      card={(visible) => cn(sheetVariants({ size, flush, visible }), className)}
     />
   );
 }

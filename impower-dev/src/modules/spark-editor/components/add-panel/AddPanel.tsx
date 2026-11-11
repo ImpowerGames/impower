@@ -20,20 +20,24 @@ import {
   ToolPanelTrigger,
   type ToolPanelCloseReason,
 } from "../tool-panel";
-import { ADD_ROWS, rowDisabled } from "./addRows";
+import {
+  ADD_ROWS,
+  isPickerRow,
+  rowDisabled,
+  type AddRow,
+  type PickerRow,
+} from "./addRows";
+import AssetPicker from "./AssetPicker";
+import { intents } from "./workspaceIntents";
 
-type WorkspaceWindow =
-  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
+type WorkspaceWindow = Awaited<ReturnType<typeof intents>>["window"];
 
 const withWindow = async <T,>(
   act: (win: WorkspaceWindow) => T | Promise<T>,
-): Promise<T> => {
-  const { Workspace } = await import("../../workspace/Workspace");
-  return act(Workspace.window);
-};
+): Promise<T> => act((await intents()).window);
 
 export const toggleAddPanel = () =>
-  void import("../../workspace/Workspace").then(({ Workspace }) => {
+  void intents().then((Workspace) => {
     if (workspace.state.peek().screen?.addPanel) {
       Workspace.window.closeAddPanel();
       return;
@@ -43,6 +47,7 @@ export const toggleAddPanel = () =>
   });
 
 const TITLE = "Add to script";
+const BACK_LABEL = "Back to add options";
 const CLOSE_LABEL = "Close add menu";
 
 const deepActiveElement = (): HTMLElement | null => {
@@ -94,9 +99,11 @@ function AddTrigger({ open, disabled }: { open: boolean; disabled: boolean }) {
 function AddRows({
   inScene,
   onAdd,
+  onPick,
 }: {
   inScene: boolean | undefined;
   onAdd: (construct: InsertConstruct) => void;
+  onPick: (row: PickerRow) => void;
 }) {
   return (
     <div class="p-1.5" data-add-rows>
@@ -107,14 +114,16 @@ function AddRows({
             key={row.construct}
             size="block"
             class="has-[button[aria-disabled=true]]:opacity-40 [&_svg:first-child]:text-accent!"
-            icon={row.icon}
+            icon={<row.Icon />}
             label={<strong class="block font-semibold">{row.label}</strong>}
             description={row.help}
-            trailing={row.picker ? <ArrowIcon /> : undefined}
+            trailing={isPickerRow(row) ? <ArrowIcon /> : undefined}
             aria-disabled={disabled ? "true" : undefined}
             data-add-construct={row.construct}
             onClick={() => {
-              if (!disabled) onAdd(row.construct);
+              if (disabled) return;
+              if (isPickerRow(row)) onPick(row);
+              else onAdd(row.construct);
             }}
           />
         );
@@ -151,9 +160,11 @@ export default function AddPanel({ filename, canEdit }: AddPanelProps) {
   wasOpen.current = open;
 
   const [context, setContext] = useState<InsertContext | null>(null);
+  const [picker, setPicker] = useState<PickerRow | null>(null);
   useEffect(() => {
     if (!open) {
       setContext(null);
+      setPicker(null);
       return;
     }
     let current = true;
@@ -182,9 +193,20 @@ export default function AddPanel({ filename, canEdit }: AddPanelProps) {
     }
   };
 
-  const add = (construct: InsertConstruct) => {
+  const add = (construct: InsertConstruct, name?: string) => {
     returnTo.current?.focus({ preventScroll: true });
-    void withWindow((win) => win.insertConstruct(filename, construct));
+    void withWindow((win) => win.insertConstruct(filename, construct, name));
+  };
+
+  const leave = () => void withWindow((win) => win.closeAddPanel());
+
+  const back = (row: AddRow) => {
+    setPicker(null);
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(`[data-add-construct="${row.construct}"]`)
+        ?.focus({ preventScroll: true }),
+    );
   };
 
   return (
@@ -197,15 +219,28 @@ export default function AddPanel({ filename, canEdit }: AddPanelProps) {
       {!phone && <AddTrigger open={open} disabled={!canEdit} />}
       <ToolPanel
         open={open}
-        title={TITLE}
+        title={picker?.label ?? TITLE}
         closeLabel={CLOSE_LABEL}
         closeButton="trigger"
         anchoring="trigger"
         onClose={close}
+        onBack={picker ? () => back(picker) : undefined}
+        backLabel={BACK_LABEL}
+        scroll={!picker}
         keepOpenOn={(target) => !!target.closest(TOOLBARS)}
         returnFocus={() => returnTo.current}
       >
-        <AddRows inScene={context?.inScene} onAdd={add} />
+        {picker ? (
+          <AssetPicker
+            key={picker.construct}
+            filename={filename}
+            row={picker}
+            onInsert={(name) => add(picker.construct, name)}
+            onLeave={leave}
+          />
+        ) : (
+          <AddRows inScene={context?.inScene} onAdd={add} onPick={setPicker} />
+        )}
       </ToolPanel>
     </ToolPanelRoot>
   );

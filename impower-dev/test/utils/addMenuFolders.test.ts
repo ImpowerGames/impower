@@ -3,6 +3,7 @@ import {
   addMenuFiles,
   addMenuFolderProblem,
   addMenuKindsOf,
+  addMenuSubfolder,
   type AddMenuFolders,
 } from "../../src/modules/spark-editor/utils/addMenuFolders";
 
@@ -52,6 +53,17 @@ describe("the Add menu's folders", () => {
     ]);
     expect(paths("sound", shared)).toEqual(["assets/Music/theme.ogg"]);
     expect(paths("music", shared)).toEqual(["assets/Music/theme.ogg"]);
+  });
+
+  it("name the subfolder a file sits in below the folder that decided its picker", () => {
+    expect(
+      [
+        { path: "assets/Backdrops/beach.png", type: "image" },
+        { path: "Assets/Images/backdrops/city/night.jpg", type: "image" },
+        { path: "assets/Backdrops/Portraits/Mia/happy/mia.png", type: "image" },
+        { path: "assets/Images/Places/harbor.png", type: "image" },
+      ].map((file) => addMenuSubfolder(file, FOLDERS)),
+    ).toEqual(["", "city", "Mia/happy", undefined]);
   });
 
   it("follow a renamed folder", () => {

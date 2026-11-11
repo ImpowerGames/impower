@@ -13,7 +13,12 @@ import {
   undo,
   undoDepth,
 } from "@codemirror/commands";
-import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
+import {
+  ChangeSet,
+  EditorSelection,
+  EditorState,
+  Transaction,
+} from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   applyDocumentColor,
@@ -23,9 +28,12 @@ import {
   findReferences,
   formatDocument,
   getDocumentVersion,
-  insertConstructFromServer,
+  insertConstruct,
   isInsertConstruct,
   jumpToDefinition,
+  planConstruct,
+  structureFromServer,
+  type InsertPlan,
   type ContextMenuPresenter,
   LSPClient,
   LSPPlugin,
@@ -62,6 +70,11 @@ import {
   type InsertEditorConstructMethod,
   type InsertEditorConstructParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
+import {
+  AuditionEditorConstructMessage,
+  type AuditionEditorConstructMethod,
+  type AuditionEditorConstructParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/AuditionEditorConstructMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
@@ -140,6 +153,7 @@ import {
   Color,
   MessageConnection,
   Range,
+  TextDocumentContentChangeEvent,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
@@ -225,6 +239,15 @@ const LOAD_REVEAL_TIMEOUT_MS = 5000;
 
 let completionPreviewRequests = 0;
 
+let auditionSessions = 0;
+
+interface ShownAudition {
+  uri: string;
+  session: number;
+  version: number;
+  contentChanges: TextDocumentContentChangeEvent[];
+}
+
 export class ScriptEditorController {
   protected host: HTMLElement;
   protected refs: ScriptEditorRefs;
@@ -247,6 +270,10 @@ export class ScriptEditorController {
   protected _editing = false;
   protected _textDocument?: TextDocumentItem;
   protected _view?: EditorView;
+
+  protected _audition: ShownAudition | null = null;
+
+  protected _auditionTicket = 0;
   protected _disposable?: { dispose: () => void };
   protected _scroller?: Window | Element | null;
   protected _visibleRange?: Range;
@@ -505,6 +532,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      AuditionEditorConstructMessage.type,
+      (m) => this.handleAuditionEditorConstruct(m),
+      this.host,
+    );
+    p.onRequest(
       ApplyEditorColorMessage.type,
       (m) => this.handleApplyEditorColor(m),
       this.host,
@@ -595,6 +627,9 @@ export class ScriptEditorController {
   };
 
   protected unbindView(view: EditorView) {
+    if (view === this._view) {
+      this.endAudition();
+    }
     this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
     view.destroy();
     if (this._disposable) {
@@ -704,18 +739,130 @@ export class ScriptEditorController {
       InsertEditorConstructParams
     >,
   ) => {
-    const { textDocument, construct } = message.params;
+    const { textDocument, construct, name } = message.params;
     const view = this._view;
     if (!view || textDocument.uri !== this._textDocument?.uri) {
       return undefined;
     }
+    this._auditionTicket += 1;
+    const structure = isInsertConstruct(construct)
+      ? await structureFromServer(view, endsDialogueBlock)
+      : null;
+    const startState = view.state;
+    const plan =
+      structure && isInsertConstruct(construct)
+        ? planConstruct(view, construct, structure, name)
+        : null;
     const inserted =
+      !!structure &&
       isInsertConstruct(construct) &&
-      (await insertConstructFromServer(view, construct, endsDialogueBlock));
+      insertConstruct(construct, structure, name)(view);
+    this.endAudition(
+      inserted && plan ? this.auditionOf(startState, plan) : undefined,
+    );
     if (inserted && this._view === view) {
       this.focusAtCaret();
     }
     return InsertEditorConstructMessage.type.response(message.id, { inserted });
+  };
+
+  protected auditionOf(state: EditorState, plan: InsertPlan) {
+    const changes = ChangeSet.of(
+      { from: plan.from, to: plan.to, insert: plan.insert },
+      state.doc.length,
+    );
+    return {
+      version: getDocumentVersion(state),
+      contentChanges: convertToChangeEvents(state.doc, changes),
+    };
+  }
+
+  protected endAudition(accepted?: {
+    version: number;
+    contentChanges: TextDocumentContentChangeEvent[];
+  }) {
+    const shown = this._audition;
+    this._audition = null;
+    const view = this._view;
+    if (!shown || !view) {
+      return;
+    }
+    const kept =
+      accepted &&
+      accepted.version === shown.version &&
+      JSON.stringify(accepted.contentChanges) ===
+        JSON.stringify(shown.contentChanges);
+    sendProtocolMessage(
+      PreviewCompletionMessage.type.notification({
+        textDocument: { uri: shown.uri, version: getDocumentVersion(view.state) },
+        session: shown.session,
+        request: ++completionPreviewRequests,
+        state: "close",
+        accepted: kept ? accepted : undefined,
+      }),
+      this.host,
+    );
+  }
+
+  protected handleAuditionEditorConstruct = async (
+    message: RequestMessage<
+      AuditionEditorConstructMethod,
+      AuditionEditorConstructParams
+    >,
+  ) => {
+    const { textDocument, audition } = message.params;
+    const view = this._view;
+    const uri = this._textDocument?.uri;
+    if (!view || !uri || textDocument.uri !== uri) {
+      return undefined;
+    }
+    const respond = (shown: boolean) =>
+      AuditionEditorConstructMessage.type.response(message.id, { shown });
+    const ticket = ++this._auditionTicket;
+    if (!audition || !isInsertConstruct(audition.construct)) {
+      this.endAudition();
+      return respond(false);
+    }
+    const structure = await structureFromServer(view, endsDialogueBlock);
+    if (ticket !== this._auditionTicket) {
+      return respond(false);
+    }
+    const plan =
+      structure && this._view === view
+        ? planConstruct(view, audition.construct, structure, audition.name)
+        : null;
+    if (!plan) {
+      this.endAudition();
+      return respond(false);
+    }
+    const state = view.state;
+    const shown: ShownAudition = {
+      uri,
+      session: this._audition?.session ?? -++auditionSessions,
+      ...this.auditionOf(state, plan),
+    };
+    this._audition = shown;
+    const inserted = plan.insert.slice(0, Math.max(0, plan.anchor - plan.from));
+    const line =
+      state.doc.lineAt(plan.from).number -
+      1 +
+      inserted.split("\n").length -
+      1;
+    sendProtocolMessage(
+      PreviewCompletionMessage.type.notification({
+        textDocument: { uri, version: shown.version },
+        session: shown.session,
+        request: ++completionPreviewRequests,
+        state: "focus",
+        contentChanges: shown.contentChanges,
+        selectedRange: {
+          start: { line, character: 0 },
+          end: { line, character: 0 },
+        },
+      }),
+      this.host,
+    );
+    return respond(true);
   };
 
   protected handleApplyEditorColor = async (

@@ -54,7 +54,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           <div class="flex min-w-0 flex-1 flex-col items-start -ml-1.5">
             <ProjectNameField />
             <div class="w-full min-w-0 pl-1.5">
-              <div class="flex items-center overflow-hidden whitespace-nowrap fade-edge">
+              <div class="relative z-[2] flex items-center overflow-hidden whitespace-nowrap fade-edge">
                 <SyncStatusLine />
                 <StoryProblemCount />
               </div>

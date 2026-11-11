@@ -154,7 +154,7 @@ export const findCount = (
 const lineOf = (text: string, line: number) =>
   text.split(/\r\n|\r|\n/)[line] ?? "";
 
-const groupLocations = async (
+export const groupLocations = async (
   locations: readonly Location[],
   fileText: (uri: string) => Promise<string>,
   declarations: readonly Location[] = [],

@@ -21,6 +21,18 @@ if (record) {
     check.call(R, story, held, skip, typeNames);
   };
 }
+const attempts: ScopeStats[] = [];
+if (record) {
+  const proto = record.DefineScopeRecord.prototype;
+  const scope = proto.scope;
+  proto.scope = function (this: typeof proto, ...args: Parameters<typeof scope>) {
+    try {
+      return scope.apply(this, args);
+    } finally {
+      attempts.push({ ...this.stats });
+    }
+  };
+}
 const verifyFailures = (): string[] => {
   if (!record) {
     return [];
@@ -157,11 +169,14 @@ function sessionOver(config: Config) {
   };
   const compiler = compilerOver(texts, config);
   let version = 1;
+  let compileAttempts: ScopeStats[] = [];
   const compile = () => {
     verifyFailures();
+    attempts.length = 0;
     const { program } = quiet(() =>
       compiler.compile({ textDocument: { uri: MAIN } }),
     );
+    compileAttempts = attempts.splice(0);
     const keys = globalKeys(program);
     expect(verifyFailures(), "the record against a walk of the story").toEqual([]);
     expect(keys, "the global keys a cold compile gives").toEqual(cold(texts, config));
@@ -211,9 +226,11 @@ function sessionOver(config: Config) {
       expect(keys, "the preview's global keys").toEqual(cold({ ...texts, [uri]: next }, config));
       return keys;
     },
-    get stats() {
-      return (compiler as unknown as { defineScopeStats: ScopeStats })
-        .defineScopeStats;
+    get attempts() {
+      return compileAttempts;
+    },
+    total(key: keyof ScopeStats) {
+      return compileAttempts.reduce((sum, stats) => sum + stats[key], 0);
     },
   };
 }
@@ -307,7 +324,7 @@ describe.each<[string, Config]>([
     let keys = s.compile();
     expect(keys).toContain("$object_lamp");
     expect(keys).not.toContain("lamp");
-    expect(s.stats.classified).toBe(0);
+    expect(s.total("classified")).toBe(0);
     keys = s.edit(
       MAIN,
       "function make()",
@@ -370,25 +387,29 @@ describe.each<[string, Config]>([
   it("walks only the chunks an edit lowered anew, and classifies nothing again unless the type names moved", () => {
     const s = session();
     s.compile();
-    const coldStats = { ...s.stats };
+    expect(s.attempts).toHaveLength(1);
+    const coldStats = s.attempts[0]!;
     expect(coldStats.blocksWalked).toBe(coldStats.blocks);
     expect(coldStats.declarations).toBeGreaterThanOrEqual(5);
+    const total = s.total;
 
     s.edit(CHAPTER, "Prose of chapter scene 3.", "Prose of chapter scene three.");
-    expect(s.stats.blocks).toBe(coldStats.blocks);
-    expect(s.stats.blocksWalked).toBeGreaterThan(0);
-    expect(s.stats.blocksWalked).toBeLessThan(coldStats.blocks / 8);
-    expect(s.stats.objectsVisited).toBeLessThan(coldStats.objectsVisited / 4);
-    expect(s.stats.classified).toBe(0);
-    expect(s.stats.declarations).toBe(coldStats.declarations);
+    expect(s.attempts.map((stats) => stats.blocks)).toEqual(
+      s.attempts.map(() => coldStats.blocks),
+    );
+    expect(total("blocksWalked")).toBeGreaterThan(0);
+    expect(total("blocksWalked")).toBeLessThan(coldStats.blocks / 8);
+    expect(total("objectsVisited")).toBeLessThan(coldStats.objectsVisited / 4);
+    expect(total("classified")).toBe(0);
+    expect(s.attempts.at(-1)!.declarations).toBe(coldStats.declarations);
 
     s.edit(
       MAIN,
       "function make()",
       'define glow as lamp with\n  hue = "red"\nend\n\nfunction make()',
     );
-    expect(s.stats.blocksWalked).toBeLessThan(coldStats.blocks / 8);
-    expect(s.stats.classified).toBe(s.stats.declarations);
-    expect(s.stats.renamed).toBeGreaterThanOrEqual(1);
+    expect(total("blocksWalked")).toBeLessThan(coldStats.blocks / 8);
+    expect(total("classified")).toBe(s.attempts.at(-1)!.declarations);
+    expect(total("renamed")).toBe(3);
   });
 });

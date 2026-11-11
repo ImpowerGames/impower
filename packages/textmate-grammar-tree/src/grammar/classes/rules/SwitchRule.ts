@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { Wrapping } from "../../enums/Wrapping";
 import type {
 IncludeDefinition,
 SwitchRuleDefinition,
@@ -11,7 +10,6 @@ import type { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
-import { GrammarState } from "../GrammarState";
 
 export class SwitchRule implements Rule {
   repo: GrammarRepository;
@@ -44,10 +42,6 @@ export class SwitchRule implements Rule {
     this.patterns = def.patterns;
   }
 
-  match(state: GrammarState, from: number) {
-    return this.pattern(state, from);
-  }
-
   resolve() {
     if (!this.rules) {
       const resolved = this.repo.getRules(this.patterns ?? [], this.id);
@@ -68,31 +62,5 @@ export class SwitchRule implements Rule {
     this.rules = kept;
     this.missing = true;
     return true;
-  }
-
-  pattern(state: GrammarState, from: number) {
-    if (state.includeCycle(this.id, from)) {
-      return null;
-    }
-    state.enter(this.id, from);
-    this.resolve();
-    for (let i = 0; i < this.rules!.length; i++) {
-      const rule = this.rules![i];
-      const patternMatched = rule?.match(state, from);
-      if (!patternMatched && state.stopped) {
-        state.exit(this.id, from);
-        return null;
-      }
-      if (patternMatched) {
-        if (this.emit) {
-          state.exit(this.id, from);
-          return patternMatched.wrap(this.node, Wrapping.FULL);
-        }
-        state.exit(this.id, from);
-        return patternMatched;
-      }
-    }
-    state.exit(this.id, from);
-    return null;
   }
 }

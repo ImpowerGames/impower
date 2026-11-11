@@ -654,32 +654,4 @@ export class Compiler {
       maxBufferLength,
     };
   }
-
-  compile(source: string) {
-    this.reset();
-    let pos = 0;
-    while (pos < source.length) {
-      const next = () => "";
-      const match = this.grammar.match(source, next, pos, pos);
-      let matchTokens: GrammarToken[] | null = null;
-      let matchLength = 0;
-      if (match) {
-        matchTokens = match.compile();
-        matchLength = match.length;
-      } else {
-        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
-        matchLength = 1;
-      }
-      for (let idx = 0; idx < matchTokens!.length; idx++) {
-        const token = matchTokens![idx]!;
-        this.packet.add(token);
-      }
-      pos += matchLength;
-    }
-    const result = this.finish(source.length);
-    if (result) {
-      return result;
-    }
-    return null;
-  }
 }

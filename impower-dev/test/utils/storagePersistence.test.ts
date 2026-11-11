@@ -1,20 +1,56 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   dismissSnackbar,
-  showSnackbar,
   snackbar,
 } from "../../src/modules/spark-editor/utils/snackbar";
 import {
-  STORAGE_EXPORT_FAILED_MESSAGE,
-  STORAGE_NOT_PERSISTED_MESSAGE,
-  isStoragePersisted,
-  warnIfStorageNotPersisted,
+  exportBackup,
+  installOfferOf,
+  keepOnDevice,
+  persistAskOf,
+  probeStorage,
+  settleStorage,
+  type PersistencePermission,
+  type StorageProbe,
 } from "../../src/modules/spark-editor/utils/storagePersistence";
+import { DEVICE_STORAGE_COPY } from "../../src/modules/spark-editor/workspace/saveStatus";
 
-const storage = (persisted: boolean, granted: boolean) => ({
-  persisted: vi.fn(async () => persisted),
-  persist: vi.fn(async () => granted),
-});
+const browser = (
+  permission: PersistencePermission,
+  options: { persisted?: boolean; grants?: boolean } = {},
+) => {
+  const calls: string[] = [];
+  let persisted = options.persisted ?? false;
+  const storage = {
+    persisted: vi.fn(async () => {
+      calls.push("persisted");
+      return persisted;
+    }),
+    persist: vi.fn(async () => {
+      calls.push("persist");
+      if (options.grants) {
+        persisted = true;
+      }
+      return persisted;
+    }),
+  };
+  const permissions = {
+    query: vi.fn(async (descriptor: { name: string }) => {
+      calls.push(`query:${descriptor.name}`);
+      if (permission === "unsupported") {
+        throw new TypeError("not a valid permission name");
+      }
+      return { state: permission } as PermissionStatus;
+    }),
+  };
+  return { calls, storage, permissions };
+};
+
+const probe = (
+  permission: PersistencePermission,
+  persisted = false,
+  canPersist = true,
+): StorageProbe => ({ persisted, permission, canPersist });
 
 const clearSnackbars = () => {
   while (snackbar.value) {
@@ -22,153 +58,151 @@ const clearSnackbars = () => {
   }
 };
 
-const warnDenied = (exportProject = vi.fn(async () => true)) =>
-  warnIfStorageNotPersisted({
-    storage: storage(false, false),
-    projectId: "local",
-    exportProject,
+describe("whether the app may ask the browser to keep the project", () => {
+  it.each<[string, StorageProbe, ReturnType<typeof persistAskOf>]>([
+    ["granted: the browser answers without a prompt", probe("granted"), "silent"],
+    ["prompt: the browser would ask the writer", probe("prompt"), "on-press"],
+    ["denied: asking changes nothing", probe("denied"), "none"],
+    ["unsupported: no way to tell, so treated as a prompt", probe("unsupported"), "on-press"],
+    ["already persisted", probe("granted", true), "none"],
+    ["already persisted, prompt state", probe("prompt", true), "none"],
+    ["no persist() to call", probe("prompt", false, false), "none"],
+  ])("%s", (_case, input, expected) => {
+    expect(persistAskOf(input)).toBe(expected);
+  });
+});
+
+describe("reading the browser's storage state", () => {
+  it("reads persisted() and the persistent-storage permission without asking", async () => {
+    const { calls, storage, permissions } = browser("prompt");
+    expect(await probeStorage(storage, permissions)).toEqual(probe("prompt"));
+    expect(calls).toEqual(["persisted", "query:persistent-storage"]);
   });
 
-describe("storage persistence warning", () => {
+  it("treats a missing, throwing or unknown permission query as unsupported", async () => {
+    expect((await probeStorage({}, undefined)).permission).toBe("unsupported");
+    const { storage, permissions } = browser("unsupported");
+    expect((await probeStorage(storage, permissions)).permission).toBe(
+      "unsupported",
+    );
+    expect(
+      (
+        await probeStorage(storage, {
+          query: async () => ({ state: "maybe" }) as unknown as PermissionStatus,
+        })
+      ).permission,
+    ).toBe("unsupported");
+  });
+
+  it("treats a missing or throwing storage manager as not persisted", async () => {
+    expect(await probeStorage(undefined, undefined)).toEqual(
+      probe("unsupported", false, false),
+    );
+    expect(
+      (
+        await probeStorage(
+          {
+            persisted: async () => {
+              throw new DOMException("denied", "SecurityError");
+            },
+          },
+          undefined,
+        )
+      ).persisted,
+    ).toBe(false);
+  });
+});
+
+describe("asking for persistent storage on load", () => {
+  it.each<PersistencePermission>(["prompt", "unsupported", "denied"])(
+    "never calls persist() when the permission is %s",
+    async (permission) => {
+      const { calls, storage, permissions } = browser(permission, {
+        grants: true,
+      });
+      const settled = await settleStorage(storage, permissions);
+      expect(storage.persist).not.toHaveBeenCalled();
+      expect(calls).not.toContain("persist");
+      expect(settled.persisted).toBe(false);
+    },
+  );
+
+  it("asks silently where the browser has already granted the permission, then reads the result back", async () => {
+    const { calls, storage, permissions } = browser("granted", {
+      grants: true,
+    });
+    const settled = await settleStorage(storage, permissions);
+    expect(storage.persist).toHaveBeenCalledTimes(1);
+    expect(calls.indexOf("persist")).toBeLessThan(calls.lastIndexOf("persisted"));
+    expect(settled.persisted).toBe(true);
+  });
+
+  it("does not ask when storage is already persisted", async () => {
+    const { storage, permissions } = browser("granted", { persisted: true });
+    expect((await settleStorage(storage, permissions)).persisted).toBe(true);
+    expect(storage.persist).not.toHaveBeenCalled();
+  });
+});
+
+describe("Keep on this device", () => {
+  it("calls persist() from the press and reads the answer back", async () => {
+    const { storage, permissions } = browser("prompt", { grants: true });
+    const kept = await keepOnDevice(storage, permissions);
+    expect(storage.persist).toHaveBeenCalledTimes(1);
+    expect(kept.persisted).toBe(true);
+  });
+
+  it("reports a refusal as still not persisted", async () => {
+    const { storage, permissions } = browser("prompt");
+    expect((await keepOnDevice(storage, permissions)).persisted).toBe(false);
+    expect(
+      (
+        await keepOnDevice(
+          {
+            persisted: async () => false,
+            persist: async () => {
+              throw new DOMException("denied", "SecurityError");
+            },
+          },
+          permissions,
+        )
+      ).persisted,
+    ).toBe(false);
+  });
+});
+
+describe("which install route the popover offers", () => {
+  it.each<[string, Parameters<typeof installOfferOf>[0], ReturnType<typeof installOfferOf>]>([
+    ["installed already", { installed: true, promptReady: true, homeScreen: true }, null],
+    ["the browser's install prompt", { installed: false, promptReady: true, homeScreen: false }, "prompt"],
+    ["Safari on iOS or iPadOS", { installed: false, promptReady: false, homeScreen: true }, "home-screen"],
+    ["neither", { installed: false, promptReady: false, homeScreen: false }, null],
+  ])("%s", (_case, input, expected) => {
+    expect(installOfferOf(input)).toBe(expected);
+  });
+});
+
+describe("exporting a backup from the popover", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     clearSnackbars();
   });
 
   afterEach(() => {
     clearSnackbars();
-    vi.useRealTimers();
   });
 
-  it("warns with an export action that stays until dismissed when the browser denies persistence", async () => {
-    const denied = storage(false, false);
-    const exportProject = vi.fn(async () => true);
-
-    const warned = await warnIfStorageNotPersisted({
-      storage: denied,
-      projectId: "local",
-      exportProject,
-    });
-
-    expect(warned).toBe(true);
-    expect(denied.persist).toHaveBeenCalledTimes(1);
-    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-    expect(snackbar.value?.actionLabel).toBe("Export");
-
-    vi.advanceTimersByTime(60_000);
-    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-
-    snackbar.value?.onAction?.();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(exportProject).toHaveBeenCalledTimes(1);
+  it("says nothing when the export succeeds", async () => {
+    expect(await exportBackup(async () => true)).toBe(true);
     expect(snackbar.value).toBeNull();
   });
 
-  it("comes back after an ordinary snackbar shown over it expires or is acted on", async () => {
-    await warnDenied();
-
-    showSnackbar({ message: "Deleted scene.sd", actionLabel: "Undo" });
-    expect(snackbar.value?.message).toBe("Deleted scene.sd");
-    vi.advanceTimersByTime(6000);
-    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-
-    const undo = { message: "Deleted art.png", actionLabel: "Undo" };
-    showSnackbar(undo);
-    dismissSnackbar(undo);
-    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-  });
-
-  it("keeps the warning and reports the failure when the export produces nothing or throws", async () => {
-    const exportProject = vi
-      .fn<() => Promise<boolean>>()
-      .mockResolvedValueOnce(false)
-      .mockRejectedValueOnce(new Error("OPFS read failed"));
-    await warnDenied(exportProject);
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      snackbar.value?.onAction?.();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(snackbar.value?.message).toBe(STORAGE_EXPORT_FAILED_MESSAGE);
-      vi.advanceTimersByTime(6000);
-      expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-    }
-    expect(exportProject).toHaveBeenCalledTimes(2);
-  });
-
-  it("goes away for good when the author dismisses it", async () => {
-    await warnDenied();
-    const warning = snackbar.value;
-
-    dismissSnackbar(warning);
-    expect(snackbar.value).toBeNull();
-    showSnackbar({ message: "Deleted scene.sd" });
-    vi.advanceTimersByTime(6000);
-    expect(snackbar.value).toBeNull();
-  });
-
-  it("stays silent when storage is already persisted or the grant succeeds", async () => {
-    const already = storage(true, false);
-    const granted = storage(false, true);
-
-    expect(
-      await warnIfStorageNotPersisted({
-        storage: already,
-        projectId: "local",
-        exportProject: vi.fn(async () => true),
-      }),
-    ).toBe(false);
-    expect(already.persist).not.toHaveBeenCalled();
-    expect(
-      await warnIfStorageNotPersisted({
-        storage: granted,
-        projectId: "local",
-        exportProject: vi.fn(async () => true),
-      }),
-    ).toBe(false);
-    expect(snackbar.value).toBeNull();
-  });
-
-  it("requests persistence but does not warn for a project synced to Google Drive", async () => {
-    const denied = storage(false, false);
-
-    const warned = await warnIfStorageNotPersisted({
-      storage: denied,
-      projectId: "drive-file-id",
-      exportProject: vi.fn(async () => true),
-    });
-
-    expect(warned).toBe(false);
-    expect(denied.persist).toHaveBeenCalledTimes(1);
-    expect(snackbar.value).toBeNull();
-  });
-
-  it("warns when no project id is cached, since the editor then loads the local project", async () => {
-    const warned = await warnIfStorageNotPersisted({
-      storage: storage(false, false),
-      projectId: undefined,
-      exportProject: vi.fn(async () => true),
-    });
-
-    expect(warned).toBe(true);
-    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
-  });
-
-  it("treats a missing or throwing storage manager as not persisted", async () => {
-    expect(await isStoragePersisted(undefined)).toBe(false);
-    expect(await isStoragePersisted({})).toBe(false);
-    expect(
-      await isStoragePersisted({
-        persisted: async () => false,
-        persist: async () => {
-          throw new DOMException("denied", "SecurityError");
-        },
-      }),
-    ).toBe(false);
-  });
-
-  it("still auto-dismisses an ordinary snackbar", () => {
-    showSnackbar({ message: "Deleted" });
-    vi.advanceTimersByTime(6000);
-    expect(snackbar.value).toBeNull();
+  it.each<[string, () => Promise<boolean>]>([
+    ["reports nothing exported", async () => false],
+    ["throws", async () => {
+      throw new Error("OPFS read failed");
+    }],
+  ])("reports a failed export when the export %s", async (_case, exportProject) => {
+    expect(await exportBackup(exportProject)).toBe(false);
+    expect(snackbar.value?.message).toBe(DEVICE_STORAGE_COPY.exportFailed);
   });
 });

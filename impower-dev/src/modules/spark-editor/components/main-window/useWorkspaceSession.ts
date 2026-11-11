@@ -24,6 +24,11 @@ export function useWorkspaceSession(): void {
       } catch (err) {
         console.error(err);
       }
+      if (!cancelled) {
+        await Workspace.window.refreshDeviceStorage().catch((err) => {
+          console.error(err);
+        });
+      }
     })();
     return () => {
       cancelled = true;

@@ -39,10 +39,6 @@ vi.mock("../../src/modules/spark-editor/components/settings", () => ({
   SettingsPage: () => h("section", { "data-settings-page": "" }),
 }));
 vi.mock(
-  "../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPane",
-  () => ({ default: () => null }),
-);
-vi.mock(
   "../../src/modules/spark-editor/components/file-dropzone/FileDropzone",
   () => ({ default: () => null }),
 );

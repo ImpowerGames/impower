@@ -1,7 +1,6 @@
 import { setLanguageServer as setScriptEditorLanguageServer } from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import SparkEditor from "../modules/spark-editor/index";
-import { downloadProjectZip } from "../modules/spark-editor/utils/downloadProjectZip";
-import { warnIfStorageNotPersisted } from "../modules/spark-editor/utils/storagePersistence";
+import type { InstallPromptEvent } from "../modules/spark-editor/utils/storagePersistence";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 import { applyTheme } from "../modules/spark-editor/workspace/settings/applyTheme";
 import workspaceSettings from "../modules/spark-editor/workspace/settings/WorkspaceSettings";
@@ -36,11 +35,19 @@ const startDevAssetMirror = () => {
   });
 };
 
-void warnIfStorageNotPersisted({
-  storage: navigator.storage,
-  projectId: Workspace.window.store.project.id,
-  exportProject: downloadProjectZip,
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  Workspace.window.offerAppInstall(event as InstallPromptEvent);
 });
+window.addEventListener("appinstalled", () => {
+  Workspace.window.offerAppInstall(null);
+  void Workspace.window.refreshDeviceStorage();
+});
+window
+  .matchMedia("(display-mode: standalone)")
+  .addEventListener("change", () => {
+    void Workspace.window.refreshDeviceStorage();
+  });
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").then(

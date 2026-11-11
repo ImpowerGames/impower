@@ -27,10 +27,6 @@ vi.mock("../../src/modules/spark-editor/components/share/SharePage", () => ({
   default: () => h("div", { "data-route": "share" }),
 }));
 vi.mock(
-  "../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPane",
-  () => ({ default: () => null }),
-);
-vi.mock(
   "../../src/modules/spark-editor/components/file-dropzone/FileDropzone",
   () => ({ default: () => null }),
 );
