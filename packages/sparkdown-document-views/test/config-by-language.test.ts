@@ -161,9 +161,10 @@ describe("Enter in the web editor follows the language at the cursor", () => {
 const VSCODE_HEADER_ENTER: [header: string, close: string, indent: string, indents: boolean][] = [
   ["scene name", "end", "", true],
   ["branch name", "end", "", true],
-  ["define Hero with", "end", "", false],
-  ["define companion as character with", "end", "", false],
-  ["function f()", "end", "", false],
+  ["define Hero with", "end", "", true],
+  ["define companion as character with", "end", "", true],
+  ["function f()", "end", "", true],
+  ["function f(a: number): number", "end", "", true],
   ["layout sheet {", "}", "", true],
   ["style list {", "}", "", true],
   ["component card(title) {", "}", "", true],
@@ -188,12 +189,22 @@ describe("Enter after a block header agrees with VS Code, which reads the cursor
     expect(pressEnter(editor)).toBe(headerSource(header, close, indent, `\n${next}|`));
   });
 
-  for (const header of ["define Hero with", "define companion as character with", "function f()"]) {
-    it.fails(`indents after \`${header}\` once the header stays story through its body's opening (I-2090)`, () => {
-      const editor = parsedView(headerSource(header, "end", "", "|"), SD_URI);
-      expect(pressEnter(editor)).toBe(headerSource(header, "end", "", "\n  |"));
-    });
-  }
+  const LUAU_BODY_HEADERS: [header: string, body: string][] = [
+    ["define Hero with", "  x = 1"],
+    ["define companion as character with", "  x = 1"],
+    ["function f()", "  return 1"],
+    ["function f(a: number): number", "  return a"],
+  ];
+
+  it.each(LUAU_BODY_HEADERS)("indents after `%s` with a Luau body line directly below (I-2090)", (header, body) => {
+    const editor = parsedView(`${header}|\n${body}\nend\n`, SD_URI);
+    expect(pressEnter(editor)).toBe(`${header}\n  |\n${body}\nend\n`);
+  });
+
+  it.each(LUAU_BODY_HEADERS)("indents after `%s` as the document's last line (I-2090)", (header) => {
+    const editor = parsedView(`scene s\n  Hello.\nend\n${header}|`, SD_URI);
+    expect(pressEnter(editor)).toBe(`scene s\n  Hello.\nend\n${header}\n  |`);
+  });
 });
 
 describe("auto-closing pairs in the web editor follow the language at the cursor", () => {

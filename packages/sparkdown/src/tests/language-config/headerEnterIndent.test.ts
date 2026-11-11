@@ -6,51 +6,100 @@ import {
   vscodeLanguagesPerPosition,
 } from "../compiler/languageEquality";
 
-const INCREASE: Record<string, RegExp> = {
-  sparkdown: new RegExp(STORY_LANGUAGE_CONFIG.indentationRules.increaseIndentPattern),
-  "sparkdown-luau": new RegExp(LUAU_LANGUAGE_CONFIG.indentationRules.increaseIndentPattern),
+interface Config {
+  brackets: [open: string, close: string][];
+  onEnterRules: { beforeText: string; afterText?: string; previousLineText?: string; action: { indent: string } }[];
+  indentationRules: { increaseIndentPattern: string };
+}
+
+const CONFIGS: Record<string, Config> = {
+  sparkdown: STORY_LANGUAGE_CONFIG as unknown as Config,
+  "sparkdown-luau": LUAU_LANGUAGE_CONFIG as unknown as Config,
 };
+
+const DOCUMENT_LANGUAGE = "sparkdown";
 
 function enterIndents(source: string, line: number, languages: string[]): boolean {
   const lines = source.split("\n");
-  const start = lines.slice(0, line - 1).reduce((sum, text) => sum + text.length + 1, 0);
+  const lineStart = (n: number) => lines.slice(0, n - 1).reduce((sum, text) => sum + text.length + 1, 0);
+  const start = lineStart(line);
   const text = lines[line - 1]!;
   const at = (column: number) => languages[start + column]!;
   const language = at(text.length);
   let runStart = text.length - 1;
   while (runStart > 0 && at(runStart - 1) === language) runStart--;
   const scoped = runStart > 0 && at(0) !== language;
-  return INCREASE[language]!.test(scoped ? text.slice(runStart) : text);
+  const beforeText = scoped ? text.slice(runStart) : text;
+  const rule = CONFIGS[language]!.onEnterRules.find(
+    (r) =>
+      r.previousLineText === undefined &&
+      new RegExp(r.beforeText, "u").test(beforeText) &&
+      (r.afterText === undefined || new RegExp(r.afterText, "u").test("")),
+  );
+  if (rule) {
+    return rule.action.indent === "indent" || rule.action.indent === "indentOutdent";
+  }
+  if (CONFIGS[language]!.brackets.some(([open]) => beforeText.trimEnd().endsWith(open))) return true;
+  const next = line < lines.length ? lineStart(line + 1) : start;
+  if (languages[next] !== at(0)) return false;
+  return new RegExp(CONFIGS[DOCUMENT_LANGUAGE]!.indentationRules.increaseIndentPattern).test(beforeText);
 }
 
-const HEADERS: [header: string, source: string, line: number][] = [
-  ["scene name", "scene name\n  Hello\nend\n", 1],
-  ["branch name", "branch name\n  Hello\nend\n", 1],
-  ["define Hero with", "define Hero with\n  x = 1\nend\n", 1],
-  ["define companion as character with", "define companion as character with\n  x = 1\nend\n", 1],
-  ["define Hero", "define Hero\nend\n", 1],
-  ["function f()", "function f()\nend\n", 1],
-  ["function f(a: number): number", "function f(a: number): number\n  return a\nend\n", 1],
-  ["local function f(a, b)", "local function f(a, b)\nend\n", 1],
-  ["layout sheet {", "layout sheet {\n}\n", 1],
-  ["style list {", "style list {\n}\n", 1],
-  ["component card(title) {", "component card(title) {\n}\n", 1],
-  ["screen hud {", "screen hud {\n}\n", 1],
-  ["animation fade {", "animation fade {\n}\n", 1],
-  ["theme label {", "theme label {\n}\n", 1],
-  ["morph blink {", "morph blink {\n}\n", 1],
-  ["if x then", "scene s\n  if x then\n    Hi\n  end\nend\n", 2],
-  ["for i = 1, 3 do", "scene s\n  for i = 1, 3 do\n    Hi\n  end\nend\n", 2],
-  ["while x do", "scene s\n  while x do\n    Hi\n  end\nend\n", 2],
+const TOP_LEVEL = [
+  "scene name",
+  "branch name",
+  "define Hero with",
+  "define companion as character with",
+  "define Hero",
+  "function f()",
+  "function f(a: number): number",
+  "local function f(a, b)",
 ];
 
-describe("Enter at the end of a line, read as VS Code reads the language there", () => {
+const BRACE = [
+  "layout sheet {",
+  "style list {",
+  "component card(title) {",
+  "screen hud {",
+  "animation fade {",
+  "theme label {",
+  "morph blink {",
+];
+
+const NARRATIVE = ["if x then", "for i = 1, 3 do", "while x do"];
+
+const closeOf = (header: string) => (header.endsWith("{") ? "}" : "end");
+const bodyOf = (header: string) =>
+  header.endsWith("{") ? "  color = red" : header.startsWith("scene") || header.startsWith("branch") ? "  Hello." : header.startsWith("define") ? "  x = 1" : "  return 1";
+
+const CASES: [label: string, source: string, line: number][] = [
+  ...[...TOP_LEVEL, ...BRACE].flatMap((header): [string, string, number][] => [
+    [`\`${header}\` with its close directly below`, `${header}\n${closeOf(header)}\n`, 1],
+    [`\`${header}\` with a body line directly below`, `${header}\n${bodyOf(header)}\n${closeOf(header)}\n`, 1],
+    [`\`${header}\` as the document's last line`, `scene s\n  Hello.\nend\n${header}`, 4],
+  ]),
+  ...NARRATIVE.flatMap((header): [string, string, number][] => [
+    [`\`${header}\` with its end directly below`, `scene s\n  ${header}\n  end\nend\n`, 2],
+    [`\`${header}\` with a body line directly below`, `scene s\n  ${header}\n    Hello.\n  end\nend\n`, 2],
+  ]),
+];
+
+const PROSE: [line: string, source: string, row: number][] = [
+  ["What should I do", "scene s\n  What should I do\n  Then.\nend\n", 2],
+  ["We reached a new branch", "scene s\n  We reached a new branch\nend\n", 2],
+];
+
+describe("Enter at the end of a line, read as VS Code reads it: Enter rules by the cursor's language, then indentation only when the next line starts in the same language", () => {
   describe.each([
     ["vscode-textmate", vscodeLanguagesPerPosition],
     ["the tree's language reader", async (source: string) => treeLanguagesPerPosition(source)],
   ])("%s", (_engine, languagesOf) => {
-    it.each(HEADERS)("indents after `%s`", async (_header, source, line) => {
+    it.each(CASES)("indents after %s", async (_label, source, line) => {
       expect(enterIndents(source, line, await languagesOf(source))).toBe(true);
+    });
+
+    it.each(PROSE)("keeps the indentation after `%s`", async (_line, source, row) => {
+      expect(enterIndents(source, row, await languagesOf(source))).toBe(false);
     });
   });
 });

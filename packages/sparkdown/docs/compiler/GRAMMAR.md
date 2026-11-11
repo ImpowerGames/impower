@@ -673,7 +673,7 @@ Each language has its own config: `definitions/yaml/sparkdown.language-config.ya
 | Comments | `//`, `/* */` | `--`, `--[[ ]]` |
 | Auto-closing pairs | `~~`, `::`, `/*` | `--[[`, `--[=[`, `--[==[` |
 | Surrounding pairs | | `--[[ ]]` |
-| Enter rules | bullets (`+`, `*`, `-`), `->`, `Label:`, a `define` header | `--[[` comments, `---` doc comments, `function`, `then`, `do`, `else`, `repeat` |
+| Enter rules | bullets (`+`, `*`, `-`), `->`, `Label:`, a `define` header, a function header | `--[[` comments, `---` doc comments, `function`, `then`, `do`, `else`, `repeat` |
 | Indentation | after a block header only (`if`/`elseif … then`, `for`/`while … do`, `else`, `do`, `repeat`, `scene`, `branch`, `define`, a `function` that opens, an open bracket); never after prose that ends in one of those words | after a line ending in `then`, `do`, `else`, `repeat`, an open `function` or an open bracket |
 
 Both files hold the bracket, quote and backtick pairs and the brace, bracket and paren Enter rules.
@@ -702,7 +702,7 @@ Beyond that reach, a comment marker inside a string reads as a comment, and the 
 - a long bracket of level 3 or more (`call([===[a--b]===], (`);
 - an interpolation that holds its own braces (`` `{ {1} }--` ``).
 
-Both editors leave the line after `define Hero with`, `define companion as character with` and `function f()` unindented in a `.sd` document. The marks put the header's text after the keyword in Luau, so the cursor's run at the end of the line is `Hero with` or `f()`, and neither the `define` Enter rule nor an indentation pattern sees the keyword (I-2090). `scene` and `branch` headers, brace-body headers and narrative `if`, `for` and `while` headers indent in both.
+VS Code inherits indentation from the line above only when the line below the cursor starts in the same language as the cursor's line (`getPrecedingValidLine` in `autoIndent.ts`); otherwise the new line keeps the line's indentation, unless an Enter rule or an open bracket at the end of the line indents it. The web editor does the same. A `define` or function header stays story (§8.1), and the line below it is Luau: its body or its `end`. So the story config holds an Enter rule for each, which indents after a `define` header and after a function header whose parameter list closes, with no `end` after the cursor on the line (I-2090). Brace-body headers indent by their open bracket, and `scene`, `branch` and narrative `if`, `for` and `while` headers by the story indentation pattern, since the line below them is story.
 
 ## 9. Other rule properties
 
