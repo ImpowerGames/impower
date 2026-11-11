@@ -506,6 +506,45 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(h.history.canUndo.value).toBe(false);
   });
 
+  it("keeps a same-name picture in another folder whole, alternates and all, through the rename and its Undo", async () => {
+    const script = lines("scene start", "  [[show portrait imani]]", "  [[show backdrop imani@day]]", "end");
+    const h = await harness({
+      "main.sd": script,
+      [`${P}/imani.png`]: "portrait",
+      "Assets/Images/Backdrops/imani.png": "backdrop",
+      "Assets/Images/Backdrops/imani@day.png": "day",
+    });
+    expect(await h.assets.rename(`${P}/imani.png`, "zadie")).toBe(`${P}/zadie.png`);
+    expect(await h.paths()).toEqual([
+      "Assets/Images/Backdrops/zadie.png",
+      "Assets/Images/Backdrops/zadie@day.png",
+      `${P}/zadie.png`,
+      "main.sd",
+    ]);
+    expect(shown(await h.read("main.sd"))).toEqual(["[[show portrait zadie]]", "[[show backdrop zadie@day]]"]);
+    expect(h.snackbar.value?.message).toBe(
+      "Renamed imani and 2 lines. Also renamed Assets/Images/Backdrops/imani.png, Assets/Images/Backdrops/imani@day.png, which share its name.",
+    );
+    expect(await h.history.undo()).toBe(true);
+    expect(await h.paths()).toEqual([
+      "Assets/Images/Backdrops/imani.png",
+      "Assets/Images/Backdrops/imani@day.png",
+      `${P}/imani.png`,
+      "main.sd",
+    ]);
+    expect(await h.read("main.sd")).toBe(script);
+  });
+
+  it("refuses to split a same-name picture outside the asset folders, renaming nothing", async () => {
+    const h = await harness(project({ "art/imani.png": "art", "art/imani@x.png": "x" }));
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      "Couldn't rename imani: art/imani.png shares its name but belongs to a picture with more files (art/imani@x.png); rename that picture from its own folder. Nothing was renamed.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.paths()).toContain("art/imani@x.png");
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+  });
+
   it("renames a lone alternate or layer as the thing it is, keeping its @ or ~ part", async () => {
     const h = await harness({
       "main.sd": lines("scene start", "  [[show portrait imani]]", "end"),
@@ -522,6 +561,41 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
   it("renames a sound whose name has an at sign as a single file", async () => {
     const h = await harness({ "main.sd": lines("scene start", "end"), "Assets/Audio/theme@v2.mp3": "audio" });
     expect(await h.assets.rename("Assets/Audio/theme@v2.mp3", "song")).toBe("Assets/Audio/song.mp3");
+  });
+
+  it("puts back a folder whose inline rename stopped part-way, and says so under the field", async () => {
+    const h = await harness(project({ [`${P}/Cast/a.png`]: "a", [`${P}/Cast/b.png`]: "b" }));
+    h.failRemoving(`${P}/Cast/b.png`);
+    await expect(h.assets.rename(`${P}/Cast`, "Actors")).rejects.toThrow(
+      "Couldn't move Cast: Removing the original was denied. Every file is back where it was.",
+    );
+    const after = await h.paths();
+    expect(after.filter((path) => path.startsWith(`${P}/Actors`))).toEqual([]);
+    expect(await h.read(`${P}/Cast/a.png`)).toBe("a");
+    expect(await h.read(`${P}/Cast/b.png`)).toBe("b");
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("downloads a folder as a zip of the folder, with its empty folders, even when it holds one file", async () => {
+    const h = await harness(project({ [`${P}/Cast/kai.png`]: "kai" }));
+    await h.fs.createFolder(PROJECT, `${P}/Cast/Empty`);
+    await h.assets.load();
+    await h.assets.downloadAll([`${P}/Cast`]);
+    const [zip] = h.saved;
+    expect(zip!.name).toBe("Cast.zip");
+    const bytes = await new Promise<Uint8Array>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+      reader.readAsArrayBuffer(zip!.blob);
+    });
+    const names: string[] = [];
+    for (let i = 0; i + 46 < bytes.length; i++) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 1 && bytes[i + 3] === 2) {
+        const length = bytes[i + 28]! | (bytes[i + 29]! << 8);
+        names.push(new TextDecoder().decode(bytes.subarray(i + 46, i + 46 + length)));
+      }
+    }
+    expect(names.map((name) => name.replace(/[/]$/, "")).sort()).toEqual(["Cast", "Cast/Empty", "Cast/kai.png"]);
   });
 
   it("puts back a single folder whose move stopped part-way", async () => {

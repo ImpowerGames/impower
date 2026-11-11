@@ -26,6 +26,7 @@ import {
   coveredFiles,
   coveredPaths,
   landingFolder,
+  sameNamedPictures,
   thingNames,
   thingsLabel,
   type AssetListing,
@@ -283,10 +284,12 @@ export default class WorkspaceAssets {
   async rename(path: string, name: string): Promise<string> {
     const projectId = this.requireProject();
     const kind = this.kindOf(path);
-    const members = kind === "file" ? this.covered([path]) : [path];
-    const [stack] = kind === "file" && this.typeOf(path) === "image" ? imageStacks(members) : [];
-    if (stack && isStacked(stack)) {
-      return this.renameStack(projectId, path, stack, name);
+    const [stack] = kind === "file" && this.typeOf(path) === "image" ? imageStacks(this.covered([path])) : [];
+    if (stack) {
+      const members = sameNamedPictures(this.listing, stack.name, assetEndings.peek());
+      if (isStacked(stack) || members.length > 1) {
+        return this.renameStack(projectId, path, stack, members, name);
+      }
     }
     const folder = parentOf(path);
     const leaf = availableName(
@@ -332,9 +335,9 @@ export default class WorkspaceAssets {
     projectId: string,
     path: string,
     stack: ImageStack,
+    members: readonly string[],
     name: string,
   ): Promise<string> {
-    const members = stack.paths;
     const extension = extensionOf(stack.cover);
     const typed = validName(name, extension).slice(0, -extension.length || undefined);
     if (/[@~]/.test(typed)) {
@@ -361,7 +364,10 @@ export default class WorkspaceAssets {
     await window.recordAssetChange();
     recordMoves(projectId, [...moves, ...outcome.also], typed);
     await this.load();
-    showRenamed(stack.name, outcome.referencesUpdated, outcome.also);
+    showRenamed(stack.name, outcome.referencesUpdated, [
+      ...moves.filter((move) => !stack.paths.includes(move.from)),
+      ...outcome.also,
+    ]);
     return moves.find((move) => move.from === path)?.to ?? path;
   }
 
@@ -450,11 +456,11 @@ export default class WorkspaceAssets {
     if (!canMoveFolder(from, to)) {
       return from;
     }
-    const moved = await renameOrReport(from, to, () =>
-      this._workspace.fs.moveFolder(projectId, from, to),
-    );
-    if (!moved.renamed) {
-      return from;
+    try {
+      await renameFiles(this._workspace, projectId, [{ from, to, isDir: true }]);
+    } catch (error) {
+      await this.load().catch(() => null);
+      throw new NameError(reasonOf(error));
     }
     await this._workspace.window.recordAssetChange();
     recordMove(projectId, from, to, true);
@@ -487,18 +493,18 @@ export default class WorkspaceAssets {
     const covered = this.covered(paths);
     const files = coveredFiles(listing, covered);
     const [only] = files;
-    if (files.length === 1 && only && covered.length === 1) {
+    if (files.length === 1 && only && covered.length === 1 && covered[0] === only) {
       await this.download(only);
       return;
     }
     const base = covered.length === 1 ? parentOf(covered[0]!) : commonFolder(covered);
+    const relative = (path: string) => (base ? path.slice(base.length + 1) : path);
     const { fs } = this._workspace;
     const zip = await fs.zipFiles({
-      files: files.map((path) => ({
-        uri: fs.getFileUri(projectId, path),
-        path: base ? path.slice(base.length + 1) : path,
-      })),
-      directories: [],
+      files: files.map((path) => ({ uri: fs.getFileUri(projectId, path), path: relative(path) })),
+      directories: listing.folders
+        .filter((folder) => covered.some((item) => isInside(folder, item)))
+        .map(relative),
     });
     const names = thingNames(listing, covered, assetEndings.peek());
     downloadFile(`${names.length === 1 ? names[0] : "Assets"}.zip`, "application/zip", zip);

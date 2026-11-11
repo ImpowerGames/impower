@@ -374,6 +374,23 @@ export const stackOfPath = (
   return imageStacks(pictures).find((stack) => stack.paths.includes(path))?.paths ?? [path];
 };
 
+export const sameNamedPictures = (
+  listing: AssetListing,
+  name: string,
+  endings: AssetEndings,
+): string[] => {
+  const byFolder = new Map<string, string[]>();
+  for (const path of Object.keys(listing.files)) {
+    if (typeOf(listing, path, endings) === "image") {
+      byFolder.set(parentOf(path), [...(byFolder.get(parentOf(path)) ?? []), path]);
+    }
+  }
+  return [...byFolder.values()]
+    .flatMap((paths) => imageStacks(paths))
+    .filter((stack) => stack.name === name)
+    .flatMap((stack) => stack.paths);
+};
+
 export const coveredPaths = (
   listing: AssetListing,
   picked: readonly string[],

@@ -63,6 +63,7 @@ import {
   type FileMove,
   type RenameOutcome,
 } from "../utils/fileMoves";
+import { imageStacks } from "../utils/imageStacks";
 import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -1100,6 +1101,14 @@ export default class WorkspaceFileSystem {
     const also: FileMove[] = [];
     for (const sibling of collected.siblings) {
       if (!plan.has(sibling.from)) {
+        const folder = sibling.from.slice(0, sibling.from.lastIndexOf("/") + 1);
+        const stack = imageStacks(
+          [...before.files].filter((path) => path.startsWith(folder) && !path.slice(folder.length).includes("/")),
+        ).find((candidate) => candidate.paths.includes(sibling.from));
+        const outside = stack?.paths.find((path) => !plan.has(path) && path !== sibling.from);
+        if (outside) {
+          throw refuse(`${sibling.from} shares its name but belongs to a picture with more files (${outside}); rename that picture from its own folder. Nothing was renamed.`);
+        }
         plan.set(sibling.from, sibling.to);
         also.push(sibling);
       }
