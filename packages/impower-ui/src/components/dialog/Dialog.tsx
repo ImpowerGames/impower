@@ -63,7 +63,7 @@ export const dialogVariants = cva(
 export const sheetVariants = cva(
   [
     surface,
-    "overflow-y-auto",
+    "overflow-y-auto overscroll-contain",
     "motion-safe:transition-transform motion-safe:duration-180",
   ],
   {

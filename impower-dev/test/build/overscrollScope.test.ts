@@ -86,8 +86,19 @@ describe("where the editor page sets overscroll-behavior", () => {
     const source = fs.readFileSync(path.join(IMPOWER_UI_SRC, "style.css"), "utf8");
     const compiler = await compile(source, { base: IMPOWER_UI_SRC, onDependency: () => {} });
     const css = optimize(compiler.build(["overscroll-contain", "overflow-y-auto", "truncate"]), { minify: false }).code;
-    const offending = overscrollRules(css).filter(({ plain }) => plain.length > 0);
+    const selectors = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+      .filter(([, , body]) => /(^|[;\s])overscroll-behavior(-[a-z]+)?\s*:/.test(body!))
+      .flatMap(([, list]) => list!.split(",").map((selector) => selector.trim()));
+    const lastCompound = (selector: string) =>
+      selector
+        .split(/[\s>+~]+/)
+        .pop()!
+        .replace(/::?[a-z-]+(\([^)]*\))?/g, "");
+    const offending = selectors.filter((selector) => {
+      const compound = lastCompound(selector);
+      return (compound === "" || compound === "*" || /^[a-z][a-z0-9-]*$/.test(compound)) && ![...PAGE_ROOTS, ":root"].includes(selector);
+    });
     expect(offending).toEqual([]);
-    expect(overscrollRules(css).map(({ selector }) => selector)).toContain(".overscroll-contain");
+    expect(selectors).toContain(".overscroll-contain");
   });
 });
