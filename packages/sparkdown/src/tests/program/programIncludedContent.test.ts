@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
+import { loweredOutsideRebuilt } from "./memoLowering";
 import { blockCount, chunkId } from "../../program/ProgramChunk";
 import {
   describeRoot,
@@ -505,10 +506,7 @@ describe("an edit inside a script other than main", () => {
       expect(from).toBeLessThanOrEqual(editedAt(text));
       expect(to).toBeGreaterThan(editedAt(text));
       expect(stats.loweredAt).toHaveLength(stats.lowered);
-      for (const at of stats.loweredAt) {
-        expect(at).toBeGreaterThanOrEqual(from);
-        expect(at).toBeLessThanOrEqual(to);
-      }
+      expect(loweredOutsideRebuilt(stats, text)).toEqual([]);
     }
     expect(included.served + included.lowered).toBe(single.served + single.lowered);
     expect(s.store.emittedLastBuild).toBe(1);
