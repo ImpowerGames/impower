@@ -121,6 +121,18 @@ end
     expect(messages(program)).toEqual([]);
   });
 
+  it.each([
+    ["a doubled @", "define mia@@night as filtered_image with\n  image = image.mia@night\nend\n"],
+    ["a trailing @", "define mia@ as filtered_image with\n  image = image.mia@night\nend\n"],
+    ["a leading @", "define @mia as filtered_image with\n  image = image.mia@night\nend\n"],
+    ["a doubled @ in an as parent", "define mia_look as mia@@night with\nend\n"],
+    ["a doubled @ in a style header", "style card@@x {\n  opacity = 0.5\n}\n"],
+  ])("explains the @ rule when a header holds %s", (_, header) => {
+    const program = compile(`${header}\nscene start\nend\n`);
+    const explained = messages(program).filter((message) => message.includes("may hold an `@` between two of those characters"));
+    expect(explained, messages(program).join("\n")).toHaveLength(1);
+  });
+
   it("type checks an @ name as the value it holds", () => {
     const program = compile(`---
 title: At names
