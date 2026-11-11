@@ -53,6 +53,10 @@ describe.each([
         "  else",
         "  function f(x)",
         "local f = function()",
+        '  if url == "https://example.com" then',
+        '  if s == "a--b" then',
+        "  if s == 'a--b' then",
+        '  for _, u in ipairs({ "//a", "--b" }) do',
       ]) {
         expect(increase.test(line), line).toBe(true);
       }

@@ -116,6 +116,22 @@ describe("Enter in the web editor follows the language at the cursor", () => {
     expect(pressEnter(editor)).toBe(SCENE("if x then\n    |"));
   });
 
+  it.each([
+    ['if url == "https://example.com" then'],
+    ['if s == "a--b" then'],
+  ])("indents after `%s` in a scene, whose string holds a comment marker", (line) => {
+    const editor = parsedView(SCENE(`${line}|`), SD_URI);
+    expect(pressEnter(editor)).toBe(SCENE(`${line}\n    |`));
+  });
+
+  it.each([
+    ['if url == "https://example.com" then'],
+    ['if s == "a--b" then'],
+  ])("indents after `%s` inside a function body", (line) => {
+    const editor = parsedView(FUNCTION(`${line}|`), SD_URI);
+    expect(pressEnter(editor)).toBe(FUNCTION(`${line}\n    |`));
+  });
+
   it("indents after `for i = 1, 3 do` in a scene, whose last word is story text", () => {
     const editor = parsedView(SCENE("for i = 1, 3 do|"), SD_URI);
     expect(pressEnter(editor)).toBe(SCENE("for i = 1, 3 do\n    |"));
