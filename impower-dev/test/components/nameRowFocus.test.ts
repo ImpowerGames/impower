@@ -90,11 +90,29 @@ const openMenu = async (trigger: HTMLElement | undefined) => {
   await settle(50);
 };
 
-const choose = async (name: string) => {
+const type = (text: string) => {
+  for (const ch of text) {
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement) {
+      el.setRangeText(ch, el.selectionStart ?? el.value.length, el.selectionEnd ?? el.value.length, "end");
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+};
+
+const chooseAndType = async (name: string, label: string) => {
   const item = all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.trim() === name);
   expect(item).toBeTruthy();
   item!.focus();
-  await act(async () => item!.click());
+  item!.click();
+  await Promise.resolve();
+  type("f12");
+  await settle(400);
+  await act(async () => type("345"));
+  const input = host!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+  expect(input.value).toBe("f12345");
+  expect(document.activeElement).toBe(input);
+  return input;
 };
 
 const escape = async (input: HTMLInputElement) => {
@@ -161,51 +179,35 @@ describe.each(["desktop", "phone"] as const)("the name row opened from a menu, %
   it.each([
     ["Script", "New script name"],
     ["Folder", "New folder name"],
-  ])("Scripts New > %s focuses the field at once, and Escape returns focus to New", async (item, label) => {
+  ])("Scripts New > %s keeps every keystroke typed at once, and Escape returns focus to New", async (item, label) => {
     await mount(ScriptsPage);
     await openMenu(newButton());
-    await choose(item);
-    const input = host!.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
-    expect(document.activeElement).toBe(input);
-    await settle(400);
-    expect(document.activeElement).toBe(input);
+    const input = await chooseAndType(item, label);
     await escape(input);
     expect(host!.querySelector(`input[aria-label="${label}"]`)).toBeNull();
     expect(document.activeElement).toBe(newButton());
   });
 
-  it("Scripts row Rename focuses the field, and Escape returns focus to the row", async () => {
+  it("Scripts row Rename keeps every keystroke typed at once, and Escape returns focus to the row", async () => {
     await mount(ScriptsPage);
     await openMenu(all<HTMLElement>('button[aria-label="Options for intro.sd"]')[0]);
-    await choose("Rename");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename intro.sd"]')!;
-    expect(document.activeElement).toBe(input);
-    await settle(400);
-    expect(document.activeElement).toBe(input);
+    const input = await chooseAndType("Rename", "Rename intro.sd");
     await escape(input);
     expect(document.activeElement).toBe(host!.querySelector('[data-script-path="intro.sd"]'));
   });
 
-  it("Assets New > New folder focuses the field at once, and Escape returns focus to New", async () => {
+  it("Assets New > New folder keeps every keystroke typed at once, and Escape returns focus to New", async () => {
     await mount(Assets);
     await openMenu(host!.querySelector<HTMLElement>('[data-assets-action="add"]')!);
-    await choose("New folder");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="New folder name"]')!;
-    expect(document.activeElement).toBe(input);
-    await settle(400);
-    expect(document.activeElement).toBe(input);
+    const input = await chooseAndType("New folder", "New folder name");
     await escape(input);
     expect(document.activeElement).toBe(host!.querySelector('[data-assets-action="add"]'));
   });
 
-  it("Assets row Rename focuses the field, and Escape returns focus to the row", async () => {
+  it("Assets row Rename keeps every keystroke typed at once, and Escape returns focus to the row", async () => {
     await mount(Assets);
     await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
-    await choose("Rename");
-    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename bunny"]')!;
-    expect(document.activeElement).toBe(input);
-    await settle(400);
-    expect(document.activeElement).toBe(input);
+    const input = await chooseAndType("Rename", "Rename bunny");
     await escape(input);
     expect(document.activeElement).toBe(host!.querySelector('[data-asset-path="Assets/Images/bunny.png"]'));
   });
