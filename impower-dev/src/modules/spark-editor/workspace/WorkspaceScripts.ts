@@ -336,7 +336,10 @@ export default class WorkspaceScripts {
       items.length === 1
         ? nameOf(items[0]!)
         : plural(items.length, folders ? "item" : "script");
-    await moveToTrash(this._workspace.fs, this.projectId!, trashed, label);
-    await this.changed(folders ? "folder" : "file");
+    try {
+      await moveToTrash(this._workspace.fs, this.projectId!, trashed, label);
+    } finally {
+      await this.changed(folders ? "folder" : "file");
+    }
   }
 }

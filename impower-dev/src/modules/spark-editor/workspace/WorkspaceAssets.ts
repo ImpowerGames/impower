@@ -557,9 +557,12 @@ export default class WorkspaceAssets {
   protected async trash(items: readonly string[], label: string): Promise<void> {
     const projectId = this.requireProject();
     const trashed = items.map((path) => ({ path, folder: this.kindOf(path) === "folder" }));
-    await moveToTrash(this._workspace.fs, projectId, trashed, label);
-    await this._workspace.window.recordAssetChange();
-    await this.load();
+    try {
+      await moveToTrash(this._workspace.fs, projectId, trashed, label);
+    } finally {
+      await this._workspace.window.recordAssetChange();
+      await this.load();
+    }
   }
 
   async usedBy(paths: readonly string[]): Promise<SearchGroup[] | null> {

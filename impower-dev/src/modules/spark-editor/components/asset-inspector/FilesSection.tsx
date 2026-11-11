@@ -15,7 +15,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
 import { bytesLabel } from "../../utils/fileListModel";
-import type { FileMove } from "../../utils/fileMoves";
+import { reasonOf, type FileMove } from "../../utils/fileMoves";
 import type { ImageStack } from "../../utils/imageStacks";
 import { filesSummary, fileRows, type FileRow } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
@@ -31,7 +31,7 @@ export type FilesSectionProps = {
 };
 
 const report = (error: unknown) =>
-  showSnackbar({ message: error instanceof Error ? error.message : String(error) });
+  showSnackbar({ message: reasonOf(error) });
 
 const stemAndExtension = (name: string) => {
   const dot = name.lastIndexOf(".");

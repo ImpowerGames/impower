@@ -820,6 +820,17 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(batch!.entries.map((entry) => entry.relPath)).toEqual([STACK[2]]);
   });
 
+  it("says when storage refuses to move one file to the bin, and keeps it and the rest", async () => {
+    const h = await harness(project());
+    h.failRemoving(STACK[2]!);
+    await expect(h.assets.removeMember(STACK[2]!)).rejects.toThrow(
+      "Couldn't move imani@night~face.sad.png to the bin. It is still where it was.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.read(STACK[2]!)).toBe("picture 2");
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
   it("adds a layer or alternate beside the base, not in the Add menu's folder", async () => {
     const h = await harness(project());
     await h.assets.addBeside([{ name: "imani~hat.on.png", getBuffer: async () => encode("hat").buffer as ArrayBuffer }], STACK[0]!);

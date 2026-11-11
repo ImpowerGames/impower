@@ -1,5 +1,4 @@
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
-import { matchesAttributeOption } from "@impower/sparkdown/src/attributes/resolveAttributes";
 import { bytesLabel, plural } from "./fileListModel";
 import type { ImageStack, StackMember, StackPicture } from "./imageStacks";
 
@@ -73,8 +72,7 @@ export const variantOf = (stack: ImageStack, selection: VariantSelection): Image
   const image =
     stack.kind === "files" && picture.alternate !== null ? `${stack.name}@${picture.alternate}` : stack.name;
   const accepting = (option: string) =>
-    picture.groups.filter((group) => group.options.some((candidate) => matchesAttributeOption(option, candidate)))
-      .length;
+    picture.groups.filter((group) => group.options.includes(option)).length;
   const named = new Set(picture.groups.map((group) => group.name));
   const attributes = testerGroups(stack, selection)
     .filter((group) => group.key !== ALTERNATE)
