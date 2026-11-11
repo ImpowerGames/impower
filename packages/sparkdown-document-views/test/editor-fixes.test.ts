@@ -1,4 +1,4 @@
-import { history, undo } from "@codemirror/commands";
+import { history, redo, undo } from "@codemirror/commands";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { ChangeSet, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -129,6 +129,24 @@ describe("a fix applied in the open editor", () => {
     view.dispatch({ changes: { from: 0, insert: "Hi. " } });
     expect(undoEditorFix(view, { uri: URI, fix: 7, revert })).toBe(true);
     expect(view.state.doc.toString()).toBe("Hi. show alcie");
+  });
+
+  it("restores exactly from the toast after the editor undid and redid the fix", () => {
+    const view = editor("show alcie");
+    const revert = useAlice(view, 7);
+    undo(view);
+    redo(view);
+    expect(view.state.doc.toString()).toBe("show alice");
+    expect(undoEditorFix(view, { uri: URI, fix: 7, revert })).toBe(true);
+    expect(view.state.doc.toString()).toBe("show alcie");
+  });
+
+  it("refuses the toast Undo once the editor has already undone the fix", () => {
+    const view = editor("show alcie");
+    const revert = useAlice(view, 7);
+    undo(view);
+    expect(undoEditorFix(view, { uri: URI, fix: 7, revert })).toBe(false);
+    expect(view.state.doc.toString()).toBe("show alcie");
   });
 
   it("refuses to undo once the fixed text was edited", () => {

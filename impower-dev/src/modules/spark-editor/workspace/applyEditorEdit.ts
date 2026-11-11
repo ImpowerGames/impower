@@ -15,6 +15,7 @@ import {
   FIX_SNAPSHOT_PROOFS,
   textFingerprint,
   type OfferedFix,
+  type OfferedFixes,
 } from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
 import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import type { Position, TextEdit } from "vscode-languageserver-protocol";
@@ -247,7 +248,8 @@ const applyClosedChanges = async (
 export type { OfferedFix };
 
 export interface EditorFixFiles extends EditorEditFiles {
-  offeredFixes: (uri: string) => Promise<readonly OfferedFix[] | null>;
+  offeredFixes: (uri: string) => Promise<OfferedFixes | null>;
+  getFileVersion: (uri: string) => Promise<number | undefined>;
 }
 
 const undoFix = async (
@@ -297,16 +299,23 @@ export const applyEditorFix = async (
         }
       : { applied: true, undo: async () => false };
   }
+  if (editor.outcome === "refused") {
+    return REFUSED;
+  }
+  const offered = await files.offeredFixes(uri);
+  const storedVersion = await files.getFileVersion(uri);
+  const text = await files.getFileText(uri);
   if (
-    editor.outcome === "refused" ||
     !FIX_SNAPSHOT_PROOFS.closedScript.holds({
       fix,
-      offered: await files.offeredFixes(uri),
-    })
+      offered: offered?.fixes ?? null,
+      offeredVersion: offered?.version,
+      storedVersion,
+    }) ||
+    (await files.getFileVersion(uri)) !== storedVersion
   ) {
     return REFUSED;
   }
-  const text = await files.getFileText(uri);
   const starts = lineStarts(text);
   const from = offsetAt(starts, text, fix.range.start);
   const to = offsetAt(starts, text, fix.range.end);

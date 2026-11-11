@@ -52,34 +52,54 @@ afterEach(() => {
   snackbar.value = null;
 });
 
-const closedScript = (initial: string) => {
+const closedScript = (initial: string, { lag = false } = {}) => {
   let text = initial;
+  let stored = 1;
+  let compiled = 1;
+  let serverText = initial;
+  const compile = () => {
+    compiled = stored;
+    serverText = text;
+  };
+  const write = (next: string) => {
+    text = next;
+    stored += 1;
+    if (!lag) {
+      compile();
+    }
+  };
   return {
     text: () => text,
-    edit: (next: string) => {
-      text = next;
-    },
+    edit: write,
+    compile,
     deps: {
       getFileText: vi.fn(async () => text),
+      getFileVersion: vi.fn(async () => stored),
       offeredFixes: vi.fn(async () => {
-        const at = text.indexOf("alcie");
-        return at < 0
-          ? []
-          : [
-              {
-                changes: [{ from: at, to: at + 5, insert: "alice" }],
-                expect: "alcie",
-                kind: "name" as const,
-              },
-            ];
+        const at = serverText.indexOf("alcie");
+        return {
+          version: compiled,
+          fixes:
+            at < 0
+              ? []
+              : [
+                  {
+                    changes: [{ from: at, to: at + 5, insert: "alice" }],
+                    expect: "alcie",
+                    kind: "name" as const,
+                  },
+                ],
+        };
       }),
       applyWorkspaceEdit: vi.fn(
         async (edit: {
           documentChanges?: { edits: TextEdit[] }[];
         }) => {
-          text = TextDocument.applyEdits(
-            TextDocument.create(URI, "sparkdown", 1, text),
-            edit.documentChanges!.flatMap((change) => change.edits),
+          write(
+            TextDocument.applyEdits(
+              TextDocument.create(URI, "sparkdown", 1, text),
+              edit.documentChanges!.flatMap((change) => change.edits),
+            ),
           );
           return { applied: true };
         },
@@ -222,6 +242,22 @@ describe("applying a fix from a problem", () => {
     expect(script.text()).toBe(edited);
     expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
     expect(snackbar.value?.message).toBe(FIX_REFUSED);
+  });
+
+  it("refuses a closed-script fix while the server has not yet read a write, then applies the fix the server offers once it has", async () => {
+    const script = closedScript(SCRIPT, { lag: true });
+    const edited = SCRIPT.replace("scene start", "scene start here");
+    script.edit(edited);
+    expect(await applyFix(script.deps, useAlice())).toBe(false);
+    expect(script.text()).toBe(edited);
+    expect(snackbar.value?.message).toBe(FIX_REFUSED);
+    script.compile();
+    const [fresh] = (await script.deps.offeredFixes()).fixes;
+    const choice = useAlice();
+    choice.fix.changes = fresh!.changes;
+    choice.fix.range = { start: { line: 1, character: 7 }, end: { line: 1, character: 12 } };
+    expect(await applyFix(script.deps, choice)).toBe(true);
+    expect(script.text()).toBe(edited.replace("alcie", "alice"));
   });
 
   it("refuses Undo after the author leaves a script they typed in since the fix, rather than reverting at moved offsets", async () => {

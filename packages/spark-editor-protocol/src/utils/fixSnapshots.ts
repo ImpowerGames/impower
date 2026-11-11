@@ -17,6 +17,11 @@ export const textFingerprint = (text: string): string => {
 
 export type OfferedFix = Pick<EditorFix, "changes" | "expect" | "kind">;
 
+export interface OfferedFixes {
+  version: number | undefined;
+  fixes: readonly OfferedFix[];
+}
+
 export interface InsertedText {
   from: number;
   to: number;
@@ -49,8 +54,16 @@ export const FIX_SNAPSHOT_PROOFS = {
   },
   closedScript: {
     route: "A fix applied to a script no editor holds",
-    proves: "The server, asked when the fix is chosen, still offers this exact fix",
-    holds: (input: { fix: OfferedFix; offered: readonly OfferedFix[] | null }) =>
+    proves:
+      "The server offers this exact fix from the file at the version storage holds, so its offsets belong to the text being edited",
+    holds: (input: {
+      fix: OfferedFix;
+      offered: readonly OfferedFix[] | null;
+      offeredVersion: number | undefined;
+      storedVersion: number | undefined;
+    }) =>
+      input.offeredVersion != null &&
+      input.offeredVersion === input.storedVersion &&
       !!input.offered?.some(
         (offered) =>
           offered.expect === input.fix.expect &&

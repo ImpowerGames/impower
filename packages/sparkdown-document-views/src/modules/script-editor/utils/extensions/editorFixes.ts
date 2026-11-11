@@ -43,6 +43,9 @@ const appliedFixField = StateField.define<AppliedFix | null>({
     if (!value || !tr.docChanged) {
       return value;
     }
+    if (tr.isUserEvent("undo") || tr.isUserEvent("redo")) {
+      return null;
+    }
     return {
       id: value.id,
       inverse: value.inverse.map(tr.changes),

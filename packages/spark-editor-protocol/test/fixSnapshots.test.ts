@@ -28,12 +28,19 @@ const CASES: {
     ],
   },
   closedScript: {
-    holds: [{ fix: USE_ALICE, offered: [USE_ALICE] }],
+    holds: [{ fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: 2, storedVersion: 2 }],
     fails: [
-      { fix: USE_ALICE, offered: null },
-      { fix: USE_ALICE, offered: [] },
-      { fix: USE_ALICE, offered: [{ ...USE_ALICE, changes: [{ from: 10, to: 15, insert: "alice" }] }] },
-      { fix: USE_ALICE, offered: [{ ...USE_ALICE, expect: "alcxe" }] },
+      { fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: 1, storedVersion: 2 },
+      { fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: undefined, storedVersion: 2 },
+      { fix: USE_ALICE, offered: null, offeredVersion: 2, storedVersion: 2 },
+      { fix: USE_ALICE, offered: [], offeredVersion: 2, storedVersion: 2 },
+      {
+        fix: USE_ALICE,
+        offered: [{ ...USE_ALICE, changes: [{ from: 10, to: 15, insert: "alice" }] }],
+        offeredVersion: 2,
+        storedVersion: 2,
+      },
+      { fix: USE_ALICE, offered: [{ ...USE_ALICE, expect: "alcxe" }], offeredVersion: 2, storedVersion: 2 },
     ],
   },
   undoInEditor: {
