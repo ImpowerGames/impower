@@ -88,35 +88,57 @@ describe("a capture's patterns are read as vscode-textmate reads them on the lig
 });
 
 describe("the recursion guard holds only rules that can recurse (I-2093)", () => {
-  test("while a match rule runs its pattern in a cold parse of builtins.sd, the recursion guard holds no frame for it", () => {
-    const running: { id: string; state: GrammarState }[] = [];
-    let matches = 0;
-    let guarded = 0;
-    const guardedIds = new Set<string>();
+  test("a match attempt in a cold parse of builtins.sd reads no frame of the recursion guard and writes nothing to it", () => {
+    let attempts = 0;
+    let patterns = 0;
+    let readingEnclosing = 0;
+    const work = { writes: 0, frameReads: 0 };
+    const guard: ProxyHandler<GrammarState["visited"]> = {
+      get(target, key, receiver) {
+        if (typeof key === "string" && /^[0-9]+$/.test(key) && readingEnclosing === 0) {
+          work.frameReads++;
+        }
+        return Reflect.get(target, key, receiver);
+      },
+      set(target, key, value) {
+        work.writes++;
+        return Reflect.set(target, key, value);
+      },
+      deleteProperty(target, key) {
+        work.writes++;
+        return Reflect.deleteProperty(target, key);
+      },
+    };
     const matchGroups = MatchRule.prototype.matchGroups;
     vi.spyOn(MatchRule.prototype, "matchGroups").mockImplementation(function (this: MatchRule, ...args) {
-      running.push({ id: this.id, state: args[0] });
+      const state = args[0];
+      const visited = state.visited;
+      attempts++;
+      state.visited = new Proxy(visited, guard);
       try {
         return matchGroups.apply(this, args);
       } finally {
-        running.pop();
+        state.visited = visited;
+      }
+    });
+    const enclosingAt = GrammarState.prototype.enclosingAt;
+    vi.spyOn(GrammarState.prototype, "enclosingAt").mockImplementation(function (this: GrammarState, ...args) {
+      readingEnclosing++;
+      try {
+        return enclosingAt.apply(this, args);
+      } finally {
+        readingEnclosing--;
       }
     });
     const match = RegExpMatcher.prototype.match;
     vi.spyOn(RegExpMatcher.prototype, "match").mockImplementation(function (this: RegExpMatcher, ...args) {
-      const current = running.at(-1);
-      if (current) {
-        matches++;
-        if (current.state.visited.some((frame) => frame.ruleId === current.id)) {
-          guarded++;
-          guardedIds.add(current.id);
-        }
-      }
+      patterns++;
       return match.apply(this, args);
     });
     createSparkdownParser().parse(BUILTINS);
-    expect(matches).toBeGreaterThan(10000);
-    expect({ guarded, ids: [...guardedIds].slice(0, 5) }).toEqual({ guarded: 0, ids: [] });
+    expect(attempts).toBeGreaterThan(10000);
+    expect(patterns).toBeGreaterThan(10000);
+    expect(work).toEqual({ writes: 0, frameReads: 0 });
   });
 
   test("nesting deeper than the guard's limit is cut off at the same depth as before (I-2093)", () => {
