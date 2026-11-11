@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Sheet,
   type DialogProps,
+  type SheetSize,
 } from "./Dialog";
 import {
   DropdownContent,
@@ -102,12 +103,14 @@ const clickBackdrop = () =>
 type HarnessProps = Omit<DialogProps, "open" | "onOpenChange"> & {
   onOpenChange?: (open: boolean) => void;
   sheet?: boolean;
+  sheetSize?: SheetSize;
   withInitialFocus?: boolean;
 };
 
 function Harness({
   onOpenChange,
   sheet,
+  sheetSize,
   withInitialFocus,
   ...props
 }: HarnessProps) {
@@ -138,6 +141,7 @@ function Harness({
       </button>
       {sheet ? (
         <Sheet
+          size={sheetSize}
           open={open}
           onOpenChange={change}
           initialFocus={withInitialFocus ? nameRef : undefined}
@@ -316,6 +320,22 @@ describe("Sheet and the responsive Dialog", () => {
     expect(card.className).toContain("rounded-t-card");
     expect(backdrop()!.className).toContain("justify-end");
     expect(card.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
+    await pressEscape();
+    await settle(DIALOG_TRANSITION_MS + 50);
+    await settle(10);
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("fills the screen at the full size with the same focus and Escape contract", async () => {
+    const opener = await mount({ sheet: true, sheetSize: "full", withInitialFocus: true });
+    const card = dialog()!;
+    expect(card.className).toContain("h-full");
+    expect(card.className).toContain("max-h-none");
+    expect(card.className).toContain("rounded-none");
+    expect(card.className).not.toContain("max-h-[80vh]");
+    expect(card.className).not.toContain("rounded-t-card");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
     await pressEscape();
     await settle(DIALOG_TRANSITION_MS + 50);

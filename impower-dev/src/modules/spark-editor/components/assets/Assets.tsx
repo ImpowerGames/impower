@@ -14,6 +14,7 @@ import {
   ListIcon,
   ListRow,
   MusicIcon,
+  Sheet,
   OtherIcon,
   SearchIcon,
   Tab,
@@ -32,8 +33,10 @@ import {
   variantsLabel,
   VideoIcon,
 } from "@impower/impower-ui/components";
+import { useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   ASSET_TYPES,
@@ -44,6 +47,7 @@ import {
   type AssetType,
 } from "../../utils/assetTypes";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
+import { neighborsOf, type InspectedAsset } from "../../utils/assetDetails";
 import { plural, rowLine } from "../../utils/fileListModel";
 import { majorityShape } from "../../utils/imageSize";
 import { showSnackbar } from "../../utils/snackbar";
@@ -59,7 +63,7 @@ import {
 import { parentOf } from "../../workspace/scriptsListing";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
-import type { PreviewItem } from "../file-preview/FilePreviewOverlay";
+import { AssetInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
 import {
   EmptyState,
   LibraryPage,
@@ -71,7 +75,6 @@ import {
   useTabQuery,
 } from "../library-page";
 import AddUrlDialog from "./AddUrlDialog";
-import { useAssetPreview } from "./AssetPreview";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
 
 export const propDefaults = {};
@@ -135,17 +138,21 @@ const stemAndExtension = (name: string) => {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const previewItemOf = (listing: AssetListing, row: AssetRow): PreviewItem => {
+const inspectedOf = (listing: AssetListing, row: AssetRow): InspectedAsset => {
   const facts = listing.files[row.path];
-  const kind = row.type === "image" || row.type === "audio" || row.type === "video" ? row.type : "text";
   return {
     path: row.path,
-    name: leafOf(row.path),
-    src: facts?.src,
-    kind,
-    url: row.link ? facts?.address : undefined,
-    size: row.link ? undefined : facts?.size,
-    modified: facts?.modified,
+    name: row.name,
+    type: row.type,
+    link: row.link,
+    address: facts?.address,
+    src: row.link ? facts?.address : facts?.src,
+    files: (row.paths ?? [row.path]).map((path) => ({
+      path,
+      size: listing.files[path]?.size ?? 0,
+      src: listing.files[path]?.src,
+    })),
+    variantCount: row.variantCount,
   };
 };
 
@@ -208,7 +215,32 @@ function AssetsBrowser() {
       ])
     : level.rows;
   const files = items.filter((item): item is AssetRow => item.kind === "file");
-  const preview = useAssetPreview(files.map((row) => previewItemOf(listing, row)));
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [openedIn, setOpenedIn] = useState<InspectorHost | null>(null);
+  const lastPath = useRef<string | null>(null);
+  const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
+  const list = useRef<HTMLDivElement | null>(null);
+  const page = useRef<HTMLDivElement | null>(null);
+  const closeButton = useRef<HTMLButtonElement | null>(null);
+  const layoutName = useLayout();
+  const dock = useInspectorDock();
+  const host = inspectorHost(layoutName, dock);
+  const rowOf = (path: string): AssetRow | null =>
+    files.find((row) => row.path === path) ??
+    (Object.hasOwn(listing.files, path)
+      ? (assetLevel({
+          listing,
+          type: assetTypeOf(path, endings, listing.files[path]?.address),
+          folder: parentOf(path),
+          sort,
+          endings,
+        }).rows.find((row) => row.kind === "file" && row.path === path) ?? null)
+      : null);
+  const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
+  if (openPath) {
+    lastPath.current = openPath;
+  }
+  const near = openPath ? neighborsOf(files, openPath) : null;
   const [layout, setLayout] = useFolderLayout(
     "assetsLayouts",
     level.folder,
@@ -241,6 +273,49 @@ function AssetsBrowser() {
   }, [measureKey]);
   const scrollKey = searching ? "search" : `${type}:${level.folder}`;
   const scroller = useSavedScroll("assetsScrolls", scrollKey);
+
+  const revealRow = (path: string) => setReveal((prev) => ({ path, request: (prev?.request ?? 0) + 1 }));
+
+  const rowElement = (path: string) =>
+    [...(list.current?.querySelectorAll<HTMLElement>("[data-asset-path]") ?? [])].find(
+      (element) => element.getAttribute("data-asset-path") === path,
+    ) ?? null;
+
+  const returnTarget = (path: string) =>
+    rowElement(path) ?? page.current?.querySelector<HTMLElement>('input[type="search"]') ?? null;
+
+  const focusRow = (path: string) => {
+    revealRow(path);
+    requestAnimationFrame(() => returnTarget(path)?.focus({ preventScroll: true }));
+  };
+
+  useEffect(() => {
+    if (openPath && !openRowOf) {
+      setOpenPath(null);
+      const active = document.activeElement;
+      if (openedIn !== host && (!active || active === document.body)) {
+        focusRow(openPath);
+      }
+    }
+  }, [openPath, openRowOf]);
+
+  const openAsset = (path: string) => {
+    setOpenedIn(host);
+    setOpenPath(path);
+  };
+
+  const stepTo = (path: string) => {
+    setOpenPath(path);
+    revealRow(path);
+  };
+
+  const closeInspector = () => {
+    const path = openPath;
+    setOpenPath(null);
+    if (path && host === "dock") {
+      focusRow(path);
+    }
+  };
 
   const setLists = (lists: Partial<ListsState>) =>
     void intents().then((Workspace) => Workspace.window.setListState(lists));
@@ -289,7 +364,7 @@ function AssetsBrowser() {
     return `${opens} ${row.name}${variants}${line ? `, ${line.toLowerCase()}` : ""}`;
   };
 
-  const openRow = (row: AssetRow) => (row.kind === "folder" ? openFolder(row.path) : preview.open(row.path));
+  const openRow = (row: AssetRow) => (row.kind === "folder" ? openFolder(row.path) : openAsset(row.path));
 
   const renderTile = (row: AssetRow) => {
     const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
@@ -309,6 +384,8 @@ function AssetsBrowser() {
         label={row.name}
         description={line}
         aria-label={openLabel(row, line)}
+        current={!folder && row.path === openPath}
+        data-asset-path={row.path}
         actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
@@ -363,11 +440,29 @@ function AssetsBrowser() {
         description={line}
         aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
+        current={!folder && row.path === openPath}
+        data-asset-path={row.path}
         actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
     );
   };
+
+  const inspectorOf = (row: AssetRow) => (
+    <AssetInspector
+      asset={inspectedOf(listing, row)}
+      previous={near?.previous ? { path: near.previous.path, name: near.previous.name } : null}
+      next={near?.next ? { path: near.next.path, name: near.next.name } : null}
+      host={host}
+      intents={intents}
+      onStep={stepTo}
+      onClose={closeInspector}
+      closeRef={closeButton}
+    />
+  );
+  const inspector = openRowOf ? inspectorOf(openRowOf) : null;
+  const closing = !inspector && lastPath.current ? rowOf(lastPath.current) : null;
+  const lastInspector = inspector ?? (closing ? inspectorOf(closing) : null);
 
   const TypeGlyph = TYPE_ICONS[type];
   const trail = assetTrail(listing, level.root, level.folder);
@@ -382,6 +477,7 @@ function AssetsBrowser() {
 
   return (
     <LibraryPage<Item>
+      area={{ ref: page }}
       searchLabel="Search assets"
       query={query}
       onQueryChange={setQuery}
@@ -473,7 +569,12 @@ function AssetsBrowser() {
         )
       }
       list={measuring ? null : {
-        listRef: scroller,
+        listRef: (element: HTMLDivElement | null) => {
+          list.current = element;
+          scroller(element);
+        },
+        revealIndex: reveal ? items.findIndex((item) => item.kind !== "heading" && item.path === reveal.path) : undefined,
+        revealRequest: reveal?.request,
         label: searching ? "Search results" : "Assets and folders",
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
@@ -519,7 +620,21 @@ function AssetsBrowser() {
           })
         }
       />
-      {preview.overlay}
+      {inspector && host === "dock" && dock ? createPortal(inspector, dock) : null}
+      {host === "sheet" && (
+        <Sheet
+          size="full"
+          flush
+          open={!!openRowOf}
+          onOpenChange={(open) => {
+            if (!open) closeInspector();
+          }}
+          initialFocus={closeButton}
+          returnFocus={() => (lastPath.current ? returnTarget(lastPath.current) : null)}
+        >
+          {lastInspector}
+        </Sheet>
+      )}
     </LibraryPage>
   );
 }

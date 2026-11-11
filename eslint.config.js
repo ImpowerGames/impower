@@ -54,10 +54,8 @@ const FORM_CONTROL_SYNTAX = [
 ];
 
 export const LEGACY_FORM_CONTROL_FILES = [
-  "impower-dev/src/modules/spark-editor/components/asset-inspector/AssetInspectorPanel.tsx",
   "impower-dev/src/modules/spark-editor/components/assets/AddUrlDialog.tsx",
   "impower-dev/src/modules/spark-editor/components/desktop-shell/ProjectNameField.tsx",
-  "impower-dev/src/modules/spark-editor/components/file-preview/FilePreviewOverlay.tsx",
   "impower-dev/src/modules/spark-editor/components/script-header/ScriptNameField.tsx",
 ];
 

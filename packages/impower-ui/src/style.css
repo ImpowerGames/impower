@@ -260,6 +260,10 @@
   }
 }
 
+@utility checkerboard {
+  background: repeating-conic-gradient(var(--checker-dark) 0 25%, var(--checker-light) 0 50%) 0 0 / 16px 16px;
+}
+
 @utility fade-edge {
   overflow: hidden;
   white-space: nowrap;

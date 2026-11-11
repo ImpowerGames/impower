@@ -42,7 +42,7 @@ export namespace Workspace {
     window,
     autoRenameFiles,
   });
-  export const assets = new WorkspaceAssets({ fs, window, autoRenameFiles });
+  export const assets = new WorkspaceAssets({ fs, ls, window, autoRenameFiles });
   export const audition = new WorkspaceAudition({
     preview: (filename, shown) => window.auditionConstruct(filename, shown),
     audio: () => new Audio(),

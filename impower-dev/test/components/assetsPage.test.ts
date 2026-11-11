@@ -18,6 +18,7 @@ const assets = vi.hoisted(() => ({
   rename: vi.fn(async () => ""),
   remove: vi.fn(async () => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
+  watchFacts: vi.fn((_paths: string[]) => () => {}),
 }));
 const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({
@@ -38,7 +39,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
-const { inspectAsset, inspectedAsset } = await import("../../src/modules/spark-editor/utils/assetInspector");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
   "../../src/modules/spark-editor/workspace/settings/settingsSchema"
 );
@@ -138,7 +138,6 @@ beforeEach(() => {
     "Assets/Fonts/courier_prime.ttf": facts(2048),
     "Assets/Other/table.csv": facts(19),
   });
-  inspectAsset(null);
 });
 
 afterEach(async () => {
@@ -243,10 +242,13 @@ describe("the Assets page", () => {
     expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Upload files"))).toBe(true);
   });
 
-  it("opens today's inspector on a press and the row menu from its own button", async () => {
+  it("opens the inspector on a press and the row menu from its own button", async () => {
     await mount();
     await click(all<HTMLElement>('button[aria-label^="Open image bunny"]')[0]);
-    expect(inspectedAsset.value).toMatchObject({ path: "Assets/Images/bunny.png", kind: "image", src: "/p/600" });
+    const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    expect(inspector.querySelector("header h2")!.textContent).toBe("bunny");
+    expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/600");
+    await click(inspector.querySelector<HTMLElement>("[data-inspector-close]")!);
     await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
     await vi.waitFor(() => expect(menuItems()).toEqual(["Rename", "Delete"]));
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
@@ -350,7 +352,16 @@ describe("image folders as tiles", () => {
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
-    expect(inspectedAsset.value).toMatchObject({ path: "Assets/Images/Portraits/imani.png" });
+    const inspector = document.querySelector('section[aria-label="Asset details"]')!;
+    expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
+    expect(inspector.querySelector("header small")!.textContent).toBe("Image · PNG · 2 variants");
+    expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
+    expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
+      "Assets/Images/Portraits/imani.png",
+      "Assets/Images/Portraits/imani@night.png",
+      "Assets/Images/Portraits/imani@night~face.sad.png",
+      "Assets/Images/Portraits/imani~face.happy.png",
+    ]);
   });
 
   it("draws landscape tiles under Backdrops and folder tiles covered by the pictures inside", async () => {
