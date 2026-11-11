@@ -12,6 +12,7 @@ export interface GameHistory {
   rollForwardRefusal: HistoryReason | null;
   stepRefusal: HistoryReason | null;
   stepOutRefusal: HistoryReason | null;
+  heldChoices: number[];
 }
 
 export interface SettledLoop {

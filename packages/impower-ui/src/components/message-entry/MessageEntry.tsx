@@ -86,6 +86,7 @@ export type MessageEntryProps = VariantProps<typeof messageEntryVariants> & {
   onJump?: () => void;
   time?: { label: string; dateTime: string };
   actions?: ComponentChildren;
+  onActivate?: () => void;
   class?: string;
 };
 
@@ -99,6 +100,7 @@ export default function MessageEntry({
   onJump,
   time,
   actions,
+  onActivate,
   fit,
   class: className,
 }: MessageEntryProps) {
@@ -106,9 +108,28 @@ export default function MessageEntry({
   return (
     <div
       data-message-entry={severity}
-      class={cn(messageEntryVariants({ fit }), className)}
+      data-activatable={onActivate ? "" : undefined}
+      class={cn(
+        messageEntryVariants({ fit }),
+        onActivate && "relative control-overlay cursor-pointer",
+        className,
+      )}
+      onClick={
+        onActivate
+          ? (event) => {
+              if (!(event.target as Element).closest("button, a")) {
+                onActivate();
+              }
+            }
+          : undefined
+      }
     >
-      <div class="flex min-w-0 cursor-text items-start gap-2.5 px-2 pt-3 pb-0.5 select-text">
+      <div
+        class={cn(
+          "flex min-w-0 items-start gap-2.5 px-2 pt-3 pb-0.5",
+          onActivate ? "cursor-pointer" : "cursor-text select-text",
+        )}
+      >
         <Glyph class={messageEntryGlyphVariants({ severity })} aria-hidden="true" />
         <span class="grid min-w-0 flex-1 gap-1">
           <strong

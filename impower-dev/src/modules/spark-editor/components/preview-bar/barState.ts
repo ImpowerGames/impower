@@ -8,6 +8,7 @@ import {
 } from "@impower/spark-web-player/src/route/routeView";
 import type { HostedRouteView } from "@impower/spark-web-player/src/route/routeViewMessages";
 import { routeScriptName } from "../../workspace/route/RouteStore";
+import type { DebugSessionState } from "../../workspace/WorkspaceStore";
 import type { ProjectSettings } from "../../workspace/settings/settingsSchema";
 
 export type AspectRatioChoice = ProjectSettings["previewAspectRatio"];
@@ -133,4 +134,12 @@ export const barPosition = (state: WorkspaceCache): BarPosition | null => {
     return null;
   }
   return at(editor.filename, editor.selectedRange?.start.line ?? 0, false);
+};
+
+export const stopNote = (session: DebugSessionState): string | null => {
+  const frame = session.stackTrace?.stackFrames[0];
+  if (session.stopped?.beat !== "none" || !frame) {
+    return null;
+  }
+  return `Stopped before line ${frame.line + 1}. It has not run yet.`;
 };

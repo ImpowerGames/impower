@@ -30,10 +30,15 @@ const OUT_GRAMMAR_PATHS = outPaths.map(
   (outPath) => `${outPath}/${GRAMMAR_NAME}.json`,
 );
 
-const SNIPPETS_NAME = "sparkdown.language-snippets";
-const IN_SNIPPETS_PATH = `./yaml/${SNIPPETS_NAME}.yaml`;
-const OUT_SNIPPETS_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${SNIPPETS_NAME}.json`,
+const SNIPPETS_NAMES = [
+  "sparkdown.language-snippets",
+  "sparkdown-luau.language-snippets",
+];
+const SNIPPETS_BUILDS = SNIPPETS_NAMES.flatMap((name) =>
+  outPaths.map((outPath) => ({
+    inPath: `./yaml/${name}.yaml`,
+    outPath: `${outPath}/${name}.json`,
+  })),
 );
 
 // The original code is licensed under the MIT License
@@ -481,6 +486,43 @@ const buildLuauFileGrammarJson = async (
   await fs.promises.writeFile(outJsonPath, JSON.stringify(grammar, null, 2));
 };
 
+const LAYOUT_VERBS_MODULE_NAME = "sparkdown.layout-verbs";
+
+const buildLayoutVerbsModule = async (
+  inYamlPath: string,
+  outGrammarPath: string,
+) => {
+  const parsed = YAML.parse(await fs.promises.readFile(inYamlPath, "utf8"));
+  const verbs: unknown = parsed.variables?.LAYOUT_CONTROL_KEYWORDS;
+  if (
+    !Array.isArray(verbs) ||
+    verbs.length === 0 ||
+    !verbs.every((verb) => typeof verb === "string" && /^[a-z]+$/.test(verb))
+  ) {
+    throw new Error(
+      `Grammar build: the grammar's \`variables.LAYOUT_CONTROL_KEYWORDS\` must be a non-empty list of lowercase words (got ${JSON.stringify(verbs)})`,
+    );
+  }
+  const outModulePath = path.join(
+    path.dirname(outGrammarPath),
+    `${LAYOUT_VERBS_MODULE_NAME}.ts`,
+  );
+  const source = [
+    `export const LAYOUT_VERBS = [${verbs.map((verb) => JSON.stringify(verb)).join(", ")}] as const;`,
+    ``,
+    `export type LayoutVerb = (typeof LAYOUT_VERBS)[number];`,
+    ``,
+    `export const LayoutVerb = {`,
+    ...verbs.map((verb) => `  ${verb}: ${JSON.stringify(verb)},`),
+    `} as const satisfies { [V in LayoutVerb]: V };`,
+    ``,
+    `export const isLayoutVerb = (value: string): value is LayoutVerb =>`,
+    `  (LAYOUT_VERBS as readonly string[]).includes(value);`,
+    ``,
+  ].join("\n");
+  await fs.promises.writeFile(outModulePath, source);
+};
+
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
@@ -495,7 +537,12 @@ const build = async () => {
     ),
   );
   await Promise.all(
-    OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath)),
+    OUT_GRAMMAR_PATHS.map((outPath) =>
+      buildLayoutVerbsModule(IN_GRAMMAR_PATH, outPath),
+    ),
+  );
+  await Promise.all(
+    SNIPPETS_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
   );
   console.log(LOG_PREFIX + `build finished`);
 };

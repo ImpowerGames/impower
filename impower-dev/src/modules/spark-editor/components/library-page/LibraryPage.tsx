@@ -55,7 +55,7 @@ export default function LibraryPage<T>({
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
       <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
         <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
-          <div class="flex flex-none items-center gap-2.5 pt-4 pb-2">
+          <div class="flex flex-none items-center gap-2.5 pt-4 pb-2 [:root[data-layout=desktop]_&]:pb-3">
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />
             <DropdownRoot>
               <DropdownTrigger asChild>

@@ -19,6 +19,9 @@ vi.mock("vscode", async () => {
         return disposable;
       },
       registerDebugAdapterDescriptorFactory: () => disposable,
+      onDidStartDebugSession: () => disposable,
+      onDidTerminateDebugSession: () => disposable,
+      onDidChangeActiveDebugSession: () => disposable,
     },
     languages: {
       registerEvaluatableExpressionProvider: () => disposable,

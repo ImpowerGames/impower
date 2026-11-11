@@ -1,5 +1,10 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { consoleToggleSource, runtimeErrorSource } from "./problems/gameSources";
+import {
+  choiceMadeSource,
+  consoleToggleSource,
+  runStartSource,
+  runtimeErrorSource,
+} from "./problems/gameSources";
 import problems from "./problems/ProblemsStore";
 import route from "./route/RouteStore";
 import workspaceSettings from "./settings/WorkspaceSettings";
@@ -28,13 +33,15 @@ export namespace Workspace {
     ls,
     configuration,
   );
-  export const scripts = new WorkspaceScripts({ fs, ls, window });
-  export const assets = new WorkspaceAssets({
+  export const autoRenameFiles = () =>
+    settings.preferences.peek().autoRenameFiles;
+  export const scripts = new WorkspaceScripts({
     fs,
     ls,
     window,
-    autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+    autoRenameFiles,
   });
+  export const assets = new WorkspaceAssets({ fs, ls, window, autoRenameFiles });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
   export const search = new WorkspaceSearch(
@@ -53,6 +60,8 @@ export namespace Workspace {
 
 registerWorkspaceProtocol(Workspace);
 problems.addPlayedSource(runtimeErrorSource);
+problems.addPlayedSource(choiceMadeSource);
+problems.addRunSource(runStartSource);
 problems.addPanelSource(consoleToggleSource);
 if (typeof window !== "undefined") {
   window.addEventListener(MessageProtocol.event, (event) => {

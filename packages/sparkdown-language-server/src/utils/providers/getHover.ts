@@ -14,6 +14,7 @@ import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlo
 import { own } from "@impower/sparkdown/src/morph/own";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type SyntaxNode, type Tree } from "@lezer/common";
+import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import {
   MarkupKind,
@@ -47,13 +48,15 @@ const getLayoutControlHover = (
   if (!control || !stack.some((node) => node.name === "ImageCommand")) {
     return null;
   }
-  const verb = document.getText(document.range(control.from, control.to));
-  const description = LAYOUT_CONTROL_DESCRIPTIONS[verb.trim()];
-  if (!description) {
+  const verb = document.getText(document.range(control.from, control.to)).trim();
+  if (!isLayoutVerb(verb)) {
     return null;
   }
   return {
-    contents: { kind: MarkupKind.Markdown, value: description },
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: LAYOUT_CONTROL_DESCRIPTIONS[verb],
+    },
     range: document.range(control.from, control.to),
   };
 };

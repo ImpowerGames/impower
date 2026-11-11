@@ -149,6 +149,7 @@ import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
 import type { HeldStop } from "../types/HeldStop";
+import type { StoppedBeat } from "../types/StoppedBeat";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
 import type { SystemConfiguration } from "../types/SystemConfiguration";
@@ -2680,10 +2681,21 @@ export class Game<T extends M = {}> {
       rollForwardRefusal: canRollForward ? null : HISTORY_REASONS.rollForward,
       stepRefusal: behindLatest ? HISTORY_REASONS.step : null,
       stepOutRefusal: canStepOut ? null : HISTORY_REASONS.stepOut,
+      heldChoices: run.heldChoices,
     };
   }
 
-  async rollBack(to: RollTarget): Promise<RollResult> {
+  async rollBack(to: RollTarget, choice?: number): Promise<RollResult> {
+    if (choice != null) {
+      const target = this._run.backToChoice(choice);
+      return target === null
+        ? {
+            moved: false,
+            reason: HISTORY_REASONS.choiceGone,
+            history: this.history,
+          }
+        : this.rollTo(target);
+    }
     const target = this._run.backFrom(to);
     return target === null
       ? { moved: false, reason: HISTORY_REASONS.rollBack, history: this.history }
@@ -3759,14 +3771,17 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected stopAt(reason: HeldStop["reason"]) {
+  protected stopAt(reason: HeldStop["reason"]): StoppedBeat {
     this._announcedStop = true;
     this.holdStop(reason);
-    if (this.presentsAtStop()) {
-      const beat = this.module.interpreter.flush()!;
-      this.showBeat(beat, drawsSettled(beat));
-      this.pause();
+    if (!this.presentsAtStop()) {
+      return "none";
     }
+    const beat = this.module.interpreter.flush()!;
+    const settled = drawsSettled(beat);
+    this.showBeat(beat, settled);
+    this.pause();
+    return settled ? "shown" : "held";
   }
 
   autoAdvancedToContinue() {
@@ -3794,7 +3809,12 @@ export class Game<T extends M = {}> {
       return;
     }
     const beat = this._run.current;
+    let made: { checkpoint: number; text: string } | null = null;
     if (beat?.shown.choices?.length) {
+      made = {
+        checkpoint: beat.checkpoint,
+        text: (this._story.currentChoices[index]?.text ?? "").trim(),
+      };
       if (this._run.behindLatest) {
         if (beat.chosen === index) {
           this.rollForwardOnTap();
@@ -3811,7 +3831,7 @@ export class Game<T extends M = {}> {
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.notifyChosePathToContinue(option);
+    this.notifyChosePathToContinue(option, made);
     this.continue();
   }
 
@@ -3863,11 +3883,12 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyHitBreakpoint() {
-    this.stopAt("breakpoint");
+    const beat = this.stopAt("breakpoint");
     this._run.markHeld();
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        beat,
       }),
     );
   }
@@ -3900,11 +3921,15 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyChosePathToContinue(option: DocumentLocation | null) {
+  protected notifyChosePathToContinue(
+    option: DocumentLocation | null,
+    made: { checkpoint: number; text: string } | null,
+  ) {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
         ...(option ? { option } : {}),
+        ...(made ?? {}),
       }),
     );
   }
@@ -4303,10 +4328,11 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyStepped() {
-    this.stopAt("step");
+    const beat = this.stopAt("step");
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        beat,
         history: this.history,
       }),
     );
