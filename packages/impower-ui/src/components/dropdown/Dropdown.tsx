@@ -9,11 +9,18 @@ import {
   type RefObject,
   type VNode,
 } from "preact";
-import { useCallback, useContext, useRef, useState } from "preact/hooks";
+import { flushSync } from "preact/compat";
+import {
+  type MutableRef,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "preact/hooks";
 import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
-import { registerFocusReturn } from "../../utils/focusReturn";
+import { handFocusOff, registerFocusReturn } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -24,12 +31,18 @@ type MenuCtx = {
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
+  returnsFocus: MutableRef<boolean>;
+  handingOff: boolean;
+  handOff: () => void;
 };
 const ModeContext = createContext<MenuCtx>({
   mode: "menu",
   open: false,
   setOpen: () => {},
   trigger: { current: null },
+  returnsFocus: { current: true },
+  handingOff: false,
+  handOff: () => {},
 });
 const useMenuCtx = () => useContext(ModeContext);
 
@@ -94,11 +107,25 @@ export function DropdownRoot({
 }: RootProps) {
   const mobile = useLayout() === "phone";
   const trigger = useRef<HTMLElement>(null);
+  const returnsFocus = useRef(true);
+  const [handingOff, setHandingOff] = useState(false);
   const [internal, setInternal] = useState(defaultOpen);
   const controlled = openProp !== undefined;
   const open = controlled ? !!openProp : internal;
+  const opening = (next: boolean) => {
+    if (next) {
+      returnsFocus.current = true;
+      setHandingOff(false);
+    }
+  };
+  const handOff = useCallback(() => {
+    returnsFocus.current = false;
+    handFocusOff(trigger.current);
+    setHandingOff(true);
+  }, []);
   const setOpen = useCallback(
     (next: boolean) => {
+      opening(next);
       if (!controlled) {
         setInternal(next);
       }
@@ -106,20 +133,24 @@ export function DropdownRoot({
     },
     [controlled, onOpenChange],
   );
+  const shared = { open, setOpen, trigger, returnsFocus, handingOff, handOff };
 
   if (mobile) {
     return (
-      <ModeContext.Provider value={{ mode: "sheet", open, setOpen, trigger }}>
+      <ModeContext.Provider value={{ mode: "sheet", ...shared }}>
         {children}
       </ModeContext.Provider>
     );
   }
   return (
-    <ModeContext.Provider value={{ mode: "menu", open, setOpen, trigger }}>
+    <ModeContext.Provider value={{ mode: "menu", ...shared }}>
       <DropdownMenuPrimitive.Root
         open={openProp}
         defaultOpen={defaultOpen}
-        onOpenChange={onOpenChange}
+        onOpenChange={(next: boolean) => {
+          opening(next);
+          onOpenChange?.(next);
+        }}
         modal={modal}
       >
         {children}
@@ -177,6 +208,7 @@ function SheetMenu({
   open,
   setOpen,
   trigger,
+  returnsFocus,
   owner,
   class: className,
   children,
@@ -184,6 +216,7 @@ function SheetMenu({
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
+  returnsFocus: MutableRef<boolean>;
   owner: (element: HTMLElement | null) => void;
   class?: string;
   children?: ComponentChildren;
@@ -193,7 +226,11 @@ function SheetMenu({
       open={open}
       onOpenChange={setOpen}
       flush
-      returnFocus={() => trigger.current}
+      returnFocus={() =>
+        returnsFocus.current
+          ? trigger.current
+          : (document.activeElement as HTMLElement | null)
+      }
     >
       <DialogTitle class="sr-only">Menu</DialogTitle>
       <div
@@ -211,6 +248,7 @@ export function DropdownContent({
   class: className,
   sideOffset = 8,
   align = "end",
+  onCloseAutoFocus,
   children,
   ...rest
 }: {
@@ -227,12 +265,16 @@ export function DropdownContent({
       registerFocusReturn(element, () => ctx.trigger.current);
     }
   };
+  if (ctx.handingOff) {
+    return null;
+  }
   if (ctx.mode === "sheet") {
     return (
       <SheetMenu
         open={ctx.open}
         setOpen={ctx.setOpen}
         trigger={ctx.trigger}
+        returnsFocus={ctx.returnsFocus}
         owner={owner}
         class={className}
       >
@@ -247,6 +289,12 @@ export function DropdownContent({
         sideOffset={sideOffset}
         align={align}
         class={cn(dropdownContent(), className)}
+        onCloseAutoFocus={(event: Event) => {
+          if (!ctx.returnsFocus.current) {
+            event.preventDefault();
+          }
+          onCloseAutoFocus?.(event);
+        }}
         {...rest}
       >
         {children}
@@ -267,12 +315,14 @@ export function DropdownItem({
   class: className,
   children,
   disabled,
+  returnFocus = true,
   onSelect,
   ...rest
 }: {
   class?: string;
   children?: ComponentChildren;
   disabled?: boolean;
+  returnFocus?: boolean;
   // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared (seen with preact 10.29.2)
   onSelect?: (event: Event) => void;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
@@ -285,6 +335,9 @@ export function DropdownItem({
         disabled={disabled}
         class={cn(dropdownItem(), className)}
         onClick={() => {
+          if (!returnFocus) {
+            flushSync(ctx.handOff);
+          }
           onSelect?.(new Event("select"));
           ctx.setOpen(false);
         }}
@@ -297,7 +350,12 @@ export function DropdownItem({
     <DropdownMenuPrimitive.Item
       class={cn(dropdownItem(), className)}
       disabled={disabled}
-      onSelect={onSelect}
+      onSelect={(event: Event) => {
+        if (!returnFocus) {
+          ctx.handOff();
+        }
+        onSelect?.(event);
+      }}
       {...rest}
     >
       {children}

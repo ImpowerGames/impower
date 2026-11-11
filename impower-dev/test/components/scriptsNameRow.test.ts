@@ -1,5 +1,6 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
+import { DropdownContent, DropdownItem, DropdownRoot, DropdownTrigger } from "@impower/impower-ui/components";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NameRow } from "../../src/modules/spark-editor/components/library-page";
 import { availableName } from "../../src/modules/spark-editor/utils/fileListModel";
@@ -109,6 +110,50 @@ describe("the Scripts page's inline name field", () => {
     await settle();
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(mounted.onCommit).not.toHaveBeenCalled();
+  });
+
+  it("takes focus in the render that adds it, before the next keystroke can be dispatched", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    render(
+      h(NameRow, { icon: null, label: "New folder name", onCommit: vi.fn(async () => {}), onCancel: vi.fn() }),
+      host,
+    );
+    expect(document.activeElement).toBe(host.querySelector("input"));
+  });
+
+  it("returns focus to the menu trigger that opened it when Escape cancels", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const Page = ({ creating }: { creating: boolean }) =>
+      h(
+        "div",
+        null,
+        h(DropdownRoot, null, [
+          h(DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "New")),
+          h(DropdownContent, null, h(DropdownItem, { returnFocus: false, onSelect: () => show() }, "New folder")),
+        ]),
+        creating && h(NameRow, { icon: null, label: "New folder name", onCommit: vi.fn(async () => {}), onCancel: () => hide() }),
+      );
+    let show = () => {};
+    let hide = () => {};
+    const draw = (creating: boolean) => render(h(Page, { creating }), host!);
+    show = () => draw(true);
+    hide = () => draw(false);
+    await act(async () => draw(false));
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    await act(async () => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    await act(async () => item.click());
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
+    const input = host.querySelector("input")!;
+    expect(document.activeElement).toBe(input);
+    await press(input, "Escape");
+    expect(host.querySelector("input")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("commits a valid name", async () => {

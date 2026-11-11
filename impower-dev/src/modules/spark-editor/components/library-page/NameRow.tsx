@@ -1,13 +1,12 @@
-import { ListRow, TextField } from "@impower/impower-ui/components";
+import { focusOrigin, ListRow, TextField } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 
 export type NameRowProps = {
   icon: ComponentChildren;
   label: string;
   initial?: string;
   suffix?: string;
-  refocusOnce?: boolean;
   wrapError?: boolean;
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
@@ -18,7 +17,6 @@ export default function NameRow({
   label,
   initial = "",
   suffix,
-  refocusOnce = false,
   wrapError = false,
   onCommit,
   onCancel,
@@ -28,9 +26,9 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
-  const refocus = useRef(refocusOnce);
+  const [origin] = useState(focusOrigin);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     input.current?.focus();
     input.current?.select();
   }, []);
@@ -83,19 +81,15 @@ export default function NameRow({
                 e.preventDefault();
                 e.stopPropagation();
                 cancelled.current = true;
+                const back = origin();
                 onCancel();
+                if (back?.isConnected) {
+                  back.focus();
+                }
               }
             }}
             onBlur={() => {
               if (cancelled.current) {
-                return;
-              }
-              if (refocus.current) {
-                refocus.current = false;
-                setTimeout(() => {
-                  input.current?.focus();
-                  input.current?.select();
-                });
                 return;
               }
               if (!error) {

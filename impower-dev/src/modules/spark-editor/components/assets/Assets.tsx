@@ -80,6 +80,7 @@ import {
   MoveDialog,
   NameRow,
   SelectionBar,
+  useRowFocusReturn,
   SortMenu,
   Trail,
   useFolderLayout,
@@ -320,6 +321,7 @@ function AssetsBrowser() {
     [...(list.current?.querySelectorAll<HTMLElement>("[data-asset-path]") ?? [])].find(
       (element) => element.getAttribute("data-asset-path") === path,
     ) ?? null;
+  const focusRenamed = useRowFocusReturn(rowElement);
 
   const returnTarget = (path: string) =>
     rowElement(path) ?? page.current?.querySelector<HTMLElement>('input[type="search"]') ?? null;
@@ -537,11 +539,13 @@ function AssetsBrowser() {
         <NameRow
           icon={<RowGlyph row={row} listing={listing} />}
           label={`Rename ${row.name}`}
-          refocusOnce
           wrapError={tiles}
           initial={stem}
           suffix={extension}
-          onCancel={() => setRenaming(null)}
+          onCancel={() => {
+            setRenaming(null);
+            focusRenamed(row.path);
+          }}
           onCommit={async (name) => {
             await relocating(row.paths ?? [row.path], async () => [
               { from: row.path, to: await (await intents()).assets.rename(row.path, name) },
@@ -625,7 +629,7 @@ function AssetsBrowser() {
             <LinkIcon class="text-muted" />
             Link a file by address
           </DropdownItem>
-          <DropdownItem onSelect={() => { setQuery(""); setCreating(true); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
             <FolderPlusIcon class="text-muted" />
             New folder
           </DropdownItem>
@@ -702,7 +706,6 @@ function AssetsBrowser() {
           <NameRow
             icon={<FolderIcon />}
             label="New folder name"
-            refocusOnce
             onCancel={() => setCreating(false)}
             onCommit={async (name) => {
               const path = await (await intents()).assets.createFolder(level.folder, name);

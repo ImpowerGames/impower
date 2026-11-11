@@ -45,6 +45,7 @@ import {
   SortMenu,
   Trail,
   useLibraryDrag,
+  useRowFocusReturn,
   useSelectionKeys,
   type SelectionAction,
 } from "../library-page";
@@ -96,8 +97,13 @@ function AllScripts() {
   const [query, setQuery] = useTabQuery(ALL_TAB);
   const scroller = useSavedScroll(ALL_TAB);
   const [creating, setCreating] = useState<"script" | "folder" | null>(null);
-  const [fromMenu, setFromMenu] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const focusRenamed = useRowFocusReturn(
+    (path) =>
+      [...document.querySelectorAll<HTMLElement>("[data-script-path]")].find(
+        (element) => element.getAttribute("data-script-path") === path,
+      ) ?? null,
+  );
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: string[]; referencing: string[] | null } | null>(null);
   const selecting = selection.active.value;
@@ -202,10 +208,12 @@ function AllScripts() {
         <NameRow
           icon={<RowIcon row={row} />}
           label={`Rename ${row.name}`}
-          refocusOnce
           initial={stem}
           suffix={extension}
-          onCancel={() => setRenaming(null)}
+          onCancel={() => {
+            setRenaming(null);
+            focusRenamed(row.path);
+          }}
           onCommit={async (name) => {
             await (await intents()).scripts.rename(row.path, name);
             setRenaming(null);
@@ -225,6 +233,7 @@ function AllScripts() {
     return (
       <ListRow
         current={row.kind === "file" && row.path === openScript}
+        data-script-path={row.path}
         icon={<RowIcon row={row} />}
         label={row.name}
         description={line}
@@ -260,11 +269,11 @@ function AllScripts() {
       onQueryChange={setQuery}
       newMenu={
         <>
-          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("script"); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("script"); }}>
             <FileIcon class="text-muted" />
             Script
           </DropdownItem>
-          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("folder"); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("folder"); }}>
             <FolderIcon class="text-muted" />
             Folder
           </DropdownItem>
@@ -312,7 +321,6 @@ function AllScripts() {
           <NameRow
             icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
             label={creating === "script" ? "New script name" : "New folder name"}
-            refocusOnce={fromMenu}
             suffix={creating === "script" ? ".sd" : undefined}
             onCancel={() => setCreating(null)}
             onCommit={async (name) => {
@@ -344,7 +352,7 @@ function AllScripts() {
             icon={<FolderIcon />}
             title="This folder is empty"
             action={
-              <Button onClick={() => { setFromMenu(false); setCreating("script"); }}>
+              <Button onClick={() => setCreating("script")}>
                 <PlusIcon />
                 New script
               </Button>
