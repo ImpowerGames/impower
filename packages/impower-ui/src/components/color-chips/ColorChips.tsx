@@ -22,7 +22,7 @@ export const colorChipVariants = cva(
 );
 
 const listClasses = [
-  "-m-1 flex max-h-[228px] flex-wrap gap-2 overflow-y-auto overscroll-contain p-1",
+  "-m-1 flex max-h-[228px] flex-wrap gap-2 overflow-y-auto p-1",
   "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden [--fade:24px]",
   "compact:max-h-none compact:flex-nowrap compact:overflow-x-auto compact:overflow-y-visible compact:pr-[calc(4px+var(--fade))] compact:[mask-image:linear-gradient(to_right,#000_calc(100%-var(--fade)),transparent)]",
   "phone:max-h-none phone:flex-nowrap phone:overflow-x-auto phone:overflow-y-visible phone:pr-[calc(4px+var(--fade))] phone:[mask-image:linear-gradient(to_right,#000_calc(100%-var(--fade)),transparent)]",

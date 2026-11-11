@@ -153,9 +153,9 @@ function perLineTree(
     residual = [];
     for (let i = 0; i < chunk.stack.length; i++) {
       residual.push({
-        id: chunk.stack.ids[i]!,
-        absOpen: chunk.from + chunk.stack.positions[i]!,
-        children: chunk.stack.children[i]!,
+        id: chunk.stack.id(i),
+        absOpen: chunk.from + chunk.stack.position(i),
+        children: chunk.stack.childCount(i),
       });
     }
 

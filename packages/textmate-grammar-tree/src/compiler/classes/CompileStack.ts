@@ -2,66 +2,73 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-export const STACK_ARRAY_INTERVAL = 64;
+export const STACK_ARRAY_INITIAL_LENGTH = 8;
+
+const EMPTY = new Int32Array(0);
 
 export class CompileStack {
-  declare ids: Uint16Array;
-  declare positions: Uint32Array;
-  declare children: Uint32Array;
+  declare entries: Int32Array;
   declare length: number;
 
   constructor(stack?: CompileStack) {
-    if (stack) {
-      this.ids = new Uint16Array(stack.ids.length);
-      this.ids.set(stack.ids);
-      this.positions = new Uint32Array(stack.positions.length);
-      this.positions.set(stack.positions);
-      this.children = new Uint32Array(stack.children.length);
-      this.children.set(stack.children);
+    if (stack && stack.length > 0) {
+      this.entries = stack.entries.slice(0, stack.length * 3);
       this.length = stack.length;
     } else {
-      this.ids = new Uint16Array(STACK_ARRAY_INTERVAL);
-      this.positions = new Uint32Array(STACK_ARRAY_INTERVAL);
-      this.children = new Uint32Array(STACK_ARRAY_INTERVAL);
+      this.entries = EMPTY;
       this.length = 0;
     }
   }
 
+  id(index: number) {
+    return this.entries[index * 3]!;
+  }
+
+  position(index: number) {
+    return this.entries[index * 3 + 1]!;
+  }
+
+  childCount(index: number) {
+    return this.entries[index * 3 + 2]!;
+  }
+
+  setPosition(index: number, position: number) {
+    this.entries[index * 3 + 1] = position;
+  }
+
+  addChildren(index: number, delta: number) {
+    this.entries[index * 3 + 2]! += delta;
+  }
+
   increment() {
-    for (let i = 0; i < this.length; i++) {
-      this.children[i]!++;
+    const entries = this.entries;
+    for (let i = 2; i < this.length * 3; i += 3) {
+      entries[i]!++;
     }
   }
 
   push(id: number, start: number, children: number) {
-    if (this.length + 1 > this.ids.length) {
-      const old = this.ids;
-      this.ids = new Uint16Array(old.length + STACK_ARRAY_INTERVAL);
-      this.ids.set(old);
+    let entries = this.entries;
+    const at = this.length * 3;
+    if (at + 3 > entries.length) {
+      const old = entries;
+      entries = new Int32Array(
+        Math.max(STACK_ARRAY_INITIAL_LENGTH, this.length * 2) * 3,
+      );
+      entries.set(old.subarray(0, at));
+      this.entries = entries;
     }
-    if (this.length + 1 > this.positions.length) {
-      const old = this.positions;
-      this.positions = new Uint32Array(old.length + STACK_ARRAY_INTERVAL);
-      this.positions.set(old);
-    }
-    if (this.length + 1 > this.children.length) {
-      const old = this.children;
-      this.children = new Uint32Array(old.length + STACK_ARRAY_INTERVAL);
-      this.children.set(old);
-    }
-
-    this.ids[this.length] = id;
-    this.positions[this.length] = start;
-    this.children[this.length] = children;
+    entries[at] = id;
+    entries[at + 1] = start;
+    entries[at + 2] = children;
     this.length++;
   }
 
   pop() {
-    const id = this.ids[this.length - 1];
-    const start = this.positions[this.length - 1];
-    const children = this.children[this.length - 1];
+    const at = (this.length - 1) * 3;
+    const entries = this.entries;
     this.length--;
-    return [id, start, children];
+    return [entries[at], entries[at + 1], entries[at + 2]];
   }
 
   close(idx: number) {
@@ -69,15 +76,12 @@ export class CompileStack {
   }
 
   last(id: number) {
-    let last = -1;
-    for (let i = 0; i < this.length; i++) {
-      if (this.ids[i] === id) {
-        last = i;
+    const entries = this.entries;
+    for (let i = this.length - 1; i >= 0; i--) {
+      if (entries[i * 3] === id) {
+        return i;
       }
     }
-    if (last === -1) {
-      return null;
-    }
-    return last;
+    return null;
   }
 }

@@ -43,7 +43,7 @@ const partnerBlink = (
   });
 
 const bake = (recipe: ReturnType<typeof partnerBlink>, options: PartnerEyeOptions = {}, selection: Record<string, string> = {}) =>
-  bakeMorphArtifact({ source: partnerPortrait(options), selection, recipe, key: "partner", variant: "partner", uri: "file:///partner.svg" });
+  bakeMorphArtifact({ source: partnerPortrait(options), selection, recipes: [recipe], key: "partner", variant: "partner", uri: "file:///partner.svg" });
 
 const namesOf = (artifact: MorphArtifact) => {
   const names = new Map<string, string>();
@@ -260,7 +260,7 @@ describe("a label's `partner` lends it another label's drawing where its own pos
   test("`partner-missing` is reported once per bake with a message every variant shares", () => {
     const recipe = partnerBlink(["eyelash-middle"]);
     const messages = ["one", "two"].map((variant) => {
-      const artifact = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipe, key: variant, variant, uri: "file:///partner.svg" });
+      const artifact = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipes: [recipe], key: variant, variant, uri: "file:///partner.svg" });
       const missing = artifact.diagnostics.filter((d) => d.code === "partner-missing");
       expect(missing, variant).toHaveLength(1);
       expect(missing[0]).toMatchObject({ severity: "warning", layer: "eyeball-shadow-left", variant });

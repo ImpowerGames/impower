@@ -40,7 +40,7 @@ const elements = (svg: string): Element[] => {
 };
 
 const shown = (list: Element[]) => list.filter((e) => e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
-const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
 
 describe("artifact playback", () => {
   test("at a segment's start the live part shows the start pose", () => {
@@ -83,7 +83,7 @@ describe("artifact playback", () => {
     const recipe = blink({
       clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
     });
-    const shadowed = bakeMorphArtifact({ source: shadowedPortrait(), selection: {}, recipe, key: "shadowed" });
+    const shadowed = bakeMorphArtifact({ source: shadowedPortrait(), selection: {}, recipes: [recipe], key: "shadowed" });
     expect(shadowed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(shadowed.status).toBe("live");
     for (const pose of [
@@ -107,7 +107,7 @@ describe("artifact playback", () => {
 <g data-name="eyes.closed"><path data-name="lash" d="${CLOSED}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
 </svg>`;
     const recipe = blink({ clips: [] });
-    const resting = bakeMorphArtifact({ source: merged, selection: {}, recipe, key: "merged" });
+    const resting = bakeMorphArtifact({ source: merged, selection: {}, recipes: [recipe], key: "merged" });
     expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(resting.status).toBe("live");
     for (const pose of [
@@ -130,7 +130,7 @@ describe("artifact playback", () => {
 <g data-name="eyes.open:default"><ellipse data-name="lash" cx="80" cy="60" rx="65" ry="45" fill="#111"/></g>
 <g data-name="eyes.closed"><ellipse data-name="lash" cx="45" cy="60" rx="30" ry="20" fill="#111"/><ellipse data-name="lash" cx="115" cy="60" rx="30" ry="20" fill="#111"/></g>
 </svg>`;
-    const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipe: blink({ method: "match", clips: [] }), key: "ellipses" });
+    const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipes: [blink({ method: "match", clips: [] })], key: "ellipses" });
     expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(resting.status).toBe("live");
     for (const offset of [0, 1]) {
@@ -160,7 +160,7 @@ ${TORSO}
         ...root,
       });
     const bake = (recipe: MorphRecipe, source = arm) =>
-      bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "pose" });
+      bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k", variant: "pose" });
     const above = (frame: Element[], name: string, other: string) => {
       const at = frame.findIndex((e) => e.attributes["data-name"] === other);
       return shown(frame)
@@ -365,7 +365,7 @@ ${TORSO}
         { offset: 1, eyes: { state: "closed" } },
       ],
     });
-    const staged = bakeMorphArtifact({ source: three, selection: {}, recipe, key: "three" });
+    const staged = bakeMorphArtifact({ source: three, selection: {}, recipes: [recipe], key: "three" });
     expect(staged.segments.map((s) => `${s.from.state}>${s.to.state}`)).toEqual(["open>half", "half>closed"]);
     const closed = shown(elements(renderMorphFrame(staged, { segment: 1, progress: 1 })));
     expect(closed.map((e) => e.attributes["d"])).toEqual([CLOSED]);
@@ -377,20 +377,20 @@ ${TORSO}
 <g data-name="eyes.closed"><path data-name="other" d="M0,0H5V5H0Z"/></g>
 </svg>`;
     const recipe = buildMorphRecipe("blink", { method: "bend", keyframes: [{ offset: 0, eyes: { state: "open" } }, { offset: 1, eyes: { state: "closed" } }] });
-    const artifact = bakeMorphArtifact({ source: faded, selection: {}, recipe, key: "fade" });
+    const artifact = bakeMorphArtifact({ source: faded, selection: {}, recipes: [recipe], key: "fade" });
     const crease = elements(renderMorphFrame(artifact, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(crease.attributes["style"]).toBe("opacity:0.2");
-    const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipe, key: "fade2" });
+    const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipes: [recipe], key: "fade2" });
     const marked = elements(renderMorphFrame(important, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(marked.attributes["style"]).toBe("opacity:0.2 !important");
-    const spaced = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4\t!\nimportant ;opacity:0.9"), selection: {}, recipe, key: "fade3" });
+    const spaced = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4\t!\nimportant ;opacity:0.9"), selection: {}, recipes: [recipe], key: "fade3" });
     const kept = elements(renderMorphFrame(spaced, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(kept.attributes["style"]).toBe("opacity:0.2 !important");
     for (const [from, to] of [
       ["opacity:0.4", "opacity:40%"],
       ['style="opacity:0.4"', 'opacity="40%"'],
     ] as const) {
-      const percent = bakeMorphArtifact({ source: faded.replace(from, to), selection: {}, recipe, key: "fade4" });
+      const percent = bakeMorphArtifact({ source: faded.replace(from, to), selection: {}, recipes: [recipe], key: "fade4" });
       const halved = elements(renderMorphFrame(percent, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
       expect(halved.attributes["style"], to).toBe("opacity:0.2");
     }
@@ -417,7 +417,7 @@ ${TORSO}
   });
 
   test("a static artifact plays as its rest render", () => {
-    const disabled = bakeMorphArtifact({ source: portrait(), selection: { eyes: "closed" }, recipe: blink(), key: "k2" });
+    const disabled = bakeMorphArtifact({ source: portrait(), selection: { eyes: "closed" }, recipes: [blink()], key: "k2" });
     expect(disabled.status).toBe("static");
     expect(renderMorphFrame(disabled, { segment: 0, progress: 0.5 })).toBe(disabled.rest);
   });
@@ -438,7 +438,7 @@ describe("a drawing carried in its partner's shape", () => {
       ],
       clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
     });
-  const carried = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipe: recipe("open", "closed"), key: "carried", variant: "open" });
+  const carried = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipes: [recipe("open", "closed")], key: "carried", variant: "open" });
   const shadowNode = (artifact: MorphArtifact) => {
     const leaf = elements(artifact.parts.filter((p) => p.kind === "live").map((p) => p.svg).join("")).find((e) => e.attributes["data-name"] === "eyeball-shadow-left")!;
     return leaf.attributes["data-morph"]!;
@@ -471,7 +471,7 @@ describe("a drawing carried in its partner's shape", () => {
   });
 
   test("a variant resting at the partner's pose draws no carried shadow at rest", () => {
-    const resting = bakeMorphArtifact({ source: partnerPortrait(), selection: { eyes: "closed" }, recipe: recipe("closed", "open"), key: "resting", variant: "closed" });
+    const resting = bakeMorphArtifact({ source: partnerPortrait(), selection: { eyes: "closed" }, recipes: [recipe("closed", "open")], key: "resting", variant: "closed" });
     expect(resting.status).toBe("live");
     expect(resting.diagnostics).toEqual([]);
     const shadow = shadowNode(resting);
@@ -490,7 +490,7 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
     bakeMorphArtifact({
       source: partnerPortrait(),
       selection: {},
-      recipe: buildMorphRecipe("blink", {
+      recipes: [buildMorphRecipe("blink", {
         blend: "morph",
         method: "bend",
         fallback: "fade",
@@ -502,7 +502,7 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
           { offset: 1, eyes: { state: "open" } },
         ],
         paints: [{ targets: ["eyeball-shadow-left"], state: "eyes.closed", fill, span: "40%" }],
-      }),
+      })],
       key: "carried-paints",
       variant: "open",
     });
@@ -573,7 +573,7 @@ describe("split closed lashes whose tips never meet", () => {
     ],
     clips: [{ between: ["eyelash-top-left", "eyelash-bottom-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
   });
-  const split = bakeMorphArtifact({ source, selection: {}, recipe, key: "split", variant: "open" });
+  const split = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "split", variant: "open" });
   const apertureArea = (svg: string) => {
     const mask = elements(svg).find((e) => e.tagName === "mask")!;
     const path = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
@@ -608,7 +608,7 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
     const faded = bakeMorphArtifact({
       source,
       selection: { ...MASKED_VARIANTS.masked },
-      recipe: maskedBlink([{ targets: ["eyeshadow"], state: "eyes.closed", opacity: 0.5 }]),
+      recipes: [maskedBlink([{ targets: ["eyeshadow"], state: "eyes.closed", opacity: 0.5 }])],
       key: "faded",
       variant: "masked",
     });
@@ -623,7 +623,7 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
     const artifact = bakeMorphArtifact({
       source: partnerPortrait(),
       selection: {},
-      recipe: buildMorphRecipe("blink", {
+      recipes: [buildMorphRecipe("blink", {
         blend: "morph",
         method: "bend",
         fallback: "fade",
@@ -635,7 +635,7 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
           { offset: 1, eyes: { state: "open" } },
         ],
         paints: [{ targets: ["eyeball-shadow-left"], state: "eyes.closed", opacity: 0, span: "40%" }],
-      }),
+      })],
       key: `carried-opacity-${blend}`,
       variant: "open",
     });
@@ -655,7 +655,7 @@ describe("a clip entry's `spread` between poses", () => {
     bakeMorphArtifact({
       source: portrait(),
       selection: {},
-      recipe: blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread }) }] }),
+      recipes: [blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread }) }] })],
       key: "spread",
       variant: "open",
     });
@@ -729,7 +729,7 @@ describe("a clip entry's `spread` between poses", () => {
 
 describe("a drawing's `spread` between poses", () => {
   const spreadBake = (layers: Parameters<typeof spreadBlink>[0], overrides: Record<string, unknown> = {}, states?: string[]) =>
-    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipe: spreadBlink(layers, overrides, states), key: "spread", variant: "spread", uri: "file:///spread.svg" });
+    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipes: [spreadBlink(layers, overrides, states)], key: "spread", variant: "spread", uri: "file:///spread.svg" });
   const live = (artifact: MorphArtifact) => artifact.parts.filter((p) => p.kind === "live").flatMap((p) => elements(p.svg));
   const drawOf = (artifact: MorphArtifact, label: string, segment = 0) => {
     const node = live(artifact).find((e) => e.attributes["data-name"] === label && e.attributes["data-morph"])!.attributes["data-morph"]!;
@@ -875,8 +875,8 @@ describe("a drawing's `spread` between poses", () => {
   });
 
   test("an edge label's `spread` leaves the clip's opening and its reach unchanged", () => {
-    const plain = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink(), key: "edge", variant: "edge" });
-    const spread = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink({ layers: { "eyelash-left": { spread: "-1px" } } }), key: "edge", variant: "edge" });
+    const plain = bakeMorphArtifact({ source: portrait(), selection: {}, recipes: [blink()], key: "edge", variant: "edge" });
+    const spread = bakeMorphArtifact({ source: portrait(), selection: {}, recipes: [blink({ layers: { "eyelash-left": { spread: "-1px" } } })], key: "edge", variant: "edge" });
     expect(spread.diagnostics).toEqual(plain.diagnostics);
     expect(spread.apertures).toEqual(plain.apertures);
     expect(spread.apertureEdges).toEqual(plain.apertureEdges);

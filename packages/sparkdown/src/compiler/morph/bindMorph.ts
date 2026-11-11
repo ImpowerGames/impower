@@ -1,7 +1,6 @@
 import {
   ATTRIBUTE_ROOT,
   evaluateAttributeVisibility,
-  matchesAttributeOption,
   type AttributeFolder,
   type AttributeSelection,
   type AttributeVocabulary,
@@ -93,9 +92,7 @@ export function groupHasState(
   group: string,
   state: string,
 ): boolean {
-  return (vocabulary.groups[group]?.options ?? []).some((option) =>
-    matchesAttributeOption(state, option),
-  );
+  return (vocabulary.groups[group]?.options ?? []).includes(state);
 }
 
 export function morphImages(context: ImageContext): {
@@ -171,7 +168,7 @@ export function bindVariant(
       }
       const choice = choices[0]!;
       byFolder[folder.name] = choice;
-      if (start === undefined || matchesAttributeOption(choice, start)) {
+      if (start === undefined || choice === start) {
         matching += 1;
       } else {
         differing += 1;

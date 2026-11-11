@@ -13,6 +13,16 @@ const FIXTURES = loadGrammarCorpus();
 const LUAU = "sparkdown-luau";
 const STORY = "sparkdown";
 
+const AMPERSAND_AFTER_VALUE = [
+  "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
+  "store x = a&b\nHello\n",
+  "store x = a & b\nHello\n",
+  "local x = a&b\nHello\n",
+  "x = a&b\nHello\n",
+  "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
+  "repeat\n  Hi.\nuntil a&b\nHello\n",
+];
+
 const AT_DOCUMENT_END: Record<string, string> = {
   "function f()\n  return 1": LUAU,
   "function f()\n": LUAU,
@@ -95,13 +105,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
 
   describe("an `&` after a value, and a structural word inside a marked rule (I-2038, I-2048)", () => {
     test.each([
-      "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
-      "store x = a&b\nHello\n",
-      "store x = a & b\nHello\n",
-      "local x = a&b\nHello\n",
-      "x = a&b\nHello\n",
-      "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
-      "repeat\n  Hi.\nuntil a&b\nHello\n",
+      ...AMPERSAND_AFTER_VALUE,
       "Hello {x end}\nAfter\n",
       "Hello {x then}\nAfter\n",
       "Hello {x do}\nAfter\n",
@@ -130,6 +134,26 @@ describe("language at every cursor position: vscode-textmate and the tree reader
       const { divergences } = await compareLanguages(source);
       expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
     });
+  });
+
+  describe("an `&` statement after a declaration's, reassignment's or `until` condition's value reads as story at its mark", () => {
+    const values = ["0", "a", "1 + 2", "-1", "1 == 2", '"a" .. "b"', "not a", "a and b", "#t", "if a then 1 else 2", "f(1)"];
+    const sources = [
+      ...AMPERSAND_AFTER_VALUE,
+      ...values.flatMap((value) => [
+        `scene s\n  local x = ${value} & x = 2\nend\n`,
+        `scene s\n  x = ${value} & x = 2\nend\n`,
+        `scene s\n  repeat\n    Hi.\n  until ${value} & x = 2\nend\n`,
+      ]),
+    ];
+    for (const source of sources) {
+      test(JSON.stringify(source), async () => {
+        const { divergences } = await compareLanguages(source);
+        expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
+        const mark = source.indexOf("&");
+        expect(treeLanguagesPerPosition(source).slice(mark, mark + 2)).toEqual([STORY, STORY]);
+      });
+    }
   });
 
   test("a keyword glued to a non-ASCII letter stays story text in both", async () => {
