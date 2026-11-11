@@ -91,8 +91,8 @@ export class TextmateGrammarParse implements PartialParse {
     const resume = this.compiler.resumeState;
     this.compiler.resumeState = undefined;
     const base =
-      resume && resume.frames.length > 0
-        ? Math.min(resume.frames[0]!.openedAtAbs, this.region.from)
+      resume && resume.openedAtAbs.length > 0
+        ? Math.min(resume.openedAtAbs[0]!, this.region.from)
         : this.region.from;
     const anchor = this.findLineStart(base);
 
@@ -106,7 +106,7 @@ export class TextmateGrammarParse implements PartialParse {
     } else if (this.region.from > anchor) {
       this.tokenizer.skip(this.region.from - anchor);
     }
-    this.tokenizer.emitSplitSignals = this.region.from > 0 || !!this.region.edit;
+    this.tokenizer.emitSplitSignals = true;
   }
 
   get done() {
@@ -316,11 +316,11 @@ export class TextmateGrammarParse implements PartialParse {
     const deltas: number[] = [];
     const trueAbs: number[] = [];
     for (let i = 0; i < seedLen; i++) {
-      if (arriving.stack.ids[i] !== seeds.ids[i]) {
+      if (arriving.stack.id(i) !== seeds.ids[i]) {
         return false;
       }
-      deltas.push(arriving.stack.children[i]! - seeds.children[i]!);
-      trueAbs.push(arriving.from + (arriving.stack.positions[i]! | 0));
+      deltas.push(arriving.stack.childCount(i) - seeds.children[i]!);
+      trueAbs.push(arriving.from + arriving.stack.position(i));
     }
 
     const frameOpenPositions = this.tokenizer.frameOpenPositions();

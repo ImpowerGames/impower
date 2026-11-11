@@ -165,7 +165,7 @@ A `state` is always the name of an option, never a variable or a number, so `sta
 
 The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. As in CSS keyframes, a last pose that leaves a group out uses the portrait's resting state there.
 
-An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
+States match exactly ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` plays on a portrait resting in `open` and not on one resting in `open-wide`.
 
 ### How shapes change
 

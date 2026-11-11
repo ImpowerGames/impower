@@ -13,6 +13,7 @@ export const NAMED_STEPS = {
   settings: { does: "open Settings and a named section", argument: "section" },
   "focus-project-name": { does: "focus the project name" },
   "focus-script-name": { does: "focus the script name" },
+  "wheel-list": { does: "wheel each list that holds more than fits, over its clipped text" },
 };
 
 const stepList = () => Object.entries(NAMED_STEPS).map(([name, def]) => (def.argument ? `${name}=<${def.argument}>` : name)).join(", ");

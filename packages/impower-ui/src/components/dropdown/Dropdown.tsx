@@ -167,7 +167,7 @@ export function DropdownTrigger({
 }
 
 const dropdownContent = cva([
-  "z-50 min-w-[120px] overflow-y-auto rounded-card",
+  "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
   "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
   "origin-[--radix-dropdown-menu-content-transform-origin]",
   "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
@@ -199,7 +199,7 @@ function SheetMenu({
       <div
         ref={owner}
         role="menu"
-        class={cn("overflow-y-auto p-1.5", className)}
+        class={cn("overflow-y-auto overscroll-contain p-1.5", className)}
       >
         {children}
       </div>

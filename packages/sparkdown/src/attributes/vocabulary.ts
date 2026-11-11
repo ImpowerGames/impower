@@ -84,8 +84,6 @@ export const buildAttributeVocabulary = (
     }
   }
   const layers = new Map(vocabulary.layers.map((layer) => [layer.key, layer]));
-  const overlaps = (a: string, b: string) =>
-    a === b || a.startsWith(`${b}-`) || b.startsWith(`${a}-`);
   for (const layer of vocabulary.layers) {
     const inherited = new Map<string, string[]>();
     const visited = new Set<string>([layer.key]);
@@ -95,13 +93,13 @@ export const buildAttributeVocabulary = (
       for (const condition of parent.parsed.conditions) {
         const previous = inherited.get(condition.group);
         inherited.set(condition.group, previous === undefined ? condition.options :
-          previous.flatMap((a) => condition.options.filter((b) => overlaps(a, b)).map((b) => a.length >= b.length ? a : b)));
+          previous.filter((a) => condition.options.includes(a)));
       }
       parent = layers.get(parent.parent);
     }
     for (const condition of layer.parsed.conditions) {
       const previous = inherited.get(condition.group);
-      if (previous !== undefined && !previous.some((a) => condition.options.some((b) => overlaps(a, b))))
+      if (previous !== undefined && !previous.some((a) => condition.options.includes(a)))
         vocabulary.diagnostics.push({
           code: "contradictory-inherited-condition",
           path: layer.key,

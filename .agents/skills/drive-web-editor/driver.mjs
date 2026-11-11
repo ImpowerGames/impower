@@ -2334,6 +2334,142 @@ export async function openProblems(page, { timeout = 5000 } = {}) {
   return { step: "problems", ran: true, toggle: (await toggle.textContent())?.trim() ?? "", ...opened };
 }
 
+export function wheelProbe([op, index, tops]) {
+  const shown = (el) => {
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
+  };
+  const overflowsY = (el) => /^(auto|scroll)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1;
+  const describe = (el) => ({
+    tag: el.tagName.toLowerCase(),
+    class: (el.getAttribute("class") ?? "").slice(0, 160),
+    label: el.closest("[aria-label]")?.getAttribute("aria-label") ?? null,
+  });
+  const readTops = () => Object.fromEntries([...document.querySelectorAll("[data-driver-scroll]")].map((el) => [el.getAttribute("data-driver-scroll"), el.scrollTop]));
+  const scroller = (i) => document.querySelector(`[data-driver-wheel="${i}"]`);
+  if (op === "plan") {
+    for (const el of document.querySelectorAll("[data-driver-wheel], [data-driver-scroll]")) {
+      el.removeAttribute("data-driver-wheel");
+      el.removeAttribute("data-driver-scroll");
+    }
+    const layer = [...document.querySelectorAll('[role="dialog"]')].filter(shown).at(-1) ?? null;
+    const root = layer ?? document.body;
+    const roots = [document.documentElement, document.body, document.querySelector("main")].filter(Boolean);
+    [...roots, ...document.querySelectorAll("*")]
+      .filter((el, i, all) => all.indexOf(el) === i && (roots.includes(el) || (getComputedStyle(el).overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1)))
+      .forEach((el, i) => el.setAttribute("data-driver-scroll", roots.includes(el) ? `page:${el.tagName.toLowerCase()}` : String(i)));
+    const lists = [root, ...root.querySelectorAll("*")].filter((el) => el instanceof HTMLElement && !el.closest(".cm-editor") && shown(el) && overflowsY(el));
+    lists.forEach((el, i) => el.setAttribute("data-driver-wheel", String(i)));
+    return { layer: layer ? describe(layer) : null, lists: lists.map((el, i) => ({ index: i, list: describe(el), scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })) };
+  }
+  if (op === "pick") {
+    const el = scroller(index);
+    el.scrollTop = 0;
+    const box = el.getBoundingClientRect();
+    const view = { left: Math.max(box.left, 0), top: Math.max(box.top, 0), right: Math.min(box.right, innerWidth), bottom: Math.min(box.bottom, innerHeight) };
+    const rank = (c) => {
+      const s = getComputedStyle(c);
+      const kind = [s.overflowX, s.overflowY].some((v) => /^(hidden|auto|scroll)$/.test(v)) ? 0 : [s.overflowX, s.overflowY].includes("clip") ? 2 : 4;
+      return kind + (c.textContent.trim() ? 0 : 1);
+    };
+    const candidates = [...el.querySelectorAll("*")]
+      .filter((c) => {
+        if (!(c instanceof HTMLElement) || !shown(c) || overflowsY(c)) return false;
+        const s = getComputedStyle(c);
+        if (s.overflowX === "visible" && s.overflowY === "visible" && ![...c.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) return false;
+        const r = c.getBoundingClientRect();
+        const x = (r.left + r.right) / 2;
+        const y = (r.top + r.bottom) / 2;
+        if (x < view.left + 1 || x > view.right - 1 || y < view.top + 1 || y > view.bottom - 1) return false;
+        const hit = document.elementFromPoint(x, y);
+        return !!hit && (hit === c || c.contains(hit));
+      })
+      .sort((a, b) => rank(a) - rank(b));
+    const over = candidates[0];
+    const ancestors = [];
+    for (let up = el.parentElement; up; up = up.parentElement) if (up.hasAttribute("data-driver-scroll")) ancestors.push(up.getAttribute("data-driver-scroll"));
+    const own = el.getAttribute("data-driver-scroll");
+    const base = { own, ancestors, max: el.scrollHeight - el.clientHeight, tops: readTops() };
+    if (!over) return { ...base, over: null };
+    const r = over.getBoundingClientRect();
+    const s = getComputedStyle(over);
+    return {
+      ...base,
+      over: { ...describe(over), overflow: s.overflowX === s.overflowY ? s.overflowX : `${s.overflowX} ${s.overflowY}`, text: over.textContent.trim().slice(0, 60) },
+      point: { x: Math.round((r.left + r.right) / 2), y: Math.round((r.top + r.bottom) / 2) },
+    };
+  }
+  if (op === "tops") return readTops();
+  if (op === "extent") {
+    const el = scroller(index);
+    return { top: el.scrollTop, max: el.scrollHeight - el.clientHeight };
+  }
+  if (op === "restore") {
+    for (const el of document.querySelectorAll("[data-driver-scroll]")) {
+      const top = tops[el.getAttribute("data-driver-scroll")];
+      if (top !== undefined && el.scrollTop !== top) el.scrollTop = top;
+    }
+    for (const el of document.querySelectorAll("[data-driver-wheel], [data-driver-scroll]")) {
+      el.removeAttribute("data-driver-wheel");
+      el.removeAttribute("data-driver-scroll");
+    }
+    return true;
+  }
+  throw new Error(`wheelProbe: unknown op ${op}`);
+}
+
+export async function wheelList(page, { delta = 400, settleMs = 700 } = {}) {
+  const probe = (op, index = null, tops = null) => page.evaluate(wheelProbe, [op, index, tops]);
+  const plan = await probe("plan");
+  const layer = plan.layer;
+  if (!plan.lists.length) {
+    await probe("restore", null, {});
+    return { step: "wheel-list", ran: false, layer, lists: [], reason: `no list ${layer ? "in the open dialog" : "on screen"} holds more than fits; seed more rows than the screen shows, since a list that fits proves nothing` };
+  }
+  const startTops = await probe("tops");
+  const lists = [];
+  for (const entry of plan.lists) {
+    const pick = await probe("pick", entry.index);
+    if (!pick.over) {
+      lists.push({ ...entry, over: null, note: "no clipped element or text under a visible point of this list" });
+      continue;
+    }
+    await page.mouse.move(pick.point.x, pick.point.y);
+    await page.mouse.wheel(0, delta);
+    await page.waitForTimeout(settleMs);
+    const after = await probe("tops");
+    await page.mouse.wheel(0, pick.max + delta);
+    await page.waitForTimeout(settleMs);
+    await page.mouse.wheel(0, delta);
+    await page.waitForTimeout(settleMs);
+    const end = await probe("tops");
+    const extent = await probe("extent", entry.index);
+    const changed = Object.keys(end).filter((id) => id !== pick.own && end[id] !== pick.tops[id]);
+    lists.push({
+      ...entry,
+      over: pick.over,
+      point: pick.point,
+      scrollTop: { before: pick.tops[pick.own], afterWheel: after[pick.own], atEnd: extent.top, max: extent.max },
+      moved: after[pick.own] > pick.tops[pick.own],
+      reachedEnd: extent.top >= extent.max - 1,
+      chainedTo: changed.filter((id) => pick.ancestors.includes(id) && !id.startsWith("page:")),
+      leakedTo: changed.filter((id) => !pick.ancestors.includes(id) || id.startsWith("page:")),
+    });
+    await probe("restore", null, startTops);
+    await probe("plan");
+  }
+  await probe("restore", null, startTops);
+  const wheeled = lists.filter((list) => list.over);
+  const problems = [
+    ...(wheeled.length ? [] : [`no list ${layer ? "in the open dialog" : "on screen"} has clipped element or text under a visible point to wheel over`]),
+    ...wheeled.filter((list) => !list.moved).map((list) => `the wheel over ${list.over.tag}.${list.over.class.split(/\s+/)[0] || "(no class)"} (overflow ${list.over.overflow}) did not scroll the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} (scrollTop ${list.scrollTop.before} -> ${list.scrollTop.afterWheel})`),
+    ...wheeled.filter((list) => list.moved && !list.reachedEnd).map((list) => `the wheel moved the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} but it stopped at scrollTop ${list.scrollTop.atEnd} of ${list.scrollTop.max} before its end`),
+    ...wheeled.filter((list) => list.leakedTo.length).map((list) => `wheeling the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} past its end also scrolled ${list.leakedTo.join(", ")}, which is not a list it sits in`),
+  ];
+  return { step: "wheel-list", ran: problems.length === 0, layer, lists, ...(problems.length ? { reason: problems.join("; ") } : {}) };
+}
+
 export async function openSettings(page, section, { timeout = 10000 } = {}) {
   await page.evaluate((id) => {
     window.location.hash = `#project?section=${id}`;
@@ -3663,6 +3799,10 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(await openProblems(page));
               continue;
             }
+            if (step.step === "wheel-list") {
+              result.steps.push(await wheelList(page));
+              continue;
+            }
             const ready = await requireEditor(page, "PLAY", stepNo);
             if (ready.ok === false) {
               result.steps.push(gatedStep(step, ready.reason));
@@ -3999,7 +4139,7 @@ switch (cmd) {
         "  --shot <out.png>        screenshot the page (with --device android: the whole device screen, keyboard included)",
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page | screen (device only)",
         "  --step <name>           a named step: app-menu | dialog | drawer | file-menu | asset-inspector | add-menu | preview-settings",
-        "                          | play | problems | settings=<section> | focus-project-name | focus-script-name; one not built yet fails naming its ticket",
+        "                          | play | problems | settings=<section> | focus-project-name | focus-script-name | wheel-list; one not built yet fails naming its ticket",
         "  --tap X,Y               device only: tap at screen pixels X,Y",
         "  --long-press X,Y[:MS]   device only: hold at X,Y (default 750 ms)",
         "  --swipe X1,Y1:X2,Y2[:MS]  device only: swipe between two screen points (default 300 ms)",

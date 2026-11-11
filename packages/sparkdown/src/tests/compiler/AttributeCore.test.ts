@@ -229,7 +229,7 @@ describe("portrait attributes", () => {
       expect(result.visible["down-sleeve"]).toBe(false);
       expect(result.visible["phone-arm"]).toBe(option === "phone-left");
       expect(result.visible["script-arm"]).toBe(option === "script");
-      expect(result.visible["cheek"]).toBe(option === "phone-left");
+      expect(result.visible["cheek"]).toBe(false);
       expect(result.visible["face"]).toBe(true);
     }
     expect(resolveAttributes(vocabulary, ["arms.missing"]).diagnostics).toContainEqual(
@@ -250,7 +250,7 @@ describe("portrait attributes", () => {
     expect(resolveAttributes(vocabulary, ["happy"]).diagnostics).toEqual([]);
   });
 
-  it("combines group conditions with AND, options with OR, and matches hyphen prefixes", () => {
+  it("combines group conditions with AND, options with OR, and matches options exactly", () => {
     const vocabulary = buildAttributeVocabulary([
       { key: "hand", name: "hand-right:arms.down.phone-left" },
       { key: "phone", name: "arm:arms.phone" },
@@ -264,7 +264,7 @@ describe("portrait attributes", () => {
       ).visible;
     expect(visible(["arms.phone-left"])).toMatchObject({
       hand: true,
-      phone: true,
+      phone: false,
       sleeve: false,
       glove: false,
     });

@@ -13,7 +13,7 @@ original measurement at `8d734bb03e6a011096c2ec6c533909ac0c201926`; the interven
 coverage-prompt changes did not change the measured artwork or scripts. The
 filename retains that original measurement identifier.
 
-Each case's `expected` array is the reviewed post-migration visible-layer set.
+Each case's `expected` array is the reviewed post-migration visible-layer set. Options match exactly, so the trees list every option a layer shows for: a layer drawn for both `phone` and `phone-left` is named `arms.phone.phone-left`. The `bunny_incredulous~phone_hold_away~look_up` case shows only the phone-away arm.
 The 29 reviewed differences from legacy behavior are already incorporated:
 26 applicable historical fixes and three additional cases (`bunny_serious~helmet~phone~look_left`,
 `bunny_supportive`, and `raffles_hmph~coat`). The tests do not depend on legacy
