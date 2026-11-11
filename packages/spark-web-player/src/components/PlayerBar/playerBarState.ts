@@ -12,6 +12,10 @@ import {
   GameResizedMessage,
   type GameResizedParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
+import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { describeSimulationFailure } from "../../utils/describeSimulationFailure";
 
 export interface PlayerBarState {
@@ -23,7 +27,45 @@ export interface PlayerBarState {
   ending: GameStateEnding | null;
   executed: GameExecutedParams | null;
   size: GameResizedParams | null;
+  runHistory: RunHistoryState;
 }
+
+export interface RunHistoryState {
+  run: number | null;
+  history: GameHistory | null;
+  pending: { run: number | null; history: GameHistory } | null;
+}
+
+export type RunHistoryInput =
+  | { started: number | null }
+  | { run: number | null; history: GameHistory | null | undefined };
+
+export const initialRunHistory: RunHistoryState = {
+  run: null,
+  history: null,
+  pending: null,
+};
+
+export const foldRunHistory = (
+  state: RunHistoryState,
+  input: RunHistoryInput,
+): RunHistoryState => {
+  if ("started" in input) {
+    const run = input.started;
+    if (run === state.run) {
+      return state;
+    }
+    const adopted = state.pending?.run === run ? state.pending.history : null;
+    return { run, history: adopted, pending: null };
+  }
+  const history = input.history;
+  if (history == null) {
+    return state;
+  }
+  return input.run === state.run
+    ? { ...state, history }
+    : { ...state, pending: { run: input.run, history } };
+};
 
 export const initialPlayerBarState: PlayerBarState = {
   launchState: null,
@@ -34,16 +76,33 @@ export const initialPlayerBarState: PlayerBarState = {
   ending: null,
   executed: null,
   size: null,
+  runHistory: initialRunHistory,
 };
+
+export const skipRefusal = (
+  history: GameHistory | null | undefined,
+  direction: -1 | 1,
+): string | undefined =>
+  direction < 0
+    ? history?.canRollBack
+      ? undefined
+      : HISTORY_REASONS.rollBack
+    : history?.canRollForward
+      ? undefined
+      : HISTORY_REASONS.rollForward;
 
 export const reducePlayerBar = (
   state: PlayerBarState,
   message: unknown,
+  run: number | null = null,
 ): PlayerBarState => {
   if (DidChangeGameStateMessage.type.isNotification(message)) {
     const game = message.params;
     return {
       ...state,
+      runHistory: foldRunHistory(state.runHistory, {
+        started: game.run ?? null,
+      }),
       launchState: game.launchState,
       paused: game.paused,
       stepping: game.stepping,
@@ -53,7 +112,26 @@ export const reducePlayerBar = (
     };
   }
   if (GameExecutedMessage.type.isNotification(message)) {
-    return { ...state, executed: message.params };
+    return {
+      ...state,
+      executed: message.params,
+      runHistory: foldRunHistory(state.runHistory, {
+        run,
+        history: message.params.history,
+      }),
+    };
+  }
+  if (
+    GameSteppedMessage.type.isNotification(message) ||
+    GameRolledMessage.type.isNotification(message)
+  ) {
+    return {
+      ...state,
+      runHistory: foldRunHistory(state.runHistory, {
+        run,
+        history: message.params.history,
+      }),
+    };
   }
   if (GameResizedMessage.type.isNotification(message)) {
     return { ...state, size: message.params };
