@@ -26,22 +26,32 @@ export interface PickerItem {
 const compare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 
-const UNWRITABLE: Record<string, RegExp> = {
-  image: /\s|^\d/u,
-  audio: /[\s.]/u,
-};
-
-const GRAMMAR_VARIABLES = GRAMMAR.variables as unknown as Record<
+const GRAMMAR_RULES = GRAMMAR.repository as unknown as Record<
   string,
-  unknown
+  { match?: string } | undefined
 >;
 
-const CLAUSE_WORDS = new Set(
-  ["IMAGE_CLAUSE_KEYWORDS", "AUDIO_CLAUSE_KEYWORDS"].flatMap((key) => {
-    const words = GRAMMAR_VARIABLES[key];
-    return Array.isArray(words) ? words.map(String) : [];
-  }),
+const grammarPattern = (rule: string, wrap: (source: string) => string) => {
+  const match = GRAMMAR_RULES[rule]?.match;
+  return match ? new RegExp(wrap(match), "u") : /(?!)/u;
+};
+
+const ASSET_NAME = grammarPattern("AssetCommandFileName", (m) => `^(?:${m})$`);
+
+const NONE_KEYWORD = grammarPattern(
+  "AssetCommandKeywordNone",
+  (m) => `^(?:${m})`,
 );
+
+const CLAUSE_KEYWORD = grammarPattern(
+  "AssetCommandClauseKeyword",
+  (m) => `^(?:${m})$`,
+);
+
+const writableName = (name: string) =>
+  ASSET_NAME.test(name) &&
+  !NONE_KEYWORD.test(name) &&
+  !CLAUSE_KEYWORD.test(name);
 
 const sharedNames = (files: readonly PickerFile[], type: string) => {
   const counts = new Map<string, number>();
@@ -66,11 +76,9 @@ const candidatesOf = (
   const bases =
     type === "audio"
       ? paths
-      : imageStacks(paths).flatMap((stack) => {
-          const base = stack.pictures[0];
-          return base?.alternate === null && base.path !== undefined
-            ? [base.path]
-            : [];
+      : paths.filter((path) => {
+          const picture = imageStacks([path])[0]?.pictures[0];
+          return picture?.alternate === null && picture.path === path;
         });
   const shared = sharedNames(files, type);
   return bases.map((path) => {
@@ -78,10 +86,7 @@ const candidatesOf = (
     return {
       name,
       path,
-      writable:
-        !UNWRITABLE[type]!.test(name) &&
-        !CLAUSE_WORDS.has(name) &&
-        !shared.has(name),
+      writable: writableName(name) && !shared.has(name),
     };
   });
 };
