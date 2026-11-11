@@ -1,9 +1,8 @@
+import { getResourcePathFromUrl } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { describe, expect, it } from "vitest";
 import { getPathFromUri } from "../src/utils/getPathFromUri";
 import { getSrcFromUri } from "../src/utils/getSrcFromUri";
 import { getUriFromPath } from "../src/utils/getUriFromPath";
-
-const RESOURCE_PROTOCOL = "/file:/";
 
 function splitPath(path: string) {
   return path
@@ -13,11 +12,29 @@ function splitPath(path: string) {
 }
 
 function pathFromRequestUrl(requestUrl: string) {
-  const url = new URL(requestUrl);
-  return url.pathname.replace(RESOURCE_PROTOCOL, "");
+  return getResourcePathFromUrl(new URL(requestUrl));
 }
 
 const ORIGIN = "https://example.test";
+
+describe("asset src round-trip through the browser's URL parse", () => {
+  it.each([
+    ["ASCII", "local/assets/Backdrops/beach.png"],
+    ["non-ASCII", "local/assets/Backdrops/café.png"],
+    ["non-ASCII folder", "local/assets/Fonds/été/plage.png"],
+    ["space", "local/assets/Backdrops/my pic.png"],
+    ["percent sign", "local/assets/Backdrops/100% done.png"],
+    ["percent escape lookalike", "local/assets/Backdrops/caf%C3%A9.png"],
+    ["plus sign", "local/assets/Sounds/a+b.mp3"],
+    ["question mark and hash", "local/assets/Backdrops/what?#1.png"],
+    ["nested folders", "local/assets/Portraits/cast/hero/smile.png"],
+  ])("%s: %s", (_label, path) => {
+    const src = getSrcFromUri(getUriFromPath(path)) + "?v=1-2";
+    const requested = new URL(src, ORIGIN);
+    expect(getResourcePathFromUrl(requested)).toBe(path);
+    expect(getResourcePathFromUrl(requested.href)).toBe(path);
+  });
+});
 
 describe("getSrcFromUri", () => {
   it("maps a flat asset uri to a /file:/ resource URL", () => {
