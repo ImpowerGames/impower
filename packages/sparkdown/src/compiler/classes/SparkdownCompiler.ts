@@ -680,6 +680,7 @@ export class SparkdownCompiler {
   protected _previewUndo?: (() => void)[];
   protected _memoHost: StatementMemoHost = {
     enabled: true,
+    serving: true,
     usable: (entry) =>
       !!entry.chunk &&
       !!this._chunkStore &&
@@ -3275,14 +3276,27 @@ export class SparkdownCompiler {
       if (stale.length === 0 || !place) {
         continue;
       }
-      for (const shape of stale) {
-        const memo = shape.memo!;
+      const markStale = (memo: StatementMemoEntry) => {
         if (!memo.stale) {
           this._previewUndo?.push(() => {
             memo.stale = false;
           });
         }
         memo.stale = true;
+      };
+      for (const shape of memosOf(block.statement).lowered) {
+        if (entries.has(shape.memo!)) {
+          markStale(shape.memo!);
+        }
+      }
+      for (const shape of stale) {
+        const memo = shape.memo!;
+        markStale(memo);
+        for (const descendant of memo.owner?.descendants ?? []) {
+          if (entries.has(descendant)) {
+            markStale(descendant);
+          }
+        }
       }
       let list = ranges.get(place.uri);
       if (!list) {
@@ -3291,14 +3305,14 @@ export class SparkdownCompiler {
       }
       list.push({ from: place.from, to: place.to });
     }
-    const enabled = this._memoHost.enabled;
-    this._memoHost.enabled = enabled && !all;
+    const serving = this._memoHost.serving;
+    this._memoHost.serving = serving && !all;
     try {
       for (const [uri, list] of ranges) {
         this.documents.relowerCompilations(uri, list);
       }
     } finally {
-      this._memoHost.enabled = enabled;
+      this._memoHost.serving = serving;
     }
   }
 
