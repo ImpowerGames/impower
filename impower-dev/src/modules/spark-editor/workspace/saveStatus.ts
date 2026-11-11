@@ -13,6 +13,29 @@ export type SaveStatus = {
   action: SaveAction;
 };
 
+export const DEVICE_STORAGE_COPY = {
+  status: "Saved on this device",
+  statusTitle: "Where this project is stored",
+  marker: "This browser may clear it when space runs low",
+  where: "Stored in this browser only.",
+  persisted: "This browser keeps it until its site data is cleared.",
+  notPersisted:
+    "The browser can clear it when space runs low, so keep a copy somewhere safer:",
+  keep: "Keep on this device",
+  keepDetail: "Ask this browser not to clear it.",
+  keepRefused:
+    "This browser did not agree to keep it. Export a backup to keep a copy.",
+  install: "Install as an app",
+  installDetail: "Installed apps keep their work longer.",
+  homeScreen: "Add to Home Screen, so Safari keeps your work",
+  homeScreenDetail: "Tap Share, then Add to Home Screen.",
+  saveToDrive: "Save to Google Drive",
+  driveDetail: "Keep a copy online, open it anywhere.",
+  export: "Export a backup",
+  exportDetail: "Download every script and asset as a .zip.",
+  exportFailed: "The project could not be exported. Try again.",
+} as const;
+
 const LOCAL_SAVE_ERRORS: readonly SyncStatus[] = ["load_error", "import_error"];
 
 const failed = (text: string): SaveStatus => ({
@@ -88,7 +111,11 @@ export const saveStatusOf = (
     return null;
   }
   if (status === "cached") {
-    return { text: "Draft saved", tone: "saved", action: "menu" };
+    return {
+      text: local ? DEVICE_STORAGE_COPY.status : "Draft saved",
+      tone: "saved",
+      action: "menu",
+    };
   }
   if (!savedLocally(status, local)) {
     return {

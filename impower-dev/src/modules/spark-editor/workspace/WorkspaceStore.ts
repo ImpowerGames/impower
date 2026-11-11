@@ -19,6 +19,7 @@ import type {
   Diagnostic,
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
+import type { InstallOffer, StorageProbe } from "../utils/storagePersistence";
 import type { ReplaceProjectRequest } from "./replaceProject";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
@@ -34,6 +35,10 @@ import {
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 export type ScriptMode = "reading" | "editing";
+
+export interface DeviceStorage extends StorageProbe {
+  install: InstallOffer;
+}
 
 export interface KeyboardPanel {
   heading: boolean;
@@ -243,6 +248,8 @@ class WorkspaceStore {
   readonly syncConflictOpen = signal<boolean>(false);
 
   readonly syncedAt = signal<number | null>(null);
+
+  readonly deviceStorage = signal<DeviceStorage | null>(null);
 
   readonly replaceProject = signal<ReplaceProjectRequest | null>(null);
 

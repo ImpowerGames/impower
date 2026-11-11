@@ -20,16 +20,13 @@ export default function SnackbarHost() {
     <Toast
       open={!!current}
       message={shown.message}
-      wrap={shown.persistent}
       actionLabel={shown.actionLabel}
       onAction={() => {
         if (snackbar.value !== shown) {
           return;
         }
         shown.onAction?.();
-        if (!shown.persistent) {
-          dismissSnackbar(shown);
-        }
+        dismissSnackbar(shown);
       }}
       onDismiss={() => dismissSnackbar(shown)}
     />

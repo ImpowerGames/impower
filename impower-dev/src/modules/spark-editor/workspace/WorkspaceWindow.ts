@@ -124,6 +124,14 @@ import {
   splitScriptPath,
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
+import {
+  installOfferOf,
+  keepOnDevice,
+  settleStorage,
+  type InstallPromptEvent,
+  type StorageProbe,
+} from "../utils/storagePersistence";
+import { DEVICE_STORAGE_COPY } from "./saveStatus";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -670,6 +678,57 @@ export default class WorkspaceWindow {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  protected _installPrompt: InstallPromptEvent | null = null;
+
+  async refreshDeviceStorage() {
+    this.setDeviceStorage(
+      await settleStorage(navigator.storage, navigator.permissions),
+    );
+  }
+
+  async keepProjectOnDevice() {
+    const probe = await keepOnDevice(navigator.storage, navigator.permissions);
+    this.setDeviceStorage(probe);
+    if (!probe.persisted) {
+      showSnackbar({ message: DEVICE_STORAGE_COPY.keepRefused });
+    }
+  }
+
+  offerAppInstall(prompt: InstallPromptEvent | null) {
+    this._installPrompt = prompt;
+    const current = workspace.deviceStorage.peek();
+    if (current) {
+      this.setDeviceStorage(current);
+    }
+  }
+
+  async installApp() {
+    const prompt = this._installPrompt;
+    if (!prompt) {
+      return;
+    }
+    this.offerAppInstall(null);
+    try {
+      await prompt.prompt();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  protected setDeviceStorage(probe: StorageProbe) {
+    const standalone = (navigator as { standalone?: boolean }).standalone;
+    workspace.deviceStorage.value = {
+      ...probe,
+      install: installOfferOf({
+        installed:
+          standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches,
+        promptReady: this._installPrompt !== null,
+        homeScreen: standalone === false,
+      }),
+    };
   }
 
   openSyncConflict() {

@@ -41,13 +41,11 @@ describe("the toast queue", () => {
     expect(snackbar.value).toBeNull();
   });
 
-  it("returns to a pinned toast when a passing one leaves", () => {
-    const pinned = { message: "Export a copy", actionLabel: "Export", persistent: true };
-    showSnackbar(pinned);
+  it("pins nothing: a toast shown over another leaves the screen clear when it goes", () => {
+    const first = { message: "Export a copy", actionLabel: "Export" };
+    showSnackbar(first);
     showSnackbar({ message: "Saved" });
     vi.advanceTimersByTime(6000);
-    expect(snackbar.value).toBe(pinned);
-    dismissSnackbar(pinned);
     expect(snackbar.value).toBeNull();
   });
 });
