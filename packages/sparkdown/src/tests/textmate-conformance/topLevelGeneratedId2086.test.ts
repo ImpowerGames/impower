@@ -1,3 +1,6 @@
+import { vscodeLanguage } from "@impower/codemirror-vscode-language/src/extensions/vscodeLanguage";
+import { matchBrackets } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -60,4 +63,19 @@ describe("a top-level rule named like a generated id stays distinct (I-2086)", (
       expect(treeScopes(grammarWith(`Foo${suffix}`), text)).toEqual(treeScopes(grammarWith("Bar"), text));
     },
   );
+
+  test("a brackets rule stays paired when top-level rules are named like its delimiter ids", () => {
+    const grammar = {
+      scopeName: "source.probe",
+      repository: {
+        Foo: { begin: "<", end: ">", brackets: true },
+        Foo_begin: { match: "B" },
+        Foo_end: { match: "E" },
+      },
+      patterns: [{ include: "#Foo" }, { include: "#Foo_begin" }, { include: "#Foo_end" }],
+    };
+    const state = EditorState.create({ doc: "<>", extensions: [vscodeLanguage({ name: "probe", grammar } as any)] });
+    expect(matchBrackets(state, 0, 1)?.matched).toBe(true);
+    expect(matchBrackets(state, 2, -1)?.matched).toBe(true);
+  });
 });

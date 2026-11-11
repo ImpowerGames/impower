@@ -123,7 +123,7 @@ export class GrammarRepository {
     }
   }
 
-  private claim(obj: object, id: string) {
+  claim(obj: object, id: string) {
     let claimed = id;
     for (let n = 1; ; n++) {
       const owner = this.owners.get(claimed);
