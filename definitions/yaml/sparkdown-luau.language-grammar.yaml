@@ -3130,6 +3130,7 @@ repository:
     name: variable.parameter.function.luau
 
   LuauFunctionReturnType:
+    contentName: meta.embedded.block.luau
     begin: (?<=[)]{{WS}}*)([:])(?![:])({{WS}}*)
     beginCaptures:
       1:
@@ -8074,7 +8075,6 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauTypeBinaryOperation:
-    name: meta.embedded.block.luau
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
     beginCaptures:
       1:

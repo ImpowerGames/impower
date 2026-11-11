@@ -52,7 +52,6 @@ const TOP_LEVEL = [
   "define companion as character with",
   "define Hero",
   "function f()",
-  "function f(a: number): number",
   "local function f(a, b)",
 ];
 

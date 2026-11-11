@@ -31,10 +31,9 @@ text.source.sparkdown [0..58]
  │               │   │   ├─ entity.name.type.luau [41..42]: "A"
  │               │   │   ├─ punctuation.definition.template-expression.end.sd [42..43]: ")"
  │               │   │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
- │               │   │   └─ meta.embedded.block.luau [44..48]
- │               │   │       ├─ keyword.operator.type.luau [44..46]: "->"
- │               │   │       ├─ punctuation.whitespace.optional.sd [46..47]: " "
- │               │   │       └─ entity.name.type.luau [47..48]: "A"
+ │               │   │   ├─ keyword.operator.type.luau [44..46]: "->"
+ │               │   │   ├─ punctuation.whitespace.optional.sd [46..47]: " "
+ │               │   │   └─ entity.name.type.luau [47..48]: "A"
  │               │   └─ punctuation.definition.template-expression.end.sd [48..49]: ")"
  │               └─ meta.embedded.block.luau [49..53]
  │                   ├─ punctuation.whitespace.optional.sd [49..50]: " "

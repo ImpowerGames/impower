@@ -38,7 +38,8 @@ text.source.sparkdown [0..209]
  │               │   └─ punctuation.definition.template-expression.end.sd [64..65]: ")"
  │               ├─ keyword.operator.type.luau [65..66]: ":"
  │               ├─ punctuation.whitespace.optional.sd [66..67]: " "
- │               └─ support.type.primitive.luau [67..73]: "number"
+ │               └─ meta.embedded.block.luau [67..73]
+ │                   └─ support.type.primitive.luau [67..73]: "number"
  ├─ Newline [73..74]: "\n"
  ├─ meta.function.luau [74..88]
  │   └─ meta.function.body.luau [74..88]

@@ -13,10 +13,11 @@ text.source.sparkdown [0..56]
  │   │   └─ punctuation.definition.template-expression.end.sd [28..29]: ")"
  │   ├─ keyword.operator.type.luau [29..30]: ":"
  │   ├─ punctuation.whitespace.optional.sd [30..31]: " "
- │   ├─ support.function.luau [31..37]: "typeof"
- │   ├─ punctuation.definition.template-expression.begin.sd [37..38]: "("
- │   ├─ variable.other.readwrite.luau [38..39]: "x"
- │   └─ punctuation.definition.template-expression.end.sd [39..40]: ")"
+ │   └─ meta.embedded.block.luau [31..40]
+ │       ├─ support.function.luau [31..37]: "typeof"
+ │       ├─ punctuation.definition.template-expression.begin.sd [37..38]: "("
+ │       ├─ variable.other.readwrite.luau [38..39]: "x"
+ │       └─ punctuation.definition.template-expression.end.sd [39..40]: ")"
  ├─ Newline [40..41]: "\n"
  ├─ meta.function.luau [41..51]
  │   └─ meta.function.body.luau [41..51]

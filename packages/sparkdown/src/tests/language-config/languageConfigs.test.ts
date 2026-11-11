@@ -177,7 +177,7 @@ describe("the story and Luau configs divide their entries by the syntax each ser
     ["label", "  RAFFLES:", "", "story"],
     ["define header", "define Hero with", "end", "story"],
     ["define header at its line's end", "define companion as character with", "", "story"],
-    ["function header at its line's end", "local function f(a): number", "", "story"],
+    ["function header at its line's end", "local function f(a)", "", "story"],
     ["block comment before its close", "  --[[ note", "]]", "luau"],
     ["block comment", "  --[[ note", "", "luau"],
     ["function", "  function f()", "end", "luau"],

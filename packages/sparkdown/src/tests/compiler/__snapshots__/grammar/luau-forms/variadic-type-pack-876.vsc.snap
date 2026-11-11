@@ -22,8 +22,9 @@ text.source.sparkdown [0..241]
  │               │   └─ punctuation.definition.template-expression.end.sd [32..33]: ")"
  │               ├─ keyword.operator.type.luau [33..34]: ":"
  │               ├─ punctuation.whitespace.optional.sd [34..35]: " "
- │               ├─ variable.parameter.function.varargs.luau [35..38]: "..."
- │               ├─ support.type.primitive.luau [38..44]: "number"
+ │               ├─ meta.embedded.block.luau [35..44]
+ │               │   ├─ variable.parameter.function.varargs.luau [35..38]: "..."
+ │               │   └─ support.type.primitive.luau [38..44]: "number"
  │               ├─ meta.function.body.luau [44..53]
  │               │   └─ meta.embedded.block.luau [44..53]
  │               │       └─ meta.function.luau [44..53]
@@ -50,10 +51,11 @@ text.source.sparkdown [0..241]
  │               │   └─ punctuation.definition.template-expression.end.sd [78..79]: ")"
  │               ├─ keyword.operator.type.luau [79..80]: ":"
  │               ├─ punctuation.whitespace.optional.sd [80..81]: " "
- │               ├─ punctuation.definition.template-expression.begin.sd [81..82]: "("
- │               ├─ variable.parameter.function.varargs.luau [82..85]: "..."
- │               ├─ support.type.primitive.luau [85..91]: "number"
- │               ├─ punctuation.definition.template-expression.end.sd [91..92]: ")"
+ │               ├─ meta.embedded.block.luau [81..92]
+ │               │   ├─ punctuation.definition.template-expression.begin.sd [81..82]: "("
+ │               │   ├─ variable.parameter.function.varargs.luau [82..85]: "..."
+ │               │   ├─ support.type.primitive.luau [85..91]: "number"
+ │               │   └─ punctuation.definition.template-expression.end.sd [91..92]: ")"
  │               ├─ meta.function.body.luau [92..101]
  │               │   └─ meta.embedded.block.luau [92..101]
  │               │       └─ meta.function.luau [92..101]
@@ -78,11 +80,10 @@ text.source.sparkdown [0..241]
  │           ├─ punctuation.definition.template-expression.begin.sd [117..118]: "("
  │           ├─ punctuation.definition.template-expression.end.sd [118..119]: ")"
  │           ├─ punctuation.whitespace.optional.sd [119..120]: " "
- │           └─ meta.embedded.block.luau [120..132]
- │               ├─ keyword.operator.type.luau [120..122]: "->"
- │               ├─ punctuation.whitespace.optional.sd [122..123]: " "
- │               ├─ variable.parameter.function.varargs.luau [123..126]: "..."
- │               └─ support.type.primitive.luau [126..132]: "number"
+ │           ├─ keyword.operator.type.luau [120..122]: "->"
+ │           ├─ punctuation.whitespace.optional.sd [122..123]: " "
+ │           ├─ variable.parameter.function.varargs.luau [123..126]: "..."
+ │           └─ support.type.primitive.luau [126..132]: "number"
  ├─ Newline [132..133]: "\n"
  ├─ meta.function.luau [133..164]
  │   └─ meta.function.body.luau [133..164]

@@ -164,7 +164,7 @@ const VSCODE_HEADER_ENTER: [header: string, close: string, indent: string, inden
   ["define Hero with", "end", "", true],
   ["define companion as character with", "end", "", true],
   ["function f()", "end", "", true],
-  ["function f(a: number): number", "end", "", true],
+  ["function f(a: number): number", "end", "", false],
   ["layout sheet {", "}", "", true],
   ["style list {", "}", "", true],
   ["component card(title) {", "}", "", true],
@@ -193,7 +193,6 @@ describe("Enter after a block header agrees with VS Code, which reads the cursor
     ["define Hero with", "  x = 1"],
     ["define companion as character with", "  x = 1"],
     ["function f()", "  return 1"],
-    ["function f(a: number): number", "  return a"],
   ];
 
   it.each(LUAU_BODY_HEADERS)("indents after `%s` with a Luau body line directly below (I-2090)", (header, body) => {

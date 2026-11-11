@@ -11857,6 +11857,7 @@
       "name": "variable.parameter.function.luau"
     },
     "LuauFunctionReturnType": {
+      "contentName": "meta.embedded.block.luau",
       "begin": "(?<=[)](?:[^\\S\\n\\r])*)([:])(?![:])((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
@@ -21043,7 +21044,6 @@
       }
     },
     "LuauTypeBinaryOperation": {
-      "name": "meta.embedded.block.luau",
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:[&]|[|]|[-][>]))",
       "beginCaptures": {
         "1": {
