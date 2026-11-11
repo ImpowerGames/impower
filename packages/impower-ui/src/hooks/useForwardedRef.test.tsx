@@ -31,3 +31,22 @@ describe.each([
     expect(calls).toEqual(["element 1", "null 2"]);
   });
 });
+
+describe.each([
+  ["Switch", (ref: { current: HTMLInputElement | null }) => <Switch aria-label="On" ref={ref} />],
+  ["TextField", (ref: { current: HTMLInputElement | null }) => <TextField aria-label="Name" ref={ref} />],
+])("%s ref object", (_name, control) => {
+  it("moves the element from the old ref object to the new one when the caller swaps them", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const first: { current: HTMLInputElement | null } = { current: null };
+    const second: { current: HTMLInputElement | null } = { current: null };
+    await act(async () => render(control(first), host!));
+    const input = host.querySelector("input");
+    expect(first.current).toBe(input);
+    await act(async () => render(control(second), host!));
+    expect(first.current).toBeNull();
+    expect(second.current).toBe(input);
+    await act(async () => render(null, host!));
+    expect(second.current).toBeNull();
+  });
+});
