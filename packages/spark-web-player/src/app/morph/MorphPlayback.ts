@@ -352,8 +352,9 @@ export class MorphPlayback {
     background: string,
     kind: "background" | "mask",
     base: string,
+    group: MorphGroup = new MorphGroup(),
   ): MorphLayer {
-    const layer = new MorphLayer(this, span, content, background, kind, base);
+    const layer = new MorphLayer(this, span, content, background, kind, base, group);
     this.layers.add(layer);
     (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph = layer;
     layer.start();
@@ -471,10 +472,42 @@ function defaultHost(delivered: DeliveredArtifacts): MorphHost {
   };
 }
 
+export class MorphGroup {
+  protected members = new Set<MorphLayer>();
+  protected version = 0;
+
+  add(layer: MorphLayer) {
+    this.members.add(layer);
+  }
+
+  remove(layer: MorphLayer) {
+    if (this.members.delete(layer)) void this.changed();
+  }
+
+  async changed() {
+    const version = ++this.version;
+    const members = [...this.members].filter((layer) => layer.active);
+    if (members.some((layer) => layer.pending)) return;
+    await Promise.all(members.map((layer) => layer.prepare()));
+    if (version !== this.version) return;
+    for (const layer of members) layer.commit();
+  }
+}
+
+function decodeImage(doc: Document, url: string): Promise<unknown> {
+  const Img = doc.defaultView?.Image;
+  if (!Img) return Promise.resolve();
+  const img = new Img();
+  img.crossOrigin = "anonymous";
+  img.src = url;
+  return typeof img.decode === "function" ? img.decode().catch(() => undefined) : Promise.resolve();
+}
+
 export class MorphLayer {
   protected plays: PlayState[] = [];
   protected frozen = false;
   protected disposed = false;
+  protected stale = false;
   protected shadowHost?: HTMLElement;
   protected statics: { div: HTMLElement; layer: number }[] = [];
 
@@ -487,8 +520,18 @@ export class MorphLayer {
     background: string,
     protected kind: "background" | "mask",
     protected base: string,
+    protected group: MorphGroup,
   ) {
     this.layers = cssList(background).reverse();
+    group.add(this);
+  }
+
+  get active(): boolean {
+    return !this.frozen && !this.disposed;
+  }
+
+  get pending(): boolean {
+    return this.plays.some((p) => p.slot.state === "pending");
   }
 
   get live(): boolean {
@@ -523,7 +566,24 @@ export class MorphLayer {
   }
 
   protected changed() {
-    if (this.disposed || this.frozen) return;
+    if (!this.active) return;
+    if (!this.span.isConnected) {
+      this.dispose();
+      return;
+    }
+    this.stale = true;
+    void this.group.changed();
+  }
+
+  async prepare() {
+    if (this.kind !== "mask" || !this.stale) return;
+    const doc = this.span.ownerDocument;
+    await Promise.all([...this.maskUrls().values()].map((url) => decodeImage(doc, url)));
+  }
+
+  commit() {
+    if (!this.active || !this.stale) return;
+    this.stale = false;
     if (!this.span.isConnected) {
       this.dispose();
       return;
@@ -536,18 +596,24 @@ export class MorphLayer {
     this.playback.track(this);
   }
 
-  protected applyMask() {
-    const layers = [...this.layers];
-    let changed = false;
+  protected maskUrls(): Map<number, string> {
+    const urls = new Map<number, string>();
     for (const state of this.plays) {
       if (state.slot.state !== "ready" || !state.slot.handle) continue;
       try {
-        layers[state.play.layer] = `url("${state.slot.handle.url("rest")}")`;
-        changed = true;
+        urls.set(state.play.layer, state.slot.handle.url("rest"));
       } catch {
       }
     }
-    if (changed) this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
+    return urls;
+  }
+
+  protected applyMask() {
+    const urls = this.maskUrls();
+    if (!urls.size) return;
+    const layers = [...this.layers];
+    for (const [layer, url] of urls) layers[layer] = `url("${url}")`;
+    this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
   }
 
   protected build() {
@@ -785,6 +851,7 @@ export class MorphLayer {
       if (state.occurrence) this.playback.letGo(state.occurrence);
       state.occurrence = undefined;
     }
+    this.group.remove(this);
   }
 
   dispose() {

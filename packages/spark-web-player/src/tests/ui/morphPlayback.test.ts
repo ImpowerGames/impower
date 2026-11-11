@@ -607,6 +607,57 @@ ${TIMING}  clips {
     await flushMicrotasks(10);
     expect(playback.stats).toEqual({ layers: 0, live: 0, occurrences: 0 });
   });
+
+  test("a portrait's drawing and its outline mask appear together, once the mask's image has decoded", async () => {
+    const source = `${SOURCE}
+layout main {
+  stage {
+    portrait {
+      mask.outline
+      image
+    }
+  }
+}
+`;
+    const h = createDOMHarness(source, 0, { files: FILES });
+    const view = h.overlay.ownerDocument.defaultView as any;
+    const decodes: { crossOrigin: string | null; src: string; done: () => void }[] = [];
+    const Image = view.Image;
+    view.Image = class {
+      crossOrigin: string | null = null;
+      src = "";
+      decode() {
+        return new Promise<void>((resolve) => decodes.push({ crossOrigin: this.crossOrigin, src: this.src, done: resolve }));
+      }
+    };
+    try {
+      const program = () => h.game.program;
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({
+        host: createMorphHost({
+          service: new MorphBakeService({ createObjectURL: () => "blob:rest", revokeObjectURL: () => {} }),
+          channel: () => program().morphs,
+          readSource: inlineMorphSource(() => program().context),
+        }),
+        seed: "test",
+        ...manualFrames(),
+      });
+      await h.ready;
+      await h.preview(lineOf(source, "First line."));
+      const drawing = () => h.overlay.querySelector(".portrait > .image > .instance") as HTMLElement | null;
+      const outline = () => h.overlay.querySelector(".portrait > .mask.outline > .instance") as HTMLElement | null;
+      await until(() => decodes.length > 0 || !!drawing()?.querySelector("span.morph"), "the artifact");
+      await flushMicrotasks(10);
+      expect(drawing()!.querySelector("span.morph")).toBeNull();
+      expect(outline()!.style.getPropertyValue("mask-image")).not.toContain("blob:rest");
+      expect(decodes.map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([{ crossOrigin: "anonymous", src: "blob:rest" }]);
+      for (const decode of decodes) decode.done();
+      await until(() => !!drawing()?.querySelector("span.morph"), "the drawing");
+      expect(outline()!.style.getPropertyValue("mask-image")).toContain("blob:rest");
+    } finally {
+      view.Image = Image;
+    }
+  });
 });
 
 describe("morph layers", () => {
