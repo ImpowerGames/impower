@@ -94,29 +94,33 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     }
   });
 
+  describe("an `&` after a declaration's, reassignment's or `until` condition's value", () => {
+    const values = ["0", "a", "1 + 2", "-1", "1 == 2", '"a" .. "b"', "not a", "a and b", "#t", "if a then 1 else 2", "f(1)"];
+    const sources = [
+      "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
+      "store x = a&b\nHello\n",
+      "store x = a & b\nHello\n",
+      "local x = a&b\nHello\n",
+      "x = a&b\nHello\n",
+      "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
+      "repeat\n  Hi.\nuntil a&b\nHello\n",
+      ...values.flatMap((value) => [
+        `scene s\n  local x = ${value} & x = 2\nend\n`,
+        `scene s\n  x = ${value} & x = 2\nend\n`,
+        `scene s\n  repeat\n    Hi.\n  until ${value} & x = 2\nend\n`,
+      ]),
+    ];
+    for (const source of sources) {
+      test(JSON.stringify(source), async () => {
+        const { divergences } = await compareLanguages(source);
+        expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
+        const mark = source.indexOf("&");
+        expect(treeLanguagesPerPosition(source).slice(mark, mark + 2)).toEqual([STORY, STORY]);
+      });
+    }
+  });
+
   describe("known differences, each tracked by its ticket", () => {
-    test("I-2038: a declaration or reassignment followed by an `&` statement on its line", async () => {
-      await expectLanguagePin(
-        2038,
-        "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
-        ["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"],
-      );
-    });
-
-    test.each([
-      ["store x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
-      ["store x = a & b\nHello\n", ["1:12", "1:14", "1:15"]],
-      ["local x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
-      ["x = a&b\nHello\n", ["1:5", "1:6", "1:7"]],
-      [
-        "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
-        ["5:13", "5:15", "5:16", "5:17", "5:18"],
-      ],
-      ["repeat\n  Hi.\nuntil a&b\nHello\n", ["3:7", "3:8", "3:9"]],
-    ])("I-2038: an `&` after a declaration's, reassignment's or `until` condition's value, %j", async (source, positions) => {
-      await expectLanguagePin(2038, source, positions);
-    });
-
     const span = (line: number, from: number, to: number) =>
       Array.from({ length: to - from + 1 }, (_, i) => `${line}:${from + i}`);
 

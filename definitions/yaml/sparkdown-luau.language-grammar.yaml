@@ -378,6 +378,17 @@ variables:
   # variable, since a positive alternative cannot name "any other line".
   LUAU_COLUMN_0_LINE_START: ^(?=\S)(?!{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;])
   LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[)\\]}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
+  # lookaround: an `&` on a story line begins the next statement, which
+  # `LuauSparkdownExplicitStatement` reads from the mark once the
+  # declaration, reassignment or `until` condition before it has closed,
+  # and the operations and if expression in their value close first, so
+  # their ends only look at the mark. An end that took it would leave
+  # that rule no mark to begin at, and including the statement in their
+  # patterns would read it as part of the value. A value's last operand
+  # takes the whitespace before the mark, so the ends that stop at
+  # whitespace never see any. No value reads an `&`, so no order of their
+  # patterns and no tighter variable stops them there.
+  LUAU_STORY_STATEMENT_MARK_AHEAD: (?={{WS}}*[&])
   # lookaround: LuauAssignmentLineBreak begins here, before the line end or
   # a comment, and LuauAssignmentOperation ends at them anywhere else.
   LUAU_AFTER_ASSIGNMENT_OPERATOR: (?<=[^=~<>]={{WS}}*)
@@ -1033,7 +1044,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauUnreadableCharacter" }
-    end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})"
+    end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}"
 
   LuauReassignmentTargets:
     patterns:
@@ -3207,7 +3218,7 @@ repository:
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauUnreadableCharacter" }
-    end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})"
+    end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}"
 
   LuauVariableDefinitionValue:
     patterns:
@@ -3297,7 +3308,7 @@ repository:
       - { include: "#LuauSparkdownExplicitTypeAnnotationOperation" }
       - { include: "#LuauSparkdownAssignmentOperation" }
       - { include: "#LuauFunctionDefinition" }
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=\]=*\])(?={{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|(?<=\]=*\])(?={{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownControlBlock:
     patterns:
@@ -4350,7 +4361,7 @@ repository:
       - { include: "#RequiredWhitespace" }
     # lookaround: LuauIfBlock owns statement if and LuauElseifBlock owns elseif; this expression opens only in value context and yields to written block or clause closers.
     # See bounded-exit rationale above for the structural alternatives.
-    end: "(?={{BEAT}}|$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}"
 
   LuauSparkdownExplicitLogicalOperation:
     # lookaround: LuauLogicalOperator owns the operator token; this expression wrapper opens only at that token so ordinary values remain with LuauExpression.
@@ -4366,7 +4377,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownExplicitAccessPart:
     emit: true
@@ -4395,7 +4406,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownExplicitCompareOperation:
     # lookaround: LuauCompareOperator owns the operator token; this expression wrapper opens only at that token so ordinary values remain with LuauExpression.
@@ -4411,7 +4422,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownExplicitConcatOperation:
     # lookaround: LuauConcatOperator owns the operator token; this expression wrapper opens only at that token so ordinary values remain with LuauExpression.
@@ -4427,7 +4438,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownExplicitTypeCastOperation:
     # lookaround: LuauTypeCastOperator owns the operator token; this expression wrapper opens only at that token so ordinary values remain with LuauExpression.
@@ -4545,7 +4556,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
     # lookaround: LuauThenExpression owns the preceding clause; this else arm opens only at else and yields before a following statement clause.
     # See bounded-exit rationale above for the structural alternatives.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}"
 
   LuauSparkdownExplicitAlternatorBlocks:
     patterns:
@@ -4927,7 +4938,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
 
   LuauSparkdownExplicitAccessPath:
     # lookaround: LuauVariableDefinition owns declaration headers and LuauEndKeyword owns terminators; this path opens only at an ordinary expression identifier.
@@ -5021,7 +5032,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauUnreadableCharacter" }
-    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
+    end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}"
 
   LuauSparkdownExplicitDeclarations:
     patterns:
@@ -7312,7 +7323,7 @@ repository:
       - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
-    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_STORY_STATEMENT_MARK_AHEAD}}
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:
