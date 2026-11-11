@@ -49,3 +49,34 @@ export const expectedTextOf = (data: unknown): string | undefined => {
   const expected = (data as { expect?: unknown } | null | undefined)?.expect;
   return typeof expected === "string" ? expected : undefined;
 };
+
+export type FixKind = "name" | "note";
+
+const NAME_CHARACTER = /[\p{L}\p{N}_-]/u;
+
+const restOfLine = (text: string, from: number) => {
+  const end = text.slice(from).search(/\r?\n/);
+  return end < 0 ? text.slice(from) : text.slice(from, from + end);
+};
+
+export const stillExpected = (
+  text: string,
+  from: number,
+  to: number,
+  expect: string,
+  kind?: FixKind,
+): boolean => {
+  if (from < 0 || to > text.length || text.slice(from, to) !== expect) {
+    return false;
+  }
+  if (kind === "name") {
+    return (
+      !NAME_CHARACTER.test(text.charAt(from - 1)) &&
+      !NAME_CHARACTER.test(text.charAt(to))
+    );
+  }
+  if (kind === "note") {
+    return !restOfLine(text, to).trim();
+  }
+  return true;
+};

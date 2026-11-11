@@ -7,6 +7,7 @@ import { colorWellGallery } from "./components/color-well/ColorWell.gallery";
 import { disclosureGallery } from "./components/disclosure/Disclosure.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
+import { fixMenuGallery } from "./components/fix-menu/FixMenu.gallery";
 import { filterChipGallery } from "./components/filter-chip/FilterChip.gallery";
 import { featureCardGallery } from "./components/feature-card/FeatureCard.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
@@ -58,6 +59,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   disclosureGallery,
   dropdownGallery,
   filterChipGallery,
+  fixMenuGallery,
   featureCardGallery,
   iconGallery,
   jumpChipsGallery,

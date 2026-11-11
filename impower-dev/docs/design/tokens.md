@@ -402,7 +402,6 @@ Component variables of the editor's own chrome:
 | `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
 | `--editor-problem-warning` | Status bar warning count | `#cca700` |
 | `--editor-problem-info` | Status bar info count | `#59a4f9` |
-| `--editor-action-ink` | A problem's action link | `#9cdcfe` |
 | `--editor-match` | The matched letters in a completion | `#18a3ff` |
 | `--editor-faint` | Fold placeholder, link shortcut hint | `#808080` |
 | `--editor-placeholder` | Go-to-line placeholder | `#888888` |
@@ -520,7 +519,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-problem-error` | `var(--error)` | Problem colour: error |
 | `--editor-problem-warning` | `var(--warning)` | Problem colour: warning |
 | `--editor-problem-info` | `var(--muted)` | Problem colour: info, `folio-editor.css:57` |
-| `--editor-action-ink` | `var(--accent)` | Links |
 | `--editor-match` | `var(--accent)` | Accent |
 | `--editor-faint` | `var(--muted)` | Muted ink |
 | `--editor-placeholder` | `var(--muted)` | Muted ink |

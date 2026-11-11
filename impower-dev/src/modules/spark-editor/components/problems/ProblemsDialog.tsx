@@ -3,22 +3,29 @@ import {
   CloseIcon,
   Dialog,
   DialogTitle,
+  FixMenu,
   MessageEntry,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import {
+  fixChoiceOf,
   groupByScript,
   lineLink,
   problemSummary,
   SCRIPT_PREFIX,
   scopeContext,
   scopedProblems,
+  type DiagnosticFixAction,
+  type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import { DebugCardsList } from "./debugCards";
+import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
+
+const CLOSE_DIALOG = '[aria-label="Close dialog"]';
 
 const LEAVE_FOCUS =
   typeof document === "undefined" ? null : document.createElement("span");
@@ -29,18 +36,37 @@ export default function ProblemsDialog() {
   const state = useComputed(() => problems.dialog.value).value ?? last.current;
   last.current = state;
   const all = useComputed(() => problems.problems.value).value;
-  const listed = state ? scopedProblems(state.scope, all) : [];
-  const navigating = useRef(false);
+  const versions = useComputed(() => problems.versions.value).value;
+  const diagnostics = useComputed(() => problems.diagnostics.value).value;
+  const fixing = useComputed(() => problems.fixing.value).value;
+  const listed = state
+    ? scopedProblems(state.scope, all, { diagnostics, versions })
+    : [];
+  const list = useRef<HTMLDivElement>(null);
 
   const returnFocus = () => {
-    if (navigating.current) {
-      navigating.current = false;
+    if (problems.takeLeftForScript()) {
       return LEAVE_FOCUS;
     }
     const trigger = state?.returnFocus?.();
     return trigger?.isConnected
       ? trigger
       : document.querySelector<HTMLElement>(BROWSE_SCRIPTS_SELECTOR);
+  };
+
+  const chooseFix = (problem: Problem, action: DiagnosticFixAction) => {
+    const root = list.current;
+    if (root) {
+      keepFocusAfterFix(
+        root,
+        problem,
+        () =>
+          root
+            .closest('[role="dialog"]')
+            ?.querySelector<HTMLElement>(CLOSE_DIALOG) ?? null,
+      );
+    }
+    void problems.applyFix(fixChoiceOf(problem, action));
   };
 
   const groups = groupByScript(listed);
@@ -78,6 +104,7 @@ export default function ProblemsDialog() {
         </p>
       ) : null}
       <div
+        ref={list}
         class={
           state?.scope.kind === "story"
             ? "-mx-2 max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
@@ -95,23 +122,37 @@ export default function ProblemsDialog() {
               </h3>
             ) : null}
             {group.entries.map((problem) => (
-              <MessageEntry
+              <div
                 key={problem.key}
-                severity={problem.severity}
-                prefix={SCRIPT_PREFIX[problem.severity]}
-                title={problem.title}
-                message={problem.message}
-                location={lineLink(problem.line)}
-                locationLabel={`Open ${problem.script} at line ${problem.line}`}
-                onJump={() => {
-                  navigating.current = true;
-                  void problems.jump({
-                    uri: problem.uri,
-                    line: problem.line,
-                    character: problem.range.start.character,
-                  });
-                }}
-              />
+                data-problem-entry={problemSignature(problem)}
+                data-problem-key={problem.key}
+                class="contents"
+              >
+                <MessageEntry
+                  severity={problem.severity}
+                  prefix={SCRIPT_PREFIX[problem.severity]}
+                  title={problem.title}
+                  message={problem.message}
+                  location={lineLink(problem.line)}
+                  locationLabel={`Open ${problem.script} at line ${problem.line}`}
+                  onJump={() => {
+                    void problems.jump({
+                      uri: problem.uri,
+                      line: problem.line,
+                      character: problem.range.start.character,
+                    });
+                  }}
+                  actions={
+                    problem.actions.length ? (
+                      <FixMenu
+                        busy={isFixing(problem, fixing)}
+                        actions={problem.actions}
+                        onChoose={(action) => chooseFix(problem, action)}
+                      />
+                    ) : undefined
+                  }
+                />
+              </div>
             ))}
           </div>
         ))}
