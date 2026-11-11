@@ -3424,6 +3424,7 @@ export class GamePlayerController {
     });
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
+        this.updateBar(reducePlayerBar(this._bar, msg));
         sendProtocolMessage(
           GameSteppedMessage.type.notification({
             ...msg.params,
@@ -3436,6 +3437,7 @@ export class GamePlayerController {
     game.connection.outgoing.addListener(GameRolledMessage.method, (msg) => {
       if (GameRolledMessage.type.isNotification(msg)) {
         this.releaseEndedPlay(owner);
+        this.updateBar(reducePlayerBar(this._bar, msg));
         sendProtocolMessage(
           GameRolledMessage.type.notification({
             ...msg.params,

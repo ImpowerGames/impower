@@ -12,6 +12,10 @@ import {
   GameResizedMessage,
   type GameResizedParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
+import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import { describeSimulationFailure } from "../../utils/describeSimulationFailure";
 
 export interface PlayerBarState {
@@ -23,6 +27,7 @@ export interface PlayerBarState {
   ending: GameStateEnding | null;
   executed: GameExecutedParams | null;
   size: GameResizedParams | null;
+  history: GameHistory | null;
 }
 
 export const initialPlayerBarState: PlayerBarState = {
@@ -34,7 +39,20 @@ export const initialPlayerBarState: PlayerBarState = {
   ending: null,
   executed: null,
   size: null,
+  history: null,
 };
+
+export const skipRefusal = (
+  history: GameHistory | null | undefined,
+  direction: -1 | 1,
+): string | undefined =>
+  direction < 0
+    ? history?.canRollBack
+      ? undefined
+      : HISTORY_REASONS.rollBack
+    : history?.canRollForward
+      ? undefined
+      : HISTORY_REASONS.rollForward;
 
 export const reducePlayerBar = (
   state: PlayerBarState,
@@ -53,7 +71,17 @@ export const reducePlayerBar = (
     };
   }
   if (GameExecutedMessage.type.isNotification(message)) {
-    return { ...state, executed: message.params };
+    return {
+      ...state,
+      executed: message.params,
+      history: message.params.history ?? state.history,
+    };
+  }
+  if (
+    GameSteppedMessage.type.isNotification(message) ||
+    GameRolledMessage.type.isNotification(message)
+  ) {
+    return { ...state, history: message.params.history ?? state.history };
   }
   if (GameResizedMessage.type.isNotification(message)) {
     return { ...state, size: message.params };
