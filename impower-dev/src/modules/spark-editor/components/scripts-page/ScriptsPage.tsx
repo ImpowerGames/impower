@@ -14,13 +14,18 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
-import { useEffect, useRef, useState } from "preact/hooks";
-import { plural, rowLine } from "../../utils/fileListModel";
+import { useEffect, useState } from "preact/hooks";
+import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
 import {
   browseParent,
   crumbsOf,
+  folderLabel,
+  isInside,
+  itemsLabel,
   MAIN_SCRIPT,
+  moveCheck,
+  parentOf,
   scriptFolders,
   scriptRows,
   scriptsHome,
@@ -29,14 +34,23 @@ import {
 } from "../../workspace/scriptsListing";
 import selection from "../../workspace/scriptsSelection";
 import workspace from "../../workspace/WorkspaceStore";
-import { EmptyState, LibraryPage, NameRow, SortMenu, Trail } from "../library-page";
-import DeleteDialog from "./DeleteDialog";
-import MoveDialog from "./MoveDialog";
+import {
+  DeleteDialog,
+  DROP_FOLDER,
+  EmptyState,
+  LibraryPage,
+  MoveDialog,
+  NameRow,
+  SelectionBar,
+  SortMenu,
+  Trail,
+  useLibraryDrag,
+  useSelectionKeys,
+  type SelectionAction,
+} from "../library-page";
 import { useSavedScroll, useTabQuery } from "./pageState";
 import RowMenu, { type RowAction } from "./RowMenu";
-import SelectionBar, { type SelectionAction } from "./SelectionBar";
 import ScriptOutlineTab, { OUTLINE_TAB } from "./ScriptOutlineTab";
-import { DROP_FOLDER, useScriptsDrag } from "./useScriptsDrag";
 
 const EMPTY: ScriptListing = { files: {}, folders: [] };
 
@@ -109,35 +123,15 @@ function AllScripts() {
   const folder = scriptFolders(listing).includes(saved) ? saved : "";
   const sort = lists?.scriptsSort;
   const rows = scriptRows({ listing, references, folder, query, sort });
-  const listed = useRef(rows);
-  listed.current = rows;
-  const dialogOpen = !!moving || !!deleting;
+  useSelectionKeys({
+    active: selecting,
+    paused: !!moving || !!deleting,
+    onEnd: () => selection.end(),
+    onSelectAll: () => selection.selectAll(rows.map((row) => row.path)),
+  });
 
-  useEffect(() => {
-    if (!selecting || dialogOpen) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-      const typing =
-        event.target instanceof HTMLTextAreaElement ||
-        (event.target instanceof HTMLInputElement && event.target.type !== "checkbox");
-      if (event.key === "Escape") {
-        event.preventDefault();
-        selection.end();
-      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a" && !typing) {
-        event.preventDefault();
-        selection.selectAll(listed.current.map((row) => row.path));
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selecting, dialogOpen]);
-
-  const drag = useScriptsDrag({
-    listing,
+  const drag = useLibraryDrag({
+    check: (paths, target) => moveCheck(listing, paths, target),
     carried: (path) => {
       const chosen = selection.selected.peek();
       return chosen.includes(path) ? [...chosen] : [path];
@@ -361,7 +355,20 @@ function AllScripts() {
     >
       <MoveDialog
         paths={moving}
-        listing={listing}
+        label={moving ? itemsLabel(moving) : ""}
+        root=""
+        folders={[
+          "",
+          ...scriptFolders(listing).filter(
+            (f) => !(moving ?? []).some((p) => !Object.hasOwn(listing.files, p) && isInside(f, p)),
+          ),
+        ]}
+        from={
+          moving?.length && moving.every((p) => parentOf(p) === parentOf(moving[0]!))
+            ? browseParent(moving[0]!, home)
+            : null
+        }
+        folderLabel={(f) => folderLabel(f, home)}
         onClose={() => setMoving(null)}
         onMove={async (paths, target) => {
           await (await intents()).scripts.move(paths, target);
@@ -372,8 +379,12 @@ function AllScripts() {
         }
       />
       <DeleteDialog
-        paths={deleting?.paths ?? null}
-        referencing={deleting?.referencing ?? null}
+        label={deleting ? itemsLabel(deleting.paths) : null}
+        description={
+          deleting?.referencing
+            ? referencedByLabel(deleting.referencing)
+            : `Couldn't check which scripts reference ${deleting?.paths.length === 1 ? "it" : "them"}.`
+        }
         onClose={() => setDeleting(null)}
         onDelete={() => {
           const paths = deleting!.paths;

@@ -18,8 +18,10 @@ const assets = vi.hoisted(() => ({
   upload: vi.fn(async (): Promise<string[]> => []),
   addLink: vi.fn(async () => ""),
   createFolder: vi.fn(async () => ""),
-  rename: vi.fn(async () => ""),
-  remove: vi.fn(async () => undefined),
+  rename: vi.fn(async (path: string, _name: string) => path),
+  remove: vi.fn(async (_paths: readonly string[]) => undefined),
+  move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
+  usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
   measureImages: vi.fn(async () => undefined),
   watchFacts: vi.fn((_paths: string[], listener: Listener) => {
     facts.listeners.push(listener);
@@ -777,5 +779,75 @@ describe("the asset inspector", () => {
     );
     await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
     expect(assets.download).toHaveBeenCalledWith("Assets/Audio/Sounds/door_chime.wav");
+  });
+});
+
+describe("the inspector when its item is renamed, moved or deleted from the page", () => {
+  const P = "Assets/Images/Portraits";
+  const menu = async (name: string, item: string) => {
+    const trigger = all<HTMLElement>(`button[aria-label="Options for ${name}"]`)[0]!;
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes(item)));
+  };
+  const setFiles = (files: Record<string, ReturnType<typeof fact>>, folders: string[] = []) => {
+    workspace.assetListing.value = { projectId: PROJECT, folders, files };
+  };
+
+  beforeEach(() => {
+    lists({ assetsType: "image", assetsFolders: { image: P } });
+    setFiles({ [`${P}/imani.png`]: fact(8001), [`${P}/imani@night.png`]: fact(8002), [`${P}/bunny.png`]: fact(8003) }, [`${P}/Cast`]);
+  });
+
+  it("follows a rename of the stack it shows, though the listing changes before the rename returns", async () => {
+    assets.rename.mockImplementationOnce(async () => {
+      setFiles({ [`${P}/zadie.png`]: fact(8001), [`${P}/zadie@night.png`]: fact(8002), [`${P}/bunny.png`]: fact(8003) }, [`${P}/Cast`]);
+      return `${P}/zadie.png`;
+    });
+    await mount();
+    await open("imani");
+    expect(title()).toBe("imani");
+    await menu("imani", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!;
+    await act(async () => {
+      input.value = "zadie";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.rename).toHaveBeenCalledWith(`${P}/imani.png`, "zadie");
+    expect(dock().contains(region())).toBe(true);
+    expect(title()).toBe("zadie");
+  });
+
+  it("follows a move of the item it shows into another folder", async () => {
+    assets.move.mockImplementationOnce(async () => {
+      setFiles({ [`${P}/imani.png`]: fact(8001), [`${P}/imani@night.png`]: fact(8002), [`${P}/Cast/bunny.png`]: fact(8003) }, [`${P}/Cast`]);
+      return [{ from: `${P}/bunny.png`, to: `${P}/Cast/bunny.png` }];
+    });
+    await mount();
+    await open("bunny");
+    await menu("bunny", "Move");
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    await click([...dialog.querySelectorAll<HTMLElement>('[role="option"]')].find((el) => el.textContent?.includes("Cast")));
+    await click([...dialog.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Move here"));
+    expect(assets.move).toHaveBeenCalledWith([`${P}/bunny.png`], `${P}/Cast`);
+    expect(title()).toBe("bunny");
+    expect(region()!.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/8003");
+  });
+
+  it("closes when the item it shows is deleted, with focus on the page", async () => {
+    assets.remove.mockImplementationOnce(async () => {
+      setFiles({ [`${P}/bunny.png`]: fact(8003) }, [`${P}/Cast`]);
+    });
+    await mount();
+    await open("imani");
+    await menu("imani", "Delete");
+    expect(assets.remove).toHaveBeenCalledWith([`${P}/imani.png`]);
+    await vi.waitFor(() => expect(region()).toBeNull());
+    await vi.waitFor(() => expect(host!.contains(document.activeElement)).toBe(true));
   });
 });
