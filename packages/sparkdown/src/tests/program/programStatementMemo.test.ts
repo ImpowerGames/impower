@@ -356,6 +356,16 @@ const sameAsCold = (s: ReturnType<typeof session>, texts: Record<string, string>
   expect(diagnostics(s.program)).toEqual(diagnostics(coldProgram));
 };
 
+const expectReadersResolvedAgain = (s: ReturnType<typeof session>, name: string) => {
+  const resolver: InstanceType<typeof ProgramResolver> = (s.compiler as any).programResolver;
+  const readers = ((resolver as any)._order as any[]).filter((unit) => unit.record?.reads.has(name));
+  expect(readers.length, `a statement reads \`${name}\``).toBeGreaterThan(0);
+  expect(
+    readers.filter((unit) => !unit.fresh).map((unit) => unit.index),
+    `every statement that reads \`${name}\` is resolved again`,
+  ).toEqual([]);
+};
+
 const FILLER = Array.from({ length: 12 }, (_, i) => `A quiet line, number ${i}.`);
 
 describe("an edit that changes what a later statement of the block lowers to", () => {
@@ -836,7 +846,7 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("moved by one compile from a statement above the block that reads it to one below it is declared otherwise, so the block is resolved again, and its program is a cold compile's (#2088)", () => {
+  it("moved by one compile from a statement above the block that reads it to one below it leaves the block resolved again, and its program is a cold compile's (#2088)", () => {
     const s = warmed(
       [
         "scene MAIN",
@@ -864,9 +874,7 @@ describe("a local declaration", () => {
       ["  local here = 2\n", ""],
       ["  Closing line.", "  local here = 2"],
     ]);
-    const resolver: InstanceType<typeof ProgramResolver> = (s.compiler as any).programResolver;
-    expect(resolver.changedNamesLastResolve).toContain("here");
-    expect(resolver.freshLastResolve().map((unit) => unit.reason)).toContain("name here");
+    expectReadersResolvedAgain(s, "here");
     sameAsCold(s);
   });
 
@@ -878,6 +886,97 @@ describe("a local declaration", () => {
     s.edit("store here = 1", "Line last.");
     sameAsCold(s);
     expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier");
+  });
+});
+
+describe("a local moved by one compile across the statements that read it (#2088, I-2080)", () => {
+  const OTHER = "inmemory:///scripts/other.sd";
+  const DECLARED = "  local here = 2";
+  const quiet = (tag: string, n = 12, indent = "  ") =>
+    Array.from({ length: n }, (_, i) => `${indent}${tag}, ${FILLER[i % FILLER.length]}`);
+  const clause = (inner: readonly string[]) => [
+    "  choose",
+    "    + [Go on]",
+    "      You go on.",
+    "    + [Stay]",
+    "      You stay.",
+    "  then",
+    "    Warm line.",
+    ...quiet("Then", 12, "    "),
+    ...inner,
+    ...quiet("Then after", 12, "    "),
+    "  end",
+  ];
+  const script = (reader: readonly string[], above = 12, below: readonly string[] = quiet("Below")) =>
+    [
+      "scene MAIN",
+      "  Opening line.",
+      DECLARED,
+      ...quiet("Above", above),
+      ...reader,
+      ...below,
+      "  Closing line.",
+      "end",
+      "",
+    ].join("\n");
+  const cases: [string, string, Record<string, string>][] = [
+    ["a `then` clause", script(clause(["    Here {here}."])), {}],
+    [
+      "a block nested in a `then` clause",
+      script(
+        clause([
+          "    choose",
+          "      + [Deep]",
+          "        Deeper.",
+          "    then",
+          ...quiet("Nested", 6, "      "),
+          "      Here {here}.",
+          ...quiet("Nested after", 6, "      "),
+          "    end",
+        ]),
+      ),
+      {},
+    ],
+    [
+      "a sibling choice",
+      script([
+        "  choose",
+        "    + [Go on]",
+        "      You go on.",
+        "    + [Stay]",
+        ...quiet("Stay", 8, "      "),
+        "      Here {here}.",
+        ...quiet("Stay after", 8, "      "),
+        "  then",
+        "    Warm line.",
+        ...quiet("Then", 12, "    "),
+        "  end",
+      ]),
+      {},
+    ],
+    ["a statement of the flow far from both changes", script(["  Here {here}."], 30, [...quiet("Below", 30), ...clause([])]), {}],
+    [
+      "a `then` clause, with another script reading the name",
+      script(clause(["    Here {here}."])),
+      { [OTHER]: ["scene OTHER", "  Other opening.", "  Other {here}.", "end", ""].join("\n") },
+    ],
+  ];
+
+  it.each(cases)("down past %s is resolved again where it is read, and both moves compile to a cold program", (_, text, others) => {
+    const s = session({ [MAIN_URI]: text, ...others });
+    s.edit("Warm line.", "Warm line!");
+    s.editAll([
+      [`${DECLARED}\n`, ""],
+      ["  Closing line.", DECLARED],
+    ]);
+    expectReadersResolvedAgain(s, "here");
+    sameAsCold(s, others);
+    s.editAll([
+      [DECLARED, "  Closing line."],
+      ["  Opening line.\n", `  Opening line.\n${DECLARED}\n`],
+    ]);
+    expectReadersResolvedAgain(s, "here");
+    sameAsCold(s, others);
   });
 });
 
