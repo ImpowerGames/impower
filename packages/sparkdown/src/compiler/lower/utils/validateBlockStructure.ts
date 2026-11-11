@@ -1,3 +1,4 @@
+import type { SyntaxNode } from "@lezer/common";
 import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../runtime/Error";
@@ -5,7 +6,6 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { LowerContext } from "../context";
 import { keywordBraceBody, keywordWithBody } from "../../utils/braceBlocks";
-import { findChildByName } from "./alternatorArms";
 import { blockIsClosed, blockOpenBrace } from "./structBodyEntries";
 import { capitalizedArticle, lineTextSpan, makeSource } from "./validateDefineStructure";
 
@@ -19,25 +19,13 @@ const BRACE_HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> =
   LuauMorph: "`morph NAME [as PARENT] {`",
 };
 
-function blockEnd(node: GrammarSyntaxNode<SparkdownNodeName>) {
-  switch (node.name) {
-    case "LuauStyle":
-      return findChildByName(node, "LuauStyle_end");
-    case "LuauLayout":
-      return findChildByName(node, "LuauLayout_end");
-    case "LuauScreen":
-      return findChildByName(node, "LuauScreen_end");
-    case "LuauComponent":
-      return findChildByName(node, "LuauComponent_end");
-    case "LuauAnimation":
-      return findChildByName(node, "LuauAnimation_end");
-    case "LuauTheme":
-      return findChildByName(node, "LuauTheme_end");
-    case "LuauMorph":
-      return findChildByName(node, "LuauMorph_end");
-    default:
-      return null;
+function skippedBefore(node: SyntaxNode, before: number): SyntaxNode | null {
+  for (let child = node.firstChild; child && child.from < before; child = child.nextSibling) {
+    if (child.type.isError && child.to > child.from) return child;
+    const inner = skippedBefore(child, before);
+    if (inner) return inner;
   }
+  return null;
 }
 
 function structBodyInBracesMessage(keyword: string): string {
@@ -59,20 +47,18 @@ export function validateBlockStructure(
     source: makeSource(headerLine.from, headerLine.to, ctx),
   });
   const braceBody = keywordBraceBody(node);
+  const skipped = skippedBefore(node, Math.min(braceBody?.from ?? headerLine.to, headerLine.to));
+  const readable = skipped && lineTextSpan(node.from, skipped.from, ctx);
+  if (readable && !keywordWithBody(node)) {
+    return [
+      {
+        message: `This ${keyword} header cannot be read past \`${readable.text}\`. A ${keyword} header is ${form}, with names that use only A–Z, a–z, 0–9 and \`_\` and start with a letter or \`_\`; its body goes inside the braces.`,
+        severity: ErrorType.Error,
+        source: makeSource(readable.from, readable.to, ctx),
+      },
+    ];
+  }
   if (!braceBody) {
-    const stopped =
-      !blockEnd(node) && !!findChildByName(node, "ERROR_INCOMPLETE");
-    if (
-      stopped &&
-      !keywordWithBody(node) &&
-      ctx.lineNumber(node.to) === ctx.lineNumber(headerLine.from)
-    ) {
-      return [
-        error(
-          `This ${keyword} header cannot be read past \`${headerLine.text}\`. A ${keyword} header is ${form}, with names that use only A–Z, a–z, 0–9 and \`_\` and start with a letter or \`_\`; its body goes inside the braces.`,
-        ),
-      ];
-    }
     if (!getDescendent("LuauDefineName", node)) return [];
     return [error(structBodyInBracesMessage(keyword))];
   }
@@ -89,14 +75,6 @@ export function validateBlockStructure(
     });
   }
   if (blockIsClosed(braceBody)) return diagnostics;
-  if (findChildByName(braceBody, "ERROR_INCOMPLETE")) {
-    diagnostics.push(
-      error(
-        `This ${keyword} is missing its closing \`}\`: it stops at a line its body cannot read, and the lines from there on are read outside the ${keyword}.`,
-      ),
-    );
-    return diagnostics;
-  }
   const closers =
     braceBody.name === "LuauSparkleBraceBody"
       ? "`end`, `else`, `elseif` or `case`"

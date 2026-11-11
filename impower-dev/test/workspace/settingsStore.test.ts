@@ -376,6 +376,8 @@ const zipHarness = (initial: Record<string, string>) => {
     writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
+    isStored: (WorkspaceFileSystem.prototype as any).isStored,
+    storedFiles: (WorkspaceFileSystem.prototype as any).storedFiles,
     _unstoredUris: new Set<string>(),
     zipFiles: async ({
       files: list,
@@ -497,7 +499,7 @@ describe(".vscode/settings.json", () => {
       ]),
     ).buffer as ArrayBuffer;
 
-    const imported = await harness.writeProjectZip(zip);
+    const { settingsJson: imported } = await harness.writeProjectZip(zip);
 
     expect(harness.paths()).toEqual(["main.sd"]);
     expect(dec.decode(harness.opfs.get(`file:///${PROJECT}/main.sd`))).toBe(
@@ -527,7 +529,7 @@ describe(".vscode/settings.json", () => {
     const zip = await harness.readProjectZip(
       projectSettingsJson({ ...defaultsOf(), ...changed }, defaults),
     );
-    const imported = await zipHarness({}).writeProjectZip(zip);
+    const { settingsJson: imported } = await zipHarness({}).writeProjectZip(zip);
     expect(projectSettingsFromJson(imported!)).toEqual(changed);
   });
 

@@ -58,6 +58,8 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
+    isStored: (WorkspaceFileSystem.prototype as any).isStored,
+    storedFiles: (WorkspaceFileSystem.prototype as any).storedFiles,
 
     _unstoredUris: new Set<string>(),
     zipFiles: async ({

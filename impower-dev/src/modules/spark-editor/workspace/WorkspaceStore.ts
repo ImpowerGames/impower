@@ -21,6 +21,7 @@ import type {
 } from "vscode-languageserver-protocol";
 import type { InstallOffer, StorageProbe } from "../utils/storagePersistence";
 import type { ReplaceProjectRequest } from "./replaceProject";
+import { takeImportOutcome } from "./projectImport";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
 import type { ImageSize } from "../utils/imageSize";
@@ -184,8 +185,15 @@ export const savedWorkspaceState = (): WorkspaceCache => {
   return cacheableWorkspaceState(JSON.parse(saved) as WorkspaceCache);
 };
 
+const withKeptImportOutcome = (state: WorkspaceCache): WorkspaceCache => {
+  const importOutcome = takeImportOutcome();
+  return importOutcome
+    ? { ...state, sync: { ...state.sync, importOutcome } }
+    : state;
+};
+
 class WorkspaceStore {
-  readonly state = signal<WorkspaceCache>(savedWorkspaceState());
+  readonly state = signal<WorkspaceCache>(withKeptImportOutcome(savedWorkspaceState()));
 
   readonly account = signal<AccountInfo | null>(null);
 
@@ -267,6 +275,7 @@ class WorkspaceStore {
     pane: computed(() => this.state.value.pane ?? "logic"),
     projectId: computed(() => this.state.value.project?.id ?? ""),
     syncStatus: computed(() => this.state.value.sync?.status),
+    importOutcome: computed(() => this.state.value.sync?.importOutcome),
     account: computed<AccountInfo | null>(() => {
       const info = this.account.value;
       return info && info.uid && info.consented ? info : null;

@@ -129,6 +129,7 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
+import { beatDrawing } from "../utils/beatDrawing";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -429,6 +430,11 @@ export class Game<T extends M = {}> {
   protected _awaiting: ScriptLocation | null = null;
 
   protected _shownBeatOnScreen?: Instructions;
+  get shownBeatOnScreen() {
+    return this._shownBeatOnScreen;
+  }
+
+  protected _redelivers?: Instructions;
 
   protected _sceneSaveDue: string | null = null;
 
@@ -795,6 +801,7 @@ export class Game<T extends M = {}> {
     });
 
     this._restarted = options?.restarted ?? false;
+    this._redelivers = options?.redelivers;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -3787,7 +3794,7 @@ export class Game<T extends M = {}> {
   protected showBeat(instructions: Instructions | null, settled: boolean) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
-      this._coordinator = new Coordinator(this, instructions, {
+      this._coordinator = new Coordinator(this, this.toDraw(instructions), {
         settled: settled ? "presented" : undefined,
       });
       if (this._simulation !== "simulating") {
@@ -3824,6 +3831,15 @@ export class Game<T extends M = {}> {
     if (ending) {
       this.endStory(ending);
     }
+  }
+
+  protected toDraw(beat: Instructions): Instructions {
+    if (this._simulation === "simulating") {
+      return beat;
+    }
+    const onScreen = this._redelivers;
+    this._redelivers = undefined;
+    return beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen);
   }
 
   protected presentsAtStop(): boolean {

@@ -33,8 +33,11 @@ describe("the two reassignment rules", () => {
     expect(luau.patterns!.map((p) => p.include)).toContain("#LuauAssignmentOperation");
   });
 
-  test("share their end, except the Luau rule's line-start statement end", () => {
-    expect(luau.end!.startsWith(`${narrative.end!}|(?<=^`)).toBe(true);
+  test("share their end, except the Luau rule's line-start statement end and the narrative rule's stop before an `&`", () => {
+    const statementMarkStop = "|(?=(?:[^\\S\\n\\r])*[&])";
+    expect(narrative.end!.endsWith(statementMarkStop)).toBe(true);
+    expect(luau.end!).not.toContain(statementMarkStop);
+    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -statementMarkStop.length)}|(?<=^`)).toBe(true);
   });
 });
 

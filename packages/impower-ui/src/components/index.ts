@@ -352,6 +352,8 @@ export {
 export {
   default as Tile,
   tileVariants,
+  tileOpenVariants,
+  tileMarkVariants,
   tileMediaVariants,
   tileLabelVariants,
   tileHeight,
@@ -360,6 +362,7 @@ export {
   type TileProps,
   type TileShape,
   type TileKind,
+  type TileSelection,
 } from "./tile/Tile";
 export {
   default as ZoomFrame,

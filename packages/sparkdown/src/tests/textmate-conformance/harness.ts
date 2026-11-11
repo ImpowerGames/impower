@@ -51,7 +51,6 @@ interface OurToken {
   scopes: string[];
 }
 
-const UNRECOGNIZED_ID = 2;
 const INCOMPLETE_ID = 3;
 
 function buildScopeMap(parser: any): Map<number, string> {
@@ -89,7 +88,7 @@ function flatten(
     if (++visits > 500000) {
       throw new Error("node blowup (pathological grammar)");
     }
-    if (node.type.id === UNRECOGNIZED_ID || node.type.id === INCOMPLETE_ID) {
+    if (node.type.id === INCOMPLETE_ID) {
       hasErrors = true;
     }
     const sc = scopeMap.get(node.type.id);

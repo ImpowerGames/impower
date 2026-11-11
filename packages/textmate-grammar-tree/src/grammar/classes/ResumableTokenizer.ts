@@ -9,12 +9,10 @@ import { type Rule } from "../types/Rule";
 import { Grammar } from "./Grammar";
 import { type GrammarNode } from "./GrammarNode";
 import { type CallFrame, GrammarState } from "./GrammarState";
-import { Matched } from "./Matched";
+import { type Matched } from "./Matched";
 import { MatchRule } from "./rules/MatchRule";
 import { ScopedRule } from "./rules/ScopedRule";
 import { SwitchRule } from "./rules/SwitchRule";
-
-const EMPTY_MATCH_LIMIT = 10;
 
 const EMPTY_STEP_LIMIT = 100;
 
@@ -23,11 +21,13 @@ interface TokenizerFrame {
 
   openedAt: number;
 
+  enteredAt: number;
+
   contentNodeIndex: number;
 
   contentOpened: boolean;
 
-  emptyMatchCount: number;
+  contentDropped: boolean;
 
   wrapperNodes?: number[];
 }
@@ -41,9 +41,10 @@ export interface TokenizerResume {
   frames: {
     rule: ScopedRule;
     openedAtAbs: number;
+    enteredAtAbs: number;
     contentNodeIndex: number;
     contentOpened: boolean;
-    emptyMatchCount: number;
+    contentDropped: boolean;
     wrapperNodes?: number[];
   }[];
 }
@@ -101,6 +102,8 @@ export class ResumableTokenizer {
 
   protected stoppedAtRoot = false;
 
+  protected retryingLineEnd = false;
+
   emitSplitSignals = false;
 
   constructor(
@@ -155,6 +158,7 @@ export class ResumableTokenizer {
     this.rootRules = rules;
     this.tokenizesCapture = true;
     this.stoppedAtRoot = false;
+    this.retryingLineEnd = false;
     this.emitSplitSignals = false;
     this._stepTokens.length = 0;
     this.state.resetToLine(text, offset, enclosing);
@@ -243,7 +247,11 @@ export class ResumableTokenizer {
             t[3].unshift(openChain[j]!);
           }
         }
-        if (contentOf && !contentOf.contentOpened) {
+        if (
+          contentOf &&
+          !contentOf.contentOpened &&
+          !contentOf.contentDropped
+        ) {
           t[3] ??= [];
           t[3].unshift(contentOf.contentNodeIndex);
           contentOf.contentOpened = true;
@@ -253,10 +261,57 @@ export class ResumableTokenizer {
     }
   }
 
+  protected skipGap(out: GrammarToken[], frame: TokenizerFrame) {
+    const from = this.pos;
+    let str = this.state.str;
+    const c = str.charCodeAt(from);
+    let to = from + 1;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      if (to >= str.length) {
+        this.state.advance();
+        str = this.state.str;
+      }
+      const low = str.charCodeAt(to);
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        to++;
+      }
+    }
+    this.pos = to;
+    if (c === 10 || c === 13) {
+      this.emitBatch(out, [[null, from, to]], frame);
+      return;
+    }
+    const pending = this.pending;
+    if (
+      pending &&
+      pending[0] === NodeID.unrecognized &&
+      pending[2] === this.anchor + from &&
+      !pending[4]
+    ) {
+      pending[2] = this.anchor + to;
+      return;
+    }
+    this.emitBatch(out, [[NodeID.unrecognized, from, to]], frame);
+  }
+
+  protected forgetLineEntries() {
+    for (let i = 0; i < this.frames.length; i++) {
+      this.frames[i]!.enteredAt = -1;
+    }
+  }
+
+  protected dropContent(frame: TokenizerFrame) {
+    if (frame.contentDropped || !frame.rule.contentRule.node.props["name"]) {
+      return;
+    }
+    this.closeContentWrapper(frame);
+    frame.contentDropped = true;
+  }
+
   protected isOpenedAt(rule: ScopedRule, pos: number) {
     for (let i = this.frames.length - 1; i >= 0; i--) {
       const frame = this.frames[i]!;
-      if (frame.openedAt !== pos) {
+      if (frame.enteredAt !== pos) {
         return false;
       }
       if (frame.rule === rule) {
@@ -339,15 +394,16 @@ export class ResumableTokenizer {
     this.frames.push({
       rule: result.rule,
       openedAt: dispatchPos,
+      enteredAt: dispatchPos,
       contentNodeIndex: result.rule.contentRule.node.typeIndex,
       contentOpened: false,
-      emptyMatchCount: 0,
+      contentDropped: false,
       wrapperNodes: result.chain.length > 0 ? result.chain : undefined,
     });
   }
 
   protected closeContentWrapper(frame: TokenizerFrame) {
-    if (frame.contentOpened && this.pending) {
+    if (frame.contentOpened && !frame.contentDropped && this.pending) {
       this.pending[4] ??= [];
       this.pending[4].push(frame.contentNodeIndex);
     }
@@ -359,41 +415,19 @@ export class ResumableTokenizer {
     return frame;
   }
 
-  protected updateParentCounter(
-    out: GrammarToken[],
-    closedFrame: TokenizerFrame,
-    allowLimitClose: boolean,
-  ) {
-    const parent = this.frames[this.frames.length - 1];
-    if (!parent) {
-      return;
-    }
-    const scopeLength = this.pos - closedFrame.openedAt;
-    if (scopeLength === 0) {
-      parent.emptyMatchCount++;
-      if (allowLimitClose && parent.emptyMatchCount >= EMPTY_MATCH_LIMIT) {
-        console.warn(
-          `[ScopedRule:${parent.rule.id}] Too many consecutive empty matches at pos=${this.absolutePos}. Possible infinite loop!`,
-        );
-        this.closeWithoutEnd(out, false);
-      }
-    } else {
-      parent.emptyMatchCount = 0;
-    }
-  }
-
-  protected tryEnd(out: GrammarToken[], allowLimitClose = true): boolean {
+  protected tryEnd(out: GrammarToken[], mayStop = true): boolean {
     const frame = this.frames[this.frames.length - 1]!;
     const ending = frame.rule.matchEnd(this.state, this.pos);
     if (!ending) {
       return false;
     }
     if (
-      this.tokenizesCapture &&
+      mayStop &&
       ending.length === 0 &&
-      frame.openedAt === this.pos &&
+      frame.enteredAt === this.pos &&
       this.pos < this.state.str.length
     ) {
+      this.dropContent(frame);
       this.stopLine(out);
       return true;
     }
@@ -408,21 +442,12 @@ export class ResumableTokenizer {
     }
     this.popFrame();
     this.pos += endMatched.length;
-    this.updateParentCounter(out, frame, allowLimitClose);
     return true;
   }
 
-  protected closeWithoutEnd(out: GrammarToken[], clean: boolean) {
+  protected closeWithoutEnd() {
     const frame = this.frames[this.frames.length - 1]!;
     this.closeContentWrapper(frame);
-    if (!clean) {
-      const incompleteMarker = Matched.create(
-        this.grammar.nodes[NodeID.incomplete]!,
-        this.pos,
-        0,
-      );
-      this.emitBatch(out, incompleteMarker.compile(), null);
-    }
     if (this.pending) {
       this.pending[4] ??= [];
       this.pending[4].push(frame.rule.node.typeIndex);
@@ -434,7 +459,6 @@ export class ResumableTokenizer {
     }
     this.state.popScope(this.pos);
     this.popFrame();
-    this.updateParentCounter(out, frame, !clean);
   }
 
   protected tryContent(out: GrammarToken[]): boolean {
@@ -455,11 +479,10 @@ export class ResumableTokenizer {
     if (result.kind === "leaf") {
       this.emitBatch(out, result.matched.compile(), frame);
       if (result.matched.length === 0) {
-        this.closeWithoutEnd(out, true);
+        this.closeWithoutEnd();
         this.stopLine(out);
         return true;
       }
-      frame.emptyMatchCount = 0;
       this.pos += result.matched.length;
       return true;
     }
@@ -486,12 +509,17 @@ export class ResumableTokenizer {
       return result;
     }
     if (
-      this.tokenizesCapture &&
       result.kind === "leaf" &&
       result.matched.length === 0 &&
-      this.pos < this.state.str.length
+      this.pos < this.state.str.length &&
+      !this.retryingLineEnd
     ) {
-      this.stoppedAtRoot = true;
+      if (this.tokenizesCapture) {
+        this.stoppedAtRoot = true;
+        return result;
+      }
+      this.emitBatch(out, result.matched.compile(), null);
+      this.stopLine(out);
       return result;
     }
     this.emitBatch(
@@ -520,7 +548,7 @@ export class ResumableTokenizer {
     out: GrammarToken[],
     frame: TokenizerFrame,
   ): boolean | null {
-    if (frame.openedAt === this.pos) {
+    if (frame.enteredAt === this.pos) {
       return frame.rule.endsAt(this.state, this.pos) ? false : null;
     }
     return this.tryEnd(out, false) ? true : null;
@@ -552,7 +580,7 @@ export class ResumableTokenizer {
     }
     if (result) {
       this.emitBatch(out, result.matched.compile(), frame);
-      this.closeWithoutEnd(out, true);
+      this.closeWithoutEnd();
       return false;
     }
     if (rule.applyEndPatternLast) {
@@ -564,11 +592,14 @@ export class ResumableTokenizer {
   protected retryAtLineEnd(out: GrammarToken[]) {
     const pending = this.pending;
     this.state.exhaustLineAt(this.pos);
+    this.retryingLineEnd = true;
     let retrying = true;
     while (retrying) {
       retrying = this.retryOnceAtLineEnd(out);
     }
+    this.retryingLineEnd = false;
     this.state.exhaustLineAt(-1);
+    this.forgetLineEntries();
     if (this.pending !== pending) {
       this.emittedAtLineStart = this.pos;
     }
@@ -588,9 +619,10 @@ export class ResumableTokenizer {
       frames: this.frames.map((f) => ({
         rule: f.rule,
         openedAtAbs: this.anchor + f.openedAt,
+        enteredAtAbs: f.enteredAt < 0 ? -1 : this.anchor + f.enteredAt,
         contentNodeIndex: f.contentNodeIndex,
         contentOpened: f.contentOpened,
-        emptyMatchCount: f.emptyMatchCount,
+        contentDropped: f.contentDropped,
         wrapperNodes: f.wrapperNodes?.slice(),
       })),
     };
@@ -613,9 +645,10 @@ export class ResumableTokenizer {
       this.frames.push({
         rule: f.rule,
         openedAt,
+        enteredAt: f.enteredAtAbs < 0 ? -1 : f.enteredAtAbs - this.anchor,
         contentNodeIndex: f.contentNodeIndex,
         contentOpened: f.contentOpened,
-        emptyMatchCount: f.emptyMatchCount,
+        contentDropped: f.contentDropped,
         wrapperNodes: f.wrapperNodes?.slice(),
       });
       this.state.enter(f.rule.id, openedAt, true);
@@ -677,6 +710,7 @@ export class ResumableTokenizer {
     if (frame && this.pos > from) {
       this.emitBatch(out, [[null, from, this.pos]], frame);
     }
+    this.forgetLineEntries();
   }
 
   step(): TokenizerStepResult {
@@ -704,7 +738,7 @@ export class ResumableTokenizer {
     if (!this.ensureText()) {
       if (this.frames.length > 0) {
         if (!this.tryEnd(out, false)) {
-          this.closeWithoutEnd(out, true);
+          this.closeWithoutEnd();
         }
         return this.finishStep(this.pos - posBefore, false);
       }
@@ -739,7 +773,7 @@ export class ResumableTokenizer {
       if (applyEndPatternLast && this.tryEnd(out)) {
         return this.finishStep(this.pos - posBefore, false, splitAt);
       }
-      this.closeWithoutEnd(out, false);
+      this.skipGap(out, frame);
       return this.finishStep(this.pos - posBefore, false, splitAt);
     }
 
@@ -801,7 +835,12 @@ export class ResumableTokenizer {
       if (a.contentOpened !== b.contentOpened) {
         return false;
       }
-      if (a.emptyMatchCount !== b.emptyMatchCount) {
+      if (a.contentDropped !== b.contentDropped) {
+        return false;
+      }
+      if (
+        (a.enteredAt < 0 ? -1 : this.anchor + a.enteredAt) !== b.enteredAtAbs
+      ) {
         return false;
       }
       const aw = a.wrapperNodes;
@@ -826,7 +865,10 @@ export class ResumableTokenizer {
 
   frameGroupSizes(): number[] {
     return this.frames.map(
-      (f) => (f.wrapperNodes?.length ?? 0) + 1 + (f.contentOpened ? 1 : 0),
+      (f) =>
+        (f.wrapperNodes?.length ?? 0) +
+        1 +
+        (f.contentOpened && !f.contentDropped ? 1 : 0),
     );
   }
 
