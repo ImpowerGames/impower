@@ -48,7 +48,11 @@ export default class ScreenplayParser {
     const read = (from: number, to: number) => script.slice(from, to);
     let leading = false;
     const readWords = (node: SyntaxNode): string => {
-      const text = readSkipping(node, read, (child) => child.name === "Glue");
+      const text = readSkipping(
+        node,
+        read,
+        (child) => child.name === "Glue" || child.name === "SparkdownBlockComment",
+      );
       if (leading) {
         leading = false;
         return text.trimStart();
