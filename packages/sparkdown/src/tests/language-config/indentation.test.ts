@@ -62,6 +62,8 @@ describe.each([
         "  if s == [[a--b]] then",
         "  if s == [=[a]]--b]=] then",
         "  if s == [==[a//b]==] then",
+        "  if s == `{`a--b`}` then",
+        '  if s == `{"a}--"}` then',
       ]) {
         expect(increase.test(line), line).toBe(true);
       }
