@@ -93,6 +93,7 @@ import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
+import type { Delivery } from "@impower/spark-engine/src/game/core/utils/beatDrawing";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -2682,6 +2683,7 @@ export class GamePlayerController {
   protected async startPlay(
     restarted?: boolean,
     startFrom?: { file: string; line: number },
+    delivery?: Delivery,
   ): Promise<PlayOutcome> {
     if (this._disposed) {
       return { started: false };
@@ -2734,6 +2736,7 @@ export class GamePlayerController {
       restarted,
       refused,
       startFrom,
+      delivery,
     );
     if (refused.refusal) {
       if (plays === this._plays) {
@@ -2764,6 +2767,7 @@ export class GamePlayerController {
     refused?: { refusal?: string },
     startFrom: { file: string; line: number } | undefined = this._options
       ?.startFrom ?? undefined,
+    delivery?: Delivery,
   ): Promise<boolean> {
     const save = this._playSave;
     this._playSave = undefined;
@@ -2805,6 +2809,7 @@ export class GamePlayerController {
         program: programIdentity(program)!,
         startFrom,
         restarted,
+        ...(delivery ? { delivery } : {}),
         ...(save !== undefined ? { save } : {}),
       });
       play.run = built.run;
@@ -3192,7 +3197,10 @@ export class GamePlayerController {
     return (await this.restartPlay(fromRunStart)).started;
   }
 
-  protected async restartPlay(fromRunStart = false): Promise<PlayOutcome> {
+  protected async restartPlay(
+    fromRunStart = false,
+    delivery?: Delivery,
+  ): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
     const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
@@ -3205,7 +3213,7 @@ export class GamePlayerController {
     }
     this._playSave = save;
     const restarted = plays + 1;
-    const outcome = await this.startPlay(true, startFrom);
+    const outcome = await this.startPlay(true, startFrom, delivery);
     if (
       stops === this._stops &&
       restarted === this._plays &&
@@ -3258,7 +3266,10 @@ export class GamePlayerController {
     this.cancelScheduledRestart();
     this._restartGameTimeout = setTimeout(async () => {
       this._restartGameTimeout = undefined;
-      if (this.playing && (await this.restartGame())) {
+      if (
+        this.playing &&
+        (await this.restartPlay(false, "redelivery")).started
+      ) {
         sendProtocolMessage(
           GameReloadedMessage.type.notification({}),
           this.host,

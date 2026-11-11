@@ -129,6 +129,7 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
+import { beatDrawing, drawsSettled } from "../utils/beatDrawing";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -270,13 +271,6 @@ const sameLocation = (
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
 
-const drawsSettled = (beat: Instructions): boolean =>
-  !beat.load?.length &&
-  !beat.cutscene?.length &&
-  Object.values(beat.image ?? {}).every((events) => events.length === 0) &&
-  Object.entries(beat.audio ?? {}).every(
-    ([target, events]) => target === "typewriter" || events.length === 0,
-  );
 
 interface Stage {
   text: string[];
@@ -427,6 +421,11 @@ export class Game<T extends M = {}> {
   protected _awaiting: ScriptLocation | null = null;
 
   protected _shownBeatOnScreen?: Instructions;
+  get shownBeatOnScreen() {
+    return this._shownBeatOnScreen;
+  }
+
+  protected _redelivers?: Instructions;
 
   protected _sceneSaveDue: string | null = null;
 
@@ -791,6 +790,7 @@ export class Game<T extends M = {}> {
     });
 
     this._restarted = options?.restarted ?? false;
+    this._redelivers = options?.redelivers;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -3722,8 +3722,9 @@ export class Game<T extends M = {}> {
   protected showBeat(instructions: Instructions | null, settled: boolean) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
+      const redelivered = this.redelivered(instructions);
       this._coordinator = new Coordinator(this, instructions, {
-        settled: settled ? "presented" : undefined,
+        settled: settled || redelivered ? "presented" : undefined,
       });
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
@@ -3759,6 +3760,18 @@ export class Game<T extends M = {}> {
     if (ending) {
       this.endStory(ending);
     }
+  }
+
+  protected redelivered(beat: Instructions): boolean {
+    if (this._simulation === "simulating") {
+      return false;
+    }
+    const onScreen = this._redelivers;
+    this._redelivers = undefined;
+    return (
+      beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen) ===
+      "settled"
+    );
   }
 
   protected presentsAtStop(): boolean {
