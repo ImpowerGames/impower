@@ -588,6 +588,19 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/ZADIE@night.png`].sort());
   });
 
+  it("refuses a dotted name for a stacked picture, so every rename it accepts can be undone", async () => {
+    const h = await harness(project());
+    await expect(h.assets.rename(STACK[0]!, "zadie.v2")).rejects.toThrow(
+      "Use a name without a dot for a picture with alternates or layers.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+    expect(h.history.canUndo.value).toBe(false);
+    await h.assets.rename(STACK[0]!, "zadie");
+    expect(await h.history.undo()).toBe(true);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
   it("renames a lone alternate or layer as the thing it is, keeping its @ or ~ part", async () => {
     const h = await harness({
       "main.sd": lines("scene start", "  [[show portrait imani]]", "end"),

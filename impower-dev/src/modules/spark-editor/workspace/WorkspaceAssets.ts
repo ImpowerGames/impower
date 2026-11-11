@@ -347,6 +347,9 @@ export default class WorkspaceAssets {
     if (/[@~]/.test(own ?? typed)) {
       throw new NameError("Use a name without @ or ~. They mark a picture's alternates and layers.");
     }
+    if (!plain && typed.includes(".")) {
+      throw new NameError("Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.");
+    }
     const moves: FileMove[] = members
       .map((from) => ({
         from,
