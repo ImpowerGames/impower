@@ -2,13 +2,13 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
+import { pageKey } from "../utils/pageKey";
 import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 import {
   InteractiveFictionPresenter,
-  pageKey,
   textstreamOpenAfter,
 } from "./presenters/InteractiveFictionPresenter";
 import type { PresentOptions, Presenter } from "./presenters/Presenter";

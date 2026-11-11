@@ -5,6 +5,7 @@ import type {
 } from "../../../modules/ui/types/PageState";
 import type { TextInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
+import { pageKey } from "../../utils/pageKey";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
 import { clearStage, writeStage } from "./stage";
@@ -25,11 +26,6 @@ const LINE_KINDS: Record<string, PageEntry["kind"]> = {
 };
 
 export const TEXTSTREAM_LAYOUT = "textstream";
-
-export function pageKey(instructions: Instructions): string {
-  const { hold, ...beat } = instructions;
-  return JSON.stringify(beat);
-}
 
 export function textstreamOpenAfter(
   game: Game,
