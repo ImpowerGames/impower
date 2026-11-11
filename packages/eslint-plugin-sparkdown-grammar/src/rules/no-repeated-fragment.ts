@@ -26,11 +26,12 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     const bySite = new Map<PatternSite, RegexGroup[]>();
     const byText = new Map<string, Occurrence[]>();
-    for (const site of index.patternSites) {
+    const local = new Set(index.patternSites);
+    for (const site of index.grammar.patternSites) {
       const groups = regexGroups(site.source).filter(
         (g) => g.kind === "non-capturing" && g.text.length >= MIN_LENGTH,
       );
-      bySite.set(site, groups);
+      if (local.has(site)) bySite.set(site, groups);
       for (const group of groups) {
         const list = byText.get(group.text) ?? [];
         list.push({ site, group });

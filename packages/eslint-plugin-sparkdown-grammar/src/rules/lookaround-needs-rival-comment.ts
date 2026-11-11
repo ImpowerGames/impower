@@ -47,7 +47,7 @@ function namesExisting(
   for (const line of comment) {
     for (const word of line.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
       if (word === ownerName) continue;
-      if (index.rules.has(word) || index.variables.has(word)) return true;
+      if (index.grammar.rules.has(word) || index.grammar.variables.has(word)) return true;
     }
   }
   return false;

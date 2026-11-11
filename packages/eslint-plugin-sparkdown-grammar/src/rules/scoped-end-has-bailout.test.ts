@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { grammar, lintRule } from "../utils/lint-fixture.ts";
+import { grammar, lintRule, readGrammarSource } from "../utils/lint-fixture.ts";
 
 const lines = (source: string) =>
   lintRule(source, "scoped-end-has-bailout").map((m) => m.line);
@@ -131,10 +130,7 @@ ContradictedBeat:
 
 test("the grammar's own BEAT is probed as written", () => {
   const source =
-    readFileSync(
-      new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
-      "utf8",
-    ) +
+    readGrammarSource("story") +
     String.raw`  ProbePlainBeat:
     begin: "[(]"
     end: (?={{BEAT}})|([)])
@@ -148,7 +144,7 @@ test("the grammar's own BEAT is probed as written", () => {
     begin: "[(]"
     end: (?={{BEAT}})(?!{{BEAT}})|((?:scene|branch)[ ]+\W)
 `;
-  const names = lintRule(source, "scoped-end-has-bailout")
+  const names = lintRule(source, "scoped-end-has-bailout", {}, "story")
     .map((m) => m.message.match(/`end:` of (\w+)/)?.[1] ?? m.message)
     .filter((name) => name.startsWith("Probe"));
   assert.deepEqual(names, [

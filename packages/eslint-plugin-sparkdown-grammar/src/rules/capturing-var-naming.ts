@@ -1,4 +1,5 @@
 import type { Rule } from "eslint";
+import { getGrammarIndex } from "../utils/grammar-index.ts";
 import {
   isMapping,
   isScalar,
@@ -57,9 +58,9 @@ function countCapturingGroups(pattern: string): number {
 
 const TOKEN_REGEX = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-function rawVariables(mapping: YAMLMapping): Map<string, string> {
+function rawVariables(pairs: YAMLPair[]): Map<string, string> {
   const raw = new Map<string, string>();
-  for (const pair of mapping.pairs) {
+  for (const pair of pairs) {
     const name = scalarKey(pair);
     const value = pair.value as YAMLNode | null;
     if (!name) continue;
@@ -138,7 +139,12 @@ const rule: Rule.RuleModule = {
         }
         let cache = resolvedByMapping.get(parent);
         if (!cache) {
-          cache = { raw: rawVariables(parent), memo: new Map() };
+          const index = getGrammarIndex(context);
+          const pairs =
+            index.variables.get(name) === pair
+              ? [...index.grammar.variables.values()]
+              : parent.pairs;
+          cache = { raw: rawVariables(pairs), memo: new Map() };
           resolvedByMapping.set(parent, cache);
         }
         const rawPattern = resolve(name, cache.raw, cache.memo, new Set());

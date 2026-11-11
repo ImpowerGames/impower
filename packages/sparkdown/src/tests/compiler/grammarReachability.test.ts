@@ -1,25 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import YAML from "yaml";
+import { readGrammarSource } from "./grammarSource";
 
-function findUp(rel: string): string {
-  let dir = resolve(process.cwd());
-  for (;;) {
-    const candidate = join(dir, rel);
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) throw new Error(`could not find ${rel}`);
-    dir = parent;
-  }
-}
-
-const SOURCE = YAML.parse(
-  readFileSync(
-    findUp(join("definitions", "yaml", "sparkdown.language-grammar.yaml")),
-    "utf8",
-  ),
-) as {
+const SOURCE = readGrammarSource() as {
   patterns: unknown[];
   luauFile: { rule: string };
   repository: Record<string, unknown>;

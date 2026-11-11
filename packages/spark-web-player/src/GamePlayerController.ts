@@ -692,14 +692,14 @@ export class GamePlayerController {
     sendProtocolMessage(notification, this.host);
   }
 
-  protected updateExecutionLabels(params?: GameExecutedParams) {
+  protected updateExecutionLabels(params?: GameExecutedParams, run: number | null = null) {
     this.updateRoute(params);
     if (!params || (!this._workerGame && !this._workerPlay)) {
       this.updateBar(clearPlayerBarExecution(this._bar));
       return;
     }
     this.updateBar(
-      reducePlayerBar(this._bar, GameExecutedMessage.type.notification(params)),
+      reducePlayerBar(this._bar, GameExecutedMessage.type.notification(params), run),
     );
   }
 
@@ -3401,7 +3401,7 @@ export class GamePlayerController {
     );
     game.connection.outgoing.addListener(GameExecutedMessage.method, (msg) => {
       if (GameExecutedMessage.type.isNotification(msg)) {
-        this.updateExecutionLabels(msg.params);
+        this.updateExecutionLabels(msg.params, this.runOf(owner) ?? null);
         if (this.displayingSpeculative) {
           return;
         }
@@ -3424,6 +3424,7 @@ export class GamePlayerController {
     });
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
+        this.updateBar(reducePlayerBar(this._bar, msg, this.runOf(owner) ?? null));
         sendProtocolMessage(
           GameSteppedMessage.type.notification({
             ...msg.params,
@@ -3436,6 +3437,7 @@ export class GamePlayerController {
     game.connection.outgoing.addListener(GameRolledMessage.method, (msg) => {
       if (GameRolledMessage.type.isNotification(msg)) {
         this.releaseEndedPlay(owner);
+        this.updateBar(reducePlayerBar(this._bar, msg, this.runOf(owner) ?? null));
         sendProtocolMessage(
           GameRolledMessage.type.notification({
             ...msg.params,

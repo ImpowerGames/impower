@@ -1,4 +1,5 @@
 import type { Rule } from "eslint";
+import { getGrammarIndex } from "../utils/grammar-index.ts";
 import {
   findPair,
   getStringValue,
@@ -171,19 +172,17 @@ const rule: Rule.RuleModule = {
   create(context) {
     let effectivelyZW: Set<string> | null = null;
 
-    function ensureComputed(node: YAMLNode | null): void {
+    function ensureComputed(): void {
       if (effectivelyZW !== null) return;
-      let cur: YAMLNode | null = node;
-      while (cur && !(isMapping(cur) && cur.parent?.type === "YAMLDocument")) {
-        cur = cur.parent;
-      }
-      if (!cur || !isMapping(cur)) {
-        effectivelyZW = new Set();
-        return;
-      }
-      const root = cur as YAMLMapping;
-      const variables = resolveVariables(buildVariables(root));
-      const rules = buildRuleMap(root, variables);
+      const roots = getGrammarIndex(context).grammar.documents.flatMap(
+        (document) => (document.root ? [document.root] : []),
+      );
+      const variables = resolveVariables(
+        Object.assign({}, ...roots.map(buildVariables)),
+      );
+      const rules = new Map(
+        roots.flatMap((root) => [...buildRuleMap(root, variables)]),
+      );
       effectivelyZW = computeEffectivelyZeroWidth(rules);
     }
 
@@ -219,7 +218,7 @@ const rule: Rule.RuleModule = {
         const seq = pair.value;
         if (!isSequence(seq)) return;
         if (isCaptureHandlerPatterns(pair)) return;
-        ensureComputed(pair);
+        ensureComputed();
         if (!effectivelyZW || effectivelyZW.size === 0) return;
         for (const entry of (seq as YAMLSequence).entries) {
           if (!isMapping(entry)) continue;
