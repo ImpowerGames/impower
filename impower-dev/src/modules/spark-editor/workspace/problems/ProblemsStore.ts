@@ -1,4 +1,5 @@
 import { layoutState } from "@impower/impower-ui/layout";
+import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { computed, signal } from "@preact/signals";
 import type { Diagnostic } from "vscode-languageserver-protocol";
@@ -13,6 +14,8 @@ import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
 import { showSnackbar } from "../../utils/snackbar";
+import { applyFix, fixKey, type FixChoice } from "./applyFix";
+import { openForFix, openScript, type OpenForFixDeps } from "./openForFix";
 import {
   CONSOLE_SEVERITIES,
   formatConsoleLog,
@@ -61,6 +64,14 @@ export class ProblemsStore {
     Readonly<Record<string, readonly Diagnostic[]>>
   >({});
 
+  readonly versions = signal<Readonly<Record<string, number>>>({});
+
+  readonly fixing = signal<ReadonlySet<string>>(new Set());
+
+  protected readonly _fixes = new Map<string, Promise<boolean>>();
+
+  protected readonly _fixingScripts = new Map<string, Promise<boolean>>();
+
   readonly played = signal<readonly PlayedEntry[]>([]);
 
   readonly run = signal(0);
@@ -79,7 +90,9 @@ export class ProblemsStore {
 
   readonly reveal = signal<{ card: PanelCard; serial: number } | null>(null);
 
-  readonly problems = computed(() => toProblems(this.diagnostics.value));
+  readonly problems = computed(() =>
+    toProblems(this.diagnostics.value, this.versions.value),
+  );
 
   readonly visiblePlayed = computed(() =>
     this.played.value.filter(
@@ -128,6 +141,8 @@ export class ProblemsStore {
 
   protected _openHeight = PANEL_OPEN_HEIGHT;
 
+  protected _leftForScript = false;
+
   protected readonly _playedSources = new Set<PlayedSource>();
 
   protected readonly _panelSources = new Set<PanelSource>();
@@ -137,10 +152,21 @@ export class ProblemsStore {
   record({
     uri,
     diagnostics,
+    version,
   }: {
     uri: string;
     diagnostics: readonly Diagnostic[];
+    version?: number | null;
   }) {
+    if (this.versions.value[uri] !== (version ?? undefined)) {
+      const versions = { ...this.versions.value };
+      if (version == null) {
+        delete versions[uri];
+      } else {
+        versions[uri] = version;
+      }
+      this.versions.value = versions;
+    }
     const next = { ...this.diagnostics.value };
     if (diagnostics.length) {
       next[uri] = diagnostics;
@@ -306,12 +332,19 @@ export class ProblemsStore {
     }
   }
 
+  takeLeftForScript() {
+    const left = this._leftForScript;
+    this._leftForScript = false;
+    return left;
+  }
+
   async jump(target: {
     uri?: string;
     path?: string;
     line: number;
     character?: number;
   }) {
+    this._leftForScript = !!this.dialog.peek();
     this.closeDialog();
     const { Workspace } = await import("../Workspace");
     const uri =
@@ -325,6 +358,61 @@ export class ProblemsStore {
       character: target.character ?? 0,
     };
     await Workspace.window.revealDocument(uri, { start: at, end: at });
+  }
+
+  applyFix(choice: FixChoice): Promise<boolean> {
+    const key = fixKey(choice.fix);
+    const joined = this._fixes.get(key);
+    if (joined) {
+      return joined;
+    }
+    const before = this._fixingScripts.get(choice.fix.uri);
+    const run = (async () => {
+      await before?.catch(() => false);
+      return this.runFix(choice);
+    })();
+    this._fixes.set(key, run);
+    this._fixingScripts.set(choice.fix.uri, run);
+    this.fixing.value = new Set([...this.fixing.value, key]);
+    const settle = () => {
+      this._fixes.delete(key);
+      if (this._fixingScripts.get(choice.fix.uri) === run) {
+        this._fixingScripts.delete(choice.fix.uri);
+      }
+      const next = new Set(this.fixing.value);
+      next.delete(key);
+      this.fixing.value = next;
+    };
+    void run.then(settle, settle);
+    return run;
+  }
+
+  protected async runFix(choice: FixChoice) {
+    const { Workspace } = await import("../Workspace");
+    const opening: OpenForFixDeps = {
+      reveal: (fix) =>
+        this.jump({
+          uri: fix.uri,
+          line: fix.range.start.line + 1,
+          character: fix.range.start.character,
+        }),
+      pull: (uri) => Workspace.ls.pullDiagnostics(uri),
+      record: (pulled) => this.record(pulled),
+    };
+    return applyFix(
+      {
+        openForFix: (fix) => openForFix(opening, fix),
+        openScript: async (fix) => (await openScript(opening, fix)) !== null,
+        recordScriptChange: () => Workspace.window.recordScriptChange(),
+        refreshDiagnostics: async (uri) => {
+          const pulled = await Workspace.ls.pullDiagnostics(uri);
+          if (pulled) {
+            this.record({ uri, ...pulled });
+          }
+        },
+      },
+      choice,
+    );
   }
 
   async goBackToChoice(checkpoint: number) {
@@ -363,6 +451,10 @@ export class ProblemsStore {
   }
 
   receive(message: unknown) {
+    if (ChoseEditorFixMessage.type.isNotification(message)) {
+      void this.applyFix(message.params);
+      return;
+    }
     if (
       RequestedEditorToolMessage.type.isNotification(message) &&
       message.params.tool === "problems"

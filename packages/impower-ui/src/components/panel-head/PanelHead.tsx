@@ -17,7 +17,7 @@ export const panelHeadVariants = cva("flex flex-none items-center gap-1 px-2.5",
   defaultVariants: { size: "default", edge: true },
 });
 
-const titleVariants = cva("m-0 min-w-0 truncate font-semibold text-ink", {
+export const panelHeadTitleVariants = cva("m-0 min-w-0 truncate font-semibold text-ink", {
   variants: {
     titleSize: {
       sm: "text-[14px]/[1.4]",
@@ -28,10 +28,10 @@ const titleVariants = cva("m-0 min-w-0 truncate font-semibold text-ink", {
 });
 
 export type PanelHeadSize = NonNullable<VariantProps<typeof panelHeadVariants>["size"]>;
-export type PanelHeadTitleSize = NonNullable<VariantProps<typeof titleVariants>["titleSize"]>;
+export type PanelHeadTitleSize = NonNullable<VariantProps<typeof panelHeadTitleVariants>["titleSize"]>;
 
 export type PanelHeadProps = VariantProps<typeof panelHeadVariants> &
-  VariantProps<typeof titleVariants> & {
+  VariantProps<typeof panelHeadTitleVariants> & {
     title: ComponentChildren;
     subtitle?: ComponentChildren;
     start?: ComponentChildren;
@@ -53,7 +53,7 @@ export default function PanelHead({
     <header class={cn(panelHeadVariants({ size, edge }), className)} data-panel-head>
       {start}
       <div class="mx-1 flex min-w-0 flex-1 flex-col gap-px">
-        {typeof title === "string" ? <h2 class={titleVariants({ titleSize })}>{title}</h2> : title}
+        {typeof title === "string" ? <h2 class={panelHeadTitleVariants({ titleSize })}>{title}</h2> : title}
         {subtitle ? <small class="truncate text-[11px]/[1.4] text-muted">{subtitle}</small> : null}
       </div>
       {end}

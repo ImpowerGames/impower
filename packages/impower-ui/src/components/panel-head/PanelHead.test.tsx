@@ -1,7 +1,7 @@
 import { render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
-import PanelHead from "./PanelHead";
+import PanelHead, { panelHeadTitleVariants } from "./PanelHead";
 
 let host: HTMLDivElement | undefined;
 
@@ -53,4 +53,17 @@ describe("PanelHead", () => {
     expect(compact.className).toContain("h-11");
     expect(compact.querySelector("h2")!.className).toContain("text-[14px]/[1.4]");
   });
+
+  it.each(["sm", "md"] as const)(
+    "styles a title node of the caller's own exactly as its own %s title",
+    async (titleSize) => {
+      const own = await mount(<PanelHead titleSize={titleSize} title="Search" />);
+      const shared = own.querySelector("h2")!.className;
+      const node = await mount(
+        <PanelHead titleSize={titleSize} title={<h2 data-own class={panelHeadTitleVariants({ titleSize })}>Search</h2>} />,
+      );
+      expect(node.querySelector("[data-own]")!.className).toBe(shared);
+      expect(shared).toContain("text-ink");
+    },
+  );
 });

@@ -6,6 +6,11 @@ import {
   type ConsoleEntry,
   type ConsoleSeverity,
 } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
+import {
+  fixActionsOf,
+  type DiagnosticFixAction,
+} from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
+import { FIX_SNAPSHOT_PROOFS } from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
 import type { ReadonlySignal } from "@preact/signals";
 import type { Diagnostic, Range } from "vscode-languageserver-protocol";
 
@@ -22,7 +27,11 @@ export interface Problem {
   message: string;
   line: number;
   range: Range;
+  version?: number;
+  actions: DiagnosticFixAction[];
 }
+
+export type { DiagnosticFixAction };
 
 export interface PlayedInput extends ConsoleEntry {
   checkpoint?: number;
@@ -130,6 +139,7 @@ const scriptOrder = (a: string, b: string) =>
 
 export function toProblems(
   diagnostics: Readonly<Record<string, readonly Diagnostic[]>>,
+  versions: Readonly<Record<string, number>> = {},
 ): Problem[] {
   const problems: Problem[] = [];
   for (const [uri, list] of Object.entries(diagnostics)) {
@@ -149,6 +159,8 @@ export function toProblems(
         ),
         line: diagnostic.range.start.line + 1,
         range: diagnostic.range,
+        version: versions[uri],
+        actions: fixActionsOf(diagnostic.data),
       });
     });
   }
@@ -205,6 +217,22 @@ export function filterChip(
 }
 
 export const lineLink = (line: number) => `Line ${line}`;
+
+export function fixChoiceOf(problem: Problem, action: DiagnosticFixAction) {
+  const { name, done, expect, kind, changes } = action;
+  return {
+    fix: {
+      uri: problem.uri,
+      version: problem.version,
+      range: problem.range,
+      changes,
+      expect,
+      kind,
+    },
+    name,
+    done,
+  };
+}
 
 export function playedFromRuntimeError(
   params: {
@@ -329,9 +357,27 @@ export type ProblemsScope =
       diagnostics: ReadonlySignal<readonly Diagnostic[]>;
     };
 
+export interface PublishedDiagnostics {
+  diagnostics: Readonly<Record<string, readonly Diagnostic[]>>;
+  versions: Readonly<Record<string, number>>;
+}
+
+const publishedVersion = (
+  uri: string,
+  diagnostics: readonly Diagnostic[],
+  published?: PublishedDiagnostics,
+) =>
+  FIX_SNAPSHOT_PROOFS.outlineScope.holds({
+    row: diagnostics,
+    published: published?.diagnostics[uri] ?? [],
+  })
+    ? published?.versions[uri]
+    : undefined;
+
 export function scopedProblems(
   scope: ProblemsScope,
   all: readonly Problem[],
+  published?: PublishedDiagnostics,
 ): readonly Problem[] {
   if (scope.kind === "story") {
     return all;
@@ -339,7 +385,12 @@ export function scopedProblems(
   if (scope.kind === "script") {
     return all.filter((problem) => problem.path === scope.path);
   }
-  return toProblems({ [scope.uri]: scope.diagnostics.value });
+  const diagnostics = scope.diagnostics.value;
+  const version = publishedVersion(scope.uri, diagnostics, published);
+  return toProblems(
+    { [scope.uri]: diagnostics },
+    version === undefined ? {} : { [scope.uri]: version },
+  );
 }
 
 export function scopeContext(scope: ProblemsScope) {

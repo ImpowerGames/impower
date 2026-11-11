@@ -155,7 +155,7 @@ describe("Dropdown under preact/compat", () => {
 
 const RATIOS = ["auto", "16:9", "9:16"];
 
-const mountRadio = async (value = "auto") => {
+const mountRadio = async (value = "auto", disabled = false) => {
   const onValueChange = vi.fn();
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
@@ -171,7 +171,7 @@ const mountRadio = async (value = "auto") => {
             onValueChange={onValueChange}
           >
             {RATIOS.map((ratio) => (
-              <DropdownRadioItem key={ratio} value={ratio}>
+              <DropdownRadioItem key={ratio} value={ratio} disabled={disabled}>
                 {ratio}
               </DropdownRadioItem>
             ))}
@@ -241,6 +241,39 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(menu()).toBeNull();
     expect(onValueChange).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("keeps disabled rows from choosing in the menu", async () => {
+    const { trigger, onValueChange } = await mountRadio("auto", true);
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(radios().map((item) => item.getAttribute("aria-disabled"))).toEqual([
+      "true",
+      "true",
+      "true",
+    ]);
+    const item = radios()[1]!;
+    await act(async () => item.click());
+    await key(item, "Enter");
+    await settle(250);
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(checked()[0]).toEqual(["auto", "true"]);
+  });
+
+  it("keeps disabled rows from choosing in the phone layout's sheet", async () => {
+    await setPhone(true);
+    const { trigger, onValueChange } = await mountRadio("auto", true);
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(radios().map((item) => (item as HTMLButtonElement).disabled)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    await act(async () => radios()[1]!.click());
+    await settle(300);
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(menu()).not.toBeNull();
   });
 
   it("offers the same rows in the phone layout's sheet", async () => {

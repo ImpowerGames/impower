@@ -104,7 +104,7 @@ describe("ActionSheet under preact/compat", () => {
     expect(items().map((item) => item.textContent)).toEqual(["Copy", "Rename"]);
     expect(card.querySelectorAll('[role="separator"]')).toHaveLength(1);
     expect(items()[1]!.disabled).toBe(true);
-    expect(card.className).toContain("translate-y-0");
+    expect(card.className).toContain("translate-none");
   });
 
   it("runs an item when it is chosen", async () => {

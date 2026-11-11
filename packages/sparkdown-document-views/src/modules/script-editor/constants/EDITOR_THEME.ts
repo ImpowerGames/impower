@@ -396,16 +396,6 @@ const EDITOR_THEME: {
     marginRight: "16px",
     display: "flex",
   },
-  "& .cm-diagnosticAction": {
-    backgroundColor: "transparent",
-    fontWeight: "600",
-    padding: "0",
-    color: "var(--editor-action-ink)",
-    textTransform: "uppercase",
-    fontSize: "0.9375rem",
-    marginLeft: "0",
-    marginRight: "8px",
-  },
   "& .cm-tooltip": {
     backgroundColor: "var(--panel)",
     color: "var(--ink)",

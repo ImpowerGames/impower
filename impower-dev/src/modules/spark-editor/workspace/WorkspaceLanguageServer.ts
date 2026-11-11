@@ -1,5 +1,8 @@
 import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
-import type { DocumentSymbol } from "vscode-languageserver-protocol";
+import type {
+  DocumentDiagnosticReport,
+  DocumentSymbol,
+} from "vscode-languageserver-protocol";
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import {
   InitializeMessage,
@@ -366,6 +369,22 @@ export default class WorkspaceLanguageServer {
         { uri },
       )) ?? []
     );
+  }
+
+  async pullDiagnostics(uri: string) {
+    await this.initialization();
+    const report = await this._connection.sendRequest<DocumentDiagnosticReport | null>(
+      "textDocument/diagnostic",
+      { textDocument: { uri } },
+    );
+    if (report?.kind !== "full") {
+      return null;
+    }
+    const version = Number(report.resultId);
+    return {
+      diagnostics: report.items,
+      version: Number.isInteger(version) && version >= 0 ? version : undefined,
+    };
   }
 
   async getDocumentSymbols(uri: string): Promise<DocumentSymbol[]> {

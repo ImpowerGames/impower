@@ -333,7 +333,10 @@ describe("every rule a grammar with nested repositories builds keeps its own id 
       return name;
     };
     const rule = (depth: number): object => {
-      const kind = pick(depth < 2 ? ["match", "scoped", "owner", "owner"] : ["match", "scoped"]);
+      const kind = pick(depth < 2 ? ["match", "scoped", "nameOnly", "owner", "owner"] : ["match", "scoped", "nameOnly"]);
+      if (kind === "nameOnly") {
+        return { name: named() };
+      }
       if (kind === "match") {
         return {
           name: named(),

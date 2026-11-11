@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Diagnostic } from "vscode-languageserver-protocol";
 
 const {
@@ -66,6 +66,32 @@ describe("the problems model", () => {
     ]);
   });
 
+  it("keeps the fixes the server sent that change the text, with the script's version", () => {
+    const use = {
+      name: "Use alice instead",
+      done: "Changed to alice.",
+      expect: "alcie",
+      kind: "name",
+      changes: [{ from: 5, to: 10, insert: "alice" }],
+    };
+    const add = { name: "Add alcie to assets", done: "Added.", changes: [] };
+    const listed = toProblems(
+      {
+        [MAIN]: [
+          { ...diagnostic(1, 2, "Cannot find alcie"), data: [use, add] },
+          { ...diagnostic(2, 2, "Plain"), data: { closeMatch: {} } },
+          diagnostic(3, 1),
+        ],
+      },
+      { [MAIN]: 7 },
+    );
+    expect(listed.map((p) => [p.actions, p.version])).toEqual([
+      [[use], 7],
+      [[], 7],
+      [[], 7],
+    ]);
+  });
+
   it("counts problems apart from notes in a card's head and names each kind in a summary", () => {
     const listed = toProblems({
       [MAIN]: [diagnostic(1, 1), diagnostic(2, 2), diagnostic(3, 2), diagnostic(4, 3)],
@@ -129,6 +155,59 @@ describe("the problems model", () => {
     expect(scopeContext(setup)).toBe("Script setup");
     rowDiagnostics.value = [];
     expect(scopedProblems(setup, all)).toEqual([]);
+  });
+
+  it("gives an outline row's problems the published version only while the outline holds that publish's diagnostics", () => {
+    const published = [diagnostic(0, 2, "Cannot find alcie"), diagnostic(3, 3)];
+    const row = signal<readonly Diagnostic[]>([published[0]!]);
+    const scope = { kind: "outline" as const, uri: MAIN, label: "start", diagnostics: row };
+    const versions = { [MAIN]: 2 };
+    expect(
+      scopedProblems(scope, [], { diagnostics: { [MAIN]: published }, versions }).map(
+        (p) => p.version,
+      ),
+    ).toEqual([2]);
+    const republished = [diagnostic(0, 2, "Cannot find alcie")];
+    expect(
+      scopedProblems(scope, [], { diagnostics: { [MAIN]: republished }, versions }).map(
+        (p) => p.version,
+      ),
+    ).toEqual([undefined]);
+  });
+
+  it("joins a second choice of the same fix to the first, marks it in flight, and runs a different fix for the script after it", async () => {
+    const runs: { name: string; resolve: (done: boolean) => void }[] = [];
+    const store = problems as unknown as {
+      runFix: (choice: { name: string }) => Promise<boolean>;
+    };
+    const runFix = vi.spyOn(store, "runFix").mockImplementation(
+      (choice) => new Promise((resolve) => runs.push({ name: choice.name, resolve })),
+    );
+    const choice = (name: string, from: number) => ({
+      fix: {
+        uri: MAIN,
+        version: 1,
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+        changes: [{ from, to: from + 1, insert: "a" }],
+      },
+      name,
+      done: "Done.",
+    });
+    const first = problems.applyFix(choice("first", 0));
+    const again = problems.applyFix(choice("first", 0));
+    const other = problems.applyFix(choice("other", 4));
+    expect(again).toBe(first);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(runs.map((run) => run.name)).toEqual(["first"]);
+    expect(problems.fixing.value.size).toBe(2);
+    runs[0]!.resolve(true);
+    expect(await first).toBe(true);
+    await vi.waitFor(() => expect(runs.map((run) => run.name)).toEqual(["first", "other"]));
+    runs[1]!.resolve(false);
+    expect(await other).toBe(false);
+    expect(problems.fixing.value.size).toBe(0);
+    runFix.mockRestore();
   });
 
   it("maps a game's runtime error to a played entry at its script's line", () => {
