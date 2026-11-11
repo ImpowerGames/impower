@@ -60,7 +60,7 @@ export default function ProblemsDialog() {
     if (root) {
       keepFocusAfterFix(
         root,
-        problemSignature(problem),
+        problem,
         () =>
           root
             .closest('[role="dialog"]')
@@ -126,6 +126,7 @@ export default function ProblemsDialog() {
               <div
                 key={problem.key}
                 data-problem-entry={problemSignature(problem)}
+                data-problem-key={problem.key}
                 class="contents"
               >
                 <MessageEntry

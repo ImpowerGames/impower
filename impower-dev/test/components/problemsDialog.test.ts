@@ -259,6 +259,29 @@ describe("the Problems to fix dialog", () => {
       expect(document.activeElement).toBe(fixButton("second"));
     });
 
+    it("to the previous entry when the fixed one was the last of two identical problems", async () => {
+      problems.record({
+        uri: CHAPTER,
+        version: 2,
+        diagnostics: [fixable(1, "same"), fixable(2, "same")],
+      });
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      const [, last] = Array.from(dialog()!.querySelectorAll<HTMLButtonElement>("button")).filter(
+        (button) => button.textContent === "Fix same",
+      );
+      const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+      last!.focus();
+      await act(async () => last!.click());
+      await act(async () =>
+        problems.record({ uri: CHAPTER, version: 3, diagnostics: [fixable(1, "same")] }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      applyFix.mockRestore();
+      expect(document.activeElement).toBe(fixButton("same"));
+    });
+
     it("to the dialog's Close control when no entry is left", async () => {
       problems.record({ uri: CHAPTER, version: 2, diagnostics: [fixable(1, "only")] });
       await open({ kind: "script", path: "scripts/chapter_1.sd" });

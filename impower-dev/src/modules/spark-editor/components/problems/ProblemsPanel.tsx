@@ -117,7 +117,7 @@ const playedTime = (time: number) => ({
 function chooseFix(problem: Problem, action: DiagnosticFixAction) {
   const panel = document.getElementById(PROBLEMS_PANEL_ID);
   if (panel) {
-    keepFocusAfterFix(panel, problemSignature(problem), () =>
+    keepFocusAfterFix(panel, problem, () =>
       panel.querySelector<HTMLElement>(SCRIPT_CARD_HEAD),
     );
   }
@@ -126,7 +126,11 @@ function chooseFix(problem: Problem, action: DiagnosticFixAction) {
 
 function ProblemRow({ problem }: { problem: Problem }) {
   return (
-    <div data-problem-entry={problemSignature(problem)} class="contents">
+    <div
+      data-problem-entry={problemSignature(problem)}
+      data-problem-key={problem.key}
+      class="contents"
+    >
       <MessageEntry
         fit="row"
         severity={problem.severity}

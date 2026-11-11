@@ -7,11 +7,14 @@ const ENTRY = "[data-problem-entry]";
 export const problemSignature = (problem: Problem) =>
   [problem.uri, problem.severity, problem.title, problem.message].join("\n");
 
+const entriesIn = (root: Element) => Array.from(root.querySelectorAll(ENTRY));
+
 const signatureOf = (entry: Element) => entry.getAttribute("data-problem-entry");
 
-const focusTargetIn = (entry: Element) =>
-  entry.querySelector<HTMLElement>("[data-fix-menu]") ??
-  entry.querySelector<HTMLElement>("button, a[href]");
+const focusTargetIn = (entry: Element | undefined) =>
+  entry?.querySelector<HTMLElement>("[data-fix-menu]") ??
+  entry?.querySelector<HTMLElement>("button, a[href]") ??
+  null;
 
 const focusLost = (root: Element) => {
   const active = document.activeElement;
@@ -25,26 +28,27 @@ const focusLost = (root: Element) => {
 
 export function keepFocusAfterFix(
   root: HTMLElement,
-  chosen: string,
+  chosen: Problem,
   fallback: () => HTMLElement | null,
 ) {
-  const order = Array.from(root.querySelectorAll(ENTRY)).map(signatureOf);
-  const at = order.indexOf(chosen);
-  const after = order.slice(at + 1);
-  const before = order.slice(0, Math.max(0, at)).reverse();
-  const present = (signature: string | null) =>
-    Array.from(root.querySelectorAll(ENTRY)).find(
-      (entry) => signatureOf(entry) === signature,
-    );
+  const entries = entriesIn(root);
+  const at = entries.findIndex(
+    (entry) => entry.getAttribute("data-problem-key") === chosen.key,
+  );
+  if (at < 0) {
+    return () => {};
+  }
+  const signature = signatureOf(entries[at]!);
+  const count = (list: Element[]) =>
+    list.filter((entry) => signatureOf(entry) === signature).length;
+  const before = count(entries);
   const settle = () => {
-    if (present(chosen)) {
+    const now = entriesIn(root);
+    if (count(now) >= before) {
       return false;
     }
     if (focusLost(root)) {
-      const neighbour = [...after, ...before]
-        .map(present)
-        .find((entry) => entry && focusTargetIn(entry));
-      (neighbour ? focusTargetIn(neighbour) : fallback())?.focus();
+      (focusTargetIn(now[at]) ?? focusTargetIn(now[at - 1]) ?? fallback())?.focus();
     }
     return true;
   };
