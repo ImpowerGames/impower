@@ -185,12 +185,12 @@ describe("the Save & sync section", () => {
       });
     await failWith({ reason: "unreadable_zip" });
     expect(row("save-import").textContent).toContain(
-      "“story.zip” is not a .zip this editor can open. Choose a backup made with Download .zip.",
+      "Nothing was changed because “story.zip” is not a .zip the editor can open.",
     );
     await failWith({ reason: "storage" });
-    expect(row("save-import").textContent).toContain("Could not save “story.zip” on this device. Free some space and try again.");
+    expect(row("save-import").textContent).toContain("Could not save “story.zip” on this device, so free some space and try again.");
     await failWith({ reason: "unknown" });
-    expect(row("save-import").textContent).toContain("Could not import “story.zip”. Try again, or choose another backup.");
+    expect(row("save-import").textContent).toContain("Could not import “story.zip”, so try again or choose another backup.");
     expect(row("save-import").textContent).not.toContain("Could not import that backup.");
   });
 
@@ -206,7 +206,7 @@ describe("the Save & sync section", () => {
       };
     });
     expect(row("save-import").textContent).toContain(
-      "Imported “story.zip”. Left out 1 file outside the project folder, in “docs”.",
+      "Imported “story.zip” and left out 1 file outside the project folder, in “docs”.",
     );
     expect(row("save-import").querySelector(".text-error-strong")).toBeNull();
   });

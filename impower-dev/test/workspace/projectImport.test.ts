@@ -89,6 +89,25 @@ describe("findProjectRoot", () => {
 });
 
 describe("importOutcomeSentence", () => {
+  it.each([
+    "unreadable_zip",
+    "no_main_script",
+    "several_main_scripts",
+    "storage",
+    "unknown",
+  ] as const)("says %s in one sentence that names the file", (reason) => {
+    const sentence = importOutcomeSentence({
+      status: "failed",
+      fileName: "my.backup.zip",
+      reason,
+      folders: ["a", "b"],
+    })!;
+    expect(sentence).toContain("“my.backup.zip”");
+    expect(sentence.replace("my.backup.zip", "").match(/[.!?](\s|$)/g)).toEqual(
+      ["."],
+    );
+  });
+
   it("names the folders of a zip with several projects", () => {
     expect(
       importOutcomeSentence({
@@ -98,7 +117,7 @@ describe("importOutcomeSentence", () => {
         folders: ["a", "b", "c"],
       }),
     ).toBe(
-      "“both.zip” holds more than one project, in “a”, “b” and “c”. Zip one of them on its own. Nothing was changed.",
+      "Nothing was changed because “both.zip” holds more than one project, in “a”, “b” and “c”, so zip one of them on its own.",
     );
   });
 
@@ -110,7 +129,7 @@ describe("importOutcomeSentence", () => {
         reason: "no_main_script",
       }),
     ).toBe(
-      "“assets.zip” has no main.sd, and a project backup needs one. Nothing was changed.",
+      "Nothing was changed because “assets.zip” has no main.sd, which every project backup needs.",
     );
   });
 
@@ -122,7 +141,7 @@ describe("importOutcomeSentence", () => {
         leftOut: { count: 3, folders: ["", "docs"] },
       }),
     ).toBe(
-      "Imported “story.zip”. Left out 3 files outside the project folder, in the zip’s top level and “docs”.",
+      "Imported “story.zip” and left out 3 files outside the project folder, in the zip’s top level and “docs”.",
     );
   });
 

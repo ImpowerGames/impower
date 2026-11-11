@@ -96,15 +96,15 @@ const FAILURE_SENTENCES: Record<
   (fileName: string, folders: readonly string[]) => string
 > = {
   unreadable_zip: (fileName) =>
-    `“${fileName}” is not a .zip this editor can open. Choose a backup made with Download .zip.`,
+    `Nothing was changed because “${fileName}” is not a .zip the editor can open.`,
   no_main_script: (fileName) =>
-    `“${fileName}” has no ${MAIN_SCRIPT}, and a project backup needs one. Nothing was changed.`,
+    `Nothing was changed because “${fileName}” has no ${MAIN_SCRIPT}, which every project backup needs.`,
   several_main_scripts: (fileName, folders) =>
-    `“${fileName}” holds more than one project, in ${listed(quoted(folders))}. Zip one of them on its own. Nothing was changed.`,
+    `Nothing was changed because “${fileName}” holds more than one project, in ${listed(quoted(folders))}, so zip one of them on its own.`,
   storage: (fileName) =>
-    `Could not save “${fileName}” on this device. Free some space and try again.`,
+    `Could not save “${fileName}” on this device, so free some space and try again.`,
   unknown: (fileName) =>
-    `Could not import “${fileName}”. Try again, or choose another backup.`,
+    `Could not import “${fileName}”, so try again or choose another backup.`,
 };
 
 export const importOutcomeSentence = (outcome: ImportOutcome): string | null => {
@@ -119,5 +119,5 @@ export const importOutcomeSentence = (outcome: ImportOutcome): string | null => 
     return null;
   }
   const files = leftOut.count === 1 ? "1 file" : `${leftOut.count} files`;
-  return `Imported “${outcome.fileName}”. Left out ${files} outside the project folder, in ${listed(quoted(leftOut.folders))}.`;
+  return `Imported “${outcome.fileName}” and left out ${files} outside the project folder, in ${listed(quoted(leftOut.folders))}.`;
 };
