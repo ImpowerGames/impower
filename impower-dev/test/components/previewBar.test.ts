@@ -519,6 +519,96 @@ describe("the bar under the game", () => {
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
   });
 
+  it("keeps the aspect-ratio control in place in Interactive Fiction, disabled and reading Auto", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "9:16");
+    await mount();
+    const controls = () =>
+      Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
+        (control) => control.getAttribute("aria-label") ?? control.textContent,
+      );
+    const visualNovel = controls();
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
+
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("Auto");
+    expect(ratio().getAttribute("aria-disabled")).toBe("true");
+    expect(ratio().title).toBe("The page fills the pane in Interactive Fiction");
+    ratio().focus();
+    await key(ratio(), "ArrowDown");
+    await act(async () => ratio().click());
+    await settle(50);
+    expect(document.querySelectorAll('[role="menuitemradio"]')).toHaveLength(0);
+    expect(workspaceSettings.projectSettings.value.previewAspectRatio).toBe("9:16");
+
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("lays every part of the label that a switch changes over an invisible reservation, the rule that keeps the control's width", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "4:3");
+    await mount();
+    const sized = (width: number, height: number) =>
+      setState((s) => {
+        s.preview.modes.game = { size: { width, height, aspectRatio: "4:3" } };
+        return s;
+      });
+    await sized(923, 692);
+    const cells = () =>
+      Array.from(ratio().querySelectorAll<HTMLElement>("[data-reserve]")).map(
+        (cell) => {
+          expect(cell.classList).toContain("inline-grid");
+          expect(cell.classList).toContain("before:content-[attr(data-reserve-alt)]");
+          expect(cell.classList).toContain("before:invisible");
+          expect(cell.classList).toContain("before:[grid-area:1/1]");
+          expect(cell.classList).toContain("after:content-[attr(data-reserve)]");
+          expect(cell.classList).toContain("after:invisible");
+          expect(cell.classList).toContain("after:[grid-area:1/1]");
+          expect(cell.classList).toContain("[&>*]:[grid-area:1/1]");
+          expect(cell.children).toHaveLength(1);
+          return [cell.textContent, cell.dataset.reserve, cell.dataset.reserveAlt];
+        },
+      );
+    expect(ratio().textContent).toBe("4:3 · 923×692");
+    expect(cells()).toEqual([
+      ["4:3 · 923×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+    ]);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    await sized(1090, 692);
+    expect(ratio().textContent).toBe("Auto · 1090×692");
+    expect(cells()).toEqual([
+      ["Auto · 1090×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+    ]);
+  });
+
+  it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {
+    await mount();
+    const stage = document.querySelector('[data-stage="game"]')!;
+    const shown = (element: Element) =>
+      !element.parentElement!.classList.contains("hidden");
+    expect(shown(stage)).toBe(true);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(true);
+    expect(document.querySelector('[data-stage="screenplay"]')).toBeNull();
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "screenplay"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(false);
+  });
+
   it("leaves fullscreen before the paper-size link opens the settings", async () => {
     workspaceSettings.setPreference("previewMode", "screenplay");
     await mount();

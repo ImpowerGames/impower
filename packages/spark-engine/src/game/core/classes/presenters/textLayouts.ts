@@ -1,5 +1,7 @@
 import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
+import type { StartingDisplayMode } from "../messages/SetStartingDisplayModeMessage";
+import { TEXTSTREAM_LAYOUT } from "./InteractiveFictionPresenter";
 
 export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
   "textbox",
@@ -30,13 +32,36 @@ export function holdsPresentedText(
   return ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS);
 }
 
-function configuredInitialLayouts(game: Game): unknown[] {
+export const TEXTBOX_LAYOUT = "textbox";
+
+export function startingLayouts(
+  configured: readonly unknown[],
+  mode: StartingDisplayMode,
+): unknown[] {
+  if (mode !== TEXTSTREAM_LAYOUT || !configured.includes(TEXTBOX_LAYOUT)) {
+    return [...configured];
+  }
+  const swapped = configured.map((name) =>
+    name === TEXTBOX_LAYOUT ? TEXTSTREAM_LAYOUT : name,
+  );
+  return swapped.filter(
+    (name, index) => name !== TEXTSTREAM_LAYOUT || swapped.indexOf(name) === index,
+  );
+}
+
+function configuredInitialLayouts(
+  game: Game,
+  mode: StartingDisplayMode,
+): unknown[] {
   const configured = game.context?.config?.["ui"]?.layouts_initial;
-  return Array.isArray(configured)
-    ? configured
-    : configured && typeof configured === "object"
-      ? Object.values(configured)
-      : [];
+  return startingLayouts(
+    Array.isArray(configured)
+      ? configured
+      : configured && typeof configured === "object"
+        ? Object.values(configured)
+        : [],
+    mode,
+  );
 }
 
 export function skippedInitialLayouts(
@@ -44,7 +69,7 @@ export function skippedInitialLayouts(
   ui: LayoutReader = game.module.ui,
 ): string[] {
   const opened = initialLayouts(game, ui);
-  return configuredInitialLayouts(game).filter(
+  return configuredInitialLayouts(game, game.startingDisplayMode).filter(
     (name): name is string =>
       typeof name === "string" && !!name && !opened.includes(name),
   );
@@ -53,9 +78,10 @@ export function skippedInitialLayouts(
 export function initialLayouts(
   game: Game,
   ui: LayoutReader = game.module.ui,
+  mode: StartingDisplayMode = game.startingDisplayMode,
 ): string[] {
   const opened = ["main"];
-  for (const name of configuredInitialLayouts(game)) {
+  for (const name of configuredInitialLayouts(game, mode)) {
     if (typeof name !== "string" || !name || opened.includes(name)) {
       continue;
     }
@@ -75,7 +101,7 @@ export function openInitialLayouts(game: Game, settle: boolean): void {
   if (ui.initialLayoutsOpened) {
     return;
   }
-  ui.openInitialLayouts(initialLayouts(game), settle);
+  ui.openInitialLayouts(initialLayouts(game), settle, game.startingDisplayMode);
 }
 
 export function presentsText(instructions: Instructions): boolean {

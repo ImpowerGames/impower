@@ -18,8 +18,6 @@ export interface LanguageReader {
   ): string;
 }
 
-const CONTENT_SUFFIX = "_content";
-
 const languageOfScope = (
   scope: string,
   keys: readonly string[],
@@ -79,24 +77,15 @@ export const createLanguageReader = (
 ): LanguageReader => {
   const keys = Object.keys(embeddedLanguages).sort().reverse();
   const nameByNode = new Map<string, string>();
-  const contentNameByNode = new Map<string, string>();
   for (const node of grammar.nodes) {
-    const { name, contentName } = node.props;
+    const { name } = node.props;
     if (typeof name === "string") nameByNode.set(node.typeId, name);
-    if (typeof contentName === "string") {
-      contentNameByNode.set(node.typeId, contentName);
-    }
   }
   const languageByNode = new Map<string, string | null>();
   const languageOfNode = (nodeName: string): string | null => {
     const cached = languageByNode.get(nodeName);
     if (cached !== undefined) return cached;
-    let scopeName = nameByNode.get(nodeName);
-    if (scopeName === undefined && nodeName.endsWith(CONTENT_SUFFIX)) {
-      scopeName = contentNameByNode.get(
-        nodeName.slice(0, -CONTENT_SUFFIX.length),
-      );
-    }
+    const scopeName = nameByNode.get(nodeName);
     const language =
       scopeName === undefined
         ? null

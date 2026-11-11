@@ -30,4 +30,6 @@ export interface PageState {
   current: number;
   key?: string;
   absorbed?: PageEntry[];
+  shown?: number;
+  beat?: number;
 }

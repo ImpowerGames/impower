@@ -1,4 +1,5 @@
 import { GAME_ASPECT_RATIOS } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import type { StartingDisplayMode } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { SHORTCUT_PREFERENCES } from "../shortcuts/shortcutTable";
@@ -43,9 +44,16 @@ const configured = (...configurationKeys: string[]) => ({
   configurationKeys,
 });
 
-export const PREVIEW_MODES = ["game", "screenplay"] as const;
+export const PREVIEW_MODES = ["game", "textstream", "screenplay"] as const;
 
 export type PreviewMode = (typeof PREVIEW_MODES)[number];
+
+export const playsGame = (mode: PreviewMode) => mode !== "screenplay";
+
+export const fillsPane = (mode: PreviewMode) => mode === "textstream";
+
+export const startingDisplayModeOf = (mode: PreviewMode): StartingDisplayMode =>
+  mode === "textstream" ? "textstream" : "textbox";
 
 export const SCREENPLAY_PAPERS = ["paper", "theme"] as const;
 

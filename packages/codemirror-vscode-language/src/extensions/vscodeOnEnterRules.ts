@@ -1,36 +1,57 @@
 import { getIndentUnit, indentString } from "@codemirror/language";
-import { EditorSelection, Facet, combineConfig } from "@codemirror/state";
+import { EditorSelection, Facet, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
+
+import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { languageRunAt } from "../utils/languageAt";
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export interface VSCodeOnEnterRulesConfig<T = string> {
-  onEnterRules?: {
-    beforeText: T;
-    afterText?: T;
-    previousLineText?: T;
-    action: {
-      indent: string;
-      appendText?: string;
-      deleteText?: string;
-      removeText?: number;
-    };
-  }[];
+interface OnEnterRule {
+  beforeText: RegExp;
+  afterText?: RegExp;
+  previousLineText?: RegExp;
+  action: {
+    indent: string;
+    appendText?: string;
+    deleteText?: string;
+    removeText?: number;
+  };
 }
 
-export const vscodeOnEnterRulesConfig = Facet.define<
-  VSCodeOnEnterRulesConfig<RegExp>,
-  Required<VSCodeOnEnterRulesConfig<RegExp>>
+interface OnEnterRulesByLanguage {
+  reader: LanguageReader;
+  documentLanguage: string;
+  rulesByLanguage: ReadonlyMap<string, readonly OnEnterRule[]>;
+}
+
+const vscodeOnEnterRulesConfig = Facet.define<
+  OnEnterRulesByLanguage,
+  OnEnterRulesByLanguage | undefined
 >({
-  combine(configs) {
-    return combineConfig(configs, {});
-  },
+  combine: (values) => values.at(-1),
 });
+
+const compileRules = (
+  config: VSCodeConfigDefinition | undefined,
+): OnEnterRule[] =>
+  (config?.onEnterRules ?? []).map(
+    ({ beforeText, afterText, previousLineText, action }) => ({
+      beforeText: new RegExp(beforeText, "u"),
+      ...(afterText !== undefined
+        ? { afterText: new RegExp(afterText, "u") }
+        : {}),
+      ...(previousLineText !== undefined
+        ? { previousLineText: new RegExp(previousLineText, "u") }
+        : {}),
+      action: { ...action },
+    }),
+  );
 
 export function onEnterRulesCommand(view: EditorView) {
   const state = view.state;
   const config = state.facet(vscodeOnEnterRulesConfig);
-  const onEnterRules = config.onEnterRules;
   const doc = state.doc;
 
   let triggeredRule = undefined;
@@ -39,25 +60,46 @@ export function onEnterRulesCommand(view: EditorView) {
     const pos = range.from;
     const beforeLine = doc.lineAt(pos);
 
-    if (!onEnterRules || state.selection.ranges.length !== 1) {
+    if (!config || state.selection.ranges.length !== 1) {
       return { range };
     }
 
+    const { reader, documentLanguage, rulesByLanguage } = config;
     const selectionFrom = state.selection.main.from;
     const selectionTo = state.selection.main.to;
-    const cursorFromLine = doc.lineAt(selectionFrom);
-    const cursorToLine = doc.lineAt(selectionTo);
+    const fromRun = languageRunAt(reader, state, selectionFrom, documentLanguage);
+    const toRun = languageRunAt(reader, state, selectionTo, documentLanguage);
+    const onEnterRules =
+      rulesByLanguage.get(fromRun.language) ??
+      rulesByLanguage.get(documentLanguage);
+
+    if (!onEnterRules) {
+      return { range };
+    }
 
     const lineTextBeforeCursor = state.sliceDoc(
-      cursorFromLine.from,
+      fromRun.differsFromLineStart
+        ? fromRun.from
+        : doc.lineAt(selectionFrom).from,
       selectionFrom,
     );
     const lineTextAfterCursor = state.sliceDoc(
       selectionTo,
-      cursorToLine.from + cursorToLine.text.length,
+      Math.max(selectionTo, toRun.to),
     );
-    const previousLineText =
-      beforeLine.number > 1 ? doc.line(beforeLine.number - 1)?.text : "";
+    let previousLineText = "";
+    if (fromRun.startsLine && beforeLine.number > 1) {
+      const previousLine = doc.line(beforeLine.number - 1);
+      const previousRun = languageRunAt(
+        reader,
+        state,
+        previousLine.to,
+        documentLanguage,
+      );
+      if (previousRun.language === fromRun.language) {
+        previousLineText = state.sliceDoc(previousRun.from, previousRun.to);
+      }
+    }
 
     const currentIndentSize =
       beforeLine.text.match(INDENT_REGEX)?.[0].length ?? 0;
@@ -163,28 +205,17 @@ export function onEnterRulesCommand(view: EditorView) {
 }
 
 export const vscodeOnEnterRules = (
-  config: VSCodeOnEnterRulesConfig<string | RegExp> = {},
-) => {
-  const regexConfig = structuredClone(config);
-  if (regexConfig.onEnterRules) {
-    for (const onEnterRule of regexConfig.onEnterRules) {
-      if (typeof onEnterRule.beforeText === "string") {
-        onEnterRule.beforeText = new RegExp(onEnterRule.beforeText, "u");
-      }
-      if (typeof onEnterRule.afterText === "string") {
-        onEnterRule.afterText = new RegExp(onEnterRule.afterText, "u");
-      }
-      if (typeof onEnterRule.previousLineText === "string") {
-        onEnterRule.previousLineText = new RegExp(
-          onEnterRule.previousLineText,
-          "u",
-        );
-      }
-    }
-  }
-  return [
-    vscodeOnEnterRulesConfig.of(
-      regexConfig as VSCodeOnEnterRulesConfig<RegExp>,
+  reader: LanguageReader,
+  documentLanguage: string,
+  configs: Readonly<Record<string, VSCodeConfigDefinition>>,
+): Extension =>
+  vscodeOnEnterRulesConfig.of({
+    reader,
+    documentLanguage,
+    rulesByLanguage: new Map(
+      Object.entries(configs).map(([language, config]) => [
+        language,
+        compileRules(config),
+      ]),
     ),
-  ];
-};
+  });

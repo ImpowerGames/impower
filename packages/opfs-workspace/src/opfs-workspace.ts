@@ -2,6 +2,7 @@ import { globToRegex } from "@impower/jsonrpc/src/common/utils/globToRegex";
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { RESOURCE_PROTOCOL } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
@@ -89,7 +90,6 @@ const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
-const RESOURCE_PROTOCOL = "/file:/";
 const RASTER_IMAGE_REGEX = /[.](png|jpe?g|gif|webp)$/i;
 const THUMBNAILS_SUPPORTED =
   typeof createImageBitmap === "function" &&
