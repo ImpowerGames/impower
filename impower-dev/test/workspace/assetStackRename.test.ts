@@ -158,7 +158,18 @@ async function harness(stored: Record<string, string>) {
     };
   };
   await assets.load();
-  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, saved };
+  const failRemoving = (path: string) => {
+    const dir = folder(path.slice(0, path.lastIndexOf("/")));
+    const leafName = path.slice(path.lastIndexOf("/") + 1);
+    const original = dir.removeEntry.bind(dir);
+    dir.removeEntry = async (name: string, options?: { recursive?: boolean }) => {
+      if (name === leafName) {
+        throw new DOMException("Removing the original was denied", "NotAllowedError");
+      }
+      return original(name, options);
+    };
+  };
+  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, failRemoving, saved };
 }
 
 const P = "Assets/Images/Portraits";
@@ -322,6 +333,80 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
       expect(h.history.canUndo.value).toBe(false);
     });
   }
+
+  it("asks again when a script changes between its lookups, and keeps the author's edit", async () => {
+    const h = await harness(project());
+    const ask = h.ls.getFileRenameEdits.getMockImplementation()!;
+    let calls = 0;
+    h.ls.getFileRenameEdits.mockImplementation(async (oldUri: string, newName: string) => {
+      calls += 1;
+      if (calls === 2) await h.write("main.sd", "An inserted line." + NL + SCRIPT);
+      return ask(oldUri, newName);
+    });
+    await h.assets.rename(STACK[0]!, "zadie");
+    const text = await h.read("main.sd");
+    expect(text.startsWith("An inserted line." + NL + "scene start" + NL)).toBe(true);
+    expect(shown(text)).toEqual([
+      "[[show portrait zadie]]",
+      "[[show portrait zadie@night]]",
+      "[[show portrait zadie~face.happy]]",
+      "[[show portrait imani_extra]]",
+    ]);
+  });
+
+  it("refuses, renaming nothing, when a script keeps changing while the rename is prepared", async () => {
+    const h = await harness(project());
+    const ask = h.ls.getFileRenameEdits.getMockImplementation()!;
+    let inserted = 0;
+    h.ls.getFileRenameEdits.mockImplementation(async (oldUri: string, newName: string) => {
+      const answer = await ask(oldUri, newName);
+      inserted += 1;
+      await h.write("main.sd", "Line " + inserted + "." + NL + (await h.read("main.sd")));
+      return answer;
+    });
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      "Couldn't rename imani: the scripts that use it kept changing while the rename was prepared. Nothing was renamed; try again.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(shown(await h.read("main.sd"))[0]).toBe("[[show portrait imani]]");
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("removes a copy whose original could not be removed, and says so only once it has checked", async () => {
+    const h = await harness(project());
+    h.failRemoving(STACK[0]!);
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      "Couldn't rename imani: Removing the original was denied. Every file is back where it was.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.read(STACK[0]!)).toBe("picture 0");
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("puts back every file of a folder whose move stopped part-way", async () => {
+    const h = await harness(project({ [`${P}/Cast/a.png`]: "a", [`${P}/Cast/b.png`]: "b" }));
+    await h.fs.createFolder(PROJECT, "Assets/Images/Destination");
+    await h.assets.load();
+    h.failRemoving(`${P}/Cast/b.png`);
+    await expect(h.assets.move([`${P}/Cast`, STACK[0]!], "Assets/Images/Destination")).rejects.toThrow(
+      "Every file is back where it was.",
+    );
+    const after = await h.paths();
+    expect(after).toContain(`${P}/Cast/a.png`);
+    expect(after).toContain(`${P}/Cast/b.png`);
+    expect(after.filter((path) => path.startsWith("Assets/Images/Destination/"))).toEqual([]);
+    expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/Cast/a.png`, `${P}/Cast/b.png`].sort());
+  });
+
+  it("renames a picture whose name has a dot to the name typed, and undoes it", async () => {
+    const h = await harness({ "main.sd": lines("scene start", "  [[show portrait kai]]", "end"), [`${P}/kai.v1.png`]: "kai" });
+    expect(await h.assets.rename(`${P}/kai.v1.png`, "rafe")).toBe(`${P}/rafe.png`);
+    expect(await h.paths()).toEqual([`${P}/rafe.png`, "main.sd"]);
+    expect(shown(await h.read("main.sd"))).toEqual(["[[show portrait rafe]]"]);
+    expect(await h.history.undo()).toBe(true);
+    expect(await h.paths()).toEqual([`${P}/kai.v1.png`, "main.sd"]);
+    expect(shown(await h.read("main.sd"))).toEqual(["[[show portrait kai]]"]);
+  });
 
   it("names the file it could not put back after a failure", async () => {
     const h = await harness(project());
