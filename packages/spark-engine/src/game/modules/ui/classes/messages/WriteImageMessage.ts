@@ -30,6 +30,7 @@ export interface WriteImageInstruction {
 export interface MorphLayerPlay {
   layer: number;
   ref: MorphRef;
+  morph: string;
   timing: MorphTiming;
   motion?: MorphMotion;
   definition: string;

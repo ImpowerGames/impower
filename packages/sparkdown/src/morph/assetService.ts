@@ -7,7 +7,7 @@ import {
 } from "../filters/filteredSvg";
 import { filterSVG } from "../compiler/utils/filterSVG";
 import { hashText } from "./hash";
-import { parseMorphRecipe } from "./recipe";
+import { morphOverlaps, parseMorphRecipe } from "./recipe";
 import type { MorphBakeService } from "./service";
 import { MORPH_BAKE_FORMAT, type MorphArtifact, type MorphRecipe } from "./types";
 
@@ -16,25 +16,27 @@ export const MORPH_ARTIFACT_CACHE_ENTRIES = 256;
 export interface MorphAssetRequest {
   selection: Record<string, string>;
   canonicalSelection: string;
-  recipe: MorphRecipe;
-  recipeText: string;
+  recipes: MorphRecipe[];
+  recipeTexts: string[];
   key: string;
   output: "artifact" | "rest";
 }
 
 export function parseMorphAssetRequest(params: URLSearchParams): MorphAssetRequest | "invalid" | undefined {
-  const recipeText = params.get("morph");
-  if (recipeText === null) return undefined;
-  const recipe = parseMorphRecipe(recipeText);
+  const recipeTexts = params.getAll("morph");
+  if (!recipeTexts.length) return undefined;
+  const parsed = recipeTexts.map(parseMorphRecipe);
   const selection = parseImageFilterParam(params.get("attributes") ?? "{}");
   const canonicalSelection = selection ? serializeImageFilterParam(selection) : undefined;
   const key = params.get("key") ?? "";
-  if (!recipe || !selection || canonicalSelection === undefined || !key) return "invalid";
+  if (parsed.some((recipe) => !recipe) || !selection || canonicalSelection === undefined || !key) return "invalid";
+  const recipes = parsed as MorphRecipe[];
+  if (recipes.some((recipe, i) => i > 0 && !(recipes[i - 1]!.name < recipe.name)) || morphOverlaps(recipes).length) return "invalid";
   return {
     selection,
     canonicalSelection,
-    recipe,
-    recipeText,
+    recipes,
+    recipeTexts,
     key,
     output: params.get("morph_output") === "rest" ? "rest" : "artifact",
   };
@@ -70,9 +72,10 @@ export async function serveMorphAsset(options: {
   } catch {
     return respond(JSON.stringify({ error: "The artwork could not be read." }), "application/json", 404);
   }
-  const identity = hashText(JSON.stringify([MORPH_BAKE_FORMAT, source.digest, request.canonicalSelection, request.recipeText]));
-  const variantPrefix = `${options.keyPrefix ?? ""}${path}?morph=${hashText(JSON.stringify([request.canonicalSelection, request.recipe.name]))}&`;
-  const cacheKey = `${variantPrefix}recipe=${hashText(request.recipeText)}&sig=${file.lastModified}-${file.size}&content=${source.digest}&bf=${MORPH_BAKE_FORMAT}`;
+  const identity = hashText(JSON.stringify([MORPH_BAKE_FORMAT, source.digest, request.canonicalSelection, ...request.recipeTexts]));
+  const names = request.recipes.map((recipe) => recipe.name);
+  const variantPrefix = `${options.keyPrefix ?? ""}${path}?morph=${hashText(JSON.stringify([request.canonicalSelection, ...names]))}&`;
+  const cacheKey = `${variantPrefix}recipe=${hashText(JSON.stringify(request.recipeTexts))}&sig=${file.lastModified}-${file.size}&content=${source.digest}&bf=${MORPH_BAKE_FORMAT}`;
   try {
     const cached = await cache?.match(cacheKey);
     if (cached) {
@@ -88,7 +91,7 @@ export async function serveMorphAsset(options: {
       input: {
         source: source.text,
         selection: request.selection,
-        recipe: request.recipe,
+        recipes: request.recipes,
         key: identity,
         ...(options.uri === undefined ? {} : { uri: options.uri }),
       },

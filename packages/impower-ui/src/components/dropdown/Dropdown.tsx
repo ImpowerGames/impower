@@ -10,6 +10,7 @@ import {
   type VNode,
 } from "preact";
 import { useCallback, useContext, useRef, useState } from "preact/hooks";
+import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
@@ -135,27 +136,25 @@ export function DropdownTrigger({
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
+  const child = (Array.isArray(children) ? children[0] : children) as
+    | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
+        ref?: Ref<HTMLElement>;
+      })
+    | undefined;
+  const setTriggerRef = useForwardedRef(
+    child && typeof child === "object" ? child.ref : undefined,
+    (element: HTMLElement | null) => {
+      ctx.trigger.current = element;
+    },
+  );
   if (ctx.mode === "sheet") {
-    const child = (Array.isArray(children) ? children[0] : children) as
-      | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
-          ref?: Ref<HTMLElement>;
-        })
-      | undefined;
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
         onClick: (e: MouseEvent) => {
           child.props.onClick?.(e);
           ctx.setOpen(true);
         },
-        ref: (element: HTMLElement | null) => {
-          ctx.trigger.current = element;
-          const ref = child.ref;
-          if (typeof ref === "function") {
-            ref(element);
-          } else if (ref) {
-            ref.current = element;
-          }
-        },
+        ref: setTriggerRef,
       });
     }
     return <>{children}</>;

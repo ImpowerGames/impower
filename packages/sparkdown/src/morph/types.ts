@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 25;
+export const MORPH_BAKE_FORMAT = 26;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -38,7 +38,7 @@ export interface MorphPaintEntry {
 }
 
 export interface MorphRef {
-  morph: string;
+  morphs: string[];
   key: string;
   image: string;
   selection: string;
@@ -90,7 +90,7 @@ export interface MorphBakeDiagnostic {
   severity: "warning" | "error";
   message: string;
   uri?: string;
-  morph: string;
+  morphs: string[];
   variant?: string;
   layer?: string;
   path?: string;
@@ -215,7 +215,8 @@ export interface MorphSpreadNode {
 export interface MorphArtifact {
   format: number;
   key: string;
-  morph: string;
+  morphs: string[];
+  groups: Record<string, string>;
   variant?: string;
   status: "live" | "static";
   viewBox?: string;
