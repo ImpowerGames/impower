@@ -184,6 +184,10 @@ const closingSettingsOf = (document: TextDocument): ClosingSettings => {
     autoClosingBrackets: editorConfig.get("autoClosingBrackets", "languageDefined"),
     autoClosingQuotes: editorConfig.get("autoClosingQuotes", "languageDefined"),
     autoClosingComments: editorConfig.get("autoClosingComments", "languageDefined"),
+    wordSeparators: editorConfig.get(
+      "wordSeparators",
+      "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?",
+    ),
   };
 };
 

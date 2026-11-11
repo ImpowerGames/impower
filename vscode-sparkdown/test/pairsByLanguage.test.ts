@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
     autoClosingBrackets: "languageDefined",
     autoClosingQuotes: "languageDefined",
     autoClosingComments: "languageDefined",
+    wordSeparators: "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?",
   },
   editor: null as any,
 }));
@@ -111,6 +112,14 @@ class FakeDocument {
       this.text.version + 1,
     );
   }
+  replaceAll(content: string) {
+    this.text = TextDocument.create(
+      this.text.uri,
+      this.languageId,
+      this.text.version + 1,
+      content,
+    );
+  }
 }
 
 class FakeEditor {
@@ -128,10 +137,32 @@ class FakeEditor {
   get selection() {
     return this.selections[0]!;
   }
+  undoStack: string[] = [];
+  undoGroupOpen = false;
+  applyUndoable(
+    inserts: { offset: number; text: string }[],
+    undoStopBefore: boolean,
+    undoStopAfter: boolean,
+  ) {
+    if (undoStopBefore || !this.undoGroupOpen) {
+      this.undoStack.push(this.document.getText());
+    }
+    this.document.insert(inserts);
+    this.undoGroupOpen = !undoStopAfter;
+  }
+  undo() {
+    const text = this.undoStack.pop();
+    if (text !== undefined) {
+      this.document.replaceAll(text);
+    }
+    this.undoGroupOpen = false;
+    return this.document.getText();
+  }
   async edit(
     build: (editBuilder: {
       insert: (position: any, text: string) => void;
     }) => void,
+    options = { undoStopBefore: true, undoStopAfter: true },
   ) {
     const inserts: { offset: number; text: string }[] = [];
     build({
@@ -139,7 +170,7 @@ class FakeEditor {
         inserts.push({ offset: this.document.offsetAt(position), text }),
     });
     this.edits.push(inserts.map(({ text }) => text));
-    this.document.insert(inserts);
+    this.applyUndoable(inserts, options.undoStopBefore, options.undoStopAfter);
     return true;
   }
   nativeType(text: string) {
@@ -158,15 +189,33 @@ class FakeEditor {
         lineAfter: after.split("\n")[0]!,
       };
     });
-    const close =
-      vscodeAutoClose(config, state.settings, cursors, text)?.close ?? "";
-    const inserts = offsets.map((offset) => ({ offset, text: text + close }));
-    this.document.insert(inserts);
-    this.selections = offsets.map((offset) => {
-      const shift = inserts.reduce(
-        (sum, other) => (other.offset < offset ? sum + other.text.length : sum),
-        0,
+    const autoClose = vscodeAutoClose(config, state.settings, cursors, text);
+    const close = autoClose?.close ?? "";
+    const shiftOf = (offset: number, length: number) =>
+      offsets.filter((other) => other < offset).length * length;
+    if (autoClose && autoClose.open.length > text.length) {
+      this.applyUndoable(
+        offsets.map((offset) => ({ offset, text })),
+        true,
+        true,
       );
+      this.applyUndoable(
+        offsets.map((offset) => ({
+          offset: offset + shiftOf(offset, text.length) + text.length,
+          text: close,
+        })),
+        false,
+        false,
+      );
+    } else {
+      this.applyUndoable(
+        offsets.map((offset) => ({ offset, text: text + close })),
+        Boolean(autoClose),
+        false,
+      );
+    }
+    this.selections = offsets.map((offset) => {
+      const shift = shiftOf(offset, text.length + close.length);
       const position = this.document.positionAt(offset + shift + text.length);
       return new vscode.Selection(position, position);
     });
@@ -250,10 +299,26 @@ describe("auto-closing pairs in a .sd document follow the language at the cursor
     expect(editor.edits).toEqual([]);
   });
 
-  it("inserts a multi-character opener's closer as its own edit after the typed character, as VS Code does, so the first undo removes the closer", async () => {
-    const editor = open(FUNCTION("--[=|]"));
-    expect(await type(editor, "[")).toBe(FUNCTION("--[=[|]=]"));
-    expect(editor.edits).toEqual([["["], ["]="]]);
+  it("makes a multi-character opener's closer its own undo step, as VS Code does", async () => {
+    const editor = open(FUNCTION("|"));
+    expect(await type(editor, "--[=[")).toBe(FUNCTION("--[=[|]=]"));
+    expect(editor.undo()).toBe(FUNCTION("--[=[]"));
+    expect(editor.undo()).toBe(FUNCTION("--[=]"));
+  });
+
+  it("undoes a typed `--[=[` the same way as a .luau document", async () => {
+    const editor = open("|\n", "sparkdown-luau");
+    expect(await type(editor, "--[=[")).toBe("--[=[|]=]\n");
+    expect(editor.undo()).toBe("--[=[]\n");
+    expect(editor.undo()).toBe("--[=]\n");
+  });
+
+  it("leaves a quote after a word to VS Code when cursors are in both languages", async () => {
+    const editor = open(`${SCENE("Hello|")}\n${FUNCTION("local x = |foo")}`);
+    expect(await type(editor, '"')).toBe(
+      `${SCENE('Hello"|')}\n${FUNCTION('local x = "|foo')}`,
+    );
+    expect(editor.edits).toEqual([]);
   });
 
   it("closes a Luau long comment before an existing closer under beforeWhitespace", async () => {

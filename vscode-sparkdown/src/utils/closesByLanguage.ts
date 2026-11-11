@@ -13,6 +13,7 @@ export interface ClosingSettings {
   autoClosingBrackets: string;
   autoClosingQuotes: string;
   autoClosingComments: string;
+  wordSeparators: string;
 }
 
 export interface TypedCursor {
@@ -98,8 +99,12 @@ export const vscodeAutoClose = (
           ),
         )?.close ?? "")
       : "";
+  const isWordCharacter = (c: string) =>
+    c !== " " && c !== "\t" && !settings.wordSeparators.includes(c);
+  const skipsAfterWord =
+    pair.open.length === 1 && (ch === "'" || ch === '"') && mode !== "always";
   let containedPresent = true;
-  for (const { lineAfter } of cursors) {
+  for (const { lineBefore, lineAfter } of cursors) {
     if (!lineAfter.startsWith(containedClose)) {
       containedPresent = false;
     }
@@ -107,6 +112,13 @@ export const vscodeAutoClose = (
       lineAfter.length > 0 &&
       !isBeforeClosingBrace(pairs, lineAfter) &&
       !shouldCloseBefore(lineAfter.charAt(0))
+    ) {
+      return null;
+    }
+    if (
+      skipsAfterWord &&
+      lineBefore.length > 0 &&
+      isWordCharacter(lineBefore.charAt(lineBefore.length - 1))
     ) {
       return null;
     }
@@ -130,16 +142,14 @@ export const closesByLanguage = (
   if (ch.length !== 1) {
     return undefined;
   }
-  const opensAnywhere = Object.values(configs).some((config) =>
-    (config.autoClosingPairs ?? []).some(
-      ({ open }) =>
-        open.endsWith(ch) &&
-        cursors.some(({ lineBefore }) =>
-          lineBefore.endsWith(open.slice(0, open.length - 1)),
-        ),
-    ),
-  );
-  if (!opensAnywhere) {
+  const allConfigs = Object.values(configs);
+  const languageMatters = cursors.some((cursor) => {
+    const [first, ...rest] = allConfigs.map(
+      (config) => vscodeAutoClose(config, settings, [cursor], ch)?.close,
+    );
+    return rest.some((close) => close !== first);
+  });
+  if (!languageMatters) {
     return undefined;
   }
   const documentConfig = configs[documentLanguage] ?? {};
