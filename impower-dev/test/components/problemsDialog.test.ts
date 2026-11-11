@@ -5,11 +5,15 @@ import type { Diagnostic } from "vscode-languageserver-protocol";
 
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
+  goBackToChoice: vi.fn(async () => true),
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
-    window: { revealDocument: intents.revealDocument },
+    window: {
+      revealDocument: intents.revealDocument,
+      goBackToChoice: intents.goBackToChoice,
+    },
     fs: { getUriFromPath: (path: string) => `file://local/${path}` },
   },
 }));
@@ -76,7 +80,9 @@ const close = async () => {
 beforeEach(async () => {
   problems.diagnostics.value = {};
   problems.dialog.value = null;
+  problems.played.value = [];
   intents.revealDocument.mockClear();
+  intents.goBackToChoice.mockClear();
   problems.record({
     uri: MAIN,
     diagnostics: [diagnostic(4, 1, "Unexpected two dots")],
@@ -342,5 +348,85 @@ describe("the Problems to fix dialog", () => {
     });
     expect(document.activeElement).not.toBe(trigger);
     expect(problems.takeLeftForScript()).toBe(false);
+  });
+
+  describe("lists what was played for the whole story", () => {
+    const GO_BACK = 'button[aria-label="Go back to this choice"]';
+
+    const cards = () =>
+      dialog()!.querySelector<HTMLElement>(
+        '[aria-label="While playing, variables, watches and call stack"]',
+      );
+    const playedRows = () =>
+      Array.from(cards()!.querySelectorAll<HTMLElement>("[data-message-entry]"));
+
+    beforeEach(() => {
+      vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(2000);
+      problems.run.value = 4;
+      problems.recordPlayed({ severity: "info", title: "Chose · Pay.", message: "", checkpoint: 1 });
+      problems.recordPlayed({ severity: "info", title: "Chose · Rest.", message: "", checkpoint: 3 });
+      problems.recordPlayed({ severity: "info", title: "Chose · Walk on.", message: "", checkpoint: 3 });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("after the problems and before the debugging cards, without counting the choices as problems", async () => {
+      await open({ kind: "story" });
+      const list = dialog()!.querySelector("[data-problem-entry]")!;
+      expect(cards()).not.toBeNull();
+      expect(
+        list.compareDocumentPosition(cards()!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      const heads = Array.from(
+        cards()!.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"),
+      ).map((button) => button.getAttribute("aria-label"));
+      expect(heads[0]).toBe("While playing, no problems");
+      expect(heads.slice(1).map((label) => label!.split(",")[0])).toEqual([
+        "Variables",
+        "Watch",
+        "Call stack",
+      ]);
+      expect(playedRows().map((row) => row.querySelector("strong")!.textContent)).toEqual([
+        "Chose · Pay.",
+        "Chose · Rest.",
+        "Chose · Walk on.",
+      ]);
+      expect(entries().slice(0, 2)).toEqual([
+        "Error · Unexpected two dots",
+        "Warning · Sound not found",
+      ]);
+      expect(context()).toBe("Whole story · 1 error, 1 warning");
+      expect(problems.counts.value).toEqual(
+        expect.objectContaining({ errors: 1, warnings: 1 }),
+      );
+    });
+
+    it("offers a 44px Go back to this choice on each choice the run still holds, and none on a dropped one", async () => {
+      await open({ kind: "story" });
+      const buttons = playedRows().map((row) => row.querySelector<HTMLButtonElement>(GO_BACK));
+      expect(buttons.map(Boolean)).toEqual([true, false, true]);
+      expect(buttons[0]!.className).toContain("pointer-coarse:size-11");
+    });
+
+    it("goes back to the tapped choice and closes, so the choice menu shows again, returning focus to its trigger", async () => {
+      await open({ kind: "story" });
+      const button = playedRows()[0]!.querySelector<HTMLButtonElement>(GO_BACK)!;
+      button.focus();
+      await act(async () => button.click());
+      await transition();
+      expect(intents.goBackToChoice).toHaveBeenCalledTimes(1);
+      expect(intents.goBackToChoice).toHaveBeenCalledWith(1);
+      expect(problems.dialog.value).toBeNull();
+      expect(dialog()).toBeUndefined();
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it("leaves a single script's dialog to its problems", async () => {
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      expect(cards()).toBeNull();
+      expect(dialog()!.querySelector(GO_BACK)).toBeNull();
+    });
   });
 });
