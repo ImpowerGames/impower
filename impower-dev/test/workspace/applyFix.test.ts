@@ -52,7 +52,7 @@ afterEach(() => {
   snackbar.value = null;
 });
 
-const closedScript = (initial: string, version = 1) => {
+const closedScript = (initial: string) => {
   let text = initial;
   return {
     text: () => text,
@@ -61,7 +61,18 @@ const closedScript = (initial: string, version = 1) => {
     },
     deps: {
       getFileText: vi.fn(async () => text),
-      getFileVersion: vi.fn(async () => version),
+      offeredFixes: vi.fn(async () => {
+        const at = text.indexOf("alcie");
+        return at < 0
+          ? []
+          : [
+              {
+                changes: [{ from: at, to: at + 5, insert: "alice" }],
+                expect: "alcie",
+                kind: "name" as const,
+              },
+            ];
+      }),
       applyWorkspaceEdit: vi.fn(
         async (edit: {
           documentChanges?: { edits: TextEdit[] }[];
@@ -192,17 +203,22 @@ describe("applying a fix from a problem", () => {
   });
 
   it("applies a fix the server reported for a script never opened, which carries no version", async () => {
-    const script = closedScript(SCRIPT, 0);
+    const script = closedScript(SCRIPT);
     const choice = useAlice();
     delete choice.fix.version;
     expect(await applyFix(script.deps, choice)).toBe(true);
     expect(script.text()).toBe(SCRIPT.replace("alcie", "alice"));
   });
 
-  it("changes nothing in a closed script saved since the problem was reported, though the name still sits at the same line and column", async () => {
+  it.each([
+    ["a version", 1],
+    ["no version", undefined],
+  ])("changes nothing in a closed script edited since the problem was reported with %s, though the name still sits at the same line and column", async (_, version) => {
     const edited = SCRIPT.replace("scene start", "scene start here");
-    const script = closedScript(edited, 2);
-    expect(await applyFix(script.deps, useAlice(1))).toBe(false);
+    const script = closedScript(edited);
+    const choice = useAlice();
+    choice.fix.version = version;
+    expect(await applyFix(script.deps, choice)).toBe(false);
     expect(script.text()).toBe(edited);
     expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
     expect(snackbar.value?.message).toBe(FIX_REFUSED);

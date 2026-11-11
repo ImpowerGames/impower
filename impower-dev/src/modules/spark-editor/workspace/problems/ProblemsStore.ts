@@ -1,4 +1,5 @@
 import { layoutState } from "@impower/impower-ui/layout";
+import { fixActionsOf } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { computed, signal } from "@preact/signals";
@@ -349,7 +350,14 @@ export class ProblemsStore {
     return applyFix(
       {
         getFileText: (uri) => Workspace.fs.getFileText(uri),
-        getFileVersion: (uri) => Workspace.fs.getFileVersion(uri),
+        offeredFixes: async (uri) => {
+          const pulled = await Workspace.ls.pullDiagnostics(uri);
+          if (!pulled) {
+            return null;
+          }
+          this.record({ uri, ...pulled });
+          return pulled.diagnostics.flatMap((d) => fixActionsOf(d.data));
+        },
         applyWorkspaceEdit: (edit, label, metadata) =>
           Workspace.fs.applyWorkspaceEdit(edit, label, metadata),
         recordScriptChange: () => Workspace.window.recordScriptChange(),

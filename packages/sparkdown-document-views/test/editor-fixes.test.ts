@@ -10,6 +10,7 @@ import {
 } from "@impower/sparkdown/src/tests/compiler/stillExpectedCases";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  PROBLEM_POPOVER_DELAY,
   PROBLEM_POPOVER_GRACE,
   problemMarks,
   setProblemPopover,
@@ -252,6 +253,45 @@ describe("the problem popover", () => {
     vi.advanceTimersByTime(PROBLEM_POPOVER_GRACE - 1);
     expect(popover(view)).not.toBeNull();
     vi.advanceTimersByTime(1);
+    expect(popover(view)).toBeNull();
+  });
+
+  const hoverAt = (view: EditorView, pos: number) => {
+    vi.spyOn(view, "posAtCoords").mockReturnValue(pos);
+    vi.spyOn(view, "coordsAtPos").mockReturnValue({ left: 50, right: 100, top: 0, bottom: 20 });
+    view.dom.dispatchEvent(new MouseEvent("pointermove", { clientX: 70, clientY: 10 }));
+  };
+
+  it("opens after the hover delay over the problem", () => {
+    vi.useFakeTimers();
+    const view = editor("show alcie", [history(), problemMarks()]);
+    view.dispatch(setDiagnostics(view.state, [diagnostic()]));
+    hoverAt(view, 7);
+    vi.advanceTimersByTime(PROBLEM_POPOVER_DELAY - 1);
+    expect(popover(view)).toBeNull();
+    vi.advanceTimersByTime(1);
+    expect(popover(view)?.textContent).toContain("Cannot find alcie");
+  });
+
+  it("drops a pending hover when typing removes the text under the pointer", () => {
+    vi.useFakeTimers();
+    const view = editor("show alcie", [history(), problemMarks()]);
+    view.dispatch(setDiagnostics(view.state, [diagnostic()]));
+    hoverAt(view, 7);
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length } });
+    expect(() => vi.advanceTimersByTime(PROBLEM_POPOVER_DELAY + 1)).not.toThrow();
+    expect(popover(view)).toBeNull();
+  });
+
+  it("closes the next popover after its grace once a fix was chosen from inside the last one", () => {
+    vi.useFakeTimers();
+    const view = withProblem();
+    popover(view)!.dispatchEvent(new Event("pointerenter"));
+    popover(view)!.querySelector("button")!.click();
+    expect(popover(view)).toBeNull();
+    view.dispatch({ effects: setProblemPopover.of({ pos: 7, line: false }) });
+    view.dom.dispatchEvent(new Event("pointerleave"));
+    vi.advanceTimersByTime(PROBLEM_POPOVER_GRACE);
     expect(popover(view)).toBeNull();
   });
 

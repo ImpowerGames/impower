@@ -22,6 +22,7 @@ import {
   type Tooltip,
   type TooltipView,
   ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
 import { FixMenu } from "@impower/impower-ui/fix-menu";
@@ -270,7 +271,10 @@ const renderPopover = (
   return {
     dom,
     mount: () => view.plugin(problemPopoverPointer)?.watch(dom),
-    destroy: () => hosts.forEach((host) => render(null, host)),
+    destroy: () => {
+      hosts.forEach((host) => render(null, host));
+      view.plugin(problemPopoverPointer)?.release();
+    },
   };
 };
 
@@ -385,6 +389,17 @@ const problemPopoverPointer = ViewPlugin.fromClass(
           this.scheduleHide();
         }
       });
+    }
+
+    release() {
+      this.insidePopover = false;
+      this.menuOpen = false;
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged) {
+        this.cancelShow();
+      }
     }
 
     holdForMenu(open: boolean) {

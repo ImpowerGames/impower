@@ -240,9 +240,28 @@ const applyClosedChanges = async (
   return outcome.applied;
 };
 
+export type OfferedFix = Pick<EditorFix, "changes" | "expect" | "kind">;
+
 export interface EditorFixFiles extends EditorEditFiles {
-  getFileVersion: (uri: string) => Promise<number | undefined>;
+  offeredFixes: (uri: string) => Promise<readonly OfferedFix[] | null>;
 }
+
+const sameChanges = (
+  a: readonly EditorFixChange[],
+  b: readonly EditorFixChange[],
+) =>
+  a.length === b.length &&
+  a.every(
+    (c, i) => c.from === b[i]!.from && c.to === b[i]!.to && c.insert === b[i]!.insert,
+  );
+
+const stillOffered = (fix: EditorFix, offered: readonly OfferedFix[] | null) =>
+  !!offered?.some(
+    (o) =>
+      o.expect === fix.expect &&
+      o.kind === fix.kind &&
+      sameChanges(o.changes, fix.changes),
+  );
 
 const undoFix = async (
   files: EditorFixFiles,
@@ -293,8 +312,7 @@ export const applyEditorFix = async (
   }
   if (
     editor.outcome === "refused" ||
-    (fix.version != null &&
-      (await files.getFileVersion(uri)) !== fix.version)
+    !stillOffered(fix, await files.offeredFixes(uri))
   ) {
     return REFUSED;
   }
