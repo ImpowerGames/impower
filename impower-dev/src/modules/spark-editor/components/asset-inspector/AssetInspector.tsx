@@ -8,8 +8,11 @@ import {
   DialogTitle,
   DownloadIcon,
   MessageEntry,
+  OpenIcon,
   PanelHead,
   ReplaceSwapIcon,
+  SaveIcon,
+  TextField,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { ComponentChildren, Ref } from "preact";
@@ -90,7 +93,68 @@ function useAudioSeconds(asset: InspectedAsset) {
   return seconds;
 }
 
-const messageOf = (problem: NonNullable<InspectorFacts["problems"]>[number]) =>
+const OPENABLE = /^https?:\/\//i;
+
+function LinkAddress({
+  asset,
+  intents,
+}: {
+  asset: InspectedAsset;
+  intents: () => Promise<typeof WorkspaceIntents>;
+}) {
+  const saved = asset.address ?? "";
+  const [draft, setDraft] = useState(saved);
+  const changed = !!draft.trim() && draft.trim() !== saved;
+  const save = () => {
+    if (!changed) {
+      return;
+    }
+    void intents()
+      .then((Workspace) => Workspace.assets.setAddress(asset.path, draft))
+      .then(
+        () => showSnackbar({ message: "Address saved." }),
+        (error: unknown) => showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+      );
+  };
+  return (
+    <Section title="Address" label="Address">
+      <div class="flex flex-col gap-2">
+        <TextField
+          type="url"
+          width="full"
+          aria-label="Address"
+          placeholder="https://"
+          autocomplete="off"
+          spellcheck={false}
+          value={draft}
+          onValueChange={setDraft}
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              save();
+            }
+          }}
+        />
+        <div class="flex flex-wrap gap-2">
+          <Button variant="quiet" data-inspector-save-address disabled={!changed} onClick={save}>
+            <SaveIcon />
+            Save address
+          </Button>
+          {OPENABLE.test(saved) && (
+            <Button asChild variant="quiet">
+              <a href={saved} target="_blank" rel="noreferrer noopener" data-inspector-open-link>
+                <OpenIcon />
+                Open link
+              </a>
+            </Button>
+          )}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+const messageOf =(problem: NonNullable<InspectorFacts["problems"]>[number]) =>
   typeof problem.message === "string" ? problem.message : problem.message.value;
 
 const severityOf = (severity: number | undefined) =>
@@ -114,7 +178,7 @@ export default function AssetInspector({
     next: null,
   });
   const stepped = useRef<"previous" | "next" | null>(null);
-  const refocusFrame = useRef(false);
+  const lastFocused = useRef<HTMLElement | null>(null);
   const body = useRef<HTMLDivElement | null>(null);
   const picker = useRef<HTMLInputElement | null>(null);
   const [facts, setFacts] = useState<InspectorFacts | null>(null);
@@ -157,15 +221,26 @@ export default function AssetInspector({
   }, [asset.path, asset.src]);
 
   useEffect(() => {
-    const direction = stepped.current;
-    stepped.current = null;
-    if (refocusFrame.current) {
-      refocusFrame.current = false;
-      (body.current?.querySelector<HTMLElement>("[data-zoom-frame][tabindex]") ?? close.current)?.focus({
-        preventScroll: true,
-      });
+    const last = lastFocused.current;
+    const active = document.activeElement;
+    if (!last || last.isConnected || (active && active !== document.body)) {
       return;
     }
+    const sameKind = last.matches("[data-zoom-frame]")
+      ? "[data-zoom-frame][tabindex]"
+      : last.matches("[data-text-contents]")
+        ? "[data-text-contents]"
+        : last.matches("video")
+          ? "video"
+          : null;
+    ((sameKind ? body.current?.querySelector<HTMLElement>(sameKind) : null) ?? close.current)?.focus({
+      preventScroll: true,
+    });
+  }, [asset.path, asset.src]);
+
+  useEffect(() => {
+    const direction = stepped.current;
+    stepped.current = null;
     if (!direction) {
       return;
     }
@@ -204,8 +279,6 @@ export default function AssetInspector({
     const to = event.key === "ArrowLeft" ? previous : next;
     if (to) {
       event.preventDefault();
-      const focused = document.activeElement;
-      refocusFrame.current = focused instanceof Element && !!focused.closest("[data-zoom-frame]");
       onStep(to.path);
     }
   };
@@ -277,6 +350,9 @@ export default function AssetInspector({
           : "flex h-full min-h-0 flex-col bg-preview-mat text-ink"
       }
       onKeyDown={onKeyDown}
+      onFocusIn={(event) => {
+        lastFocused.current = event.target instanceof HTMLElement ? event.target : null;
+      }}
     >
       <PanelHead
         size={desktop && !sheet ? "tall" : "default"}
@@ -330,6 +406,7 @@ export default function AssetInspector({
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
         />
+        {asset.link && <LinkAddress key={asset.path} asset={asset} intents={intents} />}
         {problems === null ? (
           <Section title="Problems" label="Problems">
             <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
@@ -375,13 +452,14 @@ export default function AssetInspector({
             <p class="m-0 text-[12px]/[1.5] text-muted">{NOT_USED_NOTES[asset.type]}</p>
           )}
         </Section>
-        {!asset.link && (
-          <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2">
+          {!asset.link && (
             <Button variant="quiet" data-inspector-replace onClick={() => picker.current?.click()}>
               <ReplaceSwapIcon />
               Replace…
             </Button>
-            <Button
+          )}
+          <Button
               variant="quiet"
               data-inspector-download
               onClick={() =>
@@ -395,9 +473,10 @@ export default function AssetInspector({
               <DownloadIcon />
               Download
             </Button>
+          {!asset.link && (
             <input ref={picker} type="file" class="hidden" data-inspector-picker onChange={onPicked} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </section>
   );

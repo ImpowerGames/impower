@@ -225,10 +225,16 @@ function AssetsBrowser() {
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
   const listed = openPath && openedIn === host ? files.find((row) => row.path === openPath) : undefined;
+  const hidden =
+    !listed && openPath && openedIn === host && shownRow.current?.path === openPath && Object.hasOwn(listing.files, openPath)
+      ? shownRow.current
+      : null;
   const openRowOf =
     listed ??
-    (openPath && openedIn === host && shownRow.current?.path === openPath && Object.hasOwn(listing.files, openPath)
-      ? shownRow.current
+    (hidden
+      ? (assetLevel({ listing, type: hidden.type, folder: parentOf(hidden.path), sort, endings }).rows.find(
+          (row) => row.kind === "file" && row.path === hidden.path,
+        ) ?? null)
       : null);
   if (openRowOf) {
     shownRow.current = openRowOf;
@@ -267,18 +273,27 @@ function AssetsBrowser() {
   const scrollKey = searching ? "search" : `${type}:${level.folder}`;
   const scroller = useSavedScroll("assetsScrolls", scrollKey);
 
-  useEffect(() => {
-    if (openPath && !openRowOf) {
-      setOpenPath(null);
-    }
-  }, [openPath, openRowOf]);
-
   const revealRow = (path: string) => setReveal((prev) => ({ path, request: (prev?.request ?? 0) + 1 }));
 
   const rowElement = (path: string) =>
     [...(list.current?.querySelectorAll<HTMLElement>("[data-asset-path]") ?? [])].find(
       (element) => element.getAttribute("data-asset-path") === path,
     ) ?? null;
+
+  const focusRow = (path: string) => {
+    revealRow(path);
+    requestAnimationFrame(() => rowElement(path)?.focus({ preventScroll: true }));
+  };
+
+  useEffect(() => {
+    if (openPath && !openRowOf) {
+      setOpenPath(null);
+      const active = document.activeElement;
+      if (openedIn !== host && (!active || active === document.body)) {
+        focusRow(openPath);
+      }
+    }
+  }, [openPath, openRowOf]);
 
   const openAsset = (path: string) => {
     setOpenedIn(host);
@@ -294,8 +309,7 @@ function AssetsBrowser() {
     const path = shownRow.current?.path;
     setOpenPath(null);
     if (path && host === "dock") {
-      revealRow(path);
-      requestAnimationFrame(() => rowElement(path)?.focus({ preventScroll: true }));
+      focusRow(path);
     }
   };
 

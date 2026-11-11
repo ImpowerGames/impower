@@ -31,6 +31,7 @@ const assets = vi.hoisted(() => ({
   replace: vi.fn(async (path: string) => path),
   download: vi.fn(async () => undefined),
   readText: vi.fn(async () => "The lamps come on one by one."),
+  setAddress: vi.fn(async () => undefined),
 }));
 const window = vi.hoisted(() => ({
   setListState: vi.fn(),
@@ -308,6 +309,7 @@ describe("the asset inspector", () => {
     });
     expect(region()).toBeNull();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(rowFor("Assets/Audio/Sounds/door_chime.wav"));
 
     await open("door_chime");
     expect(document.querySelector('[role="dialog"]')!.contains(region())).toBe(true);
@@ -318,6 +320,85 @@ describe("the asset inspector", () => {
     });
     expect(region()).toBeNull();
     expect(dock().childElementCount).toBe(0);
+    expect(document.activeElement).toBe(rowFor("Assets/Audio/Sounds/door_chime.wav"));
+  });
+
+  it("keeps keyboard focus in the frame when the file on screen changes, so Escape still closes", async () => {
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("harbor");
+    const frame = region()!.querySelector<HTMLElement>("[data-zoom-frame][tabindex]")!;
+    frame.focus();
+    await act(async () => {
+      const listing = workspace.assetListing.value!;
+      workspace.assetListing.value = {
+        ...listing,
+        files: {
+          ...listing.files,
+          "Assets/Images/Backdrops/harbor.png": { ...listing.files["Assets/Images/Backdrops/harbor.png"]!, src: "/p/600?v=2" },
+        },
+      };
+    });
+    await settle();
+    const fresh = region()!.querySelector<HTMLElement>("[data-zoom-frame][tabindex]")!;
+    expect(fresh).not.toBe(frame);
+    expect(document.activeElement).toBe(fresh);
+    await key(fresh, "Escape");
+    expect(region()).toBeNull();
+  });
+
+  it("rebuilds a stack kept open under a search that hides it when one of its files goes", async () => {
+    workspace.assetListing.value = {
+      ...workspace.assetListing.value!,
+      files: { ...workspace.assetListing.value!.files, "Assets/Images/Backdrops/harbor@night.png": fact(601) },
+    };
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("harbor");
+    expect(subtitle()).toBe("Image · PNG · 2 variants");
+    expect(details()).toContain("Files: 2 files · 1 kB");
+    await search("market");
+    expect(title()).toBe("harbor");
+    await act(async () => {
+      const { "Assets/Images/Backdrops/harbor@night.png": _gone, ...rest } = workspace.assetListing.value!.files;
+      workspace.assetListing.value = { ...workspace.assetListing.value!, files: rest };
+    });
+    await settle();
+    expect(title()).toBe("harbor");
+    expect(subtitle()).toBe("Image · PNG");
+    expect(details()).toContain("File: 600 B");
+  });
+
+  it("shows a link's address, saves a new one, opens it, and downloads the link file, but offers no Replace", async () => {
+    workspace.assetListing.value = {
+      ...workspace.assetListing.value!,
+      files: {
+        ...workspace.assetListing.value!.files,
+        "Assets/Images/Backdrops/sky.url": { ...fact(27), address: "https://example.com/sky.png" },
+      },
+    };
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("sky");
+    expect(subtitle()).toBe("Image · PNG · link");
+    expect(region()!.querySelector("[data-inspector-replace]")).toBeNull();
+    const field = region()!.querySelector<HTMLInputElement>('input[aria-label="Address"]')!;
+    expect(field.value).toBe("https://example.com/sky.png");
+    expect(region()!.querySelector<HTMLAnchorElement>("a[data-inspector-open-link]")!.getAttribute("href")).toBe(
+      "https://example.com/sky.png",
+    );
+    const save = region()!.querySelector<HTMLButtonElement>("[data-inspector-save-address]")!;
+    expect(save.disabled).toBe(true);
+    await act(async () => {
+      field.value = "https://example.com/sky2.png";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(save.disabled).toBe(false);
+    await click(save);
+    expect(assets.setAddress).toHaveBeenCalledWith("Assets/Images/Backdrops/sky.url", "https://example.com/sky2.png");
+    expect(snackbar.value?.message).toBe("Address saved.");
+    await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
+    expect(assets.download).toHaveBeenCalledWith("Assets/Images/Backdrops/sky.url");
   });
 
   it("is a full-screen sheet with Back in the compact layout, and Back returns focus to the tile that opened it", async () => {

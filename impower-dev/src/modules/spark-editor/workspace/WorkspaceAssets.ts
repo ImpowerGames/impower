@@ -42,6 +42,7 @@ type Deps = {
     | "deleteFolder"
     | "readFile"
     | "getFileText"
+    | "writeTextDocument"
   >;
   ls: Pick<WorkspaceLanguageServer, "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics">;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
@@ -385,6 +386,21 @@ export default class WorkspaceAssets {
     return fs.getFileText(fs.getFileUri(projectId, path));
   }
 
+  async setAddress(path: string, address: string): Promise<void> {
+    const projectId = this.requireProject();
+    if (!isLinkPath(path)) {
+      throw new NameError(`${nameOf(path)} is not a link.`);
+    }
+    const text = address.trim();
+    if (!text) {
+      throw new NameError("Enter the address the link points to.");
+    }
+    const { fs, window } = this._workspace;
+    await fs.writeTextDocument({ textDocument: { uri: fs.getFileUri(projectId, path), version: 0, text } });
+    await window.recordAssetChange();
+    await this.load();
+  }
+
   async download(path: string): Promise<void> {
     const projectId = this.requireProject();
     const { fs } = this._workspace;
@@ -422,8 +438,12 @@ export default class WorkspaceAssets {
         await this.load();
         return rule.path;
       }
+      const unchanged = !!now && sameBytes(now, before);
+      if (!unchanged) {
+        await this.load().catch(() => null);
+      }
       throw new NameError(
-        now && sameBytes(now, before)
+        unchanged
           ? `Couldn't replace ${leaf}: ${reasonOf(error)}. The old file is still there.`
           : `Couldn't replace ${leaf}: ${reasonOf(error)}. What it holds now could not be confirmed, so open it to check.`,
       );

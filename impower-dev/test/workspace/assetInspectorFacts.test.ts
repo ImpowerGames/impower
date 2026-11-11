@@ -60,6 +60,9 @@ function fakeWorkspace(stored: Record<string, string>) {
       for (const file of written) files.set(file.uri.slice(`file:///${PROJECT}/`.length), text(file.data));
       return [];
     }),
+    writeTextDocument: vi.fn(async ({ textDocument }: { textDocument: { uri: string; text: string } }) => {
+      files.set(textDocument.uri.slice(`file:///${PROJECT}/`.length), textDocument.text);
+    }),
   };
   const ls = {
     getFileReferences: vi.fn(async (): Promise<{ uri: string; range: ReturnType<typeof range> }[]> => []),
@@ -260,6 +263,20 @@ describe("Replace", () => {
     );
   });
 
+  it("reloads the listing after a failed write, so the inspector shows what the file holds now", async () => {
+    const { assets, fs, files } = fakeWorkspace({ "Assets/Images/harbor.png": "old" });
+    await assets.load();
+    expect(workspace.assetListing.value!.files["Assets/Images/harbor.png"]!.size).toBe(3);
+    fs.createFiles.mockImplementationOnce(async () => {
+      files.set("Assets/Images/harbor.png", "part");
+      throw new Error("The write was cut off");
+    });
+    await expect(assets.replace("Assets/Images/harbor.png", picked("night.png", "new"))).rejects.toThrow(
+      "What it holds now could not be confirmed",
+    );
+    expect(workspace.assetListing.value!.files["Assets/Images/harbor.png"]!.size).toBe(4);
+  });
+
   it("reports a replace that landed although the write reported an error", async () => {
     const { assets, fs, files } = fakeWorkspace({ "Assets/Images/harbor.png": "old" });
     await assets.load();
@@ -271,6 +288,26 @@ describe("Replace", () => {
     expect(mocks.recordReplace.mock.calls[0]![4]).toBe(
       "Replaced, though saving harbor.png reported a problem: The change list could not be sent",
     );
+  });
+});
+
+describe("A link's address", () => {
+  it("writes a new address into the link file, trimmed, and refuses an empty one or a file that is not a link", async () => {
+    const { assets, fs, files, window } = fakeWorkspace({
+      "Assets/Images/sky.url": "https://example.com/old.png",
+      "Assets/Images/harbor.png": "png",
+    });
+    await assets.setAddress("Assets/Images/sky.url", "  https://example.com/new.png ");
+    expect(fs.writeTextDocument).toHaveBeenCalledWith({
+      textDocument: { uri: uri("Assets/Images/sky.url"), version: 0, text: "https://example.com/new.png" },
+    });
+    expect(files.get("Assets/Images/sky.url")).toBe("https://example.com/new.png");
+    expect(window.recordAssetChange).toHaveBeenCalled();
+    await expect(assets.setAddress("Assets/Images/sky.url", "   ")).rejects.toThrow("Enter the address the link points to.");
+    await expect(assets.setAddress("Assets/Images/harbor.png", "https://example.com/x.png")).rejects.toThrow(
+      "harbor.png is not a link.",
+    );
+    expect(fs.writeTextDocument).toHaveBeenCalledTimes(1);
   });
 });
 
