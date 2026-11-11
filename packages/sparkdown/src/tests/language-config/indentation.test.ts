@@ -52,48 +52,24 @@ describe.each([
         "  repeat",
         "  else",
         "  function f(x)",
-        "  define",
+        "local f = function()",
+        '  if url == "https://example.com" then',
+        '  if s == "a--b" then',
+        "  if s == 'a--b' then",
+        '  for _, u in ipairs({ "//a", "--b" }) do',
+        "  if url == `https://example.com` then",
+        "  if s == `a--b` then",
+        "  if s == [[a--b]] then",
+        "  if s == [=[a]]--b]=] then",
+        "  if s == [==[a//b]==] then",
+        "  if s == `{`a--b`}` then",
+        '  if s == `{"a}--"}` then',
+        '  if s == `{[["]]}--` then',
+        "  if s == `{[=['}]=]}--` then",
+        "  if s == `{[==[`]==]}--` then",
+        '  call(`{[["]]}--`, (',
       ]) {
         expect(increase.test(line), line).toBe(true);
-      }
-    });
-
-    it("indents after a named declaration header", () => {
-      for (const line of [
-        "scene name",
-        "  scene start",
-        "scene name -- comment",
-        "branch name",
-        "define name",
-        "define Hero with",
-        "define companion as character with",
-        "define Hero with -- comment",
-        "scene заголовок",
-        "branch side-path",
-        "scene ending",
-        "define end_state with",
-      ]) {
-        expect(increase.test(line), line).toBe(true);
-      }
-    });
-
-    it("does not indent after a closed or non-header declaration line", () => {
-      for (const line of [
-        "define x with a = 1 end",
-        "define = 1, 2",
-        "define Hero, with",
-        "scene a, b",
-        "branch (x)",
-        "define Hero with x",
-        "scene end",
-        "branch if",
-        "define return with",
-        "define Hero as end with",
-        "-- scene name",
-        "The scene changes",
-        'x = "scene name"',
-      ]) {
-        expect(increase.test(line), line).toBe(false);
       }
     });
 
@@ -175,30 +151,211 @@ describe.each([
     });
 
   });
+});
 
-  describe("define onEnterRule", () => {
-    const defineRule = onEnterRules.find(
-      (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),
-    )!;
-    const before = new RegExp(defineRule.beforeText, "u");
-    const after = new RegExp(defineRule.afterText!, "u");
+interface LanguageConfig {
+  autoClosingPairs: { open: string; close: string }[];
+  surroundingPairs: string[][];
+  indentationRules: { increaseIndentPattern: string };
+  onEnterRules: {
+    beforeText: string;
+    afterText?: string;
+    action: { indent: string; appendText?: string };
+  }[];
+}
 
-    it("splits a named define header from its end", () => {
-      for (const line of [
-        "define",
-        "define Hero with",
-        "  define companion as character with",
-        "define Hero",
-      ]) {
-        expect(before.test(line), line).toBe(true);
-      }
-      expect(after.test("end")).toBe(true);
-    });
+const STORY = STORY_LANGUAGE_CONFIG as LanguageConfig;
+const LUAU = LUAU_LANGUAGE_CONFIG as LanguageConfig;
 
-    it("ignores a define closed on its own line", () => {
-      expect(before.test("define x with a = 1 end")).toBe(false);
-      expect(before.test("define Hero, with")).toBe(false);
-      expect(before.test("define end with")).toBe(false);
-    });
+const opens = (config: LanguageConfig) =>
+  config.autoClosingPairs.map((pair) => pair.open);
+
+const enterRuleMatching = (config: LanguageConfig, before: string) =>
+  config.onEnterRules.find((rule) =>
+    new RegExp(rule.beforeText, "u").test(before),
+  );
+
+describe("the division of entries between the two files", () => {
+  it("gives the story file the story pairs and no Luau comment pairs", () => {
+    expect(opens(STORY)).toEqual(
+      expect.arrayContaining(["{", "[", "(", '"', "`", "~~", "::", "/*"]),
+    );
+    for (const open of ["--[[", "--[=[", "--[==["]) {
+      expect(opens(STORY), open).not.toContain(open);
+    }
+    expect(STORY.surroundingPairs.map(([open]) => open)).not.toContain("--[[");
+  });
+
+  it("gives the Luau file the Luau comment pairs and no story pairs", () => {
+    expect(opens(LUAU)).toEqual(
+      expect.arrayContaining(["{", "[", "(", '"', "`", "--[[", "--[=[", "--[==["]),
+    );
+    for (const open of ["~~", "::", "/*"]) {
+      expect(opens(LUAU), open).not.toContain(open);
+    }
+    expect(LUAU.surroundingPairs).toContainEqual(["--[[", "]]"]);
+  });
+
+  it("keeps the story Enter rules out of the Luau file", () => {
+    for (const before of ["  + Go left", "  * item", "  - item", "  -> next", "  RAFFLES:", "define Hero with"]) {
+      expect(enterRuleMatching(STORY, before), before).toBeDefined();
+      expect(enterRuleMatching(LUAU, before), before).toBeUndefined();
+    }
+  });
+
+  it("keeps the Luau Enter rules out of the story file", () => {
+    for (const before of ["  --[[ note", "  --- doc", "  function f()", "  if a then", "  for i = 1, 3 do", "  else", "  repeat"]) {
+      expect(enterRuleMatching(LUAU, before), before).toBeDefined();
+      expect(enterRuleMatching(STORY, before), before).toBeUndefined();
+    }
+  });
+});
+
+describe("the story increaseIndentPattern", () => {
+  const increase = new RegExp(STORY.indentationRules.increaseIndentPattern);
+
+  it("does not indent after prose that ends like a block header", () => {
+    for (const line of [
+      "What should I do",
+      "And then",
+      "Or else",
+      "She left the scene",
+      "We reached a new branch",
+      "  I had to repeat",
+      "  She had a function to attend",
+    ]) {
+      expect(increase.test(line), line).toBe(false);
+    }
+  });
+
+  it("indents after a block header", () => {
+    for (const line of [
+      "if x then",
+      "  elseif y then",
+      "for i = 1, 3 do",
+      "  while busy do",
+      "else",
+      "do",
+      "repeat",
+      "scene start()",
+      "scene start(a, b)",
+      "function f()",
+      "local g = function(x)",
+      "  if x then -- note",
+      "  if x then // note",
+    ]) {
+      expect(increase.test(line), line).toBe(true);
+    }
+  });
+
+  it("skips both comment forms", () => {
+    for (const line of [
+      "-- if x then",
+      "// if x then",
+      "  // scene start",
+      "  note // [",
+      "  if x then f() end",
+      "function f() end",
+    ]) {
+      expect(increase.test(line), line).toBe(false);
+    }
+  });
+
+  it("indents after a named declaration header", () => {
+    for (const line of [
+      "scene name",
+      "  scene start",
+      "scene name -- comment",
+      "branch name",
+      "define name",
+      "define Hero with",
+      "define companion as character with",
+      "define Hero with -- comment",
+      "scene заголовок",
+      "branch side-path",
+      "scene ending",
+      "define end_state with",
+      "  define",
+    ]) {
+      expect(increase.test(line), line).toBe(true);
+    }
+  });
+
+  it("does not indent after a closed or non-header declaration line", () => {
+    for (const line of [
+      "define x with a = 1 end",
+      "define = 1, 2",
+      "define Hero, with",
+      "scene a, b",
+      "branch (x)",
+      "define Hero with x",
+      "scene end",
+      "branch if",
+      "define return with",
+      "define Hero as end with",
+      "-- scene name",
+      "The scene changes",
+      'x = "scene name"',
+    ]) {
+      expect(increase.test(line), line).toBe(false);
+    }
+  });
+});
+
+describe("the stated reach of the indent patterns' comment scanner (GRAMMAR.md 8.2)", () => {
+  const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
+  const luauIncrease = new RegExp(LUAU.indentationRules.increaseIndentPattern);
+
+  it("reads a comment marker in a level-3 long bracket as a comment", () => {
+    for (const increase of [storyIncrease, luauIncrease]) {
+      expect(increase.test("  call([===[a--b]===], ("), String(increase).slice(0, 40)).toBe(false);
+    }
+    expect(luauIncrease.test("  if s == [===[a--b]===] then")).toBe(false);
+  });
+
+  it("reads a comment marker after an interpolation that holds its own braces as a comment", () => {
+    for (const increase of [storyIncrease, luauIncrease]) {
+      expect(increase.test("  call(`{ {1} }--`, ("), String(increase).slice(0, 40)).toBe(false);
+    }
+    expect(luauIncrease.test("  if s == `{ {1} }--` then")).toBe(false);
+    expect(luauIncrease.test("  if s == `{f({1})}--` then")).toBe(false);
+  });
+
+  it("does not scan a story if, for or while header for comments", () => {
+    for (const line of [
+      "  if s == [===[a--b]===] then",
+      "  if s == `{ {1} }--` then",
+      "  if a // 2 == 0 then",
+      "  if x -- then",
+      "  while busy // do",
+    ]) {
+      expect(storyIncrease.test(line), line).toBe(true);
+    }
+  });
+});
+
+describe("the story define onEnterRule", () => {
+  const defineRule = STORY.onEnterRules.find(
+    (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),
+  )!;
+  const before = new RegExp(defineRule.beforeText, "u");
+  const after = new RegExp(defineRule.afterText!, "u");
+
+  it("splits a named define header from its end", () => {
+    for (const line of [
+      "define",
+      "define Hero with",
+      "  define companion as character with",
+      "define Hero",
+    ]) {
+      expect(before.test(line), line).toBe(true);
+    }
+    expect(after.test("end")).toBe(true);
+  });
+
+  it("ignores a define closed on its own line", () => {
+    expect(before.test("define x with a = 1 end")).toBe(false);
+    expect(before.test("define Hero, with")).toBe(false);
+    expect(before.test("define end with")).toBe(false);
   });
 });

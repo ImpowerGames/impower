@@ -76,10 +76,10 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
         vscodeCommentTokens(reader, language, configs),
         vscodeSnippets(reader, language, snippets),
         vscodeBracketMatching(config),
-        vscodeSurroundBrackets(config),
-        vscodeCloseBrackets(config),
-        vscodeOnEnterRules(config),
-        vscodeIndentationRules(config),
+        vscodeSurroundBrackets(reader, language, configs),
+        vscodeCloseBrackets(reader, language, configs),
+        vscodeOnEnterRules(reader, language, configs),
+        vscodeIndentationRules(reader, language, configs),
       ];
     },
   );
