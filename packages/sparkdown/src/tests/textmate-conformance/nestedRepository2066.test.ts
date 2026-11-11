@@ -270,7 +270,33 @@ describe("a rule-level repository resolves as vscode-textmate resolves it (I-206
 });
 
 describe("every rule a grammar with nested repositories builds keeps its own id (I-2066)", () => {
-  const TOP_KEYS = ["O", "P", "I", "O#I", "O#I#1", "O#1", "O#1#I", "O#2#I", "P#I", "O#I#I"];
+  const TOP_KEYS = [
+    "O",
+    "P",
+    "I",
+    "O#I",
+    "O#I#1",
+    "O#1",
+    "O#1#I",
+    "O#2#I",
+    "P#I",
+    "O#I#I",
+    "-p0",
+    "-p1",
+    "O-p0",
+    "O-p1",
+    "O-p0-1",
+    "O_c1",
+    "O_c1-p0",
+    "O_begin",
+    "O_begin_c1",
+    "O_end",
+    "O_content",
+    "O_content-p0",
+    "O#I-p0",
+    "O#I_content",
+    "O#I_begin_c1",
+  ];
   const NESTED_KEYS = [
     "I",
     "1",
