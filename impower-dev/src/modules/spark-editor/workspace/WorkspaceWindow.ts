@@ -167,7 +167,7 @@ import {
   projectSettingsJson,
 } from "./settings/settingsJson";
 import workspaceSettings from "./settings/WorkspaceSettings";
-import type { PreviewMode } from "./settings/settingsSchema";
+import { playsGame, type PreviewMode } from "./settings/settingsSchema";
 import {
   createPreviewBeatSkipper,
   type PreviewBeatSkipperDeps,
@@ -1793,10 +1793,13 @@ export default class WorkspaceWindow {
   }
 
   setPreviewMode(mode: PreviewMode) {
-    if (workspaceSettings.preferences.peek().previewMode === mode) {
+    const current = workspaceSettings.preferences.peek().previewMode;
+    if (current === mode) {
       return;
     }
-    this.stopGame();
+    if (!playsGame(current) || !playsGame(mode)) {
+      this.stopGame();
+    }
     workspaceSettings.setPreference("previewMode", mode);
   }
 

@@ -5,6 +5,7 @@ import type {
 } from "../../../modules/ui/types/PageState";
 import type { TextInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
+import { pageKey } from "../../utils/pageKey";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
 import { clearStage, writeStage } from "./stage";
@@ -57,10 +58,10 @@ export class InteractiveFictionPresenter implements Presenter {
   }
 
   record(): void {
-    const { hold, ...beat } = this._instructions;
-    this._game.module.ui.page.record(
-      JSON.stringify(beat),
-      Boolean(this._options.again || hold),
+    const page = this._game.module.ui.page;
+    page.record(
+      pageKey(this._instructions),
+      Boolean(this._instructions.hold || page.holds()),
       (before) => this.entries(before),
     );
   }

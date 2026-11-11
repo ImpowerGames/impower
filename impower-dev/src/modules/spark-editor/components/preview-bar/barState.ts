@@ -9,7 +9,11 @@ import {
 import type { HostedRouteView } from "@impower/spark-web-player/src/route/routeViewMessages";
 import { routeScriptName } from "../../workspace/route/RouteStore";
 import type { DebugSessionState } from "../../workspace/WorkspaceStore";
-import type { ProjectSettings } from "../../workspace/settings/settingsSchema";
+import {
+  fillsPane,
+  type PreviewMode,
+  type ProjectSettings,
+} from "../../workspace/settings/settingsSchema";
 
 export type AspectRatioChoice = ProjectSettings["previewAspectRatio"];
 
@@ -35,6 +39,22 @@ export const aspectRatioLabel = (
     ? `${name} · ${Math.round(size.width)}×${Math.round(size.height)}`
     : name;
 };
+
+export const ASPECT_RATIO_LABEL_RESERVES = [
+  "Auto · 0000×0000",
+  "16:9 · 0000×0000",
+] as const;
+
+export type SizeControl = "paper" | "aspectRatio" | "pageFillsPane";
+
+export const sizeControl = (mode: PreviewMode): SizeControl =>
+  mode === "screenplay"
+    ? "paper"
+    : fillsPane(mode)
+      ? "pageFillsPane"
+      : "aspectRatio";
+
+export const PAGE_FILLS_PANE = "The page fills the pane in Interactive Fiction";
 
 export const PAPER_SIZE_LABELS: Record<
   ProjectSettings["screenplayPaperSize"],

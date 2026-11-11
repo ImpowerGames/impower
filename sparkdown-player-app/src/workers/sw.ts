@@ -13,11 +13,13 @@ import {
   type MorphAssetRequest,
 } from "../../../packages/sparkdown/src/morph/assetService";
 import { MorphBakeService } from "../../../packages/sparkdown/src/morph/service";
+import {
+  getResourcePathFromUrl,
+  RESOURCE_PROTOCOL,
+} from "../../../packages/sparkdown/src/workspace/utils/resourceUrl";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;
-
-const RESOURCE_PROTOCOL: string = "/file:/";
 
 const SW_FILTERED_CACHE_NAME: string = "filtered-svgs-attributes-v3";
 
@@ -136,7 +138,7 @@ async function serveMorph(
 }
 
 async function handleLocalAssetRequest(url: URL, clientId: string) {
-  const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
+  const path = getResourcePathFromUrl(url);
   const filename = path.split("/").at(-1);
   const contentType = guessType(filename || "");
 

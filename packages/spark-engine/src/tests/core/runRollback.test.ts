@@ -399,10 +399,15 @@ describe("rolling a run back and forward", () => {
     expect(back.restored.location?.range.start.line).toBe(
       lineOf("The first beat."),
     );
-    expect(h.of("game/rolled").at(-1)?.params).toEqual({
+    const rolled = h.of("game/rolled").at(-1)?.params;
+    expect(rolled).toEqual({
       restored: back.restored,
       history: back.history,
+      executed: expect.objectContaining({ history: back.history }),
     });
+    expect(rolled.executed.lastLocation?.range.end.line).toBe(
+      lineOf("The first beat."),
+    );
   });
 
   test("the published game state carries the history", async () => {

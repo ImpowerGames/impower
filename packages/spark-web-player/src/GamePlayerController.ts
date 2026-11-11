@@ -78,6 +78,10 @@ import {
   type PlayerBarState,
 } from "./components/PlayerBar/playerBarState";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import {
+  SetStartingDisplayModeMessage,
+  type StartingDisplayMode,
+} from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
@@ -433,6 +437,7 @@ export class GamePlayerController {
     dataBreakpoints?: { dataId: string }[];
     debugging?: boolean;
     startingValues?: StartingValues;
+    startingDisplayMode?: StartingDisplayMode;
   };
 
   private _resolveLoadingInitialProgram!: () => void;
@@ -1466,6 +1471,11 @@ export class GamePlayerController {
       this.host,
     );
     p.onRequest(
+      SetStartingDisplayModeMessage.type,
+      this.handleSetStartingDisplayMode,
+      this.host,
+    );
+    p.onRequest(
       SetRouteTogglesMessage.type,
       this.handleSetRouteToggles,
       this.host,
@@ -2141,6 +2151,27 @@ export class GamePlayerController {
     } catch (e) {
       reportUnlessRestarted(e);
     }
+    await this.redrawIdlePreview();
+  }
+
+  protected handleSetStartingDisplayMode = async (
+    message: SetStartingDisplayModeMessage.Request,
+  ) => {
+    const { mode } = message.params;
+    if ((this._options?.startingDisplayMode ?? "textbox") !== mode) {
+      this._options ??= {};
+      this._options.startingDisplayMode = mode;
+      try {
+        await this.askWorkerGame(SetStartingDisplayModeMessage.type, { mode });
+      } catch (e) {
+        reportUnlessRestarted(e);
+      }
+      await this.redrawIdlePreview();
+    }
+    return SetStartingDisplayModeMessage.type.response(message.id, {});
+  };
+
+  protected async redrawIdlePreview() {
     if (this.playing) {
       return;
     }
@@ -2152,7 +2183,7 @@ export class GamePlayerController {
       }
       return;
     }
-    const startFrom = this._options.startFrom;
+    const startFrom = this._options?.startFrom;
     if (this._program && startFrom) {
       void this.updatePreview(this._program, startFrom.file, startFrom.line);
     }
@@ -3701,6 +3732,13 @@ export class GamePlayerController {
       sent.push(
         link.request(SetGameStartingValuesMessage.type, {
           values: options.startingValues,
+        }),
+      );
+    }
+    if (options?.startingDisplayMode) {
+      sent.push(
+        link.request(SetStartingDisplayModeMessage.type, {
+          mode: options.startingDisplayMode,
         }),
       );
     }

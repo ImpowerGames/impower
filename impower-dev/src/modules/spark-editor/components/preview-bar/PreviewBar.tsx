@@ -13,6 +13,7 @@ import {
   ShrinkIcon,
   WarningIcon,
 } from "@impower/impower-ui/components";
+import type { GameSize } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
@@ -21,10 +22,14 @@ import { ProblemsToggle } from "../problems";
 import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
 import {
+  ASPECT_RATIO_LABEL_RESERVES,
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
   barReadout,
+  type AspectRatioChoice,
+  PAGE_FILLS_PANE,
   PAPER_SIZE_LABELS,
+  sizeControl,
   stopNote,
 } from "./barState";
 
@@ -39,7 +44,7 @@ export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
 }: PreviewBarProps) {
-  const mode = workspaceSettings.preferences.value.previewMode;
+  const size = sizeControl(workspaceSettings.preferences.value.previewMode);
   return (
     <div
       role="group"
@@ -48,7 +53,11 @@ export default function PreviewBar({
     >
       <ProblemsToggle />
       <RouteReadout />
-      {mode === "screenplay" ? <PaperSizeLink /> : <AspectRatioMenu />}
+      {size === "paper" ? (
+        <PaperSizeLink />
+      ) : (
+        <AspectRatioMenu pageFillsPane={size === "pageFillsPane"} />
+      )}
       <Button
         variant="quiet"
         size="icon"
@@ -129,11 +138,44 @@ function RouteReadout() {
   );
 }
 
-function AspectRatioMenu() {
+function RatioLabel({
+  choice,
+  size,
+}: {
+  choice: AspectRatioChoice;
+  size: GameSize | undefined;
+}) {
+  const [reserve, reserveAlt] = ASPECT_RATIO_LABEL_RESERVES;
+  return (
+    <span
+      data-reserve={reserve}
+      data-reserve-alt={reserveAlt}
+      class="inline-grid justify-items-end before:invisible before:content-[attr(data-reserve-alt)] before:[grid-area:1/1] after:invisible after:content-[attr(data-reserve)] after:[grid-area:1/1] [&>*]:[grid-area:1/1]"
+    >
+      <span>{aspectRatioLabel(choice, size)}</span>
+    </span>
+  );
+}
+
+function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
   const choice = workspaceSettings.projectSettings.value.previewAspectRatio;
   const size = useComputed(
     () => workspace.state.value.preview?.modes?.game?.size,
   ).value;
+
+  if (pageFillsPane) {
+    return (
+      <Button
+        variant="quiet"
+        aria-label="Game aspect ratio"
+        aria-disabled
+        title={PAGE_FILLS_PANE}
+        class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
+      >
+        <RatioLabel choice="auto" size={size} />
+      </Button>
+    );
+  }
 
   const onValueChange = (value: string) => {
     const row = ASPECT_RATIO_ROWS.find((r) => r.value === value);
@@ -151,7 +193,7 @@ function AspectRatioMenu() {
           title="Game aspect ratio"
           class={`px-2.5 text-muted ${BAR_TEXT}`}
         >
-          {aspectRatioLabel(choice, size)}
+          <RatioLabel choice={choice} size={size} />
         </Button>
       </DropdownTrigger>
       <DropdownContent side="top" align="end" class="min-w-[210px]">

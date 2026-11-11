@@ -1,4 +1,5 @@
 import { Grammar } from "@impower/textmate-grammar-tree/src/grammar/classes/Grammar";
+import { localName } from "@impower/textmate-grammar-tree/src/grammar/utils/nodeName";
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -270,7 +271,35 @@ describe("a rule-level repository resolves as vscode-textmate resolves it (I-206
 });
 
 describe("every rule a grammar with nested repositories builds keeps its own id (I-2066)", () => {
-  const TOP_KEYS = ["O", "P", "I", "O#I", "O#I#1", "O#1", "O#1#I", "O#2#I", "P#I", "O#I#I"];
+  const TOP_KEYS = [
+    "O",
+    "P",
+    "I",
+    "O#I",
+    "O#I#1",
+    "O#1",
+    "O#1#I",
+    "O#2#I",
+    "P#I",
+    "O#I#I",
+    "-p0",
+    "-p1",
+    "O-p0",
+    "O-p1",
+    "O-p0-1",
+    "O_c1",
+    "O_c1-p0",
+    "O_begin",
+    "O_begin_c1",
+    "O_end",
+    "O_content",
+    "O_content-p0",
+    "O#I-p0",
+    "O#I_content",
+    "O#I_begin_c1",
+    "O#I_begin",
+    "O#I_end",
+  ];
   const NESTED_KEYS = [
     "I",
     "1",
@@ -317,6 +346,7 @@ describe("every rule a grammar with nested repositories builds keeps its own id 
           name: named(),
           begin: "(<)",
           end: ">",
+          brackets: true,
           beginCaptures: { 1: { name: named() } },
           patterns: [{ name: named(), match: "z" }],
         };
@@ -353,11 +383,24 @@ describe("every rule a grammar with nested repositories builds keeps its own id 
 
   test.each(Array.from({ length: 400 }, (_, seed) => seed))("generated grammar %i", (seed) => {
     const { grammar, names } = generate(seed);
-    const built = new Grammar(grammar as any).nodes.map((node) => node.props?.["name"]).filter(Boolean);
+    const nodes = new Grammar(grammar as any).nodes;
+    const built = nodes.map((node) => node.props?.["name"]).filter(Boolean);
     const counts = new Map<string, number>();
     for (const name of built) {
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
     expect(names.filter((name) => counts.get(name) !== 1)).toEqual([]);
+    const byLocal = new Map(nodes.map((node) => [localName("", node.typeId), node]));
+    const unpaired = nodes.flatMap((node) =>
+      (["closedBy", "openedBy"] as const).flatMap((key) => {
+        const partner = node.props?.[key];
+        if (partner == null) {
+          return [];
+        }
+        const back = byLocal.get(partner)?.props?.[key === "closedBy" ? "openedBy" : "closedBy"];
+        return back === localName("", node.typeId) ? [] : [`${node.typeId} ${key} ${partner}`];
+      }),
+    );
+    expect(unpaired).toEqual([]);
   });
 });

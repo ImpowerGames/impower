@@ -166,7 +166,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
         );
 
         const aspectRatioSync = createAspectRatioSync(
-          previewAspectRatioFor(workspaceSettings.projectSettings),
+          previewAspectRatioFor(
+            workspaceSettings.projectSettings,
+            workspaceSettings.preferences,
+          ),
           (ratio) =>
             void iframeChannelRef.current?.sendRequest(ResizeGameMessage.type, {
               aspectRatio: ratio,
