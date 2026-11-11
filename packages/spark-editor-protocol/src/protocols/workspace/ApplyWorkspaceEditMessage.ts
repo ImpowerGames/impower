@@ -24,6 +24,7 @@ export interface WorkspaceEditRollback {
   complete: boolean;
   failed: LSP.DocumentUri[];
   kept: LSP.DocumentUri[];
+  trashed?: LSP.DocumentUri[];
 }
 
 export type ApplyWorkspaceEditResult = LSP.ApplyWorkspaceEditResult & {

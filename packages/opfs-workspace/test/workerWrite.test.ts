@@ -214,7 +214,7 @@ it("checks each script of a changes map against its expected text when that scri
   h.release();
   await vi.advanceTimersByTimeAsync(250);
   expect(h.messages.find(message => message.id === "edit")).toMatchObject({
-    result: { applied: false, failureReason: "b.sd changed before the edit could be applied" },
+    result: { applied: false, failureReason: expect.stringMatching(/^b\.sd changed before the edit could be applied/), failedChange: 1 },
   });
 });
 

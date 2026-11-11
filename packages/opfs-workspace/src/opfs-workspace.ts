@@ -1113,20 +1113,21 @@ interface Restoring {
   entry: PriorEntry;
   current?: ArrayBuffer;
   local?: number;
-  backedUp?: boolean;
+}
+
+interface TrashCopy {
+  uri: string;
+  relPath: string;
+  originalUri: string;
+  type: string;
+  bytes: ArrayBuffer;
+  local: number;
 }
 
 const isUnchanged = async (uri: string, unchanged: Unchanged) =>
   (!("local" in unchanged) ||
     State.localVersions.get(uri) === unchanged.local) &&
   sameStored(await readStored(uri), unchanged.bytes);
-
-const backupUriOf = (uri: string) => {
-  const path = getPathFromUri(uri);
-  const parent = getParentPath(path);
-  const name = `.${getFileName(path)}.rollback-${crypto.randomUUID().slice(0, 8)}`;
-  return getUriFromPath(parent ? `${parent}/${name}` : name);
-};
 
 const readStored = async (uri: string) => {
   const handle = await findFileHandle(uri);
@@ -1155,6 +1156,9 @@ class UndoLog {
   directories = new Set<string>();
   own = new Set<number>();
   seen = new Map<string, Set<number>>();
+  copies: TrashCopy[] = [];
+  trashDirectories = new Set<string>();
+  trashBatch?: { projectId: string; deletedAt: number; id: string };
 
   watch = (uris: string[], local: number) => {
     for (const uri of uris) {
@@ -1194,9 +1198,92 @@ class UndoLog {
   }
 
   movedOn(entry: PriorEntry) {
-    return [...(this.seen.get(entry.uri) ?? [])].some(
-      (local) => !this.own.has(local),
+    return this.changedElsewhere(entry.uri);
+  }
+
+  changedElsewhere(uri: string) {
+    return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
+  }
+
+  async copyToTrash(target: Restoring) {
+    const originalUri = target.entry.uri;
+    const path = getPathFromUri(originalUri);
+    const projectId = path.split("/")[0]!;
+    if (!this.trashBatch) {
+      const deletedAt = Date.now();
+      this.trashBatch = {
+        projectId,
+        deletedAt,
+        id: `${deletedAt}__${crypto.randomUUID()}`,
+      };
+    }
+    const relPath = path.slice(projectId.length + 1);
+    const uri = getUriFromPath(
+      `${this.trashBatch.projectId}/${TRASH_DIR}/${this.trashBatch.id}/${relPath}`,
     );
+    for (const directory of await missingDirectories(uri)) {
+      this.trashDirectories.add(directory);
+    }
+    this.seen.set(uri, new Set());
+    const result = (await commitWrite(uri, new Uint8Array(target.current!), 0))!;
+    this.commit(result.local);
+    const copy: TrashCopy = {
+      uri,
+      relPath,
+      originalUri,
+      type: State.files.get(originalUri)?.type ?? getFileType(originalUri),
+      bytes: target.current!,
+      local: result.local,
+    };
+    this.copies.push(copy);
+    return copy;
+  }
+
+  async discardCopy(copy: TrashCopy) {
+    try {
+      const removed = await removeFile(copy.uri, {
+        bytes: copy.bytes,
+        local: copy.local,
+      });
+      if (removed) {
+        this.commit(removed.local);
+        this.copies = this.copies.filter((c) => c !== copy);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async settleTrash(clean: boolean) {
+    if (clean && !this.copies.some((c) => this.changedElsewhere(c.uri))) {
+      for (const copy of [...this.copies]) {
+        await this.discardCopy(copy);
+      }
+    }
+    if (this.copies.length === 0) {
+      try {
+        await deleteEmptyDirectories([...this.trashDirectories], new CommitLog());
+      } catch (err) {
+        console.error(err);
+      }
+      return [];
+    }
+    const { projectId, deletedAt, id } = this.trashBatch!;
+    const manifest = JSON.stringify({
+      deletedAt,
+      entries: this.copies.map(({ relPath, originalUri, type }) => ({
+        relPath,
+        originalUri,
+        type,
+      })),
+    });
+    await createFiles([
+      {
+        uri: getUriFromPath(`${projectId}/${TRASH_DIR}/${id}/${TRASH_MANIFEST}`),
+        data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
+      },
+    ]);
+    return this.copies.map((c) => c.originalUri);
   }
 
   async put(target: Restoring, log: CommitLog, effects: EditEffects) {
@@ -1287,66 +1374,49 @@ class UndoLog {
     for (const target of creates) {
       await settle(target);
     }
-    const backups: string[] = [];
-    let pending = [...overwrites];
-    if (unknown.length > 0) {
-      unknown.push(...pending.map((t) => t.entry.uri));
-      pending = [];
-    }
-    const unsatisfied = () =>
-      entries.filter((e) => unknown.includes(e.uri) || kept.includes(e.uri));
-    const holds = (target: Restoring, others: PriorEntry[]) =>
-      !target.backedUp &&
-      others.some(
-        (other) =>
-          other !== target.entry && sameStored(other.bytes, target.current),
-      );
-    while (pending.length > 0) {
-      const stuck = pending.find((target) => holds(target, unsatisfied()));
-      if (stuck) {
-        pending = pending.filter((t) => t !== stuck);
-        unknown.push(stuck.entry.uri);
-        continue;
-      }
-      const ready = pending.find(
-        (target) => !holds(target, pending.map((t) => t.entry)),
-      );
-      if (ready) {
-        pending = pending.filter((t) => t !== ready);
-        await settle(ready);
-        continue;
-      }
-      const cycle = pending[0]!;
-      const backup = backupUriOf(cycle.entry.uri);
+    const destroy = async (target: Restoring) => {
+      let copy: TrashCopy;
       try {
-        await commitWrite(backup, new Uint8Array(cycle.current!), 0);
-        backups.push(backup);
-        cycle.backedUp = true;
+        copy = await this.copyToTrash(target);
       } catch (err) {
         console.error(err);
-        break;
+        unknown.push(target.entry.uri);
+        return;
+      }
+      if (!(await settle(target))) {
+        await this.discardCopy(copy);
+      }
+    };
+    if (unknown.length > 0) {
+      unknown.push(...overwrites.map((t) => t.entry.uri));
+    } else {
+      for (const target of overwrites) {
+        await destroy(target);
       }
     }
-    unknown.push(...pending.map((t) => t.entry.uri));
-    if (unknown.length > 0 || unsatisfied().some((e) => e.bytes)) {
+    if (unknown.length > 0 || entries.some((e) => kept.includes(e.uri) && e.bytes)) {
       unknown.push(...removals.map((t) => t.entry.uri));
     } else {
       for (const target of removals) {
-        await settle(target);
+        await destroy(target);
       }
     }
-    for (const backup of backups) {
-      try {
-        if (unknown.length > 0) {
-          unknown.push(backup);
-        } else {
-          await removeFile(backup);
+    for (const entry of entries) {
+      if (
+        this.movedOn(entry) &&
+        !kept.includes(entry.uri) &&
+        !unknown.includes(entry.uri)
+      ) {
+        kept.push(entry.uri);
+        const at = restored.indexOf(entry.uri);
+        if (at >= 0) {
+          restored.splice(at, 1);
         }
-      } catch (err) {
-        console.error(err);
-        unknown.push(backup);
       }
     }
+    const trashed = await this.settleTrash(
+      unknown.length === 0 && kept.length === 0,
+    );
     try {
       await deleteEmptyDirectories([...this.directories], log);
     } catch (err) {
@@ -1369,7 +1439,7 @@ class UndoLog {
         State.documents.delete(entry.uri);
       }
     }
-    return { effects, unknown, kept };
+    return { effects, unknown, kept, trashed };
   }
 }
 
@@ -1467,13 +1537,16 @@ const applyWorkspaceEdit = async (
       } catch (err: any) {
         console.error(err, err?.stack);
         const reason = err?.message ?? String(err);
-        const { effects, unknown, kept } = await undo.restore(log);
+        const { effects, unknown, kept, trashed } = await undo.restore(log);
         const partial = [
           ...(unknown.length > 0
             ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
             : []),
           ...(kept.length > 0
             ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
+            : []),
+          ...(trashed.length > 0
+            ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
             : []),
         ];
         return {
@@ -1484,7 +1557,12 @@ const applyWorkspaceEdit = async (
               partial.length === 0
                 ? reason
                 : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
-            rollback: { complete: partial.length === 0, failed: unknown, kept },
+            rollback: {
+              complete: partial.length === 0,
+              failed: unknown,
+              kept,
+              ...(trashed.length > 0 ? { trashed } : {}),
+            },
           },
         };
       }

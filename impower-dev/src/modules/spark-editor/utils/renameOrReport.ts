@@ -17,9 +17,11 @@ export async function renameOrReport<T>(
     console.error(err);
     const reason = String((err as { message?: unknown })?.message ?? err);
     const rollback = rollbackOf(err);
+    const changed = rollback ? [...rollback.failed, ...rollback.kept] : [];
+    const trashed = rollback?.trashed ?? [];
     showSnackbar({
       message: rollback && !rollback.complete
-        ? `Couldn't rename ${basename(fromPath)}, and these files may be left changed: ${[...rollback.failed, ...rollback.kept].join(", ")}.`
+        ? `Couldn't rename ${basename(fromPath)}${changed.length > 0 ? `, and these files may be left changed: ${changed.join(", ")}` : ""}.${trashed.length > 0 ? ` Copies of what was replaced are in the Trash: ${trashed.join(", ")}.` : ""}`
         : reason.includes("already exists")
           ? `Couldn't rename ${basename(fromPath)}: ${basename(toPath)} already exists.`
           : rollback

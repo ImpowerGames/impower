@@ -1158,6 +1158,7 @@ export default class WorkspaceFileSystem {
             complete: result.rollback.complete,
             failed: relative(result.rollback.failed),
             kept: relative(result.rollback.kept),
+            trashed: relative(result.rollback.trashed ?? []),
           },
         },
       );
