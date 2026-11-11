@@ -22,7 +22,7 @@ import {
 } from "vscode";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
-import { closesByLanguage } from "./closesByLanguage";
+import { closesByLanguage, type ClosingSettings } from "./closesByLanguage";
 
 enum EmphasisType {
   ITALIC = "*",
@@ -178,42 +178,12 @@ const onType = async (
   return commands.executeCommand("default:type", e, ...args);
 };
 
-const QUOTES = ["'", '"', "`"];
-
-const canCloseIn = (document: TextDocument, insert: string) => {
+const closingSettingsOf = (document: TextDocument): ClosingSettings => {
   const editorConfig = workspace.getConfiguration("editor", document);
-  const modes = {
-    brackets: editorConfig.get<string>("autoClosingBrackets", "languageDefined"),
-    quotes: editorConfig.get<string>("autoClosingQuotes", "languageDefined"),
-    comments: editorConfig.get<string>("autoClosingComments", "languageDefined"),
-  };
-  return (
-    pair: { open: string },
-    language: string,
-    lineAfter: string,
-  ): boolean => {
-    const config =
-      SPARKDOWN_LANGUAGE_CONFIGS[
-        language as keyof typeof SPARKDOWN_LANGUAGE_CONFIGS
-      ];
-    const blockCommentStart = config?.comments?.blockComment?.[0];
-    const mode =
-      blockCommentStart && pair.open.includes(blockCommentStart)
-        ? modes.comments
-        : QUOTES.includes(insert)
-          ? modes.quotes
-          : modes.brackets;
-    if (mode === "never") {
-      return false;
-    }
-    const next = lineAfter.charAt(0);
-    if (!next || mode === "always") {
-      return true;
-    }
-    if (mode === "beforeWhitespace") {
-      return /\s/.test(next);
-    }
-    return (config?.autoCloseBefore ?? "").includes(next);
+  return {
+    autoClosingBrackets: editorConfig.get("autoClosingBrackets", "languageDefined"),
+    autoClosingQuotes: editorConfig.get("autoClosingQuotes", "languageDefined"),
+    autoClosingComments: editorConfig.get("autoClosingComments", "languageDefined"),
   };
 };
 
@@ -231,6 +201,7 @@ const closeByLanguage = async (
   const closes = closesByLanguage(
     SPARKDOWN_LANGUAGE_CONFIGS,
     document.languageId,
+    closingSettingsOf(document),
     selections.map(({ active }) => {
       const line = document.lineAt(active.line).text;
       return {
@@ -239,7 +210,6 @@ const closeByLanguage = async (
       };
     }),
     insert,
-    canCloseIn(document, insert),
     (index) =>
       SparkdownDocumentManager.instance.languageAt(
         document,
@@ -250,26 +220,51 @@ const closeByLanguage = async (
     return false;
   }
   const offsets = selections.map(({ active }) => document.offsetAt(active));
-  const inserts = closes.map((close) => insert + (close ?? ""));
-  const applied = await editor.edit(
-    (editBuilder) => {
-      selections.forEach(({ active }, index) => {
-        editBuilder.insert(active, inserts[index]!);
-      });
-    },
-    { undoStopBefore: true, undoStopAfter: true },
-  );
-  if (!applied) {
-    return false;
-  }
-  editor.selections = offsets.map((offset) => {
-    const shift = offsets.reduce(
-      (sum, other, index) =>
-        other < offset ? sum + inserts[index]!.length : sum,
+  const shiftBefore = (offset: number, lengths: number[]) =>
+    offsets.reduce(
+      (sum, other, index) => (other < offset ? sum + lengths[index]! : sum),
       0,
     );
+  const closers = closes.map((close) => close?.close ?? "");
+  const closerUndoStep = closes.some(
+    (close) => close !== null && close.open.length > insert.length,
+  );
+  const typed = await editor.edit(
+    (editBuilder) => {
+      selections.forEach(({ active }, index) => {
+        editBuilder.insert(
+          active,
+          closerUndoStep ? insert : insert + closers[index],
+        );
+      });
+    },
+    { undoStopBefore: true, undoStopAfter: closerUndoStep },
+  );
+  if (!typed) {
+    return false;
+  }
+  if (closerUndoStep) {
+    const typedLengths = offsets.map(() => insert.length);
+    await editor.edit(
+      (editBuilder) => {
+        offsets.forEach((offset, index) => {
+          if (closers[index]) {
+            editBuilder.insert(
+              editor.document.positionAt(
+                offset + shiftBefore(offset, typedLengths) + insert.length,
+              ),
+              closers[index]!,
+            );
+          }
+        });
+      },
+      { undoStopBefore: false, undoStopAfter: false },
+    );
+  }
+  const insertedLengths = closers.map((closer) => insert.length + closer.length);
+  editor.selections = offsets.map((offset) => {
     const position = editor.document.positionAt(
-      offset + shift + insert.length,
+      offset + shiftBefore(offset, insertedLengths) + insert.length,
     );
     return new Selection(position, position);
   });

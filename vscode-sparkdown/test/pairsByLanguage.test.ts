@@ -1,4 +1,3 @@
-import { autoClosingPairFor } from "../../packages/codemirror-vscode-language/src/utils/autoClosingPairFor";
 import { SPARKDOWN_LANGUAGE_CONFIGS } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -8,6 +7,7 @@ const state = vi.hoisted(() => ({
   nativeTypes: 0,
   settings: {
     autoClosingBrackets: "languageDefined",
+    autoClosingQuotes: "languageDefined",
     autoClosingComments: "languageDefined",
   },
   editor: null as any,
@@ -58,6 +58,7 @@ const vscode = await import("vscode");
 const { activateAutoFormatting } = await import(
   "../src/utils/activateAutoFormatting"
 );
+const { vscodeAutoClose } = await import("../src/utils/closesByLanguage");
 const { SparkdownDocumentManager } = await import(
   "../src/managers/SparkdownDocumentManager"
 );
@@ -149,25 +150,17 @@ class FakeEditor {
     const offsets = this.selections.map(({ active }) =>
       this.document.offsetAt(active),
     );
-    const inserts = offsets.map((offset) => {
+    const cursors = offsets.map((offset) => {
       const before = this.document.getText().slice(0, offset);
       const after = this.document.getText().slice(offset);
-      const lineBefore = before.slice(before.lastIndexOf("\n") + 1);
-      const lineAfter = after.split("\n")[0]!;
-      const next = lineAfter.charAt(0);
-      const match = autoClosingPairFor(
-        config.autoClosingPairs,
-        text,
-        lineBefore,
-        lineAfter,
-      );
-      const mode = match?.pair.open.includes(config.comments.blockComment[0]!)
-        ? state.settings.autoClosingComments
-        : state.settings.autoClosingBrackets;
-      const canClose =
-        mode !== "never" && (!next || config.autoCloseBefore.includes(next));
-      return { offset, text: text + (canClose ? (match?.close ?? "") : "") };
+      return {
+        lineBefore: before.slice(before.lastIndexOf("\n") + 1),
+        lineAfter: after.split("\n")[0]!,
+      };
     });
+    const close =
+      vscodeAutoClose(config, state.settings, cursors, text)?.close ?? "";
+    const inserts = offsets.map((offset) => ({ offset, text: text + close }));
     this.document.insert(inserts);
     this.selections = offsets.map((offset) => {
       const shift = inserts.reduce(
@@ -257,10 +250,58 @@ describe("auto-closing pairs in a .sd document follow the language at the cursor
     expect(editor.edits).toEqual([]);
   });
 
-  it("inserts the typed character and its closer as one edit, so one undo removes both", async () => {
+  it("inserts a multi-character opener's closer as its own edit after the typed character, as VS Code does, so the first undo removes the closer", async () => {
     const editor = open(FUNCTION("--[=|]"));
     expect(await type(editor, "[")).toBe(FUNCTION("--[=[|]=]"));
-    expect(editor.edits).toEqual([["[]="]]);
+    expect(editor.edits).toEqual([["["], ["]="]]);
+  });
+
+  it("closes a Luau long comment before an existing closer under beforeWhitespace", async () => {
+    state.settings.autoClosingBrackets = "beforeWhitespace";
+    state.settings.autoClosingComments = "beforeWhitespace";
+    try {
+      const editor = open(FUNCTION("--[=|]"));
+      expect(await type(editor, "[")).toBe(FUNCTION("--[=[|]=]"));
+    } finally {
+      state.settings.autoClosingBrackets = "languageDefined";
+      state.settings.autoClosingComments = "languageDefined";
+    }
+  });
+
+  it("keeps each language's own closing rule for its cursors when the extension takes the keystroke", async () => {
+    state.settings.autoClosingBrackets = "beforeWhitespace";
+    state.settings.autoClosingComments = "always";
+    try {
+      const editor = open(`${SCENE("{|}")}\n${FUNCTION("--[|")}`);
+      expect(await type(editor, "[")).toBe(
+        `${SCENE("{[|]}")}\n${FUNCTION("--[[|]]")}`,
+      );
+    } finally {
+      state.settings.autoClosingBrackets = "languageDefined";
+      state.settings.autoClosingComments = "languageDefined";
+    }
+  });
+
+  it("closes the story pair at a story cursor when a Luau cursor has a different prefix", async () => {
+    const editor = open(`${SCENE("Hello :|")}\n${FUNCTION("local x = y |")}`);
+    expect(await type(editor, ":")).toBe(
+      `${SCENE("Hello ::|::")}\n${FUNCTION("local x = y :|")}`,
+    );
+  });
+
+  it("leaves VS Code's all-or-nothing choice alone when every cursor is in story text", async () => {
+    const editor = open(`${SCENE("Hello :|")}\n${SCENE("Hi |")}`);
+    expect(await type(editor, ":")).toBe(
+      `${SCENE("Hello ::|")}\n${SCENE("Hi :|")}`,
+    );
+    expect(editor.edits).toEqual([]);
+  });
+
+  it("types a character no config opens with natively", async () => {
+    const editor = open(FUNCTION("local x = y|"));
+    await type(editor, "z");
+    expect(state.nativeTypes).toBe(1);
+    expect(editor.edits).toEqual([]);
   });
 
   it("decides each cursor by its own language", async () => {
