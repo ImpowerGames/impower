@@ -129,6 +129,7 @@ import { foldersWithoutFiles, isProjectMetadata } from "../utils/fileTree";
 import { withProjectRecord } from "../utils/projectRecordLock";
 import {
   contentDigest,
+  FINGERPRINT_SLICE_MS,
   installOfferOf,
   keepOnDevice,
   projectFingerprint,
@@ -769,19 +770,36 @@ export default class WorkspaceWindow {
     return digest;
   }
 
-  async projectFingerprintOf(id: string) {
+  protected _fingerprints = new Map<string, Promise<string>>();
+
+  projectFingerprintOf(id: string) {
+    const running = this._fingerprints.get(id);
+    if (running) {
+      return running;
+    }
+    const fingerprint = this.computeFingerprint(id).finally(() => {
+      this._fingerprints.delete(id);
+    });
+    this._fingerprints.set(id, fingerprint);
+    return fingerprint;
+  }
+
+  protected async computeFingerprint(id: string) {
     const fs = this._workspace.fs;
     const contents = Object.values(await fs.getFiles(id))
       .map((file) => ({ file, path: fs.getRelativePath(id, file.uri) }))
       .filter(
         ({ path }) => !isProjectMetadata(path) && path !== SETTINGS_JSON_PATH,
       );
-    const files = await Promise.all(
-      contents.map(async ({ file, path }) => ({
-        path,
-        digest: await this.digestOf(file),
-      })),
-    );
+    const files: { path: string; digest: string }[] = [];
+    let slice = performance.now();
+    for (const { file, path } of contents) {
+      files.push({ path, digest: await this.digestOf(file) });
+      if (performance.now() - slice > FINGERPRINT_SLICE_MS) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        slice = performance.now();
+      }
+    }
     const settings = Object.entries(workspaceSettings.projectSettings.peek())
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     return projectFingerprint({

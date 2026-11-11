@@ -152,6 +152,8 @@ export const backupReminderDue = ({
 
 export const BACKUP_REMINDER_CHECK_MS = 60 * 60_000;
 
+export const FINGERPRINT_SLICE_MS = 8;
+
 export type BackupField = Extract<
   ProjectMetadataField,
   "backedUpAt" | "backedUpFingerprint" | "createdAt" | "remindedAt"

@@ -695,6 +695,16 @@ describe("WorkspaceWindow store transitions", () => {
         );
       });
 
+      it("a second fingerprint request while one runs joins it instead of reading the assets again", async () => {
+        vi.mocked(Workspace.fs.readFile).mockClear();
+        const [first, second] = await Promise.all([
+          win.projectFingerprintOf("local"),
+          win.projectFingerprintOf("local"),
+        ]);
+        expect(second).toBe(first);
+        expect(vi.mocked(Workspace.fs.readFile)).toHaveBeenCalledTimes(1);
+      });
+
       it("nothing changed since the export leaves no reminder nine days later", async () => {
         await exportNow();
         expect(await nineDaysLater()).toEqual([]);
