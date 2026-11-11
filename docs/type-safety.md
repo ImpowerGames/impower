@@ -4,7 +4,7 @@ A value with an exact, machine-derivable set of legal values should be typed wit
 
 ## Grammar node names
 
-`SparkdownNodeName` (`packages/sparkdown/src/compiler/types/SparkdownNodeName.ts`) is derived from the generated grammar `packages/sparkdown/language/sparkdown.language-grammar.json`: the root rule and every repository rule, each with its `_begin`, `_content` and `_end` variants, the `NodeID` keys, and the two synthetic error nodes. The grammar JSON is regenerated from `definitions/yaml/sparkdown.language-grammar.yaml` into that file and into `vscode-sparkdown/language/`, so a rule rename propagates into the type automatically. Capture-index names such as `Foo_c2` are deliberately not part of the union; see `packages/textmate-grammar-tree/src/grammar/types/NodeName.ts`.
+`SparkdownNodeName` (`packages/sparkdown/src/compiler/types/SparkdownNodeName.ts`) is derived from the generated grammar `packages/sparkdown/language/sparkdown.language-grammar.json`: the root rule and every repository rule, each with its `_begin`, `_content` and `_end` variants, the `NodeID` keys, and the two synthetic error nodes. The grammar JSON is regenerated from `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` into that file and into `vscode-sparkdown/language/`, so a rule rename propagates into the type automatically. Capture-index names such as `Foo_c2` are deliberately not part of the union; see `packages/textmate-grammar-tree/src/grammar/types/NodeName.ts`.
 
 ### What `tsc` checks
 

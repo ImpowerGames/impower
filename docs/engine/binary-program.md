@@ -125,7 +125,7 @@ The id stays interned and its definition row becomes -1 in the new root. At comp
 
 ### Generated names
 
-An identifier an author writes matches `LUAU_IDENTIFIER`, `[a-zA-Z_][a-zA-Z0-9_]*` (`definitions/yaml/sparkdown.language-grammar.yaml`), so a character outside `[A-Za-z0-9_]` is one no author's name holds. Every name the compiler generates holds a `$`, as an anonymous symbol's key begins with a NUL, so no name an author writes can equal one, and the compiler has no reserved names, no diagnostic for them and no rename of an author's name (#1729):
+An identifier an author writes matches `LUAU_IDENTIFIER`, `[a-zA-Z_][a-zA-Z0-9_]*` (`definitions/yaml/sparkdown-luau.language-grammar.yaml`), so a character outside `[A-Za-z0-9_]` is one no author's name holds. Every name the compiler generates holds a `$`, as an anonymous symbol's key begins with a NUL, so no name an author writes can equal one, and the compiler has no reserved names, no diagnostic for them and no rename of an author's name (#1729):
 
 | Family | Form |
 | --- | --- |

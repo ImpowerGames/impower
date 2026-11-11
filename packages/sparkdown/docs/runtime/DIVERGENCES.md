@@ -487,7 +487,7 @@ reference point"), disambiguated by whether a reference point was
 provided. Mirrors `math.log(x)` / `math.log(x, base)` in standard Luau.
 
 `count` is registered as a stdlib namespace
-([`LUAU_STANDARD_LIB_CONSTANTS`](definitions/yaml/sparkdown.language-grammar.yaml)),
+([`LUAU_STANDARD_LIB_CONSTANTS`](definitions/yaml/sparkdown-luau.language-grammar.yaml)),
 which means it's **reserved as an identifier** — users can't declare a
 variable named `count`. Syntax highlighting tags the name as stdlib at
 the source level so the reserved status is visible.

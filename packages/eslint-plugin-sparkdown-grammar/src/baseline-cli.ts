@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Linter, type Rule } from "eslint";
 import yml from "eslint-plugin-yml";
-import { BASELINED_RULES, BASELINE_FILE } from "./index.ts";
+import { BASELINED_RULES, BASELINE_FILE, GRAMMAR_SOURCES } from "./index.ts";
 import type { BaselinedRule, Finding } from "./utils/baseline.ts";
+import { SETTINGS_KEY, type GrammarSources } from "./utils/grammar-index.ts";
 import { find as tagNameSymmetry } from "./rules/tag-name-symmetry.ts";
 import { find as lookaround } from "./rules/lookaround-needs-rival-comment.ts";
 import { find as unreferencedRule } from "./rules/no-unreferenced-rule.ts";
@@ -11,13 +13,6 @@ import { find as unreferencedVariable } from "./rules/no-unreferenced-variable.t
 import { find as repeatedFragment } from "./rules/no-repeated-fragment.ts";
 import { find as longPattern } from "./rules/name-long-pattern-parts.ts";
 import { find as scopedEnd } from "./rules/scoped-end-has-bailout.ts";
-
-const GRAMMAR = fileURLToPath(
-  new URL(
-    "../../../definitions/yaml/sparkdown.language-grammar.yaml",
-    import.meta.url,
-  ),
-);
 
 const FINDERS: Record<(typeof BASELINED_RULES)[number], BaselinedRule["find"]> = {
   "tag-name-symmetry": tagNameSymmetry,
@@ -34,6 +29,7 @@ export type Baseline = Record<string, Record<string, number>>;
 export function collectFindings(
   source: string,
   filename = "grammar.yaml",
+  sources: GrammarSources = {},
 ): Record<string, Finding[]> {
   const collected: Record<string, Finding[]> = {};
   const rules: Record<string, Rule.RuleModule> = {};
@@ -49,20 +45,21 @@ export function collectFindings(
       },
     };
   }
-  const linter = new Linter({ configType: "flat" });
+  const linter = new Linter({ configType: "flat", cwd: dirname(resolve(filename)) });
   const messages = linter.verify(
     source,
     [
       ...(yml.configs["flat/base"] as Linter.Config[]),
       {
-        files: [filename],
+        files: [basename(filename)],
         plugins: { collect: { rules } },
+        settings: { [SETTINGS_KEY]: sources },
         rules: Object.fromEntries(
           BASELINED_RULES.map((name) => [`collect/${name}`, "error"]),
         ),
       },
     ],
-    filename,
+    resolve(filename),
   );
   const fatal = messages.find((m) => m.fatal);
   if (fatal) throw new Error(`could not parse the grammar: ${fatal.message}`);
@@ -83,8 +80,19 @@ export function countByOwner(findings: Record<string, Finding[]>): Baseline {
   return baseline;
 }
 
+export function collectGrammarFindings(): Record<string, Finding[]> {
+  const findings: Record<string, Finding[]> = {};
+  for (const file of Object.values(GRAMMAR_SOURCES)) {
+    const found = collectFindings(readFileSync(file, "utf8"), file, GRAMMAR_SOURCES);
+    for (const [name, list] of Object.entries(found)) {
+      findings[name] = [...(findings[name] ?? []), ...list];
+    }
+  }
+  return findings;
+}
+
 function main(): number {
-  const findings = collectFindings(readFileSync(GRAMMAR, "utf8"));
+  const findings = collectGrammarFindings();
   const current = countByOwner(findings);
   if (process.argv.includes("--write")) {
     writeFileSync(BASELINE_FILE, `${JSON.stringify(current, null, 2)}\n`);

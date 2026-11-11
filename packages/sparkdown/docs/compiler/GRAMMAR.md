@@ -1,6 +1,6 @@
 # Sparkdown Grammar Guide
 
-This guide is for anyone adding, modifying, or debugging a rule in `definitions/yaml/sparkdown.language-grammar.yaml` — the file that tells sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
+This guide is for anyone adding, modifying, or debugging a rule in the grammar's source, `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` (§1.4) — the files that tell sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
 
 > **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
@@ -8,7 +8,7 @@ This guide is for anyone adding, modifying, or debugging a rule in `definitions/
 
 The guide is built for two passes:
 
-- **First pass — orientation.** Read Parts I–III in order (about 20 min). You'll come away knowing what the grammar is, what the YAML file looks like, what the three rule shapes are, and the principle that ties everything together.
+- **First pass — orientation.** Read Parts I–III in order (about 20 min). You'll come away knowing what the grammar is, what the YAML files look like, what the three rule shapes are, and the principle that ties everything together.
 - **Second pass — playbook.** When you actually have a change to make, the rest of the guide is reference material organized by what you're trying to do. The "adding a new feature" checklist (§14) is the natural starting point for any new construct.
 
 The grammar is the **first** stage of sparkdown's pipeline. Everything downstream — the lowerer, the runtime, syntax highlighting, the formatter — consumes the tree this grammar produces. Get the grammar right and the rest of the pipeline is mostly mechanical translation. Get it wrong and you fight downstream code forever. That's why the first-pass orientation is worth doing properly.
@@ -37,7 +37,7 @@ Here's what happens to `.sd` source between the keystroke and the running game. 
 
 ```
 .sd source
-    │  (TextMate grammar — definitions/yaml/sparkdown.language-grammar.yaml)
+    │  (TextMate grammar — definitions/yaml/, §1.4)
     ▼
 Syntax tree (Lezer-shaped)              ← what printTree shows
     │  (lowerers — src/compiler/lower/, see LOWERING.md)
@@ -65,9 +65,16 @@ The same grammar file is consumed by five different systems. If the grammar name
 | **Auto-close brackets, smart indent**      | `brackets: true`, `openedBy` / `closedBy` properties                                                                                                                |
 | **Lowerer** (compile pipeline)             | The tree shape — every meaningful construct gets its own named node                                                                                                 |
 
-### 1.4 Tour of the YAML file
+### 1.4 Tour of the YAML files
 
-Every TextMate grammar follows the same skeleton. Here's `definitions/yaml/sparkdown.language-grammar.yaml` cut down to its frame:
+The grammar's source is two files, which the build (`definitions/src/language.ts`) merges into the one generated grammar, `sparkdown.language-grammar.json`:
+
+- **`definitions/yaml/sparkdown-luau.language-grammar.yaml`**, the Luau file, holds every rule whose name starts with `Luau` and every variable whose name starts with `LUAU_` once a leading underscore is set aside (`LUAU_IDENTIFIER`, `_LUAU_TRIVIA_AHEAD_`). That includes the Luau forms read in story context (`LuauSparkdown*`) and the Sparkle and struct rules (`LuauSparkle*`, `LuauStruct*`).
+- **`definitions/yaml/sparkdown.language-grammar.yaml`**, the story file, holds the top-level keys, the root `patterns:` and every other rule and variable, `AFTER_LUAU_*` among them.
+
+The prefix alone decides the file, and the `prefix-matches-file` lint fails a rule or variable in the other one. Rules share one namespace across the two files and so do variables, so a `#Rule` include or a `{{VAR}}` reference in either file reaches a name defined in the other, and a name defined in both fails the build. A comment above a rule or variable stays with it.
+
+Every TextMate grammar follows the same skeleton. Here's the story file cut down to its frame:
 
 ```yaml
 fileTypes: ["sd"]
@@ -86,7 +93,7 @@ variables:                   # shared regex fragments and keyword lists (§7)
   WS: (?:[^\S\n\r])
   NL: (?:\r\n|\r|\n)
   IDENTIFIER: (?:[_\p{L}][0-9_\p{L}-]*(?<![-]))
-  LUAU_END_KEYWORDS: ["end"] # arrays auto-wrap to \b(?:end)\b
+  FLOW_BEAT_KEYWORDS: ["scene", "branch"] # arrays auto-wrap to \b(?:scene|branch)\b
 
 patterns:                    # root dispatch — what a top-level line can start with
   - { include: "#Newline" }
@@ -103,6 +110,19 @@ repository:                  # every named rule lives here
     patterns: [ ... ]
     end: (?={{BEAT}})|$
     endCaptures: { ... }
+```
+
+The Luau file has the same `variables:` and `repository:` sections and nothing else:
+
+```yaml
+variables:
+  LUAU_END_KEYWORDS: ["end"]
+  ...
+
+repository:
+  LuauFile:
+    patterns: [ ... ]
+  ...
 ```
 
 Three sections to know:
@@ -506,7 +526,7 @@ Now the lowerer does `getDescendent("IncludeKeyword", node)` or `getDescendent("
 
 Real grammars repeat the same regex fragments everywhere — whitespace patterns, identifier shapes, keyword lists. Without a way to share them, you'd copy-paste the same regex into a hundred rules and silently drift out of sync the first time one of them needed to change.
 
-The `variables:` block at the top of the file solves this: every fragment defined there can be referenced as `{{NAME}}` from any rule's `begin`, `end`, or `match` pattern, and the build pipeline expands the reference before the grammar runs.
+The `variables:` blocks of the two source files (§1.4) solve this: every fragment defined in either can be referenced as `{{NAME}}` from any rule's `begin`, `end`, or `match` pattern in either file, and the build pipeline expands the reference before the grammar runs.
 
 **Rule of thumb: every regex fragment used in more than one place should be a variable.** Don't repeat patterns inline.
 
@@ -1416,8 +1436,8 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 
 ## 19. Useful files to read
 
-- `definitions/yaml/sparkdown.language-grammar.yaml` — the grammar itself.
-- `definitions/src/language.ts` — the build pipeline (YAML → JSON, variable substitution, capturing-variable check).
+- `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` — the grammar itself, its story half and its Luau half (§1.4).
+- `definitions/src/language.ts` — the build pipeline (merging the two YAML files, YAML → JSON, variable substitution, capturing-variable check).
 - `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts` — the full schema of allowed rule properties.
 - `packages/textmate-grammar-tree/src/grammar/classes/rules/ScopedRule.ts` — `applyEndPatternLast` logic.
 - `packages/textmate-grammar-tree/src/tree/utils/printTree.ts` — the tree printer.

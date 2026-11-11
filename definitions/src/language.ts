@@ -26,6 +26,8 @@ const CONFIG_BUILDS = CONFIG_NAMES.flatMap((name) =>
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
 const IN_GRAMMAR_PATH = `./yaml/${GRAMMAR_NAME}.yaml`;
+const IN_LUAU_GRAMMAR_PATH = `./yaml/sparkdown-luau.language-grammar.yaml`;
+const LUAU_GRAMMAR_SECTIONS = ["variables", "repository"];
 const OUT_GRAMMAR_PATHS = outPaths.map(
   (outPath) => `${outPath}/${GRAMMAR_NAME}.json`,
 );
@@ -437,10 +439,15 @@ const transformGrammarRule = (
   }
 };
 
-const generatedWarning = (inYamlPath: string, outJsonPath: string) => {
-  const yamlRel = path.relative(path.dirname(outJsonPath), inYamlPath);
+const generatedWarning = (
+  inYamlPaths: string | string[],
+  outJsonPath: string,
+) => {
+  const yamlRels = [inYamlPaths].flat().map((inYamlPath) =>
+    path.relative(path.dirname(outJsonPath), inYamlPath).replace(/\\/g, "/"),
+  );
   return [
-    `Generated from ${yamlRel.replace(/\\/g, "/")} by @impower/definitions.`,
+    `Generated from ${yamlRels.join(" and ")} by @impower/definitions.`,
     `Do NOT edit this JSON file directly — your changes will be lost on the next build.`,
     `Edit the YAML source instead, then run \`npm run language\` from definitions/.`,
   ];
@@ -459,13 +466,52 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   await fs.promises.writeFile(outJsonPath, json);
 };
 
+const readGrammarSource = async () => {
+  const story = YAML.parse(await fs.promises.readFile(IN_GRAMMAR_PATH, "utf8"));
+  const luau = YAML.parse(
+    await fs.promises.readFile(IN_LUAU_GRAMMAR_PATH, "utf8"),
+  );
+  const foreign = Object.keys(luau ?? {}).filter(
+    (key) => !LUAU_GRAMMAR_SECTIONS.includes(key),
+  );
+  if (foreign.length > 0) {
+    throw new Error(
+      `Grammar build: ${IN_LUAU_GRAMMAR_PATH} may hold only ${LUAU_GRAMMAR_SECTIONS.join(" and ")}; ` +
+        `move ${foreign.join(", ")} to ${IN_GRAMMAR_PATH}`,
+    );
+  }
+  for (const section of LUAU_GRAMMAR_SECTIONS) {
+    const twice = Object.keys(luau?.[section] ?? {}).filter((name) =>
+      Object.hasOwn(story[section] ?? {}, name),
+    );
+    if (twice.length > 0) {
+      throw new Error(
+        `Grammar build: ${section} defined in both ${IN_GRAMMAR_PATH} and ${IN_LUAU_GRAMMAR_PATH}: ${twice.join(", ")}`,
+      );
+    }
+    story[section] = { ...story[section], ...luau?.[section] };
+  }
+  return story;
+};
+
+const buildGrammarJson = async (outJsonPath: string) => {
+  const parsed = await readGrammarSource();
+  applyDefaultMatch(parsed);
+  const resolved = updateGrammarVariables(parsed);
+  const stamped = {
+    _generated_: generatedWarning(
+      [IN_GRAMMAR_PATH, IN_LUAU_GRAMMAR_PATH],
+      outJsonPath,
+    ),
+    ...resolved,
+  };
+  await fs.promises.writeFile(outJsonPath, JSON.stringify(stamped, null, 2));
+};
+
 const LUAU_FILE_GRAMMAR_NAME = "sparkdown-luau.language-grammar";
 
-const buildLuauFileGrammarJson = async (
-  inYamlPath: string,
-  outGrammarPath: string,
-) => {
-  const parsed = YAML.parse(await fs.promises.readFile(inYamlPath, "utf8"));
+const buildLuauFileGrammarJson = async (outGrammarPath: string) => {
+  const parsed = await readGrammarSource();
   const root = parsed.luauFile;
   if (!root?.rule || !parsed.repository?.[root.rule]) {
     throw new Error(
@@ -477,7 +523,7 @@ const buildLuauFileGrammarJson = async (
     `${LUAU_FILE_GRAMMAR_NAME}.json`,
   );
   const grammar = {
-    _generated_: generatedWarning(inYamlPath, outJsonPath),
+    _generated_: generatedWarning(IN_GRAMMAR_PATH, outJsonPath),
     name: root.name,
     scopeName: root.scopeName,
     fileTypes: root.fileTypes,
@@ -488,11 +534,8 @@ const buildLuauFileGrammarJson = async (
 
 const LAYOUT_VERBS_MODULE_NAME = "sparkdown.layout-verbs";
 
-const buildLayoutVerbsModule = async (
-  inYamlPath: string,
-  outGrammarPath: string,
-) => {
-  const parsed = YAML.parse(await fs.promises.readFile(inYamlPath, "utf8"));
+const buildLayoutVerbsModule = async (outGrammarPath: string) => {
+  const parsed = await readGrammarSource();
   const verbs: unknown = parsed.variables?.LAYOUT_CONTROL_KEYWORDS;
   if (
     !Array.isArray(verbs) ||
@@ -529,17 +572,13 @@ const build = async () => {
     CONFIG_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
   );
   await Promise.all(
-    OUT_GRAMMAR_PATHS.map((outPath) => buildJson(IN_GRAMMAR_PATH, outPath)),
+    OUT_GRAMMAR_PATHS.map((outPath) => buildGrammarJson(outPath)),
   );
   await Promise.all(
-    OUT_GRAMMAR_PATHS.map((outPath) =>
-      buildLuauFileGrammarJson(IN_GRAMMAR_PATH, outPath),
-    ),
+    OUT_GRAMMAR_PATHS.map((outPath) => buildLuauFileGrammarJson(outPath)),
   );
   await Promise.all(
-    OUT_GRAMMAR_PATHS.map((outPath) =>
-      buildLayoutVerbsModule(IN_GRAMMAR_PATH, outPath),
-    ),
+    OUT_GRAMMAR_PATHS.map((outPath) => buildLayoutVerbsModule(outPath)),
   );
   await Promise.all(
     SNIPPETS_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
@@ -549,6 +588,7 @@ const build = async () => {
 
 build().catch((err) => {
   console.error(err);
+  process.exitCode = 1;
 });
 
 if (WATCH) {

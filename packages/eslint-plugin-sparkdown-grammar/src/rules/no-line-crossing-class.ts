@@ -130,7 +130,7 @@ export function expand(source: string, index: GrammarIndex): Expanded {
       const at = match.index!;
       push(last, at);
       last = at + match[0].length;
-      const value = chain.includes(name) ? null : variableValue(index.variables.get(name)?.value ?? null);
+      const value = chain.includes(name) ? null : variableValue(index.grammar.variables.get(name)?.value ?? null);
       if (value === null) {
         push(at, last);
       } else {
