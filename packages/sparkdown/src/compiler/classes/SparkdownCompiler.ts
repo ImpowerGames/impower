@@ -4644,13 +4644,11 @@ export class SparkdownCompiler {
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
-      const emit = (struct: any, from: number, to: number) => {
+      const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
         const look = shownLook(program.context, program.morphs, struct);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
-        if (look) {
-          const chosen = look.vocabulary && Array.isArray(struct?.attributes)
-            ? resolveAttributes(look.vocabulary, struct.attributes.filter((a: unknown): a is string => typeof a === "string")).selection
-            : {};
+        if (look && written.length > 0) {
+          const chosen = resolveAttributes(look.vocabulary, written).selection;
           const text = doc.read(from, to);
           for (const { name, pose } of look.morphs) {
             for (const [group, rest] of Object.entries(pose)) {
@@ -4706,7 +4704,7 @@ export class SparkdownCompiler {
       let coveredTo = -1;
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
         if (image.from >= coveredTo) {
-          emit(image.struct, image.from, image.to);
+          emit(image.struct, image.from, image.to, doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean));
           coveredTo = image.to;
         }
       }
@@ -4724,7 +4722,7 @@ export class SparkdownCompiler {
             if (struct && type === "filtered_image") {
               lookDeclarations.set(struct, { uri, order, from: declarations.from, to: declarations.to });
             }
-            if (struct) emit(struct, declarations.from, declarations.to);
+            if (struct) emit(struct, declarations.from, declarations.to, Array.isArray(struct.attributes) ? struct.attributes.filter((a: unknown): a is string => typeof a === "string") : []);
           }
         }
         declarations.next();

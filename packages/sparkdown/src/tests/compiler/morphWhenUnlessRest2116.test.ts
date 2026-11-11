@@ -277,6 +277,39 @@ end
     expect(diagnosticsOf(text, images).filter((d) => d.severity === 2 || d.severity === 1).map((d) => d.message)).toEqual([]);
   });
 
+  test("a named look's choice warns on the named look, not on each directive that shows it", () => {
+    const text = `${blink()}
+define bunny_shut as filtered_image with
+  image = image.bunny
+  attributes = { "eyes.closed" }
+end
+
+scene start
+  [[bunny_shut]]
+  [[bunny_shut]]
+end
+`;
+    const lines = text.split("\n");
+    const found = diagnosticsOf(text).filter((d) => d.message.includes("plays on this look"));
+    expect(found.map((d) => d.line)).toEqual([lines.findIndex((line) => line.startsWith("define bunny_shut"))]);
+  });
+
+  test("a directive adding a choice to a named look warns on the directive", () => {
+    const text = `${blink()}
+define bunny_look as filtered_image with
+  image = image.bunny
+  attributes = { "mouth.teeth" }
+end
+
+scene start
+  [[bunny_look:eyes.closed]]
+end
+`;
+    const found = diagnosticsOf(text).filter((d) => d.message.includes("plays on this look"));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "eyes.closed", line: text.split("\n").findIndex((line) => line.includes("[[bunny_look:eyes.closed]]")) });
+  });
+
   test("a directive kept off the morph by `unless` is not reported", () => {
     const text = `${blink("  unless = eyes.closed\n")}
 scene start
