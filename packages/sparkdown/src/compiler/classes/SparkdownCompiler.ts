@@ -3989,7 +3989,12 @@ export class SparkdownCompiler {
     const things: { [name: string]: string } = {};
     for (const type of ["image", "layered_image", "filtered_image"]) {
       for (const name of Object.keys(program.context?.[type] ?? {})) {
-        things[name] = getImageThing(name);
+        Object.defineProperty(things, name, {
+          value: getImageThing(name),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
       }
     }
     program.imageThings = things;

@@ -54,6 +54,8 @@ describe("@ inside names (#2109)", () => {
 end
 `);
     expect(messages(program)).toEqual([]);
+    const shown = (program.chunks?.table.strings ?? []).filter((s) => s.includes("mia@night"));
+    expect(shown.some((s) => /mia@night(?![:~@\w])/.test(s)), shown.join("\n")).toBe(true);
     expect(program.context?.["filtered_image"]?.["mia@night~sad"]?.attributes).toEqual(["sad"]);
     expect(drawn(program, "filtered_image", "mia@night~sad")).toMatch(/id=['"]sad['"]/);
     expect(drawn(program, "filtered_image", "mia@night~sad")).not.toMatch(/id=['"]happy['"]/);
@@ -179,6 +181,36 @@ end
     expect(found.some((message) => message.includes("attribute")), found.join("\n")).toBe(true);
   });
 
+  it("records the thing of an image whose name is an object key such as __proto__", () => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri: MAIN, type: "script", name: "main", ext: "sd", text: "scene start\n  [[__proto__]]\nend\n", version: 1, languageId: "sparkdown" },
+        { uri: "file:///proj/images/__proto__.svg", type: "image", name: "__proto__", ext: "svg", data: SVG },
+      ],
+    });
+    const things = compiler.compile({ textDocument: { uri: MAIN } }).program.imageThings!;
+    expect(Object.hasOwn(things, "__proto__")).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(things, "__proto__")?.value).toBe("__proto__");
+  });
+
+  it("reads a class named with an @ whole, so the style of that name applies", () => {
+    const program = compile(`style card@night {
+  opacity = 0.5
+}
+
+layout main {
+  box.card@night
+}
+
+scene start
+end
+`);
+    expect(messages(program)).toEqual([]);
+    const layouts = JSON.stringify(program.layouts?.["main"] ?? program.context?.["layout"]?.["main"]);
+    expect(Object.keys(JSON.parse(layouts)).filter((key) => !key.startsWith("$"))).toEqual(["box card@night"]);
+  });
+
   it("keeps a stale name fix from editing part of an @ name", () => {
     expect(stillExpected("mio", 0, 3, "mio", "name")).toBe(true);
     expect(stillExpected("mio@night", 0, 3, "mio", "name")).toBe(false);
@@ -208,6 +240,7 @@ end
     const words = (text: string) => text.match(word);
     expect(words("mia@night")).toEqual(["mia@night"]);
     expect(words("mia@_night mia_@night")).toEqual(["mia@_night", "mia_@night"]);
+    expect(words("mia@_@night mia@_")).toEqual(["mia@_@night", "mia@_"]);
     expect(words("mia@ @night")).toEqual(["mia", "night"]);
     expect(words("don't")).toEqual(["don't"]);
   });
