@@ -780,6 +780,15 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
+  it("renames only the one layer when another layer shares its name up to the first dot", async () => {
+    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad", [`${P}/imani~face.happy.webp`]: "webp" }));
+    await h.assets.renameMember(STACK[3]!, "imani~face.glad");
+    expect((await inPortraits(h)).filter((path) => path.includes("~face."))).toEqual(
+      [`${P}/imani@night~face.sad.png`, `${P}/imani~face.glad.png`, `${P}/imani~face.happy.webp`, `${P}/imani~face.sad.png`].sort(),
+    );
+    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+  });
+
   it("refuses a rename that changes the picture the file belongs to, in WorkspaceAssets' words", async () => {
     const h = await harness(project());
     await expect(h.assets.renameMember(STACK[3]!, "zadie~face.happy")).rejects.toThrow(
