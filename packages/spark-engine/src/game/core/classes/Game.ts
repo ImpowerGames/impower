@@ -2780,7 +2780,11 @@ export class Game<T extends M = {}> {
       settled: "restored",
     });
     this.connection.emit(
-      GameRolledMessage.type.notification({ restored, history }),
+      GameRolledMessage.type.notification({
+        restored,
+        history,
+        executed: beat.executed && { ...beat.executed, history },
+      }),
     );
     return { moved: true, restored, history };
   }
@@ -4313,6 +4317,10 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyExecuted(params: GameExecutedParams = this.executedParams()) {
+    const beat = this._run.current;
+    if (beat && !this._run.behindLatest && this.recordsRun()) {
+      beat.executed = params;
+    }
     this.connection.emit(GameExecutedMessage.type.notification(params));
   }
 
