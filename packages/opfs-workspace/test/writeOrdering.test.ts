@@ -1755,6 +1755,137 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(textAt(root, "b.sd")).toBe("ONLY COPY");
   });
 
+  it("keeps the only copy of a file renamed twice when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("c.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 2 });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("c.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "c.sd")).toBe("ONLY COPY");
+  });
+
+  it("does not restore an overwritten rename target over the only copy of the renamed file", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY", "b.sd": "OLD TARGET" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY");
+  });
+
+  it("puts back an overwritten rename target once the renamed file is restored", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "MOVED", "b.sd": "OLD TARGET" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({ complete: true, failed: [], kept: [] });
+    expect(textAt(root, "a.sd")).toBe("MOVED");
+    expect(textAt(root, "b.sd")).toBe("OLD TARGET");
+  });
+
+  const holdRead = (file: MemoryFile) => {
+    const getFile = file.getFile.bind(file);
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    file.getFile = async () => {
+      if (file.history.length > 0 && !reached) {
+        reached = true;
+        await held;
+      }
+      return getFile();
+    };
+    return { reached: () => reached, release };
+  };
+
+  const editThenFail = {
+    edit: {
+      documentChanges: [
+        insert("a.sd", 1, "!"),
+        insert("b.sd", 1, "!"),
+        insert("missing.sd", 0, "x"),
+      ],
+    },
+  };
+
+  it("keeps a save that lands while the rollback is restoring another file", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const hold = holdRead(fileAt(root, "b.sd")!);
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    hold.release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  it("keeps a save that lands between the rollback's look at a file and its restore", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const hold = holdRead(fileAt(root, "a.sd")!);
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    h.start("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor"));
+    await vi.advanceTimersByTimeAsync(250);
+    hold.release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("save")).toMatchObject({ result: [{ text: "SAVED" }] });
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+  });
+
   it("keeps a save that lands on an edited file while the edit is still running", async () => {
     const root = seed({ "a.sd": "A", "b.sd": "B" });
     const h = await worker(root);
