@@ -17,16 +17,24 @@ export const closesByLanguage = (
   documentLanguage: string,
   cursors: readonly TypedCursor[],
   insert: string,
-  canCloseBefore: (lineAfter: string) => boolean,
+  canClose: (
+    pair: AutoClosingPair,
+    language: string,
+    lineAfter: string,
+  ) => boolean,
   languageAt: (cursorIndex: number) => string,
 ): (string | null)[] | undefined => {
   const languages = Object.keys(configs);
   const closeIn = (language: string, cursor: TypedCursor) => {
-    const pairs =
-      (configs[language] ?? configs[documentLanguage])?.autoClosingPairs ?? [];
-    return canCloseBefore(cursor.lineAfter)
-      ? (autoClosingPairFor(pairs, insert, cursor.lineBefore, cursor.lineAfter)
-          ?.close ?? null)
+    const configLanguage = configs[language] ? language : documentLanguage;
+    const match = autoClosingPairFor(
+      configs[configLanguage]?.autoClosingPairs ?? [],
+      insert,
+      cursor.lineBefore,
+      cursor.lineAfter,
+    );
+    return match && canClose(match.pair, configLanguage, cursor.lineAfter)
+      ? match.close
       : null;
   };
   let differs = false;

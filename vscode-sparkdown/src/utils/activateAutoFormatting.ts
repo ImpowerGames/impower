@@ -161,35 +161,51 @@ const onType = async (
   e: { source: "keyboard"; text: string },
   ...args: any[]
 ) => {
-  const editor = window.activeTextEditor!;
+  const editor = window.activeTextEditor;
 
-  if (e.text === "<") {
-    if (await onOpenAngleBracket(editor)) {
+  if (editor) {
+    if (e.text === "<") {
+      if (await onOpenAngleBracket(editor)) {
+        return true;
+      }
+    }
+
+    if (await closeByLanguage(editor, e.text)) {
       return true;
     }
-  }
-
-  if (await closeByLanguage(editor, e.text)) {
-    return true;
   }
 
   return commands.executeCommand("default:type", e, ...args);
 };
 
-const canCloseBeforeIn = (
-  document: TextDocument,
-): ((lineAfter: string) => boolean) | undefined => {
-  const mode = workspace
-    .getConfiguration("editor", document)
-    .get<string>("autoClosingBrackets", "languageDefined");
-  if (mode === "never") {
-    return undefined;
-  }
-  const autoCloseBefore =
-    SPARKDOWN_LANGUAGE_CONFIGS[
-      document.languageId as keyof typeof SPARKDOWN_LANGUAGE_CONFIGS
-    ]?.autoCloseBefore ?? "";
-  return (lineAfter) => {
+const QUOTES = ["'", '"', "`"];
+
+const canCloseIn = (document: TextDocument, insert: string) => {
+  const editorConfig = workspace.getConfiguration("editor", document);
+  const modes = {
+    brackets: editorConfig.get<string>("autoClosingBrackets", "languageDefined"),
+    quotes: editorConfig.get<string>("autoClosingQuotes", "languageDefined"),
+    comments: editorConfig.get<string>("autoClosingComments", "languageDefined"),
+  };
+  return (
+    pair: { open: string },
+    language: string,
+    lineAfter: string,
+  ): boolean => {
+    const config =
+      SPARKDOWN_LANGUAGE_CONFIGS[
+        language as keyof typeof SPARKDOWN_LANGUAGE_CONFIGS
+      ];
+    const blockCommentStart = config?.comments?.blockComment?.[0];
+    const mode =
+      blockCommentStart && pair.open.includes(blockCommentStart)
+        ? modes.comments
+        : QUOTES.includes(insert)
+          ? modes.quotes
+          : modes.brackets;
+    if (mode === "never") {
+      return false;
+    }
     const next = lineAfter.charAt(0);
     if (!next || mode === "always") {
       return true;
@@ -197,7 +213,7 @@ const canCloseBeforeIn = (
     if (mode === "beforeWhitespace") {
       return /\s/.test(next);
     }
-    return autoCloseBefore.includes(next);
+    return (config?.autoCloseBefore ?? "").includes(next);
   };
 };
 
@@ -212,10 +228,6 @@ const closeByLanguage = async (
   ) {
     return false;
   }
-  const canCloseBefore = canCloseBeforeIn(document);
-  if (!canCloseBefore) {
-    return false;
-  }
   const closes = closesByLanguage(
     SPARKDOWN_LANGUAGE_CONFIGS,
     document.languageId,
@@ -227,7 +239,7 @@ const closeByLanguage = async (
       };
     }),
     insert,
-    canCloseBefore,
+    canCloseIn(document, insert),
     (index) =>
       SparkdownDocumentManager.instance.languageAt(
         document,

@@ -6,7 +6,10 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   commands: new Map<string, (...args: any[]) => unknown>(),
   nativeTypes: 0,
-  autoClosingBrackets: "languageDefined",
+  settings: {
+    autoClosingBrackets: "languageDefined",
+    autoClosingComments: "languageDefined",
+  },
   editor: null as any,
 }));
 
@@ -27,7 +30,7 @@ vi.mock("vscode", async () => {
       executeCommand: async (id: string, ...args: any[]) => {
         if (id === "default:type") {
           state.nativeTypes++;
-          return state.editor.nativeType(args[0].text);
+          return state.editor?.nativeType(args[0].text);
         }
         return state.commands.get(id)?.(...args);
       },
@@ -43,8 +46,8 @@ vi.mock("vscode", async () => {
           ? { editor: { autoCloseAngleBrackets: true } }
           : {
               get: (key: string, fallback: unknown) =>
-                section === "editor" && key === "autoClosingBrackets"
-                  ? state.autoClosingBrackets
+                section === "editor" && key in state.settings
+                  ? state.settings[key as keyof typeof state.settings]
                   : fallback,
             },
     },
@@ -152,14 +155,18 @@ class FakeEditor {
       const lineBefore = before.slice(before.lastIndexOf("\n") + 1);
       const lineAfter = after.split("\n")[0]!;
       const next = lineAfter.charAt(0);
+      const match = autoClosingPairFor(
+        config.autoClosingPairs,
+        text,
+        lineBefore,
+        lineAfter,
+      );
+      const mode = match?.pair.open.includes(config.comments.blockComment[0]!)
+        ? state.settings.autoClosingComments
+        : state.settings.autoClosingBrackets;
       const canClose =
-        state.autoClosingBrackets !== "never" &&
-        (!next || config.autoCloseBefore.includes(next));
-      const close = canClose
-        ? (autoClosingPairFor(config.autoClosingPairs, text, lineBefore, lineAfter)
-            ?.close ?? "")
-        : "";
-      return { offset, text: text + close };
+        mode !== "never" && (!next || config.autoCloseBefore.includes(next));
+      return { offset, text: text + (canClose ? (match?.close ?? "") : "") };
     });
     this.document.insert(inserts);
     this.selections = offsets.map((offset) => {
@@ -282,13 +289,59 @@ describe("auto-closing pairs in a .sd document follow the language at the cursor
   });
 
   it("closes nothing the editor setting turns off", async () => {
-    state.autoClosingBrackets = "never";
+    state.settings.autoClosingBrackets = "never";
     try {
       const editor = open(FUNCTION("local y = x :|"));
       expect(await type(editor, ":")).toBe(FUNCTION("local y = x ::|"));
       expect(editor.edits).toEqual([]);
     } finally {
-      state.autoClosingBrackets = "languageDefined";
+      state.settings.autoClosingBrackets = "languageDefined";
+    }
+  });
+
+  it("leaves a Luau block comment open when comment closing is off", async () => {
+    state.settings.autoClosingComments = "never";
+    try {
+      const editor = open(FUNCTION("--[|"));
+      expect(await type(editor, "[")).toBe(FUNCTION("--[[|"));
+    } finally {
+      state.settings.autoClosingComments = "languageDefined";
+    }
+  });
+
+  it("closes a Luau block comment when only bracket closing is off", async () => {
+    state.settings.autoClosingBrackets = "never";
+    try {
+      const editor = open(FUNCTION("--[|"));
+      expect(await type(editor, "[")).toBe(FUNCTION("--[[|]]"));
+    } finally {
+      state.settings.autoClosingBrackets = "languageDefined";
+    }
+  });
+
+  it("types natively when no text editor is active", async () => {
+    open(FUNCTION("local y = x :|"));
+    const editor = state.editor;
+    state.editor = undefined;
+    try {
+      await state.commands.get("type")!({ source: "keyboard", text: "a" });
+    } catch (error) {
+      expect.unreachable(String(error));
+    } finally {
+      state.editor = editor;
+    }
+    expect(state.nativeTypes).toBe(1);
+  });
+});
+
+describe("a .luau document with comment closing off", () => {
+  it("leaves `--[[` open", async () => {
+    state.settings.autoClosingComments = "never";
+    try {
+      const editor = open("--[|\n", "sparkdown-luau");
+      expect(await type(editor, "[")).toBe("--[[|\n");
+    } finally {
+      state.settings.autoClosingComments = "languageDefined";
     }
   });
 });
