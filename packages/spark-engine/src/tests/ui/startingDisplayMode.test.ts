@@ -272,6 +272,44 @@ describe("the starting display mode chooses the text layout a game opens with (#
     expect(resumed.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
   });
 
+  test("a save written before the page counted beats resumes with one entry for its line, in either mode", () => {
+    const h = play(LOOP, "textstream");
+    h.game.start();
+    h.tapTo("Echo.");
+    const data = JSON.parse(h.game.saveHere()!.data);
+    delete data.modules.ui.page.shown;
+    delete data.modules.ui.page.beat;
+    const legacy = JSON.stringify(data);
+    for (const mode of ["textbox", "textstream"] as const) {
+      const resumed = play(LOOP, mode);
+      expect(resumed.game.loadToResume(legacy)).toBe(true);
+      resumed.game.start();
+      resumed.game.setStartingDisplayMode("textstream");
+      expect(resumed.page().map(words)).toEqual(["First.", "Echo."]);
+      resumed.game.setStartingDisplayMode("textbox");
+      resumed.game.clickedToContinue();
+      resumed.game.setStartingDisplayMode("textstream");
+      expect(resumed.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
+    }
+  });
+
+  test("a save written before the page counted beats, at an open choice, resumes with one options entry", () => {
+    const h = play(STORY, "textstream");
+    h.game.start();
+    for (let i = 0; i < 8 && h.game.story.currentChoices.length === 0; i += 1) {
+      h.game.clickedToContinue();
+    }
+    const before = h.page().length;
+    const data = JSON.parse(h.game.saveHere()!.data);
+    delete data.modules.ui.page.shown;
+    delete data.modules.ui.page.beat;
+    const resumed = play(STORY, "textstream");
+    expect(resumed.game.loadToResume(JSON.stringify(data))).toBe(true);
+    resumed.game.start();
+    expect(resumed.page()).toHaveLength(before);
+    expect(resumed.page().at(-1)?.kind).toBe("options");
+  });
+
   test("a save resumed in Visual Novel and switched at once keeps one entry for its line", () => {
     const h = play(LOOP, "textstream");
     h.game.start();

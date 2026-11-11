@@ -5165,7 +5165,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const resumed =
           this._resumed &&
           page.key === key &&
-          page.beat !== undefined &&
           page.beat === page.shown;
         this._resumed = false;
         page.shown = (page.shown ?? 0) + 1;

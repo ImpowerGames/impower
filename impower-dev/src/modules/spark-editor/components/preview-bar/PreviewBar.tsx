@@ -22,6 +22,7 @@ import { ProblemsToggle } from "../problems";
 import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
 import {
+  ASPECT_RATIO_LABEL_RESERVES,
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
   barReadout,
@@ -144,16 +145,14 @@ function RatioLabel({
   choice: AspectRatioChoice;
   size: GameSize | undefined;
 }) {
-  const label = aspectRatioLabel(choice, size);
+  const [reserve, reserveAlt] = ASPECT_RATIO_LABEL_RESERVES;
   return (
-    <span>
-      <span
-        data-reserve="Auto"
-        class="inline-grid justify-items-end after:invisible after:content-[attr(data-reserve)] after:[grid-area:1/1] [&>*]:[grid-area:1/1]"
-      >
-        <span>{label.name}</span>
-      </span>
-      {label.size}
+    <span
+      data-reserve={reserve}
+      data-reserve-alt={reserveAlt}
+      class="inline-grid justify-items-end before:invisible before:content-[attr(data-reserve-alt)] before:[grid-area:1/1] after:invisible after:content-[attr(data-reserve)] after:[grid-area:1/1] [&>*]:[grid-area:1/1]"
+    >
+      <span>{aspectRatioLabel(choice, size)}</span>
     </span>
   );
 }
