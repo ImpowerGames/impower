@@ -11,6 +11,7 @@ import {
   WheelSheet,
 } from "@impower/impower-ui/components";
 import { useCoarsePointer } from "@impower/impower-ui/layout";
+import type { RefObject } from "preact";
 import { useId, useState } from "preact/hooks";
 import type { ImageStack } from "../../utils/imageStacks";
 import {
@@ -40,6 +41,7 @@ export type VariantsSectionProps = {
   onSelect: (selection: VariantSelection) => void;
   onPreview: (selection: VariantSelection | null) => void;
   onForm: (form: VariantForm) => void;
+  sheetContainer: RefObject<HTMLElement>;
 };
 
 function GroupMenu({
@@ -47,9 +49,11 @@ function GroupMenu({
   value,
   onPick,
   onPreview,
+  sheetContainer,
 }: {
   group: TesterGroup;
   value: string;
+  sheetContainer: RefObject<HTMLElement>;
   onPick: (value: string) => void;
   onPreview: (value: string | null) => void;
 }) {
@@ -73,6 +77,7 @@ function GroupMenu({
       <>
         {trigger}
         <WheelSheet
+          container={sheetContainer}
           open={open}
           title={name}
           options={group.options.map((option) => ({
@@ -119,7 +124,15 @@ function GroupMenu({
   );
 }
 
-export default function VariantsSection({ stack, selection, form, onSelect, onPreview, onForm }: VariantsSectionProps) {
+export default function VariantsSection({
+  stack,
+  selection,
+  form,
+  onSelect,
+  onPreview,
+  onForm,
+  sheetContainer,
+}: VariantsSectionProps) {
   const formLabel = useId();
   const groups = testerGroups(stack, selection);
   const reference = referenceOf(variantOf(stack, selection), form);
@@ -147,6 +160,7 @@ export default function VariantsSection({ stack, selection, form, onSelect, onPr
               <div key={group.key} class="contents">
                 <span class="truncate text-[13px] text-muted">{groupLabel(group)}</span>
                 <GroupMenu
+                  sheetContainer={sheetContainer}
                   group={group}
                   value={chosenIn(group, selection)}
                   onPick={(value) => {

@@ -79,6 +79,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "variantsLabel",
   "variantsBadgeVariants",
   "wheelPickerVariants",
+  "wheelSheetVariants",
   "wheelIndexAt",
   "WHEEL_ROW",
   "WHEEL_SHOWN",

@@ -1,9 +1,9 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { RefObject } from "preact";
+import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import Button from "../button/Button";
-import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
 export const WHEEL_ROW = 44;
@@ -166,7 +166,26 @@ export function WheelPicker({
   );
 }
 
-export type WheelSheetProps = {
+export const wheelSheetVariants = cva(
+  [
+    "absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden",
+    "rounded-t-card border border-b-0 border-edge bg-panel text-ink shadow-float",
+    "pb-[env(safe-area-inset-bottom)] motion-safe:anim-sheet-in",
+  ],
+  {
+    variants: {
+      size: {
+        default: "max-h-full",
+      },
+    },
+    defaultVariants: { size: "default" },
+  },
+);
+
+export type WheelSheetSize = NonNullable<VariantProps<typeof wheelSheetVariants>["size"]>;
+
+export type WheelSheetProps = VariantProps<typeof wheelSheetVariants> & {
+  container: RefObject<HTMLElement>;
   open: boolean;
   title: string;
   options: readonly WheelOption[];
@@ -176,25 +195,76 @@ export type WheelSheetProps = {
   onCancel: () => void;
 };
 
-export function WheelSheet({ open, title, options, value, onPreview, onChoose, onCancel }: WheelSheetProps) {
+export function WheelSheet({
+  container,
+  open,
+  title,
+  options,
+  value,
+  onPreview,
+  onChoose,
+  onCancel,
+  size,
+}: WheelSheetProps) {
+  const titleId = useId();
   const centred = useRef(value);
+  const panel = useRef<HTMLDivElement | null>(null);
   const list = useRef<HTMLDivElement>(null);
+  const cancel = useRef(onCancel);
+  cancel.current = onCancel;
+
   useEffect(() => {
     centred.current = value;
   }, [open, value]);
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={(next) => !next && onCancel()}
-      initialFocus={list}
-      flush
-      class="pb-[env(safe-area-inset-bottom)]"
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    list.current?.focus({ preventScroll: true });
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!panel.current?.contains(target) && !target?.closest?.("[data-zoom-frame]")) {
+        cancel.current();
+      }
+    };
+    document.addEventListener("pointerdown", outside, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      if (returnTo?.isConnected && (!document.activeElement || panel.current?.contains(document.activeElement) || document.activeElement === document.body)) {
+        returnTo.focus({ preventScroll: true });
+      }
+    };
+  }, [open]);
+
+  const host = container.current;
+  if (!open || !host) {
+    return null;
+  }
+  return createPortal(
+    <div
+      ref={panel}
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={titleId}
+      class={wheelSheetVariants({ size })}
+      data-wheel-sheet
+      onKeyDown={(event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onCancel();
+        }
+      }}
     >
-      <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5" data-wheel-sheet>
+      <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5">
         <Button variant="quiet" onClick={onCancel}>
           Cancel
         </Button>
-        <DialogTitle class="min-w-0 truncate text-[15px]">{title}</DialogTitle>
+        <h2 id={titleId} class="m-0 min-w-0 truncate text-[15px] font-semibold">
+          {title}
+        </h2>
         <Button variant="quiet" class="text-accent" onClick={() => onChoose(centred.current)}>
           Done
         </Button>
@@ -210,7 +280,8 @@ export function WheelSheet({ open, title, options, value, onPreview, onChoose, o
         onChoose={onChoose}
         listRef={list}
       />
-    </Sheet>
+    </div>,
+    host,
   );
 }
 

@@ -26,7 +26,7 @@ import {
   type InspectedAsset,
 } from "../../utils/assetDetails";
 import { plural } from "../../utils/fileListModel";
-import type { FileMove } from "../../utils/fileMoves";
+import { reasonOf, type FileMove } from "../../utils/fileMoves";
 import { imageStacks, isStacked } from "../../utils/imageStacks";
 import { defaultForm, variantOf, type VariantForm, type VariantSelection } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
@@ -99,7 +99,7 @@ function LinkAddress({
       .then((Workspace) => Workspace.assets.setAddress(asset.path, draft))
       .then(
         () => showSnackbar({ message: "Address saved." }),
-        (error: unknown) => showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+        (error: unknown) => showSnackbar({ message: reasonOf(error) }),
       );
   };
   return (
@@ -329,7 +329,7 @@ export default function AssetInspector({
         }),
       )
       .catch((error: unknown) =>
-        showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+        showSnackbar({ message: reasonOf(error) }),
       );
   };
 
@@ -385,8 +385,8 @@ export default function AssetInspector({
       data-asset-inspector={host}
       class={
         sheet
-          ? "flex h-full min-h-0 flex-col bg-panel text-ink"
-          : "flex h-full min-h-0 flex-col bg-preview-mat text-ink"
+          ? "relative flex h-full min-h-0 flex-col bg-panel text-ink"
+          : "relative flex h-full min-h-0 flex-col bg-preview-mat text-ink"
       }
       onKeyDown={onKeyDown}
       onFocusIn={(event) => {
@@ -454,6 +454,7 @@ export default function AssetInspector({
             onSelect={setSelection}
             onPreview={setPreviewing}
             onForm={setChosenForm}
+            sheetContainer={region}
           />
         )}
         {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
@@ -524,7 +525,7 @@ export default function AssetInspector({
                 void intents()
                   .then((Workspace) => Workspace.assets.downloadAll([asset.path]))
                   .catch((error: unknown) =>
-                    showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+                    showSnackbar({ message: reasonOf(error) }),
                   )
               }
             >

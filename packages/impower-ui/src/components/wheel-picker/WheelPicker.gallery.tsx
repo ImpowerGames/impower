@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { WheelPicker, WheelSheet, type WheelOption, type WheelPickerSize } from "./WheelPicker";
@@ -18,6 +18,7 @@ function WheelPickerDemo() {
   const [value, setValue] = useState("happy");
   const [centre, setCentre] = useState("happy");
   const [open, setOpen] = useState(false);
+  const frame = useRef<HTMLDivElement>(null);
   const label = (picked: string) => FACES.find((face) => face.value === picked)?.label ?? picked;
   return (
     <div class="space-y-4">
@@ -28,11 +29,14 @@ function WheelPickerDemo() {
           </div>
         </GalleryRow>
       ))}
-      <GalleryRow label={`In a sheet with Cancel and Done; chosen: ${label(value)}`}>
-        <Button aria-haspopup="dialog" onClick={() => setOpen(true)}>
-          Face: {label(value)}
-        </Button>
+      <GalleryRow label={`In a sheet across the foot of the panel it belongs to, with Cancel and Done; chosen: ${label(value)}`}>
+        <div ref={frame} class="relative flex h-[360px] w-72 items-start justify-center rounded-card border border-edge bg-bg p-4">
+          <Button aria-haspopup="dialog" onClick={() => setOpen(true)}>
+            Face: {label(value)}
+          </Button>
+        </div>
         <WheelSheet
+          container={frame}
           open={open}
           title="Face"
           options={FACES}
@@ -50,6 +54,6 @@ function WheelPickerDemo() {
 
 export const wheelPickerGallery: GalleryEntry = {
   title: "WheelPicker",
-  exports: ["WheelPicker", "WheelSheet", "wheelPickerVariants", "wheelIndexAt", "WHEEL_ROW", "WHEEL_SHOWN"],
+  exports: ["WheelPicker", "WheelSheet", "wheelPickerVariants", "wheelSheetVariants", "wheelIndexAt", "WHEEL_ROW", "WHEEL_SHOWN"],
   Demo: WheelPickerDemo,
 };

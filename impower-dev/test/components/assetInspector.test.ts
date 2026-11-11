@@ -1039,6 +1039,22 @@ describe("the Variants tester and the Files section", () => {
     expect(region()!.querySelector('[data-file-path$="99_paper.png"]')).toBeNull();
   });
 
+  it("says why storage refused to add or download a file", async () => {
+    await mount();
+    await open("imani");
+    assets.addBeside.mockRejectedValueOnce({ code: -32000, message: "The storage is full" });
+    const picker = region()!.querySelector<HTMLInputElement>("[data-file-picker]")!;
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani~hat.on.png")], configurable: true });
+    await act(async () => {
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(snackbar.value?.message).toBe("The storage is full");
+    assets.download.mockRejectedValueOnce({ code: -32000, message: "The file could not be read" });
+    await fileMenu("imani@night.png", "Download");
+    expect(snackbar.value?.message).toBe("The file could not be read");
+  });
+
   it("adds a picked file beside the base", async () => {
     await mount();
     await open("imani");

@@ -347,6 +347,7 @@ export {
   default as WheelPicker,
   WheelSheet,
   wheelPickerVariants,
+  wheelSheetVariants,
   wheelIndexAt,
   WHEEL_ROW,
   WHEEL_SHOWN,
@@ -354,6 +355,7 @@ export {
   type WheelPickerProps,
   type WheelPickerSize,
   type WheelSheetProps,
+  type WheelSheetSize,
 } from "./wheel-picker/WheelPicker";
 export {
   default as VariantsBadge,

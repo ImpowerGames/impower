@@ -134,11 +134,20 @@ describe("WheelPicker", () => {
 });
 
 describe("WheelSheet", () => {
-  it("opens on its wheel, previews while spinning, and chooses with Done", async () => {
+  const panelHost = () => {
+    const frame = document.body.appendChild(document.createElement("div"));
+    const zoom = frame.appendChild(document.createElement("div"));
+    zoom.setAttribute("data-zoom-frame", "");
+    return { frame, zoom, container: { current: frame } };
+  };
+
+  it("opens across the foot of its container on its wheel, previews while spinning, and chooses with Done", async () => {
+    const { frame, container } = panelHost();
     const previewed: string[] = [];
     const chosen: string[] = [];
     const list = await mount(
       <WheelSheet
+        container={container}
         open
         title="Face"
         options={OPTIONS}
@@ -148,23 +157,49 @@ describe("WheelSheet", () => {
         onCancel={() => chosen.push("cancelled")}
       />,
     );
-    expect(document.querySelector("[role=dialog]")).not.toBeNull();
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    expect(frame.contains(dialog)).toBe(true);
+    expect(dialog.getAttribute("aria-modal")).toBe("false");
+    expect(document.getElementById(dialog.getAttribute("aria-labelledby")!)!.textContent).toBe("Face");
     expect(document.activeElement).toBe(list);
     await key(list, "ArrowDown");
-    const done = Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Done")!;
+    const done = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent === "Done")!;
     await act(async () => done.click());
     expect(previewed).toEqual(["happy"]);
     expect(chosen).toEqual(["happy"]);
   });
 
-  it("cancels with Cancel or Escape", async () => {
+  it("cancels with Cancel, Escape or a tap outside it, but not a tap on the picture's zoom frame", async () => {
+    const { zoom, container } = panelHost();
     const cancelled = vi.fn();
-    await mount(<WheelSheet open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />);
+    await mount(<WheelSheet container={container} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />);
     const cancel = Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Cancel")!;
     await act(async () => cancel.click());
     await act(async () => {
       document.querySelector("[role=dialog]")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(cancelled).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      zoom.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(cancelled).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(cancelled).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns focus to what opened it when it closes", async () => {
+    const { container } = panelHost();
+    const opener = document.body.appendChild(document.createElement("button"));
+    opener.focus();
+    host = document.body.appendChild(document.createElement("div"));
+    const sheet = (open: boolean) => (
+      <WheelSheet container={container} open={open} title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={() => {}} />
+    );
+    await act(async () => render(sheet(true), host!));
+    expect(document.activeElement?.getAttribute("role")).toBe("listbox");
+    await act(async () => render(sheet(false), host!));
+    expect(document.activeElement).toBe(opener);
   });
 });
