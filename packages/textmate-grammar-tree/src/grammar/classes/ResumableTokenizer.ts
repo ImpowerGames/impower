@@ -75,11 +75,7 @@ type DispatchResult =
 
 const REPEATED: DispatchResult = { kind: "repeated" };
 
-const CAPTURE_POOL_LIMIT = 64;
-
 const RECENT_RESUME_PARTS = 4;
-
-const capturePool: ResumableTokenizer[] = [];
 
 export class ResumableTokenizer {
   declare grammar: Grammar;
@@ -136,44 +132,12 @@ export class ResumableTokenizer {
     offset: number,
     enclosing: CallFrame[],
   ): { tokens: GrammarToken[]; to: number } {
-    const tokenizer =
-      capturePool.pop() ?? new ResumableTokenizer(grammar, () => "", offset);
-    try {
-      tokenizer.resetForCapture(grammar, rules, text, from, offset, enclosing);
-      return tokenizer.tokenizeCaptureText(from);
-    } finally {
-      if (capturePool.length < CAPTURE_POOL_LIMIT) {
-        capturePool.push(tokenizer);
-      }
-    }
-  }
-
-  protected resetForCapture(
-    grammar: Grammar,
-    rules: Rule[],
-    text: string,
-    from: number,
-    offset: number,
-    enclosing: CallFrame[],
-  ) {
-    this.grammar = grammar;
-    this.anchor = offset;
-    this.pos = from;
-    this.frames.length = 0;
-    this.pending = null;
-    this.drained = false;
-    this.lastSplitCheckPos = 0;
-    this.emittedAtLineStart = -1;
-    this.stoppedLine = false;
-    this.rootRules = rules;
-    this.tokenizesCapture = true;
-    this.stoppedAtRoot = false;
-    this.retryingLineEnd = false;
-    this.emitSplitSignals = false;
-    this.recentStacks.length = 0;
-    this.recentFrames.length = 0;
-    this._stepTokens.length = 0;
-    this.state.resetToLine(text, offset, enclosing);
+    const tokenizer = new ResumableTokenizer(grammar, () => "", offset);
+    tokenizer.pos = from;
+    tokenizer.rootRules = rules;
+    tokenizer.tokenizesCapture = true;
+    tokenizer.state.resetToLine(text, offset, enclosing);
+    return tokenizer.tokenizeCaptureText(from);
   }
 
   protected tokenizeCaptureText(from: number): {

@@ -68,10 +68,6 @@ export class MatchRule implements Rule {
     state: GrammarState,
     from: number,
   ): { matched: Matched; groups: RegExpMatchResult } | null {
-    if (state.possibleStackOverflow(this.id, from)) {
-      return null;
-    }
-    state.enter(this.id, from);
     state.line(from);
     const lineStart = state.lineStart;
     const lineText = state.lineText;
@@ -80,13 +76,8 @@ export class MatchRule implements Rule {
       from - lineStart,
       this.matcher.hasAnchor && state.isAnchor(from),
     );
-    if (!result) {
-      state.exit(this.id, from);
-      return null;
-    }
-    const total = result[0];
-    if (total == null) {
-      state.exit(this.id, from);
+    const total = result?.[0];
+    if (!result || total == null) {
       return null;
     }
     const matched = Matched.create(this.node, from, total.length);
@@ -132,7 +123,6 @@ export class MatchRule implements Rule {
       }
     }
 
-    state.exit(this.id, from);
     return { matched, groups: result };
   }
 

@@ -82,6 +82,24 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
     expectCold(first.tree, first.next);
   });
 
+  test.each([1, 2, 3])("a random chain of edits through the clause's cues matches a cold parse at every step, seed %i (I-2093)", (seed) => {
+    let state = seed;
+    const rand = () => {
+      state = (Math.imul(state, 1103515245) + 12345) | 0;
+      return ((state >>> 0) % 1_000_000) / 1_000_000;
+    };
+    const inserts = ["x", " ", "\n", "(", ")", ":", "{", "}", "*", "_", CUE, ""];
+    let text = TEXT;
+    let tree = getParser().parse(text);
+    for (let step = 0; step < 12; step++) {
+      const at = CLAUSE_FROM + Math.floor(rand() * (CLAUSE_TO - CLAUSE_FROM));
+      const insert = inserts[Math.floor(rand() * inserts.length)]!;
+      const edit = { from: at, to: insert === "" ? at + 1 : at, insert };
+      ({ tree, next: text } = parseEdit(tree, text, edit));
+      expectCold(tree, text);
+    }
+  });
+
   test("a cold parse records a restart point at every line start inside the clause", () => {
     const chunks = chunksOf(getParser().parse(TEXT));
     const lineStarts = new Set<number>();

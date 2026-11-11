@@ -171,17 +171,19 @@ export class GrammarState {
   }
 
   possibleStackOverflow(ruleId: string, position: number): boolean {
-    if (this.visited.length > 10000) {
-      console.warn("Possible stack overflow!", this.visited);
+    const visited = this.visited;
+    if (visited.length > 10000) {
+      console.warn("Possible stack overflow!", visited);
       return true;
     }
-    const hasVisited = this.visited.some(
-      (frame) => frame.ruleId === ruleId && frame.position === position,
-    );
-    if (hasVisited) {
-      console.warn("Infinite recursion detected!", ruleId, position);
+    for (let i = visited.length - 1; i >= 0; i--) {
+      const frame = visited[i]!;
+      if (frame.position === position && frame.ruleId === ruleId) {
+        console.warn("Infinite recursion detected!", ruleId, position);
+        return true;
+      }
     }
-    return hasVisited;
+    return false;
   }
 
   enter(ruleId: string, position: number, scoped = false) {
@@ -216,10 +218,14 @@ export class GrammarState {
   }
 
   exit(ruleId: string, position: number) {
-    for (let i = this.visited.length - 1; i >= 0; i--) {
-      const frame = this.visited[i]!;
+    const visited = this.visited;
+    for (let i = visited.length - 1; i >= 0; i--) {
+      const frame = visited[i]!;
       if (frame.ruleId === ruleId && frame.position === position) {
-        this.visited.splice(i, 1);
+        for (let j = i + 1; j < visited.length; j++) {
+          visited[j - 1] = visited[j]!;
+        }
+        visited.pop();
         return;
       }
     }
