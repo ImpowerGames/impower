@@ -492,9 +492,25 @@ describe("an edit inside a script other than main", () => {
     const before = s.root;
     const after = s.edit(FIRST, "Clause line 150.", "Clause line 150, edited.");
     alone.edit(MAIN, "Clause line 150.", "Clause line 150, edited.");
-    const served = s.compiler.memoStats(FIRST)!.served;
-    expect(served).toBeGreaterThan(100);
-    expect(served).toBe(alone.compiler.memoStats(MAIN)!.served);
+    const included = s.compiler.memoStats(FIRST)!;
+    const single = alone.compiler.memoStats(MAIN)!;
+    const editedAt = (text: string) => text.indexOf("Clause line 150, edited.");
+    for (const [stats, text] of [
+      [included, s.texts[FIRST]!],
+      [single, alone.texts[MAIN]!],
+    ] as const) {
+      expect(stats.served).toBeGreaterThan(100);
+      expect(stats.rebuilt).toBeDefined();
+      const { from, to } = stats.rebuilt!;
+      expect(from).toBeLessThanOrEqual(editedAt(text));
+      expect(to).toBeGreaterThan(editedAt(text));
+      expect(stats.loweredAt).toHaveLength(stats.lowered);
+      for (const at of stats.loweredAt) {
+        expect(at).toBeGreaterThanOrEqual(from);
+        expect(at).toBeLessThanOrEqual(to);
+      }
+    }
+    expect(included.served + included.lowered).toBe(single.served + single.lowered);
     expect(s.store.emittedLastBuild).toBe(1);
     expect(chunkChanges(before, after).added).toHaveLength(1);
     matchesCold(after, s.texts);
