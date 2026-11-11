@@ -101,6 +101,15 @@ describe("the rail's heading", () => {
     expect(header).not.toBeNull();
     expect(header.className).toContain("h-11");
     expect(header.className).not.toContain("border-b");
+    for (const token of [
+      "gap-0",
+      "pr-1",
+      "pl-[10px]",
+      "in-data-[layout=compact]:pl-1.5",
+      "in-data-[view=references]:pl-5",
+    ]) {
+      expect(header.classList.contains(token), token).toBe(true);
+    }
     const title = header.querySelector("h2")!;
     expect(title.textContent).toBe("Search");
     expect(title.className).toContain("text-[14px]/[1.4]");
