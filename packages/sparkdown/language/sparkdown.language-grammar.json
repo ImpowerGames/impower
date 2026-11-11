@@ -5753,7 +5753,19 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#SelectorPseudoClass"
+        },
+        {
           "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#LuauSparkleElementClass"
+        },
+        {
+          "include": "#BuiltinComponentName"
+        },
+        {
+          "include": "#CustomComponentName"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)([)])",
@@ -5773,6 +5785,35 @@
           ]
         }
       }
+    },
+    "SelectorPseudoClass": {
+      "match": "([:]{1,2})((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorPseudoClassOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorPseudoClassName"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorPseudoClassOperator": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "(.+)"
+    },
+    "SelectorPseudoClassName": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "(.+)"
     },
     "BracketPropertyIdentifierString": {
       "brackets": true,

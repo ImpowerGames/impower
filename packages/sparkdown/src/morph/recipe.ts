@@ -171,6 +171,32 @@ export function recipeGroups(recipe: MorphRecipe): string[] {
   return groups;
 }
 
+export interface MorphOverlap {
+  morphs: [string, string];
+  groups: string[];
+  moved: string[];
+  clips: string[];
+}
+
+const clipLabels = (recipe: MorphRecipe): Set<string> =>
+  new Set(recipe.clips.flatMap((clip) => [...clip.between, ...clip.targets]));
+
+const shared = (values: Iterable<string>, other: ReadonlySet<string>): string[] =>
+  [...new Set(values)].filter((value) => other.has(value)).sort();
+
+export function morphOverlaps(recipes: readonly MorphRecipe[]): MorphOverlap[] {
+  const overlaps: MorphOverlap[] = [];
+  recipes.forEach((a, i) => {
+    for (const b of recipes.slice(i + 1)) {
+      const groups = shared(recipeGroups(a), new Set(recipeGroups(b)));
+      const moved = shared(a.motion ?? [], new Set(b.motion ?? []));
+      const clips = shared(clipLabels(a), clipLabels(b));
+      if (groups.length || moved.length || clips.length) overlaps.push({ morphs: [a.name, b.name], groups, moved, clips });
+    }
+  });
+  return overlaps;
+}
+
 export function recipeAsMorph(recipe: MorphRecipe): Record<string, unknown> {
   return {
     keyframes: recipe.keyframes.map((k) => {

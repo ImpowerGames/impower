@@ -62,7 +62,7 @@ const recipeOf = (overrides: Record<string, unknown> = {}) =>
   });
 
 const bake = (overrides: Record<string, unknown> = {}, selection: Record<string, string> = {}, source = FACE) =>
-  bakeMorphArtifact({ source, selection, recipe: recipeOf(overrides), key: "k", variant: "bunny" });
+  bakeMorphArtifact({ source, selection, recipes: [recipeOf(overrides)], key: "k", variant: "bunny" });
 
 type El = { tagName: string; attributes: Record<string, string>; children: Node[] };
 type Found = { el: El; ancestors: El[] };
@@ -336,12 +336,12 @@ ${marks}
 </svg>`;
     const pose = (state: string) => ({ a: { state }, b: { state }, c: { state } });
     const recipe = buildMorphRecipe("trio", { blend: "fade", keyframes: [{ offset: 0, ...pose("off") }, { offset: 0.5, ...pose("on") }, { offset: 1, ...pose("off") }] });
-    const artifact = bakeMorphArtifact({ source, selection: {}, recipe, key: "k3", variant: "trio" });
+    const artifact = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k3", variant: "trio" });
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics).toContainEqual(
       expect.objectContaining({ code: "mixed-groups", layer: "combined:a.on:b.on:c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
     );
     const plain = source.replace('<path data-name="combined:a.on:b.on:c.on" d="M0,30H40V35H0Z"/>\n', "");
-    expect(bakeMorphArtifact({ source: plain, selection: {}, recipe, key: "k4", variant: "trio" }).status).toBe("live");
+    expect(bakeMorphArtifact({ source: plain, selection: {}, recipes: [recipe], key: "k4", variant: "trio" }).status).toBe("live");
   });
 });

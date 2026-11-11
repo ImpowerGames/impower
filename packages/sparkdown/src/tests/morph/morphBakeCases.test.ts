@@ -35,7 +35,7 @@ const area = (flat: number[]) => {
 
 const URI = "file:///bunny.svg";
 const bake = (svg: string, recipe: MorphRecipe, selection: Record<string, string> = {}) =>
-  bakeMorphArtifact({ source: svg, selection, recipe, key: "k", variant: "bunny", uri: URI });
+  bakeMorphArtifact({ source: svg, selection, recipes: [recipe], key: "k", variant: "bunny", uri: URI });
 const codes = (artifact: MorphArtifact) => artifact.diagnostics.map((d) => d.code);
 
 const art = (open: string, closed: string, extra = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
@@ -523,8 +523,8 @@ describe("morph bake: policies", () => {
   test("a failure served from the shared geometry cache is reported as when it was found", () => {
     const blobs = art(`<path data-name="mark" d="M0,0H10V10H0Z"/>`, `<path data-name="mark" d="M0,0L12,0L12,12L6,16L0,12Z"/>`);
     const geometry = new Map();
-    const fresh = bakeMorphArtifact({ source: blobs, selection: {}, recipe: recipe({ method: "match" }), key: "a", uri: URI }, { geometry });
-    const cached = bakeMorphArtifact({ source: blobs, selection: { eyes: "open" }, recipe: recipe({ method: "match" }), key: "b", uri: URI }, { geometry });
+    const fresh = bakeMorphArtifact({ source: blobs, selection: {}, recipes: [recipe({ method: "match" })], key: "a", uri: URI }, { geometry });
+    const cached = bakeMorphArtifact({ source: blobs, selection: { eyes: "open" }, recipes: [recipe({ method: "match" })], key: "b", uri: URI }, { geometry });
     expect(geometry.size).toBe(1);
     expect(cached.diagnostics).toEqual(fresh.diagnostics);
   });
