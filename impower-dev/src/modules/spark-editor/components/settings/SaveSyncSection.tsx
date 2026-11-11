@@ -14,6 +14,7 @@ import { useComputed } from "@preact/signals";
 import { useRef, useState } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
+import { importOutcomeSentence } from "../../workspace/projectImport";
 import workspace from "../../workspace/WorkspaceStore";
 import { useLocalSaveLabel, useSaveStatus } from "../drive-sync";
 import type { SettingsSectionInfo } from "./sections";
@@ -64,13 +65,17 @@ export default function SaveSyncSection({ section }: { section: SettingsSectionI
     }
   };
 
+  const importOutcome = workspace.signals.importOutcome.value;
+  const outcomeSentence = importOutcome && importOutcomeSentence(importOutcome);
   const importDetail =
     syncStatus === "importing" ? (
       "Replacing the project…"
-    ) : syncStatus === "import_error" ? (
-      <span class="text-error-strong">Could not import that backup.</span>
+    ) : syncStatus === "import_error" || importOutcome?.status === "failed" ? (
+      <span class="text-error-strong">
+        {outcomeSentence ?? "Could not import that backup."}
+      </span>
     ) : (
-      IMPORT_DETAIL
+      outcomeSentence ?? IMPORT_DETAIL
     );
 
   return (
