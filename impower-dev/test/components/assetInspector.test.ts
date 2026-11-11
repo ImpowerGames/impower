@@ -10,9 +10,9 @@ vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   useLayout: () => layout.value,
 }));
 
-type Listener = (facts: { uses: unknown[] | null; problems: unknown[] }) => void;
+type Listener = (facts: { uses: unknown[] | null; problems: unknown[] | null }) => void;
 
-const facts = vi.hoisted(() => ({ uses: [] as unknown[] | null, problems: [] as unknown[], listeners: [] as Listener[] }));
+const facts = vi.hoisted(() => ({ uses: [] as unknown[] | null, problems: [] as unknown[] | null, listeners: [] as Listener[] }));
 const assets = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
   upload: vi.fn(async (): Promise<string[]> => []),
@@ -460,22 +460,80 @@ describe("the asset inspector", () => {
     };
     await metadata(84);
     expect(details()).toContain("Length: 1:24");
-    await act(async () => {
-      const listing = workspace.assetListing.value!;
-      workspace.assetListing.value = {
-        ...listing,
-        files: { ...listing.files, "Assets/Video/intro.webm": { ...listing.files["Assets/Video/intro.webm"]!, src: "/p/4?v=2" } },
-      };
-    });
-    await settle();
+    const replaceWith = async (src: string) => {
+      await act(async () => {
+        const listing = workspace.assetListing.value!;
+        workspace.assetListing.value = {
+          ...listing,
+          files: { ...listing.files, "Assets/Video/intro.webm": { ...listing.files["Assets/Video/intro.webm"]!, src } },
+        };
+      });
+      await settle();
+    };
+    await replaceWith("/p/4?v=2");
     const replaced = region()!.querySelector("video")!;
     expect(replaced.getAttribute("src")).toBe("/p/4?v=2");
     await act(async () => {
       replaced.dispatchEvent(new Event("error"));
     });
     expect(details().some((row) => row.startsWith("Length"))).toBe(false);
+    expect(region()!.querySelector("[data-frame-failed]")!.textContent).toBe("This video could not be played here.");
+    await replaceWith("/p/4?v=3");
+    expect(region()!.querySelector("[data-frame-failed]")).toBeNull();
     await metadata(2);
     expect(details()).toContain("Length: 0:02");
+  });
+
+  it("asks again for a file's uses and problems when Replace or a sync changes the file, and not on a re-render", async () => {
+    await mount();
+    await open("door_chime");
+    expect(assets.watchFacts).toHaveBeenCalledTimes(1);
+    await rerender();
+    expect(assets.watchFacts).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      const listing = workspace.assetListing.value!;
+      workspace.assetListing.value = {
+        ...listing,
+        files: {
+          ...listing.files,
+          "Assets/Audio/Sounds/door_chime.wav": { ...listing.files["Assets/Audio/Sounds/door_chime.wav"]!, src: "/p/512?v=2" },
+        },
+      };
+    });
+    await settle();
+    expect(assets.watchFacts).toHaveBeenCalledTimes(2);
+    expect(assets.watchFacts.mock.calls[1]![0]).toEqual(["Assets/Audio/Sounds/door_chime.wav"]);
+    expect(facts.listeners).toHaveLength(1);
+  });
+
+  it("says its problems could not be checked when that lookup failed, rather than showing none", async () => {
+    facts.problems = null;
+    await mount();
+    await open("door_chime");
+    expect(sectionTitles()[0]).toBe("Problems");
+    expect(region()!.querySelector("[data-problems-failed]")!.textContent).toBe(
+      "Its problems could not be checked. Edit a script to try again.",
+    );
+  });
+
+  it("says a video or a picture that cannot be loaded cannot be shown, instead of an empty frame", async () => {
+    lists({ assetsType: "video", assetsFolders: {} });
+    await mount();
+    await open("intro");
+    await act(async () => {
+      region()!.querySelector("video")!.dispatchEvent(new Event("error"));
+    });
+    expect(region()!.querySelector("[data-frame-failed]")!.textContent).toBe("This video could not be played here.");
+    await key(closeButton(), "Escape");
+
+    await act(async () => lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } }));
+    await rerender();
+    await open("harbor");
+    expect(region()!.querySelector("[data-frame-failed]")).toBeNull();
+    await act(async () => {
+      region()!.querySelector("[data-zoom-frame] img")!.dispatchEvent(new Event("error"));
+    });
+    expect(region()!.querySelector("[data-frame-failed]")!.textContent).toBe("This picture could not be shown.");
   });
 
   it("says a font that cannot be loaded cannot be shown, instead of leaving its frame blank", async () => {

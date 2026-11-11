@@ -63,7 +63,7 @@ const MEASURE_BATCH = 8;
 
 export interface InspectorFacts {
   uses: SearchGroup[] | null;
-  problems: SparkDiagnostic[];
+  problems: SparkDiagnostic[] | null;
 }
 
 const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
@@ -356,7 +356,7 @@ export default class WorkspaceAssets {
       const mine = ++request;
       const [uses, problems] = await Promise.all([
         this.uses(paths).catch(() => null),
-        this.problems(paths).catch((): SparkDiagnostic[] => []),
+        this.problems(paths).catch(() => null),
       ]);
       if (alive && mine === request) {
         listener({ uses, problems });

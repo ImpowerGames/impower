@@ -147,7 +147,11 @@ const inspectedOf = (listing: AssetListing, row: AssetRow): InspectedAsset => {
     link: row.link,
     address: facts?.address,
     src: row.link ? facts?.address : facts?.src,
-    files: (row.paths ?? [row.path]).map((path) => ({ path, size: listing.files[path]?.size ?? 0 })),
+    files: (row.paths ?? [row.path]).map((path) => ({
+      path,
+      size: listing.files[path]?.size ?? 0,
+      src: listing.files[path]?.src,
+    })),
     variantCount: row.variantCount,
   };
 };

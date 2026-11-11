@@ -90,7 +90,7 @@ function useAudioSeconds(asset: InspectedAsset) {
   return seconds;
 }
 
-const messageOf = (problem: InspectorFacts["problems"][number]) =>
+const messageOf = (problem: NonNullable<InspectorFacts["problems"]>[number]) =>
   typeof problem.message === "string" ? problem.message : problem.message.value;
 
 const severityOf = (severity: number | undefined) =>
@@ -122,7 +122,7 @@ export default function AssetInspector({
   const audioSeconds = useAudioSeconds(asset);
   const { projectSettings } = useSettings();
   const pixels = asset.src ? workspace.assetSizes.value[asset.src] : undefined;
-  const filesKey = asset.files.map((file) => file.path).join("\n");
+  const filesKey = asset.files.map((file) => `${file.path} ${file.src ?? ""}`).join("\n");
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });
@@ -241,7 +241,7 @@ export default function AssetInspector({
 
   const uses = facts?.uses;
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
-  const problems = facts?.problems ?? [];
+  const problems = facts ? facts.problems : [];
 
   const stepButton = (direction: "previous" | "next") => {
     const to = direction === "next" ? next : previous;
@@ -330,7 +330,13 @@ export default function AssetInspector({
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
         />
-        {problems.length > 0 && (
+        {problems === null ? (
+          <Section title="Problems" label="Problems">
+            <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>
+              Its problems could not be checked. Edit a script to try again.
+            </p>
+          </Section>
+        ) : problems.length > 0 && (
           <Section title="Problems" aside={String(problems.length)} label="Problems">
             <div>
               {problems.map((problem, index) => (

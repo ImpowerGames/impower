@@ -23,7 +23,26 @@ type Demo =
   | { kind: "locked" }
   | { kind: "responsive" }
   | { kind: "sheet" }
-  | { kind: "full" };
+  | { kind: "full" }
+  | { kind: "full-long" };
+
+function LongBody({ close }: { close: () => void }) {
+  return (
+    <>
+      <DialogTitle class="mb-2">Every line that uses harbor</DialogTitle>
+      {Array.from({ length: 40 }, (_, line) => (
+        <p key={line} class="m-0 py-2 text-sm text-ink/80">
+          Line {line + 1}: [[show backdrop harbor]]
+        </p>
+      ))}
+      <DialogActions class="pt-4">
+        <Button variant="quiet" onClick={close}>
+          Close
+        </Button>
+      </DialogActions>
+    </>
+  );
+}
 
 function Body({ close }: { close: () => void }) {
   return (
@@ -120,6 +139,9 @@ function DialogDemo() {
       <GalleryRow label='Sheet size="full": fills the screen, square edged, for a phone surface such as the asset inspector'>
         <Trigger label="Full sheet" onOpen={() => setDemo({ kind: "full" })} />
       </GalleryRow>
+      <GalleryRow label='Sheet size="full" with a body longer than the screen: the sheet scrolls and its edges stay put'>
+        <Trigger label="Full sheet, long body" onOpen={() => setDemo({ kind: "full-long" })} />
+      </GalleryRow>
 
       {(Object.keys(SIZE_LABELS) as DialogSize[]).map((size) => (
         <Dialog
@@ -155,6 +177,9 @@ function DialogDemo() {
       </Sheet>
       <Sheet size="full" flush open={is("full")} onOpenChange={onOpenChange}>
         <FlushBody close={close} />
+      </Sheet>
+      <Sheet size="full" open={is("full-long")} onOpenChange={onOpenChange}>
+        <LongBody close={close} />
       </Sheet>
     </div>
   );

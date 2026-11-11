@@ -130,6 +130,15 @@ describe("the inspector's uses and problems", () => {
     await expect(assets.uses(["Assets/Images/harbor.png"])).rejects.toThrow("The language server is not running");
   });
 
+  it("reports a problems lookup that failed as unknown, not as no problems", async () => {
+    const { assets, ls } = fakeWorkspace({});
+    ls.getFileDiagnostics.mockRejectedValue(new Error("The language server is not running"));
+    const seen: { uses: unknown; problems: unknown }[] = [];
+    assets.watchFacts(["Assets/Images/harbor.png"], (facts) => seen.push(facts));
+    await settle();
+    expect(seen.at(-1)).toEqual({ uses: [], problems: null });
+  });
+
   it("asks the language server for just the selected file's diagnostics after it starts", async () => {
     const client = Object.create(WorkspaceLanguageServer.prototype) as InstanceType<typeof WorkspaceLanguageServer>;
     const sendRequest = vi.fn().mockResolvedValue([warning]);

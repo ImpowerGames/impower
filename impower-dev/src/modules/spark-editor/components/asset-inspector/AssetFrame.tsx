@@ -98,24 +98,59 @@ function TextContents({ asset, read }: { asset: InspectedAsset; read: (path: str
   );
 }
 
+function FrameFailure({ children }: { children: string }) {
+  return (
+    <p
+      class="absolute inset-x-0 bottom-0 m-0 p-4 text-center text-[13px]/[1.5] text-muted"
+      role="status"
+      data-frame-failed
+    >
+      {children}
+    </p>
+  );
+}
+
 function VideoFrame({ asset, onSeconds }: { asset: InspectedAsset; onSeconds: (seconds: number) => void }) {
   const [ratio, setRatio] = useState<number | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
   return (
     <ZoomFrame label={asset.name} ratio={ratio}>
-      <video
-        src={asset.src}
-        controls
-        playsInline
-        preload="metadata"
-        class="absolute inset-0 size-full object-contain"
-        onLoadedMetadata={(event) => {
-          const video = event.currentTarget as HTMLVideoElement;
-          if (video.videoWidth && video.videoHeight) {
-            setRatio(video.videoWidth / video.videoHeight);
-          }
-          onSeconds(video.duration);
-        }}
-      />
+      {failed ? (
+        <FrameFailure>This video could not be played here.</FrameFailure>
+      ) : (
+        <video
+          src={asset.src}
+          controls
+          playsInline
+          preload="metadata"
+          class="absolute inset-0 size-full object-contain"
+          onError={() => setFailed(true)}
+          onLoadedMetadata={(event) => {
+            const video = event.currentTarget as HTMLVideoElement;
+            if (video.videoWidth && video.videoHeight) {
+              setRatio(video.videoWidth / video.videoHeight);
+            }
+            onSeconds(video.duration);
+          }}
+        />
+      )}
+    </ZoomFrame>
+  );
+}
+
+function PictureFrame({ asset, pixels }: { asset: InspectedAsset; pixels?: { width: number; height: number } | null }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <ZoomFrame
+      label={asset.name}
+      zoomable={!failed}
+      backdrop={failed ? "none" : "checker"}
+      ratio={pixels ? pixels.width / pixels.height : undefined}
+    >
+      <div class="absolute inset-0" onErrorCapture={() => setFailed(true)}>
+        <Thumbnail size="fill" fit="contain" src={asset.src} class="bg-transparent" />
+      </div>
+      {failed && <FrameFailure>This picture could not be shown.</FrameFailure>}
     </ZoomFrame>
   );
 }
@@ -129,16 +164,7 @@ export type AssetFrameProps = {
 
 export default function AssetFrame({ asset, pixels, read, onSeconds }: AssetFrameProps) {
   if (asset.type === "image") {
-    return (
-      <ZoomFrame
-        label={asset.name}
-        zoomable
-        backdrop="checker"
-        ratio={pixels ? pixels.width / pixels.height : undefined}
-      >
-        <Thumbnail size="fill" fit="contain" src={asset.src} class="bg-transparent" />
-      </ZoomFrame>
-    );
+    return <PictureFrame asset={asset} pixels={pixels} />;
   }
   if (asset.type === "video") {
     return <VideoFrame asset={asset} onSeconds={onSeconds} />;

@@ -10,6 +10,7 @@ export interface DetailRow {
 export interface InspectedFile {
   path: string;
   size: number;
+  src?: string;
 }
 
 export interface InspectedAsset {
