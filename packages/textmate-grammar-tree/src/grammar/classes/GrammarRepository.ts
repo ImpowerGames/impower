@@ -23,6 +23,18 @@ import { MatchRule } from "./rules/MatchRule";
 import { ScopedRule } from "./rules/ScopedRule";
 import { SwitchRule } from "./rules/SwitchRule";
 
+class UnsupportedRuleError extends Error {}
+
+const deferUnsupported = (resolve: () => void) => {
+  try {
+    resolve();
+  } catch (error) {
+    if (!(error instanceof UnsupportedRuleError)) {
+      throw error;
+    }
+  }
+};
+
 interface RuleScope {
   owner: string;
   repository: Record<string, RepositoryDefinition>;
@@ -135,10 +147,7 @@ export class GrammarRepository {
   resolveAll() {
     for (const obj of this.map.values()) {
       if (obj instanceof SwitchRule) {
-        try {
-          obj.resolve();
-        } catch {
-        }
+        deferUnsupported(() => obj.resolve());
       }
     }
   }
@@ -189,6 +198,9 @@ export class GrammarRepository {
     }
 
     if (isScopedRuleDefinition(def)) {
+      if ("while" in def) {
+        throw new UnsupportedRuleError("while rules are not currently supported");
+      }
       const rule = new ScopedRule(this, def);
       this.map.set(rule.id, rule);
       return rule;
@@ -254,10 +266,7 @@ export class GrammarRepository {
     } else if (rule === this.self) {
       rule.resolve();
     } else {
-      try {
-        rule.resolve();
-      } catch {
-      }
+      deferUnsupported(() => rule.resolve());
     }
   }
 
