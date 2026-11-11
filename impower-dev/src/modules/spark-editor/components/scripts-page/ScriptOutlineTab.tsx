@@ -2,7 +2,7 @@ import { Button, SearchIcon, VirtualList } from "@impower/impower-ui/components"
 import { useMemo } from "preact/hooks";
 import { filterOutlineRows, OutlineListRow, useOutlineModel, type OutlineRow } from "../outline";
 import { useSavedScroll, useTabQuery } from "./pageState";
-import { SearchBox } from "../library-page";
+import { LibraryToolbar, SearchBox } from "../library-page";
 
 export const OUTLINE_TAB = "outline";
 
@@ -21,9 +21,9 @@ export default function ScriptOutlineTab() {
 
   return (
     <div class="flex min-h-0 flex-1 flex-col px-4">
-      <div class="flex flex-none items-center pt-4 pb-2">
+      <LibraryToolbar>
         <SearchBox label="Search this script" value={query} onChange={setQuery} />
-      </div>
+      </LibraryToolbar>
       {uri && rows.length ? (
         <VirtualList
           listRef={scroller}
