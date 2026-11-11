@@ -46,4 +46,12 @@ describe("Thumbnail", () => {
     expect(empty.querySelector("svg")).not.toBeNull();
     expect(empty.getAttribute("aria-hidden")).toBe("true");
   });
+
+  it("shows a given glyph in place of the picture, at the card size of a picker's list", async () => {
+    const frame = await mount(<Thumbnail size="card" glyph={<svg data-sound-glyph />} />);
+    expect(frame.className).toContain("h-[52px]");
+    expect(frame.className).toContain("w-16");
+    expect(frame.querySelector("[data-sound-glyph]")).not.toBeNull();
+    expect(frame.hasAttribute("data-thumbnail-failed")).toBe(false);
+  });
 });

@@ -64,6 +64,26 @@ const readImageSize = async (src: string): Promise<ImageSize | null> => {
   }
 };
 
+const DURATION_TIMEOUT_MS = 5000;
+
+const readAudioDuration = (src: string): Promise<number | null> =>
+  new Promise((resolve) => {
+    const audio = new Audio();
+    const done = (seconds: number | null) => {
+      clearTimeout(timer);
+      audio.onloadedmetadata = null;
+      audio.onerror = null;
+      audio.removeAttribute("src");
+      resolve(seconds);
+    };
+    const timer = setTimeout(() => done(null), DURATION_TIMEOUT_MS);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () =>
+      done(Number.isFinite(audio.duration) ? audio.duration : null);
+    audio.onerror = () => done(null);
+    audio.src = src;
+  });
+
 export default class WorkspaceAssets {
   protected readonly _workspace: Deps;
 
@@ -250,6 +270,32 @@ export default class WorkspaceAssets {
     }
     for (const src of wanted) this._measuring.delete(src);
     workspace.assetSizes.value = { ...workspace.assetSizes.peek(), ...measured };
+  }
+
+  async measureDurations(paths: readonly string[]): Promise<void> {
+    const files = this.listing.files;
+    const known = workspace.assetDurations.peek();
+    const wanted = [
+      ...new Set(
+        paths
+          .map((path) => files[path]?.src)
+          .filter((src): src is string => !!src && !Object.hasOwn(known, src) && !this._measuring.has(src)),
+      ),
+    ];
+    if (!wanted.length) {
+      return;
+    }
+    for (const src of wanted) this._measuring.add(src);
+    const measured: Record<string, number | null> = {};
+    for (let at = 0; at < wanted.length; at += MEASURE_BATCH) {
+      await Promise.all(
+        wanted.slice(at, at + MEASURE_BATCH).map(async (src) => {
+          measured[src] = await readAudioDuration(src);
+        }),
+      );
+    }
+    for (const src of wanted) this._measuring.delete(src);
+    workspace.assetDurations.value = { ...workspace.assetDurations.peek(), ...measured };
   }
 
   protected async moveFolder(projectId: string, from: string, to: string): Promise<string> {

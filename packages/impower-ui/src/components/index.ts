@@ -353,3 +353,11 @@ export {
   type TileShape,
   type TileKind,
 } from "./tile/Tile";
+export {
+  default as Carousel,
+  carouselVariants,
+  carouselTrackVariants,
+  carouselItemVariants,
+  type CarouselProps,
+  type CarouselSize,
+} from "./carousel/Carousel";

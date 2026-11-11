@@ -88,8 +88,9 @@ export {
 export {
   INSERT_CONSTRUCTS,
   insertConstruct,
-  insertConstructFromServer,
   insertContext,
+  planConstruct,
+  structureFromServer,
   isInsertConstruct,
   planInsertion,
   branchSpansOf,
