@@ -1,6 +1,7 @@
 import { cva } from "class-variance-authority";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
@@ -182,14 +183,9 @@ export default function VirtualList<T>({
   const start = Math.max(0, first - overscan);
   const end = Math.min(lines, start + last - first + 1 + overscan * 2);
 
-  const setRef = (element: HTMLDivElement | null) => {
+  const setRef = useForwardedRef(listRef, (element: HTMLDivElement | null) => {
     scroller.current = element;
-    if (typeof listRef === "function") {
-      listRef(element);
-    } else if (listRef) {
-      listRef.current = element;
-    }
-  };
+  });
 
   const rows: ComponentChildren[] = [];
   const endItem = Math.min(items.length, end * columns);

@@ -222,6 +222,7 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
 
@@ -897,6 +898,32 @@ describe("WorkspaceWindow store transitions", () => {
       await win.confirmProjectReplace();
       expect(importing).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["no_main_script", "cached"],
+      ["several_main_scripts", "cached"],
+      ["unreadable_zip", "cached"],
+      ["storage", "import_error"],
+    ] as const)(
+      "records a %s import failure with the file name and leaves the save status %s",
+      async (reason, status) => {
+        workspace.current = { ...workspace.current, sync: { status: "cached" } };
+        fs.writeProjectZip = vi.fn(async () => {
+          throw new ProjectImportError({ reason });
+        });
+        try {
+          await win.importLocalProject("backup.zip", new ArrayBuffer(0));
+          expect(workspace.current.sync.status).toBe(status);
+          expect(workspace.current.sync.importOutcome).toEqual({
+            status: "failed",
+            fileName: "backup.zip",
+            reason,
+          });
+        } finally {
+          delete fs.writeProjectZip;
+        }
+      },
+    );
   });
 });
 

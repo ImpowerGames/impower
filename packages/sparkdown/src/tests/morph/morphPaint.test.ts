@@ -38,7 +38,7 @@ const declared = (artifact: MorphArtifact, offset: number, name: string, propert
 };
 
 const bake = (recipe = paintBlink()) =>
-  bakeMorphArtifact({ source: paintedPortrait(), selection: {}, recipe, key: "painted", variant: "painted" });
+  bakeMorphArtifact({ source: paintedPortrait(), selection: {}, recipes: [recipe], key: "painted", variant: "painted" });
 
 const morphs = (artifact: MorphArtifact) =>
   artifact.segments.flatMap((s) => s.transitions).filter((t): t is Extract<MorphTransition, { kind: "morph" }> => t.kind === "morph");
@@ -97,7 +97,7 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
 <g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="#fff"/></g>
 </svg>`;
-    const pair = (open: string) => bakeMorphArtifact({ source: source(open), selection: {}, recipe: paintBlink(), key: "pair" });
+    const pair = (open: string) => bakeMorphArtifact({ source: source(open), selection: {}, recipes: [paintBlink()], key: "pair" });
     const refused: [string, string][] = [
       ["all", 'fill="#f00" style="all:initial"'],
       ["var()", 'style="fill:var(--x)"'],
