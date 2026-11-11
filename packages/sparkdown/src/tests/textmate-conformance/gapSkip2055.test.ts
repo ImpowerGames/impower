@@ -210,4 +210,23 @@ describe("an incremental parse agrees with a cold parse across skipped gaps (I-2
     }
     expect(mismatches).toEqual([]);
   });
+
+  test.each([
+    ["inserting a letter", "z", 0],
+    ["deleting a character", "", 1],
+    ["inserting a line break", "\n", 0],
+  ])("matches a cold parse for an edit on the incremental tree after %s anywhere in the gapped lines (I-2080)", (_, insert, remove) => {
+    const cold = parser.parse(TEXT);
+    const later = TEXT.indexOf("ff 12 gg", PAD.length + BODY.length / 2);
+    const mismatches: number[] = [];
+    for (let at = PAD.length - 3; at < PAD.length + BODY.length + 3; at += 5) {
+      const first = edit(TEXT, at, insert, remove, cold);
+      const shifted = at < later ? later + insert.length - remove : later;
+      const { next, tree } = edit(first.next, shifted, "?", 0, first.tree);
+      if (printTree(tree, next) !== printTree(parser.parse(next), next)) {
+        mismatches.push(at);
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
 });
