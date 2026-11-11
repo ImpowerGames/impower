@@ -1,3 +1,4 @@
+import type WorkspaceFileSystem from "../workspace/WorkspaceFileSystem";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
@@ -102,6 +103,25 @@ export async function recordTrashDeletion(
 
 const basename = (p: string) => p.split("/").pop() || p;
 
+export type FileRenamer = {
+  fs: Pick<WorkspaceFileSystem, "moveFile" | "renameFileWithReferences">;
+  autoRenameFiles: () => boolean;
+};
+
+export async function renameFile(
+  workspace: FileRenamer,
+  projectId: string,
+  fromPath: string,
+  toPath: string,
+): Promise<{ referencesUpdated: number }> {
+  const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+  if (folderOf(fromPath) === folderOf(toPath) && workspace.autoRenameFiles()) {
+    return workspace.fs.renameFileWithReferences(projectId, fromPath, toPath);
+  }
+  await workspace.fs.moveFile(projectId, fromPath, toPath);
+  return { referencesUpdated: 0 };
+}
+
 export function recordMove(
   projectId: string,
   fromPath: string,
@@ -110,10 +130,10 @@ export function recordMove(
 ) {
   const move = async (from: string, to: string) => {
     const { Workspace } = await import("../workspace/Workspace");
-    const move = await renameOrReport(from, to, () =>
+    const move = await renameOrReport<unknown>(from, to, () =>
       isDir
         ? Workspace.fs.moveFolder(projectId, from, to)
-        : Workspace.fs.moveFile(projectId, from, to),
+        : renameFile(Workspace, projectId, from, to),
     );
     if (!move.renamed) {
       throw new Error(`Rename of ${from} to ${to} was refused`);
@@ -124,28 +144,6 @@ export function recordMove(
     label: `Rename ${basename(toPath)}`,
     undo: () => move(toPath, fromPath),
     redo: () => move(fromPath, toPath),
-  });
-}
-
-export function recordReferenceRename(
-  projectId: string,
-  fromPath: string,
-  toPath: string,
-) {
-  const rename = async (from: string, to: string) => {
-    const { Workspace } = await import("../workspace/Workspace");
-    const rename = await renameOrReport(from, to, () =>
-      Workspace.fs.renameFileWithReferences(projectId, from, to),
-    );
-    if (!rename.renamed) {
-      throw new Error(`Rename of ${from} to ${to} was refused`);
-    }
-    await markProjectDirty();
-  };
-  pushUndo({
-    label: `Rename ${basename(toPath)}`,
-    undo: () => rename(toPath, fromPath),
-    redo: () => rename(fromPath, toPath),
   });
 }
 
