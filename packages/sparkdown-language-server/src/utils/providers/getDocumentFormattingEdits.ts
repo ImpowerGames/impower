@@ -1308,10 +1308,11 @@ export const getFormatting = (
       enter: (nodeRef) => {
         if (!EMPTY_COMPACTABLE_BLOCKS.has(nodeRef.name)) return;
         const node = nodeRef.node;
-        let contentNode, endNode;
+        let beginNode, contentNode, endNode;
         let child = node.firstChild;
         while (child) {
-          if (child.name === `${nodeRef.name}_content`) contentNode = child;
+          if (child.name === `${nodeRef.name}_begin`) beginNode = child;
+          else if (child.name === `${nodeRef.name}_content`) contentNode = child;
           else if (child.name === `${nodeRef.name}_end`) endNode = child;
           child = child.nextSibling;
         }
@@ -1321,9 +1322,12 @@ export const getFormatting = (
           "LuauFunctionParameters",
           "LuauFunctionReturnType",
           "LuauFunctionDeclarationName",
-          "LuauDefineNameAndInheritance",
         ]);
-        let signatureEnd: number | undefined;
+        let signatureEnd: number | undefined =
+          nodeRef.name === "LuauDefine" && beginNode
+            ? beginNode.from +
+              document.read(beginNode.from, beginNode.to).trimEnd().length
+            : undefined;
         let bodyHasContent = false;
         const isInsignificant = (name: string): boolean =>
           name === "Newline" ||

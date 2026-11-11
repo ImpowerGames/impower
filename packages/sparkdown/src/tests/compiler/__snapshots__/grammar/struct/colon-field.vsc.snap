@@ -91,10 +91,9 @@ text.source.sparkdown [0..222]
  ├─ meta.function.luau [137..155]
  │   ├─ keyword.control.define.luau [137..143]: "define"
  │   ├─ punctuation.whitespace.optional.sd [143..144]: " "
- │   └─ meta.embedded.block.luau [144..155]
- │       ├─ entity.name.type.define.luau [144..150]: "config"
- │       ├─ punctuation.whitespace.optional.sd [150..151]: " "
- │       └─ keyword.control.as.luau [151..155]: "with"
+ │   ├─ entity.name.type.define.luau [144..150]: "config"
+ │   ├─ punctuation.whitespace.optional.sd [150..151]: " "
+ │   └─ keyword.control.as.luau [151..155]: "with"
  ├─ Newline [155..156]: "\n"
  ├─ meta.function.luau [156..166]
  │   └─ meta.embedded.block.luau [156..166]

@@ -11,10 +11,9 @@ text.source.sparkdown [0..412]
  │   │   ├─ comment.luau [14..15]: "]"
  │   │   ├─ comment.luau [15..16]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [16..17]: " "
- │   └─ meta.embedded.block.luau [17..28]
- │       ├─ entity.name.type.define.luau [17..23]: "Person"
- │       ├─ punctuation.whitespace.optional.sd [23..24]: " "
- │       └─ keyword.control.as.luau [24..28]: "with"
+ │   ├─ entity.name.type.define.luau [17..23]: "Person"
+ │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   └─ keyword.control.as.luau [24..28]: "with"
  ├─ Newline [28..29]: "\n"
  ├─ meta.function.luau [29..41]
  │   └─ meta.embedded.block.luau [29..41]
@@ -265,7 +264,8 @@ text.source.sparkdown [0..412]
  │   ├─ entity.name.function.luau [379..386]: "message"
  │   └─ meta.parameter.luau [386..389]
  │       ├─ punctuation.definition.template-expression.begin.sd [386..387]: "("
- │       ├─ variable.parameter.function.luau [387..388]: "x"
+ │       ├─ meta.embedded.block.luau [387..388]
+ │       │   └─ variable.parameter.function.luau [387..388]: "x"
  │       └─ punctuation.definition.template-expression.end.sd [388..389]: ")"
  ├─ Newline [389..390]: "\n"
  ├─ keyword.control.scene.sd [390..395]: "scene"

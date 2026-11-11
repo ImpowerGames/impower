@@ -162,7 +162,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     const ends = (source: string) => [...source.matchAll(/\r?\n/g)].map((m) => m.index!);
     const lfLanguages = treeLanguagesPerPosition(lf);
     const crlfLanguages = treeLanguagesPerPosition(crlf);
-    expect(ends(lf).map((p) => lfLanguages[p])).toEqual([LUAU, LUAU, LUAU, STORY]);
+    expect(ends(lf).map((p) => lfLanguages[p])).toEqual([STORY, LUAU, LUAU, STORY]);
     expect(ends(crlf).map((p) => crlfLanguages[p])).toEqual(ends(lf).map((p) => lfLanguages[p]));
   });
 
@@ -190,7 +190,7 @@ describe("language at every cursor position: vscode-textmate and the tree reader
   }
 
   test("a reader whose grammar lost the function body mark disagrees with vscode-textmate", async () => {
-    const parser = new TextmateGrammarParser(withoutLuauMarks("LuauFunctionDefinition"));
+    const parser = new TextmateGrammarParser(withoutLuauMarks("LuauFunctionBody"));
     const { divergences } = await compareLanguages(
       "function f()\n  return 1\nend\n",
       {},

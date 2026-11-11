@@ -6,10 +6,11 @@ text.source.sparkdown [0..165]
  │       ├─ entity.name.type.define.luau [10..14]: "card"
  │       ├─ meta.parameter.luau [14..31]
  │       │   ├─ punctuation.definition.template-expression.begin.sd [14..15]: "("
- │       │   ├─ variable.parameter.function.luau [15..20]: "title"
- │       │   ├─ keyword.operator.comma.luau [20..21]: ","
- │       │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
- │       │   ├─ variable.parameter.function.luau [22..30]: "subtitle"
+ │       │   ├─ meta.embedded.block.luau [15..30]
+ │       │   │   ├─ variable.parameter.function.luau [15..20]: "title"
+ │       │   │   ├─ keyword.operator.comma.luau [20..21]: ","
+ │       │   │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │       │   │   └─ variable.parameter.function.luau [22..30]: "subtitle"
  │       │   └─ punctuation.definition.template-expression.end.sd [30..31]: ")"
  │       ├─ punctuation.whitespace.optional.sd [31..32]: " "
  │       ├─ keyword.control.as.luau [32..34]: "as"
@@ -65,7 +66,8 @@ text.source.sparkdown [0..165]
  │       ├─ entity.name.type.define.luau [117..121]: "chip"
  │       ├─ meta.parameter.luau [121..128]
  │       │   ├─ punctuation.definition.template-expression.begin.sd [121..122]: "("
- │       │   ├─ variable.parameter.function.luau [122..127]: "label"
+ │       │   ├─ meta.embedded.block.luau [122..127]
+ │       │   │   └─ variable.parameter.function.luau [122..127]: "label"
  │       │   └─ punctuation.definition.template-expression.end.sd [127..128]: ")"
  │       ├─ punctuation.whitespace.sd [128..129]: " "
  │       ├─ punctuation.definition.template-expression.begin.sd [129..130]: "{"

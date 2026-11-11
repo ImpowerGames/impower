@@ -28,7 +28,8 @@ text.source.sparkdown [0..231]
  ├─ keyword.control.section.sd [57..62]: "inner"
  ├─ meta.parameter.luau [62..65]
  │   ├─ punctuation.definition.template-expression.begin.sd [62..63]: "("
- │   ├─ variable.parameter.function.luau [63..64]: "a"
+ │   ├─ meta.embedded.block.luau [63..64]
+ │   │   └─ variable.parameter.function.luau [63..64]: "a"
  │   └─ punctuation.definition.template-expression.end.sd [64..65]: ")"
  ├─ Newline [65..66]: "\n"
  ├─ punctuation.whitespace.optional.sd [66..70]: "    "
@@ -111,10 +112,11 @@ text.source.sparkdown [0..231]
  ├─ keyword.control.section.sd [186..191]: "visit"
  ├─ meta.parameter.luau [191..197]
  │   ├─ punctuation.definition.template-expression.begin.sd [191..192]: "("
- │   ├─ variable.parameter.function.luau [192..193]: "n"
- │   ├─ keyword.operator.comma.luau [193..194]: ","
- │   ├─ punctuation.whitespace.optional.sd [194..195]: " "
- │   ├─ variable.parameter.function.luau [195..196]: "s"
+ │   ├─ meta.embedded.block.luau [192..196]
+ │   │   ├─ variable.parameter.function.luau [192..193]: "n"
+ │   │   ├─ keyword.operator.comma.luau [193..194]: ","
+ │   │   ├─ punctuation.whitespace.optional.sd [194..195]: " "
+ │   │   └─ variable.parameter.function.luau [195..196]: "s"
  │   └─ punctuation.definition.template-expression.end.sd [196..197]: ")"
  ├─ Newline [197..198]: "\n"
  ├─ punctuation.whitespace.optional.sd [198..202]: "    "

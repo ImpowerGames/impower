@@ -1,24 +1,25 @@
 sparkdown [0..72]
  ├─ LuauDefine [0..71]
- │   ├─ LuauDefine_begin [0..7]
+ │   ├─ LuauDefine_begin [0..18]
  │   │   ├─ LuauDefine_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauDefine_begin_c2 [0..6]
  │   │   │   └─ LuauDefineKeyword [0..6]: "define"
- │   │   └─ LuauDefine_begin_c3 [6..7]
- │   │       └─ LuauDefine_begin_c3 [6..7]
- │   │           └─ OptionalWhitespace [6..7]: " "
- │   ├─ LuauDefine_content [7..68]
- │   │   ├─ LuauDefineNameAndInheritance [7..18]
- │   │   │   ├─ LuauDefineNameAndInheritance_begin [7..13]
- │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [7..13]
- │   │   │   │       └─ LuauDefineName [7..13]: "Person"
- │   │   │   └─ LuauDefineNameAndInheritance_end [13..18]
- │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 [13..14]
- │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 [13..14]
- │   │   │       │       └─ OptionalWhitespace [13..14]: " "
- │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [14..18]
- │   │   │           └─ LuauWithKeyword [14..18]: "with"
+ │   │   ├─ LuauDefine_begin_c3 [6..7]
+ │   │   │   └─ LuauDefine_begin_c3 [6..7]
+ │   │   │       └─ OptionalWhitespace [6..7]: " "
+ │   │   └─ LuauDefine_begin_c7 [7..18]
+ │   │       └─ LuauDefineNameAndInheritance [7..18]
+ │   │           ├─ LuauDefineNameAndInheritance_begin [7..13]
+ │   │           │   └─ LuauDefineNameAndInheritance_begin_c1 [7..13]
+ │   │           │       └─ LuauDefineName [7..13]: "Person"
+ │   │           └─ LuauDefineNameAndInheritance_end [13..18]
+ │   │               ├─ LuauDefineNameAndInheritance_end_c1 [13..14]
+ │   │               │   └─ LuauDefineNameAndInheritance_end_c1 [13..14]
+ │   │               │       └─ OptionalWhitespace [13..14]: " "
+ │   │               └─ LuauDefineNameAndInheritance_end_c2 [14..18]
+ │   │                   └─ LuauWithKeyword [14..18]: "with"
+ │   ├─ LuauDefine_content [18..68]
  │   │   ├─ Newline [18..19]: "\n"
  │   │   ├─ LuauPropertyDefinition [19..29]
  │   │   │   ├─ LuauPropertyDefinition_begin 19

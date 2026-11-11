@@ -221,25 +221,26 @@ sparkdown [0..222]
  ├─ Newline [135..136]: "\n"
  ├─ Newline [136..137]: "\n"
  ├─ LuauDefine [137..221]
- │   ├─ LuauDefine_begin [137..144]
+ │   ├─ LuauDefine_begin [137..155]
  │   │   ├─ LuauDefine_begin_c1 137
  │   │   │   └─ OptionalWhitespace 137
  │   │   ├─ LuauDefine_begin_c2 [137..143]
  │   │   │   └─ LuauDefineKeyword [137..143]: "define"
- │   │   └─ LuauDefine_begin_c3 [143..144]
- │   │       └─ LuauDefine_begin_c3 [143..144]
- │   │           └─ OptionalWhitespace [143..144]: " "
- │   ├─ LuauDefine_content [144..218]
- │   │   ├─ LuauDefineNameAndInheritance [144..155]
- │   │   │   ├─ LuauDefineNameAndInheritance_begin [144..150]
- │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [144..150]
- │   │   │   │       └─ LuauDefineName [144..150]: "config"
- │   │   │   └─ LuauDefineNameAndInheritance_end [150..155]
- │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 [150..151]
- │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 [150..151]
- │   │   │       │       └─ OptionalWhitespace [150..151]: " "
- │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [151..155]
- │   │   │           └─ LuauWithKeyword [151..155]: "with"
+ │   │   ├─ LuauDefine_begin_c3 [143..144]
+ │   │   │   └─ LuauDefine_begin_c3 [143..144]
+ │   │   │       └─ OptionalWhitespace [143..144]: " "
+ │   │   └─ LuauDefine_begin_c7 [144..155]
+ │   │       └─ LuauDefineNameAndInheritance [144..155]
+ │   │           ├─ LuauDefineNameAndInheritance_begin [144..150]
+ │   │           │   └─ LuauDefineNameAndInheritance_begin_c1 [144..150]
+ │   │           │       └─ LuauDefineName [144..150]: "config"
+ │   │           └─ LuauDefineNameAndInheritance_end [150..155]
+ │   │               ├─ LuauDefineNameAndInheritance_end_c1 [150..151]
+ │   │               │   └─ LuauDefineNameAndInheritance_end_c1 [150..151]
+ │   │               │       └─ OptionalWhitespace [150..151]: " "
+ │   │               └─ LuauDefineNameAndInheritance_end_c2 [151..155]
+ │   │                   └─ LuauWithKeyword [151..155]: "with"
+ │   ├─ LuauDefine_content [155..218]
  │   │   ├─ Newline [155..156]: "\n"
  │   │   ├─ LuauPropertyDefinition [156..166]
  │   │   │   ├─ LuauPropertyDefinition_begin [156..158]

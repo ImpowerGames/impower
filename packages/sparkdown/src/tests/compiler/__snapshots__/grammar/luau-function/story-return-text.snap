@@ -406,8 +406,9 @@ sparkdown [0..239]
  │   │   │       └─ LuauFunctionParameters_end_c1 [209..210]
  │   │   │           └─ PunctuationParenClose [209..210]: ")"
  │   │   └─ LuauFunctionBody [210..235]
- │   │       ├─ LuauFunctionBody_begin [210..211]: "\n"
- │   │       ├─ LuauFunctionBody_content [211..235]
+ │   │       ├─ LuauFunctionBody_begin 210
+ │   │       ├─ LuauFunctionBody_content [210..235]
+ │   │       │   ├─ Newline [210..211]: "\n"
  │   │       │   ├─ LuauDoBlock [211..234]
  │   │       │   │   ├─ LuauDoBlock_begin [211..215]
  │   │       │   │   │   ├─ LuauDoBlock_begin_c1 [211..213]

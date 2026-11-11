@@ -58,8 +58,20 @@ describe("a header's block comments belong to its keyword's begin", () => {
     expect(stripAnsi(dumpTree(source))).not.toContain("ERROR_");
   });
 
+  test("LuauDefineNameAndInheritance opens only inside its parent's begin", () => {
+    const including = Object.entries(GRAMMAR_DEFINITION.repository).filter(([, rule]) =>
+      JSON.stringify(rule).includes('"#LuauDefineNameAndInheritance"'),
+    );
+    expect(including.map(([name]) => name)).toEqual(["LuauDefine"]);
+    const define = GRAMMAR_DEFINITION.repository.LuauDefine as {
+      patterns: unknown[];
+      beginCaptures: Record<string, unknown>;
+    };
+    expect(JSON.stringify(define.patterns)).not.toContain("#LuauDefineNameAndInheritance");
+    expect(JSON.stringify(define.beginCaptures)).toContain("#LuauDefineNameAndInheritance");
+  });
+
   test.each([
-    "LuauDefineNameAndInheritance",
     "LuauStyleNameAndInheritance",
     "LuauAnimationThemeNameAndInheritance",
     "LuauScreenNameHeader",

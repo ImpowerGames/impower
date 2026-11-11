@@ -2,10 +2,9 @@ text.source.sparkdown [0..72]
  ├─ meta.function.luau [0..18]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
- │   └─ meta.embedded.block.luau [7..18]
- │       ├─ entity.name.type.define.luau [7..13]: "Person"
- │       ├─ punctuation.whitespace.optional.sd [13..14]: " "
- │       └─ keyword.control.as.luau [14..18]: "with"
+ │   ├─ entity.name.type.define.luau [7..13]: "Person"
+ │   ├─ punctuation.whitespace.optional.sd [13..14]: " "
+ │   └─ keyword.control.as.luau [14..18]: "with"
  ├─ Newline [18..19]: "\n"
  ├─ meta.function.luau [19..29]
  │   └─ meta.embedded.block.luau [19..29]
