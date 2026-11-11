@@ -39,6 +39,20 @@ scene subway
 end
 `;
 
+const WITH_BOTH = `define ui as config with
+  layouts_initial = { "textbox", "textstream" }
+end
+`;
+
+const LOOP = `scene start
+  First.
+  for i = 1, 3 do
+    Echo.
+  end
+  Done.
+end
+`;
+
 const OPENS_PAGE = `scene subway
   The train rattles on.
   [[open textstream]]
@@ -225,6 +239,31 @@ describe("the starting display mode chooses the text layout a game opens with (#
     h.game.setStartingDisplayMode("textbox");
     expect(h.open()).toEqual(["main", "textbox"]);
     expect(h.text()).toBe("Now it reads as a page.");
+  });
+
+  test("a line played again in Visual Novel is a new page entry when Interactive Fiction returns", () => {
+    const h = play(LOOP, "textstream");
+    h.game.start();
+    h.tapTo("Echo.");
+    expect(h.page().map(words)).toEqual(["First.", "Echo."]);
+    const checkpoints = h.game.checkpoints.length;
+    h.game.setStartingDisplayMode("textbox");
+    h.game.clickedToContinue();
+    expect(h.game.checkpoints.length).toBeGreaterThan(checkpoints);
+    expect(h.text()).toBe("Echo.");
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.page().map(words)).toEqual(["First.", "Echo.", "Echo."]);
+  });
+
+  test("a switch that only has to open a layout opens it", () => {
+    const h = play(`${WITH_BOTH}\n${STORY}`, "textstream");
+    h.game.start();
+    h.tapTo("Did you hear that?");
+    expect(h.open()).toEqual(["main", "textstream"]);
+    h.game.setStartingDisplayMode("textbox");
+    expect(h.open()).toEqual(["main", "textstream", "textbox"]);
+    h.game.setStartingDisplayMode("textstream");
+    expect(h.open()).toEqual(["main", "textstream"]);
   });
 
   test("Skip back in Visual Novel keeps the page a script opened", async () => {

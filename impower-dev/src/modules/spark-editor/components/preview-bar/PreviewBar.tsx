@@ -24,6 +24,7 @@ import {
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
   barReadout,
+  PAGE_FILLS_PANE,
   PAPER_SIZE_LABELS,
   sizeControl,
 } from "./barState";
@@ -48,8 +49,11 @@ export default function PreviewBar({
     >
       <ProblemsToggle />
       <RouteReadout />
-      {size === "paper" ? <PaperSizeLink /> : null}
-      {size === "aspectRatio" ? <AspectRatioMenu /> : null}
+      {size === "paper" ? (
+        <PaperSizeLink />
+      ) : (
+        <AspectRatioMenu pageFillsPane={size === "pageFillsPane"} />
+      )}
       <Button
         variant="quiet"
         size="icon"
@@ -121,11 +125,25 @@ function RouteReadout() {
   );
 }
 
-function AspectRatioMenu() {
+function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
   const choice = workspaceSettings.projectSettings.value.previewAspectRatio;
   const size = useComputed(
     () => workspace.state.value.preview?.modes?.game?.size,
   ).value;
+
+  if (pageFillsPane) {
+    return (
+      <Button
+        variant="quiet"
+        aria-label="Game aspect ratio"
+        aria-disabled
+        title={PAGE_FILLS_PANE}
+        class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
+      >
+        {aspectRatioLabel("auto", size)}
+      </Button>
+    );
+  }
 
   const onValueChange = (value: string) => {
     const row = ASPECT_RATIO_ROWS.find((r) => r.value === value);

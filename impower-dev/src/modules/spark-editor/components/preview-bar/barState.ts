@@ -39,10 +39,16 @@ export const aspectRatioLabel = (
     : name;
 };
 
-export type SizeControl = "paper" | "aspectRatio" | null;
+export type SizeControl = "paper" | "aspectRatio" | "pageFillsPane";
 
 export const sizeControl = (mode: PreviewMode): SizeControl =>
-  mode === "screenplay" ? "paper" : fillsPane(mode) ? null : "aspectRatio";
+  mode === "screenplay"
+    ? "paper"
+    : fillsPane(mode)
+      ? "pageFillsPane"
+      : "aspectRatio";
+
+export const PAGE_FILLS_PANE = "The page fills the pane in Interactive Fiction";
 
 export const PAPER_SIZE_LABELS: Record<
   ProjectSettings["screenplayPaperSize"],

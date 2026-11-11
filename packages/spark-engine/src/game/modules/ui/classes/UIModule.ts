@@ -5148,6 +5148,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected _presented?: { instant: boolean; time?: number };
 
+      protected _recorded?: object;
+
       get state(): PageState {
         return ($._state.page ??= { entries: [], current: 0 });
       }
@@ -5158,6 +5160,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       loaded(): void {
         this._loaded = true;
+        this._recorded = undefined;
+      }
+
+      holds(shown: object, key: string): boolean {
+        return this._recorded
+          ? this._recorded === shown
+          : this.state.key === key;
       }
 
       started(): void {
@@ -5169,9 +5178,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         key: string,
         again: boolean,
         build: (before: readonly PageEntry[]) => PageRecord,
+        shown?: object,
       ): void {
         const page = this.state;
         const repeat = again || (this._resumed && page.key === key);
+        this._recorded = shown;
         this._loaded = false;
         this._resumed = false;
         this._presented = undefined;
@@ -5243,6 +5254,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       restore(): void {
+        this._recorded = undefined;
         this._presented = { instant: true };
         this.sync(this._presented, 0);
       }

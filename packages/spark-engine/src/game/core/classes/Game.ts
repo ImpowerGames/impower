@@ -1373,15 +1373,16 @@ export class Game<T extends M = {}> {
     const before = initialLayouts(this, ui, shownMode);
     const after = initialLayouts(this, ui, mode);
     const open = ui.openedLayoutsAfter([]);
-    const closing = before.filter(
-      (name) => !after.includes(name) && open.includes(name),
-    );
-    if (closing.length === 0) {
+    const closing = before.filter((name) => !after.includes(name));
+    if (closing.some((name) => !open.includes(name))) {
       return false;
     }
     const opening = after.filter(
       (name) => !before.includes(name) && !open.includes(name),
     );
+    if (closing.length === 0 && opening.length === 0) {
+      return false;
+    }
     ui.composeWait(
       ui.applyLayoutInstructions(
         [

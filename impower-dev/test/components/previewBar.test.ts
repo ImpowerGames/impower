@@ -484,14 +484,35 @@ describe("the bar under the game", () => {
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
   });
 
-  it("hides the aspect-ratio picker in Interactive Fiction, where the page fills the pane", async () => {
-    workspaceSettings.setPreference("previewMode", "textstream");
+  it("keeps the aspect-ratio control in place in Interactive Fiction, disabled and reading Auto", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "9:16");
     await mount();
-    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
-    expect(bar().querySelector('[aria-label="Screenplay settings"]')).toBeNull();
-    expect(bar().querySelector('[aria-label="Fullscreen preview"]')).not.toBeNull();
+    const controls = () =>
+      Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
+        (control) => control.getAttribute("aria-label") ?? control.textContent,
+      );
+    const visualNovel = controls();
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
+
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("Auto");
+    expect(ratio().getAttribute("aria-disabled")).toBe("true");
+    expect(ratio().title).toBe("The page fills the pane in Interactive Fiction");
+    ratio().focus();
+    await key(ratio(), "ArrowDown");
+    await act(async () => ratio().click());
+    await settle(50);
+    expect(document.querySelectorAll('[role="menuitemradio"]')).toHaveLength(0);
+    expect(workspaceSettings.projectSettings.value.previewAspectRatio).toBe("9:16");
+
     await act(async () => workspaceSettings.setPreference("previewMode", "game"));
-    expect(ratio()).not.toBeNull();
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
   });
 
   it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {
