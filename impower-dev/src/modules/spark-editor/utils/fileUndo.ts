@@ -120,19 +120,15 @@ export async function renameFiles(
   const follows =
     moves.every((move) => !move.isDir && folderOf(move.from) === folderOf(move.to)) &&
     workspace.autoRenameFiles();
+  if (!follows) {
+    return moveAll(workspace.fs, projectId, moves);
+  }
   const [only] = moves;
   if (moves.length === 1 && only) {
-    if (follows) {
-      const result = await workspace.fs.renameFileWithReferences(projectId, only.from, only.to);
-      return { referencesUpdated: result.referencesUpdated, also: [] };
-    }
-    if (only.isDir) await workspace.fs.moveFolder(projectId, only.from, only.to);
-    else await workspace.fs.moveFile(projectId, only.from, only.to);
-    return { referencesUpdated: 0, also: [] };
+    const result = await workspace.fs.renameFileWithReferences(projectId, only.from, only.to);
+    return { referencesUpdated: result.referencesUpdated, also: result.also ?? [] };
   }
-  return follows
-    ? workspace.fs.renameFilesWithReferences(projectId, moves)
-    : moveAll(workspace.fs, projectId, moves);
+  return workspace.fs.renameFilesWithReferences(projectId, moves);
 }
 
 export async function renameFile(
@@ -140,7 +136,7 @@ export async function renameFile(
   projectId: string,
   fromPath: string,
   toPath: string,
-): Promise<{ referencesUpdated: number }> {
+): Promise<RenameOutcome> {
   return renameFiles(workspace, projectId, [{ from: fromPath, to: toPath }]);
 }
 

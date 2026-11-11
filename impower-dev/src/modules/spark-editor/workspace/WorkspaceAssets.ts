@@ -313,9 +313,14 @@ export default class WorkspaceAssets {
       await window.recordScriptChange();
     }
     await window.recordAssetChange();
-    recordMove(projectId, path, to, false);
+    const also = renamed.result.also ?? [];
+    if (also.length) {
+      recordMoves(projectId, [{ from: path, to }, ...also], leaf);
+    } else {
+      recordMove(projectId, path, to, false);
+    }
     await this.load();
-    showRenamed(assetName(path), renamed.result.referencesUpdated, []);
+    showRenamed(assetName(path), renamed.result.referencesUpdated, also);
     return to;
   }
 

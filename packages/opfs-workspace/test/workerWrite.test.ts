@@ -201,6 +201,23 @@ const gatedWorker = async () => {
 const insertAtEnd = (uri: string, character: number, newText: string) => ({ textDocument: { uri, version: null }, edits: [{ range: { start: { line: 0, character }, end: { line: 0, character } }, newText }] });
 const didWriteFiles = (messages: any[]) => messages.filter(message => message.method === "workspace/didWriteFiles").map(message => ({ origin: message.params.origin, files: message.params.files.map((f: any) => [f.uri, f.size]) }));
 
+it("checks each script of a changes map against its expected text when that script's turn comes", async () => {
+  const h = await gatedWorker();
+  await h.send("a", [65], "file://local/a.sd");
+  await h.send("b", [66], "file://local/b.sd");
+  h.blockCall(1);
+  await h.request("edit", "workspace/applyWorkspaceEdit", {
+    edit: { changes: { "file://local/a.sd": insertAtEnd("file://local/a.sd", 1, "!").edits, "file://local/b.sd": insertAtEnd("file://local/b.sd", 1, "!").edits } },
+    expectedTexts: { "file://local/a.sd": "A", "file://local/b.sd": "B" },
+  }, 250);
+  await h.request("autosave", "workspace/willWriteFiles", { files: [{ uri: "file://local/b.sd", version: 3, data: new Uint8Array([66, 67]).buffer }], origin: "editor" }, 0);
+  h.release();
+  await vi.advanceTimersByTimeAsync(250);
+  expect(h.messages.find(message => message.id === "edit")).toMatchObject({
+    result: { applied: false, failureReason: "b.sd changed before the edit could be applied" },
+  });
+});
+
 it("leaves a superseded file out of a workspace edit's notification when the edit's later file was still writing", async () => {
   const h = await gatedWorker();
   await h.send("a", [65], "file://local/a.sd");

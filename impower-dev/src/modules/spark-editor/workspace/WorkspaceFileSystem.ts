@@ -146,6 +146,10 @@ const withEdits = (text: string, edits: readonly (LSP.TextEdit | LSP.AnnotatedTe
     .reduce((result, edit) => result.slice(0, edit.from) + edit.newText + result.slice(edit.to), text);
 };
 
+const sameReferenceEdits = (a: ReferenceEdits, b: ReferenceEdits) =>
+  JSON.stringify([a.texts.map((change) => [change.textDocument.uri, change.edits]), a.siblings, [...a.scripts]]) ===
+  JSON.stringify([b.texts.map((change) => [change.textDocument.uri, change.edits]), b.siblings, [...b.scripts]]);
+
 const textAt = (text: string, range: LSP.Range) => {
   const lines = text.split(LINE_BREAK);
   return text.slice(offsetAt(lines, range.start), offsetAt(lines, range.end));
@@ -945,35 +949,8 @@ export default class WorkspaceFileSystem {
     projectId: string,
     fromPath: string,
     toPath: string,
-  ): Promise<{ referencesUpdated: number; scriptsAffected: number }> {
-    const oldUri = this.getFileUri(projectId, fromPath);
-    const newUri = this.getFileUri(projectId, toPath);
-    const newName = symbolOf(toPath);
-    const edit = await this._ls.getFileRenameEdits(oldUri, newName);
-    const textEdits = (edit?.documentChanges ?? []).filter(
-      (c): c is LSP.TextDocumentEdit => "edits" in c,
-    );
-    if (!edit || textEdits.length === 0) {
-      await this.moveFile(projectId, fromPath, toPath);
-      return { referencesUpdated: 0, scriptsAffected: 0 };
-    }
-    const result = await this.applyWorkspaceEdit(
-      {
-        ...edit,
-        documentChanges: edit.documentChanges?.map((change) =>
-          "kind" in change && change.kind === "rename" && change.oldUri === oldUri
-            ? { ...change, newUri }
-            : change,
-        ),
-      },
-      `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
-      { isRefactoring: true },
-    );
-    if (!result.applied) {
-      throw new Error(result.failureReason ?? `Cannot rename ${oldUri}`);
-    }
-    const referencesUpdated = textEdits.reduce((n, c) => n + c.edits.length, 0);
-    return { referencesUpdated, scriptsAffected: textEdits.length };
+  ): Promise<RenameOutcome & { scriptsAffected: number }> {
+    return this.renameFilesWithReferences(projectId, [{ from: fromPath, to: toPath }]);
   }
 
   protected async collectReferenceEdits(
@@ -1051,8 +1028,31 @@ export default class WorkspaceFileSystem {
           notes.push(`${leafOf(uri)} holds neither its old lines nor the renamed ones, so it was left as it is; check it.`);
           continue;
         }
-        await this.writeTextDocument({ textDocument: { uri, version: 0, text: before } });
-        if (normalized(await this.getFileText(uri)) !== before) {
+        const lines = written.split(LINE_BREAK);
+        const restored = await this.applyWorkspaceEdit(
+          {
+            documentChanges: [
+              {
+                textDocument: { uri, version: null },
+                edits: [
+                  {
+                    range: {
+                      start: { line: 0, character: 0 },
+                      end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
+                    },
+                    newText: before,
+                  },
+                ],
+              },
+            ],
+          },
+          `Put back ${leafOf(uri)}`,
+          undefined,
+          { [uri]: written },
+        );
+        if (!restored.applied) {
+          notes.push(`${leafOf(uri)} changed before its lines could be put back, so it was left as it is (${restored.failureReason ?? "not saved"}); check it.`);
+        } else if (normalized(await this.getFileText(uri)) !== before) {
           notes.push(`The lines in ${leafOf(uri)} could not be put back.`);
         }
       } catch (error) {
@@ -1065,7 +1065,7 @@ export default class WorkspaceFileSystem {
   async renameFilesWithReferences(
     projectId: string,
     moves: readonly FileMove[],
-  ): Promise<RenameOutcome> {
+  ): Promise<RenameOutcome & { scriptsAffected: number }> {
     const name = symbolOf(moves[0]?.from ?? "").split(/[@~]/)[0]!;
     const refuse = (reason: string) =>
       new Error(`Couldn't rename ${name}: ${reason}`);
@@ -1089,7 +1089,9 @@ export default class WorkspaceFileSystem {
     }
     let collected: ReferenceEdits | null = null;
     for (let attempt = 0; attempt < REFERENCE_ATTEMPTS && !collected; attempt += 1) {
-      collected = await this.collectReferenceEdits(projectId, symbols, refuse);
+      const first = await this.collectReferenceEdits(projectId, symbols, refuse);
+      const second = first && (await this.collectReferenceEdits(projectId, symbols, refuse));
+      collected = first && second && sameReferenceEdits(first, second) ? second : null;
     }
     if (!collected) {
       throw refuse("the scripts that use it kept changing while the rename was prepared. Nothing was renamed; try again.");
@@ -1146,7 +1148,7 @@ export default class WorkspaceFileSystem {
         change.edits.map((text) => `${change.textDocument.uri}:${text.range.start.line}`),
       ),
     );
-    return { referencesUpdated: lines.size, also };
+    return { referencesUpdated: lines.size, scriptsAffected: collected.texts.length, also };
   }
 
   async moveFolder(projectId: string, fromFolder: string, toFolder: string) {

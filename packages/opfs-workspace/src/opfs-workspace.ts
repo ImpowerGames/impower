@@ -1119,9 +1119,10 @@ onmessage = async (e) => {
       } else if (edit.changes) {
         for (const [uri, edits] of Object.entries(edit.changes)) {
           const beforeVersion = State.files.get(uri)?.version ?? 0;
-          const [written] = await editTextFiles([
-            { textDocument: { uri, version: beforeVersion }, edits },
-          ]);
+          const [written] = await editTextFiles(
+            [{ textDocument: { uri, version: beforeVersion }, edits }],
+            expectedTexts,
+          );
           if (written) {
             wrote(written);
           } else {

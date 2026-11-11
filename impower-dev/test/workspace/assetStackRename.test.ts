@@ -169,13 +169,23 @@ async function harness(stored: Record<string, string>) {
       return original(name, options);
     };
   };
+  const createdIn = (path: string) => {
+    const dir = folder(path);
+    const created: string[] = [];
+    const original = dir.getFileHandle.bind(dir);
+    dir.getFileHandle = async (name: string, options: { create?: boolean } = {}) => {
+      if (options.create && !dir.entries.has(name)) created.push(name);
+      return original(name, options);
+    };
+    return created;
+  };
   const failWriting = (path: string) => {
     const entry = folder(path);
     entry.createSyncAccessHandle = async () => {
       throw new DOMException("The script could not be written", "NoModificationAllowedError");
     };
   };
-  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, failRemoving, failWriting, saved };
+  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, failRemoving, failWriting, createdIn, saved };
 }
 
 const P = "Assets/Images/Portraits";
@@ -406,6 +416,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
 
   it("refuses, renaming nothing, when a script is written just before the edit reaches storage", async () => {
     const h = await harness(project());
+    const created = h.createdIn(P);
     const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
     vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: Parameters<typeof apply>) => {
       await h.write("main.sd", "An inserted line." + NL + SCRIPT);
@@ -416,6 +427,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     );
     expect(await h.read("main.sd")).toBe("An inserted line." + NL + SCRIPT);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(created).toEqual([]);
     expect(h.history.canUndo.value).toBe(false);
   });
 
@@ -423,7 +435,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     const other = lines("scene other", "  [[show portrait imani]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
     const main = await h.read("main.sd");
-    const write = vi.spyOn(h.fs, "writeTextDocument");
+    const apply = vi.spyOn(h.fs, "applyWorkspaceEdit");
     h.failWriting("zz.sd");
     await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
       /^Couldn't rename imani: .*The script could not be written.*\. Every file is back where it was\.$/,
@@ -432,7 +444,66 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await h.read("zz.sd")).toBe(other);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(h.history.canUndo.value).toBe(false);
-    expect(write.mock.calls.map(([params]) => params.textDocument.uri)).toEqual([h.uri("main.sd")]);
+    expect(apply.mock.calls.map(([, label]) => label).filter((label) => label?.startsWith("Put back"))).toEqual(["Put back main.sd"]);
+  });
+
+  it("leaves a script the author saved during recovery as the author saved it, and says so", async () => {
+    const other = lines("scene other", "  [[show portrait imani]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    h.failWriting("zz.sd");
+    const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
+    const saved = (await h.read("main.sd")).replace("[[show portrait imani]]", "[[show portrait zadie]]") + "The author's saved line." + NL;
+    vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: Parameters<typeof apply>) => {
+      if (args[1]?.startsWith("Put back")) {
+        await h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL);
+      }
+      return apply(...args);
+    });
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      "main.sd changed before its lines could be put back, so it was left as it is (main.sd changed before the edit could be applied); check it.",
+    );
+    expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|~face)/g, "zadie$1"));
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
+  it("does not rename narration that took a reference's place between lookups", async () => {
+    const h = await harness(project());
+    const ask = h.ls.getFileRenameEdits.getMockImplementation()!;
+    let calls = 0;
+    h.ls.getFileRenameEdits.mockImplementation(async (oldUri: string, newName: string) => {
+      const answer = await ask(oldUri, newName);
+      calls += 1;
+      if (calls === 1) await h.write("main.sd", SCRIPT.replace("  [[show portrait imani]]", "  The author says imani."));
+      return answer;
+    });
+    await h.assets.rename(STACK[0]!, "zadie");
+    const text = await h.read("main.sd");
+    expect(text).toContain("  The author says imani.");
+    expect(shown(text)).toEqual([
+      "[[show portrait zadie@night]]",
+      "[[show portrait zadie~face.happy]]",
+      "[[show portrait imani_extra]]",
+    ]);
+  });
+
+  it("guards a single picture's rename the same way, and puts it back whole when a script cannot be written", async () => {
+    const single = { [`${P}/kai.png`]: "kai" };
+    const other = lines("scene other", "  [[show portrait kai]]", "end");
+    const h = await harness({ ...single, "main.sd": lines("scene start", "  -> other", "  [[show portrait kai]]", "end"), "zz.sd": other });
+    const ask = h.ls.getFileRenameEdits.getMockImplementation()!;
+    let calls = 0;
+    h.ls.getFileRenameEdits.mockImplementation(async (oldUri: string, newName: string) => {
+      const answer = await ask(oldUri, newName);
+      calls += 1;
+      if (calls === 1) await h.write("main.sd", "An inserted line." + NL + (await h.read("main.sd")));
+      return answer;
+    });
+    h.failWriting("zz.sd");
+    expect(await h.assets.rename(`${P}/kai.png`, "rafe")).toBe(`${P}/kai.png`);
+    expect(await h.read("main.sd")).toBe("An inserted line." + NL + lines("scene start", "  -> other", "  [[show portrait kai]]", "end"));
+    expect(await h.read("zz.sd")).toBe(other);
+    expect(await h.paths()).toEqual([`${P}/kai.png`, "main.sd", "zz.sd"]);
+    expect(h.history.canUndo.value).toBe(false);
   });
 
   it("renames a lone alternate or layer as the thing it is, keeping its @ or ~ part", async () => {
@@ -451,6 +522,21 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
   it("renames a sound whose name has an at sign as a single file", async () => {
     const h = await harness({ "main.sd": lines("scene start", "end"), "Assets/Audio/theme@v2.mp3": "audio" });
     expect(await h.assets.rename("Assets/Audio/theme@v2.mp3", "song")).toBe("Assets/Audio/song.mp3");
+  });
+
+  it("puts back a single folder whose move stopped part-way", async () => {
+    const h = await harness(project({ [`${P}/Cast/a.png`]: "a", [`${P}/Cast/b.png`]: "b" }));
+    await h.fs.createFolder(PROJECT, "Assets/Images/Destination");
+    await h.assets.load();
+    h.failRemoving(`${P}/Cast/b.png`);
+    await expect(h.assets.move([`${P}/Cast`], "Assets/Images/Destination")).rejects.toThrow(
+      "Couldn't move Cast: Removing the original was denied. Every file is back where it was.",
+    );
+    const after = await h.paths();
+    expect(after.filter((path) => path.startsWith("Assets/Images/Destination/"))).toEqual([]);
+    expect(await h.read(`${P}/Cast/a.png`)).toBe("a");
+    expect(await h.read(`${P}/Cast/b.png`)).toBe("b");
+    expect(await h.fs.getFolders(PROJECT)).not.toContain("Assets/Images/Destination/Cast");
   });
 
   it("puts an empty folder back when a move stops part-way", async () => {
