@@ -7,7 +7,6 @@ import {
   loadGrammarCorpus,
   treeLanguagesPerPosition,
 } from "./languageEquality";
-import { expectLanguagePin } from "./languagePins";
 
 const FIXTURES = loadGrammarCorpus();
 
@@ -94,59 +93,42 @@ describe("language at every cursor position: vscode-textmate and the tree reader
     }
   });
 
-  describe("known differences, each tracked by its ticket", () => {
-    test("I-2038: a declaration or reassignment followed by an `&` statement on its line", async () => {
-      await expectLanguagePin(
-        2038,
-        "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
-        ["2:14", "2:16", "3:14", "3:16", "4:8", "4:10"],
-      );
-    });
-
+  describe("an `&` after a value, and a structural word inside a marked rule (I-2038, I-2048)", () => {
     test.each([
-      ["store x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
-      ["store x = a & b\nHello\n", ["1:12", "1:14", "1:15"]],
-      ["local x = a&b\nHello\n", ["1:11", "1:12", "1:13"]],
-      ["x = a&b\nHello\n", ["1:5", "1:6", "1:7"]],
-      [
-        "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
-        ["5:13", "5:15", "5:16", "5:17", "5:18"],
-      ],
-      ["repeat\n  Hi.\nuntil a&b\nHello\n", ["3:7", "3:8", "3:9"]],
-    ])("I-2038: an `&` after a declaration's, reassignment's or `until` condition's value, %j", async (source, positions) => {
-      await expectLanguagePin(2038, source, positions);
-    });
-
-    const span = (line: number, from: number, to: number) =>
-      Array.from({ length: to - from + 1 }, (_, i) => `${line}:${from + i}`);
-
-    test.each([
-      ["Hello {x end}\nAfter\n", span(1, 9, 11)],
-      ["Hello {x then}\nAfter\n", span(1, 9, 12)],
-      ["Hello {x do}\nAfter\n", span(1, 9, 10)],
-      ["Hello {x until}\nAfter\n", span(1, 9, 13)],
-      ["Hello {x else}\nAfter\n", span(1, 9, 12)],
-      ["Hello {x elseif}\nAfter\n", span(1, 9, 14)],
-      ["Hello {{x end}}\nAfter\n", span(1, 10, 12)],
-      ["Hello {{x then}}\nAfter\n", span(1, 10, 13)],
-      ["Hello {{x do}}\nAfter\n", span(1, 10, 11)],
-      ["Hello {{x until}}\nAfter\n", span(1, 10, 14)],
-      ["Hello {{x else}}\nAfter\n", span(1, 10, 13)],
-      ["Hello {{x elseif}}\nAfter\n", span(1, 10, 15)],
-      ["if x do then\n  Hi.\nend\n", span(1, 5, 6)],
-      ["if x until then\n  Hi.\nend\n", span(1, 5, 9)],
-      ["if x else then\n  Hi.\nend\n", span(1, 5, 8)],
-      ["if x elseif then\n  Hi.\nend\n", span(1, 5, 10)],
-      ["while x then do\n  Hi.\nend\n", span(1, 8, 11)],
-      ["while x until do\n  Hi.\nend\n", span(1, 8, 12)],
-      ["while x else do\n  Hi.\nend\n", span(1, 8, 11)],
-      ["while x elseif do\n  Hi.\nend\n", span(1, 8, 13)],
-      ["for i = 1, x then do\n  Hi.\nend\n", span(1, 13, 16)],
-      ["for i = 1, x until do\n  Hi.\nend\n", span(1, 13, 17)],
-      ["for i = 1, x else do\n  Hi.\nend\n", span(1, 13, 16)],
-      ["for i = 1, x elseif do\n  Hi.\nend\n", span(1, 13, 18)],
-    ])("I-2048: a structural word inside a marked interpolation, shorthand or condition, %j", async (source, positions) => {
-      await expectLanguagePin(2048, source, positions);
+      "scene main\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\nend\n",
+      "store x = a&b\nHello\n",
+      "store x = a & b\nHello\n",
+      "local x = a&b\nHello\n",
+      "x = a&b\nHello\n",
+      "scene s\n  local done = true\n  repeat\n    Hi.\n  until done & done = false\n  Value {done}.\nend\n",
+      "repeat\n  Hi.\nuntil a&b\nHello\n",
+      "Hello {x end}\nAfter\n",
+      "Hello {x then}\nAfter\n",
+      "Hello {x do}\nAfter\n",
+      "Hello {x until}\nAfter\n",
+      "Hello {x else}\nAfter\n",
+      "Hello {x elseif}\nAfter\n",
+      "Hello {{x end}}\nAfter\n",
+      "Hello {{x then}}\nAfter\n",
+      "Hello {{x do}}\nAfter\n",
+      "Hello {{x until}}\nAfter\n",
+      "Hello {{x else}}\nAfter\n",
+      "Hello {{x elseif}}\nAfter\n",
+      "if x do then\n  Hi.\nend\n",
+      "if x until then\n  Hi.\nend\n",
+      "if x else then\n  Hi.\nend\n",
+      "if x elseif then\n  Hi.\nend\n",
+      "while x then do\n  Hi.\nend\n",
+      "while x until do\n  Hi.\nend\n",
+      "while x else do\n  Hi.\nend\n",
+      "while x elseif do\n  Hi.\nend\n",
+      "for i = 1, x then do\n  Hi.\nend\n",
+      "for i = 1, x until do\n  Hi.\nend\n",
+      "for i = 1, x else do\n  Hi.\nend\n",
+      "for i = 1, x elseif do\n  Hi.\nend\n",
+    ])("%j", async (source) => {
+      const { divergences } = await compareLanguages(source);
+      expect(divergences, formatLanguageDivergences(source, divergences)).toEqual([]);
     });
   });
 

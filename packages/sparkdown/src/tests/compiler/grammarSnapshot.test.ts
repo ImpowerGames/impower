@@ -51,8 +51,8 @@ describe("grammar snapshots", () => {
           );
           expect(
             tree,
-            `Fixture ${fixture.category}/${fixture.name}: tree contains \`ERROR_INCOMPLETE\` — a Scoped rule's \`end:\` pattern failed mid-content. See docs/compiler/GRAMMAR.md.`,
-          ).not.toContain("ERROR_INCOMPLETE");
+            `Fixture ${fixture.category}/${fixture.name}: tree contains text no rule reads (\`ERROR_UNRECOGNIZED\`) or a rule closed incomplete (\`ERROR_INCOMPLETE\`). See docs/compiler/GRAMMAR.md.`,
+          ).not.toMatch(/ERROR_(?:INCOMPLETE|UNRECOGNIZED)/);
         });
       }
     });
