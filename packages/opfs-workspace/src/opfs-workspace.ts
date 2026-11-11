@@ -158,11 +158,14 @@ abstract class State {
   static writer = crypto.randomUUID();
 }
 
+const commitWatchers = new Set<(uris: string[], local: number) => void>();
+
 const touch = (uris: string[]) => {
   State.localClock += 1;
   for (const uri of uris) {
     State.localVersions.set(uri, State.localClock);
   }
+  commitWatchers.forEach((watch) => watch(uris, State.localClock));
   return State.localClock;
 };
 
@@ -1088,7 +1091,6 @@ interface PriorEntry {
   uri: string;
   bytes?: ArrayBuffer;
   directory: boolean;
-  local?: number;
   version?: number;
   document?: TextDocument;
 }
@@ -1149,7 +1151,14 @@ const missingDirectories = async (uri: string) => {
 class UndoLog {
   prior = new Map<string, PriorEntry>();
   directories = new Set<string>();
-  committed = new Map<string, number>();
+  own = new Set<number>();
+  seen = new Map<string, Set<number>>();
+
+  watch = (uris: string[], local: number) => {
+    for (const uri of uris) {
+      this.seen.get(uri)?.add(local);
+    }
+  };
 
   async record(change: WorkspaceEditChange) {
     const uris =
@@ -1163,12 +1172,12 @@ class UndoLog {
         continue;
       }
       await drainWrites(uri);
+      this.seen.set(uri, new Set());
       const bytes = await storedBytes(uri);
       this.prior.set(uri, {
         uri,
         bytes,
         directory: !bytes && (await isStoredDirectory(uri)),
-        local: State.localVersions.get(uri),
         version: State.files.get(uri)?.version,
         document: State.documents.get(uri),
       });
@@ -1178,16 +1187,14 @@ class UndoLog {
     }
   }
 
-  commit(uri: string, local: number) {
-    this.committed.set(uri, local);
-  }
-
-  expectedLocal(entry: PriorEntry) {
-    return this.committed.get(entry.uri) ?? entry.local;
+  commit(local: number) {
+    this.own.add(local);
   }
 
   movedOn(entry: PriorEntry) {
-    return State.localVersions.get(entry.uri) !== this.expectedLocal(entry);
+    return [...(this.seen.get(entry.uri) ?? [])].some(
+      (local) => !this.own.has(local),
+    );
   }
 
   async put(target: Restoring, log: CommitLog, effects: EditEffects) {
@@ -1203,6 +1210,7 @@ class UndoLog {
       if (!result) {
         return false;
       }
+      this.commit(result.local);
       log.wrote(result);
       effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Changed });
       return true;
@@ -1211,6 +1219,7 @@ class UndoLog {
     if (!removed) {
       return false;
     }
+    this.commit(removed.local);
     log.record(removed.uri, removed.local, removed.commit);
     effects.deleted.push(removed);
     effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Deleted });
@@ -1241,12 +1250,13 @@ class UndoLog {
     for (const entry of entries.filter((e) => !e.directory)) {
       try {
         await drainWrites(entry.uri);
+        const local = State.localVersions.get(entry.uri);
+        const current = await storedBytes(entry.uri);
         if (this.movedOn(entry)) {
           kept.push(entry.uri);
           continue;
         }
-        const current = await storedBytes(entry.uri);
-        const target = { entry, current, local: this.expectedLocal(entry) };
+        const target = { entry, current, local };
         if (sameStored(current, entry.bytes)) {
           restored.push(entry.uri);
         } else if (!current) {
@@ -1265,7 +1275,7 @@ class UndoLog {
       try {
         const done = await this.put(target, log, effects);
         (done ? restored : kept).push(target.entry.uri);
-        return true;
+        return done;
       } catch (err) {
         console.error(err);
         unknown.push(target.entry.uri);
@@ -1281,24 +1291,28 @@ class UndoLog {
       unknown.push(...pending.map((t) => t.entry.uri));
       pending = [];
     }
-    const failedOverwrites: Restoring[] = [];
-    const needed = (target: Restoring) =>
+    const unsatisfied = () =>
+      entries.filter((e) => unknown.includes(e.uri) || kept.includes(e.uri));
+    const holds = (target: Restoring, others: PriorEntry[]) =>
       !target.backedUp &&
-      [...pending, ...failedOverwrites].some(
+      others.some(
         (other) =>
-          other !== target && sameStored(other.entry.bytes, target.current),
+          other !== target.entry && sameStored(other.bytes, target.current),
       );
     while (pending.length > 0) {
-      const ready = pending.find((target) => !needed(target));
-      if (ready) {
-        pending = pending.filter((t) => t !== ready);
-        if (!(await settle(ready))) {
-          failedOverwrites.push(ready);
-        }
+      const stuck = pending.find((target) => holds(target, unsatisfied()));
+      if (stuck) {
+        pending = pending.filter((t) => t !== stuck);
+        unknown.push(stuck.entry.uri);
         continue;
       }
-      if (failedOverwrites.length > 0) {
-        break;
+      const ready = pending.find(
+        (target) => !holds(target, pending.map((t) => t.entry)),
+      );
+      if (ready) {
+        pending = pending.filter((t) => t !== ready);
+        await settle(ready);
+        continue;
       }
       const cycle = pending[0]!;
       const backup = backupUriOf(cycle.entry.uri);
@@ -1312,7 +1326,7 @@ class UndoLog {
       }
     }
     unknown.push(...pending.map((t) => t.entry.uri));
-    if (unknown.length > 0) {
+    if (unknown.length > 0 || unsatisfied().some((e) => e.bytes)) {
       unknown.push(...removals.map((t) => t.entry.uri));
     } else {
       for (const target of removals) {
@@ -1364,7 +1378,7 @@ const applyChange = async (
   undo: UndoLog,
 ) => {
   const wrote = (result: WriteResult) => {
-    undo.commit(result.file.uri, result.local);
+    undo.commit(result.local);
     log.wrote(result);
     if (result.created) {
       effects.created.push(result);
@@ -1389,7 +1403,7 @@ const applyChange = async (
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
     if (result) {
-      undo.commit(result.uri, result.local);
+      undo.commit(result.local);
       log.record(result.uri, result.local, result.commit);
       effects.deleted.push(result);
       effects.fileEvents.push({ uri: change.uri, type: FileChangeType.Deleted });
@@ -1397,11 +1411,11 @@ const applyChange = async (
   } else if (change.kind === "rename") {
     const [outcome] = await renameFiles([change]);
     if (outcome?.write) {
-      undo.commit(outcome.write.file.uri, outcome.write.local);
+      undo.commit(outcome.write.local);
       log.wrote(outcome.write);
     }
     if (outcome?.deleted) {
-      undo.commit(outcome.deleted.uri, outcome.deleted.local);
+      undo.commit(outcome.deleted.local);
       log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
       effects.renamed.push(outcome);
       effects.fileEvents.push({ uri: change.oldUri, type: FileChangeType.Deleted });
@@ -1427,36 +1441,41 @@ const applyWorkspaceEdit = async (
     }));
   const undo = new UndoLog();
   const effects = noEffects();
-  for (const [index, change] of changes.entries()) {
-    try {
-      await undo.record(change);
-      await applyChange(change, log, effects, undo);
-    } catch (err: any) {
-      console.error(err, err?.stack);
-      const reason = err?.message ?? String(err);
-      const { effects, unknown, kept } = await undo.restore(log);
-      const partial = [
-        ...(unknown.length > 0
-          ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
-          : []),
-        ...(kept.length > 0
-          ? [`these were saved again while the edit ran and were kept as saved: ${kept.join(", ")}`]
-          : []),
-      ];
-      return {
-        effects,
-        failure: {
-          change: index,
-          reason:
-            partial.length === 0
-              ? reason
-              : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
-          rollback: { complete: partial.length === 0, failed: unknown, kept },
-        },
-      };
+  commitWatchers.add(undo.watch);
+  try {
+    for (const [index, change] of changes.entries()) {
+      try {
+        await undo.record(change);
+        await applyChange(change, log, effects, undo);
+      } catch (err: any) {
+        console.error(err, err?.stack);
+        const reason = err?.message ?? String(err);
+        const { effects, unknown, kept } = await undo.restore(log);
+        const partial = [
+          ...(unknown.length > 0
+            ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
+            : []),
+          ...(kept.length > 0
+            ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
+            : []),
+        ];
+        return {
+          effects,
+          failure: {
+            change: index,
+            reason:
+              partial.length === 0
+                ? reason
+                : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
+            rollback: { complete: partial.length === 0, failed: unknown, kept },
+          },
+        };
+      }
     }
+    return { effects, failure: undefined };
+  } finally {
+    commitWatchers.delete(undo.watch);
   }
-  return { effects, failure: undefined };
 };
 
 const loadConfiguration = (settings: any) => {
