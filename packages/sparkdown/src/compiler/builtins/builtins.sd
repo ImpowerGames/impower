@@ -1585,6 +1585,7 @@ style loading_content {
   align_items = center
   gap = 1rem
   width = min(60%, 320px)
+  color = white
 }
 
 style loading_bar {
@@ -1716,6 +1717,7 @@ style choice {
     width = 90%
     max_width = 800px
     background_color = rgb(0 0 0 / 65%)
+    color = white
     padding = 8px
     border_radius = 8px
     border = 1px solid

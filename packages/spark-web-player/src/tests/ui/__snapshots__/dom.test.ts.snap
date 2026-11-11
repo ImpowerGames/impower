@@ -698,6 +698,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -799,6 +800,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -3164,6 +3166,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -3265,6 +3268,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -5596,6 +5600,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -5697,6 +5702,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -8146,6 +8152,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -8247,6 +8254,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -10559,6 +10567,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -10660,6 +10669,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -12956,6 +12966,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -13057,6 +13068,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -15397,6 +15409,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -15498,6 +15511,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -18068,6 +18082,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -18169,6 +18184,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -20739,6 +20755,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -20840,6 +20857,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -23410,6 +23428,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -23511,6 +23530,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
@@ -26081,6 +26101,7 @@ spark-web-player #game .loading_content {
   align-items: center;
   gap: 1rem;
   width: min(60%, 320px);
+  color: var(--theme-color-white);
 }
 spark-web-player #game .loading_bar {
   position: relative;
@@ -26182,6 +26203,7 @@ spark-web-player #game .choice {
     width: 90%;
     max-width: 800px;
     background-color: rgb(0 0 0 / 65%);
+    color: var(--theme-color-white);
     padding: 8px;
     border-radius: 8px;
     border: 1px solid;
