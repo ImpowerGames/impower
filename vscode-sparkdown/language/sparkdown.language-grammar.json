@@ -779,9 +779,9 @@
     "LUAU_DEFINE_HEADER_TO_WITH": "(?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)",
     "LUAU_DEFINE_HEADER_NAME_TO_WITH": "(?:{{LUAU_IDENTIFIER}}{{LUAU_DEFINE_HEADER_TAIL_PART}}*{{LUAU_DEFINE_HEADER_WITH}}?)",
     "LUAU_DEFINE_HEADER_TAIL_PART": "(?:{{LUAU_DEFINE_HEADER_AS_PARENT}}|{{WS}}+)",
-    "LUAU_DEFINE_HEADER_AS_PARENT": "(?:{{WS}}*as\\b{{WS}}*{{LUAU_DEFINE_HEADER_PARENT_NAME}}{{LUAU_DEFINE_HEADER_PARENT_GAP}})",
-    "LUAU_DEFINE_HEADER_PARENT_NAME": "(?:$|{{LUAU_IDENTIFIER}})",
-    "LUAU_DEFINE_HEADER_PARENT_GAP": "(?:$|{{WS}}*)",
+    "LUAU_DEFINE_HEADER_AS_PARENT": "(?:{{WS}}*as\\b{{WS}}*{{LUAU_INHERITANCE_PARENT_NAME}}{{LUAU_INHERITANCE_PARENT_GAP}})",
+    "LUAU_INHERITANCE_PARENT_NAME": "(?:$|{{LUAU_IDENTIFIER}})",
+    "LUAU_INHERITANCE_PARENT_GAP": "(?:$|{{WS}}*)",
     "LUAU_DEFINE_HEADER_WITH": "(?:{{WS}}*with\\b)",
     "LUAU_CODE_BEFORE_DEFINE_HEADER": "(?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)",
     "LUAU_CODE_CHAR_OR_CLOSED_COMMENT": "(?:[^\\-\\r\\n]|-[^\\-\\r\\n]|{{LUAU_PLAIN_BLOCK_COMMENT}})",
@@ -8145,7 +8145,7 @@
       }
     },
     "LuauInheritanceOperation": {
-      "match": "((?:[^\\S\\n\\r])*)(as)\\b((?:[^\\S\\n\\r])*)($|(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))($|(?:[^\\S\\n\\r])*)",
+      "match": "((?:[^\\S\\n\\r])*)(as)\\b((?:[^\\S\\n\\r])*)((?:$|(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))))((?:$|(?:[^\\S\\n\\r])*))",
       "captures": {
         "1": {
           "patterns": [
