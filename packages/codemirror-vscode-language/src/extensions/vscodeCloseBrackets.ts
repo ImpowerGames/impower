@@ -13,6 +13,7 @@ import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/uti
 
 import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { autoClosingPairFor } from "../utils/autoClosingPairFor";
 import { configOf, languageAt } from "../utils/languageAt";
 
 export const getAllStyleTags = (state: EditorState, pos: number): Tag[] => {
@@ -47,13 +48,6 @@ const closeBracketsDataOf = (
   before: pairs.map(({ close }) => close).join(""),
 });
 
-const longest = (pairs: readonly AutoClosingPair[]) =>
-  pairs.reduce<AutoClosingPair | undefined>(
-    (result, pair) =>
-      !result || pair.open.length > result.open.length ? pair : result,
-    undefined,
-  );
-
 export const autoCloseBrackets =Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
@@ -73,49 +67,27 @@ export function vscodeCloseBrackets(
     insert: string,
   ): string | null => {
     const line = state.doc.lineAt(pos);
-    const pairs = pairsAt(state, pos);
-    const pair = longest(
-      pairs.filter(({ open, close }) => {
-        if (open == null || close == null) return false;
-
-        if (!open.endsWith(insert)) return false;
-
-        const lookBackLength = open.length - insert.length;
-
-        if (pos - line.from < lookBackLength) return false;
-
-        const textBefore = state.sliceDoc(pos - lookBackLength, pos);
-
-        return textBefore === open.slice(0, lookBackLength);
-      }),
+    const match = autoClosingPairFor(
+      pairsAt(state, pos),
+      insert,
+      state.sliceDoc(line.from, pos),
+      state.sliceDoc(pos, line.to),
     );
 
-    if (!pair) {
+    if (!match) {
       return null;
     }
 
-    if (pair.notIn) {
+    if (match.pair.notIn) {
       for (const tag of getAllStyleTags(state, pos)) {
         const name = (tag as any).name;
-        if (typeof name === "string" && pair.notIn.includes(name)) {
+        if (typeof name === "string" && match.pair.notIn.includes(name)) {
           return null;
         }
       }
     }
 
-    const containedPair = longest(
-      pairs.filter(
-        ({ open, close }) =>
-          open !== pair.open &&
-          pair.open.includes(open) &&
-          pair.close.endsWith(close),
-      ),
-    );
-
-    return containedPair &&
-      state.sliceDoc(pos, line.to).startsWith(containedPair.close)
-      ? pair.close.slice(0, pair.close.length - containedPair.close.length)
-      : pair.close;
+    return match.close;
   };
 
   const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {

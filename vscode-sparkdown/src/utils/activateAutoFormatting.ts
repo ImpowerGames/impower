@@ -6,6 +6,7 @@
  */
 
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { SPARKDOWN_LANGUAGE_CONFIGS } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import {
   commands,
   ExtensionContext,
@@ -13,6 +14,7 @@ import {
   Range,
   Selection,
   SnippetString,
+  TextDocument,
   TextEditor,
   window,
   workspace,
@@ -20,6 +22,7 @@ import {
 } from "vscode";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
+import { closesByLanguage } from "./closesByLanguage";
 
 enum EmphasisType {
   ITALIC = "*",
@@ -166,7 +169,99 @@ const onType = async (
     }
   }
 
+  if (await closeByLanguage(editor, e.text)) {
+    return true;
+  }
+
   return commands.executeCommand("default:type", e, ...args);
+};
+
+const canCloseBeforeIn = (
+  document: TextDocument,
+): ((lineAfter: string) => boolean) | undefined => {
+  const mode = workspace
+    .getConfiguration("editor", document)
+    .get<string>("autoClosingBrackets", "languageDefined");
+  if (mode === "never") {
+    return undefined;
+  }
+  const autoCloseBefore =
+    SPARKDOWN_LANGUAGE_CONFIGS[
+      document.languageId as keyof typeof SPARKDOWN_LANGUAGE_CONFIGS
+    ]?.autoCloseBefore ?? "";
+  return (lineAfter) => {
+    const next = lineAfter.charAt(0);
+    if (!next || mode === "always") {
+      return true;
+    }
+    if (mode === "beforeWhitespace") {
+      return /\s/.test(next);
+    }
+    return autoCloseBefore.includes(next);
+  };
+};
+
+const closeByLanguage = async (
+  editor: TextEditor,
+  insert: string,
+): Promise<boolean> => {
+  const { document, selections } = editor;
+  if (
+    document.languageId !== "sparkdown" ||
+    !selections.every((selection) => selection.isEmpty)
+  ) {
+    return false;
+  }
+  const canCloseBefore = canCloseBeforeIn(document);
+  if (!canCloseBefore) {
+    return false;
+  }
+  const closes = closesByLanguage(
+    SPARKDOWN_LANGUAGE_CONFIGS,
+    document.languageId,
+    selections.map(({ active }) => {
+      const line = document.lineAt(active.line).text;
+      return {
+        lineBefore: line.slice(0, active.character),
+        lineAfter: line.slice(active.character),
+      };
+    }),
+    insert,
+    canCloseBefore,
+    (index) =>
+      SparkdownDocumentManager.instance.languageAt(
+        document,
+        selections[index]!.active,
+      ),
+  );
+  if (!closes) {
+    return false;
+  }
+  const offsets = selections.map(({ active }) => document.offsetAt(active));
+  const inserts = closes.map((close) => insert + (close ?? ""));
+  const applied = await editor.edit(
+    (editBuilder) => {
+      selections.forEach(({ active }, index) => {
+        editBuilder.insert(active, inserts[index]!);
+      });
+    },
+    { undoStopBefore: true, undoStopAfter: true },
+  );
+  if (!applied) {
+    return false;
+  }
+  editor.selections = offsets.map((offset) => {
+    const shift = offsets.reduce(
+      (sum, other, index) =>
+        other < offset ? sum + inserts[index]!.length : sum,
+      0,
+    );
+    const position = editor.document.positionAt(
+      offset + shift + insert.length,
+    );
+    return new Selection(position, position);
+  });
+  return true;
 };
 
 const onOpenAngleBracket = async (editor: TextEditor) => {

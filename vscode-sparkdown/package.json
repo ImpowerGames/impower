@@ -738,7 +738,7 @@
           "sparkdown.editor.autoCloseAngleBrackets": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "Automatically closes <> inside of text.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
+            "markdownDescription": "Lets the extension handle typing in a script: it closes <> inside of text and chooses auto-closing pairs by the language at the cursor, so `::` closes in story text but not in Luau and a Luau long comment closes with its own brackets. When this is off, every pair in a script follows the story language. Takes effect after a reload.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
           }
         }
       },
