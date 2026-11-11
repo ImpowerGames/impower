@@ -63,9 +63,9 @@ const GLYPHS: Record<ConsoleSeverity, typeof ErrorIcon> = {
 
 const HEADING_HEIGHT = 32;
 
-type PanelItem = PanelRow | { kind: "debug"; row: DebugRow };
+export type PanelItem = PanelRow | { kind: "debug"; row: DebugRow };
 
-const rowHeight = (row: PanelItem) => {
+export const panelItemHeight = (row: PanelItem) => {
   switch (row.kind) {
     case "debug":
       return debugRowHeight(row.row);
@@ -88,7 +88,7 @@ const rowHeight = (row: PanelItem) => {
   }
 };
 
-const rowKey = (row: PanelItem) => {
+export const panelItemKey = (row: PanelItem) => {
   switch (row.kind) {
     case "debug":
       return debugRowKey(row.row);
@@ -235,7 +235,7 @@ function PlayedActions() {
   );
 }
 
-function Row({ row, all, played }: { row: PanelItem; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
+export function PanelItemView({ row, all, played }: { row: PanelItem; all: readonly Problem[]; played: readonly PlayedEntry[] }) {
   const open = problems.cards.value;
   switch (row.kind) {
     case "debug":
@@ -356,11 +356,11 @@ export default function ProblemsPanel() {
         label={PANEL_LABEL}
         class="min-h-0 flex-1 px-2.5"
         items={rows}
-        getKey={rowKey}
-        itemHeight={rowHeight}
+        getKey={panelItemKey}
+        itemHeight={panelItemHeight}
         revealIndex={revealIndex}
         revealRequest={reveal?.serial}
-        renderItem={(row) => <Row row={row} all={all} played={played} />}
+        renderItem={(row) => <PanelItemView row={row} all={all} played={played} />}
       />
     </section>
   );

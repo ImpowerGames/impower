@@ -382,7 +382,7 @@ describe("the Problems to fix dialog", () => {
       const heads = Array.from(
         cards()!.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"),
       ).map((button) => button.getAttribute("aria-label"));
-      expect(heads[0]).toBe("While playing, no problems");
+      expect(heads[0]).toBe("While playing");
       expect(heads.slice(1).map((label) => label!.split(",")[0])).toEqual([
         "Variables",
         "Watch",
@@ -398,9 +398,7 @@ describe("the Problems to fix dialog", () => {
         "Warning · Sound not found",
       ]);
       expect(context()).toBe("Whole story · 1 error, 1 warning");
-      expect(problems.counts.value).toEqual(
-        expect.objectContaining({ errors: 1, warnings: 1 }),
-      );
+      expect(problems.counts.value).toEqual({ errors: 1, problems: 2, notes: 0 });
     });
 
     it("offers a 44px Go back to this choice on each choice the run still holds, and none on a dropped one", async () => {
