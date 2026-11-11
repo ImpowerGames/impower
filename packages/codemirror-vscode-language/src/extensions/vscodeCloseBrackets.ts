@@ -67,6 +67,57 @@ export function vscodeCloseBrackets(
     configOf(configs, languageAt(reader, state, pos, documentLanguage), documentLanguage)
       ?.autoClosingPairs ?? [];
 
+  const closeAt = (
+    state: EditorState,
+    pos: number,
+    insert: string,
+  ): string | null => {
+    const line = state.doc.lineAt(pos);
+    const pairs = pairsAt(state, pos);
+    const pair = longest(
+      pairs.filter(({ open, close }) => {
+        if (open == null || close == null) return false;
+
+        if (!open.endsWith(insert)) return false;
+
+        const lookBackLength = open.length - insert.length;
+
+        if (pos - line.from < lookBackLength) return false;
+
+        const textBefore = state.sliceDoc(pos - lookBackLength, pos);
+
+        return textBefore === open.slice(0, lookBackLength);
+      }),
+    );
+
+    if (!pair) {
+      return null;
+    }
+
+    if (pair.notIn) {
+      for (const tag of getAllStyleTags(state, pos)) {
+        const name = (tag as any).name;
+        if (typeof name === "string" && pair.notIn.includes(name)) {
+          return null;
+        }
+      }
+    }
+
+    const containedPair = longest(
+      pairs.filter(
+        ({ open, close }) =>
+          open !== pair.open &&
+          pair.open.includes(open) &&
+          pair.close.endsWith(close),
+      ),
+    );
+
+    return containedPair &&
+      state.sliceDoc(pos, line.to).startsWith(containedPair.close)
+      ? pair.close.slice(0, pair.close.length - containedPair.close.length)
+      : pair.close;
+  };
+
   const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {
     if (
       (android ? view.composing : view.compositionStarted) ||
@@ -81,58 +132,18 @@ export function vscodeCloseBrackets(
       return false;
     }
 
-    const pos = sel.head;
-    const line = view.state.doc.lineAt(pos);
-
-    const pairs = pairsAt(view.state, pos);
-    const pair = longest(
-      pairs.filter(({ open, close }) => {
-        if (open == null || close == null) return false;
-
-        if (!open.endsWith(insert)) return false;
-
-        const lookBackLength = open.length - insert.length;
-
-        if (pos - line.from < lookBackLength) return false;
-
-        const textBefore = view.state.sliceDoc(pos - lookBackLength, pos);
-
-        return textBefore === open.slice(0, lookBackLength);
-      }),
+    const state = view.state;
+    const closes = state.selection.ranges.map((range) =>
+      closeAt(state, range.from, insert),
     );
 
-    if (!pair) {
+    if (closes.every((close) => close === null)) {
       return false;
     }
 
-    const containedPair = longest(
-      pairs.filter(
-        ({ open, close }) =>
-          open !== pair.open &&
-          pair.open.includes(open) &&
-          pair.close.endsWith(close),
-      ),
-    );
-
-    if (pair.notIn) {
-      const tags = getAllStyleTags(view.state, pos);
-      for (const tag of tags) {
-        const name = (tag as any).name;
-        if (typeof name === "string") {
-          if (pair.notIn.includes(name)) {
-            return false;
-          }
-        }
-      }
-    }
-
-    const close =
-      containedPair &&
-      view.state.sliceDoc(pos, line.to).startsWith(containedPair.close)
-        ? pair.close.slice(0, pair.close.length - containedPair.close.length)
-        : pair.close;
-
-    const tr = view.state.changeByRange((range) => {
+    let index = 0;
+    const tr = state.changeByRange((range) => {
+      const close = closes[index++] ?? "";
       return {
         changes: { from: range.from, to: range.to, insert: insert + close },
         range: EditorSelection.cursor(range.from + insert.length),

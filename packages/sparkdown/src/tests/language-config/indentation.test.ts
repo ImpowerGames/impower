@@ -57,6 +57,11 @@ describe.each([
         '  if s == "a--b" then',
         "  if s == 'a--b' then",
         '  for _, u in ipairs({ "//a", "--b" }) do',
+        "  if url == `https://example.com` then",
+        "  if s == `a--b` then",
+        "  if s == [[a--b]] then",
+        "  if s == [=[a]]--b]=] then",
+        "  if s == [==[a//b]==] then",
       ]) {
         expect(increase.test(line), line).toBe(true);
       }

@@ -94,6 +94,15 @@ const type = (editor: EditorView, text: string) => {
   return withCursor(editor);
 };
 
+const STRING_HEADERS = [
+  ['if url == "https://example.com" then'],
+  ['if s == "a--b" then'],
+  ["if url == `https://example.com` then"],
+  ["if s == `a--b` then"],
+  ["if s == [[a--b]] then"],
+  ["if s == [=[a//b]=] then"],
+];
+
 const SCENE = (line: string) => `scene start()\n  ${line}\nend\n`;
 const FUNCTION = (line: string) => `function f()\n  ${line}\nend\n`;
 
@@ -116,18 +125,12 @@ describe("Enter in the web editor follows the language at the cursor", () => {
     expect(pressEnter(editor)).toBe(SCENE("if x then\n    |"));
   });
 
-  it.each([
-    ['if url == "https://example.com" then'],
-    ['if s == "a--b" then'],
-  ])("indents after `%s` in a scene, whose string holds a comment marker", (line) => {
+  it.each(STRING_HEADERS)("indents after `%s` in a scene, whose string holds a comment marker", (line) => {
     const editor = parsedView(SCENE(`${line}|`), SD_URI);
     expect(pressEnter(editor)).toBe(SCENE(`${line}\n    |`));
   });
 
-  it.each([
-    ['if url == "https://example.com" then'],
-    ['if s == "a--b" then'],
-  ])("indents after `%s` inside a function body", (line) => {
+  it.each(STRING_HEADERS)("indents after `%s` inside a function body", (line) => {
     const editor = parsedView(FUNCTION(`${line}|`), SD_URI);
     expect(pressEnter(editor)).toBe(FUNCTION(`${line}\n    |`));
   });
@@ -195,6 +198,34 @@ describe("auto-closing pairs in the web editor follow the language at the cursor
   it("inserts `::` alone inside a Luau expression", () => {
     const editor = parsedView(FUNCTION("local y = x :|"), SD_URI);
     expect(type(editor, ":")).toBe(FUNCTION("local y = x ::|"));
+  });
+
+  it("closes each cursor's pair by the language at that cursor", () => {
+    const doc = `${SCENE("Hello :")}\n${FUNCTION("local y = x :")}`;
+    const story = doc.indexOf("Hello :") + "Hello :".length;
+    const luau = doc.indexOf("x :") + "x :".length;
+    for (const main of [0, 1]) {
+      const state = EditorState.create({
+        doc,
+        selection: EditorSelection.create(
+          [EditorSelection.cursor(story), EditorSelection.cursor(luau)],
+          main,
+        ),
+        extensions: [EXTENSIONS.get(SD_URI)!, EditorState.allowMultipleSelections.of(true)],
+      });
+      expect(ensureSyntaxTree(state, state.doc.length, 10_000)).not.toBeNull();
+      const editor = open(state);
+      type(editor, ":");
+      expect(editor.state.doc.toString()).toBe(
+        `${SCENE("Hello ::::")}\n${FUNCTION("local y = x ::")}`,
+      );
+      expect(editor.state.selection.ranges.map((range) => range.head)).toEqual([
+        story + 1,
+        luau + 4,
+      ]);
+      editor.destroy();
+      view = undefined;
+    }
   });
 
   it("inserts the closing `::` in story text", () => {
