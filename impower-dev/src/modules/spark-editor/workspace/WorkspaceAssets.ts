@@ -390,7 +390,7 @@ export default class WorkspaceAssets {
     if (!moves.length) {
       return path;
     }
-    await this.applyRenames(projectId, moves, typed, stack);
+    await this.applyRenames(projectId, moves, typed, stack.name, stack);
     return moves.find((move) => move.from === path)?.to ?? path;
   }
 
@@ -413,7 +413,7 @@ export default class WorkspaceAssets {
       return path;
     }
     const member = stack.members.find((candidate) => candidate.path === path);
-    await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), stack, member?.layer === undefined);
+    await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
     return to;
   }
 
@@ -421,6 +421,7 @@ export default class WorkspaceAssets {
     projectId: string,
     moves: readonly FileMove[],
     label: string,
+    title: string,
     stack: ImageStack,
     references = true,
   ): Promise<void> {
@@ -441,7 +442,7 @@ export default class WorkspaceAssets {
     await window.recordAssetChange();
     recordMoves(projectId, [...moves, ...outcome.also], label, "Rename", references);
     await this.load();
-    showRenamed(stack.name, outcome.referencesUpdated, [
+    showRenamed(title, outcome.referencesUpdated, [
       ...moves.filter((move) => !stack.paths.includes(move.from)),
       ...outcome.also,
     ]);

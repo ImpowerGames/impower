@@ -776,6 +776,7 @@ describe("a stack's own files", { timeout: 120000 }, () => {
       [...STACK.filter((path) => path !== STACK[3]), `${P}/imani~face.glad.png`, `${P}/imani_extra.png`].sort(),
     );
     expect(await h.read(`${P}/imani~face.glad.png`)).toBe("picture 3");
+    expect(h.snackbar.value?.message).toBe("Renamed imani~face.happy.png.");
     expect(await h.history.undo()).toBe(true);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
