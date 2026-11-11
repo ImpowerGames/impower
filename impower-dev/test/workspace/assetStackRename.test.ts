@@ -789,6 +789,13 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
   });
 
+  it("renames a layer's group beside another option of that group, leaving the scripts alone", async () => {
+    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad" }));
+    expect(await h.assets.renameMember(STACK[3]!, "imani~mood.happy")).toBe(`${P}/imani~mood.happy.png`);
+    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+  });
+
   it("refuses a rename that changes the picture the file belongs to, in WorkspaceAssets' words", async () => {
     const h = await harness(project());
     await expect(h.assets.renameMember(STACK[3]!, "zadie~face.happy")).rejects.toThrow(
@@ -838,6 +845,14 @@ describe("a folder stack", { timeout: 120000 }, () => {
       "Keep the number and underscore at the start, as in 10_face.happy. They place the file among mia's layers.",
     );
     expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_face.glad.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+  });
+
+  it("renames a layer's group without taking the group's other options along, and undoes it", async () => {
+    const h = await harness(withFolderStack());
+    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30_eyes.happy")).toBe(`${MIA}/30_eyes.happy.png`);
+    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_eyes.happy.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+    expect(await h.history.undo()).toBe(true);
+    expect(await inMia(h)).toEqual(FOLDER_STACK);
   });
 
   it("deletes every layer to the bin under the thing's name, and Undo restores them", async () => {

@@ -266,8 +266,9 @@ function AssetsBrowser() {
   const layoutName = useLayout();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
+  const holds = (row: AssetRow, path: string) => row.path === path || !!row.paths?.includes(path);
   const rowOf = (path: string): AssetRow | null =>
-    files.find((row) => row.path === path) ??
+    files.find((row) => holds(row, path)) ??
     (Object.hasOwn(listing.files, path)
       ? (assetLevel({
           listing,
@@ -275,7 +276,7 @@ function AssetsBrowser() {
           folder: parentOf(path),
           sort,
           endings,
-        }).rows.find((row) => row.kind === "file" && row.path === path) ?? null)
+        }).rows.find((row) => row.kind === "file" && holds(row, path)) ?? null)
       : null);
   const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
   if (openPath) {
@@ -335,6 +336,10 @@ function AssetsBrowser() {
   const [settled, setSettled] = useState(0);
 
   useEffect(() => {
+    if (openPath && openRowOf && openRowOf.path !== openPath) {
+      setOpenPath(openRowOf.path);
+      return;
+    }
     if (openPath && !openRowOf) {
       if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
         return;
@@ -601,6 +606,7 @@ function AssetsBrowser() {
       next={near?.next ? { path: near.next.path, name: near.next.name } : null}
       host={host}
       intents={intents}
+      relocate={relocating}
       onStep={stepTo}
       onClose={closeInspector}
       closeRef={closeButton}

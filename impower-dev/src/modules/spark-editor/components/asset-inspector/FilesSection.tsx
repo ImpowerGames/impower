@@ -15,6 +15,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
 import { bytesLabel } from "../../utils/fileListModel";
+import type { FileMove } from "../../utils/fileMoves";
 import type { ImageStack } from "../../utils/imageStacks";
 import { filesSummary, fileRows, type FileRow } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
@@ -26,6 +27,7 @@ export type FilesSectionProps = {
   stack: ImageStack;
   sizes: Readonly<Record<string, number>>;
   intents: () => Promise<typeof WorkspaceIntents>;
+  relocate: (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => Promise<void>;
 };
 
 const report = (error: unknown) =>
@@ -63,7 +65,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: "rename"
   );
 }
 
-export default function FilesSection({ stack, sizes, intents }: FilesSectionProps) {
+export default function FilesSection({ stack, sizes, intents, relocate }: FilesSectionProps) {
   const rows = fileRows(stack, sizes);
   const picker = useRef<HTMLInputElement | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -111,8 +113,9 @@ export default function FilesSection({ stack, sizes, intents }: FilesSectionProp
                 suffix={stemAndExtension(row.name)[1]}
                 onCancel={() => setRenaming(null)}
                 onCommit={async (name) => {
-                  const Workspace = await intents();
-                  await Workspace.assets.renameMember(row.path, name);
+                  await relocate([row.path], async () => [
+                    { from: row.path, to: await (await intents()).assets.renameMember(row.path, name) },
+                  ]);
                   setRenaming(null);
                 }}
               />
@@ -153,10 +156,12 @@ export default function FilesSection({ stack, sizes, intents }: FilesSectionProp
         onClose={() => setDeleting(null)}
         onDelete={() => {
           const row = deleting!;
+          const survivor = stack.paths.find((path) => path !== row.path) ?? row.path;
           setDeleting(null);
-          void intents()
-            .then((Workspace) => Workspace.assets.removeMember(row.path))
-            .catch(report);
+          void relocate([row.path], async () => {
+            await (await intents()).assets.removeMember(row.path);
+            return [{ from: row.path, to: survivor }];
+          }).catch(report);
         }}
       />
     </Section>

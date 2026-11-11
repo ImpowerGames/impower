@@ -96,6 +96,13 @@ describe("the tester's picture", () => {
     expect(await picture(paths, { image: "imani@night", attributes: [] })).toBe(`/src/${P}/imani@night.png`);
   });
 
+  it("answers an empty picture, not a failure, for a combination that shows no layer", async () => {
+    stubComposition();
+    const switches = [`${P}/mia/90_hat.on.png`, `${P}/mia/30_glasses.on.png`];
+    expect(await picture(switches, { image: "mia", attributes: [] })).toBe("");
+    expect(drawn).toEqual([]);
+  });
+
   it("draws nothing without a program", async () => {
     expect(await getVariantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
   });

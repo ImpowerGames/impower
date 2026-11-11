@@ -26,6 +26,7 @@ import {
   type InspectedAsset,
 } from "../../utils/assetDetails";
 import { plural } from "../../utils/fileListModel";
+import type { FileMove } from "../../utils/fileMoves";
 import { imageStacks, isStacked } from "../../utils/imageStacks";
 import { defaultForm, variantOf, type VariantForm, type VariantSelection } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
@@ -49,6 +50,7 @@ export type AssetInspectorProps = {
   next: InspectorNeighbor | null;
   host: InspectorHost;
   intents: () => Promise<typeof WorkspaceIntents>;
+  relocate: (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => Promise<void>;
   onStep: (path: string) => void;
   onClose: () => void;
   closeRef?: Ref<HTMLButtonElement>;
@@ -150,6 +152,7 @@ export default function AssetInspector({
   next,
   host,
   intents,
+  relocate,
   onStep,
   onClose,
   closeRef,
@@ -179,7 +182,7 @@ export default function AssetInspector({
   const [selection, setSelection] = useState<VariantSelection>({});
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
-  const [picture, setPicture] = useState<string | null>(null);
+  const [picture, setPicture] = useState<string | null | undefined>(undefined);
   const variant = stack ? variantOf(stack, previewing ?? selection) : null;
   const variantKey = variant ? JSON.stringify(variant) : "";
 
@@ -213,10 +216,10 @@ export default function AssetInspector({
     setSelection({});
     setPreviewing(null);
     setChosenForm(null);
+    setPicture(undefined);
   }, [asset.path]);
 
   useEffect(() => {
-    setPicture(null);
     if (!variant) {
       return;
     }
@@ -437,7 +440,8 @@ export default function AssetInspector({
       >
         <AssetFrame
           key={`${asset.path}\n${asset.src ?? ""}`}
-          asset={stack && picture ? { ...asset, src: picture } : asset}
+          asset={asset}
+          picture={stack ? picture : undefined}
           pixels={pixels}
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
@@ -480,6 +484,7 @@ export default function AssetInspector({
             stack={stack}
             sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
             intents={intents}
+            relocate={relocate}
           />
         )}
         <Section

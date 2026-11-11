@@ -22,6 +22,7 @@ const assets = vi.hoisted(() => ({
   downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
+  watchPicture: vi.fn((_path: string, _variant: unknown, _listener: (src: string | null) => void) => () => {}),
 }));
 const measured = vi.hoisted(() => ({ sizes: {} as Record<string, { width: number; height: number }> }));
 const window = vi.hoisted(() => ({

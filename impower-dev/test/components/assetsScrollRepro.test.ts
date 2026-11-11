@@ -16,6 +16,7 @@ const assets = vi.hoisted(() => ({
   remove: vi.fn(async () => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
+  watchPicture: vi.fn((_path: string, _variant: unknown, _listener: (src: string | null) => void) => () => {}),
 }));
 const window = vi.hoisted(() => ({
   setListState: vi.fn(),

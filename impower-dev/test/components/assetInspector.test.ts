@@ -971,6 +971,58 @@ describe("the Variants tester and the Files section", () => {
     expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/imani.png`]);
   });
 
+  it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
+    const answers: (string | null)[] = ["", null];
+    assets.watchPicture.mockImplementation((_path: string, _variant: unknown, listener: (src: string | null) => void) => {
+      listener(answers.shift() ?? null);
+      return () => {};
+    });
+    await mount();
+    await open("imani");
+    const frame = () => region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
+    expect(frame().querySelector("img")).toBeNull();
+    expect(frame().querySelector("[data-frame-failed]")).toBeNull();
+    await pick(group("face"), "Happy");
+    expect(frame().querySelector("img")).toBeNull();
+    expect(frame().querySelector("[data-frame-failed]")?.textContent).toBe("This picture could not be shown.");
+  });
+
+  it("stays open on the picture when a Files action renames, adds or deletes the file that covers it", async () => {
+    const M = `${P}/mia`;
+    const setFiles = (paths: string[]) => {
+      workspace.assetListing.value = {
+        projectId: PROJECT,
+        folders: [M],
+        files: Object.fromEntries(paths.map((path, i) => [path, fact(1024 * (i + 1))])),
+      };
+    };
+    lists({ assetsType: "image", assetsFolders: { image: M } });
+    setFiles([`${M}/90_body.png`, `${M}/30_face.happy.png`]);
+    assets.renameMember.mockImplementationOnce(async () => {
+      setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]);
+      return `${M}/95_body.png`;
+    });
+    await mount();
+    await open("mia");
+    await fileMenu("90_body.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename 90_body.png"]')!;
+    await act(async () => {
+      input.value = "95_body";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(title()).toBe("mia");
+    await act(async () => setFiles([`${M}/99_paper.png`, `${M}/95_body.png`, `${M}/30_face.happy.png`]));
+    await settle();
+    expect(title()).toBe("mia");
+    assets.removeMember.mockImplementationOnce(async () => setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]));
+    await fileMenu("99_paper.png", "Delete");
+    await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
+    expect(title()).toBe("mia");
+    expect(region()!.querySelector('[data-file-path$="99_paper.png"]')).toBeNull();
+  });
+
   it("adds a picked file beside the base", async () => {
     await mount();
     await open("imani");
