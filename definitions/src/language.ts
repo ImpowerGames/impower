@@ -453,17 +453,24 @@ const generatedWarning = (
   ];
 };
 
-const buildJson = async (inYamlPath: string, outJsonPath: string) => {
-  const text = await fs.promises.readFile(inYamlPath, "utf8");
-  const parsed = YAML.parse(text);
+const writeJson = async (
+  parsed: TmGrammar,
+  inYamlPaths: string | string[],
+  outJsonPath: string,
+) => {
   applyDefaultMatch(parsed);
   const resolved = updateGrammarVariables(parsed);
   const stamped = {
-    _generated_: generatedWarning(inYamlPath, outJsonPath),
+    _generated_: generatedWarning(inYamlPaths, outJsonPath),
     ...resolved,
   };
   const json = JSON.stringify(stamped, null, 2);
   await fs.promises.writeFile(outJsonPath, json);
+};
+
+const buildJson = async (inYamlPath: string, outJsonPath: string) => {
+  const text = await fs.promises.readFile(inYamlPath, "utf8");
+  await writeJson(YAML.parse(text), inYamlPath, outJsonPath);
 };
 
 const readGrammarSource = async () => {
@@ -495,17 +502,11 @@ const readGrammarSource = async () => {
 };
 
 const buildGrammarJson = async (outJsonPath: string) => {
-  const parsed = await readGrammarSource();
-  applyDefaultMatch(parsed);
-  const resolved = updateGrammarVariables(parsed);
-  const stamped = {
-    _generated_: generatedWarning(
-      [IN_GRAMMAR_PATH, IN_LUAU_GRAMMAR_PATH],
-      outJsonPath,
-    ),
-    ...resolved,
-  };
-  await fs.promises.writeFile(outJsonPath, JSON.stringify(stamped, null, 2));
+  await writeJson(
+    await readGrammarSource(),
+    [IN_GRAMMAR_PATH, IN_LUAU_GRAMMAR_PATH],
+    outJsonPath,
+  );
 };
 
 const LUAU_FILE_GRAMMAR_NAME = "sparkdown-luau.language-grammar";
