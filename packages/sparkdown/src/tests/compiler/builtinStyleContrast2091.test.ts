@@ -43,16 +43,22 @@ const compileBuiltins = (prefix = "") => {
 
 const { styles, palette } = compileBuiltins();
 
-const parseColor = (value: unknown, depth = 0): Rgba | undefined => {
+const parseColor = (value: unknown, ink?: unknown, depth = 0): Rgba | undefined => {
   if (typeof value !== "string" || depth > 4) return undefined;
   const v = value.trim().replace(/^"|"$/g, "");
+  if (v === "transparent" || v === "none") return [0, 0, 0, 0];
+  const mix = v.match(/^color-mix\(\s*in srgb\s*,\s*currentColor\s+([\d.]+)%\s*,\s*transparent\s*\)$/i);
+  if (mix) {
+    const current = parseColor(ink, undefined, depth + 1) ?? BLACK;
+    return [current[0], current[1], current[2], Number(mix[1]) / 100];
+  }
   const m = v.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)\s*(?:[/,]\s*([\d.]+)(%?))?\s*\)$/);
   if (m) {
     const a = m[4] === undefined ? 1 : Number(m[4]) / (m[5] ? 100 : 1);
     return [Number(m[1]), Number(m[2]), Number(m[3]), a];
   }
   const named = palette[v];
-  return named ? parseColor(named.value, depth + 1) : undefined;
+  return named ? parseColor(named.value, ink, depth + 1) : undefined;
 };
 
 const over = (top: Rgba, base: Rgba): Rgba => [
@@ -109,8 +115,12 @@ const backgroundPairs = (styles: Record<string, any>): Pair[] => {
 describe("builtin styles that set a background", () => {
   const all = backgroundPairs(styles);
   const pairs = all.filter((p) => {
-    const background = parseColor(p.background);
+    const background = parseColor(p.background, p.ink);
     return background !== undefined && !TEXTLESS.some((t) => t.holds(p.path, background[3]));
+  });
+
+  test("every builtin background is a colour the test can measure", () => {
+    expect(all.filter((p) => parseColor(p.background, p.ink) === undefined).map((p) => `${p.path}: ${p.background}`)).toEqual([]);
   });
 
   test("the walk reads both property spellings and the builtin palette", () => {
@@ -118,11 +128,13 @@ describe("builtin styles that set a background", () => {
     expect(pairs.some((p) => p.style === "code" && p.background === "slate_30")).toBe(true);
     expect(pairs.some((p) => p.path.startsWith("button") && p.background === "sky_40")).toBe(true);
     expect(parseColor("slate_30")).toEqual([30, 41, 59, 1]);
+    expect(parseColor("color-mix(in srgb, currentColor 6%, transparent)", "white")).toEqual([255, 255, 255, 0.06]);
+    expect(parseColor("transparent")).toEqual([0, 0, 0, 0]);
   });
 
   const measured = pairs.map((p) => {
     const ink = parseColor(p.ink);
-    const ratio = ink ? worstContrast(ink, parseColor(p.background)!) : 0;
+    const ratio = ink ? worstContrast(ink, parseColor(p.background, p.ink)!) : 0;
     return { at: p.path, background: p.background, ink: p.ink ?? null, ratio: Number(ratio.toFixed(2)) };
   });
 
@@ -140,7 +152,7 @@ describe("builtin styles that set a background", () => {
 
   test("each exclusion still matches a builtin background", () => {
     const unused = TEXTLESS.filter((t) => !all.some((p) => {
-      const background = parseColor(p.background);
+      const background = parseColor(p.background, p.ink);
       return background !== undefined && t.holds(p.path, background[3]);
     })).map((t) => t.name);
     expect(unused).toEqual([]);
