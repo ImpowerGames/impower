@@ -102,6 +102,7 @@ const STRING_HEADERS = [
   ["if s == [[a--b]] then"],
   ["if s == [=[a//b]=] then"],
   ["if s == `{`a--b`}` then"],
+  ['if s == `{[["]]}--` then'],
 ];
 
 const SCENE = (line: string) => `scene start()\n  ${line}\nend\n`;
@@ -264,6 +265,11 @@ describe("a .luau document", () => {
   it("indents after a header whose interpolated string holds a string with `--`", () => {
     const editor = parsedView("if s == `{`a--b`}` then|\nend\n", LUAU_URI);
     expect(pressEnter(editor)).toBe("if s == `{`a--b`}` then\n  |\nend\n");
+  });
+
+  it("indents after a header whose interpolation holds a long-bracket string with a quote", () => {
+    const editor = parsedView('if s == `{[["]]}--` then|\nend\n', LUAU_URI);
+    expect(pressEnter(editor)).toBe('if s == `{[["]]}--` then\n  |\nend\n');
   });
 
   it("indents after `local f = function()`", () => {

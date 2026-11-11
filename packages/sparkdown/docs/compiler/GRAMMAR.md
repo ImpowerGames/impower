@@ -670,7 +670,7 @@ Only an extension that takes over VS Code's `type` command, as editor emulators 
 The indentation patterns skip comments with a scanner that steps over strings, so a `--` or `//` inside a string does not hide a `then`, a `do` or an open bracket. It runs in the Luau `increaseIndentPattern`, in both files' `indentNextLinePattern`, and in the story `increaseIndentPattern`'s `function` and open-bracket alternatives. The story `if`, `elseif`, `for` and `while` alternatives are anchored at the line start, so a commented-out header cannot match them; they do not scan for comments. A `then` or `do` written inside a trailing comment (`if x -- then`) therefore indents there. The scanner reads:
 
 - double- and single-quoted strings that close on their line;
-- backtick strings that close on their line, including interpolations whose braces hold no brace outside a quoted string;
+- backtick strings that close on their line, including interpolations that hold no brace outside a string, where a string inside them is any of the forms in this list;
 - long-bracket strings of level 0, 1 and 2 (`[[…]]`, `[=[…]=]`, `[==[…]==]`) that close on their line.
 
 Beyond that reach, a comment marker inside a string reads as a comment, and the line does not indent. Both limits are pinned in `indentation.test.ts`:

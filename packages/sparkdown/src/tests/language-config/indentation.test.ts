@@ -64,6 +64,10 @@ describe.each([
         "  if s == [==[a//b]==] then",
         "  if s == `{`a--b`}` then",
         '  if s == `{"a}--"}` then',
+        '  if s == `{[["]]}--` then',
+        "  if s == `{[=['}]=]}--` then",
+        "  if s == `{[==[`]==]}--` then",
+        '  call(`{[["]]}--`, (',
       ]) {
         expect(increase.test(line), line).toBe(true);
       }
