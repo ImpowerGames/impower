@@ -19,7 +19,15 @@ export type ApplyWorkspaceEditParams = LSP.ApplyWorkspaceEditParams & {
   metadata?: { isRefactoring?: boolean };
 };
 
-export type ApplyWorkspaceEditResult = LSP.ApplyWorkspaceEditResult;
+export interface WorkspaceEditRollback {
+  complete: boolean;
+  failed: LSP.DocumentUri[];
+  kept: LSP.DocumentUri[];
+}
+
+export type ApplyWorkspaceEditResult = LSP.ApplyWorkspaceEditResult & {
+  rollback?: WorkspaceEditRollback;
+};
 
 export class ApplyWorkspaceEditMessage {
   static readonly method = "workspace/applyWorkspaceEdit";

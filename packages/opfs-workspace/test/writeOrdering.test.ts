@@ -1679,7 +1679,11 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
       edit: referenceRename("a.sd", "b.sd"),
     });
-    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 1,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
     expect(response.result.failureReason).toContain("a.sd is locked");
     expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
     expect(textAt(root, "main.sd")).toBe("see a");
@@ -1705,6 +1709,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result.failureReason).toContain("partly applied");
     expect(response.result.failureReason).toContain(uriOf("main.sd"));
     expect(response.result.failureReason).not.toContain(uriOf("b.sd"));
+    expect(response.result.rollback).toEqual({ complete: false, failed: [uriOf("main.sd")], kept: [] });
     expect(textAt(root, "main.sd")).toBe("see b");
     expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
   });
@@ -1742,6 +1747,11 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result.failureReason).toContain("partly applied");
     expect(response.result.failureReason).toContain(uriOf("a.sd"));
     expect(response.result.failureReason).toContain(uriOf("b.sd"));
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
     expect(textAt(root, "b.sd")).toBe("ONLY COPY");
   });
 
@@ -1774,6 +1784,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result).toMatchObject({ applied: false, failedChange: 2 });
     expect(response.result.failureReason).toContain("partly applied");
     expect(response.result.failureReason).toContain(uriOf("a.sd"));
+    expect(response.result.rollback).toEqual({ complete: false, failed: [], kept: [uriOf("a.sd")] });
     expect(textAt(root, "a.sd")).toBe("SAVED");
     expect(textAt(root, "b.sd")).toBe("B");
   });

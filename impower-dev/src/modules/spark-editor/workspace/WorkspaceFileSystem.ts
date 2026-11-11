@@ -914,7 +914,18 @@ export default class WorkspaceFileSystem {
       { isRefactoring: true },
     );
     if (!result.applied) {
-      throw new Error(result.failureReason ?? `Cannot rename ${oldUri}`);
+      const relative = (uris: string[]) =>
+        uris.map((uri) => this.getRelativePath(projectId, uri));
+      throw Object.assign(
+        new Error(result.failureReason ?? `Cannot rename ${oldUri}`),
+        result.rollback && {
+          rollback: {
+            complete: result.rollback.complete,
+            failed: relative(result.rollback.failed),
+            kept: relative(result.rollback.kept),
+          },
+        },
+      );
     }
     const referencesUpdated = textEdits.reduce((n, c) => n + c.edits.length, 0);
     return { referencesUpdated, scriptsAffected: textEdits.length };

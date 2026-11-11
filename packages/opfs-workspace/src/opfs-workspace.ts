@@ -1065,6 +1065,7 @@ onmessage = async (e) => {
               applied: false,
               failureReason: failure.reason,
               failedChange: failure.change,
+              rollback: failure.rollback,
             }
           : { applied: true },
       ),
@@ -1347,6 +1348,7 @@ const applyWorkspaceEdit = async (
             partial.length === 0
               ? reason
               : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
+          rollback: { complete: partial.length === 0, failed: unknown, kept },
         },
       };
     }
