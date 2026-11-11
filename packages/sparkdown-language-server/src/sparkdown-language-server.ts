@@ -21,6 +21,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { createImageCompositeOptions } from "./utils/providers/imagePreviewOptions";
+import { getVariantPicture, type ImageVariant } from "./utils/providers/getVariantPicture";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeActions } from "./utils/providers/getCodeActions";
@@ -396,6 +397,14 @@ try {
       const mainUri = workspace.getMainScriptUri(params.uri);
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  connection.onRequest(
+    "sparkdown/variantPicture",
+    (params: { uri: string; variant: ImageVariant }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return getVariantPicture(program?.context, params.variant, imageCompositeOptions);
     },
   );
   connection.onRequest(FindTextMessage.method, (params: FindTextParams) =>

@@ -224,7 +224,7 @@ export default function AssetInspector({
     let alive = true;
     void intents().then((Workspace) => {
       if (alive) {
-        dispose = Workspace.assets.watchPicture(variant, setPicture);
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, setPicture);
       }
     });
     return () => {
@@ -432,7 +432,7 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 content-start gap-5 overflow-x-hidden overflow-y-auto px-4 pt-3.5 pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto px-4 pt-3.5 pb-7"
         data-inspector-body
       >
         <AssetFrame

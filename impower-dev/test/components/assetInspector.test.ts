@@ -35,7 +35,7 @@ const assets = vi.hoisted(() => ({
   replace: vi.fn(async (path: string) => path),
   download: vi.fn(async (_path: string) => undefined),
   downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
-  watchPicture: vi.fn((_variant: { image: string; attributes: string[] }, listener: (src: string | null) => void) => {
+  watchPicture: vi.fn((_path: string, _variant: { image: string; attributes: string[] }, listener: (src: string | null) => void) => {
     listener(`/picture/${[_variant.image, ..._variant.attributes].join("~")}`);
     return () => {};
   }),
@@ -918,7 +918,7 @@ describe("the Variants tester and the Files section", () => {
     expect(region()!.querySelector("[data-variant-reset]")).toBeNull();
     await pick(group("face"), "Happy");
     expect(reference()).toBe("[[imani:happy]]");
-    expect(assets.watchPicture).toHaveBeenLastCalledWith({ image: "imani", attributes: ["happy"] }, expect.any(Function));
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function));
     expect(region()!.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/picture/imani~happy");
     await pick(group("@"), "Night");
     expect(reference()).toBe("[[imani@night:happy]]");
@@ -1008,7 +1008,7 @@ describe("the Variants tester and the Files section", () => {
       expect(wheel.getAttribute("aria-label")).toBe("Face");
       await key(wheel, "ArrowDown");
       await vi.waitFor(() =>
-        expect(assets.watchPicture).toHaveBeenLastCalledWith({ image: "imani", attributes: ["happy"] }, expect.any(Function)),
+        expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function)),
       );
       expect(reference()).toBe("[[imani]]");
       await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Done"));

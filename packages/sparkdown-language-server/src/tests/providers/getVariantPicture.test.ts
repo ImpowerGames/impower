@@ -1,9 +1,7 @@
 // @vitest-environment node
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
-import { variantOf, type VariantSelection } from "../../src/modules/spark-editor/utils/imageVariants";
-import { variantPicture } from "../../src/modules/spark-editor/utils/variantPicture";
+import { getVariantPicture, type ImageVariant } from "../../utils/providers/getVariantPicture";
 
 const ROOT = "file:///project";
 const MAIN = `${ROOT}/main.sd`;
@@ -61,20 +59,20 @@ afterEach(() => vi.unstubAllGlobals());
 
 const MIA = [`${P}/mia/90_body.png`, `${P}/mia/30_face.neutral~default.png`, `${P}/mia/30_face.happy.png`, `${P}/mia/10_hat.on.png`];
 
-const picture = (paths: readonly string[], selection: VariantSelection, text = "") =>
-  variantPicture(compile(paths, text), variantOf(imageStacks(paths)[0]!, selection));
+const picture = (paths: readonly string[], variant: ImageVariant, text = "") =>
+  getVariantPicture(compile(paths, text), variant);
 
 describe("the tester's picture", () => {
   it("draws a folder stack's combination as the engine stacks it, bottom first", async () => {
     stubComposition();
-    const src = await picture(MIA, { face: "happy", hat: "on" });
+    const src = await picture(MIA, { image: "mia", attributes: ["happy", "hat"] });
     expect(src).toMatch(/^data:image\/webp;base64,/);
     expect(drawn).toEqual([`/src/${P}/mia/90_body.png`, `/src/${P}/mia/30_face.happy.png`, `/src/${P}/mia/10_hat.on.png`]);
   });
 
   it("draws the resting combination with the default layer", async () => {
     stubComposition();
-    await picture(MIA, {});
+    await picture(MIA, { image: "mia", attributes: [] });
     expect(drawn).toEqual([`/src/${P}/mia/90_body.png`, `/src/${P}/mia/30_face.neutral~default.png`]);
   });
 
@@ -82,23 +80,23 @@ describe("the tester's picture", () => {
     stubComposition();
     const paths = [...MIA, `${P}/still.png`];
     const redefined = `define mia as layered_image with\n  assets = { still }\nend\n`;
-    expect(await picture(paths, { face: "happy" }, redefined)).toBe(`/src/${P}/still.png`);
+    expect(await picture(paths, { image: "mia", attributes: ["happy"] }, redefined)).toBe(`/src/${P}/still.png`);
   });
 
   it("shows a sibling-file stack's base until the engine stacks sibling files (#1039)", async () => {
     stubComposition();
     const paths = [`${P}/imani.png`, `${P}/imani~face.happy.png`];
-    expect(await picture(paths, { face: "happy" })).toBe(`/src/${P}/imani.png`);
+    expect(await picture(paths, { image: "imani", attributes: ["happy"] })).toBe(`/src/${P}/imani.png`);
     expect(drawn).toEqual([]);
   });
 
   it("draws an alternate's own file", async () => {
     stubComposition();
     const paths = [`${P}/imani.png`, `${P}/imani@night.png`];
-    expect(await picture(paths, { "@": "night" })).toBe(`/src/${P}/imani@night.png`);
+    expect(await picture(paths, { image: "imani@night", attributes: [] })).toBe(`/src/${P}/imani@night.png`);
   });
 
   it("draws nothing without a program", async () => {
-    expect(await variantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
+    expect(await getVariantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
   });
 });

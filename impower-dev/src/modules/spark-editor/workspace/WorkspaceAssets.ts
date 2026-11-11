@@ -13,7 +13,6 @@ import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renam
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { imageStacks, isStacked, stackBaseOf, type ImageStack } from "../utils/imageStacks";
 import type { ImageVariant } from "../utils/imageVariants";
-import { variantPicture } from "../utils/variantPicture";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
@@ -69,7 +68,7 @@ type Deps = {
   >;
   ls: Pick<
     WorkspaceLanguageServer,
-    "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics" | "getProgram"
+    "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics" | "getVariantPicture"
   >;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
@@ -647,18 +646,22 @@ export default class WorkspaceAssets {
     };
   }
 
-  watchPicture(variant: ImageVariant, listener: (src: string | null) => void): () => void {
+  watchPicture(path: string, variant: ImageVariant, listener: (src: string | null) => void): () => void {
+    const projectId = this.projectId;
     let alive = true;
     let request = 0;
-    const draw = async (program?: { context?: Parameters<typeof variantPicture>[0] }) => {
+    const draw = async () => {
       const mine = ++request;
-      const compiled = program ?? (await this._workspace.ls.getProgram().catch(() => undefined));
-      const src = await variantPicture(compiled?.context, variant).catch(() => null);
+      const src = projectId
+        ? await this._workspace.ls
+            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant)
+            .catch(() => null)
+        : null;
       if (alive && mine === request) {
         listener(src);
       }
     };
-    const detach = onProtocolMessage(CompiledProgramMessage.type, (message) => void draw(message.params.program));
+    const detach = onProtocolMessage(CompiledProgramMessage.type, () => void draw());
     void draw();
     return () => {
       alive = false;

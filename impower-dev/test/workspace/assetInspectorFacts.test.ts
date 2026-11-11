@@ -68,7 +68,7 @@ function fakeWorkspace(stored: Record<string, string>) {
   const ls = {
     getFileReferences: vi.fn(async (): Promise<{ uri: string; range: ReturnType<typeof range> }[]> => []),
     getFileDiagnostics: vi.fn(async (): Promise<unknown[]> => []),
-    getProgram: vi.fn(async (): Promise<unknown> => ({ context: {} })),
+    getVariantPicture: vi.fn(async (_uri: string, _variant: unknown): Promise<string | null> => null),
     onPublishedDiagnostics: (listener: (params: { uri: string }) => void) => {
       published.add(listener);
       return () => published.delete(listener);
@@ -351,29 +351,46 @@ describe("Download and the text frame", () => {
 });
 
 describe("the Variants tester's picture", () => {
-  const pictured = (src: string) => ({ image: { kai: { $type: "image", $name: "kai", src } } });
+  const KAI = { image: "kai", attributes: ["happy"] };
 
-  it("draws the combination from the compiled program and redraws it when the program changes", async () => {
+  it("asks the language server for the combination's picture and asks again when the program changes", async () => {
     const { assets, ls } = fakeWorkspace({});
-    ls.getProgram.mockImplementation(async () => ({ context: pictured("/one.png") }));
+    const answers = ["/one.png", "/two.png", "/three.png"];
+    ls.getVariantPicture.mockImplementation(async () => answers.shift()!);
     const seen: (string | null)[] = [];
-    const stop = assets.watchPicture({ image: "kai", attributes: [] }, (src) => seen.push(src));
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
     await settle();
-    sendProtocolMessage(CompiledProgramMessage.type.notification({ program: { context: pictured("/two.png") } } as never));
-    await settle();
+    await compiled();
     stop();
-    sendProtocolMessage(CompiledProgramMessage.type.notification({ program: { context: pictured("/three.png") } } as never));
-    await settle();
+    await compiled();
     expect(seen).toEqual(["/one.png", "/two.png"]);
+    expect(ls.getVariantPicture.mock.calls).toEqual([
+      [uri("Assets/Images/kai.png"), KAI],
+      [uri("Assets/Images/kai.png"), KAI],
+    ]);
   });
 
-  it("draws nothing before the language server has a program", async () => {
+  it("drops an answer that arrives after a newer program's", async () => {
     const { assets, ls } = fakeWorkspace({});
-    ls.getProgram.mockImplementation(async () => {
-      throw new Error("Language server not initialized.");
-    });
+    const pending: ((src: string) => void)[] = [];
+    ls.getVariantPicture.mockImplementation(() => new Promise<string>((resolve) => pending.push(resolve)));
     const seen: (string | null)[] = [];
-    const stop = assets.watchPicture({ image: "kai", attributes: [] }, (src) => seen.push(src));
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
+    await settle();
+    await compiled();
+    pending[1]!("/newer.png");
+    await settle();
+    pending[0]!("/older.png");
+    await settle();
+    stop();
+    expect(seen).toEqual(["/newer.png"]);
+  });
+
+  it("draws nothing when the language server cannot answer", async () => {
+    const { assets, ls } = fakeWorkspace({});
+    ls.getVariantPicture.mockRejectedValue(new Error("Language server not initialized."));
+    const seen: (string | null)[] = [];
+    const stop = assets.watchPicture("Assets/Images/kai.png", KAI, (src) => seen.push(src));
     await settle();
     stop();
     expect(seen).toEqual([null]);
