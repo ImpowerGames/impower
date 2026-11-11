@@ -7,6 +7,7 @@ import {
   type AttributeVocabulary,
 } from "../../attributes";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { parseMorphConditions } from "./morphSchema";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
 
 type ImageContext = { [type: string]: { [name: string]: any } };
@@ -14,14 +15,28 @@ type ImageContext = { [type: string]: { [name: string]: any } };
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 
+export interface MorphCondition {
+  group: string;
+  state: string;
+}
+
 export interface MorphRequirements {
   groups: Map<string, Set<string>>;
+  start: Map<string, string>;
   rest: Map<string, string>;
   labels: Set<string>;
+  when: MorphCondition[];
+  unless: MorphCondition[];
 }
+
+const plainState = (container: unknown): string | undefined => {
+  const state = isRecord(container) ? container["state"] : undefined;
+  return typeof state === "string" && state && !state.includes(".") ? state : undefined;
+};
 
 export function morphRequirements(morph: Record<string, unknown>): MorphRequirements {
   const groups = new Map<string, Set<string>>();
+  const start = new Map<string, string>();
   const rest = new Map<string, string>();
   const labels = new Set<string>();
   const keyframes = Array.isArray(morph["keyframes"])
@@ -33,15 +48,24 @@ export function morphRequirements(morph: Record<string, unknown>): MorphRequirem
   keyframes.forEach((keyframe, index) => {
     for (const [key, container] of Object.entries(keyframe)) {
       if (key === "offset" || !isRecord(container)) continue;
-      const state = container["state"];
-      if (typeof state === "string" && state && !state.includes(".")) {
+      const state = plainState(container);
+      if (state) {
         if (!groups.has(key)) groups.set(key, new Set());
         groups.get(key)!.add(state);
-        if (index === 0) rest.set(key, state);
+        if (index === 0) start.set(key, state);
+        rest.set(key, state);
       }
       if (Object.keys(container).some((k) => k !== "state")) labels.add(key);
     }
   });
+  if (isRecord(morph["rest"])) {
+    for (const [group, container] of Object.entries(morph["rest"])) {
+      const state = plainState(container);
+      if (!state || !groups.has(group)) continue;
+      groups.get(group)!.add(state);
+      rest.set(group, state);
+    }
+  }
   if (isRecord(morph["layers"])) {
     for (const label of Object.keys(morph["layers"])) labels.add(label);
   }
@@ -56,7 +80,14 @@ export function morphRequirements(morph: Record<string, unknown>): MorphRequirem
       }
     }
   }
-  return { groups, rest, labels };
+  return {
+    groups,
+    start,
+    rest,
+    labels,
+    when: parseMorphConditions(morph["when"]) ?? [],
+    unless: parseMorphConditions(morph["unless"]) ?? [],
+  };
 }
 
 export interface MorphVariantProblem {
@@ -67,8 +98,8 @@ export interface MorphVariantProblem {
 export interface MorphVariantBinding {
   name: string;
   selection: AttributeSelection;
-  status: "active" | "dormant" | "skipped";
-  rest: Record<string, Record<string, string>>;
+  status: "active" | "excluded" | "skipped";
+  rest: Record<string, string>;
   problems: MorphVariantProblem[];
 }
 
@@ -116,7 +147,7 @@ export function morphImages(context: ImageContext): {
   return images;
 }
 
-function restChoices(
+function folderChoices(
   vocabulary: AttributeVocabulary,
   selection: AttributeSelection,
   group: string,
@@ -136,6 +167,55 @@ function restChoices(
   return vocabulary.groups[group]?.switch ? ["off"] : [];
 }
 
+function drawingFolders(
+  vocabulary: AttributeVocabulary,
+  visible: Record<string, boolean>,
+  group: string,
+): [string, AttributeFolder][] {
+  return Object.entries(vocabulary.folders).filter(
+    ([key, folder]) => (key === ATTRIBUTE_ROOT || visible[key]) && !!folder.options[group]?.length,
+  );
+}
+
+export function lookChoices(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  group: string,
+  visible: Record<string, boolean> = evaluateAttributeVisibility(vocabulary, selection).visible,
+): string[] {
+  const choices = new Set<string>();
+  for (const [key] of drawingFolders(vocabulary, visible, group)) {
+    for (const choice of folderChoices(vocabulary, selection, group, key)) choices.add(choice);
+  }
+  return [...choices];
+}
+
+export function stateIsActive(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  condition: MorphCondition,
+  visible?: Record<string, boolean>,
+): boolean {
+  return lookChoices(vocabulary, selection, condition.group, visible).some((choice) =>
+    matchesAttributeOption(choice, condition.state),
+  );
+}
+
+export function poseSelection(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  pose: Readonly<Record<string, string>>,
+): AttributeSelection {
+  const visible = evaluateAttributeVisibility(vocabulary, selection).visible;
+  const posed: AttributeSelection = { ...selection };
+  for (const [group, state] of Object.entries(pose)) {
+    const choices = lookChoices(vocabulary, selection, group, visible);
+    if (choices.length > 0 && choices.every((choice) => matchesAttributeOption(choice, state))) continue;
+    posed[group] = state;
+  }
+  return posed;
+}
+
 export function bindVariant(
   vocabulary: AttributeVocabulary,
   name: string,
@@ -143,59 +223,25 @@ export function bindVariant(
   requirements: MorphRequirements,
 ): MorphVariantBinding {
   const { visible } = evaluateAttributeVisibility(vocabulary, selection);
-  const rest: Record<string, Record<string, string>> = {};
-  const problems: MorphVariantProblem[] = [];
-  let dormant = false;
-  for (const group of requirements.groups.keys()) {
-    const start = requirements.rest.get(group);
-    const byFolder: Record<string, string> = {};
-    let matching = 0;
-    let differing = 0;
-    for (const [key, folder] of Object.entries(vocabulary.folders)) {
-      if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
-      if (!folder.options[group]?.length) continue;
-      const choices = restChoices(vocabulary, selection, group, key);
-      if (choices.length === 0) {
-        problems.push({
-          group,
-          message: `folder "${folder.name}" has no resting \`${group}\` state; mark one \`${group}\` layer \`:default\``,
-        });
-        continue;
-      }
-      if (choices.length > 1) {
-        problems.push({
-          group,
-          message: `folder "${folder.name}" rests in more than one \`${group}\` state (${choices.join(", ")}); mark only one \`:default\``,
-        });
-        continue;
-      }
-      const choice = choices[0]!;
-      byFolder[folder.name] = choice;
-      if (start === undefined || matchesAttributeOption(choice, start)) {
-        matching += 1;
-      } else {
-        differing += 1;
-      }
-    }
-    if (matching > 0 && differing > 0) {
-      problems.push({
-        group,
-        message: `its folders rest in different \`${group}\` states (${Object.entries(byFolder)
-          .map(([folder, state]) => `"${folder}": ${state}`)
-          .join(", ")}), and only some start where the morph starts (\`${start}\`)`,
-      });
-    } else if (differing > 0) {
-      dormant = true;
-    }
-    rest[group] = byFolder;
+  const rest = Object.fromEntries(requirements.rest);
+  const active = (condition: MorphCondition) => stateIsActive(vocabulary, selection, condition, visible);
+  if (requirements.unless.some(active) || !requirements.when.every(active)) {
+    return { name, selection, status: "excluded", rest, problems: [] };
   }
-  return {
-    name,
-    selection,
-    status: problems.length > 0 ? "skipped" : dormant ? "dormant" : "active",
-    rest,
-    problems,
-  };
+  const problems: MorphVariantProblem[] = [];
+  for (const [group, states] of requirements.groups) {
+    for (const [, folder] of drawingFolders(vocabulary, visible, group)) {
+      const options = folder.options[group]!;
+      const missing = [...states].filter((state) => !options.some((option) => matchesAttributeOption(state, option)));
+      if (missing.length > 0) {
+        problems.push({
+          group,
+          message: `folder "${folder.name}" draws no ${missing.map((state) => `\`${group}.${state}\``).join(" or ")}`,
+        });
+      }
+    }
+  }
+  return { name, selection, status: problems.length > 0 ? "skipped" : "active", rest, problems };
 }
 
 export function bindMorph(

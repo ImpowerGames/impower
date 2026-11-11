@@ -8,6 +8,7 @@ import {
 import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
+  MORPH_CONDITION_FIELDS,
   MORPH_CONTAINER_FIELDS,
   MORPH_DEPTH_REST,
   MORPH_DIRECTIONS,
@@ -31,7 +32,8 @@ import {
   type Position,
 } from "vscode-languageserver";
 
-const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "paints", "between", "targets"]);
+const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "paints", "between", "targets", "rest"]);
+const CONDITION_KEYS = new Set<string>(MORPH_CONDITION_FIELDS);
 const KEYFRAME_POSITIONS = ["from", "to"];
 
 const VALUE_CHOICES: Record<string, readonly string[]> = {
@@ -91,7 +93,8 @@ export function getMorphCompletions(
   }
   let posesFound = !!braces?.keyframes;
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
-  const container = inKeyframe ? path[path.length - 1]! : undefined;
+  const inRest = path[0] === "rest" && path.length === 2;
+  const container = inKeyframe || inRest ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
   let keyframeStruct: Record<string, unknown> | undefined = braces?.keyframes ? morphs[block.name] : undefined;
@@ -122,6 +125,33 @@ export function getMorphCompletions(
   );
   const labelImages = candidates.length > 0 ? candidates : images;
 
+  const conditionStates = () => {
+    const states = new Map<string, string[]>();
+    for (const image of candidates.length > 0 ? candidates : images) {
+      for (const [group, { options }] of Object.entries(image.vocabulary.groups)) {
+        states.set(group, [...new Set([...(states.get(group) ?? []), ...options])]);
+      }
+    }
+    return states;
+  };
+  const conditionChoices = (key: string, typed: string, replaced: number) => {
+    const states = conditionStates();
+    const dot = typed.indexOf(".");
+    const choices =
+      dot >= 0
+        ? (states.get(typed.slice(0, dot)) ?? []).map((state) => ({ label: state, length: replaced - dot - 1 }))
+        : [...states].flatMap(([group, list]) => list.map((state) => ({ label: `${group}.${state}`, length: replaced })));
+    for (const { label, length } of choices) {
+      add({
+        label,
+        kind: CompletionItemKind.EnumMember,
+        detail: key,
+        documentation: docs(key),
+        textEdit: { range: replaceRange(length), newText: label },
+      });
+    }
+    return items;
+  };
   const labelsOf = (from: typeof images) => new Set(from.flatMap((image) => [...morphImageLabels(image.vocabulary)]));
   const items: CompletionItem[] = [];
   const add = (item: CompletionItem) => {
@@ -192,11 +222,12 @@ export function getMorphCompletions(
       }
       return items;
     }
+    if (path.length === 0 && CONDITION_KEYS.has(key)) return conditionChoices(key, typed, typed.length);
     if (inPaint && (key === "state" || key === "when")) {
       const dot = typed.indexOf(".");
       const states = new Map<string, string[]>();
       if (key === "state") {
-        const start = keyframeStruct ? morphRequirements(keyframeStruct).rest : new Map<string, string>();
+        const start = keyframeStruct ? morphRequirements(keyframeStruct).start : new Map<string, string>();
         for (const [group, list] of named) states.set(group, list.filter((state) => state !== start.get(group)));
       } else {
         for (const image of candidates) {
@@ -314,6 +345,12 @@ export function getMorphCompletions(
   const [first, second, third, fourth] = path;
   if (path.length === 0) {
     MORPH_ROOT_FIELDS.forEach(addField);
+  } else if (first !== undefined && CONDITION_KEYS.has(first) && (path.length === 1 || (path.length === 2 && second === "-"))) {
+    return conditionChoices(first, typed, typed.length);
+  } else if (first === "rest" && path.length === 1) {
+    for (const group of driven) addLabel(group, containerSuffix, "attribute group");
+  } else if (first === "rest" && path.length === 2) {
+    addField("state");
   } else if (first === "timing" && path.length === 1) {
     MORPH_TIMING_FIELDS.forEach(addField);
   } else if (first === "layers" && path.length === 1) {

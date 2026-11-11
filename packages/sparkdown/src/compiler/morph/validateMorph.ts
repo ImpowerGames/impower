@@ -6,6 +6,7 @@ import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
   MORPH_CLIP_LIST_FIELDS,
+  MORPH_CONDITION_FIELDS,
   MORPH_CONTAINER_FIELDS,
   MORPH_DIRECTIONS,
   MORPH_FALLBACKS,
@@ -57,7 +58,8 @@ for (const f of MORPH_CONTAINER_FIELDS)
 for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips { … }` entry";
 for (const f of MORPH_PAINT_FIELDS) HOME[f] ??= "in a `paints { … }` entry";
 HOME["targets"] = "in a `clips { … }` or `paints { … }` entry";
-for (const f of ["keyframes", "layers", "clips", "paints"]) HOME[f] = "at the morph root";
+for (const f of ["keyframes", "layers", "clips", "paints", "unless", "rest"]) HOME[f] = "at the morph root";
+HOME["when"] = "at the morph root or in a `paints { … }` entry";
 HOME["timing"] = "at the morph root";
 HOME["spread"] = "at the morph root, under a label in `layers { … }` or in a `clips { … }` entry";
 HOME["offset"] = "directly in a keyframe";
@@ -173,9 +175,33 @@ function paintStateProblem(value: unknown, driven: Map<string, string[]>, start:
     return `This morph never shows \`${value}\`, so a \`paints\` entry cannot name it: no keyframe sets \`${parsed.group}\` to \`${parsed.state}\`.${choices}`;
   }
   if (start.get(parsed.group) === parsed.state) {
-    return `\`${value}\` is the state this morph starts from, the pose each variant rests in, so a \`paints\` entry cannot name it.${choices}`;
+    return `\`${value}\` is the state this morph starts from, so a \`paints\` entry cannot name it.${choices}`;
   }
   return null;
+}
+
+function conditionProblems(
+  field: "when" | "unless",
+  value: unknown,
+  driven: Map<string, string[]>,
+): { item?: number; message: string }[] {
+  const example = field === "when" ? "mouth.teeth" : "eyes.closed";
+  const forms = `one state, such as \`${field} = ${example}\`, or a block of several, such as \`${field} { eyes.closed; mask.on }\``;
+  const list = typeof value === "string" ? [value] : Array.isArray(value) ? value : undefined;
+  if (!list || list.length === 0) return [{ message: `\`${field}\` names states with their groups: ${forms}.` }];
+  const problems: { item?: number; message: string }[] = [];
+  list.forEach((item, index) => {
+    if (parseMorphQualifiedState(item)) return;
+    const at = Array.isArray(value) ? { item: index } : {};
+    const having = typeof item === "string" ? [...driven].filter(([, states]) => states.includes(item)).map(([group]) => `${group}.${item}`) : [];
+    problems.push({
+      ...at,
+      message: having.length
+        ? `\`${field}\` names a state with its group. Write ${having.map((q) => `\`${field} = ${q}\``).join(" or ")}.`
+        : `${describeValue(item)} is not a state with its group: ${forms}.`,
+    });
+  });
+  return problems;
 }
 
 function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string | null {
@@ -489,7 +515,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  const start = morphRequirements(decl.effective).rest;
+  const start = morphRequirements(decl.effective).start;
   const paints = own["paints"];
   if (paints !== undefined) {
     if (!Array.isArray(paints)) {
@@ -530,6 +556,57 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
+  for (const field of MORPH_CONDITION_FIELDS) {
+    if (!(field in own)) continue;
+    const value = own[field];
+    const list = Array.isArray(value) ? value : undefined;
+    for (const problem of conditionProblems(field, value, driven)) {
+      const span =
+        problem.item !== undefined && list
+          ? (src(list)?.itemValues[problem.item] ?? src(list)?.items[problem.item])
+          : (valueSpan(own, field) ?? keySpan(own, field));
+      push(span, problem.message);
+    }
+  }
+
+  const rest = own["rest"];
+  if (rest !== undefined) {
+    const restForm = "`rest` holds group containers with a `state` each, written like a keyframe's: `rest { mouth { state = teeth } }`.";
+    if (!isRecord(rest)) {
+      push(keySpan(own, "rest"), restForm);
+    } else {
+      for (const [group, container] of Object.entries(rest)) {
+        if (!isRecord(container)) {
+          push(src(rest)?.lines.get(group) ?? keySpan(rest, group), `\`${group} = …\` is not a pose. ${restForm}`);
+          continue;
+        }
+        for (const key of Object.keys(container)) {
+          if (key === "state") continue;
+          push(
+            keySpan(container, key),
+            (MORPH_LAYER_PROPERTIES as readonly string[]).includes(key)
+              ? `\`${key}\` does not belong in \`rest\`: a moved layer rests where it is drawn. \`rest\` holds group states only, such as \`rest { mouth { state = teeth } }\`.`
+              : HOME[key]
+                ? `\`${key}\` belongs ${HOME[key]}.`
+                : `Unknown morph field \`${key}\`.`,
+          );
+        }
+        const state = container["state"];
+        if (!("state" in container)) {
+          push(lineSpan(container) ?? keySpan(rest, group), `\`${group} { … }\` in \`rest\` needs a \`state\`, such as \`${group} { state = … }\`.`);
+        } else if (typeof state !== "string" || state.trim() === "") {
+          push(valueSpan(container, "state"), "`state` names an attribute state, such as `closed` or `eyes.closed`.");
+        } else if (!driven.has(group)) {
+          const drives = [...driven.keys()];
+          push(
+            keySpan(rest, group),
+            `\`rest\` gives \`${group}\` a state, but no keyframe sets \`${group}\`'s \`state\`, so this morph does not drive it.${drives.length ? ` It drives ${quoteList(drives)}.` : ""}`,
+          );
+        }
+      }
+    }
+  }
+
   const effective = decl.effective;
   const effectiveKeyframes = effective["keyframes"];
   const poseCount = Array.isArray(effectiveKeyframes)
@@ -556,7 +633,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       const written = ownKeyframes.find((frame) => stateOf(frame, group)) as Record<string, unknown> | undefined;
       push(
         written ? valueSpan(written[group], "state") : (decl.parent ?? decl.name),
-        `\`${group}\` takes a \`state\` in a later keyframe but not in the first one. Each group a morph drives starts from the state written in its first keyframe, the state the image rests in: add \`${group} { state = … }\` to the first keyframe.`,
+        `\`${group}\` takes a \`state\` in a later keyframe but not in the first one. Each group a morph drives starts from the state written in its first keyframe: add \`${group} { state = … }\` to the first keyframe.`,
       );
     }
   }
@@ -619,7 +696,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   }
   const effectivePaints = effective["paints"];
   if (!("paints" in own) && Array.isArray(effectivePaints)) {
-    const parentStart = decl.parentEffective && morphRequirements(decl.parentEffective).rest;
+    const parentStart = decl.parentEffective && morphRequirements(decl.parentEffective).start;
     const parentPaints = decl.parentEffective?.["paints"];
     effectivePaints.forEach((entry, index) => {
       if (!isRecord(entry)) return;

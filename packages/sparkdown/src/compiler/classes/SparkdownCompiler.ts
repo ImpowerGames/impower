@@ -9,7 +9,7 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -34,7 +34,7 @@ import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
-import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
+import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
@@ -4645,7 +4645,33 @@ export class SparkdownCompiler {
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
       const emit = (struct: any, from: number, to: number) => {
-        const resolved = resolveImageAttributes(program.context!, struct);
+        const look = shownLook(program.context, program.morphs, struct);
+        const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
+        if (look) {
+          const chosen = look.vocabulary && Array.isArray(struct?.attributes)
+            ? resolveAttributes(look.vocabulary, struct.attributes.filter((a: unknown): a is string => typeof a === "string")).selection
+            : {};
+          const text = doc.read(from, to);
+          for (const { name, pose } of look.morphs) {
+            for (const [group, rest] of Object.entries(pose)) {
+              const choice = Object.hasOwn(chosen, group) ? chosen[group]! : undefined;
+              if (choice === undefined || look.shown[group] !== rest || choice === rest) continue;
+              const written = [`${group}.${choice}`, choice].map((needle) => ({ needle, at: text.lastIndexOf(needle) })).find(({ at }) => at >= 0);
+              const start = written ? from + written.at : from;
+              const end = written ? start + written.needle.length : to;
+              (program.diagnostics ??= {})[uri] ??= [];
+              program.diagnostics[uri]!.push({
+                range: doc.range(start, end),
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  kind: "markdown",
+                  value: `\`${name}\` plays on this look and rests its \`${group}\` on \`${rest}\`, so \`${group}.${choice}\` does not show. Add \`${group}.${choice}\` to \`${name}\`'s \`unless\` to keep \`${name}\` off looks that choose it, or route those looks to a morph that rests on it with that morph's \`when\`.`,
+                },
+                source: LANGUAGE_NAME,
+              });
+            }
+          }
+        }
         for (const diagnostic of resolved.diagnostics) {
           if (resolved.vocabulary?.diagnostics.includes(diagnostic)) continue;
           const key = JSON.stringify([from, diagnostic.code, diagnostic.path, diagnostic.message]);

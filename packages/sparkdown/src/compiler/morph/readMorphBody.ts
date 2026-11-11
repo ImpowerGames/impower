@@ -36,29 +36,28 @@ export function readMorphBody(
     sources,
   });
   const keyframes = struct["keyframes"];
-  if (Array.isArray(keyframes)) {
-    for (const keyframe of keyframes) {
-      if (!isRecord(keyframe)) continue;
-      for (const [group, container] of Object.entries(keyframe)) {
-        if (!isRecord(container)) continue;
-        const state = container["state"];
-        if (typeof state !== "string") continue;
-        const dot = state.indexOf(".");
-        if (dot < 0) continue;
-        const prefix = state.slice(0, dot);
-        if (prefix === group) {
-          container["state"] = state.slice(dot + 1);
-          continue;
-        }
-        const node = sources.get(container)?.values.get("state");
-        if (node) {
-          issues.push({
-            from: node.from,
-            to: node.to,
-            severity: "error",
-            message: `\`${state}\` names a state of the \`${prefix}\` group, but this container poses \`${group}\`. Write \`state = ${state.slice(dot + 1)}\` or \`state = ${group}.${state.slice(dot + 1)}\`, or move it into a \`${prefix}:\` container.`,
-          });
-        }
+  const poses = [...(Array.isArray(keyframes) ? keyframes : []), struct["rest"]];
+  for (const pose of poses) {
+    if (!isRecord(pose)) continue;
+    for (const [group, container] of Object.entries(pose)) {
+      if (!isRecord(container)) continue;
+      const state = container["state"];
+      if (typeof state !== "string") continue;
+      const dot = state.indexOf(".");
+      if (dot < 0) continue;
+      const prefix = state.slice(0, dot);
+      if (prefix === group) {
+        container["state"] = state.slice(dot + 1);
+        continue;
+      }
+      const node = sources.get(container)?.values.get("state");
+      if (node) {
+        issues.push({
+          from: node.from,
+          to: node.to,
+          severity: "error",
+          message: `\`${state}\` names a state of the \`${prefix}\` group, but this container poses \`${group}\`. Write \`state = ${state.slice(dot + 1)}\` or \`state = ${group}.${state.slice(dot + 1)}\`, or move it into a \`${prefix}:\` container.`,
+        });
       }
     }
   }

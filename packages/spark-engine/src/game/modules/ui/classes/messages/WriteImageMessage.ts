@@ -39,6 +39,7 @@ export interface MorphLayerPlay {
 export interface MorphImageContent {
   plays: MorphLayerPlay[];
   epoch: number;
+  still?: string;
 }
 
 export type WriteImageMethod = typeof WriteImageMessage.method;

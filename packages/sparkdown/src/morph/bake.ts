@@ -18,7 +18,7 @@ import {
   normalizeSVGAttributeNames,
   type AttributeSelection,
 } from "../attributes";
-import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
+import { bindVariant, morphRequirements, poseSelection } from "../compiler/morph/bindMorph";
 import { MORPH_DEPTH_REST, parseMorphDepth, parseMorphQualifiedState } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
@@ -35,7 +35,7 @@ import { own, table } from "./own";
 import { contourOverlapsItself } from "./contour";
 import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
 import { MORPH_MOTION_WRAPPER_STYLE } from "./motion";
-import { recipeAsMorph } from "./recipe";
+import { morphRestPose, recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
 import {
   ancestry,
@@ -135,10 +135,11 @@ function staticArtifact(
   input: MorphBakeInput,
   text: string,
   diagnostics: MorphBakeDiagnostic[],
+  selection: AttributeSelection = input.selection,
 ): MorphArtifact {
   let rest = text;
   try {
-    rest = filterSVGAttributes(text, input.selection);
+    rest = filterSVGAttributes(text, selection);
   } catch {
   }
   return {
@@ -383,7 +384,11 @@ export function* bakeSteps(
     return staticArtifact(input, text, diagnostics);
   }
   const vocabulary = doc.vocabulary;
-  const disable = () => staticArtifact(input, text, diagnostics);
+  const restPose: Record<string, string> = table();
+  for (const recipe of recipes) Object.assign(restPose, morphRestPose(recipe));
+  const restOf = new Map(Object.entries(restPose));
+  const shown = poseSelection(vocabulary, selection, restPose);
+  const disable = () => staticArtifact(input, text, diagnostics, shown);
 
   if (doc.styleSheet) {
     report(
@@ -422,9 +427,7 @@ export function* bakeSteps(
     return disable();
   }
 
-  const startOf = new Map<string, string>();
   const recipeOfGroup = new Map<string, MorphRecipe>();
-  const bindingRest: Record<string, Record<string, string>> = table();
   for (const recipe of recipes) {
     const required = morphRequirements(recipeAsMorph(recipe));
     const binding = bindVariant(vocabulary, input.variant ?? "", selection, required);
@@ -433,34 +436,27 @@ export function* bakeSteps(
       report(
         "inactive-variant",
         "warning",
-        `\`${recipe.name}\` does not play on this variant${why ? `: ${why}` : `: it rests in a state the morph does not start from`}.`,
+        `\`${recipe.name}\` does not play on this variant${why ? `: ${why}` : ""}.`,
         { morphs: [recipe.name] },
       );
       return disable();
     }
     for (const group of required.groups.keys()) recipeOfGroup.set(group, recipe);
-    for (const [group, state] of required.rest) startOf.set(group, state);
-    Object.assign(bindingRest, binding.rest);
   }
   const ofGroup = (group: string) => ({ morphs: [recipeOfGroup.get(group)!.name] });
   const ofGroups = (groups: Iterable<string>) => ({ morphs: morphNames.filter((name) => [...groups].some((group) => recipeOfGroup.get(group)?.name === name)) });
   const ofLeaf = (leaf: Leaf) => (leaf.group === undefined ? {} : ofGroup(leaf.group));
   const recipeFor = (leaf: Leaf): MorphRecipe => recipeOfGroup.get(leaf.group!)!;
 
-  const restName = (group: string): string => {
-    const chosen = own(selection, group);
-    if (chosen !== undefined) return chosen;
-    const choices = new Set(Object.values(bindingRest[group] ?? {}));
-    return choices.size === 1 ? [...choices][0]! : (startOf.get(group) ?? "rest");
-  };
+  const restName = (group: string): string => restOf.get(group) ?? "rest";
   const schedules = new Map<string, { offset: number; state: string | Rest }[]>();
   for (const group of recipeOfGroup.keys()) {
-    const start = startOf.get(group);
+    const rest = restOf.get(group);
     const entries: { offset: number; state: string | Rest }[] = [];
     for (const keyframe of recipeOfGroup.get(group)!.keyframes) {
       const state = own(keyframe.states, group);
       if (state === undefined) continue;
-      entries.push({ offset: keyframe.offset, state: start !== undefined && state === start ? REST : state });
+      entries.push({ offset: keyframe.offset, state: state === rest ? REST : state });
     }
     if (!entries.length) continue;
     if (entries[0]!.offset > 0) entries.unshift({ offset: 0, state: REST });
@@ -469,12 +465,13 @@ export function* bakeSteps(
   }
 
   const selectionFor = (group: string, state: string | Rest): AttributeSelection =>
-    state === REST ? selection : { ...selection, [group]: state };
+    state === REST ? shown : poseSelection(vocabulary, selection, { ...restPose, [group]: state });
   const stateKey = (state: string | Rest) => (state === REST ? "" : state);
-  const restVisible = evaluateAttributeVisibility(vocabulary, selection).visible;
+  const poseKey = (group: string, state: string) => (state === restOf.get(group) ? "" : state);
+  const restVisible = evaluateAttributeVisibility(vocabulary, shown).visible;
   const visibleIn = new Map<string, Map<string, Record<string, boolean>>>();
   for (const [group, entries] of schedules) {
-    const byState = new Map<string, Record<string, boolean>>();
+    const byState = new Map<string, Record<string, boolean>>([["", restVisible]]);
     for (const { state } of entries) {
       if (!byState.has(stateKey(state))) {
         byState.set(stateKey(state), evaluateAttributeVisibility(vocabulary, selectionFor(group, state)).visible);
@@ -539,7 +536,7 @@ export function* bakeSteps(
       if (Object.keys(pose).length < 2) continue;
       const key = JSON.stringify(pose);
       let together = combined.get(key);
-      if (!together) combined.set(key, (together = evaluateAttributeVisibility(vocabulary, { ...selection, ...pose }).visible));
+      if (!together) combined.set(key, (together = evaluateAttributeVisibility(vocabulary, poseSelection(vocabulary, selection, { ...restPose, ...pose })).visible));
       const alone = owner === undefined ? restVisible : visibleIn.get(owner)!.get(pose[owner] ?? "")!;
       if (!!together[layer.key] === !!alone[layer.key]) continue;
       const meet = Object.entries(pose).map(([group, state]) => `\`${group}.${state}\``).join(" and ");
@@ -589,7 +586,7 @@ export function* bakeSteps(
   const appliedPaints = recipes.flatMap((recipe) =>
     (recipe.paints ?? []).flatMap((entry, index) => {
       const pose = parseMorphQualifiedState(entry.state);
-      const visible = pose && pose.state !== startOf.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
+      const visible = pose ? visibleIn.get(pose.group)?.get(poseKey(pose.group, pose.state)) : undefined;
       if (!pose || !visible) return [];
       if (entry.when !== undefined) {
         const when = parseMorphQualifiedState(entry.when);
@@ -713,7 +710,7 @@ export function* bakeSteps(
     const pose = parseMorphDepth(depth);
     if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
     if (pose.group !== group) return undefined;
-    if (pose.state === startOf.get(group)) return restVisible;
+    if (pose.state === restOf.get(group)) return restVisible;
     return visibleIn.get(group)?.get(pose.state);
   };
   const centre = (leaf: Leaf): Point | undefined => {
@@ -1098,6 +1095,7 @@ export function* bakeSteps(
   const edgeHomes = new Map<MorphClipFrames, Map<string, Leaf>>();
   const apertureIndex = new Map<string, number>();
   const restLoops: (number[][] | undefined)[] = clips.map(() => undefined);
+  const restLoopsAtRest = clips.map(() => false);
   const clipHasFrames = clips.map(() => false);
 
   for (const clip of clips) {
@@ -1541,9 +1539,14 @@ export function* bakeSteps(
         segmentClips.push(frames);
         edgeHomes.set(frames, new Map(entry.keys.map((key, k) => [key, entry.homes[k]!])));
         clipHasFrames[clipIndex] = true;
-        if (!restLoops[clipIndex]) {
-          const table = apertures[ref.index]!;
-          restLoops[clipIndex] = ref.reversed ? table[table.length - 1] : table[0];
+        const table = apertures[ref.index]!;
+        const [first, last] = ref.reversed ? [table[table.length - 1], table[0]] : [table[0], table[table.length - 1]];
+        const atRest = a.state === REST ? first : b.state === REST ? last : undefined;
+        if (atRest && !restLoopsAtRest[clipIndex]) {
+          restLoops[clipIndex] = atRest;
+          restLoopsAtRest[clipIndex] = true;
+        } else if (!restLoops[clipIndex]) {
+          restLoops[clipIndex] = first;
         }
       }
       segments.push({

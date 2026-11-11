@@ -253,6 +253,7 @@ export class MorphPlayback {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
     this.restartAll();
+    for (const layer of this.layers) layer.showStill();
     this.render();
     this.schedule();
   }
@@ -492,6 +493,7 @@ export class MorphLayer {
   protected statics: { div: HTMLElement; layer: number }[] = [];
 
   protected layers: string[];
+  protected still?: string[];
 
   constructor(
     protected playback: MorphPlayback,
@@ -502,6 +504,14 @@ export class MorphLayer {
     protected base: string,
   ) {
     this.layers = cssList(background).reverse();
+    if (kind === "background" && content.still) this.still = cssList(content.still).reverse();
+  }
+
+  showStill() {
+    if (!this.still || this.shadowHost || this.frozen || this.disposed) return;
+    const pending = this.images.some((image) => image.slot.state === "idle" || image.slot.state === "pending");
+    const layers = pending && this.playback.animating ? this.still : this.layers;
+    this.span.style.setProperty("background-image", [...layers].reverse().join(", "));
   }
 
   get live(): boolean {
@@ -532,6 +542,7 @@ export class MorphLayer {
     }
     this.playback.track(this);
     for (const image of this.images) image.slot.set(image.plays[0]!.play.ref);
+    this.showStill();
   }
 
   get occurrenceKeys(): string[] {
@@ -549,6 +560,7 @@ export class MorphLayer {
       return;
     }
     this.build();
+    this.showStill();
     this.playback.track(this);
   }
 

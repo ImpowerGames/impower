@@ -1,0 +1,288 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { bindMorph } from "../../compiler/morph/bindMorph";
+import { parseMorphRecipe } from "../../morph/recipe";
+
+const URI = "file:///main.sd";
+
+const FACE = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids:eyes.open:default" id="open"/>
+<g data-name="lids:eyes.closed" id="closed"/>
+<g data-name="lips:mouth.open:default" id="m-open"/>
+<g data-name="lips:mouth.closed" id="m-closed"/>
+<g data-name="lips:mouth.teeth" id="m-teeth"/>
+</svg>`;
+
+const SLEEPY = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids:eyes.closed:default" id="closed"/>
+<g data-name="lids:eyes.open" id="open"/>
+</svg>`;
+
+const NO_TEETH = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lips:mouth.open:default" id="m-open"/>
+<g data-name="lips:mouth.closed" id="m-closed"/>
+</svg>`;
+
+const WIDE = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids:eyes.open-wide:default" id="wide"/>
+<g data-name="lids:eyes.open" id="open"/>
+<g data-name="lids:eyes.closed" id="closed"/>
+</svg>`;
+
+const blink = (fields = "") => `morph blink {
+  method = bend
+${fields}
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    50% {
+      eyes {
+        state = closed
+      }
+    }
+    to {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`;
+
+const talkSmile = (fields = "") => `morph talk_smile {
+  blend = cut
+${fields}
+  keyframes {
+    from {
+      mouth {
+        state = closed
+      }
+    }
+    50% {
+      mouth {
+        state = open
+      }
+    }
+    to {
+      mouth {
+        state = closed
+      }
+    }
+  }
+}
+`;
+
+type Image = { name: string; svg: string };
+
+const withStart = (text: string) =>
+  /^scene start$/m.test(text) ? text : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
+
+function compile(text: string, images: Image[] = [{ name: "bunny", svg: FACE }]) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
+      ...images.map((image) => ({
+        uri: `file:///${image.name}.svg`,
+        type: "image",
+        name: image.name,
+        ext: "svg",
+        data: image.svg,
+      })),
+    ],
+  } as any);
+  return compiler.compile({ textDocument: { uri: URI } }).program;
+}
+
+interface Found {
+  message: string;
+  severity: number | undefined;
+  code: string | number | undefined;
+  line: number;
+  text: string;
+}
+
+function diagnosticsOf(text: string, images?: Image[]): Found[] {
+  const program = compile(text, images);
+  const lines = withStart(text).split("\n");
+  return (program.diagnostics?.[URI] ?? []).map((d) => {
+    const { start, end } = d.range;
+    return {
+      message: typeof d.message === "string" ? d.message : d.message.value,
+      severity: d.severity,
+      code: d.code,
+      line: start.line,
+      text:
+        start.line === end.line
+          ? lines[start.line]!.slice(start.character, end.character)
+          : lines[start.line]!.slice(start.character),
+    };
+  });
+}
+
+const statusOf = (text: string, images: Image[], morph: string) => {
+  const program = compile(text, images);
+  const binding = bindMorph(program.context!, program.context!["morph"]![morph]);
+  return Object.fromEntries(binding.candidates.flatMap((c) => c.variants.map((v) => [v.name, v.status])));
+};
+
+describe("`when`, `unless` and `rest` forms", () => {
+  test("a single state and a block of several lower as states with their groups, and compile without problems", () => {
+    const text = `${blink("  unless = eyes.closed\n")}
+${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}`;
+    const program = compile(text);
+    expect(program.context!["morph"]!["blink"]["unless"]).toBe("eyes.closed");
+    expect(program.context!["morph"]!["talk_smile"]["when"]).toEqual(["mouth.teeth", "eyes.open"]);
+    expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
+  });
+
+  test("`rest` holds group states, and its states are in the recipe", () => {
+    const text = talkSmile("  rest {\n    mouth {\n      state = teeth\n    }\n  }\n");
+    const program = compile(text);
+    expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
+    const recipe = parseMorphRecipe(program.morphs!.recipes["talk_smile"]!);
+    expect(recipe?.rest).toEqual({ mouth: "teeth" });
+  });
+
+  test("a group prefix in `rest` is stripped as in a keyframe", () => {
+    const text = talkSmile("  rest {\n    mouth {\n      state = mouth.teeth\n    }\n  }\n");
+    const recipe = parseMorphRecipe(compile(text).morphs!.recipes["talk_smile"]!);
+    expect(recipe?.rest).toEqual({ mouth: "teeth" });
+  });
+
+  test("a layer movement field inside `rest` is an error where it is written", () => {
+    const text = talkSmile("  rest {\n    mouth {\n      state = teeth\n      translate = 0 2px\n    }\n  }\n");
+    const found = diagnosticsOf(text).find((d) => d.text === "translate");
+    expect(found).toMatchObject({ severity: 1 });
+    expect(found!.message).toContain("`rest`");
+  });
+
+  test("a condition that is not a state with its group is an error", () => {
+    const found = diagnosticsOf(blink("  unless = closed\n")).find((d) => d.text === "closed" && d.line === 2);
+    expect(found).toMatchObject({ severity: 1 });
+    expect(found!.message).toContain("`unless = eyes.closed`");
+  });
+
+  test("a state no candidate portrait draws is reported where it is written", () => {
+    const rest = diagnosticsOf(talkSmile("  rest {\n    mouth {\n      state = grin\n    }\n  }\n"));
+    expect(rest.find((d) => d.text === "grin")).toMatchObject({ severity: 2 });
+    const unless = diagnosticsOf(blink("  unless = eyes.shut\n"));
+    expect(unless.find((d) => d.text === "eyes.shut")).toMatchObject({ severity: 2 });
+    const group = diagnosticsOf(blink("  unless = hat.on\n"));
+    expect(group.find((d) => d.text === "hat.on")).toMatchObject({ severity: 2 });
+  });
+});
+
+describe("where a morph plays", () => {
+  test("a blink with no condition plays on a look whose eyes the directive closed, and rests it open", () => {
+    const text = `${blink()}
+scene start
+  [[bunny~eyes.closed]]
+end
+`;
+    expect(statusOf(text, [{ name: "bunny", svg: FACE }], "blink")["bunny~eyes.closed"]).toBe("active");
+    const program = compile(text);
+    expect(program.morphs!.variants["bunny~eyes.closed"]).toHaveLength(1);
+  });
+
+  test("`unless = eyes.closed` keeps the blink off a closed look and off a face drawn closed, with nothing reported", () => {
+    const text = `${blink("  unless = eyes.closed\n")}
+scene start
+  [[bunny~eyes.closed]]
+  [[sleepy]]
+end
+`;
+    const images = [
+      { name: "bunny", svg: FACE },
+      { name: "sleepy", svg: SLEEPY },
+    ];
+    const status = statusOf(text, images, "blink");
+    expect(status["bunny"]).toBe("active");
+    expect(status["bunny~eyes.closed"]).toBe("excluded");
+    expect(status["sleepy"]).toBe("excluded");
+    const program = compile(text, images);
+    expect(Object.keys(program.morphs!.variants).sort()).toEqual(["bunny"]);
+    expect(diagnosticsOf(text, images).filter((d) => d.severity === 2 || d.severity === 1).map((d) => d.message)).toEqual([]);
+  });
+
+  test("without `unless`, a face drawn with closed eyes plays the blink and rests open", () => {
+    const status = statusOf(blink(), [{ name: "sleepy", svg: SLEEPY }], "blink");
+    expect(status["sleepy"]).toBe("active");
+  });
+
+  test("`when` admits only looks where every listed state is active", () => {
+    const text = `${talkSmile("  when = mouth.teeth\n")}
+scene start
+  [[bunny~mouth.teeth]]
+  [[bunny~mouth.closed]]
+end
+`;
+    const status = statusOf(text, [{ name: "bunny", svg: FACE }], "talk_smile");
+    expect(status).toMatchObject({ bunny: "excluded", "bunny~mouth.teeth": "active", "bunny~mouth.closed": "excluded" });
+    expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
+  });
+
+  test("a condition holds for a state that is a kind of the one it names", () => {
+    const text = `${blink("  unless = eyes.open\n")}
+scene start
+  [[wide]]
+end
+`;
+    expect(statusOf(text, [{ name: "wide", svg: WIDE }], "blink")["wide"]).toBe("excluded");
+  });
+
+  test("a look lacking a rest state is skipped and reported", () => {
+    const text = talkSmile("  rest {\n    mouth {\n      state = teeth\n    }\n  }\n");
+    const images = [
+      { name: "bunny", svg: FACE },
+      { name: "plain", svg: NO_TEETH },
+    ];
+    const program = compile(text, images);
+    expect(Object.keys(program.morphs!.variants)).toEqual(["bunny"]);
+    const found = diagnosticsOf(text, images).filter((d) => d.message.includes("does not apply"));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("image `plain`: its `mouth` group has no `teeth` state");
+  });
+});
+
+describe("the override warning", () => {
+  test("a directive's choice in a driven group warns on the choice, naming the morph, the group and the rest", () => {
+    const text = `${blink()}
+scene start
+  [[bunny~eyes.closed]]
+end
+`;
+    const found = diagnosticsOf(text).filter((d) => d.message.includes("`blink`") && d.line === 23);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: 2 });
+    expect(found[0]!.message).toContain("`eyes`");
+    expect(found[0]!.message).toContain("`open`");
+    expect(found[0]!.message).toContain("`unless`");
+  });
+
+  test("a choice the art's `:default` makes is not reported, nor is a choice equal to the rest", () => {
+    const text = `${blink()}
+scene start
+  [[sleepy]]
+  [[bunny~eyes.open]]
+end
+`;
+    const images = [
+      { name: "bunny", svg: FACE },
+      { name: "sleepy", svg: SLEEPY },
+    ];
+    expect(diagnosticsOf(text, images).filter((d) => d.severity === 2 || d.severity === 1).map((d) => d.message)).toEqual([]);
+  });
+
+  test("a directive kept off the morph by `unless` is not reported", () => {
+    const text = `${blink("  unless = eyes.closed\n")}
+scene start
+  [[bunny~eyes.closed]]
+end
+`;
+    expect(diagnosticsOf(text).filter((d) => d.severity === 2 || d.severity === 1).map((d) => d.message)).toEqual([]);
+  });
+});

@@ -1,17 +1,21 @@
+import type { AttributeSelection, AttributeVocabulary } from "../attributes";
 import {
   bindMorph,
   bindVariant,
   groupHasState,
   morphImages,
   morphRequirements,
+  poseSelection,
   type MorphRequirements,
 } from "../compiler/morph/bindMorph";
-import { resolveImageAttributes } from "../compiler/utils/filterImage";
+import { parseMorphConditions } from "../compiler/morph/morphSchema";
+import { filterImage, resolveImageAttributes } from "../compiler/utils/filterImage";
+import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
 import { own, table } from "./own";
-import { buildMorphRecipe, morphOverlaps, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
-import { MORPH_BAKE_FORMAT, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
+import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
+import { MORPH_BAKE_FORMAT, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -30,7 +34,7 @@ const sourceToken = (image: any): string | undefined => {
 };
 
 const startsEveryGroup = (requirements: MorphRequirements): boolean =>
-  [...requirements.groups.keys()].every((group) => requirements.rest.has(group));
+  [...requirements.groups.keys()].every((group) => requirements.start.has(group));
 
 const canonicalSelection =(selection: Record<string, string>): string =>
   serializeImageFilterParam(selection) ??
@@ -92,6 +96,8 @@ export function buildMorphChannel(
     const recipe = buildMorphRecipe(name, effective);
     const text = serializeMorphRecipe(recipe);
     channel.recipes[name] = text;
+    const conditions = conditionsOf(effective);
+    if (conditions) (channel.conditions ??= table())[name] = conditions;
     const binding = bindMorph(context, effective, images);
     if (!startsEveryGroup(binding.requirements)) continue;
     const member: MorphMember = { recipe, text, groups: [...binding.requirements.groups.keys()] };
@@ -126,10 +132,10 @@ export function morphRefsForStruct(
   const vocabulary = resolved.vocabulary;
   if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") return [];
   const members: MorphMember[] = [];
-  for (const text of Object.values(channel.recipes)) {
+  for (const [morph, text] of Object.entries(channel.recipes)) {
     const recipe = parseMorphRecipe(text);
     if (!recipe) continue;
-    const requirements = morphRequirements(recipeAsMorph(recipe));
+    const requirements = morphRequirements({ ...recipeAsMorph(recipe), ...own(channel.conditions ?? {}, morph) });
     const groups = [...requirements.groups.keys()];
     const compatible =
       startsEveryGroup(requirements) &&
@@ -140,4 +146,78 @@ export function morphRefsForStruct(
     members.push({ recipe, text, groups });
   }
   return members.length ? makeRefs(members, image.$name, image, resolved.selection) : [];
+}
+
+function conditionsOf(morph: Record<string, unknown>): MorphConditions | undefined {
+  const conditions: MorphConditions = {};
+  for (const field of ["when", "unless"] as const) {
+    const parsed = parseMorphConditions(morph[field]);
+    if (parsed) conditions[field] = parsed.map(({ group, state }) => `${group}.${state}`);
+  }
+  return conditions.when || conditions.unless ? conditions : undefined;
+}
+
+const parsedRecipes = new Map<string, MorphRecipe | undefined>();
+const parsedRecipe = (text: string): MorphRecipe | undefined => {
+  if (parsedRecipes.has(text)) return parsedRecipes.get(text);
+  if (parsedRecipes.size >= 256) parsedRecipes.clear();
+  const recipe = parseMorphRecipe(text);
+  parsedRecipes.set(text, recipe);
+  return recipe;
+};
+
+export interface ShownLook {
+  image: any;
+  vocabulary: AttributeVocabulary;
+  selection: AttributeSelection;
+  shown: AttributeSelection;
+  attributes: string[];
+  morphs: { name: string; pose: Record<string, string> }[];
+}
+
+export function shownLook(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+  poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
+): ShownLook | undefined {
+  const refs = morphRefsForStruct(context, channel, struct);
+  if (refs.length !== 1 || !context || !channel) return undefined;
+  const resolved = resolveImageAttributes(context, struct, { visibility: false });
+  if (!resolved.vocabulary) return undefined;
+  const morphs: ShownLook["morphs"] = [];
+  const pose: Record<string, string> = table();
+  for (const name of refs[0]!.morphs) {
+    const recipe = parsedRecipe(own(channel.recipes, name) ?? "");
+    if (!recipe) continue;
+    const posed = poseOf(recipe);
+    morphs.push({ name, pose: posed });
+    Object.assign(pose, posed);
+  }
+  const shown = poseSelection(resolved.vocabulary, resolved.selection, pose);
+  const attributes = Object.entries(shown)
+    .filter(([group, state]) => own(resolved.selection, group) !== state)
+    .map(([group, state]) => `${group}.${state}`);
+  return { image: resolved.image, vocabulary: resolved.vocabulary, selection: resolved.selection, shown, attributes, morphs };
+}
+
+export function shownLookStruct(struct: any, attributes: readonly string[]): any {
+  if (!attributes.length || !struct || typeof struct !== "object") return struct;
+  return { $type: "filtered_image", $name: struct.$name, image: { $type: struct.$type, $name: struct.$name }, attributes: [...attributes] };
+}
+
+export function shownImageLayers(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+  poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
+): (ImageLayer & { shown?: true })[] {
+  const layers = resolveImageLayers(context, struct);
+  if (!context || !channel) return layers;
+  return layers.map((layer) => {
+    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf) : undefined;
+    if (!look?.attributes.length) return layer;
+    const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
+    return src ? { ...layer, src, shown: true as const } : layer;
+  });
 }

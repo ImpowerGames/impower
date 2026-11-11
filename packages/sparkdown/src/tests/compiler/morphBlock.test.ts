@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { bindMorph } from "../../compiler/morph/bindMorph";
+import { bindMorph, poseSelection } from "../../compiler/morph/bindMorph";
 import { normalizeMorphKeyframes } from "../../compiler/morph/normalizeMorphKeyframes";
 import { parseMorphRecipe } from "../../morph/recipe";
 import { compileSource } from "./compileSnapshot";
@@ -966,29 +966,31 @@ const bindingOf = (text: string, images: Image[]) => {
 };
 
 describe("morph binding", () => {
-  test("each folder rests by its own default; hidden folders do not count", () => {
+  test("a variant rests each driven group in the morph's rest, the state of the last keyframe that names it", () => {
     const binding = bindingOf(SIMPLE_BLINK, [{ name: "bunny", svg: TWO_FOLDERS }]);
     const bunny = binding.candidates.find((c) => c.image === "bunny")!;
     expect(bunny.compatible).toBe(true);
     const base = bunny.variants.find((v) => v.name === "bunny")!;
     expect(base.status).toBe("active");
-    expect(base.rest["eyes"]).toEqual({ "face.happy:default": "open" });
+    expect(base.rest).toEqual({ eyes: "open" });
   });
 
-  test("a variant resting in another state is dormant, and one showing both disagreeing folders is skipped", () => {
+  test("a variant resting in another state plays the morph, whatever its folders rest in", () => {
     const text = `${SIMPLE_BLINK}
-[[bunny~sleepy]]
-[[bunny~eyes.closed]]
+scene start
+  [[bunny~sleepy]]
+  [[bunny~eyes.closed]]
+end
 `;
     const binding = bindingOf(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
     const variants = binding.candidates[0]!.variants;
-    expect(variants.find((v) => v.name === "bunny~sleepy")?.status).toBe("dormant");
-    expect(variants.find((v) => v.name === "bunny~eyes.closed")?.status).toBe("dormant");
+    expect(variants.find((v) => v.name === "bunny~sleepy")?.status).toBe("active");
+    expect(variants.find((v) => v.name === "bunny~eyes.closed")?.status).toBe("active");
     const warnings = morphDiagnostics(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
     expect(warnings.filter((d) => d.message.includes("does not apply"))).toEqual([]);
   });
 
-  test("folders that rest in different states when both are shown skip the variant with a warning", () => {
+  test("folders that rest in different states both play the morph", () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="left" id="left">
   <g data-name="lid:eyes.open:default" id="l-open"/>
@@ -999,23 +1001,41 @@ describe("morph binding", () => {
   <g data-name="lid:eyes.open" id="r-open"/>
 </g>
 </svg>`;
+    expect(bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]).candidates[0]!.variants[0]!.status).toBe("active");
+    expect(morphDiagnostics(SIMPLE_BLINK, [{ name: "wink", svg }])).toEqual([]);
+  });
+
+  test("a visible folder that draws the group but not every state the morph names skips the variant with a warning", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="left" id="left">
+  <g data-name="lid:eyes.open:default" id="l-open"/>
+  <g data-name="lid:eyes.closed" id="l-closed"/>
+</g>
+<g data-name="right" id="right">
+  <g data-name="lid:eyes.open:default" id="r-open"/>
+</g>
+</svg>`;
     const binding = bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]);
     expect(binding.candidates[0]!.variants[0]!.status).toBe("skipped");
     const warning = morphDiagnostics(SIMPLE_BLINK, [{ name: "wink", svg }]).find((d) =>
       d.message.includes("does not apply to `wink`"),
     );
     expect(warning).toMatchObject({ line: 0, text: "blink", severity: 2 });
-    expect(warning!.message).toContain("rest in different `eyes` states");
+    expect(warning!.message).toContain('folder "right" draws no `eyes.closed`');
   });
 
   test("a directional refinement satisfies its base state and keeps its concrete rest", () => {
     const text = `${SIMPLE_BLINK}
-[[bunny~eyes.open-wide]]
+scene start
+  [[bunny~eyes.open-wide]]
+end
 `;
     const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
-    const wide = binding.candidates[0]!.variants.find((v) => v.name === "bunny~eyes.open-wide")!;
+    const candidate = binding.candidates[0]!;
+    const wide = candidate.variants.find((v) => v.name === "bunny~eyes.open-wide")!;
     expect(wide.status).toBe("active");
-    expect(wide.rest["eyes"]).toEqual({ root: "open-wide" });
+    expect(wide.rest).toEqual({ eyes: "open" });
+    expect(poseSelection(candidate.vocabulary, wide.selection, wide.rest)).toEqual({ eyes: "open-wide" });
   });
 
   test("a refinement is shown by its base artwork, but a base state is not invented from a refinement", () => {
@@ -1096,13 +1116,15 @@ describe("morph binding", () => {
   }
 }
 
-[[bunny~eyes.closed]]
+scene start
+  [[bunny~eyes.closed]]
+end
 `;
     const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
-    expect(binding.requirements.rest.has("eyes")).toBe(false);
+    expect(binding.requirements.start.has("eyes")).toBe(false);
     const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny~eyes.closed")!;
     expect(closed.status).toBe("active");
-    expect(closed.rest["eyes"]).toEqual({ root: "closed" });
+    expect(closed.rest).toEqual({ eyes: "closed" });
     const program = compile(text, [{ name: "bunny", svg: WIDE }]);
     expect(program.morphs?.recipes["blink"]).toBeDefined();
     expect(Object.keys(program.morphs?.variants ?? {})).toEqual([]);

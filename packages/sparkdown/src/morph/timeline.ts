@@ -3,7 +3,8 @@ import { hashText } from "./hash";
 import type { MorphTiming } from "./types";
 
 export type MorphPlayhead =
-  | { phase: "waiting" | "off" }
+  | { phase: "off" }
+  | { phase: "waiting"; play: 0; offset: number }
   | { phase: "playing" | "between"; play: number; offset: number }
   | { phase: "done"; play: number; offset: number };
 
@@ -73,7 +74,7 @@ export class MorphTimeline {
 
   at(t: number): MorphPlayhead {
     if (!this.starts.length) return { phase: "off" };
-    if (t < this.delay) return { phase: "waiting" };
+    if (t < this.delay) return { phase: "waiting", play: 0, offset: this.offset(0, 0) };
     const starts = this.starts;
     while (starts.length < this.plays && starts[starts.length - 1]! + this.duration <= t) {
       const last = starts[starts.length - 1]!;

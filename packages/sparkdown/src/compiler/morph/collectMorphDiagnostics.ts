@@ -12,6 +12,7 @@ import {
   morphImageLabels,
   morphImages,
 } from "./bindMorph";
+import { parseMorphQualifiedState } from "./morphSchema";
 import { readMorphBody, type MorphIssue } from "./readMorphBody";
 import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
 
@@ -339,6 +340,36 @@ function coverageIssues(
         }
       }
     }
+  }
+  const rest = own.struct["rest"];
+  if (isRecord(rest) && images.length > 0) {
+    for (const [group, container] of Object.entries(rest)) {
+      const state = isRecord(container) ? container["state"] : undefined;
+      if (typeof state !== "string" || !state || state.includes(".")) continue;
+      const having = binding.candidates.filter((c) => c.vocabulary.groups[group]);
+      if (having.length > 0 && !having.some((c) => groupHasState(c.vocabulary, group, state))) {
+        warn(src(container)?.values.get("state"), `No image's \`${group}\` group has a \`${state}\` state.`);
+      }
+    }
+  }
+  const conditionVocabularies = binding.candidates.length > 0 ? binding.candidates.map((c) => c.vocabulary) : images.map((image) => image.vocabulary);
+  for (const field of ["when", "unless"]) {
+    const value = own.struct[field];
+    const list = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+    if (images.length === 0) break;
+    list.forEach((item, index) => {
+      const condition = parseMorphQualifiedState(item);
+      if (!condition) return;
+      const span = Array.isArray(value)
+        ? (src(value)?.itemValues[index] ?? src(value)?.items[index])
+        : src(own.struct)?.values.get(field);
+      const having = conditionVocabularies.filter((vocabulary) => vocabulary.groups[condition.group]);
+      if (having.length === 0) {
+        warn(span, `No image ${label} could play on has a \`${condition.group}\` attribute group.`);
+      } else if (!having.some((vocabulary) => groupHasState(vocabulary, condition.group, condition.state))) {
+        warn(span, `No image's \`${condition.group}\` group has a \`${condition.state}\` state.`);
+      }
+    });
   }
   if (images.length > 0) {
     const layers = own.struct["layers"];

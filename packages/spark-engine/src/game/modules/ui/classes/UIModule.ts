@@ -11,8 +11,9 @@ import {
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
-import { morphOverlaps, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
@@ -23,7 +24,7 @@ import {
 } from "./messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "./messages/MorphNeedMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
-import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
+import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
@@ -1548,12 +1549,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string): Image[] {
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>): Image[] {
     const imageName = sortFilteredName(name);
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
-    return resolveImageLayers(this.context, image).map((layer) => ({
+    return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf).map((layer) => ({
       $type: "image", $name: imageName, src: layer.src,
     }));
+  }
+
+  morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
+    const head = new MorphTimeline(this.morphTiming(recipe.name), () => 0).at(0);
+    return "offset" in head ? morphPoseAt(recipe, head.offset) : morphRestPose(recipe);
+  };
+
+  protected morphTiming(morph: string): MorphTiming {
+    return { ...default_morph().timing, ...(this.context.morph?.[morph]?.timing ?? {}) } as MorphTiming;
   }
 
   getFontNamesForLayout(layoutName: string): string[] {
@@ -1745,7 +1755,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         this.deliverMorphArtifact(ref);
         for (const morph of ref.morphs) {
-          const timing = { ...default_morph().timing, ...(this.context.morph?.[morph]?.timing ?? {}) } as MorphTiming;
+          const timing = this.morphTiming(morph);
           const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
           plays.push({
             layer: index,
@@ -1758,7 +1768,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    return plays.length > 0 ? { plays, epoch: this._morphEpoch } : undefined;
+    if (plays.length === 0) {
+      return undefined;
+    }
+    const content: MorphImageContent = { plays, epoch: this._morphEpoch };
+    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose)).reverse().join(", ");
+    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset)).reverse().join(", ")) {
+      content.still = still;
+    }
+    return content;
   }
 
   protected reportMorphConflict(image: string, refs: MorphRef[]) {
@@ -1833,12 +1851,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `linear-gradient(${value})`;
   }
 
-  getBackgroundImageFromString(value: string) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const srcs = this.getImageSrcsByName(value);
+    const posed = poseOf ? this.getImageAssets("", value, poseOf).map((asset) => asset.src) : undefined;
+    const srcs = posed?.length ? posed : this.getImageSrcsByName(value);
     if (srcs) {
       return srcs
         .map((src) => this.getUrl(src))
