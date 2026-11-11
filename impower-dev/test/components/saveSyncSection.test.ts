@@ -194,6 +194,23 @@ describe("the Save & sync section", () => {
     expect(row("save-import").textContent).not.toContain("Could not import that backup.");
   });
 
+  it("shows a refused import in the import row while the project still reads Saved locally", async () => {
+    await mountSection();
+    await act(() => {
+      workspace.current = {
+        ...workspace.current,
+        sync: {
+          status: "cached",
+          importOutcome: { status: "failed", fileName: "story.zip", reason: "no_main_script" },
+        } as typeof workspace.current.sync,
+      };
+    });
+    expect(row("save-import").querySelector(".text-error-strong")!.textContent).toBe(
+      "Nothing was changed because “story.zip” has no main.sd, which every project backup needs.",
+    );
+    expect(section().querySelector("[data-local-save]")!.textContent).toBe("Saved locally");
+  });
+
   it("says what an import left out once it has replaced the project", async () => {
     await mountSection();
     await act(() => {

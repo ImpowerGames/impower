@@ -70,7 +70,7 @@ export default function SaveSyncSection({ section }: { section: SettingsSectionI
   const importDetail =
     syncStatus === "importing" ? (
       "Replacing the project…"
-    ) : syncStatus === "import_error" ? (
+    ) : syncStatus === "import_error" || importOutcome?.status === "failed" ? (
       <span class="text-error-strong">
         {outcomeSentence ?? "Could not import that backup."}
       </span>

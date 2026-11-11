@@ -69,6 +69,12 @@ export const takeImportOutcome = (): ImportOutcome | undefined => {
   return kept ? (JSON.parse(kept) as ImportOutcome) : undefined;
 };
 
+export const REFUSED_BEFORE_CHANGE: ReadonlySet<ImportFailureReason> = new Set([
+  "unreadable_zip",
+  "no_main_script",
+  "several_main_scripts",
+]);
+
 export class ProjectImportError extends Error {
   readonly reason: ImportFailureReason;
   readonly folders?: string[];
