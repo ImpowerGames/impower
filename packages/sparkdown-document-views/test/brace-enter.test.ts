@@ -1,9 +1,9 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import {
-  onEnterRulesCommand,
-  vscodeOnEnterRules,
-} from "@impower/codemirror-vscode-language/src/extensions/vscodeOnEnterRules";
+import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
+import { onEnterRulesCommand } from "@impower/codemirror-vscode-language/src/extensions/vscodeOnEnterRules";
+import { sparkdownGrammarFor } from "@impower/sparkdown/src/compiler/utils/sparkdownGrammarFor";
+import { SPARKDOWN_EMBEDDED_LANGUAGES } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import LUAU_CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown-luau.language-config.json";
 import STORY_CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
 import { afterEach, describe, expect, it } from "vitest";
@@ -21,7 +21,13 @@ const pressEnter = (source: string, config: unknown): string => {
     state: EditorState.create({
       doc: source.replace("|", ""),
       selection: EditorSelection.cursor(cursor),
-      extensions: [vscodeOnEnterRules(config as any)],
+      extensions: vscodeLanguage({
+        name: "sparkdown",
+        grammar: sparkdownGrammarFor("file:///main.sd"),
+        language: "sparkdown",
+        configs: { sparkdown: config as never },
+        embeddedLanguages: SPARKDOWN_EMBEDDED_LANGUAGES,
+      }),
     }),
     parent: document.body,
   });

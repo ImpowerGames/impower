@@ -1,65 +1,95 @@
 import { indentOnInput, indentService } from "@codemirror/language";
-import { Facet, combineConfig } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
+import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
+
+import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { languageAt, languageRunAt } from "../utils/languageAt";
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export interface VSCodeIndentationRulesConfig {
-  indentationRules?: {
-    increaseIndentPattern?: string;
-    decreaseIndentPattern?: string;
-  };
+const NEVER = /(?!)/;
+
+interface IndentationPatterns {
+  increase?: RegExp;
+  decrease?: RegExp;
 }
 
-export const vscodeIndentationRulesConfig = Facet.define<
-  VSCodeIndentationRulesConfig,
-  Required<VSCodeIndentationRulesConfig>
->({
-  combine(configs) {
-    return combineConfig(configs, {});
-  },
-});
-
-const vscodeIndentService = indentService.of((context, pos) => {
-  const config = context.state.facet(vscodeIndentationRulesConfig);
-  const indentationRules = config?.indentationRules;
-
-  const currentLine = context.state.doc.lineAt(pos);
-  const lineTextBeforeCursor = context.state.sliceDoc(currentLine.from, pos);
-  const lineTextAfterCursor = context.state.sliceDoc(
-    pos,
-    currentLine.from + currentLine.text.length,
-  );
-
-  const currentLineText = currentLine?.text || "";
-  const prevIndentSize = currentLineText.match(INDENT_REGEX)?.[0].length ?? 0;
-
-  let newIndentSize = prevIndentSize;
-
-  const increaseIndentPattern = indentationRules?.increaseIndentPattern;
-  const isIncrease =
-    increaseIndentPattern && lineTextBeforeCursor.match(increaseIndentPattern);
-  if (isIncrease) {
-    newIndentSize += context.unit;
-  }
-
-  const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
-  const isDecrease =
-    decreaseIndentPattern && lineTextAfterCursor.match(decreaseIndentPattern);
-  if (isDecrease) {
-    newIndentSize -= context.unit;
-  }
-
-  if (isIncrease || isDecrease) {
-    return Math.max(0, newIndentSize);
-  }
-
-  return null;
-});
+const patternsOf = (
+  config: VSCodeConfigDefinition | undefined,
+): IndentationPatterns => {
+  const rules = config?.indentationRules;
+  return {
+    ...(rules?.increaseIndentPattern
+      ? { increase: new RegExp(rules.increaseIndentPattern) }
+      : {}),
+    ...(rules?.decreaseIndentPattern
+      ? { decrease: new RegExp(rules.decreaseIndentPattern) }
+      : {}),
+  };
+};
 
 export const vscodeIndentationRules = (
-  config: VSCodeIndentationRulesConfig = {},
-) => [
-  vscodeIndentationRulesConfig.of(config),
-  vscodeIndentService,
-  indentOnInput(),
-];
+  reader: LanguageReader,
+  documentLanguage: string,
+  configs: Readonly<Record<string, VSCodeConfigDefinition>>,
+): Extension => {
+  const patternsByLanguage = new Map(
+    Object.entries(configs).map(([language, config]) => [
+      language,
+      patternsOf(config),
+    ]),
+  );
+  const patternsFor = (language: string): IndentationPatterns =>
+    patternsByLanguage.get(language) ??
+    patternsByLanguage.get(documentLanguage) ??
+    {};
+
+  const service = indentService.of((context, pos) => {
+    const state = context.state;
+    const run = languageRunAt(reader, state, pos, documentLanguage);
+    const { increase, decrease } = patternsFor(run.language);
+
+    const currentLine = state.doc.lineAt(pos);
+    const lineTextBeforeCursor = state.sliceDoc(
+      run.differsFromLineStart ? run.from : currentLine.from,
+      pos,
+    );
+    const lineTextAfterCursor = state.sliceDoc(pos, Math.max(pos, run.to));
+
+    const prevIndentSize =
+      currentLine.text.match(INDENT_REGEX)?.[0].length ?? 0;
+
+    let newIndentSize = prevIndentSize;
+
+    const isIncrease = increase?.test(lineTextBeforeCursor) ?? false;
+    if (isIncrease) {
+      newIndentSize += context.unit;
+    }
+
+    const isDecrease = decrease?.test(lineTextAfterCursor) ?? false;
+    if (isDecrease) {
+      newIndentSize -= context.unit;
+    }
+
+    if (isIncrease || isDecrease) {
+      return Math.max(0, newIndentSize);
+    }
+
+    return null;
+  });
+
+  return [
+    EditorState.languageData.of((state, pos) => [
+      {
+        get indentOnInput() {
+          return (
+            patternsFor(languageAt(reader, state, pos, documentLanguage))
+              .decrease ?? NEVER
+          );
+        },
+      },
+    ]),
+    service,
+    indentOnInput(),
+  ];
+};

@@ -58,18 +58,6 @@
     {
       "open": "/*",
       "close": "*/"
-    },
-    {
-      "open": "--[[",
-      "close": "]]"
-    },
-    {
-      "open": "--[=[",
-      "close": "]=]"
-    },
-    {
-      "open": "--[==[",
-      "close": "]==]"
     }
   ],
   "autoCloseBefore": ";:.,=}])>` \t\n\r",
@@ -97,10 +85,6 @@
     [
       "`",
       "`"
-    ],
-    [
-      "--[[",
-      "]]"
     ]
   ],
   "wordChars": "_-'",
@@ -110,65 +94,10 @@
   },
   "onEnterRules": [
     {
-      "beforeText": "^\\s*--\\[(=*)\\[(?!.*\\]\\1\\]).*$",
-      "afterText": "\\]=*\\]",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "^\\s*--\\[=*\\[(?!.*\\]=*\\]).*$",
-      "action": {
-        "indent": "indent"
-      }
-    },
-    {
       "beforeText": "^\\s*define(\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*(\\s+as\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*)?(\\s+with)?)?\\s*(--.*)?$",
       "afterText": "^\\s*end\\b",
       "action": {
         "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "\\bfunction\\b[^()]*\\([^()]*\\)[^()]*$",
-      "afterText": "^\\s*end\\b",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "\\bthen\\s*$",
-      "afterText": "^\\s*(end|elseif|else)\\b",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "\\bdo\\s*$",
-      "afterText": "^\\s*end\\b",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "\\belse\\s*$",
-      "afterText": "^\\s*end\\b",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "\\brepeat\\s*$",
-      "afterText": "^\\s*until\\b",
-      "action": {
-        "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "^\\s*---(?!-)\\s*\\S.*$",
-      "action": {
-        "indent": "none",
-        "appendText": "--- "
       }
     },
     {
@@ -244,7 +173,7 @@
     }
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat)\\b\\s*(--.*)?$)|(^\\s*(scene|branch)(\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*)?\\s*(--.*)?$)|(^\\s*define(\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*(\\s+as\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*)?(\\s+with)?)?\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|((\\{|(?<!\\()\\(|(?<!\\[)\\[)\\s*(--.*)?$))",
+    "increaseIndentPattern": "^(?:\\s*(?:if|elseif)\\b(?:(?!--|//).)*\\bthen|\\s*(?:for|while)\\b(?:(?!--|//).)*\\bdo|\\s*(?:else|do|repeat)|\\s*(?:scene|branch)(?:\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*(?:\\s*\\([^()]*\\))?)?|\\s*define(?:\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*(?:\\s+as\\s+(?!(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![0-9A-Za-z_-]))[^\\x00-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F][^\\x00-\\x2C\\x2E\\x2F\\x3A-\\x40\\x5B-\\x5E\\x60\\x7B-\\x7F]*)?(?:\\s+with)?)?|(?:(?!--|//).)*\\bfunction\\b(?:\\s+[^\\s(]+)?\\s*\\((?:(?!\\bend\\b|--|//).)*|(?:(?!--|//).)*(?:\\{|(?<!\\()\\(|(?<!\\[)\\[))\\s*(?:(?:--|//).*)?$",
     "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)(?!\\))|\\](?!\\]))",
     "indentNextLinePattern": "^((?!--).)*(?<![=<>!~])=\\s*(--.*)?$",
     "unIndentedLinePattern": "^#\\!"

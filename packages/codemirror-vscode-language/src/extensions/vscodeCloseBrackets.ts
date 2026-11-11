@@ -4,12 +4,16 @@ import {
   EditorSelection,
   EditorState,
   Facet,
-  combineConfig,
   type Extension,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { Tag, getStyleTags } from "@lezer/highlight";
+import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
+
+import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
+import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { configOf, languageAt } from "../utils/languageAt";
 
 export const getAllStyleTags = (state: EditorState, pos: number): Tag[] => {
   const tree = syntaxTree(state);
@@ -30,29 +34,40 @@ const android =
 
 const closeBracketsState = (closeBrackets() as Extension[])[1]!;
 
-export interface VSCodeCloseBracketsConfig {
-  autoClosingPairs?: (
-    | { open: string; close: string; notIn?: string[] }
-    | [string, string]
-  )[];
-}
+type AutoClosingPair = NonNullable<
+  VSCodeConfigDefinition["autoClosingPairs"]
+>[number];
 
-export const vscodeCloseBracketsConfig = Facet.define<
-  VSCodeCloseBracketsConfig,
-  Required<VSCodeCloseBracketsConfig>
->({
-  combine(configs) {
-    return combineConfig(configs, {});
-  },
+type CloseBracketsData = NonNullable<CodeMirrorLanguageData["closeBrackets"]>;
+
+const closeBracketsDataOf = (
+  pairs: readonly AutoClosingPair[],
+): CloseBracketsData => ({
+  brackets: pairs.map(({ open }) => open),
+  before: pairs.map(({ close }) => close).join(""),
 });
 
-export const autoCloseBrackets = Facet.define<boolean, boolean>({
+const longest = (pairs: readonly AutoClosingPair[]) =>
+  pairs.reduce<AutoClosingPair | undefined>(
+    (result, pair) =>
+      !result || pair.open.length > result.open.length ? pair : result,
+    undefined,
+  );
+
+export const autoCloseBrackets =Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
 
-const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
-  (view, from, to, insert) => {
-    const config = view.state.facet(vscodeCloseBracketsConfig);
+export function vscodeCloseBrackets(
+  reader: LanguageReader,
+  documentLanguage: string,
+  configs: Readonly<Record<string, VSCodeConfigDefinition>>,
+): Extension {
+  const pairsAt = (state: EditorState, pos: number) =>
+    configOf(configs, languageAt(reader, state, pos, documentLanguage), documentLanguage)
+      ?.autoClosingPairs ?? [];
+
+  const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {
     if (
       (android ? view.composing : view.compositionStarted) ||
       view.state.readOnly ||
@@ -60,57 +75,62 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     ) {
       return false;
     }
-    let sel = view.state.selection.main;
+    const sel = view.state.selection.main;
 
     if (from != sel.from || to != sel.to) {
       return false;
     }
 
-    const pos = view.state.selection.main.head;
+    const pos = sel.head;
     const line = view.state.doc.lineAt(pos);
 
-    const autoClosingPairRule = config?.autoClosingPairs?.find((rule) => {
-      const open = Array.isArray(rule) ? rule[0] : rule.open;
-      const close = Array.isArray(rule) ? rule[1] : rule.close;
-      if (open == null || close == null) return false;
+    const pairs = pairsAt(view.state, pos);
+    const pair = longest(
+      pairs.filter(({ open, close }) => {
+        if (open == null || close == null) return false;
 
-      if (!open.endsWith(insert)) return false;
+        if (!open.endsWith(insert)) return false;
 
-      const lookBackLength = open.length - insert.length;
+        const lookBackLength = open.length - insert.length;
 
-      if (pos - line.from < lookBackLength) return false;
+        if (pos - line.from < lookBackLength) return false;
 
-      const textBefore = view.state.sliceDoc(pos - lookBackLength, pos);
+        const textBefore = view.state.sliceDoc(pos - lookBackLength, pos);
 
-      return textBefore === open.slice(0, lookBackLength);
-    });
+        return textBefore === open.slice(0, lookBackLength);
+      }),
+    );
 
-    if (!autoClosingPairRule) {
+    if (!pair) {
       return false;
     }
 
-    const notIn = Array.isArray(autoClosingPairRule)
-      ? undefined
-      : autoClosingPairRule.notIn;
-    if (notIn) {
+    const containedPair = longest(
+      pairs.filter(
+        ({ open, close }) =>
+          open !== pair.open &&
+          pair.open.includes(open) &&
+          pair.close.endsWith(close),
+      ),
+    );
+
+    if (pair.notIn) {
       const tags = getAllStyleTags(view.state, pos);
       for (const tag of tags) {
         const name = (tag as any).name;
         if (typeof name === "string") {
-          if (notIn.includes(name)) {
+          if (pair.notIn.includes(name)) {
             return false;
           }
         }
       }
     }
 
-    const close = Array.isArray(autoClosingPairRule)
-      ? autoClosingPairRule[1]
-      : autoClosingPairRule.close;
-
-    if (typeof close !== "string") {
-      return false;
-    }
+    const close =
+      containedPair &&
+      view.state.sliceDoc(pos, line.to).startsWith(containedPair.close)
+        ? pair.close.slice(0, pair.close.length - containedPair.close.length)
+        : pair.close;
 
     const tr = view.state.changeByRange((range) => {
       return {
@@ -127,15 +147,17 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     );
 
     return true;
-  },
-);
+  });
 
-export function vscodeCloseBrackets(
-  config: VSCodeCloseBracketsConfig = {},
-): Extension {
   return [
     closeBracketsState,
-    vscodeCloseBracketsConfig.of(config),
-    vscodeCloseBracketsInputHandler,
+    EditorState.languageData.of((state, pos) => [
+      {
+        get closeBrackets() {
+          return closeBracketsDataOf(pairsAt(state, pos));
+        },
+      },
+    ]),
+    inputHandler,
   ];
 }

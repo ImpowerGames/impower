@@ -48,7 +48,7 @@ new EditorView({
 });
 ```
 
-`configs` maps each language id to its `.language-config.json`, and `language` names the document's language (it defaults to `name`). A grammar that embeds other languages passes the same `embeddedLanguages` map as its VS Code manifest entry, scope name to language id; comment toggling then uses the comment markers of the language at the position, as VS Code does. The other config entries come from the document language's config.
+`configs` maps each language id to its `.language-config.json`, and `language` names the document's language (it defaults to `name`). A grammar that embeds other languages passes the same `embeddedLanguages` map as its VS Code manifest entry, scope name to language id. Comment markers, auto-closing pairs, surrounding pairs, Enter rules and indentation rules then come from the config of the language at the cursor, and a language with no config uses the document language's. Enter and indentation rules see the text of the cursor's run of one language on the line when that run does not start the line and its language differs from the line's first language, as VS Code's `createScopedLineTokens` does. VS Code itself reads auto-closing and surrounding pairs from the document language's config, and its indentation patterns from the document language's config, so an editor that embeds a language can differ from VS Code there. Of several auto-closing pairs that end in the typed character, the longest whose opening text is already typed wins, as in VS Code.
 
 ```typescript
 vscodeLanguage({

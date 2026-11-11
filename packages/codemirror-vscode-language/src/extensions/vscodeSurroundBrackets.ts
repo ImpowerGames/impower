@@ -4,7 +4,6 @@ import {
   EditorSelection,
   EditorState,
   Extension,
-  Facet,
   MapMode,
   RangeSet,
   RangeValue,
@@ -14,23 +13,13 @@ import {
   Transaction,
   codePointAt,
   codePointSize,
-  combineConfig,
   fromCodePoint,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { type LanguageReader } from "@impower/textmate-grammar-tree/src/tree/utils/createLanguageReader";
 
-export interface VSCodeSurroundBracketsConfig {
-  surroundingPairs?: string[][];
-}
-
-export const vscodeSurroundBracketsConfig = Facet.define<
-  VSCodeSurroundBracketsConfig,
-  Required<VSCodeSurroundBracketsConfig>
->({
-  combine(configs) {
-    return combineConfig(configs, {});
-  },
-});
+import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
+import { configOf, languageAt } from "../utils/languageAt";
 
 export interface SurroundBracketConfig {
   brackets?: string[];
@@ -78,10 +67,41 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
   },
 });
 
+const surroundBracketsOf = (
+  config: VSCodeConfigDefinition | undefined,
+): SurroundBracketConfig => {
+  const autoClosingPairs = config?.autoClosingPairs ?? [];
+  const pairs = (config?.surroundingPairs ?? []).filter(
+    ([open]) => !autoClosingPairs.some((pair) => pair.open === open),
+  );
+  return {
+    brackets: pairs.map(([open]) => open!),
+    before: pairs.map(([, close]) => close!).join(""),
+  };
+};
+
 export function vscodeSurroundBrackets(
-  config: VSCodeSurroundBracketsConfig,
+  reader: LanguageReader,
+  documentLanguage: string,
+  configs: Readonly<Record<string, VSCodeConfigDefinition>>,
 ): Extension {
-  return [inputHandler, bracketState, vscodeSurroundBracketsConfig.of(config)];
+  return [
+    inputHandler,
+    bracketState,
+    EditorState.languageData.of((state, pos) => [
+      {
+        get surroundBrackets() {
+          return surroundBracketsOf(
+            configOf(
+              configs,
+              languageAt(reader, state, pos, documentLanguage),
+              documentLanguage,
+            ),
+          );
+        },
+      },
+    ]),
+  ];
 }
 
 const definedClosing = "()[]{}<>";

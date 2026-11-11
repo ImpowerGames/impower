@@ -640,6 +640,27 @@ Three more invariants hold:
 - `lineComments.test.ts` writes the marker of each line's language at its start and requires the line to read as a comment; the classes of line it skips are named in the test with their reasons.
 - `languageReachability.test.ts` walks the generated grammar from every marked region and from the `.luau` root.
 
+### 8.2 Editor rules by language
+
+Each language has its own config: `definitions/yaml/sparkdown.language-config.yaml` for story and `definitions/yaml/sparkdown-luau.language-config.yaml` for Luau. An entry goes to the language whose syntax it serves, and an entry that serves both is in both.
+
+| Entry | Story | Luau |
+| --- | --- | --- |
+| Comments | `//`, `/* */` | `--`, `--[[ ]]` |
+| Auto-closing pairs | `~~`, `::`, `/*` | `--[[`, `--[=[`, `--[==[` |
+| Surrounding pairs | | `--[[ ]]` |
+| Enter rules | bullets (`+`, `*`, `-`), `->`, `Label:`, a `define` header | `--[[` comments, `---` doc comments, `function`, `then`, `do`, `else`, `repeat` |
+| Indentation | after a block header only: `if`/`elseif … then`, `for`/`while … do`, `else`, `do`, `repeat`, `scene`, `branch`, `define`, a `function` that opens, an open bracket; never after prose that ends in one of those words | after a line ending in `then`, `do`, `else`, `repeat`, an open `function` or an open bracket |
+
+Both files hold the bracket, quote and backtick pairs and the brace, bracket and paren Enter rules.
+
+The web editor (`packages/codemirror-vscode-language`) takes every entry from the config of the language at the cursor (§8.1), and Enter and indentation rules see the cursor's run of one language on the line when that run neither starts the line nor shares the line's first language, as VS Code's `createScopedLineTokens` does. VS Code takes comments and Enter rules from the language at the cursor too, but reads auto-closing and surrounding pairs from the document's language (`CursorConfiguration` is built from `model.getLanguageId()`), and the indentation patterns it inherits from the line above from the document's language (`getInheritIndentForLine` in `autoIndent.ts`). So the story patterns also indent the Luau block headers a `.sd` document holds, and in a `.sd` document VS Code differs from the web editor in two places:
+
+- Typing `::` in a Luau expression adds a closing `::`.
+- Typing `[` after `--[` in a function body closes the bracket alone, not the comment's `]]`.
+
+A `.luau` document behaves the same in both editors.
+
 ## 9. Other rule properties
 
 Beyond `tag` and `name`, rules accept optional properties that opt into specific editor behaviors — bracket matching, smart indent, end-pattern timing. None are required to make a rule "work"; each is an opt-in. The two that come up most often:
