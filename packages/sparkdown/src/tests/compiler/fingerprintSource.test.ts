@@ -29,6 +29,9 @@ const COMMENTS: [string, string][] = [
   ["// a whole line\nHello there.", "Hello there."],
   ["Hello there. // a note", "Hello there."],
   ["Hello *there*. // a note", "Hello *there*."],
+  ["/* a block\n  of notes */\nHello there.", "Hello there."],
+  ["Hello /* a note */ there.", "Hello there."],
+  ["Hello /*a note*/ there.", "Hello there."],
   [
     "layout main {\n  if ok then // a note\n  end\n}",
     "layout main {\n  if ok then\n  end\n}",
@@ -78,6 +81,9 @@ const STRINGS: [string, string][] = [
   ["HERO: Hi  there.", "HERO: Hi there."],
   ["HERO:\n  Hello  there.", "HERO:\n  Hello there."],
   ["* Choice  one", "* Choice one"],
+  [String.raw`Open  /* note\
+Next.`, String.raw`Open /* note\
+Next.`],
   ["# tag  one", "# tag one"],
   ["Line #tag  x", "Line #tag x"],
   [

@@ -1,0 +1,19 @@
+/* top
+still the top note */
+scene start
+  Before.
+  /* first hidden line
+  second hidden line
+  third hidden line */
+  After.
+  Hello /* note
+  more note */ there
+  RAFFLES:
+    Real line.
+    /* hidden
+    still hidden */
+    Second line.
+  /*
+scene hidden
+  */
+  done

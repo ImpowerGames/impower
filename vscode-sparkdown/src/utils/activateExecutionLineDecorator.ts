@@ -6,8 +6,10 @@ import {
 } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
+import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
 import { choiceSentence } from "@impower/spark-web-player/src/route/routeView";
 import * as vscode from "vscode";
+import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { addExecutedHighlightLines } from "./executedHighlightLines";
 import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
@@ -196,11 +198,20 @@ const highlightLines = (
 ) => {
   const lines = executedLines?.[editor.document.uri.toString()];
   if (lines) {
-    addExecutedHighlightLines(
-      lineSet,
-      lines.ranges,
-      (line) => editor.document.lineAt(line).text,
-    );
+    const document = editor.document;
+    const tree = SparkdownDocumentManager.instance.tree(document.uri);
+    addExecutedHighlightLines(lineSet, lines.ranges, (line) => {
+      const textLine = document.lineAt(line);
+      return (
+        textLine.isEmptyOrWhitespace ||
+        (!!tree &&
+          isCommentOnlyLine(
+            tree,
+            document.offsetAt(textLine.range.start),
+            textLine.text,
+          ))
+      );
+    });
   }
 };
 

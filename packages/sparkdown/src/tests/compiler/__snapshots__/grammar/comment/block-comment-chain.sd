@@ -1,0 +1,13 @@
+scene start
+  Before /* note\
+  still */ after
+  One /* a note */ two\
+  three
+  Two /*one*//*two*/ notes\
+  four
+  Five // note\
+  six
+  Seven /* note \*/
+  eight
+  done
+end

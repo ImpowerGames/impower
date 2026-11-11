@@ -1340,7 +1340,7 @@ This is the engine-facing complement to §3.2 ("the biggest gotcha: incomplete s
 
 ### 17.3 Blank lines and comment lines do NOT break a legitimately-open scope
 
-A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
+A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
 
 ### 17.4 The gate: `scopeEquality.test.ts`
 
@@ -1358,12 +1358,28 @@ All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-patter
 
 | `end` shape | count | examples | verdict |
 | --- | --- | --- | --- |
-| `(?=^(?!$\|//\|\1{{WS}}))` (indentation block) | 14 | `BlockAction`, `BlockDialogue`, `BlockTitle`, `BlockHeading`, `BlockTransitional`, `BlockWrite`, `ImplicitAction`, `FrontMatterField`, the `Inline*` variants | **Ambiguity-free.** Both engines hold the scope across blank/indented/comment lines identically (§17.3). |
+| `(?=^(?!$\|//\|{{SPARKDOWN_BLOCK_COMMENT_START}}\|\1{{WS}}))` (indentation block) | 14 | `BlockAction`, `BlockDialogue`, `BlockTitle`, `BlockHeading`, `BlockTransitional`, `BlockWrite`, `ImplicitAction`, `FrontMatterField`, the `Inline*` variants | **Ambiguity-free.** Both engines hold the scope across blank/indented/comment lines identically (§17.3). |
 | `end: $` (boundary line) | 5 | `Scene`, `Branch`, `ImageCommand`, `AudioCommand`, `LuauSparkdownSingleLineConditionalAlternatorBlock` | **Ambiguity-free after this fix.** `Scene`/`Branch` now tile their line (§16.3). `ImageCommand`/`AudioCommand` already close at `$` _or_ their `]]`/`))` terminator, so an unterminated marker is line-bounded, not run-on. |
 | `(?=…)` lookahead | 96 | expression / operator / declaration / loop / `if`-block rules | **Ambiguity-free for valid input.** Verified across the full snapshot corpus. |
 | other (`$\|…`, explicit `\n`, bracket-balanced) | 36 | strings, tables, parentheticals, `LuauIfBlockCondition`, interpolation | **Ambiguity-free for valid input.** Verified across the corpus. |
 
 **Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
+
+**A story block comment reads to its `*/` or to the end of the script** (`SparkdownBlockComment`). Its `end:` has no `{{BEAT}}` bail-out, because a `scene` line inside the comment is commented out, and the compiler reports the unclosed opener instead. `SparkdownBlockCommentContent` and `Newline` tile every character up to the `*/`, so neither engine leaves a gap. An unclosed comment keeps one scope open to the end of the script, with the re-parse cost §16 describes. Measured as the first incremental re-parse after a one-character edit below an unclosed `/*` at the top of a script, against a `//` line in its place, the medians are:
+
+| Script length | Unclosed `/*` | `//` line |
+| --- | --- | --- |
+| 1,000 lines | 8.07 ms | 1.29 ms |
+| 10,000 lines | 49.2 ms | 3.48 ms |
+| 30,000 lines | 187 ms | 10.4 ms |
+
+The story config auto-closes `/*` with `*/`, so typing a comment does not pass through the unclosed state.
+
+**A block comment that starts in choice text or on a chain line must close on that line.** Choice text (`ChoiceWithSuppressedText`, `ChoiceWithNoSuppressedText`), a divert and a chained display line (`ActionLineChain`, `LineChain`) are single-line matches, and a capture cannot hold a scope past its line. They read a block comment through `SparkdownBlockCommentOnLine`, which reads `SparkdownBlockComment` only when its `*/` is on the same line. There, a `/*` with no `*/` after it is text: `SparkdownOpenCommentText` on a chain line, and plain choice text in a choice. These rules keep main's forms otherwise, so interpolations and suppression brackets in them are read exactly as they are without comments.
+
+**In choice text, a comment cannot contain `[`, `]` or `->`.** The choice rules split the line at a suppression bracket and at a divert arrow before any capture is read, so a bracket or arrow inside a comment is read by them, for `//` and `/* */` alike. `+ Go // [secret] home` is the choice `Gosecret`, `+ Go /* [secret] */ home` is `Go /* secret`, and `+ Go // -> next` and `+ Go /* -> next */ home` divert to `next`. On a chain line the chain is decided by the line's last character: after `// note`, a final `\` still chains, and a `\` inside a closed `/* … */` is part of the comment and does not chain. #2083 rebuilds choice text so that a comment is read as one unit first.
+
+**A comment that opens inside a styled span must close on its line.** The spans that read story text (`Italic`, `Bold`, `Underline`, `Centered`, `EmphasisTilde`, `EmphasisColon`, and `BoldItalic` through its `Italic`) read a comment first, through `SparkdownBlockCommentOnLine`, so `*far /*note*/ away*` is the span `*far away*` and a `*` of `/*` or `*/` never closes it. A span ends at its line, so a `/*` inside one with no `*/` on the line is text (`*x /* open`). `Raw` spans keep their text literal. A `//` inside a span is text, as is any `//` that does not start a line comment.
 
 **Stray text after a divert's targets** (`-> a -> b > After`, `x .. queue|-> A > y|b .. z`) is tiled rather than left to close the rule incomplete. `Divert` and the nested `Tunnel` end their line, so each takes a `// note` comment and then the rest of the line as `Unknown`. Inside an alternator arm the line-eating `Unknown` would swallow the arm's `|`, closing glue and `end`, so `ArmDivert` chains `ArmTunnel` (a `Tunnel` bounded by the arm) and both take stray text as `ArmUnknown`, which stops at those same boundaries. Arms have no `//` comments, so neither arm rule includes one.
 

@@ -1,0 +1,6 @@
+scene start
+  choose
+    + Go /* never closed
+      done
+  end
+end

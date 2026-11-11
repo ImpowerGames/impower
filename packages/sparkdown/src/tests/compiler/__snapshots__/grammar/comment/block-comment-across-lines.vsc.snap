@@ -1,0 +1,97 @@
+text.source.sparkdown [0..271]
+ ├─ comment.block.sd [0..6]
+ │   ├─ punctuation.definition.comment.begin.sd [0..2]: "/*"
+ │   └─ comment.block.content.sd [2..6]: " top"
+ ├─ Newline [6..7]: "\n"
+ ├─ comment.block.sd [7..28]
+ │   ├─ comment.block.content.sd [7..26]: "still the top note "
+ │   └─ punctuation.definition.comment.end.sd [26..28]: "*/"
+ ├─ Newline [28..29]: "\n"
+ ├─ keyword.control.scene.sd [29..34]: "scene"
+ ├─ punctuation.whitespace.required.sd [34..35]: " "
+ ├─ keyword.control.section.sd [35..40]: "start"
+ ├─ Newline [40..41]: "\n"
+ ├─ punctuation.whitespace.optional.sd [41..43]: "  "
+ ├─ string.display.text.chunk.sd [43..50]
+ │   ├─ markup.raw.text.sd [43..49]: "Before"
+ │   └─ markup.raw.punctuation.sd [49..50]: "."
+ ├─ Newline [50..51]: "\n"
+ ├─ comment.block.sd [51..73]
+ │   ├─ punctuation.whitespace.optional.sd [51..53]: "  "
+ │   ├─ punctuation.definition.comment.begin.sd [53..55]: "/*"
+ │   └─ comment.block.content.sd [55..73]: " first hidden line"
+ ├─ Newline [73..74]: "\n"
+ ├─ comment.block.sd [74..94]
+ │   └─ comment.block.content.sd [74..94]: "  second hidden line"
+ ├─ Newline [94..95]: "\n"
+ ├─ comment.block.sd [95..117]
+ │   ├─ comment.block.content.sd [95..115]: "  third hidden line "
+ │   └─ punctuation.definition.comment.end.sd [115..117]: "*/"
+ ├─ Newline [117..118]: "\n"
+ ├─ punctuation.whitespace.optional.sd [118..120]: "  "
+ ├─ string.display.text.chunk.sd [120..126]
+ │   ├─ markup.raw.text.sd [120..125]: "After"
+ │   └─ markup.raw.punctuation.sd [125..126]: "."
+ ├─ Newline [126..127]: "\n"
+ ├─ punctuation.whitespace.optional.sd [127..129]: "  "
+ ├─ string.display.text.chunk.sd [129..134]
+ │   └─ markup.raw.text.sd [129..134]: "Hello"
+ ├─ comment.block.sd [134..142]
+ │   ├─ punctuation.whitespace.optional.sd [134..135]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [135..137]: "/*"
+ │   └─ comment.block.content.sd [137..142]: " note"
+ ├─ Newline [142..143]: "\n"
+ ├─ comment.block.sd [143..157]
+ │   ├─ comment.block.content.sd [143..155]: "  more note "
+ │   └─ punctuation.definition.comment.end.sd [155..157]: "*/"
+ ├─ string.display.text.chunk.sd [157..163]
+ │   ├─ markup.raw.space.sd [157..158]: " "
+ │   └─ markup.raw.text.sd [158..163]: "there"
+ ├─ Newline [163..164]: "\n"
+ ├─ string.display.dialogue.block.sd [164..174]
+ │   ├─ punctuation.whitespace.optional.sd [164..166]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [166..173]
+ │   │   └─ markup.raw.text.sd [166..173]: "RAFFLES"
+ │   └─ meta.template.expression.operator.colon.sd [173..174]: ":"
+ ├─ Newline [174..175]: "\n"
+ ├─ string.display.dialogue.block.sd [175..189]
+ │   ├─ punctuation.whitespace.optional.sd [175..179]: "    "
+ │   └─ string.display.text.chunk.sd [179..189]
+ │       ├─ markup.raw.text.sd [179..183]: "Real"
+ │       ├─ markup.raw.space.sd [183..184]: " "
+ │       ├─ markup.raw.text.sd [184..188]: "line"
+ │       └─ markup.raw.punctuation.sd [188..189]: "."
+ ├─ Newline [189..190]: "\n"
+ ├─ string.display.dialogue.block.sd [190..203]
+ │   └─ comment.block.sd [190..203]
+ │       ├─ punctuation.whitespace.optional.sd [190..194]: "    "
+ │       ├─ punctuation.definition.comment.begin.sd [194..196]: "/*"
+ │       └─ comment.block.content.sd [196..203]: " hidden"
+ ├─ Newline [203..204]: "\n"
+ ├─ string.display.dialogue.block.sd [204..223]
+ │   └─ comment.block.sd [204..223]
+ │       ├─ comment.block.content.sd [204..221]: "    still hidden "
+ │       └─ punctuation.definition.comment.end.sd [221..223]: "*/"
+ ├─ Newline [223..224]: "\n"
+ ├─ string.display.dialogue.block.sd [224..240]
+ │   ├─ punctuation.whitespace.optional.sd [224..228]: "    "
+ │   └─ string.display.text.chunk.sd [228..240]
+ │       ├─ markup.raw.text.sd [228..234]: "Second"
+ │       ├─ markup.raw.space.sd [234..235]: " "
+ │       ├─ markup.raw.text.sd [235..239]: "line"
+ │       └─ markup.raw.punctuation.sd [239..240]: "."
+ ├─ Newline [240..241]: "\n"
+ ├─ comment.block.sd [241..245]
+ │   ├─ punctuation.whitespace.optional.sd [241..243]: "  "
+ │   └─ punctuation.definition.comment.begin.sd [243..245]: "/*"
+ ├─ Newline [245..246]: "\n"
+ ├─ comment.block.sd [246..258]
+ │   └─ comment.block.content.sd [246..258]: "scene hidden"
+ ├─ Newline [258..259]: "\n"
+ ├─ comment.block.sd [259..263]
+ │   ├─ comment.block.content.sd [259..261]: "  "
+ │   └─ punctuation.definition.comment.end.sd [261..263]: "*/"
+ ├─ Newline [263..264]: "\n"
+ ├─ punctuation.whitespace.optional.sd [264..266]: "  "
+ ├─ keyword.control.divert.done.sd [266..270]: "done"
+ └─ Newline [270..271]: "\n"

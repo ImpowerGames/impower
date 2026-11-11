@@ -413,19 +413,20 @@ variables:
   # alternative has a fixed width, which VS Code's Oniguruma requires.
   NOT_TAG_HASH_AFTER_TEXT: (?<=[^\s.]|[^\s.][.]|[^\s.][.][.])(?={{NOT_TAG_HASH}})
   COMMENT_START: (?:[-][-])
+  SPARKDOWN_BLOCK_COMMENT_START: (?:[/][*])
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
-  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))
+  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))
   # lookaround: SparkdownInlineComment owns a `//` followed by whitespace or
-  # the line end. BlockDialogue and InlineDialogue begin at the line's first
-  # character and the comment after the display text, so the dialogue begin
-  # matches first under every order of DisplayStatements, and a begin that
-  # reads to a colon cannot be stopped by any rule's `end:`. The name's
-  # character is the variable to tighten: a slash is a name character
-  # unless it opens that comment.
-  DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}}))|[^{}:/\\\r\n])
+  # the line end, and SparkdownBlockComment a `/*`. BlockDialogue and
+  # InlineDialogue begin at the line's first character and the comment after
+  # the display text, so the dialogue begin matches first under every order
+  # of DisplayStatements, and a begin that reads to a colon cannot be stopped
+  # by any rule's `end:`. The name's character is the variable to tighten: a
+  # slash is a name character unless it opens one of those comments.
+  DIALOGUE_CHARACTER_NAME_CHARACTER: (?:\\.|[/](?![/](?:$|{{WS}})|[*])|[^{}:/\\\r\n])
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
   # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock; GRAMMAR.md §10.1 gives why neither ordering nor `\G` replaces it.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
@@ -1097,6 +1098,7 @@ repository:
 
   DisplayStatements:
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Title" }
       - { include: "#Heading" }
@@ -1131,6 +1133,43 @@ repository:
         name: punctuation.definition.comment.sd
       3:
         name: comment.line.double-slash.content.sd
+
+  SparkdownBlockComment:
+    tag: blockComment
+    name: comment.block.sd
+    begin: ({{WS}}*)({{SPARKDOWN_BLOCK_COMMENT_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: punctuation.definition.comment.begin.sd
+    patterns:
+      - { include: "#Newline" }
+      - { include: "#SparkdownBlockCommentContent" }
+    # eslint-disable-next-line sparkdown-grammar/scoped-end-has-bailout
+    end: ([*][/])
+    endCaptures:
+      1:
+        name: punctuation.definition.comment.end.sd
+
+  SparkdownBlockCommentContent:
+    tag: blockComment
+    name: comment.block.content.sd
+    # lookaround: SparkdownBlockComment's end reads the `*/`. A content token that began before it would take its `*` first, and no ordering lets an end that starts later win.
+    match: ((?:[^*\r\n]|[*](?![/]))+)
+
+  SparkdownBlockCommentOnLine:
+    match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}.*?[*][/])
+    captures:
+      1:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
+
+  SparkdownOpenCommentText:
+    tag: special(string)
+    name: string.display.text.chunk.sd
+    match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}})
 
   SparkleTrailingLineComment:
     tag: lineComment
@@ -1664,6 +1703,7 @@ repository:
   ChoiceInnerText:
     emit: true
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#DisplayText" }
 
@@ -1682,6 +1722,7 @@ repository:
           - { include: "#Annotation" }
           - { include: "#LuauFunctionCallShorthand" }
           - { include: "#LuauInterpolatedStringExpression" }
+          - { include: "#SparkdownBlockCommentOnLine" }
           - { include: "#SparkdownInlineComment" }
           - { include: "#DisplayText" }
 
@@ -1876,6 +1917,7 @@ repository:
       - { include: "#DivertLoad" }
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#DivertStrayTextSpace" }
       - { include: "#ExtraWhitespace" }
@@ -1921,6 +1963,7 @@ repository:
       - { include: "#Tunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Unknown" }
@@ -2355,12 +2398,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
@@ -2417,12 +2461,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
@@ -2479,12 +2524,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
@@ -2548,12 +2594,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
@@ -2621,12 +2668,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
@@ -2763,12 +2811,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
       - { include: "#BlockActionLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))
   InlineAction:
     begin: (?<![}])({{WS}}*)(?:({{LEADING_GLUE}})|([:])($|{{WS}}+))
     beginCaptures:
@@ -2839,7 +2888,8 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#ActionDisplayLine" }
+          - { include: "#ActionLoadKeyword" }
+          - { include: "#ChainDisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
@@ -2969,7 +3019,7 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#DisplayLine" }
+          - { include: "#ChainDisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
@@ -2992,6 +3042,19 @@ repository:
 
   DisplayLine:
     patterns:
+      - { include: "#DisplayLineCode" }
+      - { include: "#SparkdownBlockComment" }
+      - { include: "#DisplayLineText" }
+
+  ChainDisplayLine:
+    patterns:
+      - { include: "#DisplayLineCode" }
+      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#SparkdownOpenCommentText" }
+      - { include: "#DisplayLineText" }
+
+  DisplayLineCode:
+    patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
       - { include: "#LuauFunctionCallShorthand" }
@@ -3000,6 +3063,9 @@ repository:
       - { include: "#Chain" }
       - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
+
+  DisplayLineText:
+    patterns:
       - { include: "#SparkdownInlineComment" }
       - { include: "#BreakLeadingGlue" }
       - { include: "#Break" }
@@ -3022,7 +3088,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{INLINE_GLUED_ALTERNATOR_START}}|{{EOL}}|{{WS}}*[/]{2}(?=$|{{WS}})|{{WS}}*{{BREAK_MARK}})
+    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{INLINE_GLUED_ALTERNATOR_START}}|{{EOL}}|{{WS}}*[/]{2}(?=$|{{WS}})|{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|{{WS}}*{{BREAK_MARK}})
 
   DisplayText:
     patterns:
@@ -3465,6 +3531,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3481,6 +3548,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3497,6 +3565,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3513,6 +3582,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3534,6 +3604,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:
@@ -3550,6 +3621,7 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
     end: (\1)|(?={{EOL}})
     endCaptures:

@@ -241,4 +241,29 @@ end
   test("a menu whose caption is an empty pause is named by its first option", () => {
     expect(menuNamed("    : Exposition. > >")).toBe("Left");
   });
+
+  test("an option's name leaves out its comments", () => {
+    const [scene] = symbolsOf(`scene Hall
+  choose
+    * Go /* draft */ left
+      Gone.
+    * Wait /* aside */ here // note
+      Waiting.
+    * Stay /* not closed on its line
+      Staying.
+  end
+end
+`);
+    expect(shape(scene?.children)).toEqual([
+      [
+        "Enum",
+        "Go left",
+        [
+          ["EnumMember", "Go left"],
+          ["EnumMember", "Wait here"],
+          ["EnumMember", "Stay /* not closed on its line"],
+        ],
+      ],
+    ]);
+  });
 });
