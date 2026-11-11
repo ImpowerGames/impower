@@ -33,15 +33,8 @@ export const DEVICE_STORAGE_COPY = {
   driveDetail: "Keep a copy online, open it anywhere.",
   export: "Export a backup",
   exportDetail: "Download every script and asset as a .zip.",
-  exportAction: "Export",
   exportFailed: "The project could not be exported. Try again.",
-  remindLater: "Remind me later",
 } as const;
-
-export const backupReminderMessage = (days: number, backedUp: boolean) =>
-  backedUp
-    ? `${days} days since your last backup.`
-    : `${days} days and no backup yet.`;
 
 const LOCAL_SAVE_ERRORS: readonly SyncStatus[] = ["load_error", "import_error"];
 

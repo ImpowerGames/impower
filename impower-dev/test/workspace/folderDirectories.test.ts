@@ -388,7 +388,7 @@ describe("zip export and import carry empty folders", () => {
         "scripts/a/b",
       ]),
     );
-    const zip = (await source.readProjectZip(PROJECT)).zip;
+    const zip = await source.readProjectZip(PROJECT);
     expect(Object.keys(unzipSync(new Uint8Array(zip))).sort()).toEqual([
       ".layout",
       "assets/empty/",
@@ -449,7 +449,7 @@ describe("dotfiles inside folders are ordinary files in exports, imports and Dri
         "assets/notes/.folder": "keep me",
       }),
     );
-    const zip = (await source.readProjectZip(PROJECT)).zip;
+    const zip = await source.readProjectZip(PROJECT);
     expect(Object.keys(unzipSync(new Uint8Array(zip))).sort()).toEqual([
       ".layout",
       "assets/notes/.folder",
@@ -599,7 +599,7 @@ describe("authors' folders and files survive migrations, imports and other tabs"
       dec.decode(await reloaded.readFile({ file: { uri: "file://local/.folder" } })),
     ).toBe("author content");
     expect(
-      Object.keys(unzipSync(new Uint8Array((await reloaded.readProjectZip(PROJECT)).zip))),
+      Object.keys(unzipSync(new Uint8Array(await reloaded.readProjectZip(PROJECT)))),
     ).toContain(".folder");
     expect(await reloaded.readProjectScriptBundle(PROJECT)).toContain(
       "//// .folder ////",

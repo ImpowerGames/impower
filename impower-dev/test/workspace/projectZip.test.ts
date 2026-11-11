@@ -60,8 +60,6 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
 
     _unstoredUris: new Set<string>(),
-    readFile: async ({ file }: { file: { uri: string } }) =>
-      opfs.get(file.uri)!.slice().buffer,
     zipFiles: async ({
       files: list,
       entries = [],
@@ -103,8 +101,8 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
   return { fs, opfs, files };
 }
 
-const readProjectZip = async (h: Harness) =>
-  (await WorkspaceFileSystem.prototype.readProjectZip.call(h.fs, PROJECT)).zip;
+const readProjectZip = (h: Harness) =>
+  WorkspaceFileSystem.prototype.readProjectZip.call(h.fs, PROJECT);
 const writeProjectZip = (h: Harness, content: ArrayBuffer) =>
   WorkspaceFileSystem.prototype.writeProjectZip.call(h.fs, PROJECT, content);
 const readAssetBundle = (h: Harness) =>

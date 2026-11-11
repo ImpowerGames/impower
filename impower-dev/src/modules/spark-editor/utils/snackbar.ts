@@ -4,7 +4,6 @@ export interface Snackbar {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
-  dismissLabel?: string;
 }
 
 export const snackbar = signal<Snackbar | null>(null);

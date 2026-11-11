@@ -19,7 +19,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       setAccount: () => {},
       loadProject: async () => {},
-      reviewDeviceStorage: async () => {},
+      refreshDeviceStorage: async () => {},
       toggleGameRunning: () => {
         calls.toggleGameRunning += 1;
       },

@@ -369,8 +369,6 @@ const zipHarness = (initial: Record<string, string>) => {
     getRelativePath: WorkspaceFileSystem.prototype.getRelativePath,
     _scheme: "file:///",
     getFiles: async () => files(),
-    readFile: async ({ file }: { file: { uri: string } }) =>
-      opfs.get(file.uri)!.slice().buffer,
     getFolders: async () => [],
     listFolders: async () => [],
     createFolders: async () => [],
@@ -413,14 +411,12 @@ const zipHarness = (initial: Record<string, string>) => {
     opfs,
     paths: () =>
       [...opfs.keys()].map((uri) => uri.slice(`file:///${PROJECT}/`.length)),
-    readProjectZip: async (settingsJson?: string) =>
-      (
-        await WorkspaceFileSystem.prototype.readProjectZip.call(
-          fs,
-          PROJECT,
-          settingsJson,
-        )
-      ).zip,
+    readProjectZip: (settingsJson?: string) =>
+      WorkspaceFileSystem.prototype.readProjectZip.call(
+        fs,
+        PROJECT,
+        settingsJson,
+      ),
     writeProjectZip: (content: ArrayBuffer) =>
       WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, content),
   };

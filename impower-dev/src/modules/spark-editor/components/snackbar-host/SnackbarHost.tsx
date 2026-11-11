@@ -20,9 +20,7 @@ export default function SnackbarHost() {
     <Toast
       open={!!current}
       message={shown.message}
-      wrap={!!shown.dismissLabel}
       actionLabel={shown.actionLabel}
-      dismissLabel={shown.dismissLabel}
       onAction={() => {
         if (snackbar.value !== shown) {
           return;

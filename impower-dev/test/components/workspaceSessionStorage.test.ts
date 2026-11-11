@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const intents = vi.hoisted(() => ({
   setAccount: vi.fn(),
   loadProject: vi.fn(async () => {}),
-  reviewDeviceStorage: vi.fn(async () => {}),
+  refreshDeviceStorage: vi.fn(async () => {}),
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -17,8 +17,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 
 const { useWorkspaceSession } =
   await import("../../src/modules/spark-editor/components/main-window/useWorkspaceSession");
-const { BACKUP_REMINDER_CHECK_MS } =
-  await import("../../src/modules/spark-editor/utils/storagePersistence");
 
 function Session() {
   useWorkspaceSession();
@@ -26,100 +24,46 @@ function Session() {
 }
 
 let host: HTMLElement | undefined;
-let visibility: DocumentVisibilityState = "visible";
 
 const settle = () =>
   act(async () => {
-    await vi.advanceTimersByTimeAsync(0);
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
-beforeEach(async () => {
-  vi.useFakeTimers();
-  visibility = "visible";
-  vi.spyOn(document, "visibilityState", "get").mockImplementation(
-    () => visibility,
-  );
+beforeEach(() => {
   host = document.body.appendChild(document.createElement("div"));
-  await act(async () => render(h(Session, null), host!));
-  await settle();
 });
 
 afterEach(async () => {
   await act(async () => render(null, host!));
   host?.remove();
   host = undefined;
-  vi.restoreAllMocks();
   vi.clearAllMocks();
-  vi.useRealTimers();
+  intents.loadProject.mockImplementation(async () => {});
 });
 
-describe("the session's storage review", () => {
-  it("reviews storage once the project has loaded", () => {
-    expect(intents.loadProject).toHaveBeenCalledTimes(1);
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
-    expect(
-      intents.loadProject.mock.invocationCallOrder[0]!,
-    ).toBeLessThan(intents.reviewDeviceStorage.mock.invocationCallOrder[0]!);
-  });
-
-  it("looks again every hour, so an editor left open still gets its reminder", async () => {
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(BACKUP_REMINDER_CHECK_MS);
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(2);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(BACKUP_REMINDER_CHECK_MS);
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(3);
-  });
-
-  it("looks again when the editor comes back into view, and not when it leaves", async () => {
-    visibility = "hidden";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
-    visibility = "visible";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not look while the editor is hidden, so no reminder comes and goes unseen", async () => {
-    visibility = "hidden";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-      await vi.advanceTimersByTimeAsync(3 * BACKUP_REMINDER_CHECK_MS);
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
-    visibility = "visible";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(2);
-  });
-
-  it("waits for an editor opened in the background to come into view", async () => {
-    await act(async () => render(null, host!));
-    intents.reviewDeviceStorage.mockClear();
-    visibility = "hidden";
+describe("the session's storage status", () => {
+  it("reads the device storage once, after the project has loaded", async () => {
     await act(async () => render(h(Session, null), host!));
     await settle();
-    expect(intents.reviewDeviceStorage).not.toHaveBeenCalled();
-    visibility = "visible";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
+    expect(intents.loadProject).toHaveBeenCalledTimes(1);
+    expect(intents.refreshDeviceStorage).toHaveBeenCalledTimes(1);
+    expect(intents.loadProject.mock.invocationCallOrder[0]!).toBeLessThan(
+      intents.refreshDeviceStorage.mock.invocationCallOrder[0]!,
+    );
   });
 
-  it("stops looking once the session unmounts", async () => {
+  it("does not read it for a session that unmounted before the project loaded", async () => {
+    let finishLoad: () => void = () => {};
+    intents.loadProject.mockImplementation(
+      () => new Promise<void>((resolve) => (finishLoad = resolve)),
+    );
+    await act(async () => render(h(Session, null), host!));
+    await settle();
     await act(async () => render(null, host!));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3 * BACKUP_REMINDER_CHECK_MS);
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    expect(intents.reviewDeviceStorage).toHaveBeenCalledTimes(1);
+    finishLoad();
+    await settle();
+    expect(intents.loadProject).toHaveBeenCalledTimes(1);
+    expect(intents.refreshDeviceStorage).not.toHaveBeenCalled();
   });
 });

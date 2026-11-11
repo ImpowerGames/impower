@@ -1,6 +1,5 @@
 import { useEffect } from "preact/hooks";
 import { isEditableFocus } from "../../utils/focusedElement";
-import { BACKUP_REMINDER_CHECK_MS } from "../../utils/storagePersistence";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
@@ -10,9 +9,6 @@ import workspace from "../../workspace/WorkspaceStore";
 export function useWorkspaceSession(): void {
   useEffect(() => {
     let cancelled = false;
-    let recheck = 0;
-    let review: (() => void) | null = null;
-    const onVisible = () => review?.();
     (async () => {
       const { Workspace } = await import("../../workspace/Workspace");
       try {
@@ -28,22 +24,14 @@ export function useWorkspaceSession(): void {
       } catch (err) {
         console.error(err);
       }
-      if (cancelled) {
-        return;
+      if (!cancelled) {
+        await Workspace.window.refreshDeviceStorage().catch((err) => {
+          console.error(err);
+        });
       }
-      review = () => {
-        if (document.visibilityState === "visible") {
-          void Workspace.window.reviewDeviceStorage();
-        }
-      };
-      review();
-      recheck = window.setInterval(review, BACKUP_REMINDER_CHECK_MS);
-      document.addEventListener("visibilitychange", onVisible);
     })();
     return () => {
       cancelled = true;
-      window.clearInterval(recheck);
-      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

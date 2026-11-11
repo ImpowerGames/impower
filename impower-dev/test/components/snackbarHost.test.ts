@@ -65,21 +65,14 @@ describe("SnackbarHost", () => {
     expect(history).toEqual(["first"]);
   });
 
-  it("names its dismiss button when the snackbar gives one, and that button puts it away", async () => {
+  it("puts a toast away after its action, since no toast is pinned", async () => {
     await mount();
     const onAction = vi.fn();
     await act(async () =>
-      showSnackbar({
-        message: "9 days since your last backup.",
-        actionLabel: "Export",
-        dismissLabel: "Remind me later",
-        onAction,
-      }),
+      showSnackbar({ message: "Export a copy", actionLabel: "Export", onAction }),
     );
-    const message = document.querySelector("[data-toast] span");
-    expect(message?.className).not.toContain("fade-edge");
-    await act(async () => button("Remind me later")!.click());
-    expect(onAction).not.toHaveBeenCalled();
+    await act(async () => button("Export")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
     expect(snackbar.value).toBeNull();
   });
 });

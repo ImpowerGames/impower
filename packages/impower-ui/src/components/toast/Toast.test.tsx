@@ -174,35 +174,6 @@ describe("Toast", () => {
     expect(toast()).not.toBeNull();
   });
 
-  it("names its close with a dismiss label, on a fine pointer and on touch alike", async () => {
-    for (const touch of [false, true]) {
-      await setCoarse(touch);
-      const onDismiss = vi.fn();
-      host = document.body.appendChild(document.createElement("div"));
-      await act(async () =>
-        render(
-          <Toast
-            open
-            message="9 days since your last backup."
-            actionLabel="Export"
-            dismissLabel="Remind me later"
-            onDismiss={onDismiss}
-          />,
-          host!,
-        ),
-      );
-      expect(button("Dismiss")).toBeUndefined();
-      const later = button("Remind me later")!;
-      const area = await hitArea(later);
-      expect(area.height).toBeGreaterThanOrEqual(44);
-      await act(async () => later.click());
-      expect(onDismiss).toHaveBeenCalledTimes(1);
-      await act(async () => render(null, host!));
-      host.remove();
-      host = undefined;
-    }
-  });
-
   it("keeps 44px targets for its action and close", async () => {
     await mount();
     for (const label of ["Undo", "Dismiss"]) {

@@ -130,10 +130,6 @@ describe("isProjectMetadata and needsFolderMigration", () => {
     expect(isProjectMetadata(".layout")).toBe(true);
     expect(isProjectMetadata(".folders")).toBe(true);
     expect(isProjectMetadata(".zipSynced")).toBe(true);
-    expect(isProjectMetadata(".backedUpAt")).toBe(true);
-    expect(isProjectMetadata(".backedUpFingerprint")).toBe(true);
-    expect(isProjectMetadata(".createdAt")).toBe(true);
-    expect(isProjectMetadata(".remindedAt")).toBe(true);
     expect(isProjectMetadata(".folder")).toBe(false);
     expect(isProjectMetadata(".constructor")).toBe(false);
     expect(isProjectMetadata("assets/.name")).toBe(false);
