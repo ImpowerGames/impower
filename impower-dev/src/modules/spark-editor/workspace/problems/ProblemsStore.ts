@@ -1,5 +1,4 @@
 import { layoutState } from "@impower/impower-ui/layout";
-import { fixActionsOf } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
 import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { RequestedEditorToolMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
 import { computed, signal } from "@preact/signals";
@@ -16,6 +15,7 @@ import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
 import { showSnackbar } from "../../utils/snackbar";
 import { applyFix, type FixChoice } from "./applyFix";
+import { openForFix, openScript, type OpenForFixDeps } from "./openForFix";
 import {
   CONSOLE_SEVERITIES,
   formatConsoleLog,
@@ -134,6 +134,8 @@ export class ProblemsStore {
   protected _serial = 0;
 
   protected _openHeight = PANEL_OPEN_HEIGHT;
+
+  protected _leftForScript = false;
 
   protected readonly _playedSources = new Set<PlayedSource>();
 
@@ -324,12 +326,19 @@ export class ProblemsStore {
     }
   }
 
+  takeLeftForScript() {
+    const left = this._leftForScript;
+    this._leftForScript = false;
+    return left;
+  }
+
   async jump(target: {
     uri?: string;
     path?: string;
     line: number;
     character?: number;
   }) {
+    this._leftForScript = !!this.dialog.peek();
     this.closeDialog();
     const { Workspace } = await import("../Workspace");
     const uri =
@@ -347,23 +356,20 @@ export class ProblemsStore {
 
   async applyFix(choice: FixChoice) {
     const { Workspace } = await import("../Workspace");
+    const opening: OpenForFixDeps = {
+      reveal: (fix) =>
+        this.jump({
+          uri: fix.uri,
+          line: fix.range.start.line + 1,
+          character: fix.range.start.character,
+        }),
+      pull: (uri) => Workspace.ls.pullDiagnostics(uri),
+      record: (pulled) => this.record(pulled),
+    };
     return applyFix(
       {
-        getFileText: (uri) => Workspace.fs.getFileText(uri),
-        getFileVersion: (uri) => Workspace.fs.getFileVersion(uri),
-        offeredFixes: async (uri) => {
-          const pulled = await Workspace.ls.pullDiagnostics(uri);
-          if (!pulled) {
-            return null;
-          }
-          this.record({ uri, ...pulled });
-          return {
-            version: pulled.version,
-            fixes: pulled.diagnostics.flatMap((d) => fixActionsOf(d.data)),
-          };
-        },
-        applyWorkspaceEdit: (edit, label, metadata) =>
-          Workspace.fs.applyWorkspaceEdit(edit, label, metadata),
+        openForFix: (fix) => openForFix(opening, fix),
+        openScript: async (fix) => (await openScript(opening, fix)) !== null,
         recordScriptChange: () => Workspace.window.recordScriptChange(),
         refreshDiagnostics: async (uri) => {
           const pulled = await Workspace.ls.pullDiagnostics(uri);

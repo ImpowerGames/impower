@@ -328,4 +328,19 @@ describe("the Problems to fix dialog", () => {
     });
     expect(document.activeElement).not.toBe(trigger);
   });
+
+  it("leaves focus to the script when a fix for a script no editor holds opens it from the dialog", async () => {
+    await open({ kind: "story" });
+    await act(async () => {
+      await problems.jump({ uri: CHAPTER, line: 2, character: 2 });
+    });
+    await transition();
+    expect(dialog()).toBeUndefined();
+    expect(intents.revealDocument).toHaveBeenCalledWith(CHAPTER, {
+      start: { line: 1, character: 2 },
+      end: { line: 1, character: 2 },
+    });
+    expect(document.activeElement).not.toBe(trigger);
+    expect(problems.takeLeftForScript()).toBe(false);
+  });
 });

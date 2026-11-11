@@ -41,12 +41,10 @@ export default function ProblemsDialog() {
   const listed = state
     ? scopedProblems(state.scope, all, { diagnostics, versions })
     : [];
-  const navigating = useRef(false);
   const list = useRef<HTMLDivElement>(null);
 
   const returnFocus = () => {
-    if (navigating.current) {
-      navigating.current = false;
+    if (problems.takeLeftForScript()) {
       return LEAVE_FOCUS;
     }
     const trigger = state?.returnFocus?.();
@@ -137,7 +135,6 @@ export default function ProblemsDialog() {
                   location={lineLink(problem.line)}
                   locationLabel={`Open ${problem.script} at line ${problem.line}`}
                   onJump={() => {
-                    navigating.current = true;
                     void problems.jump({
                       uri: problem.uri,
                       line: problem.line,

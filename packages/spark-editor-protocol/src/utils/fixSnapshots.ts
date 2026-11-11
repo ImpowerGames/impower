@@ -1,8 +1,3 @@
-import type {
-  EditorFix,
-  EditorFixChange,
-} from "../protocols/editor/ApplyEditorEditMessage";
-
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
@@ -15,28 +10,11 @@ export const textFingerprint = (text: string): string => {
   return `${text.length}:${(hash >>> 0).toString(16)}`;
 };
 
-export type OfferedFix = Pick<EditorFix, "changes" | "expect" | "kind">;
-
-export interface OfferedFixes {
-  version: number | undefined;
-  fixes: readonly OfferedFix[];
-}
-
 export interface InsertedText {
   from: number;
   to: number;
   text: string;
 }
-
-const sameChanges = (
-  a: readonly EditorFixChange[],
-  b: readonly EditorFixChange[],
-) =>
-  a.length === b.length &&
-  a.every(
-    (c, i) =>
-      c.from === b[i]!.from && c.to === b[i]!.to && c.insert === b[i]!.insert,
-  );
 
 export const FIX_SNAPSHOT_PROOFS = {
   openEditor: {
@@ -52,25 +30,6 @@ export const FIX_SNAPSHOT_PROOFS = {
       input.fixVersion === input.editorVersion &&
       !input.touched,
   },
-  closedScript: {
-    route: "A fix applied to a script no editor holds",
-    proves:
-      "The server offers this exact fix from the file at the version storage holds, so its offsets belong to the text being edited",
-    holds: (input: {
-      fix: OfferedFix;
-      offered: readonly OfferedFix[] | null;
-      offeredVersion: number | undefined;
-      storedVersion: number | undefined;
-    }) =>
-      input.offeredVersion != null &&
-      input.offeredVersion === input.storedVersion &&
-      !!input.offered?.some(
-        (offered) =>
-          offered.expect === input.fix.expect &&
-          offered.kind === input.fix.kind &&
-          sameChanges(offered.changes, input.fix.changes),
-      ),
-  },
   undoInEditor: {
     route: "Undo in the editor that applied the fix",
     proves:
@@ -84,7 +43,7 @@ export const FIX_SNAPSHOT_PROOFS = {
       ),
   },
   undoElsewhere: {
-    route: "Undo in a reopened editor or in the saved file",
+    route: "Undo in an editor that did not apply the fix, the script having been reopened",
     proves: "The script is exactly the text the fix produced",
     holds: (input: { text: string; after: string }) =>
       textFingerprint(input.text) === input.after,

@@ -5,12 +5,6 @@ import {
   type FixSnapshotRoute,
 } from "../src/utils/fixSnapshots";
 
-const USE_ALICE = {
-  changes: [{ from: 5, to: 10, insert: "alice" }],
-  expect: "alcie",
-  kind: "name" as const,
-};
-
 const published = [{ message: "Cannot find alcie" }, { message: "To do" }];
 
 const CASES: {
@@ -25,22 +19,6 @@ const CASES: {
       { fixVersion: 3, editorVersion: 4, touched: false },
       { fixVersion: undefined, editorVersion: 4, touched: false },
       { fixVersion: 4, editorVersion: 4, touched: true },
-    ],
-  },
-  closedScript: {
-    holds: [{ fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: 2, storedVersion: 2 }],
-    fails: [
-      { fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: 1, storedVersion: 2 },
-      { fix: USE_ALICE, offered: [USE_ALICE], offeredVersion: undefined, storedVersion: 2 },
-      { fix: USE_ALICE, offered: null, offeredVersion: 2, storedVersion: 2 },
-      { fix: USE_ALICE, offered: [], offeredVersion: 2, storedVersion: 2 },
-      {
-        fix: USE_ALICE,
-        offered: [{ ...USE_ALICE, changes: [{ from: 10, to: 15, insert: "alice" }] }],
-        offeredVersion: 2,
-        storedVersion: 2,
-      },
-      { fix: USE_ALICE, offered: [{ ...USE_ALICE, expect: "alcxe" }], offeredVersion: 2, storedVersion: 2 },
     ],
   },
   undoInEditor: {

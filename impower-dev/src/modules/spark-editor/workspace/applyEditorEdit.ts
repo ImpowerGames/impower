@@ -2,7 +2,6 @@ import {
   ApplyEditorEditMessage,
   type ApplyEditorEditParams,
   type EditorFix,
-  type EditorFixChange,
   type EditorFixRevert,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
@@ -11,14 +10,6 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
-import {
-  FIX_SNAPSHOT_PROOFS,
-  textFingerprint,
-  type OfferedFix,
-  type OfferedFixes,
-} from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
-import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch";
-import type { Position, TextEdit } from "vscode-languageserver-protocol";
 
 export interface EditorEditFiles {
   getFileText: (uri: string) => Promise<string>;
@@ -91,7 +82,7 @@ export const applyEditorEdit = async (
 
 type FixRequest = Omit<ApplyEditorEditParams, "edit" | "closedTexts">;
 
-type EditorFixOutcome = "applied" | "refused" | "unclaimed";
+export type EditorFixOutcome = "applied" | "refused" | "unclaimed";
 
 const EDITOR_FIX_TIMEOUT = 3000;
 
@@ -148,192 +139,30 @@ const requestEditorFix = (
   });
 };
 
-const lineStarts = (text: string) => {
-  const starts = [0];
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === "\n") {
-      starts.push(i + 1);
-    }
-  }
-  return starts;
-};
-
-const offsetAt = (starts: number[], text: string, position: Position) => {
-  const start = starts[position.line];
-  if (start === undefined) {
-    return -1;
-  }
-  const next = starts[position.line + 1];
-  const end =
-    next === undefined
-      ? text.length
-      : next - (text[next - 2] === "\r" ? 2 : 1);
-  return Math.min(start + position.character, end);
-};
-
-const positionAt = (starts: number[], offset: number): Position => {
-  let line = starts.length - 1;
-  while (line > 0 && starts[line]! > offset) {
-    line--;
-  }
-  return { line, character: offset - starts[line]! };
-};
-
-const inBounds = (
-  text: string,
-  changes: readonly { from: number; to: number }[],
-) =>
-  changes.every((c) => 0 <= c.from && c.from <= c.to && c.to <= text.length);
-
-const sortedChanges = (changes: readonly EditorFixChange[]) =>
-  [...changes].sort((a, b) => a.from - b.from);
-
-const textEditsOf = (
-  text: string,
-  changes: readonly EditorFixChange[],
-): TextEdit[] => {
-  const starts = lineStarts(text);
-  return changes.map((c) => ({
-    range: { start: positionAt(starts, c.from), end: positionAt(starts, c.to) },
-    newText: c.insert,
-  }));
-};
-
-const applyChanges = (text: string, changes: readonly EditorFixChange[]) => {
-  let result = "";
-  let at = 0;
-  for (const c of sortedChanges(changes)) {
-    result += text.slice(at, c.from) + c.insert;
-    at = c.to;
-  }
-  return result + text.slice(at);
-};
-
-const revertOf = (
-  text: string,
-  changes: readonly EditorFixChange[],
-): EditorFixRevert => {
-  let delta = 0;
-  const reverted: EditorFixChange[] = [];
-  for (const c of sortedChanges(changes)) {
-    const from = c.from + delta;
-    delta += c.insert.length - (c.to - c.from);
-    reverted.push({
-      from,
-      to: from + c.insert.length,
-      insert: text.slice(c.from, c.to),
-    });
-  }
-  return {
-    changes: reverted,
-    after: textFingerprint(applyChanges(text, changes)),
-  };
-};
-
-const applyClosedChanges = async (
-  files: EditorEditFiles,
-  uri: string,
-  text: string,
-  changes: readonly EditorFixChange[],
-  label: string,
-) => {
-  const outcome = await applyEditorEdit(
-    files,
-    { changes: { [uri]: textEditsOf(text, changes) } },
-    label,
-  );
-  return outcome.applied;
-};
-
-export type { OfferedFix };
-
-export interface EditorFixFiles extends EditorEditFiles {
-  offeredFixes: (uri: string) => Promise<OfferedFixes | null>;
-  getFileVersion: (uri: string) => Promise<number | undefined>;
+export interface EditorFixResult {
+  outcome: EditorFixOutcome;
+  undo: () => Promise<EditorFixOutcome>;
 }
 
 const undoFix = async (
-  files: EditorFixFiles,
   uri: string,
   label: string,
   revert: EditorFixRevert,
   fix?: number | string,
-) => {
-  const editor = await requestEditorFix(uri, {
-    label,
-    undoFix: { uri, fix, revert },
-  });
-  if (editor.outcome !== "unclaimed") {
-    return editor.outcome === "applied";
-  }
-  const text = await files.getFileText(uri);
-  if (!FIX_SNAPSHOT_PROOFS.undoElsewhere.holds({ text, after: revert.after })) {
-    return false;
-  }
-  return applyClosedChanges(files, uri, text, revert.changes, label);
-};
-
-export interface EditorFixResult {
-  applied: boolean;
-  undo: () => Promise<boolean>;
-}
-
-const REFUSED: EditorFixResult = {
-  applied: false,
-  undo: async () => false,
-};
+): Promise<EditorFixOutcome> =>
+  (await requestEditorFix(uri, { label, undoFix: { uri, fix, revert } }))
+    .outcome;
 
 export const applyEditorFix = async (
-  files: EditorFixFiles,
   fix: EditorFix,
   label: string,
 ): Promise<EditorFixResult> => {
   const { uri } = fix;
   const editor = await requestEditorFix(uri, { label, fix });
-  if (editor.outcome === "applied") {
-    const { revert } = editor;
-    return revert
-      ? {
-          applied: true,
-          undo: () => undoFix(files, uri, label, revert, editor.id),
-        }
-      : { applied: true, undo: async () => false };
-  }
-  if (editor.outcome === "refused") {
-    return REFUSED;
-  }
-  const offered = await files.offeredFixes(uri);
-  const storedVersion = await files.getFileVersion(uri);
-  const text = await files.getFileText(uri);
-  if (
-    !FIX_SNAPSHOT_PROOFS.closedScript.holds({
-      fix,
-      offered: offered?.fixes ?? null,
-      offeredVersion: offered?.version,
-      storedVersion,
-    }) ||
-    (await files.getFileVersion(uri)) !== storedVersion
-  ) {
-    return REFUSED;
-  }
-  const starts = lineStarts(text);
-  const from = offsetAt(starts, text, fix.range.start);
-  const to = offsetAt(starts, text, fix.range.end);
-  if (
-    from < 0 ||
-    to < from ||
-    !inBounds(text, fix.changes) ||
-    (fix.expect !== undefined &&
-      !stillExpected(text, from, to, fix.expect, fix.kind))
-  ) {
-    return REFUSED;
-  }
-  if (!(await applyClosedChanges(files, uri, text, fix.changes, label))) {
-    return REFUSED;
-  }
-  const revert = revertOf(text, fix.changes);
+  const { revert } = editor;
   return {
-    applied: true,
-    undo: () => undoFix(files, uri, label, revert),
+    outcome: editor.outcome === "applied" && !revert ? "refused" : editor.outcome,
+    undo: async () =>
+      revert ? undoFix(uri, label, revert, editor.id) : "refused",
   };
 };

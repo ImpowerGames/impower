@@ -1,9 +1,11 @@
-import { history } from "@codemirror/commands";
+import { history, redo, undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
+  MessageProtocol,
   onProtocolRequest,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -13,14 +15,19 @@ import {
   undoEditorFix,
 } from "@impower/sparkdown-document-views/src/modules/script-editor/utils/extensions/editorFixes";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TextEdit } from "vscode-languageserver-protocol";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import type { Diagnostic } from "vscode-languageserver-protocol";
 import {
   applyFix,
   FIX_REFUSED,
   FIX_UNDO_LABEL,
   type FixChoice,
+  type FixDeps,
 } from "../../src/modules/spark-editor/workspace/problems/applyFix";
+import {
+  findSameFix,
+  openForFix,
+  type OpenForFixDeps,
+} from "../../src/modules/spark-editor/workspace/problems/openForFix";
 import { snackbar } from "../../src/modules/spark-editor/utils/snackbar";
 
 const URI = "file:///p/main.sd";
@@ -51,64 +58,6 @@ afterEach(() => {
   disposers = [];
   snackbar.value = null;
 });
-
-const closedScript = (initial: string, { lag = false } = {}) => {
-  let text = initial;
-  let stored = 1;
-  let compiled = 1;
-  let serverText = initial;
-  const compile = () => {
-    compiled = stored;
-    serverText = text;
-  };
-  const write = (next: string) => {
-    text = next;
-    stored += 1;
-    if (!lag) {
-      compile();
-    }
-  };
-  return {
-    text: () => text,
-    edit: write,
-    compile,
-    deps: {
-      getFileText: vi.fn(async () => text),
-      getFileVersion: vi.fn(async () => stored),
-      offeredFixes: vi.fn(async () => {
-        const at = serverText.indexOf("alcie");
-        return {
-          version: compiled,
-          fixes:
-            at < 0
-              ? []
-              : [
-                  {
-                    changes: [{ from: at, to: at + 5, insert: "alice" }],
-                    expect: "alcie",
-                    kind: "name" as const,
-                  },
-                ],
-        };
-      }),
-      applyWorkspaceEdit: vi.fn(
-        async (edit: {
-          documentChanges?: { edits: TextEdit[] }[];
-        }) => {
-          write(
-            TextDocument.applyEdits(
-              TextDocument.create(URI, "sparkdown", 1, text),
-              edit.documentChanges!.flatMap((change) => change.edits),
-            ),
-          );
-          return { applied: true };
-        },
-      ),
-      refreshDiagnostics: vi.fn(async () => {}),
-      recordScriptChange: vi.fn(async () => {}),
-    },
-  };
-};
 
 const openEditor = (text: string) => {
   const view = new EditorView({
@@ -143,20 +92,69 @@ const openEditor = (text: string) => {
   return view;
 };
 
-const undoFromToast = async () => {
-  expect(snackbar.value?.actionLabel).toBe(FIX_UNDO_LABEL);
-  snackbar.value!.onAction!();
-  await vi.waitFor(() => expect(snackbar.value?.message).not.toBe("Changed to alice."));
+const closeEditors = () => disposers.splice(0).forEach((dispose) => dispose());
+
+const deps = (overrides: Partial<FixDeps> = {}): FixDeps => ({
+  openForFix: vi.fn(async () => null),
+  openScript: vi.fn(async () => false),
+  refreshDiagnostics: vi.fn(async () => {}),
+  recordScriptChange: vi.fn(async () => {}),
+  ...overrides,
+});
+
+const nameDiagnostic = (text: string): Diagnostic => {
+  const at = text.indexOf("alcie");
+  return {
+    range: { start: { line: 1, character: 7 }, end: { line: 1, character: 12 } },
+    message: "Cannot find alcie",
+    data: [
+      {
+        name: "Use alice instead",
+        done: "Changed to alice.",
+        expect: "alcie",
+        kind: "name",
+        changes: [{ from: at, to: at + 5, insert: "alice" }],
+      },
+    ],
+  };
+};
+
+const sentEdits = () => {
+  const edits: unknown[] = [];
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent).detail;
+    if (ApplyEditorEditMessage.type.isRequest(detail)) {
+      edits.push(detail.params);
+    }
+  };
+  window.addEventListener(MessageProtocol.event, listener);
+  disposers.push(() => window.removeEventListener(MessageProtocol.event, listener));
+  return edits as { edit: { changes?: unknown; documentChanges?: unknown[] }; closedTexts?: unknown }[];
+};
+
+const reopening = (text: () => string, version: number) => {
+  const opened: EditorView[] = [];
+  const opening: OpenForFixDeps = {
+    reveal: async () => {
+      opened.push(openEditor(text()));
+      sendProtocolMessage(
+        DidLoadEditorMessage.type.notification({ textDocument: { uri: URI, version } }),
+      );
+    },
+    pull: vi.fn(async () => ({ diagnostics: [nameDiagnostic(text())], version })),
+    record: vi.fn(),
+    wait: async () => {},
+  };
+  return { opening, opened };
 };
 
 describe("applying a fix from a problem", () => {
   it("in an open script, edits through the editor, says what it did, and Undo reverts exactly that", async () => {
     const view = openEditor(SCRIPT);
-    const script = closedScript("unused");
-    expect(await applyFix(script.deps, useAlice())).toBe(true);
+    expect(await applyFix(deps(), useAlice())).toBe(true);
     expect(view.state.doc.toString()).toBe(SCRIPT.replace("alcie", "alice"));
-    expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
     expect(snackbar.value?.message).toBe("Changed to alice.");
+    expect(snackbar.value?.actionLabel).toBe(FIX_UNDO_LABEL);
     view.dispatch({ changes: { from: 0, insert: "// top" + NEWLINE } });
     snackbar.value!.onAction!();
     await vi.waitFor(() =>
@@ -164,37 +162,63 @@ describe("applying a fix from a problem", () => {
     );
   });
 
-  it("still undoes from the toast after the author opens another script, through the saved file", async () => {
-    const view = openEditor(SCRIPT);
-    const script = closedScript("unused");
-    await applyFix(script.deps, useAlice());
-    script.edit(view.state.doc.toString());
-    disposers.splice(0).forEach((dispose) => dispose());
-    snackbar.value!.onAction!();
-    await vi.waitFor(() => expect(script.text()).toBe(SCRIPT));
-    expect(snackbar.value?.message).not.toBe(FIX_REFUSED);
-  });
-
-  it("still undoes from the toast after the author comes back to the script in a new editor", async () => {
-    const first = openEditor(SCRIPT);
-    const script = closedScript("unused");
-    await applyFix(script.deps, useAlice());
-    const fixed = first.state.doc.toString();
-    disposers.splice(0).forEach((dispose) => dispose());
-    const reopened = openEditor(fixed);
-    snackbar.value!.onAction!();
-    await vi.waitFor(() => expect(reopened.state.doc.toString()).toBe(SCRIPT));
-    expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
-  });
-
-  it("in a closed script, writes the file, says what it did, and Undo restores the text", async () => {
-    const script = closedScript(SCRIPT);
-    expect(await applyFix(script.deps, useAlice())).toBe(true);
-    expect(script.text()).toBe(SCRIPT.replace("alcie", "alice"));
+  it("in a script no editor holds, opens it at the problem first and applies the same fix through the editor", async () => {
+    const { opening, opened } = reopening(() => SCRIPT, 5);
+    const fixDeps = deps({ openForFix: (fix) => openForFix(opening, fix) });
+    expect(await applyFix(fixDeps, useAlice())).toBe(true);
+    expect(opened).toHaveLength(1);
+    expect(opened[0]!.state.doc.toString()).toBe(SCRIPT.replace("alcie", "alice"));
     expect(snackbar.value?.message).toBe("Changed to alice.");
-    expect(script.deps.recordScriptChange).toHaveBeenCalledTimes(1);
-    snackbar.value!.onAction!();
-    await vi.waitFor(() => expect(script.text()).toBe(SCRIPT));
+  });
+
+  it("never writes a script no editor holds: with no editor coming to hold it, it changes nothing and says the line changed", async () => {
+    const requests = sentEdits();
+    const fixDeps = deps();
+    expect(await applyFix(fixDeps, useAlice())).toBe(false);
+    expect(fixDeps.openForFix).toHaveBeenCalledTimes(1);
+    expect(snackbar.value?.message).toBe(FIX_REFUSED);
+    expect(
+      requests.filter((r) => r.closedTexts !== undefined || r.edit.changes || r.edit.documentChanges),
+    ).toEqual([]);
+  });
+
+  it("cannot delete text written into a closed script since the problem was reported (round 3 reproduction)", async () => {
+    const before = ["  // TODO: tidy", "Hello.", ""].join(NEWLINE);
+    const after = ["Hi// TODO: tidy", "Hello.", ""].join(NEWLINE);
+    const stale: FixChoice = {
+      fix: {
+        uri: URI,
+        version: 0,
+        range: { start: { line: 0, character: 2 }, end: { line: 0, character: 15 } },
+        changes: [{ from: 0, to: before.indexOf("Hello."), insert: "" }],
+        expect: "// TODO: tidy",
+        kind: "note",
+      },
+      name: "Remove the note",
+      done: "Note removed.",
+    };
+    const { opening, opened } = reopening(() => after, 0);
+    opening.pull = vi.fn(async () => ({
+      diagnostics: [
+        {
+          range: { start: { line: 0, character: 2 }, end: { line: 0, character: 15 } },
+          message: "To do: tidy",
+          data: [
+            {
+              name: "Remove the note",
+              done: "Note removed.",
+              expect: "// TODO: tidy",
+              kind: "note",
+              changes: [{ from: 2, to: after.length - "Hello.\n".length, insert: "" }],
+            },
+          ],
+        },
+      ],
+      version: 0,
+    }));
+    expect(await applyFix(deps({ openForFix: (fix) => openForFix(opening, fix) }), stale)).toBe(false);
+    expect(opened[0]!.state.doc.toString()).toBe(after);
+    expect(snackbar.value?.message).toBe(FIX_REFUSED);
   });
 
   it.each([
@@ -203,95 +227,80 @@ describe("applying a fix from a problem", () => {
   ])(
     "changes nothing and says the line changed when %s, then pulls the problems again",
     async (_, edited) => {
-      const script = closedScript(edited);
-      expect(await applyFix(script.deps, useAlice())).toBe(false);
-      expect(script.text()).toBe(edited);
-      expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
+      const view = openEditor(edited);
+      const fixDeps = deps();
+      expect(await applyFix(fixDeps, useAlice())).toBe(false);
+      expect(view.state.doc.toString()).toBe(edited);
       expect(snackbar.value?.message).toBe(FIX_REFUSED);
       expect(snackbar.value?.actionLabel).toBeUndefined();
-      expect(script.deps.refreshDiagnostics).toHaveBeenCalledWith(URI);
+      expect(fixDeps.refreshDiagnostics).toHaveBeenCalledWith(URI);
     },
   );
 
-  it("refuses in an open script whose name changed since the problem was reported", async () => {
-    const view = openEditor(SCRIPT.replace("alcie", "alciex"));
-    const script = closedScript(SCRIPT);
-    expect(await applyFix(script.deps, useAlice())).toBe(false);
-    expect(view.state.doc.toString()).toBe(SCRIPT.replace("alcie", "alciex"));
-    expect(script.text()).toBe(SCRIPT);
-    expect(snackbar.value?.message).toBe(FIX_REFUSED);
-  });
-
-  it("applies a fix the server reported for a script never opened, which carries no version", async () => {
-    const script = closedScript(SCRIPT);
-    const choice = useAlice();
-    delete choice.fix.version;
-    expect(await applyFix(script.deps, choice)).toBe(true);
-    expect(script.text()).toBe(SCRIPT.replace("alcie", "alice"));
-  });
-
-  it.each([
-    ["a version", 1],
-    ["no version", undefined],
-  ])("changes nothing in a closed script edited since the problem was reported with %s, though the name still sits at the same line and column", async (_, version) => {
-    const edited = SCRIPT.replace("scene start", "scene start here");
-    const script = closedScript(edited);
-    const choice = useAlice();
-    choice.fix.version = version;
-    expect(await applyFix(script.deps, choice)).toBe(false);
-    expect(script.text()).toBe(edited);
-    expect(script.deps.applyWorkspaceEdit).not.toHaveBeenCalled();
-    expect(snackbar.value?.message).toBe(FIX_REFUSED);
-  });
-
-  it("refuses a closed-script fix while the server has not yet read a write, then applies the fix the server offers once it has", async () => {
-    const script = closedScript(SCRIPT, { lag: true });
-    const edited = SCRIPT.replace("scene start", "scene start here");
-    script.edit(edited);
-    expect(await applyFix(script.deps, useAlice())).toBe(false);
-    expect(script.text()).toBe(edited);
-    expect(snackbar.value?.message).toBe(FIX_REFUSED);
-    script.compile();
-    const [fresh] = (await script.deps.offeredFixes()).fixes;
-    const choice = useAlice();
-    choice.fix.changes = fresh!.changes;
-    choice.fix.range = { start: { line: 1, character: 7 }, end: { line: 1, character: 12 } };
-    expect(await applyFix(script.deps, choice)).toBe(true);
-    expect(script.text()).toBe(edited.replace("alcie", "alice"));
-  });
-
-  it("refuses Undo after the author leaves a script they typed in since the fix, rather than reverting at moved offsets", async () => {
-    const NOTE = ["Hello.", "// TODO: tidy", "Bye.", ""].join(NEWLINE);
-    const view = openEditor(NOTE);
-    const script = closedScript("unused");
-    const at = NOTE.indexOf("// TODO");
-    await applyFix(script.deps, {
-      fix: {
-        uri: URI,
-        version: 1,
-        range: { start: { line: 1, character: 0 }, end: { line: 1, character: 13 } },
-        changes: [{ from: at, to: at + 14, insert: "" }],
-        expect: "// TODO: tidy",
-        kind: "note",
-      },
-      name: "Remove the note",
-      done: "Note removed.",
+  it("still undoes from the toast after the author leaves the script, by opening it again", async () => {
+    const view = openEditor(SCRIPT);
+    let saved = "";
+    const reopened: EditorView[] = [];
+    const fixDeps = deps({
+      openScript: vi.fn(async () => {
+        reopened.push(openEditor(saved));
+        return true;
+      }),
     });
+    await applyFix(fixDeps, useAlice());
+    saved = view.state.doc.toString();
+    closeEditors();
+    snackbar.value!.onAction!();
+    await vi.waitFor(() => expect(reopened[0]?.state.doc.toString()).toBe(SCRIPT));
+    expect(fixDeps.openScript).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses Undo after the author typed in the script and left it, rather than reverting at moved offsets", async () => {
+    const view = openEditor(SCRIPT);
+    let saved = "";
+    const reopened: EditorView[] = [];
+    const fixDeps = deps({
+      openScript: vi.fn(async () => {
+        reopened.push(openEditor(saved));
+        return true;
+      }),
+    });
+    await applyFix(fixDeps, useAlice());
     view.dispatch({ changes: { from: 0, insert: "Intro. " } });
-    script.edit(view.state.doc.toString());
-    disposers.splice(0).forEach((dispose) => dispose());
-    expect(snackbar.value?.message).toBe("Note removed.");
+    saved = view.state.doc.toString();
+    closeEditors();
     snackbar.value!.onAction!();
     await vi.waitFor(() => expect(snackbar.value?.message).toBe(FIX_REFUSED));
-    expect(script.text()).toBe(["Intro. Hello.", "Bye.", ""].join(NEWLINE));
+    expect(reopened[0]!.state.doc.toString()).toBe(saved);
   });
 
-  it("says the line changed when Undo finds the fixed text edited", async () => {
-    const script = closedScript(SCRIPT);
-    await applyFix(script.deps, useAlice());
-    script.edit(script.text().replace("alice", "alicia"));
-    await undoFromToast();
-    expect(snackbar.value?.message).toBe(FIX_REFUSED);
-    expect(script.text()).toBe(SCRIPT.replace("alcie", "alicia"));
+  it("restores exactly from the toast after the editor undid and redid the fix", async () => {
+    const view = openEditor(SCRIPT);
+    await applyFix(deps(), useAlice());
+    undo(view);
+    redo(view);
+    snackbar.value!.onAction!();
+    await vi.waitFor(() => expect(view.state.doc.toString()).toBe(SCRIPT));
+  });
+});
+
+describe("opening a script for a fix", () => {
+  it("finds only the identical fix in the fresh diagnostics", () => {
+    const choice = useAlice();
+    expect(findSameFix([nameDiagnostic(SCRIPT)], choice.fix)).toBeDefined();
+    expect(findSameFix([nameDiagnostic("// moved" + NEWLINE + SCRIPT)], choice.fix)).toBeUndefined();
+  });
+
+  it("waits until the server's diagnostics belong to the editor's version before matching", async () => {
+    let calls = 0;
+    const { opening } = reopening(() => SCRIPT, 7);
+    opening.pull = vi.fn(async () => {
+      calls += 1;
+      return { diagnostics: [nameDiagnostic(SCRIPT)], version: calls < 3 ? 6 : 7 };
+    });
+    const fresh = await openForFix(opening, useAlice(2).fix);
+    expect(calls).toBe(3);
+    expect(fresh?.version).toBe(7);
+    expect(opening.record).toHaveBeenCalledTimes(1);
   });
 });
