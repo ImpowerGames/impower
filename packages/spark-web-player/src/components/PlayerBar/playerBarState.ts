@@ -111,20 +111,23 @@ export const reducePlayerBar = (
       ending: game.ending,
     };
   }
-  if (GameExecutedMessage.type.isNotification(message)) {
+  if (
+    GameExecutedMessage.type.isNotification(message) ||
+    GameRolledMessage.type.isNotification(message)
+  ) {
+    const executed = GameExecutedMessage.type.isNotification(message)
+      ? message.params
+      : (message.params.executed ?? state.executed);
     return {
       ...state,
-      executed: message.params,
+      executed,
       runHistory: foldRunHistory(state.runHistory, {
         run,
         history: message.params.history,
       }),
     };
   }
-  if (
-    GameSteppedMessage.type.isNotification(message) ||
-    GameRolledMessage.type.isNotification(message)
-  ) {
+  if (GameSteppedMessage.type.isNotification(message)) {
     return {
       ...state,
       runHistory: foldRunHistory(state.runHistory, {
