@@ -56,7 +56,9 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { isSupersededCommit } from "@impower/spark-editor-protocol/src/utils/fileCommits";
 import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams";
+import { assetEndings, assetTypeOf } from "../utils/assetTypes";
 import {
+  planClash,
   reasonOf,
   settleFailedMoves,
   snapshotPaths,
@@ -1102,9 +1104,14 @@ export default class WorkspaceFileSystem {
     for (const sibling of collected.siblings) {
       if (!plan.has(sibling.from)) {
         const folder = sibling.from.slice(0, sibling.from.lastIndexOf("/") + 1);
-        const stack = imageStacks(
-          [...before.files].filter((path) => path.startsWith(folder) && !path.slice(folder.length).includes("/")),
-        ).find((candidate) => candidate.paths.includes(sibling.from));
+        const image = (path: string) => assetTypeOf(path, assetEndings.peek()) === "image";
+        const stack = image(sibling.from)
+          ? imageStacks(
+              [...before.files].filter(
+                (path) => path.startsWith(folder) && !path.slice(folder.length).includes("/") && image(path),
+              ),
+            ).find((candidate) => candidate.paths.includes(sibling.from))
+          : undefined;
         const outside = stack?.paths.find((path) => !plan.has(path) && path !== sibling.from);
         if (outside) {
           throw refuse(`${sibling.from} shares its name but belongs to a picture with more files (${outside}); rename that picture from its own folder. Nothing was renamed.`);
@@ -1113,20 +1120,12 @@ export default class WorkspaceFileSystem {
         also.push(sibling);
       }
     }
-    const targets = new Map<string, string>();
-    for (const [from, to] of plan) {
-      const lower = to.toLowerCase();
-      const clash = targets.get(lower);
-      if (clash !== undefined) {
-        throw refuse(`${clash} and ${from} would both become ${leafOf(to)}. Nothing was renamed.`);
-      }
-      targets.set(lower, from);
-      const taken = [...present].find(
-        (path) => path !== from && path.toLowerCase() === lower,
-      );
-      if (taken) {
-        throw refuse(`${taken} already exists. Nothing was renamed.`);
-      }
+    const clash = planClash(
+      [...plan].map(([from, to]) => ({ from, to })),
+      present,
+    );
+    if (clash) {
+      throw refuse(`${clash}. Nothing was renamed.`);
     }
     const renames = [...plan]
       .filter(([from, to]) => from !== to)

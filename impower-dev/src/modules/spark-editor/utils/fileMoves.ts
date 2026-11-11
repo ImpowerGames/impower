@@ -40,6 +40,26 @@ export const reversed = (moves: readonly FileMove[]): FileMove[] =>
 export const movesLabel = (moves: readonly FileMove[]) =>
   moves.length === 1 ? basename(moves[0]!.from) : `${moves.length} files`;
 
+export const planClash = (
+  moves: readonly FileMove[],
+  present: ReadonlySet<string>,
+): string | null => {
+  const targets = new Map<string, string>();
+  for (const { from, to } of moves) {
+    const lower = to.toLowerCase();
+    const other = targets.get(lower);
+    if (other !== undefined) {
+      return `${other} and ${from} would both become ${basename(to)}`;
+    }
+    targets.set(lower, from);
+    const taken = [...present].find((path) => path !== from && path.toLowerCase() === lower);
+    if (taken) {
+      return `${taken} already exists`;
+    }
+  }
+  return null;
+};
+
 export async function snapshotPaths(
   fs: Pick<WorkspaceFileSystem, "getFiles" | "getFolders" | "getRelativePath">,
   projectId: string,
@@ -150,6 +170,10 @@ export async function moveAll(
   moves: readonly FileMove[],
 ): Promise<RenameOutcome> {
   const before = await snapshotPaths(fs, projectId);
+  const clash = planClash(moves, new Set([...before.files, ...before.folders]));
+  if (clash) {
+    throw new Error(`Couldn't move ${movesLabel(moves)}: ${clash}. Nothing was moved.`);
+  }
   try {
     for (const move of moves) {
       await moveOne(fs, projectId, move);

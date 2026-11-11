@@ -338,18 +338,27 @@ export default class WorkspaceAssets {
     members: readonly string[],
     name: string,
   ): Promise<string> {
+    const plain = !isStacked(stack);
     const extension = extensionOf(stack.cover);
-    const typed = validName(name, extension).slice(0, -extension.length || undefined);
-    if (/[@~]/.test(typed)) {
+    const own = plain
+      ? availableName(name, this.siblings(parentOf(path)), extensionOf(path), nameOf(path))
+      : undefined;
+    const typed = own ? own.split(".")[0]! : validName(name, extension).slice(0, -extension.length || undefined);
+    if (/[@~]/.test(own ?? typed)) {
       throw new NameError("Use a name without @ or ~. They mark a picture's alternates and layers.");
     }
-    if (typed === stack.name) {
+    const moves: FileMove[] = members
+      .map((from) => ({
+        from,
+        to: joinPath(
+          parentOf(from),
+          from === path && own ? own : typed + nameOf(from).slice(stack.name.length),
+        ),
+      }))
+      .filter((move) => move.to !== move.from);
+    if (!moves.length) {
       return path;
     }
-    const moves: FileMove[] = members.map((from) => ({
-      from,
-      to: joinPath(parentOf(from), typed + nameOf(from).slice(stack.name.length)),
-    }));
     let outcome;
     try {
       outcome = await renameFiles(this._workspace, projectId, moves);

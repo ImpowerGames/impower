@@ -94,6 +94,7 @@ async function harness(stored: Record<string, string>) {
     const files = Object.keys(await fs.getFiles(PROJECT));
     const scripts = files.filter((uri) => uri.endsWith(".sd"));
     const images = files.filter((uri) => /[.](png|jpg)$/.test(uri));
+    const sounds = files.filter((uri) => /[.]mp3$/.test(uri));
     const texts = new Map(await Promise.all(scripts.map(async (uri) => [uri, await fs.getFileText(uri)] as const)));
     const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
     for (const [uri, text] of texts) {
@@ -106,6 +107,7 @@ async function harness(stored: Record<string, string>) {
       _programStates: new Map(),
       _documentVersions: new Map(),
       _imageFilePattern: /[.](png|jpg)$/,
+      _audioFilePattern: /[.]mp3$/,
     });
     const compiler = new SparkdownCompiler();
     const leaf = (uri: string) => uri.split("/").at(-1)!;
@@ -113,6 +115,7 @@ async function harness(stored: Record<string, string>) {
       files: [
         ...scripts.map((uri) => ({ uri, type: "script", name: leaf(uri).split(".")[0]!, ext: "sd", text: texts.get(uri), version: 1, languageId: "sparkdown" })),
         ...images.map((uri) => ({ uri, type: "image", name: leaf(uri).split(".")[0]!, ext: leaf(uri).split(".").at(-1)!, src: uri, version: 1 })),
+        ...sounds.map((uri) => ({ uri, type: "audio", name: leaf(uri).split(".")[0]!, ext: "mp3", src: uri, version: 1 })),
       ] as never,
     });
     const main = scripts.find((uri) => uri.endsWith("/main.sd"))!;
@@ -543,6 +546,46 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(await h.paths()).toContain("art/imani@x.png");
     expect(await h.read("main.sd")).toBe(SCRIPT);
+  });
+
+  it("renames a sound and its same-name sound elsewhere without taking other sounds for a picture's alternates", async () => {
+    const h = await harness({
+      "main.sd": lines("scene start", "end"),
+      "Assets/Audio/theme@v2.mp3": "a",
+      "other/theme@v2.mp3": "b",
+      "other/theme@v3.mp3": "c",
+    });
+    expect(await h.assets.rename("Assets/Audio/theme@v2.mp3", "song")).toBe("Assets/Audio/song.mp3");
+    expect(await h.paths()).toEqual(["Assets/Audio/song.mp3", "main.sd", "other/song.mp3", "other/theme@v3.mp3"]);
+  });
+
+  it("renames a same-name picture outside the asset folders whose neighbour only looks like an alternate", async () => {
+    const h = await harness(project({ "art/imani.png": "art", "art/imani@notes.txt": "notes" }));
+    await h.assets.rename(STACK[0]!, "zadie");
+    const after = await h.paths();
+    expect(after).toContain("art/zadie.png");
+    expect(after).toContain("art/imani@notes.txt");
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([...RENAMED].sort());
+  });
+
+  it("gives a dotted picture the name typed even when a same-name picture elsewhere is renamed with it", async () => {
+    const h = await harness({
+      "main.sd": lines("scene start", "  [[show portrait kai]]", "end"),
+      [`${P}/kai.v1.png`]: "kai",
+      "Assets/Images/Backdrops/kai.png": "backdrop",
+    });
+    expect(await h.assets.rename(`${P}/kai.v1.png`, "rafe")).toBe(`${P}/rafe.png`);
+    expect(await h.paths()).toEqual(["Assets/Images/Backdrops/rafe.png", `${P}/rafe.png`, "main.sd"]);
+    expect(shown(await h.read("main.sd"))).toEqual(["[[show portrait rafe]]"]);
+  });
+
+  it("refuses a stack target that differs from an existing file only by case, with Auto-rename files off", async () => {
+    const h = await harness(project({ [`${P}/ZADIE@night.png`]: "other" }));
+    services.autoRenameFiles = () => false;
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      `Assets/Images/Portraits/ZADIE@night.png already exists. Nothing was moved.`,
+    );
+    expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/ZADIE@night.png`].sort());
   });
 
   it("renames a lone alternate or layer as the thing it is, keeping its @ or ~ part", async () => {
