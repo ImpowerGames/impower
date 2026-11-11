@@ -116,7 +116,7 @@ export const updateGrammarVariables = (
     const variable = variables[variableName];
     if (variable) {
       rawPatterns[variableName] = Array.isArray(variable)
-        ? `\\b(?:${variable.join("|")})\\b`
+        ? `{{LUAU_NAME_START}}(?:${variable.join("|")}){{LUAU_NAME_END}}`
         : variable;
     }
   }

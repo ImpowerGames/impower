@@ -1,5 +1,5 @@
 import { RESERVED } from "../compiler/utils/luauReservedWords";
-import { isLuauName, LUAU_NAME_TOKEN_SOURCE } from "../compiler/utils/luauName";
+import { isLuauName, LUAU_NAME_SOURCE } from "../compiler/utils/luauName";
 import { numberLiteralValue } from "../compiler/utils/numberLiteralValue";
 import {
   processLuauEscapes,
@@ -206,7 +206,7 @@ export type ParsedLiteral =
   | { ok: true; value: Literal }
   | { ok: false; error: string };
 
-const NAME = new RegExp(LUAU_NAME_TOKEN_SOURCE, "y");
+const NAME = new RegExp(LUAU_NAME_SOURCE, "y");
 const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
 const UNWRITTEN_NUMBER = /-?math\.huge(?![\w.])|0\/0(?![\w.])/y;

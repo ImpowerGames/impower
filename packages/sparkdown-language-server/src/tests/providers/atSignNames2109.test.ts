@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { canRename } from "../../utils/providers/canRename";
 import { getHover } from "../../utils/providers/getHover";
 import { getReferences } from "../../utils/providers/getReferences";
+import { getRenameEdits } from "../../utils/providers/getRenameEdits";
 import { getRenameRefusal } from "../../utils/providers/getRenameRefusal";
 import { compileProject, complete } from "./completionHarness";
 
@@ -124,5 +125,24 @@ describe("@ inside names in the language server (#2109)", () => {
     expect(refusal("@total")).toContain("is not a valid name");
     expect(refusal("word@")).toContain("is not a valid name");
     expect(refusal("word@@total")).toContain("is not a valid name");
+  });
+
+  it("renames an @ name to one that begins with a reserved word, and the script still compiles", () => {
+    const { workspace } = open(SCRIPT);
+    expect(getRenameRefusal(workspace, program, "word@count", "end@count", undefined)).toBeNull();
+    const { documents, workspace: renaming } = open(SCRIPT);
+    const edits = getRenameEdits(undefined, documents.get(URI), documents.tree(URI), program, renaming, "end@count", at(SCRIPT, "word@count", 6));
+    const lines = SCRIPT.split("\n");
+    const changes = [...(edits?.changes?.[URI] ?? [])].sort((a, b) => b.range.start.character - a.range.start.character);
+    expect(changes).toHaveLength(3);
+    for (const { range, newText } of changes) {
+      const line = lines[range.start.line]!;
+      lines[range.start.line] = line.slice(0, range.start.character) + newText + line.slice(range.end.character);
+    }
+    const renamed = lines.join("\n");
+    expect(renamed).toContain("& end@count = end@count + 1");
+    const before = (compileProject(SCRIPT, ASSETS).diagnostics?.[URI] ?? []).map((d) => d.message);
+    const after = (compileProject(renamed, ASSETS).diagnostics?.[URI] ?? []).map((d) => d.message);
+    expect(after).toEqual(before);
   });
 });

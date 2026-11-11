@@ -1,0 +1,47 @@
+text.source.sparkdown [0..62]
+ ├─ meta.function.luau [0..13]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..13]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       ├─ meta.embedded.block.luau [11..12]
+ │       │   └─ variable.parameter.function.luau [11..12]: "y"
+ │       └─ punctuation.definition.template-expression.end.sd [12..13]: ")"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.function.luau [14..24]
+ │   └─ meta.function.body.luau [14..24]
+ │       └─ meta.embedded.block.luau [14..24]
+ │           ├─ punctuation.whitespace.optional.sd [14..16]: "  "
+ │           ├─ storage.modifier.scope.luau [16..21]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │           └─ meta.embedded.line.luau [22..24]
+ │               ├─ variable.other.readwrite.luau [22..23]: "a"
+ │               └─ keyword.operator.comma.luau [23..24]: ","
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.function.luau [25..57]
+ │   └─ meta.function.body.luau [25..57]
+ │       └─ meta.embedded.block.luau [25..57]
+ │           └─ meta.embedded.line.luau [25..57]
+ │               ├─ punctuation.whitespace.extra.sd [25..29]: "    "
+ │               ├─ variable.other.readwrite.luau [29..36]: "x@local"
+ │               ├─ punctuation.whitespace.optional.sd [36..37]: " "
+ │               ├─ keyword.operator.comma.luau [37..38]: ","
+ │               ├─ punctuation.whitespace.optional.sd [38..39]: " "
+ │               ├─ variable.other.readwrite.luau [39..40]: "b"
+ │               ├─ punctuation.whitespace.optional.sd [40..41]: " "
+ │               ├─ keyword.operator.typecast.luau [41..43]: "::"
+ │               ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │               ├─ support.type.primitive.luau [44..50]: "number"
+ │               ├─ punctuation.whitespace.optional.sd [50..51]: " "
+ │               ├─ keyword.operator.assignment.luau [51..52]: "="
+ │               ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │               ├─ constant.numeric.decimal.luau [53..54]: "1"
+ │               ├─ keyword.operator.comma.luau [54..55]: ","
+ │               ├─ punctuation.whitespace.optional.sd [55..56]: " "
+ │               └─ constant.numeric.decimal.luau [56..57]: "2"
+ ├─ Newline [57..58]: "\n"
+ ├─ meta.function.luau [58..61]
+ │   └─ meta.embedded.block.luau [58..61]
+ │       └─ keyword.control.end.luau [58..61]: "end"
+ └─ Newline [61..62]: "\n"

@@ -1,0 +1,24 @@
+text.source.sparkdown [0..42]
+ ├─ keyword.operator.attribute.luau [0..1]: "@"
+ ├─ storage.type.attribute.luau [1..8]: "mia@end"
+ ├─ Newline [8..9]: "\n"
+ ├─ meta.function.luau [9..25]
+ │   ├─ keyword.control.luau [9..17]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [17..18]: " "
+ │   ├─ entity.name.function.luau [18..19]: "g"
+ │   ├─ meta.parameter.luau [19..21]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [19..20]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [20..21]: ")"
+ │   └─ meta.embedded.block.luau [21..25]
+ │       ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │       └─ keyword.control.end.luau [22..25]: "end"
+ ├─ Newline [25..26]: "\n"
+ ├─ storage.modifier.scope.luau [26..31]: "local"
+ ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ ├─ meta.embedded.line.luau [32..41]
+ │   ├─ variable.other.readwrite.luau [32..37]: "after"
+ │   ├─ punctuation.whitespace.optional.sd [37..38]: " "
+ │   ├─ keyword.operator.assignment.luau [38..39]: "="
+ │   ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │   └─ constant.numeric.decimal.luau [40..41]: "1"
+ └─ Newline [41..42]: "\n"

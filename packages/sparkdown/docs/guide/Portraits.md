@@ -275,7 +275,7 @@ scene start
 end
 ```
 
-The rule is the same for every name Sparkdown reads: an image, a named look, a define, a variable or function in code, and each name in a directive. A name does not begin or end with `@`, and two `@` never sit together, so `@mia`, `mia@` and `mia@@night` are not names. The part before the first `@` is itself a name, so in code it cannot be a word Luau reserves: `end@night` reads as `end` followed by `@night`, while a reserved word after the `@`, as in `mia@end`, is part of the name. The forms that begin with `@` keep their meaning: a style's state rule (`@hovered { … }`), an event (`@click`), a regular expression (`@/a+/`) and a function attribute (`@native`). An `@` followed by `/` is never part of a name.
+The rule is the same for every name Sparkdown reads: an image, a named look, a define, a variable or function in code, and each name in a directive. A name does not begin or end with `@`, and two `@` never sit together, so `@mia`, `mia@` and `mia@@night` are not names. An `@` joins a name as `_` does, even next to a word Luau reserves: `end@night` and `mia@end` are names, as `end_night` and `mia_end` are. The forms that begin with `@` keep their meaning: a style's state rule (`@hovered { … }`), an event (`@click`), a regular expression (`@/a+/`) and a function attribute (`@native`). An `@` followed by `/` is never part of a name.
 
 ## Backgrounds and props
 

@@ -436,7 +436,7 @@ sparkdown [0..456]
  │   │       │       │   │   │       └─ LuauVariableAssignment_end 287
  │   │       │       │   │   └─ LuauVariableDefinition_end 287
  │   │       │       │   ├─ Newline [287..288]: "\n"
- │   │       │       │   ├─ LuauVariableDefinition [288..314]
+ │   │       │       │   ├─ LuauVariableDefinition [288..313]
  │   │       │       │   │   ├─ LuauVariableDefinition_begin [288..296]
  │   │       │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [288..290]
  │   │       │       │   │   │   │   └─ OptionalWhitespace [288..290]: "  "
@@ -445,19 +445,19 @@ sparkdown [0..456]
  │   │       │       │   │   │   └─ LuauVariableDefinition_begin_c3 [295..296]
  │   │       │       │   │   │       └─ LuauVariableDefinition_begin_c3 [295..296]
  │   │       │       │   │   │           └─ OptionalWhitespace [295..296]: " "
- │   │       │       │   │   ├─ LuauVariableDefinition_content [296..314]
- │   │       │       │   │   │   └─ LuauVariableAssignment [296..314]
+ │   │       │       │   │   ├─ LuauVariableDefinition_content [296..313]
+ │   │       │       │   │   │   └─ LuauVariableAssignment [296..313]
  │   │       │       │   │   │       ├─ LuauVariableAssignment_begin [296..305]
  │   │       │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [296..304]
  │   │       │       │   │   │       │   │   └─ LuauVariableName [296..304]: "flag@end"
  │   │       │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [304..305]
  │   │       │       │   │   │       │       └─ OptionalWhitespace [304..305]: " "
- │   │       │       │   │   │       ├─ LuauVariableAssignment_content [305..314]
- │   │       │       │   │   │       │   └─ LuauAssignmentOperation [305..314]
+ │   │       │       │   │   │       ├─ LuauVariableAssignment_content [305..313]
+ │   │       │       │   │   │       │   └─ LuauAssignmentOperation [305..313]
  │   │       │       │   │   │       │       ├─ LuauAssignmentOperation_begin 305
  │   │       │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 305
  │   │       │       │   │   │       │       │       └─ OptionalWhitespace 305
- │   │       │       │   │   │       │       ├─ LuauAssignmentOperation_content [305..314]
+ │   │       │       │   │   │       │       ├─ LuauAssignmentOperation_content [305..313]
  │   │       │       │   │   │       │       │   ├─ LuauAssignmentOperator [305..307]
  │   │       │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [305..307]
  │   │       │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 305
@@ -467,23 +467,19 @@ sparkdown [0..456]
  │   │       │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [306..307]
  │   │       │       │   │   │       │       │   │   │           └─ OptionalWhitespace [306..307]: " "
  │   │       │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 307
- │   │       │       │   │   │       │       │   ├─ LuauBoolean [307..311]
- │   │       │       │   │   │       │       │   │   ├─ LuauBoolean_c1 [307..311]: "true"
- │   │       │       │   │   │       │       │   │   └─ LuauBoolean_c2 311
- │   │       │       │   │   │       │       │   └─ LuauAttributedFunctionValue [311..314]
- │   │       │       │   │   │       │       │       ├─ LuauAttributedFunctionValue_begin 311
- │   │       │       │   │   │       │       │       ├─ LuauAttributedFunctionValue_content [311..314]
- │   │       │       │   │   │       │       │       │   ├─ LuauAttribute [311..313]
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAttribute_c1 [311..312]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAttributeOperator [311..312]: "@"
- │   │       │       │   │   │       │       │       │   │   ├─ LuauAttribute_c2 [312..313]
- │   │       │       │   │   │       │       │       │   │   │   └─ LuauAttributeName [312..313]: "x"
- │   │       │       │   │   │       │       │       │   │   └─ LuauAttribute_c3 313
- │   │       │       │   │   │       │       │       │   └─ Newline [313..314]: "\n"
- │   │       │       │   │   │       │       │       └─ LuauAttributedFunctionValue_end 314
- │   │       │       │   │   │       │       └─ LuauAssignmentOperation_end 314
- │   │       │       │   │   │       └─ LuauVariableAssignment_end 314
- │   │       │       │   │   └─ LuauVariableDefinition_end 314
+ │   │       │       │   │   │       │       │   └─ LuauAccessPath [307..313]
+ │   │       │       │   │   │       │       │       ├─ LuauAccessPath_begin 307
+ │   │       │       │   │   │       │       │       ├─ LuauAccessPath_content [307..313]
+ │   │       │       │   │   │       │       │       │   └─ LuauAccessPart [307..313]
+ │   │       │       │   │   │       │       │       │       └─ LuauVariable [307..313]
+ │   │       │       │   │   │       │       │       │           └─ LuauVariable_c1 [307..313]
+ │   │       │       │   │   │       │       │       │               └─ LuauVariableName [307..313]: "true@x"
+ │   │       │       │   │   │       │       │       └─ LuauAccessPath_end 313
+ │   │       │       │   │   │       │       │           └─ LuauAccessPath_end_c1 313
+ │   │       │       │   │   │       │       └─ LuauAssignmentOperation_end 313
+ │   │       │       │   │   │       └─ LuauVariableAssignment_end 313
+ │   │       │       │   │   └─ LuauVariableDefinition_end 313
+ │   │       │       │   ├─ Newline [313..314]: "\n"
  │   │       │       │   ├─ LuauReturnStatement [314..344]
  │   │       │       │   │   ├─ LuauReturnStatement_begin [314..323]
  │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [314..316]

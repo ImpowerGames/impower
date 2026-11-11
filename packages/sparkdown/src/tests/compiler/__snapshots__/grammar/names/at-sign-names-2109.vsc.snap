@@ -161,9 +161,7 @@ text.source.sparkdown [0..456]
  │               ├─ punctuation.whitespace.optional.sd [304..305]: " "
  │               ├─ keyword.operator.assignment.luau [305..306]: "="
  │               ├─ punctuation.whitespace.optional.sd [306..307]: " "
- │               ├─ constant.language.boolean.luau [307..311]: "true"
- │               ├─ keyword.operator.attribute.luau [311..312]: "@"
- │               └─ storage.type.attribute.luau [312..313]: "x"
+ │               └─ variable.other.readwrite.luau [307..313]: "true@x"
  ├─ Newline [313..314]: "\n"
  ├─ meta.function.luau [314..344]
  │   └─ meta.function.body.luau [314..344]

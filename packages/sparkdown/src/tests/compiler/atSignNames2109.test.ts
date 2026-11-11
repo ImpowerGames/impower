@@ -160,25 +160,60 @@ end
     expect(messages(program)).toEqual([]);
   });
 
-  it("reads a reserved word before an @ as the reserved word", () => {
+  it("reads a reserved word before an @ as part of the name, as before an _", () => {
     const program = compile(`---
 title: At names
 typecheck: strict
 ---
 
-function tally(): number
+store end@x = 1
+
+function function@x(): number
+  local true@x = end@x + 1
+  local local@x: number = true@x
+  if local@x > 1 then
+    return local@x
+  end
   return true@x
 end
 
+function tally(): number
+  local return@x = function@x()
+  for i = 1, return@x do
+    return@x = return@x + i
+  end
+  while return@x > 100 do
+    return@x = return@x - 1
+  end
+  return return@x
+end
+
 scene start
-  & local n = tally()
+  & end@x = tally()
+  The tally is {end@x}.
 end
 `);
-    const found = messages(program);
-    expect(found.filter((message) => message.includes("TypeMismatch")), found.join("\n")).toEqual([
-      "6:TypeMismatch: Expected this to be 'number', but got 'boolean'",
-    ]);
-    expect(found.some((message) => message.includes("attribute")), found.join("\n")).toBe(true);
+    expect(messages(program)).toEqual([]);
+  });
+
+  it("assigns to a declared continue@value", () => {
+    const program = compile(`---
+title: At names
+typecheck: strict
+---
+
+store continue@value = 0
+
+function tally(): number
+  continue@value = 3
+  return continue@value
+end
+
+scene start
+  Value {tally()}.
+end
+`);
+    expect(messages(program)).toEqual([]);
   });
 
   it("records the thing of an image whose name is an object key such as __proto__", () => {

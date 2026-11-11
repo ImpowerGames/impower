@@ -9,6 +9,7 @@ import { RESERVED } from "../utils/luauReservedWords";
 import { LUAU_NAME_SOURCE } from "../utils/luauName";
 
 const LAST_NAME = new RegExp(`(?:^|[^A-Za-z0-9_@])(${LUAU_NAME_SOURCE})$`);
+const FIRST_NAME = new RegExp(String.raw`^\s*(${LUAU_NAME_SOURCE})(\s+[A-Za-z_])?`);
 
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
@@ -193,7 +194,7 @@ export const STATEMENT_BREAKS = new Set([
 ]);
 
 export function breaksStatement(text: string): boolean {
-  const words = /^\s*([A-Za-z_][A-Za-z0-9_]*)(\s+[A-Za-z_])?/.exec(text);
+  const words = FIRST_NAME.exec(text);
   const word = words?.[1];
   if (word === "function") return words?.[2] !== undefined;
   return word !== undefined && !RESERVED.has(word);

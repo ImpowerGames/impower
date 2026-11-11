@@ -1,0 +1,8 @@
+define d with
+  x@define e with greet()
+end
+
+define d with
+  value = 1
+  x@define e with greet() end
+end

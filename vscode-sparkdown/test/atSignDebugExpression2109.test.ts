@@ -14,8 +14,8 @@ describe("the debugger evaluates a whole @ name (#2109)", () => {
     expect(evaluatableExpressionRange(LINE, at(part, offset))).toEqual({ start: at("image"), end });
   });
 
-  it("keeps a reserved word before an @ out of the name", () => {
+  it("evaluates a reserved word before an @ as part of the name", () => {
     const text = "return end@x";
-    expect(evaluatableExpressionRange(text, text.indexOf("x"))).toBeUndefined();
+    expect(evaluatableExpressionRange(text, text.indexOf("x"))).toEqual({ start: text.indexOf("end"), end: text.length });
   });
 });

@@ -1,0 +1,105 @@
+text.source.sparkdown [0..149]
+ ├─ meta.function.luau [0..13]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..13]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       ├─ meta.embedded.block.luau [11..12]
+ │       │   └─ variable.parameter.function.luau [11..12]: "c"
+ │       └─ punctuation.definition.template-expression.end.sd [12..13]: ")"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.function.luau [14..25]
+ │   └─ meta.function.body.luau [14..25]
+ │       └─ meta.embedded.block.luau [14..25]
+ │           ├─ punctuation.whitespace.extra.sd [14..16]: "  "
+ │           ├─ variable.other.readwrite.luau [16..23]: "x@until"
+ │           ├─ punctuation.whitespace.extra.sd [23..24]: " "
+ │           └─ variable.other.readwrite.luau [24..25]: "c"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.function.luau [26..29]
+ │   └─ meta.embedded.block.luau [26..29]
+ │       └─ keyword.control.end.luau [26..29]: "end"
+ ├─ Newline [29..30]: "\n"
+ ├─ Newline [30..31]: "\n"
+ ├─ meta.function.luau [31..44]
+ │   ├─ keyword.control.luau [31..39]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │   ├─ entity.name.function.luau [40..41]: "f"
+ │   └─ meta.parameter.luau [41..44]
+ │       ├─ punctuation.definition.template-expression.begin.sd [41..42]: "("
+ │       ├─ meta.embedded.block.luau [42..43]
+ │       │   └─ variable.parameter.function.luau [42..43]: "c"
+ │       └─ punctuation.definition.template-expression.end.sd [43..44]: ")"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.function.luau [45..65]
+ │   └─ meta.function.body.luau [45..65]
+ │       └─ meta.embedded.block.luau [45..65]
+ │           ├─ punctuation.whitespace.extra.sd [45..47]: "  "
+ │           ├─ support.function.luau [47..52]: "print"
+ │           ├─ meta.parameter.luau [52..55]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [52..53]: "("
+ │           │   ├─ constant.numeric.decimal.luau [53..54]: "1"
+ │           │   └─ punctuation.definition.template-expression.end.sd [54..55]: ")"
+ │           ├─ punctuation.whitespace.extra.sd [55..56]: " "
+ │           ├─ variable.other.readwrite.luau [56..63]: "x@until"
+ │           ├─ punctuation.whitespace.extra.sd [63..64]: " "
+ │           └─ variable.other.readwrite.luau [64..65]: "c"
+ ├─ Newline [65..66]: "\n"
+ ├─ meta.function.luau [66..69]
+ │   └─ meta.embedded.block.luau [66..69]
+ │       └─ keyword.control.end.luau [66..69]: "end"
+ ├─ Newline [69..70]: "\n"
+ ├─ Newline [70..71]: "\n"
+ ├─ keyword.control.scene.sd [71..76]: "scene"
+ ├─ punctuation.whitespace.required.sd [76..77]: " "
+ ├─ keyword.control.section.sd [77..78]: "s"
+ ├─ Newline [78..79]: "\n"
+ ├─ punctuation.whitespace.optional.sd [79..81]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [81..82]: "&"
+ ├─ punctuation.whitespace.required.sd [82..83]: " "
+ ├─ meta.embedded.line.luau [83..92]
+ │   ├─ variable.other.readwrite.luau [83..90]: "x@until"
+ │   ├─ punctuation.whitespace.extra.sd [90..91]: " "
+ │   └─ variable.other.readwrite.luau [91..92]: "c"
+ ├─ Newline [92..93]: "\n"
+ ├─ keyword.control.end.luau [93..96]: "end"
+ ├─ Newline [96..97]: "\n"
+ ├─ Newline [97..98]: "\n"
+ ├─ meta.function.luau [98..111]
+ │   ├─ keyword.control.luau [98..106]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [106..107]: " "
+ │   ├─ entity.name.function.luau [107..108]: "f"
+ │   └─ meta.parameter.luau [108..111]
+ │       ├─ punctuation.definition.template-expression.begin.sd [108..109]: "("
+ │       ├─ meta.embedded.block.luau [109..110]
+ │       │   └─ variable.parameter.function.luau [109..110]: "c"
+ │       └─ punctuation.definition.template-expression.end.sd [110..111]: ")"
+ ├─ Newline [111..112]: "\n"
+ ├─ meta.function.luau [112..120]
+ │   └─ meta.function.body.luau [112..120]
+ │       └─ meta.embedded.block.luau [112..120]
+ │           ├─ punctuation.whitespace.optional.sd [112..114]: "  "
+ │           └─ keyword.control.repeat.luau [114..120]: "repeat"
+ ├─ Newline [120..121]: "\n"
+ ├─ meta.function.luau [121..134]
+ │   └─ meta.function.body.luau [121..134]
+ │       └─ meta.embedded.block.luau [121..134]
+ │           ├─ punctuation.whitespace.extra.sd [121..125]: "    "
+ │           ├─ variable.other.readwrite.luau [125..132]: "x@until"
+ │           ├─ punctuation.whitespace.extra.sd [132..133]: " "
+ │           └─ variable.other.readwrite.luau [133..134]: "c"
+ ├─ Newline [134..135]: "\n"
+ ├─ meta.function.luau [135..144]
+ │   └─ meta.function.body.luau [135..144]
+ │       └─ meta.embedded.block.luau [135..144]
+ │           ├─ punctuation.whitespace.optional.sd [135..137]: "  "
+ │           ├─ keyword.control.until.luau [137..142]: "until"
+ │           ├─ punctuation.whitespace.optional.sd [142..143]: " "
+ │           └─ meta.embedded.line.luau [143..144]
+ │               └─ variable.other.readwrite.luau [143..144]: "c"
+ ├─ Newline [144..145]: "\n"
+ ├─ meta.function.luau [145..148]
+ │   └─ meta.embedded.block.luau [145..148]
+ │       └─ keyword.control.end.luau [145..148]: "end"
+ └─ Newline [148..149]: "\n"
