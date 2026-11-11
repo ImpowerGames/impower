@@ -164,6 +164,8 @@ const VSCODE_HEADER_ENTER: [header: string, close: string, indent: string, inden
   ["define Hero with", "end", "", true],
   ["define companion as character with", "end", "", true],
   ["function f()", "end", "", true],
+  ["function f(callback: () -> ())", "end", "", true],
+  ["define Hero as Actor as Character with", "end", "", true],
   ["function f(a: number): number", "end", "", false],
   ["layout sheet {", "}", "", true],
   ["style list {", "}", "", true],
@@ -203,6 +205,16 @@ describe("Enter after a block header agrees with VS Code, which reads the cursor
   it.each(LUAU_BODY_HEADERS)("indents after `%s` as the document's last line (I-2090)", (header) => {
     const editor = parsedView(`scene s\n  Hello.\nend\n${header}|`, SD_URI);
     expect(pressEnter(editor)).toBe(`scene s\n  Hello.\nend\n${header}\n  |`);
+  });
+
+  it("keeps the indentation after a Luau `if a then` whose next line starts in story text (I-2090)", () => {
+    const editor = parsedView("function f()\n  if a then|\nscene s\n  Hello.\nend\n", SD_URI);
+    expect(pressEnter(editor)).toBe("function f()\n  if a then\n  |\nscene s\n  Hello.\nend\n");
+  });
+
+  it("indents after a Luau `if a then` whose next line starts in Luau", () => {
+    const editor = parsedView("function f()\n  if a then|\n  return 1\nend\n", SD_URI);
+    expect(pressEnter(editor)).toBe("function f()\n  if a then\n    |\n  return 1\nend\n");
   });
 });
 

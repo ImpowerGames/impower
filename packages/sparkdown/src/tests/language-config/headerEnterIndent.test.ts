@@ -53,6 +53,8 @@ const TOP_LEVEL = [
   "define Hero",
   "function f()",
   "local function f(a, b)",
+  "function f(callback: () -> ())",
+  "define Hero as Actor as Character with",
 ];
 
 const BRACE = [
@@ -86,6 +88,7 @@ const CASES: [label: string, source: string, line: number][] = [
 const PROSE: [line: string, source: string, row: number][] = [
   ["What should I do", "scene s\n  What should I do\n  Then.\nend\n", 2],
   ["We reached a new branch", "scene s\n  We reached a new branch\nend\n", 2],
+  ["  if a then", "function f()\n  if a then\nscene s\n  Hello.\nend\n", 2],
 ];
 
 describe("Enter at the end of a line, read as VS Code reads it: Enter rules by the cursor's language, then indentation only when the next line starts in the same language", () => {
