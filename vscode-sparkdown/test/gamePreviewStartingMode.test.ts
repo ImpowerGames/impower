@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   settings: {} as Record<string, unknown>,
   updates: [] as [string, unknown, unknown][],
+  commands: new Map<string, () => unknown>(),
 }));
 
 vi.mock("vscode", async () => {
@@ -30,8 +31,16 @@ vi.mock("vscode", async () => {
       },
     );
   };
+  const disposable = () => ({ dispose: () => {} });
   return {
     ...vscode,
+    commands: {
+      ...vscode.commands,
+      registerCommand: (id: string, handler: () => unknown) => {
+        state.commands.set(id, handler);
+        return disposable();
+      },
+    },
     ConfigurationTarget: { Global: 1, Workspace: 2 },
     ViewColumn: { Two: 2 },
     Uri: {
@@ -45,9 +54,12 @@ vi.mock("vscode", async () => {
     window: {
       ...vscode.window,
       showErrorMessage: () => Promise.resolve(undefined),
+      onDidChangeTextEditorVisibleRanges: disposable,
+      registerWebviewPanelSerializer: disposable,
     },
     workspace: {
       ...vscode.workspace,
+      onDidChangeConfiguration: disposable,
       getConfiguration: (name: string) => section(name),
     },
   };
@@ -162,11 +174,16 @@ describe("the Game Preview's starting display mode", () => {
     expect(preview.modes()).toEqual(["textstream", "textbox"]);
   });
 
-  it("saves the toggle's choice as a user setting", async () => {
-    const { setPreviewStartingMode } =
-      await import("../src/utils/previewStartingMode");
-    await setPreviewStartingMode("interactiveFiction");
-    expect(state.updates).toEqual([[SETTING, "interactiveFiction", 1]]);
+  it("saves each title-bar choice as a user setting", async () => {
+    const { activatePreviewGamePanel } =
+      await import("../src/utils/activatePreviewGamePanel");
+    await activatePreviewGamePanel({ subscriptions: [] } as any);
+    await state.commands.get("sparkdown.game.playAsInteractiveFiction")!();
+    await state.commands.get("sparkdown.game.playAsVisualNovel")!();
+    expect(state.updates).toEqual([
+      [SETTING, "interactiveFiction", 1],
+      [SETTING, "visualNovel", 1],
+    ]);
   });
 });
 
