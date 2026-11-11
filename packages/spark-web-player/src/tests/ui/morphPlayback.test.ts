@@ -608,12 +608,13 @@ ${TIMING}  clips {
     expect(playback.stats).toEqual({ layers: 0, live: 0, occurrences: 0 });
   });
 
-  test("a portrait's drawing and its outline mask appear together, once the mask's image has decoded", async () => {
+  test("a portrait's drawing and its outline masks appear together, once every mask's image has decoded", async () => {
     const source = `${SOURCE}
 layout main {
   stage {
     portrait {
       mask.outline
+      mask.rim
       image
     }
   }
@@ -645,15 +646,23 @@ layout main {
       await h.ready;
       await h.preview(lineOf(source, "First line."));
       const drawing = () => h.overlay.querySelector(".portrait > .image > .instance") as HTMLElement | null;
-      const outline = () => h.overlay.querySelector(".portrait > .mask.outline > .instance") as HTMLElement | null;
+      const outlines = () => ["outline", "rim"].map((name) => h.overlay.querySelector(`.portrait > .mask.${name} > .instance`) as HTMLElement);
+      const masked = () => outlines().map((el) => el.style.getPropertyValue("mask-image").includes("blob:rest"));
       await until(() => decodes.length > 0 || !!drawing()?.querySelector("span.morph"), "the artifact");
       await flushMicrotasks(10);
       expect(drawing()!.querySelector("span.morph")).toBeNull();
-      expect(outline()!.style.getPropertyValue("mask-image")).not.toContain("blob:rest");
-      expect(decodes.map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([{ crossOrigin: "anonymous", src: "blob:rest" }]);
-      for (const decode of decodes) decode.done();
+      expect(masked()).toEqual([false, false]);
+      expect(decodes.map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([
+        { crossOrigin: "anonymous", src: "blob:rest" },
+        { crossOrigin: "anonymous", src: "blob:rest" },
+      ]);
+      decodes[0]!.done();
+      await flushMicrotasks(10);
+      expect(drawing()!.querySelector("span.morph")).toBeNull();
+      expect(masked()).toEqual([false, false]);
+      decodes[1]!.done();
       await until(() => !!drawing()?.querySelector("span.morph"), "the drawing");
-      expect(outline()!.style.getPropertyValue("mask-image")).toContain("blob:rest");
+      expect(masked()).toEqual([true, true]);
     } finally {
       view.Image = Image;
     }
