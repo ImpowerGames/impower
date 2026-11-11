@@ -1,0 +1,80 @@
+sparkdown [0..33]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..20]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..20]
+ │   │   └─ ActionLineEnd [14..20]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..20]
+ │   │       │   └─ TextChunk [14..20]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..20]
+ │   │       │       │   ├─ Word [14..15]: "A"
+ │   │       │       │   ├─ Space [15..16]: " "
+ │   │       │       │   └─ Italic [16..20]
+ │   │       │       │       ├─ Italic_begin [16..17]
+ │   │       │       │       │   └─ Italic_begin_c1 [16..17]
+ │   │       │       │       │       └─ StylingMark [16..17]
+ │   │       │       │       │           └─ StylingMark_c1 [16..17]: "*"
+ │   │       │       │       ├─ Italic_content [17..20]
+ │   │       │       │       │   ├─ Punctuation [17..18]: "/"
+ │   │       │       │       │   ├─ Space [18..19]: " "
+ │   │       │       │       │   └─ Word [19..20]: "B"
+ │   │       │       │       └─ Italic_end 20
+ │   │       │       │           └─ Italic_end_c1 20
+ │   │       │       └─ TextChunk_end 20
+ │   │       └─ ActionLineEnd_end 20
+ │   └─ ImplicitAction_end 20
+ ├─ Newline [20..21]: "\n"
+ ├─ ImplicitAction [21..25]
+ │   ├─ ImplicitAction_begin [21..23]
+ │   │   └─ ImplicitAction_begin_c1 [21..23]
+ │   │       └─ OptionalWhitespace [21..23]: "  "
+ │   ├─ ImplicitAction_content [23..25]
+ │   │   └─ ActionLineEnd [23..25]
+ │   │       ├─ ActionLineEnd_begin 23
+ │   │       │   └─ ActionLineEnd_begin_c1 23
+ │   │       │       └─ OptionalWhitespace 23
+ │   │       ├─ ActionLineEnd_content [23..25]
+ │   │       │   └─ TextChunk [23..25]
+ │   │       │       ├─ TextChunk_begin 23
+ │   │       │       ├─ TextChunk_content [23..25]
+ │   │       │       │   └─ Italic [23..25]
+ │   │       │       │       ├─ Italic_begin [23..24]
+ │   │       │       │       │   └─ Italic_begin_c1 [23..24]
+ │   │       │       │       │       └─ StylingMark [23..24]
+ │   │       │       │       │           └─ StylingMark_c1 [23..24]: "*"
+ │   │       │       │       ├─ Italic_content [24..25]
+ │   │       │       │       │   └─ Punctuation [24..25]: "/"
+ │   │       │       │       └─ Italic_end 25
+ │   │       │       │           └─ Italic_end_c1 25
+ │   │       │       └─ TextChunk_end 25
+ │   │       └─ ActionLineEnd_end 25
+ │   └─ ImplicitAction_end 25
+ ├─ Newline [25..26]: "\n"
+ ├─ DoneStatement [26..32]
+ │   ├─ DoneStatement_c1 [26..28]
+ │   │   └─ OptionalWhitespace [26..28]: "  "
+ │   ├─ DoneStatement_c2 [28..32]
+ │   │   └─ DoneKeyword [28..32]: "done"
+ │   └─ DoneStatement_c3 32
+ │       └─ OptionalWhitespace 32
+ └─ Newline [32..33]: "\n"

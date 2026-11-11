@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import type { GrammarSources } from "./utils/grammar-index.ts";
 import tagNameSymmetry from "./rules/tag-name-symmetry.ts";
 import parseTagValid from "./rules/parse-tag-valid.ts";
 import noRawWhitespaceClass from "./rules/no-raw-whitespace-class.ts";
@@ -15,6 +17,15 @@ import scopedEndHasBailout from "./rules/scoped-end-has-bailout.ts";
 import noLineCrossingClass from "./rules/no-line-crossing-class.ts";
 import luauUnreadToken from "./rules/luau-unread-token.ts";
 import luauForeignCloser from "./rules/luau-foreign-closer.ts";
+import prefixMatchesFile from "./rules/prefix-matches-file.ts";
+
+const grammarSource = (name: string) =>
+  fileURLToPath(new URL(`../../../definitions/yaml/${name}`, import.meta.url));
+
+export const GRAMMAR_SOURCES = {
+  story: grammarSource("sparkdown.language-grammar.yaml"),
+  luau: grammarSource("sparkdown-luau.language-grammar.yaml"),
+} satisfies GrammarSources;
 
 export const BASELINE_FILE = new URL("../baseline.json", import.meta.url);
 export const BASELINED_RULES = [
@@ -54,6 +65,7 @@ const plugin = {
     "no-line-crossing-class": noLineCrossingClass,
     "luau-unread-token": luauUnreadToken,
     "luau-foreign-closer": luauForeignCloser,
+    "prefix-matches-file": prefixMatchesFile,
   },
   configs: {} as Record<string, unknown>,
 };
@@ -90,6 +102,7 @@ plugin.configs["recommended"] = {
     "sparkdown-grammar/no-line-crossing-class": "error",
     "sparkdown-grammar/luau-unread-token": "error",
     "sparkdown-grammar/luau-foreign-closer": "error",
+    "sparkdown-grammar/prefix-matches-file": "error",
   },
 };
 

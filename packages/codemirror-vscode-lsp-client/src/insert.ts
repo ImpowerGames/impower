@@ -1,5 +1,6 @@
 import { isolateHistory } from "@codemirror/commands";
 import { ensureSyntaxTree } from "@codemirror/language";
+import type { Text } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -49,6 +50,7 @@ export interface ScriptStructure {
   branches: readonly SceneSpan[];
   tree: Tree;
   endsDialogue: EndsDialogue;
+  doc?: Text;
 }
 
 export type EndsDialogue = (line: string, cueIndent: string) => boolean;
@@ -373,7 +375,16 @@ function templateOf(
   construct: InsertConstruct,
   source: string,
   speaker: string | null,
-): { lines: string[]; placeholder: string } {
+  name: string | undefined,
+): Template {
+  const named = (line: (reference: string) => string, placeholder: string) => {
+    const reference = name ?? placeholder;
+    return {
+      lines: [line(reference)],
+      placeholder: reference,
+      picked: name !== undefined,
+    };
+  };
   switch (construct) {
     case "branch": {
       const id = uniqueName(source, "new_branch");
@@ -398,22 +409,16 @@ function templateOf(
         placeholder: speaker ? "What do they say?" : "CHARACTER",
       };
     case "backdrop":
-      return {
-        lines: ["[[show backdrop backdrop_name]]"],
-        placeholder: "backdrop_name",
-      };
+      return named((ref) => `[[show backdrop ${ref}]]`, "backdrop_name");
     case "portrait":
-      return {
-        lines: ["[[show portrait portrait_name]]"],
-        placeholder: "portrait_name",
-      };
+      return named((ref) => `[[show portrait ${ref}]]`, "portrait_name");
     case "sound":
-      return { lines: ["((sound_name))"], placeholder: "sound_name" };
+      return named(
+        (ref) => (name === undefined ? `((${ref}))` : `((play sound ${ref}))`),
+        "sound_name",
+      );
     case "music":
-      return {
-        lines: ["((play music music_name loop))"],
-        placeholder: "music_name",
-      };
+      return named((ref) => `((play music ${ref} loop))`, "music_name");
     default:
       throw new Error(`${construct} is not a story block`);
   }
@@ -514,6 +519,7 @@ function planStoryBlock(
   index: number,
   construct: InsertConstruct,
   structure: ScriptStructure,
+  name: string | undefined,
 ): InsertPlan | null {
   const body = bodiesAt(lines, index, structure).find((candidate) =>
     ACCEPTED_BY[construct].includes(candidate.kind),
@@ -550,8 +556,14 @@ function planStoryBlock(
     source,
     lines,
     placement,
-    templateOf(construct, source, speaker),
+    templateOf(construct, source, speaker, name),
   );
+}
+
+interface Template {
+  lines: string[];
+  placeholder: string;
+  picked?: boolean;
 }
 
 interface Placement {
@@ -564,13 +576,14 @@ function placed(
   source: string,
   lines: SourceLine[],
   { mode, line: index, indent }: Placement,
-  template: { lines: string[]; placeholder: string },
+  template: Template,
 ): InsertPlan {
   const newline = newlineOf(source);
   const line = lines[index]!;
   const block = template.lines.map((text) => indent + text).join(newline);
-  const offset = block.indexOf(template.placeholder);
-  const length = template.placeholder.length;
+  const found = block.indexOf(template.placeholder);
+  const offset = template.picked ? block.length : found;
+  const length = template.picked ? 0 : template.placeholder.length;
   if (mode === "replace") {
     const anchor = line.from + offset;
     return {
@@ -615,6 +628,7 @@ export function planInsertion(
   offset: number,
   construct: InsertConstruct,
   structure: ScriptStructure,
+  name?: string,
 ): InsertPlan | null {
   if (source.includes(CRLF)) {
     const lf = source.split(CRLF).join(LF);
@@ -623,6 +637,7 @@ export function planInsertion(
       lfOffset(source, offset),
       construct,
       structure,
+      name,
     );
     if (!plan) return null;
     const next = lf.slice(0, plan.from) + plan.insert + lf.slice(plan.to);
@@ -645,19 +660,33 @@ export function planInsertion(
   if (construct === "character") {
     return planCharacter(source, lines, structure.scenes);
   }
-  return planStoryBlock(source, lines, index, construct, structure);
+  return planStoryBlock(source, lines, index, construct, structure, name);
 }
 
+export const planConstruct = (
+  view: EditorView,
+  construct: InsertConstruct,
+  structure: ScriptStructure,
+  name?: string,
+): InsertPlan | null =>
+  view.state.readOnly || (structure.doc && structure.doc !== view.state.doc)
+    ? null
+    : planInsertion(
+        view.state.doc.toString(),
+        view.state.selection.main.head,
+        construct,
+        structure,
+        name,
+      );
+
 export const insertConstruct =
-  (construct: InsertConstruct, structure: ScriptStructure): Command =>
+  (
+    construct: InsertConstruct,
+    structure: ScriptStructure,
+    name?: string,
+  ): Command =>
   (view) => {
-    if (view.state.readOnly) return false;
-    const plan = planInsertion(
-      view.state.doc.toString(),
-      view.state.selection.main.head,
-      construct,
-      structure,
-    );
+    const plan = planConstruct(view, construct, structure, name);
     if (!plan) return false;
     view.dispatch({
       changes: { from: plan.from, to: plan.to, insert: plan.insert },
@@ -669,13 +698,12 @@ export const insertConstruct =
     return true;
   };
 
-export async function insertConstructFromServer(
+export async function structureFromServer(
   view: EditorView,
-  construct: InsertConstruct,
   endsDialogue: EndsDialogue,
-): Promise<boolean> {
+): Promise<ScriptStructure | null> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin) return false;
+  if (!plugin) return null;
   plugin.client.sync();
   const doc = view.state.doc;
   const symbols = await plugin.client
@@ -691,15 +719,16 @@ export async function insertConstructFromServer(
     plugin.client.workspace.getFile(plugin.uri)?.getView() !== view ||
     view.state.doc !== doc
   ) {
-    return false;
+    return null;
   }
   const caretLine = doc.lineAt(view.state.selection.main.head);
   const tree = ensureSyntaxTree(view.state, caretLine.to, PARSE_BUDGET_MS);
-  if (!tree || tree.length < caretLine.to) return false;
-  return insertConstruct(construct, {
+  if (!tree || tree.length < caretLine.to) return null;
+  return {
     scenes: sceneSpansOf(symbols),
     branches: branchSpansOf(symbols),
     tree,
     endsDialogue,
-  })(view);
+    doc,
+  };
 }

@@ -1,4 +1,5 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
+import { VolumeIcon } from "../icon/icons.generated";
 import Thumbnail, { type ThumbnailFit, type ThumbnailSize } from "./Thumbnail";
 
 export const SAMPLE_PICTURE =
@@ -11,14 +12,17 @@ export const SAMPLE_PICTURE =
       "</svg>",
   );
 
-const SIZES: Record<ThumbnailSize, string> = { row: "Row", fill: "Fill" };
+const SIZES: Record<ThumbnailSize, string> = { row: "Row", card: "Card", fill: "Fill" };
 const FITS: ThumbnailFit[] = ["cover", "contain", "top"];
 
 function ThumbnailDemo() {
   return (
     <div class="space-y-4">
       {(Object.keys(SIZES) as ThumbnailSize[]).map((size) => (
-        <GalleryRow key={size} label={`${SIZES[size]}: ${FITS.join(", ")}, then a picture that fails to decode`}>
+        <GalleryRow
+          key={size}
+          label={`${SIZES[size]}: ${FITS.join(", ")}, a picture that fails to decode, then a sound's glyph`}
+        >
           <div class="flex items-center gap-4">
             {FITS.map((fit) => (
               <div key={fit} class={size === "fill" ? "h-24 w-20" : ""}>
@@ -27,6 +31,9 @@ function ThumbnailDemo() {
             ))}
             <div class={size === "fill" ? "h-24 w-20" : ""}>
               <Thumbnail size={size} src="data:image/png;base64,AAAA" alt="Broken" />
+            </div>
+            <div class={size === "fill" ? "h-24 w-20" : ""}>
+              <Thumbnail size={size} glyph={<VolumeIcon />} />
             </div>
           </div>
         </GalleryRow>

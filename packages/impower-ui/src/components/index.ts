@@ -376,3 +376,11 @@ export {
   type DetailListRow,
   type DetailListSize,
 } from "./detail-list/DetailList";
+export {
+  default as Carousel,
+  carouselVariants,
+  carouselTrackVariants,
+  carouselItemVariants,
+  type CarouselProps,
+  type CarouselSize,
+} from "./carousel/Carousel";

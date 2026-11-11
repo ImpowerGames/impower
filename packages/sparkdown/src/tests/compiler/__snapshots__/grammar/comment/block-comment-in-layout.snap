@@ -1,0 +1,55 @@
+sparkdown [0..33]
+ ├─ LuauLayout [0..32]
+ │   ├─ LuauLayout_begin [0..7]
+ │   │   ├─ LuauLayout_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauLayout_begin_c2 [0..6]
+ │   │   │   └─ LuauLayoutKeyword [0..6]: "layout"
+ │   │   └─ LuauLayout_begin_c3 [6..7]
+ │   │       └─ LuauLayout_begin_c3 [6..7]
+ │   │           └─ OptionalWhitespace [6..7]: " "
+ │   ├─ LuauLayout_content [7..32]
+ │   │   ├─ LuauLayoutNameAndInheritance [7..12]
+ │   │   │   ├─ LuauLayoutNameAndInheritance_begin [7..11]
+ │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [7..11]
+ │   │   │   │       └─ LuauDefineName [7..11]: "Main"
+ │   │   │   └─ LuauLayoutNameAndInheritance_end [11..12]
+ │   │   │       └─ LuauLayoutNameAndInheritance_end_c1 [11..12]
+ │   │   │           └─ Whitespace [11..12]: " "
+ │   │   └─ LuauSparkleBraceBody [12..32]
+ │   │       ├─ LuauSparkleBraceBody_begin [12..13]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [12..13]
+ │   │       │       └─ LuauStructBlockOpen [12..13]: "{"
+ │   │       ├─ LuauSparkleBraceBody_content [13..31]
+ │   │       │   ├─ Newline [13..14]: "\n"
+ │   │       │   ├─ Whitespace [14..16]: "  "
+ │   │       │   ├─ LuauSparkleBlockUnknown [16..21]: "/*x*/"
+ │   │       │   ├─ Newline [21..22]: "\n"
+ │   │       │   ├─ Whitespace [22..24]: "  "
+ │   │       │   ├─ LuauSparkleElement [24..30]
+ │   │       │   │   ├─ LuauSparkleElement_begin [24..27]
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [24..27]
+ │   │       │   │   │       └─ LuauSparkleElementName [24..27]: "box"
+ │   │       │   │   ├─ LuauSparkleElement_content [27..30]
+ │   │       │   │   │   ├─ LuauSparkleElementAssign [27..28]
+ │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [27..28]
+ │   │       │   │   │   │       └─ Whitespace [27..28]: " "
+ │   │       │   │   │   └─ LuauSparkleElementBlock [28..30]
+ │   │       │   │   │       ├─ LuauSparkleElementBlock_begin [28..29]
+ │   │       │   │   │       │   └─ LuauSparkleElementBlock_begin_c1 [28..29]
+ │   │       │   │   │       │       └─ LuauStructBlockOpen [28..29]: "{"
+ │   │       │   │   │       └─ LuauSparkleElementBlock_end [29..30]
+ │   │       │   │   │           └─ LuauSparkleElementBlock_end_c1 [29..30]
+ │   │       │   │   │               └─ LuauStructBlockClose [29..30]: "}"
+ │   │       │   │   └─ LuauSparkleElement_end 30
+ │   │       │   └─ Newline [30..31]: "\n"
+ │   │       └─ LuauSparkleBraceBody_end [31..32]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [31..32]
+ │   │               └─ LuauStructBlockClose [31..32]: "}"
+ │   └─ LuauLayout_end 32
+ │       ├─ LuauLayout_end_c1 32
+ │       │   └─ LuauLayout_end_c1 32
+ │       │       └─ OptionalWhitespace 32
+ │       ├─ LuauLayout_end_c2 32
+ │       └─ LuauLayout_end_c3 32
+ └─ Newline [32..33]: "\n"

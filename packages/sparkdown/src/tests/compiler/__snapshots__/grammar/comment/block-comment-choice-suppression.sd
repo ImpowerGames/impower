@@ -1,0 +1,16 @@
+scene start
+  choose
+    + [Wait /* draft
+      hidden */ here] now
+      done
+    + Go [left /* one
+      two */ /* three
+      four */ side] way
+      done
+    + Go {"/*"} home
+      done
+    + Go [left /* one
+      two */ way
+      done
+  end
+end

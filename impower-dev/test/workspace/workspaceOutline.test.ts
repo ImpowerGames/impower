@@ -103,5 +103,8 @@ describe("the outline's symbol source", () => {
   it("finds the first line with content, skipping blank and comment lines", () => {
     expect(firstContentLine("\n  \n// x\nVAR = 1\n")).toBe(3);
     expect(firstContentLine("\n// only\n")).toBeUndefined();
+    expect(firstContentLine("/* a\nnote */\n\nVAR = 1\n")).toBe(3);
+    expect(firstContentLine("/* a */ /* b\nc */ VAR = 1\n")).toBe(1);
+    expect(firstContentLine("/*x*/\n/* never closed\nVAR = 1\n")).toBeUndefined();
   });
 });

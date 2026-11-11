@@ -747,6 +747,19 @@ export class ProgramResolver {
 
     this.retarget(story);
 
+    if (this._staleMemos.size > 0) {
+      for (const [entry, tally] of this._tallies) {
+        const made = entry.resolution;
+        if (
+          made &&
+          (made.resolver !== this._id ||
+            made.context !== tally.context ||
+            made.reads.some((name) => this.readsOtherwise(name, made.at)))
+        ) {
+          this._staleMemos.add(entry);
+        }
+      }
+    }
     this.staleMemosLastResolve = [...this._staleMemos];
     if (!passes.stopped) {
       for (const [entry, tally] of this._tallies) {
@@ -1753,13 +1766,23 @@ export class ProgramResolver {
     }
     if (phase === "generate") {
       this.passesLastResolve.memoized += 1;
-      if (
-        !recording?.unit ||
-        resolution.resolver !== this._id ||
-        recording.unit.context !== resolution.context ||
-        resolution.reads.some((name) => this.readsOtherwise(name, resolution.at))
-      ) {
+      const stale = (memo: StatementMemoEntry): boolean => {
+        const made = memo.resolution;
+        return (
+          !made ||
+          !recording?.unit ||
+          made.resolver !== this._id ||
+          recording.unit.context !== made.context ||
+          made.reads.some((name) => this.readsOtherwise(name, made.at))
+        );
+      };
+      if (stale(entry)) {
         this._staleMemos.add(entry);
+        for (const descendant of entry.owner?.descendants ?? []) {
+          if (stale(descendant)) {
+            this._staleMemos.add(descendant);
+          }
+        }
       }
     }
     if (recording?.record) {

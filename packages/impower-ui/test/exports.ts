@@ -87,6 +87,9 @@ export const NOT_COMPONENTS: readonly string[] = [
   "zoomFrameContentVariants",
   "panelHeadVariants",
   "detailListVariants",
+  "carouselVariants",
+  "carouselTrackVariants",
+  "carouselItemVariants",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];

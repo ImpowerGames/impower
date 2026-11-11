@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { grammar, lintRule } from "../utils/lint-fixture.ts";
-import { collectFindings } from "../baseline-cli.ts";
+import { collectFindings, collectGrammarFindings } from "../baseline-cli.ts";
+import { GRAMMAR_SOURCES } from "../index.ts";
 
 const names = (source: string) =>
   lintRule(source, "no-unreferenced-rule").map(
@@ -73,11 +74,7 @@ test("findings on the grammar agree with grammarReachability.test.ts", () => {
     assert.ok(body, `${name} not found in grammarReachability.test.ts`);
     return [...body[1]!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!).sort();
   };
-  const source = readFileSync(
-    new URL("definitions/yaml/sparkdown.language-grammar.yaml", root),
-    "utf8",
-  );
-  const found = collectFindings(source);
+  const found = collectGrammarFindings();
   const owners = (rule: string, prefix: string) =>
     found[rule]!.map((f) => f.owner.slice(prefix.length)).sort();
   assert.deepEqual(
@@ -88,11 +85,16 @@ test("findings on the grammar agree with grammarReachability.test.ts", () => {
     owners("no-unreferenced-variable", "variables."),
     list("KNOWN_UNUSED_VARIABLES"),
   );
-  const uncommented = collectFindings(
-    source.replace(/^\s*# referenced-from:.*$/gm, "#"),
+  const uncommented = Object.values(GRAMMAR_SOURCES).flatMap(
+    (file) =>
+      collectFindings(
+        readFileSync(file, "utf8").replace(/^\s*# referenced-from:.*$/gm, "#"),
+        file,
+        GRAMMAR_SOURCES,
+      )["no-unreferenced-variable"]!,
   );
   assert.deepEqual(
-    uncommented["no-unreferenced-variable"]!
+    uncommented
       .map((f) => f.owner.slice("variables.".length))
       .sort(),
     [

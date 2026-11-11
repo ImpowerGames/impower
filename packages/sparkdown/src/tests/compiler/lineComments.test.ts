@@ -18,6 +18,24 @@ const SKIPPED_LINE_CLASSES: Record<SkipReason, string> = {
 
 const FIXTURES = loadGrammarCorpus();
 
+describe("a line inside a story block comment", () => {
+  test("is skipped as a line inside an existing comment", async () => {
+    const results = await lineCommentResults(
+      ["scene start", "  /* one", "  two", "three */", "  four", "end", ""].join("\n"),
+    );
+    expect(results.map((r) => [r.line, r.skipped])).toEqual([
+      [1, undefined],
+      [2, undefined],
+      [3, "comment"],
+      [4, "comment"],
+      [5, undefined],
+      [6, undefined],
+      [7, "blank"],
+    ]);
+    expect(results.filter((r) => r.readAsComment === false)).toEqual([]);
+  });
+});
+
 describe("a line comment written at the start of a line comments it out", () => {
   for (const luauFile of [false, true]) {
     describe(luauFile ? ".luau root" : ".sd root", () => {

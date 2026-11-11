@@ -1,0 +1,13 @@
+scene start
+  choose
+    + Go {if true then "/*" else tostring({})} home
+      done
+    + Go {[[/*]]} far
+      done
+    + Go {`/*{1}`} near
+      done
+    + Go {#{"/*"}} count /* a
+      note */ then
+      done
+  end
+end

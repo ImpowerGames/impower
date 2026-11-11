@@ -8,12 +8,37 @@ import {
   type ExecutedReport,
   type Story,
 } from "@impower/spark-engine/src/tests/core/executedReportHarness";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { isCommentOnlyLine } from "@impower/sparkdown/src/compiler/utils/isCommentOnlyLine";
 import { describe, expect, it } from "vitest";
 import { addExecutedHighlightLines } from "../src/utils/executedHighlightLines";
 
+const gapReader = (s: Story) => {
+  const documents = new SparkdownDocumentRegistry([]);
+  documents.add({
+    textDocument: {
+      uri: MAIN_URI,
+      languageId: "sparkdown",
+      version: 1,
+      text: s.source,
+    },
+  });
+  const tree = documents.tree(MAIN_URI)!;
+  const lineStarts: number[] = [];
+  let offset = 0;
+  for (const line of s.lines) {
+    lineStarts.push(offset);
+    offset += line.length + 1;
+  }
+  return (line: number) => {
+    const text = s.lines[line] ?? "";
+    return !text.trim() || isCommentOnlyLine(tree, lineStarts[line]!, text);
+  };
+};
+
 const highlightedFromLocations = (
   locations: DocumentLocation[],
-  lineText: (line: number) => string,
+  isGap: (line: number) => boolean,
 ) => {
   const lines = new Set<number>();
   const sorted = [...locations].sort(
@@ -24,8 +49,7 @@ const highlightedFromLocations = (
     if (prevEndLine != null) {
       const blank = new Set<number>();
       for (let i = prevEndLine + 1; i < location.range.start.line; i++) {
-        const trimmed = lineText(i).trim();
-        if (!trimmed || trimmed.startsWith("//")) {
+        if (isGap(i)) {
           blank.add(i);
         } else {
           blank.clear();
@@ -45,20 +69,32 @@ const highlightedFromLocations = (
 };
 
 const highlighted = (s: Story, report: ExecutedReport) => {
-  const lineText = (line: number) => s.lines[line] ?? "";
+  const isGap = gapReader(s);
   const lines = new Set<number>();
   const executed = report.params.executedLines?.[MAIN_URI];
   if (executed) {
-    addExecutedHighlightLines(lines, executed.ranges, lineText);
+    addExecutedHighlightLines(lines, executed.ranges, isGap);
   }
   return {
     reported: [...lines].sort((a, b) => a - b),
     expected: highlightedFromLocations(
       report.locations.filter((l) => l.uri === MAIN_URI),
-      lineText,
+      isGap,
     ),
   };
 };
+
+const BLOCK_COMMENT_GAP = `scene A
+  Line one.
+  /* a note
+  across lines */
+  Line two.
+  Line three. /* trailing
+  still the note */
+  Line four.
+  done
+end
+`;
 
 const TWO_SCENES = `scene A
   Line one.
@@ -113,6 +149,14 @@ describe("the executed line highlight", { timeout: 60_000 }, () => {
       const { reported, expected } = highlighted(s, report!);
       expect(reported).toEqual(expected);
     }
+  });
+
+  it("marks the lines of a block comment between two executed lines", async () => {
+    const s = story(BLOCK_COMMENT_GAP);
+    const [report] = await previewReports(s, 7);
+    const { reported, expected } = highlighted(s, report!);
+    expect(reported).toEqual(expect.arrayContaining([1, 2, 3, 4, 5, 6, 7]));
+    expect(reported).toEqual(expected);
   });
 
   it("marks the same lines while a game runs", async () => {

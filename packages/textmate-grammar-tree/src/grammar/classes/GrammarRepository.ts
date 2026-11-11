@@ -6,6 +6,7 @@ import type {
 GrammarDefinition,
 IncludeDefinition,
 MatchRuleDefinition,
+RepositoryDefinition,
 RuleDefinition,
 ScopedRuleDefinition,
 SwitchRuleDefinition,
@@ -21,6 +22,15 @@ import { GrammarNode } from "./GrammarNode";
 import { MatchRule } from "./rules/MatchRule";
 import { ScopedRule } from "./rules/ScopedRule";
 import { SwitchRule } from "./rules/SwitchRule";
+
+interface RuleScope {
+  owner: string;
+  repository: Record<string, RepositoryDefinition>;
+  parent?: RuleScope;
+}
+
+const isRule = (obj: GrammarNode | Rule): obj is MatchRule | ScopedRule | SwitchRule =>
+  obj instanceof MatchRule || obj instanceof ScopedRule || obj instanceof SwitchRule;
 
 export class GrammarRepository {
   grammar: Grammar;
@@ -40,6 +50,10 @@ export class GrammarRepository {
   private map = new Map<string, GrammarNode | Rule>();
 
   private ids = new WeakMap<object, string>();
+
+  private owned = new Map<string, Record<string, RepositoryDefinition>>();
+
+  private scopes = new Map<string, RuleScope | undefined>();
 
   constructor(grammar: Grammar, definition: GrammarDefinition, prefix: string) {
     this.grammar = grammar;
@@ -86,8 +100,10 @@ export class GrammarRepository {
         }
       }
     }
-    this.self.resolve();
-    this.resolveAll();
+  }
+
+  enter(rule: Rule) {
+    this.bind(rule, undefined);
   }
 
   nodes() {
@@ -181,6 +197,7 @@ export class GrammarRepository {
     if (isSwitchRuleDefinition(def)) {
       const rule = new SwitchRule(this, def);
       this.map.set(rule.id, rule);
+      this.own(rule, def.repository);
       return rule;
     }
 
@@ -190,6 +207,7 @@ export class GrammarRepository {
         patterns: [{ include: def.include }],
       });
       this.map.set(rule.id, rule);
+      this.own(rule, def.repository);
       return rule;
     }
 
@@ -209,8 +227,87 @@ export class GrammarRepository {
     return node;
   }
 
-  include(str: string): Rule[] {
+  private own(
+    rule: SwitchRule,
+    repository: Record<string, RepositoryDefinition> | undefined,
+  ) {
+    if (repository) {
+      this.owned.set(rule.id, repository);
+    }
+  }
+
+  private bind(rule: GrammarNode | Rule, scope: RuleScope | undefined) {
+    if (!isRule(rule) || rule.repo !== this || this.scopes.has(rule.id)) {
+      return;
+    }
+    const repository = this.owned.get(rule.id);
+    const bound = repository
+      ? { owner: rule.id, repository, parent: scope }
+      : scope;
+    this.scopes.set(rule.id, bound);
+    if (rule instanceof ScopedRule) {
+      this.bind(rule.beginRule, bound);
+      this.bind(rule.endRule, bound);
+      this.bind(rule.contentRule, bound);
+    } else if (rule instanceof MatchRule) {
+      rule.captures?.forEach((capture) => this.bind(capture, bound));
+    } else if (rule === this.self) {
+      rule.resolve();
+    } else {
+      try {
+        rule.resolve();
+      } catch {
+      }
+    }
+  }
+
+  private bound<T extends Rule>(rule: T, scope: RuleScope | undefined): T {
+    this.bind(rule, scope);
+    return rule;
+  }
+
+  private nestedId(owner: string, name: string) {
+    const ownerLocal = this.local(owner);
+    const namespace = nodeName(this.prefix, `${ownerLocal}#`);
+    const taken = (id: string) => {
+      for (const existing of this.map.keys()) {
+        if (existing.startsWith(id)) {
+          return true;
+        }
+        if (existing.length > namespace.length && id.startsWith(existing)) {
+          const next = id.charAt(existing.length);
+          if (next === "_" || next === "-") {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    let id = nodeName(this.prefix, `${ownerLocal}#${name}`);
+    for (let n = 1; taken(id); n++) {
+      id = nodeName(this.prefix, `${ownerLocal}#${n}#${name}`);
+    }
+    return id;
+  }
+
+  private lookup(name: string, scope: RuleScope | undefined): Rule[] {
+    for (let s = scope; s; s = s.parent) {
+      if (Object.hasOwn(s.repository, name)) {
+        const item = s.repository[name];
+        if (item == null) {
+          return [];
+        }
+        const id = this.ids.get(item) ?? this.nestedId(s.owner, name);
+        const rule = this.add(item, id, true);
+        return isRule(rule) ? [rule] : [];
+      }
+    }
+    return this.rule(name);
+  }
+
+  include(str: string, scope?: RuleScope): Rule[] {
     if (str === "$self") {
+      this.bind(this.self, scope);
       return [this.self];
     }
     if (str === "$base") {
@@ -218,7 +315,9 @@ export class GrammarRepository {
     }
     const sharp = str.indexOf("#");
     if (sharp === 0) {
-      return this.rule(str.slice(1));
+      const rules = this.lookup(str.slice(1), scope);
+      rules.forEach((rule) => this.bind(rule, scope));
+      return rules;
     }
     const repository = this.grammar.repositoryOf(
       sharp < 0 ? str : str.slice(0, sharp),
@@ -227,7 +326,9 @@ export class GrammarRepository {
       return [];
     }
     const name = sharp < 0 ? "" : str.slice(sharp + 1);
-    return name ? repository.rule(name) : [repository.self];
+    const rules = name ? repository.rule(name) : [repository.self];
+    rules.forEach((rule) => repository.enter(rule));
+    return rules;
   }
 
   rule(name: string): Rule[] {
@@ -247,21 +348,22 @@ export class GrammarRepository {
   }
 
   getRules(items: IncludeDefinition[], idPrefix: string) {
+    const scope = this.scopes.get(idPrefix);
     const rules: Rule[] = [];
     let missing = false;
     if (items) {
       items.forEach((item, i) => {
         const patternId = idPrefix + `-p${i}`;
         if (isIncludeDefinition(item)) {
-          const included = this.include(item.include);
+          const included = this.include(item.include, scope);
           missing ||= included.length === 0;
           rules.push(...included);
         } else if (isMatchRuleDefinition(item)) {
-          rules.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         } else if (isScopedRuleDefinition(item)) {
-          rules.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         } else if (isSwitchRuleDefinition(item)) {
-          rules.push(this.add(item, patternId));
+          rules.push(this.bound(this.add(item, patternId), scope));
         }
       });
     }

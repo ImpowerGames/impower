@@ -123,7 +123,9 @@ export type ToolPanelProps = {
   closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
   onBack?: () => void;
+  backLabel?: string;
   closeOnOutside?: boolean;
+  scroll?: boolean;
   keepOpenOn?: (target: Element) => boolean;
   returnFocus?: () => HTMLElement | null;
   children?: ComponentChildren;
@@ -136,8 +138,9 @@ function Heading({
   closeLabel,
   closeButton,
   onBack,
+  backLabel = "Back to writing tools",
   onClose,
-}: Pick<ToolPanelProps, "title" | "closeLabel" | "closeButton" | "onBack"> & {
+}: Pick<ToolPanelProps, "title" | "closeLabel" | "closeButton" | "onBack" | "backLabel"> & {
   onClose: () => void;
 }) {
   const { sheet, keyboard } = useContext(Context);
@@ -153,7 +156,7 @@ function Heading({
         <Button
           variant="quiet"
           size="icon"
-          aria-label="Back to writing tools"
+          aria-label={backLabel}
           class="text-muted"
           onPointerDown={keepFocus}
           onClick={onBack}
@@ -269,7 +272,9 @@ export function ToolPanel({
   closeLabel = "Close writing tools",
   onClose,
   onBack,
+  backLabel,
   closeOnOutside = true,
+  scroll = true,
   keepOpenOn,
   returnFocus,
   children,
@@ -295,6 +300,7 @@ export function ToolPanel({
           closeLabel={closeLabel}
           closeButton={closeButton}
           onBack={onBack}
+          backLabel={backLabel}
           onClose={() => {
             close("close");
             if (keyboard) returnFocus?.()?.focus({ preventScroll: true });
@@ -303,7 +309,14 @@ export function ToolPanel({
       ) : (
         sheet && <DialogTitle class="sr-only">{title}</DialogTitle>
       )}
-      <div class="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div
+        class={cn(
+          "min-h-0 flex-1",
+          scroll ? "overflow-y-auto" : "flex flex-col",
+        )}
+      >
+        {children}
+      </div>
     </>
   );
   if (bar) {

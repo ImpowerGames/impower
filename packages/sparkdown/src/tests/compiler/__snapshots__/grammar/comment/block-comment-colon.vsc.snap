@@ -1,0 +1,53 @@
+text.source.sparkdown [0..116]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..26]
+ │   ├─ markup.raw.text.sd [14..19]: "Hello"
+ │   ├─ markup.raw.space.sd [19..20]: " "
+ │   ├─ markup.raw.text.sd [20..25]: "there"
+ │   └─ markup.raw.punctuation.sd [25..26]: "."
+ ├─ comment.block.sd [26..40]
+ │   ├─ punctuation.whitespace.optional.sd [26..27]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [27..29]: "/*"
+ │   ├─ comment.block.content.sd [29..38]: " note: x "
+ │   └─ punctuation.definition.comment.end.sd [38..40]: "*/"
+ ├─ Newline [40..41]: "\n"
+ ├─ punctuation.whitespace.optional.sd [41..43]: "  "
+ ├─ string.display.text.chunk.sd [43..48]
+ │   └─ markup.raw.text.sd [43..48]: "Hello"
+ ├─ comment.block.sd [48..63]
+ │   ├─ punctuation.whitespace.optional.sd [48..49]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [49..51]: "/*"
+ │   ├─ comment.block.content.sd [51..61]: " aside: y "
+ │   └─ punctuation.definition.comment.end.sd [61..63]: "*/"
+ ├─ string.display.text.chunk.sd [63..70]
+ │   ├─ markup.raw.space.sd [63..64]: " "
+ │   ├─ markup.raw.text.sd [64..69]: "there"
+ │   └─ markup.raw.punctuation.sd [69..70]: "."
+ ├─ Newline [70..71]: "\n"
+ ├─ string.display.dialogue.inline.sd [71..104]
+ │   ├─ punctuation.whitespace.optional.sd [71..73]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [73..80]
+ │   │   └─ markup.raw.text.sd [73..80]: "RAFFLES"
+ │   ├─ meta.template.expression.operator.colon.sd [80..81]: ":"
+ │   ├─ punctuation.whitespace.required.sd [81..82]: " "
+ │   ├─ string.display.text.chunk.sd [82..84]
+ │   │   └─ markup.raw.text.sd [82..84]: "Hi"
+ │   ├─ comment.block.sd [84..97]
+ │   │   ├─ punctuation.whitespace.optional.sd [84..85]: " "
+ │   │   ├─ punctuation.definition.comment.begin.sd [85..87]: "/*"
+ │   │   ├─ comment.block.content.sd [87..95]: " cue: z "
+ │   │   └─ punctuation.definition.comment.end.sd [95..97]: "*/"
+ │   └─ string.display.text.chunk.sd [97..104]
+ │       ├─ markup.raw.space.sd [97..98]: " "
+ │       ├─ markup.raw.text.sd [98..103]: "there"
+ │       └─ markup.raw.punctuation.sd [103..104]: "."
+ ├─ Newline [104..105]: "\n"
+ ├─ punctuation.whitespace.optional.sd [105..107]: "  "
+ ├─ keyword.control.divert.done.sd [107..111]: "done"
+ ├─ Newline [111..112]: "\n"
+ ├─ keyword.control.end.luau [112..115]: "end"
+ └─ Newline [115..116]: "\n"

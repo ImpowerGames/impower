@@ -1,25 +1,40 @@
+import { readFileSync } from "node:fs";
+import { basename, dirname } from "node:path";
 import { Linter } from "eslint";
 import yml from "eslint-plugin-yml";
-import plugin from "../index.ts";
+import plugin, { GRAMMAR_SOURCES } from "../index.ts";
+import { SETTINGS_KEY } from "./grammar-index.ts";
 
 const FILE = "grammar.yaml";
+
+export type GrammarSource = keyof typeof GRAMMAR_SOURCES;
+
+export function readGrammarSource(source: GrammarSource): string {
+  return readFileSync(GRAMMAR_SOURCES[source], "utf8");
+}
 
 export function lintRules(
   source: string,
   rules: Linter.RulesRecord,
+  as?: GrammarSource,
 ): Linter.LintMessage[] {
-  const linter = new Linter({ configType: "flat" });
+  const file = as === undefined ? FILE : GRAMMAR_SOURCES[as];
+  const linter = new Linter({
+    configType: "flat",
+    ...(as === undefined ? {} : { cwd: dirname(file) }),
+  });
   const messages = linter.verify(
     source,
     [
       ...(yml.configs["flat/base"] as Linter.Config[]),
       {
-        files: [FILE],
+        files: [basename(file)],
         plugins: { "sparkdown-grammar": plugin as never },
+        settings: as === undefined ? {} : { [SETTINGS_KEY]: GRAMMAR_SOURCES },
         rules,
       },
     ],
-    FILE,
+    file,
   );
   const fatal = messages.find((m) => m.fatal);
   if (fatal) throw new Error(`fixture did not parse: ${fatal.message}`);
@@ -30,10 +45,13 @@ export function lintRule(
   source: string,
   rule: string,
   baseline: Record<string, number> = {},
+  as?: GrammarSource,
 ): Linter.LintMessage[] {
-  return lintRules(source, {
-    [`sparkdown-grammar/${rule}`]: ["error", { baseline }],
-  });
+  return lintRules(
+    source,
+    { [`sparkdown-grammar/${rule}`]: ["error", { baseline }] },
+    as,
+  );
 }
 
 export function grammar(parts: {

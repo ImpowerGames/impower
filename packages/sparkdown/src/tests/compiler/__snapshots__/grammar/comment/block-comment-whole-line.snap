@@ -1,0 +1,124 @@
+sparkdown [0..149]
+ ├─ SparkdownBlockComment [0..22]
+ │   ├─ SparkdownBlockComment_begin [0..2]
+ │   │   ├─ SparkdownBlockComment_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   └─ SparkdownBlockComment_begin_c2 [0..2]: "/*"
+ │   ├─ SparkdownBlockComment_content [2..20]
+ │   │   └─ SparkdownBlockCommentContent [2..20]: " a top-level note "
+ │   └─ SparkdownBlockComment_end [20..22]
+ │       └─ SparkdownBlockComment_end_c1 [20..22]: "*/"
+ ├─ Newline [22..23]: "\n"
+ ├─ Scene [23..34]
+ │   ├─ Scene_begin [23..29]
+ │   │   ├─ Scene_begin_c1 23
+ │   │   │   └─ OptionalWhitespace 23
+ │   │   ├─ Scene_begin_c2 [23..28]
+ │   │   │   └─ SceneKeyword [23..28]: "scene"
+ │   │   └─ Scene_begin_c3 [28..29]
+ │   │       └─ RequiredWhitespace [28..29]: " "
+ │   ├─ Scene_content [29..34]
+ │   │   └─ SceneWithoutParametersDeclaration [29..34]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [29..34]
+ │   │       │   └─ SceneDeclarationName [29..34]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 34
+ │   └─ Scene_end 34
+ ├─ Newline [34..35]: "\n"
+ ├─ ImplicitAction [35..44]
+ │   ├─ ImplicitAction_begin [35..37]
+ │   │   └─ ImplicitAction_begin_c1 [35..37]
+ │   │       └─ OptionalWhitespace [35..37]: "  "
+ │   ├─ ImplicitAction_content [37..44]
+ │   │   └─ ActionLineEnd [37..44]
+ │   │       ├─ ActionLineEnd_begin 37
+ │   │       │   └─ ActionLineEnd_begin_c1 37
+ │   │       │       └─ OptionalWhitespace 37
+ │   │       ├─ ActionLineEnd_content [37..44]
+ │   │       │   └─ TextChunk [37..44]
+ │   │       │       ├─ TextChunk_begin 37
+ │   │       │       ├─ TextChunk_content [37..44]
+ │   │       │       │   ├─ Word [37..43]: "Before"
+ │   │       │       │   └─ Punctuation [43..44]: "."
+ │   │       │       └─ TextChunk_end 44
+ │   │       └─ ActionLineEnd_end 44
+ │   └─ ImplicitAction_end 44
+ ├─ Newline [44..45]: "\n"
+ ├─ SparkdownBlockComment [45..70]
+ │   ├─ SparkdownBlockComment_begin [45..49]
+ │   │   ├─ SparkdownBlockComment_begin_c1 [45..47]
+ │   │   │   └─ OptionalWhitespace [45..47]: "  "
+ │   │   └─ SparkdownBlockComment_begin_c2 [47..49]: "/*"
+ │   ├─ SparkdownBlockComment_content [49..68]
+ │   │   └─ SparkdownBlockCommentContent [49..68]: " a whole-line note "
+ │   └─ SparkdownBlockComment_end [68..70]
+ │       └─ SparkdownBlockComment_end_c1 [68..70]: "*/"
+ ├─ Newline [70..71]: "\n"
+ ├─ ImplicitAction [71..79]
+ │   ├─ ImplicitAction_begin [71..73]
+ │   │   └─ ImplicitAction_begin_c1 [71..73]
+ │   │       └─ OptionalWhitespace [71..73]: "  "
+ │   ├─ ImplicitAction_content [73..79]
+ │   │   └─ ActionLineEnd [73..79]
+ │   │       ├─ ActionLineEnd_begin 73
+ │   │       │   └─ ActionLineEnd_begin_c1 73
+ │   │       │       └─ OptionalWhitespace 73
+ │   │       ├─ ActionLineEnd_content [73..79]
+ │   │       │   └─ TextChunk [73..79]
+ │   │       │       ├─ TextChunk_begin 73
+ │   │       │       ├─ TextChunk_content [73..79]
+ │   │       │       │   ├─ Word [73..78]: "After"
+ │   │       │       │   └─ Punctuation [78..79]: "."
+ │   │       │       └─ TextChunk_end 79
+ │   │       └─ ActionLineEnd_end 79
+ │   └─ ImplicitAction_end 79
+ ├─ Newline [79..80]: "\n"
+ ├─ SparkdownBlockComment [80..111]
+ │   ├─ SparkdownBlockComment_begin [80..84]
+ │   │   ├─ SparkdownBlockComment_begin_c1 [80..82]
+ │   │   │   └─ OptionalWhitespace [80..82]: "  "
+ │   │   └─ SparkdownBlockComment_begin_c2 [82..84]: "/*"
+ │   ├─ SparkdownBlockComment_content [84..109]
+ │   │   └─ SparkdownBlockCommentContent [84..109]: "no space after the opener"
+ │   └─ SparkdownBlockComment_end [109..111]
+ │       └─ SparkdownBlockComment_end_c1 [109..111]: "*/"
+ ├─ Newline [111..112]: "\n"
+ ├─ SparkdownBlockComment [112..126]
+ │   ├─ SparkdownBlockComment_begin [112..116]
+ │   │   ├─ SparkdownBlockComment_begin_c1 [112..114]
+ │   │   │   └─ OptionalWhitespace [112..114]: "  "
+ │   │   └─ SparkdownBlockComment_begin_c2 [114..116]: "/*"
+ │   ├─ SparkdownBlockComment_content [116..124]
+ │   │   └─ SparkdownBlockCommentContent [116..124]: " a note "
+ │   └─ SparkdownBlockComment_end [124..126]
+ │       └─ SparkdownBlockComment_end_c1 [124..126]: "*/"
+ ├─ ImplicitAction [126..141]
+ │   ├─ ImplicitAction_begin [126..127]
+ │   │   └─ ImplicitAction_begin_c1 [126..127]
+ │   │       └─ OptionalWhitespace [126..127]: " "
+ │   ├─ ImplicitAction_content [127..141]
+ │   │   └─ ActionLineEnd [127..141]
+ │   │       ├─ ActionLineEnd_begin 127
+ │   │       │   └─ ActionLineEnd_begin_c1 127
+ │   │       │       └─ OptionalWhitespace 127
+ │   │       ├─ ActionLineEnd_content [127..141]
+ │   │       │   └─ TextChunk [127..141]
+ │   │       │       ├─ TextChunk_begin 127
+ │   │       │       ├─ TextChunk_content [127..141]
+ │   │       │       │   ├─ Word [127..131]: "Text"
+ │   │       │       │   ├─ Space [131..132]: " "
+ │   │       │       │   ├─ Word [132..137]: "after"
+ │   │       │       │   ├─ Space [137..138]: " "
+ │   │       │       │   ├─ Word [138..140]: "it"
+ │   │       │       │   └─ Punctuation [140..141]: "."
+ │   │       │       └─ TextChunk_end 141
+ │   │       └─ ActionLineEnd_end 141
+ │   └─ ImplicitAction_end 141
+ ├─ Newline [141..142]: "\n"
+ ├─ DoneStatement [142..148]
+ │   ├─ DoneStatement_c1 [142..144]
+ │   │   └─ OptionalWhitespace [142..144]: "  "
+ │   ├─ DoneStatement_c2 [144..148]
+ │   │   └─ DoneKeyword [144..148]: "done"
+ │   └─ DoneStatement_c3 148
+ │       └─ OptionalWhitespace 148
+ └─ Newline [148..149]: "\n"

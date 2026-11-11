@@ -33,6 +33,7 @@ const NOT_A_LINE = nodeNameSet([
   "TrailingWhitespace",
   "SparkdownLineComment",
   "SparkdownInlineComment",
+  "SparkdownBlockComment",
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",

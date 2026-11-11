@@ -8,6 +8,7 @@ import {
   type VirtualListGrid,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren, JSX, Ref } from "preact";
+import LibraryToolbar from "./LibraryToolbar";
 import SearchBox from "./SearchBox";
 
 export type LibraryList<T> = {
@@ -55,7 +56,7 @@ export default function LibraryPage<T>({
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
       <div class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
         <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
-          <div class="flex flex-none items-center gap-2.5 pt-4 pb-2 [:root[data-layout=desktop]_&]:pb-3">
+          <LibraryToolbar>
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />
             <DropdownRoot>
               <DropdownTrigger asChild>
@@ -68,7 +69,7 @@ export default function LibraryPage<T>({
                 {newMenu}
               </DropdownContent>
             </DropdownRoot>
-          </div>
+          </LibraryToolbar>
           {tabs}
           <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
             {bar}

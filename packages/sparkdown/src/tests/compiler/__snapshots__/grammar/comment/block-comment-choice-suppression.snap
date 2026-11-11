@@ -1,0 +1,356 @@
+sparkdown [0..250]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownChooseBlock [12..245]
+ │   ├─ LuauSparkdownChooseBlock_begin [12..20]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+ │   │   │   └─ LuauChooseKeyword [14..20]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │           └─ OptionalWhitespace 20
+ │   ├─ LuauSparkdownChooseBlock_content [20..240]
+ │   │   ├─ Newline [20..21]: "\n"
+ │   │   ├─ Choice [21..41]
+ │   │   │   ├─ Choice_begin [21..27]
+ │   │   │   │   ├─ Choice_begin_c1 [21..25]
+ │   │   │   │   │   └─ OptionalWhitespace [21..25]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [25..27]
+ │   │   │   │   │   └─ ChoiceMark [25..27]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 27
+ │   │   │   │   ├─ Choice_begin_c4 27
+ │   │   │   │   ├─ Choice_begin_c5 27
+ │   │   │   │   ├─ Choice_begin_c6 27
+ │   │   │   │   └─ Choice_begin_c7 27
+ │   │   │   ├─ Choice_content [27..41]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [27..41]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [27..41]
+ │   │   │   │       │   └─ ChoicePlainText [27..41]
+ │   │   │   │       │       └─ ChoiceTextContent [27..41]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [27..41]
+ │   │   │   │       │               ├─ Punctuation [27..28]: "["
+ │   │   │   │       │               ├─ Word [28..32]: "Wait"
+ │   │   │   │       │               ├─ Space [32..33]: " "
+ │   │   │   │       │               ├─ Punctuation [33..34]: "/"
+ │   │   │   │       │               └─ Italic [34..41]
+ │   │   │   │       │                   ├─ Italic_begin [34..35]
+ │   │   │   │       │                   │   └─ Italic_begin_c1 [34..35]
+ │   │   │   │       │                   │       └─ StylingMark [34..35]
+ │   │   │   │       │                   │           └─ StylingMark_c1 [34..35]: "*"
+ │   │   │   │       │                   ├─ Italic_content [35..41]
+ │   │   │   │       │                   │   ├─ Space [35..36]: " "
+ │   │   │   │       │                   │   └─ Word [36..41]: "draft"
+ │   │   │   │       │                   └─ Italic_end 41
+ │   │   │   │       │                       └─ Italic_end_c1 41
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 41
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 41
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 41
+ │   │   │   └─ Choice_end 41
+ │   │   ├─ Newline [41..42]: "\n"
+ │   │   ├─ ImplicitAction [42..67]
+ │   │   │   ├─ ImplicitAction_begin [42..48]
+ │   │   │   │   └─ ImplicitAction_begin_c1 [42..48]
+ │   │   │   │       └─ OptionalWhitespace [42..48]: "      "
+ │   │   │   ├─ ImplicitAction_content [48..67]
+ │   │   │   │   └─ ActionLineEnd [48..67]
+ │   │   │   │       ├─ ActionLineEnd_begin 48
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 48
+ │   │   │   │       │       └─ OptionalWhitespace 48
+ │   │   │   │       ├─ ActionLineEnd_content [48..67]
+ │   │   │   │       │   └─ TextChunk [48..67]
+ │   │   │   │       │       ├─ TextChunk_begin 48
+ │   │   │   │       │       ├─ TextChunk_content [48..67]
+ │   │   │   │       │       │   ├─ Word [48..54]: "hidden"
+ │   │   │   │       │       │   ├─ Space [54..55]: " "
+ │   │   │   │       │       │   └─ Italic [55..67]
+ │   │   │   │       │       │       ├─ Italic_begin [55..56]
+ │   │   │   │       │       │       │   └─ Italic_begin_c1 [55..56]
+ │   │   │   │       │       │       │       └─ StylingMark [55..56]
+ │   │   │   │       │       │       │           └─ StylingMark_c1 [55..56]: "*"
+ │   │   │   │       │       │       ├─ Italic_content [56..67]
+ │   │   │   │       │       │       │   ├─ Punctuation [56..57]: "/"
+ │   │   │   │       │       │       │   ├─ Space [57..58]: " "
+ │   │   │   │       │       │       │   ├─ Word [58..62]: "here"
+ │   │   │   │       │       │       │   ├─ Punctuation [62..63]: "]"
+ │   │   │   │       │       │       │   ├─ Space [63..64]: " "
+ │   │   │   │       │       │       │   └─ Word [64..67]: "now"
+ │   │   │   │       │       │       └─ Italic_end 67
+ │   │   │   │       │       │           └─ Italic_end_c1 67
+ │   │   │   │       │       └─ TextChunk_end 67
+ │   │   │   │       └─ ActionLineEnd_end 67
+ │   │   │   └─ ImplicitAction_end 67
+ │   │   ├─ Newline [67..68]: "\n"
+ │   │   ├─ DoneStatement [68..78]
+ │   │   │   ├─ DoneStatement_c1 [68..74]
+ │   │   │   │   └─ OptionalWhitespace [68..74]: "      "
+ │   │   │   ├─ DoneStatement_c2 [74..78]
+ │   │   │   │   └─ DoneKeyword [74..78]: "done"
+ │   │   │   └─ DoneStatement_c3 78
+ │   │   │       └─ OptionalWhitespace 78
+ │   │   ├─ Newline [78..79]: "\n"
+ │   │   ├─ Choice [79..100]
+ │   │   │   ├─ Choice_begin [79..85]
+ │   │   │   │   ├─ Choice_begin_c1 [79..83]
+ │   │   │   │   │   └─ OptionalWhitespace [79..83]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [83..85]
+ │   │   │   │   │   └─ ChoiceMark [83..85]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 85
+ │   │   │   │   ├─ Choice_begin_c4 85
+ │   │   │   │   ├─ Choice_begin_c5 85
+ │   │   │   │   ├─ Choice_begin_c6 85
+ │   │   │   │   └─ Choice_begin_c7 85
+ │   │   │   ├─ Choice_content [85..100]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [85..100]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [85..100]
+ │   │   │   │       │   └─ ChoicePlainText [85..100]
+ │   │   │   │       │       └─ ChoiceTextContent [85..100]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [85..100]
+ │   │   │   │       │               ├─ Word [85..87]: "Go"
+ │   │   │   │       │               ├─ Space [87..88]: " "
+ │   │   │   │       │               ├─ Punctuation [88..89]: "["
+ │   │   │   │       │               ├─ Word [89..93]: "left"
+ │   │   │   │       │               ├─ Space [93..94]: " "
+ │   │   │   │       │               ├─ Punctuation [94..95]: "/"
+ │   │   │   │       │               └─ Italic [95..100]
+ │   │   │   │       │                   ├─ Italic_begin [95..96]
+ │   │   │   │       │                   │   └─ Italic_begin_c1 [95..96]
+ │   │   │   │       │                   │       └─ StylingMark [95..96]
+ │   │   │   │       │                   │           └─ StylingMark_c1 [95..96]: "*"
+ │   │   │   │       │                   ├─ Italic_content [96..100]
+ │   │   │   │       │                   │   ├─ Space [96..97]: " "
+ │   │   │   │       │                   │   └─ Word [97..100]: "one"
+ │   │   │   │       │                   └─ Italic_end 100
+ │   │   │   │       │                       └─ Italic_end_c1 100
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 100
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 100
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 100
+ │   │   │   └─ Choice_end 100
+ │   │   ├─ Newline [100..101]: "\n"
+ │   │   ├─ ImplicitAction [101..122]
+ │   │   │   ├─ ImplicitAction_begin [101..107]
+ │   │   │   │   └─ ImplicitAction_begin_c1 [101..107]
+ │   │   │   │       └─ OptionalWhitespace [101..107]: "      "
+ │   │   │   ├─ ImplicitAction_content [107..122]
+ │   │   │   │   └─ ActionLineEnd [107..122]
+ │   │   │   │       ├─ ActionLineEnd_begin 107
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 107
+ │   │   │   │       │       └─ OptionalWhitespace 107
+ │   │   │   │       ├─ ActionLineEnd_content [107..122]
+ │   │   │   │       │   └─ TextChunk [107..122]
+ │   │   │   │       │       ├─ TextChunk_begin 107
+ │   │   │   │       │       ├─ TextChunk_content [107..122]
+ │   │   │   │       │       │   ├─ Word [107..110]: "two"
+ │   │   │   │       │       │   ├─ Space [110..111]: " "
+ │   │   │   │       │       │   ├─ Italic [111..116]
+ │   │   │   │       │       │   │   ├─ Italic_begin [111..112]
+ │   │   │   │       │       │   │   │   └─ Italic_begin_c1 [111..112]
+ │   │   │   │       │       │   │   │       └─ StylingMark [111..112]
+ │   │   │   │       │       │   │   │           └─ StylingMark_c1 [111..112]: "*"
+ │   │   │   │       │       │   │   ├─ Italic_content [112..115]
+ │   │   │   │       │       │   │   │   ├─ Punctuation [112..113]: "/"
+ │   │   │   │       │       │   │   │   ├─ Space [113..114]: " "
+ │   │   │   │       │       │   │   │   └─ Punctuation [114..115]: "/"
+ │   │   │   │       │       │   │   └─ Italic_end [115..116]
+ │   │   │   │       │       │   │       └─ Italic_end_c1 [115..116]
+ │   │   │   │       │       │   │           └─ StylingMark [115..116]
+ │   │   │   │       │       │   │               └─ StylingMark_c1 [115..116]: "*"
+ │   │   │   │       │       │   ├─ Space [116..117]: " "
+ │   │   │   │       │       │   └─ Word [117..122]: "three"
+ │   │   │   │       │       └─ TextChunk_end 122
+ │   │   │   │       └─ ActionLineEnd_end 122
+ │   │   │   └─ ImplicitAction_end 122
+ │   │   ├─ Newline [122..123]: "\n"
+ │   │   ├─ ImplicitAction [123..146]
+ │   │   │   ├─ ImplicitAction_begin [123..129]
+ │   │   │   │   └─ ImplicitAction_begin_c1 [123..129]
+ │   │   │   │       └─ OptionalWhitespace [123..129]: "      "
+ │   │   │   ├─ ImplicitAction_content [129..146]
+ │   │   │   │   └─ ActionLineEnd [129..146]
+ │   │   │   │       ├─ ActionLineEnd_begin 129
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 129
+ │   │   │   │       │       └─ OptionalWhitespace 129
+ │   │   │   │       ├─ ActionLineEnd_content [129..146]
+ │   │   │   │       │   └─ TextChunk [129..146]
+ │   │   │   │       │       ├─ TextChunk_begin 129
+ │   │   │   │       │       ├─ TextChunk_content [129..146]
+ │   │   │   │       │       │   ├─ Word [129..133]: "four"
+ │   │   │   │       │       │   ├─ Space [133..134]: " "
+ │   │   │   │       │       │   └─ Italic [134..146]
+ │   │   │   │       │       │       ├─ Italic_begin [134..135]
+ │   │   │   │       │       │       │   └─ Italic_begin_c1 [134..135]
+ │   │   │   │       │       │       │       └─ StylingMark [134..135]
+ │   │   │   │       │       │       │           └─ StylingMark_c1 [134..135]: "*"
+ │   │   │   │       │       │       ├─ Italic_content [135..146]
+ │   │   │   │       │       │       │   ├─ Punctuation [135..136]: "/"
+ │   │   │   │       │       │       │   ├─ Space [136..137]: " "
+ │   │   │   │       │       │       │   ├─ Word [137..141]: "side"
+ │   │   │   │       │       │       │   ├─ Punctuation [141..142]: "]"
+ │   │   │   │       │       │       │   ├─ Space [142..143]: " "
+ │   │   │   │       │       │       │   └─ Word [143..146]: "way"
+ │   │   │   │       │       │       └─ Italic_end 146
+ │   │   │   │       │       │           └─ Italic_end_c1 146
+ │   │   │   │       │       └─ TextChunk_end 146
+ │   │   │   │       └─ ActionLineEnd_end 146
+ │   │   │   └─ ImplicitAction_end 146
+ │   │   ├─ Newline [146..147]: "\n"
+ │   │   ├─ DoneStatement [147..157]
+ │   │   │   ├─ DoneStatement_c1 [147..153]
+ │   │   │   │   └─ OptionalWhitespace [147..153]: "      "
+ │   │   │   ├─ DoneStatement_c2 [153..157]
+ │   │   │   │   └─ DoneKeyword [153..157]: "done"
+ │   │   │   └─ DoneStatement_c3 157
+ │   │   │       └─ OptionalWhitespace 157
+ │   │   ├─ Newline [157..158]: "\n"
+ │   │   ├─ Choice [158..178]
+ │   │   │   ├─ Choice_begin [158..164]
+ │   │   │   │   ├─ Choice_begin_c1 [158..162]
+ │   │   │   │   │   └─ OptionalWhitespace [158..162]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [162..164]
+ │   │   │   │   │   └─ ChoiceMark [162..164]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 164
+ │   │   │   │   ├─ Choice_begin_c4 164
+ │   │   │   │   ├─ Choice_begin_c5 164
+ │   │   │   │   ├─ Choice_begin_c6 164
+ │   │   │   │   └─ Choice_begin_c7 164
+ │   │   │   ├─ Choice_content [164..178]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [164..178]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [164..178]
+ │   │   │   │       │   └─ ChoicePlainText [164..178]
+ │   │   │   │       │       └─ ChoiceTextContent [164..178]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [164..178]
+ │   │   │   │       │               ├─ Word [164..166]: "Go"
+ │   │   │   │       │               ├─ Space [166..167]: " "
+ │   │   │   │       │               ├─ LuauInterpolatedStringExpression [167..173]
+ │   │   │   │       │               │   ├─ LuauInterpolatedStringExpression_begin [167..168]
+ │   │   │   │       │               │   │   └─ LuauInterpolatedStringExpression_begin_c1 [167..168]
+ │   │   │   │       │               │   │       └─ PunctuationBraceOpen [167..168]: "{"
+ │   │   │   │       │               │   ├─ LuauInterpolatedStringExpression_content [168..172]
+ │   │   │   │       │               │   │   └─ LuauDoubleQuotedString [168..172]
+ │   │   │   │       │               │   │       ├─ LuauDoubleQuotedString_begin [168..169]
+ │   │   │   │       │               │   │       │   └─ LuauDoubleQuotedString_begin_c1 [168..169]
+ │   │   │   │       │               │   │       │       └─ PunctuationStringDoubleQuoteOpen [168..169]: "\""
+ │   │   │   │       │               │   │       ├─ LuauDoubleQuotedString_content [169..171]
+ │   │   │   │       │               │   │       │   ├─ Punctuation [169..170]: "/"
+ │   │   │   │       │               │   │       │   └─ Punctuation [170..171]: "*"
+ │   │   │   │       │               │   │       └─ LuauDoubleQuotedString_end [171..172]
+ │   │   │   │       │               │   │           ├─ LuauDoubleQuotedString_end_c1 [171..172]
+ │   │   │   │       │               │   │           │   └─ PunctuationStringDoubleQuoteClose [171..172]: "\""
+ │   │   │   │       │               │   │           └─ LuauDoubleQuotedString_end_c2 172
+ │   │   │   │       │               │   └─ LuauInterpolatedStringExpression_end [172..173]
+ │   │   │   │       │               │       └─ LuauInterpolatedStringExpression_end_c1 [172..173]
+ │   │   │   │       │               │           └─ PunctuationBraceClose [172..173]: "}"
+ │   │   │   │       │               ├─ Space [173..174]: " "
+ │   │   │   │       │               └─ Word [174..178]: "home"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 178
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 178
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 178
+ │   │   │   └─ Choice_end 178
+ │   │   ├─ Newline [178..179]: "\n"
+ │   │   ├─ DoneStatement [179..189]
+ │   │   │   ├─ DoneStatement_c1 [179..185]
+ │   │   │   │   └─ OptionalWhitespace [179..185]: "      "
+ │   │   │   ├─ DoneStatement_c2 [185..189]
+ │   │   │   │   └─ DoneKeyword [185..189]: "done"
+ │   │   │   └─ DoneStatement_c3 189
+ │   │   │       └─ OptionalWhitespace 189
+ │   │   ├─ Newline [189..190]: "\n"
+ │   │   ├─ Choice [190..211]
+ │   │   │   ├─ Choice_begin [190..196]
+ │   │   │   │   ├─ Choice_begin_c1 [190..194]
+ │   │   │   │   │   └─ OptionalWhitespace [190..194]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [194..196]
+ │   │   │   │   │   └─ ChoiceMark [194..196]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 196
+ │   │   │   │   ├─ Choice_begin_c4 196
+ │   │   │   │   ├─ Choice_begin_c5 196
+ │   │   │   │   ├─ Choice_begin_c6 196
+ │   │   │   │   └─ Choice_begin_c7 196
+ │   │   │   ├─ Choice_content [196..211]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [196..211]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [196..211]
+ │   │   │   │       │   └─ ChoicePlainText [196..211]
+ │   │   │   │       │       └─ ChoiceTextContent [196..211]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [196..211]
+ │   │   │   │       │               ├─ Word [196..198]: "Go"
+ │   │   │   │       │               ├─ Space [198..199]: " "
+ │   │   │   │       │               ├─ Punctuation [199..200]: "["
+ │   │   │   │       │               ├─ Word [200..204]: "left"
+ │   │   │   │       │               ├─ Space [204..205]: " "
+ │   │   │   │       │               ├─ Punctuation [205..206]: "/"
+ │   │   │   │       │               └─ Italic [206..211]
+ │   │   │   │       │                   ├─ Italic_begin [206..207]
+ │   │   │   │       │                   │   └─ Italic_begin_c1 [206..207]
+ │   │   │   │       │                   │       └─ StylingMark [206..207]
+ │   │   │   │       │                   │           └─ StylingMark_c1 [206..207]: "*"
+ │   │   │   │       │                   ├─ Italic_content [207..211]
+ │   │   │   │       │                   │   ├─ Space [207..208]: " "
+ │   │   │   │       │                   │   └─ Word [208..211]: "one"
+ │   │   │   │       │                   └─ Italic_end 211
+ │   │   │   │       │                       └─ Italic_end_c1 211
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 211
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 211
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 211
+ │   │   │   └─ Choice_end 211
+ │   │   ├─ Newline [211..212]: "\n"
+ │   │   ├─ ImplicitAction [212..228]
+ │   │   │   ├─ ImplicitAction_begin [212..218]
+ │   │   │   │   └─ ImplicitAction_begin_c1 [212..218]
+ │   │   │   │       └─ OptionalWhitespace [212..218]: "      "
+ │   │   │   ├─ ImplicitAction_content [218..228]
+ │   │   │   │   └─ ActionLineEnd [218..228]
+ │   │   │   │       ├─ ActionLineEnd_begin 218
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 218
+ │   │   │   │       │       └─ OptionalWhitespace 218
+ │   │   │   │       ├─ ActionLineEnd_content [218..228]
+ │   │   │   │       │   └─ TextChunk [218..228]
+ │   │   │   │       │       ├─ TextChunk_begin 218
+ │   │   │   │       │       ├─ TextChunk_content [218..228]
+ │   │   │   │       │       │   ├─ Word [218..221]: "two"
+ │   │   │   │       │       │   ├─ Space [221..222]: " "
+ │   │   │   │       │       │   └─ Italic [222..228]
+ │   │   │   │       │       │       ├─ Italic_begin [222..223]
+ │   │   │   │       │       │       │   └─ Italic_begin_c1 [222..223]
+ │   │   │   │       │       │       │       └─ StylingMark [222..223]
+ │   │   │   │       │       │       │           └─ StylingMark_c1 [222..223]: "*"
+ │   │   │   │       │       │       ├─ Italic_content [223..228]
+ │   │   │   │       │       │       │   ├─ Punctuation [223..224]: "/"
+ │   │   │   │       │       │       │   ├─ Space [224..225]: " "
+ │   │   │   │       │       │       │   └─ Word [225..228]: "way"
+ │   │   │   │       │       │       └─ Italic_end 228
+ │   │   │   │       │       │           └─ Italic_end_c1 228
+ │   │   │   │       │       └─ TextChunk_end 228
+ │   │   │   │       └─ ActionLineEnd_end 228
+ │   │   │   └─ ImplicitAction_end 228
+ │   │   ├─ Newline [228..229]: "\n"
+ │   │   ├─ DoneStatement [229..239]
+ │   │   │   ├─ DoneStatement_c1 [229..235]
+ │   │   │   │   └─ OptionalWhitespace [229..235]: "      "
+ │   │   │   ├─ DoneStatement_c2 [235..239]
+ │   │   │   │   └─ DoneKeyword [235..239]: "done"
+ │   │   │   └─ DoneStatement_c3 239
+ │   │   │       └─ OptionalWhitespace 239
+ │   │   └─ Newline [239..240]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [240..245]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [240..242]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [240..242]
+ │       │       └─ OptionalWhitespace [240..242]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [242..245]
+ │       │   └─ LuauEndKeyword [242..245]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 245
+ ├─ Newline [245..246]: "\n"
+ ├─ LuauEndKeyword [246..249]: "end"
+ └─ Newline [249..250]: "\n"

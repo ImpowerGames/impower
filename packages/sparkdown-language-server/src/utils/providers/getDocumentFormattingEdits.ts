@@ -37,7 +37,7 @@ const FORMATTER_ONLY_JOINING_PAIRS = new Set([".="]);
 
 const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
 
-const STRING_NODE_REGEX = /String$/;
+const VERBATIM_LINES_NODE_REGEX = /String$|^SparkdownBlockComment$/;
 const LITERAL_NODE_REGEX = /(?:String|Comment)$/;
 
 function insideNode(tree: Tree, pos: number, regex: RegExp): boolean {
@@ -665,7 +665,7 @@ export const getFormatting = (
         line: range.start.line + 1,
         character: 0,
       });
-      if (insideNode(tree, lineStart, STRING_NODE_REGEX)) return;
+      if (insideNode(tree, lineStart, VERBATIM_LINES_NODE_REGEX)) return;
       const lineText = document.read(lineStart, lineEnd);
       const firstNonWs = lineText.search(/\S/);
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;

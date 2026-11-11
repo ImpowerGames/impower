@@ -6,6 +6,7 @@ import {
   endingStatusHover,
   endingStatusText,
   playerBarLocation,
+  skipRefusal,
   type PlayerBarState,
 } from "./playerBarState";
 import { useHoldRepeat } from "./useHoldRepeat";
@@ -40,19 +41,26 @@ const stopPointer = (e: PointerEvent) => e.stopPropagation();
 
 function SkipButton({
   direction,
+  reason,
   onSkip,
 }: {
   direction: -1 | 1;
+  reason?: string;
   onSkip?: (direction: -1 | 1) => void;
 }) {
-  const hold = useHoldRepeat(() => onSkip?.(direction));
+  const hold = useHoldRepeat(() => {
+    if (reason == null) {
+      onSkip?.(direction);
+    }
+  });
   const label = direction < 0 ? "Skip back" : "Skip forward";
   return (
     <button
       type="button"
       class="toolbar-button transport-button"
       aria-label={label}
-      title={label}
+      title={reason ?? label}
+      disabled={reason != null}
       data-pressed={hold.pressed ? "" : undefined}
       onPointerDown={hold.onPointerDown}
       onPointerUp={hold.onPointerUp}
@@ -161,8 +169,20 @@ export default function PlayerBar({
               onClick={() => onStep?.("in")}
             />
           ) : null}
-          {controls.skip ? <SkipButton direction={-1} onSkip={onSkip} /> : null}
-          {controls.skip ? <SkipButton direction={1} onSkip={onSkip} /> : null}
+          {controls.skip ? (
+            <SkipButton
+              direction={-1}
+              reason={state.playing ? skipRefusal(state.runHistory.history, -1) : undefined}
+              onSkip={onSkip}
+            />
+          ) : null}
+          {controls.skip ? (
+            <SkipButton
+              direction={1}
+              reason={state.playing ? skipRefusal(state.runHistory.history, 1) : undefined}
+              onSkip={onSkip}
+            />
+          ) : null}
           {debugging ? (
             <TransportButton
               icon="step-out"
