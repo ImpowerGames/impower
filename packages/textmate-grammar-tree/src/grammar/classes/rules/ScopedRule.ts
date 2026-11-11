@@ -47,24 +47,25 @@ export class ScopedRule implements Rule {
       repo.declarator,
     );
 
-    const beginId = this.id + "_begin";
-    const endId = this.id + "_end";
     const contentId = this.id + "_content";
 
     const beginRuleItem: MatchRuleDefinition = {
-      id: beginId,
       match: def.begin,
       captures: def.beginCaptures ?? def.captures,
-      closedBy: (def.closedBy ?? def.brackets) ? repo.local(endId) : undefined,
     };
-    this.beginRule = repo.add(beginRuleItem, beginId);
-
     const endRuleItem: MatchRuleDefinition = {
-      id: endId,
       match: def.end,
       captures: def.endCaptures ?? def.captures,
-      openedBy: (def.openedBy ?? def.brackets) ? repo.local(beginId) : undefined,
     };
+    const beginId = repo.claim(beginRuleItem, this.id + "_begin");
+    const endId = repo.claim(endRuleItem, this.id + "_end");
+    beginRuleItem.id = beginId;
+    beginRuleItem.closedBy =
+      (def.closedBy ?? def.brackets) ? repo.local(endId) : undefined;
+    endRuleItem.id = endId;
+    endRuleItem.openedBy =
+      (def.openedBy ?? def.brackets) ? repo.local(beginId) : undefined;
+    this.beginRule = repo.add(beginRuleItem, beginId);
     this.endRule = repo.add(endRuleItem, endId);
 
     const contentRuleItem: SwitchRuleDefinition = {
