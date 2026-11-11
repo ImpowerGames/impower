@@ -268,3 +268,96 @@ describe("a rule-level repository resolves as vscode-textmate resolves it (I-206
     expect(named("again")).toHaveLength(1);
   });
 });
+
+describe("every rule a grammar with nested repositories builds keeps its own id (I-2066)", () => {
+  const TOP_KEYS = ["O", "P", "I", "O#I", "O#I#1", "O#1", "O#1#I", "O#2#I", "P#I", "O#I#I"];
+  const NESTED_KEYS = [
+    "I",
+    "1",
+    "I-p0",
+    "I-p1",
+    "I_c1",
+    "I_begin",
+    "I_end",
+    "I_content",
+    "I_content-p0",
+    "I_begin_c1",
+    "1#I",
+    "I#1",
+    "-p0",
+    "_c1",
+    "#I",
+  ];
+
+  const random = (seed: number) => () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  const generate = (seed: number) => {
+    const next = random(seed);
+    const pick = <T>(items: readonly T[]) => items[Math.floor(next() * items.length)]!;
+    const names: string[] = [];
+    const named = () => {
+      const name = `n${names.length}`;
+      names.push(name);
+      return name;
+    };
+    const rule = (depth: number): object => {
+      const kind = pick(depth < 2 ? ["match", "scoped", "owner", "owner"] : ["match", "scoped"]);
+      if (kind === "match") {
+        return {
+          name: named(),
+          match: "(x)",
+          captures: { 1: { name: named(), patterns: [{ name: named(), match: "y" }] } },
+        };
+      }
+      if (kind === "scoped") {
+        return {
+          name: named(),
+          begin: "(<)",
+          end: ">",
+          beginCaptures: { 1: { name: named() } },
+          patterns: [{ name: named(), match: "z" }],
+        };
+      }
+      const repository: Record<string, object> = {};
+      const count = 1 + Math.floor(next() * 4);
+      for (let i = 0; i < count; i++) {
+        const key = pick(NESTED_KEYS);
+        if (!(key in repository)) {
+          repository[key] = rule(depth + 1);
+        }
+      }
+      return {
+        name: named(),
+        repository,
+        patterns: [{ name: named(), match: "w" }, ...Object.keys(repository).map((key) => ({ include: `#${key}` }))],
+      };
+    };
+    const repository: Record<string, object> = {};
+    const count = 1 + Math.floor(next() * 5);
+    for (let i = 0; i < count; i++) {
+      const key = pick(TOP_KEYS);
+      if (!(key in repository)) {
+        repository[key] = rule(0);
+      }
+    }
+    const keys = Object.keys(repository);
+    const patterns = keys.map((key) => ({ include: `#${key}` }));
+    return {
+      grammar: { scopeName: "source.probe", repository, patterns: next() < 0.5 ? patterns : patterns.reverse() },
+      names,
+    };
+  };
+
+  test.each(Array.from({ length: 400 }, (_, seed) => seed))("generated grammar %i", (seed) => {
+    const { grammar, names } = generate(seed);
+    const built = new Grammar(grammar as any).nodes.map((node) => node.props?.["name"]).filter(Boolean);
+    const counts = new Map<string, number>();
+    for (const name of built) {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    expect(names.filter((name) => counts.get(name) !== 1)).toEqual([]);
+  });
+});
