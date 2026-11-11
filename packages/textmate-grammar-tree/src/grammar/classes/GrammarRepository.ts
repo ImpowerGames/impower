@@ -250,8 +250,7 @@ export class GrammarRepository {
     }
 
     if (id && isRepositoryRule) {
-      const matchDef = { match: "(.+)", ...(def as any) };
-      const rule = new MatchRule(this, matchDef);
+      const rule = new SwitchRule(this, { ...def, patterns: [] });
       this.map.set(rule.id, rule);
       return rule;
     }
