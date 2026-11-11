@@ -32,11 +32,14 @@ variables:
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
   IDENTIFIER_END: "[{{IDENTIFIER_END_CHAR}}]*"
+  IDENTIFIER_AT_PART_START: '[@][0-9_\p{L}]'
+  IDENTIFIER_AT_PART: (?:{{IDENTIFIER_AT_PART_START}}{{IDENTIFIER_END}})
+  IDENTIFIER_GOES_ON: (?:[{{IDENTIFIER_END_CHAR}}]|{{IDENTIFIER_AT_PART_START}})
   # lookaround: a trailing `-` is left to what follows the name, as `\b`
   # left it: the `--` of a comment (`LuauComment`), or the `-` of an arrow
   # (`DivertMark`) or of an operation (`LuauArithmeticOperation`). The
   # class must take `-` inside a name (`bg-color`), so it cannot refuse it.
-  IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-]))
+  IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
   NOT_TAG_HASH: (?:[#]+[^#\s])
@@ -160,8 +163,8 @@ variables:
   AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
   QUOTED_STRING: (?:["]{{DOUBLE_QUOTED_CHAR}}*["])
   STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
-  BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
-  AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
+  BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}]|[{{IDENTIFIER_END_CHAR}}][@])(?:(?<=\.\.\.)|(?<!\.))
+  AFTER_KEYWORD: (?!{{IDENTIFIER_GOES_ON}})(?:(?=\.\.\.)|(?!\.))
   COMPARISON_OPERATOR: (?:[~]|[|]|[\^]|[$]|[*])
   UNQUOTED_STRING_TERMINATOR: (?:$|[\s"'`<>=:(){}\[\]]|{{COMMENT_START}})
   EOPL: "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)"
@@ -188,7 +191,7 @@ variables:
   STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"\r\n])
   STRUCT_TEXT_DASH_COMMENT: (?:{{WS}}+{{LUAU_COMMENT_START}}.*)
   STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
-  STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
+  STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat or an `end` line. A body that opened at the header's line break would hold that line before either could claim it, so it opens on the first line neither claims.
@@ -273,12 +276,12 @@ variables:
   SPARKLE_CLOSURE_ATTR_END: (?:(?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_OPEN_ATTR}})|(?={{SPARKLE_BLOCK_BAIL}}))
   SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   SPARKLE_COMMENT: (?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\n]*$)
-  SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})
+  SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*)
   SPARKLE_CLASS_NAME: (?:[0-9_\p{L}][0-9_\p{L}-]*)
   SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|[()]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{SPARKLE_NO_PART_AFTER_WS}}))
   SPARKLE_CONTINUATION_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@"'])
-  SPARKLE_BLOCK_BAIL: (?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?![{{IDENTIFIER_END_CHAR}}]))
-  SPARKLE_KEYWORD_END: (?![{{IDENTIFIER_END_CHAR}}])
+  SPARKLE_BLOCK_BAIL: (?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?!{{IDENTIFIER_GOES_ON}}))
+  SPARKLE_KEYWORD_END: (?!{{IDENTIFIER_GOES_ON}})
   AFTER_LUAU_VALUE: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<!(?:^|[^\w.])(?:and|or|not|local|store|const){{WS}}*))
   AFTER_LUAU_UNCALLABLE_VALUE: (?<=(?:[}"'`]|\]=*\]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\.?\d[\w.]*|true|false|nil|end)){{WS}}*)
   # lookaround: LuauIfBlock and LuauSparkdownIfBlock own an `if` that begins
@@ -290,7 +293,7 @@ variables:
   # between the token and the `if` leaves the token the one the `if` follows.
   AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{LUAU_PLAIN_BLOCK_COMMENTS}})
   AFTER_ALTERNATOR_ARM_SEPARATOR: (?<=[|]{{WS}}*(?:{{LUAU_NAME_BEHIND}}{{WS}}*[=]{{WS}}*)?)
-  END_DIVERT_CLOSING_ALTERNATOR: '{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}]'
+  END_DIVERT_CLOSING_ALTERNATOR: '{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?!{{IDENTIFIER_GOES_ON}}){{WS}}*[}]'
 
 patterns:
   - { include: "#EndOfLine" }

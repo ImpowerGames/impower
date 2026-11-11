@@ -535,7 +535,7 @@ export abstract class SparkdownWorkspace {
   }
 
   getFileName(uri: string): string {
-    return uri.split("/").slice(-1).join("").split(".")[0]!;
+    return uri.split("/").slice(-1).join("").split(".")[0]!.replaceAll("%40", "@");
   }
 
   getFileType(uri: string): string {

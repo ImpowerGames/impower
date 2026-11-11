@@ -11,6 +11,7 @@ import {
   sparklePartNodes,
 } from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
+import { LUAU_TYPE_DOT_NAME } from "../../utils/luauName";
 
 const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "StringFieldValueInterpolated",
@@ -317,9 +318,6 @@ function readValue(value: SyntaxNode, ctx: LowerContext): string {
   return ctx.read(node.from, node.to).trim();
 }
 
-const STRUCT_REFERENCE_RE =
-  /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
-
 function parseScalar(raw: string): unknown {
   const s = raw.trim();
   if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
@@ -331,7 +329,7 @@ function parseScalar(raw: string): unknown {
   if (s === "false") {
     return false;
   }
-  const ref = STRUCT_REFERENCE_RE.exec(s);
+  const ref = LUAU_TYPE_DOT_NAME.exec(s);
   if (ref) {
     return { $type: ref[1], $name: ref[2] };
   }

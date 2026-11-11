@@ -7,10 +7,11 @@ import { getLocalScope, LOCAL_SCOPE_NODES } from "./localScopes";
 import { nodeNameSet } from "./nodeNameSet";
 import { CHOOSE_BLOCKS, RootLocals, THEN_CLAUSES } from "./rootLocals";
 import { VARIABLE_DEFINITION_NAMES, isBareDeclarationTarget, valueListAssignmentName } from "./variableDefinitionNames";
+import { LUAU_NAME_AT_START } from "./luauName";
 
 type Read = (from: number, to: number) => string;
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
+const IDENTIFIER = LUAU_NAME_AT_START;
 const {
   functionLike,
   parameterOwners,

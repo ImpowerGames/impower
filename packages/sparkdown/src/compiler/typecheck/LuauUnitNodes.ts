@@ -6,6 +6,9 @@ import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import { RESERVED } from "../utils/luauReservedWords";
+import { LUAU_NAME_SOURCE } from "../utils/luauName";
+
+const LAST_NAME = new RegExp(`(?:^|[^A-Za-z0-9_@])(${LUAU_NAME_SOURCE})$`);
 
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
@@ -272,7 +275,7 @@ export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (f
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
     const own = textWithoutComments(node, read).trimEnd();
-    const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(own)?.[1];
+    const lastWord = LAST_NAME.exec(own)?.[1];
     if (!endsStatementBefore(n.name, lastWord)) return true;
     const text = read(n.from, n.to);
     if (n.from + text.length - text.trimStart().length !== tokenFrom || !breaksStatement(text)) return true;

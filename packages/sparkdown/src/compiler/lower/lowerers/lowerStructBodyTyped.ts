@@ -10,6 +10,7 @@ import {
 import { unescapeString } from "../utils/unescapeString";
 import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import { LUAU_TYPE_DOT_NAME } from "../../utils/luauName";
 
 
 export interface SourceSpan {
@@ -58,9 +59,6 @@ const FIELD_VALUE_NAMES = nodeNameSet([
   "UnquotedStringFieldValue",
 ]);
 
-const STRUCT_REFERENCE_RE =
-  /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
-
 function firstDescendant(
   node: SyntaxNode,
   names: Set<string>,
@@ -98,7 +96,7 @@ function readTypedValue(
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
   const raw = ctx.read(value.from, value.to).trim();
-  const ref = STRUCT_REFERENCE_RE.exec(raw);
+  const ref = LUAU_TYPE_DOT_NAME.exec(raw);
   if (ref) return { $type: ref[1], $name: ref[2] };
   return raw;
 }

@@ -132,6 +132,8 @@ import {
   type ReferenceOutcome,
 } from "../utils/ReferenceValidationCache";
 import type { Reference } from "./annotators/ReferenceAnnotator";
+import { getImageThing } from "../utils/getImageThing";
+import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
@@ -1610,6 +1612,7 @@ export class SparkdownCompiler {
     }
     this.buildContext(state, program);
     this.populateEngineChannels(program);
+    this.populateImageThings(program);
     this.populateMorphChannel(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
@@ -3978,6 +3981,16 @@ export class SparkdownCompiler {
     return true;
   }
 
+  populateImageThings(program: SparkProgram) {
+    const things: { [name: string]: string } = {};
+    for (const type of ["image", "layered_image", "filtered_image"]) {
+      for (const name of Object.keys(program.context?.[type] ?? {})) {
+        things[name] = getImageThing(name);
+      }
+    }
+    program.imageThings = things;
+  }
+
   populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateEngineChannels", uri);
@@ -5065,7 +5078,7 @@ export class SparkdownCompiler {
       ...Object.keys(program.knotLocations ?? {}),
     );
     for (const key of Object.keys(STDLIB)) names.push(key.split(".")[0]!);
-    return names.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+    return names.filter(isLuauName);
   }
 
   get typecheckStats() {

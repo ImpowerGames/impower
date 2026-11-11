@@ -95,6 +95,7 @@ import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { scopeOf } from "../utils/declarationOnly";
 import { RootLocals } from "../utils/rootLocals";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
+import { LUAU_NAME_AT_START } from "../utils/luauName";
 
 export interface LuauSyntaxError {
   location: Location;
@@ -790,7 +791,7 @@ class Tokenizer {
     const begin = at === this.tokens.length ? from : this.tokens[at]!.from;
     if (!breaksAcrossLine(this.text.slice(before.to, begin))) return;
     if (at === this.tokens.length) {
-      this.push("break", from, from + /^[A-Za-z_][A-Za-z0-9_]*/.exec(text)![0].length);
+      this.push("break", from, from + LUAU_NAME_AT_START.exec(text)![0].length);
       return;
     }
     this.tokens.splice(at, 0, { kind: "break", text: "", from: begin, to: begin, location: this.location(begin, begin), source: this.source });
@@ -920,7 +921,7 @@ class Tokenizer {
       this.push("string", i, end);
       return end;
     }
-    const name = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i, to));
+    const name = LUAU_NAME_AT_START.exec(text.slice(i, to));
     if (name) {
       this.push(KEYWORDS.has(name[0]) ? "keyword" : "name", i, i + name[0].length);
       return i + name[0].length;
@@ -4070,7 +4071,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
     if (previous && previous.to > previous.from && previous.to < token.from && (previous.source >= 0 || token.source >= 0)) {
       const at = storyBetween(tree, tokenizer.text, previous.to, token.from);
       if (at !== undefined) {
-        const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(tokenizer.text.slice(at, token.from))?.[0] ?? tokenizer.text[at]!;
+        const word = LUAU_NAME_AT_START.exec(tokenizer.text.slice(at, token.from))?.[0] ?? tokenizer.text[at]!;
         tokens.push({ kind: "break", text: word, from: at, to: at + word.length, location: tokenizer.location(previous.to, previous.to), source: -1, story: true });
       }
     }
