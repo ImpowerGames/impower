@@ -195,13 +195,6 @@ export const projectFingerprint = ({
   return `${files.length}:${hashText(lines.join("\n"))}`;
 };
 
-export const contentDigest = async (bytes: BufferSource) => {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
-  );
-};
-
 export interface ProjectBackupRecord {
   read: (field: BackupField) => Promise<string>;
   write: (field: BackupField, value: string) => Promise<void>;
@@ -259,16 +252,17 @@ export const remindBackupIfDue = async ({
   exportProject: () => Promise<boolean>;
   stillDue: () => boolean;
 }): Promise<boolean> => {
-  if (!local) {
+  if (!local || persisted) {
     return false;
   }
   let baseline = await project.read("backedUpFingerprint");
+  let createdAt = await timeOf(project, "createdAt");
   if (!baseline) {
     baseline = await project.fingerprint();
+    createdAt = now;
     await project.write("backedUpFingerprint", baseline);
-  }
-  let createdAt = await timeOf(project, "createdAt");
-  if (createdAt === null) {
+    await project.write("createdAt", String(now));
+  } else if (createdAt === null) {
     createdAt = now;
     await project.write("createdAt", String(now));
   }

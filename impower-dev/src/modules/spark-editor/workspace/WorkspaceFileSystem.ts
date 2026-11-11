@@ -56,6 +56,7 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { isSupersededCommit } from "@impower/spark-editor-protocol/src/utils/fileCommits";
 import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams";
+import { contentDigest } from "../utils/contentDigest";
 import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -567,10 +568,22 @@ export default class WorkspaceFileSystem {
     });
   }
 
+  async readProjectFileBytes(uri: string): Promise<ArrayBuffer> {
+    if (this._unstoredUris.has(uri)) {
+      const text = this._files?.[uri]?.text ?? "";
+      return new TextEncoder().encode(text).buffer as ArrayBuffer;
+    }
+    return this.readFile({ file: { uri } });
+  }
+
   async readProjectZip(
     projectId: string,
     settingsJson?: string,
-  ): Promise<ArrayBuffer> {
+  ): Promise<{
+    zip: ArrayBuffer;
+    files: { path: string; digest: string }[];
+    folders: string[];
+  }> {
     const allFiles = await this.getFiles(projectId);
     const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const files = Object.values(allFiles)
@@ -586,21 +599,26 @@ export default class WorkspaceFileSystem {
         path: this.getRelativePath(projectId, uri),
       }))
       .filter(({ path }) => path !== SETTINGS_JSON_PATH);
+    const entries: { path: string; data: ArrayBuffer }[] = [];
+    const digests: { path: string; digest: string }[] = [];
     const encode = (text: string) =>
       new TextEncoder().encode(text).buffer as ArrayBuffer;
-    const entries = files
-      .filter(({ uri }) => this._unstoredUris.has(uri))
-      .map(({ path, text }) => ({ path, data: encode(text ?? "") }));
+    for (const { uri, text, path } of files) {
+      const data = this._unstoredUris.has(uri)
+        ? encode(text ?? "")
+        : await this.readFile({ file: { uri } });
+      digests.push({ path, digest: await contentDigest(data) });
+      entries.push({ path, data });
+    }
     if (settingsJson !== undefined) {
       entries.push({ path: SETTINGS_JSON_PATH, data: encode(settingsJson) });
     }
-    return this.zipFiles({
-      files: files
-        .filter(({ uri }) => !this._unstoredUris.has(uri))
-        .map(({ uri, path }) => ({ uri, path })),
-      directories: await this.foldersOutside(projectId, files),
-      entries,
-    });
+    const folders = await this.foldersOutside(projectId, files);
+    const zip = await this.zipFiles(
+      { files: [], directories: folders, entries },
+      entries.map(({ data }) => data),
+    );
+    return { zip, files: digests, folders };
   }
 
   protected async foldersOutside(
@@ -779,8 +797,8 @@ export default class WorkspaceFileSystem {
       : this.getFilename(uri);
   }
 
-  async zipFiles(params: ZipFilesParams) {
-    const result = await this.sendRequest(ZipFilesMessage.type, params);
+  async zipFiles(params: ZipFilesParams, transfer: Transferable[] = []) {
+    const result = await this.sendRequest(ZipFilesMessage.type, params, transfer);
     return result;
   }
 

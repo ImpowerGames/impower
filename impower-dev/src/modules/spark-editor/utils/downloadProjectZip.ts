@@ -2,13 +2,14 @@ import { downloadFile } from "./downloadFile";
 
 export const downloadProjectZip = async (): Promise<boolean> => {
   const { Workspace } = await import("../workspace/Workspace");
-  return Workspace.window.backUpProject(async () => {
-    const zip = await Workspace.window.exportLocalProject();
-    if (!zip) {
-      return false;
+  const exported = await Workspace.window.backUpProject(async () => {
+    const project = await Workspace.window.exportLocalProject();
+    if (!project) {
+      return null;
     }
     const name = Workspace.window.store.project.name;
-    downloadFile(`${name}.zip`, "application/x-zip", zip);
-    return true;
+    downloadFile(`${name}.zip`, "application/x-zip", project.zip);
+    return project;
   });
+  return !!exported;
 };

@@ -93,9 +93,6 @@ const project = (initial: Partial<Record<BackupField, string>> = {}) => {
     Object.entries(initial) as [BackupField, string][],
   );
   let content = STORY;
-  if (files.has("createdAt") && !files.has("backedUpFingerprint")) {
-    files.set("backedUpFingerprint", projectFingerprint(content));
-  }
   const fingerprint = vi.fn(async () => projectFingerprint(content));
   const record: ProjectBackupRecord = {
     read: async (field) => files.get(field) ?? "",
@@ -114,6 +111,9 @@ const project = (initial: Partial<Record<BackupField, string>> = {}) => {
     },
   };
 };
+
+const checked = (initial: Partial<Record<BackupField, string>>) =>
+  project({ backedUpFingerprint: projectFingerprint(STORY), ...initial });
 
 const backUp = (
   p: ReturnType<typeof project>,
@@ -348,7 +348,7 @@ describe("the backup reminder", () => {
     });
 
   const edited = () => {
-    const p = project({ createdAt: String(NOW - 9 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 9 * DAY_MS) });
     p.change((c) => withFile(c, "main.sd", "main-v2"));
     return p;
   };
@@ -379,7 +379,7 @@ describe("the backup reminder", () => {
   });
 
   it("never reminds about a project with no edits, however old", async () => {
-    const { record } = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const { record } = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     expect(await remind(record)).toBe(false);
     expect(snackbar.value).toBeNull();
   });
@@ -400,11 +400,34 @@ describe("the backup reminder", () => {
       [{}, { backedUpAt: String(NOW - 6 * DAY_MS) }],
       [{}, { remindedAt: String(NOW - DAY_MS) }],
     ] as const) {
-      const p = project({ createdAt: String(NOW - 30 * DAY_MS), ...initial });
+      const p = checked({ createdAt: String(NOW - 30 * DAY_MS), ...initial });
       p.change((c) => withFile(c, "main.sd", "main-v2"));
       expect(await remind(p.record, options)).toBe(false);
       expect(p.fingerprint).not.toHaveBeenCalled();
     }
+  });
+
+  it.each<[string, { local?: boolean; persisted?: boolean }]>([
+    ["synced to Drive", { local: false }],
+    ["kept by the browser", { persisted: true }],
+  ])(
+    "records nothing and computes no fingerprint for a project %s, even with no baseline yet (round 4 finding 7)",
+    async (_case, options) => {
+      const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+      expect(await remind(p.record, options)).toBe(false);
+      expect(p.fingerprint).not.toHaveBeenCalled();
+      expect(p.files.has("backedUpFingerprint")).toBe(false);
+    },
+  );
+
+  it("starts the clock with the baseline for a record that has a creation time but no baseline (round 4 finding 6)", async () => {
+    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    expect(await remind(p.record)).toBe(false);
+    expect(p.files.get("createdAt")).toBe(String(NOW));
+    p.change((c) => withFile(c, "main.sd", "main-v2"));
+    expect(await remind(p.record, { now: NOW + 60_000 })).toBe(false);
+    expect(await remind(p.record, { now: NOW + 8 * DAY_MS })).toBe(true);
+    expect(snackbar.value?.message).toBe("8 days and no backup yet.");
   });
 
   it.each<[string, string, (c: ProjectContent) => ProjectContent]>([
@@ -439,7 +462,7 @@ describe("the backup reminder", () => {
       (c) => ({ ...c, settings: '[["screenplayTitlePage",false]]' }),
     ],
   ])("counts %s as a change (%s)", async (_case, _finding, change) => {
-    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     await backUp(p, NOW - 9 * DAY_MS);
     expect(await remind(p.record)).toBe(false);
     p.change(change);
@@ -448,7 +471,7 @@ describe("the backup reminder", () => {
   });
 
   it("counts a change made after the backup, and not one made before it", async () => {
-    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     p.change((c) => withFile(c, "main.sd", "main-v2"));
     await backUp(p, NOW - 9 * DAY_MS);
     expect(await remind(p.record)).toBe(false);
@@ -457,7 +480,7 @@ describe("the backup reminder", () => {
   });
 
   it("does not count a change undone before the next check", async () => {
-    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     await backUp(p, NOW - 9 * DAY_MS);
     p.change((c) => withFile(c, "notes.sd", "notes-v1"));
     p.change((c) => without(c, "notes.sd"));
@@ -465,7 +488,7 @@ describe("the backup reminder", () => {
   });
 
   it("counts from the last backup when there is one", async () => {
-    const p = project({ createdAt: String(NOW - 40 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 40 * DAY_MS) });
     await backUp(p, NOW - 12 * DAY_MS);
     p.change((c) => withFile(c, "main.sd", "main-v2"));
     expect(await remind(p.record)).toBe(true);
@@ -483,14 +506,14 @@ describe("the backup reminder", () => {
   });
 
   it("stays silent when nothing changed since the last backup", async () => {
-    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     p.change((c) => withFile(c, "main.sd", "main-v2"));
     await backUp(p, NOW - 10 * DAY_MS);
     expect(await remind(p.record)).toBe(false);
   });
 
   it("stays silent within seven days of the last backup", async () => {
-    const p = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const p = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     await backUp(p, NOW - 6 * DAY_MS);
     p.change((c) => withFile(c, "main.sd", "main-v2"));
     expect(await remind(p.record)).toBe(false);
@@ -531,7 +554,7 @@ describe("the backup reminder", () => {
   });
 
   it("keeps the last backup across a reload", async () => {
-    const before = project({ createdAt: String(NOW - 30 * DAY_MS) });
+    const before = checked({ createdAt: String(NOW - 30 * DAY_MS) });
     await backUp(before, NOW - 2 * DAY_MS);
 
     const reloaded = project(Object.fromEntries(before.files));

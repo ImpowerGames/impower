@@ -137,7 +137,7 @@ describe("the Save & sync section", () => {
 
   it("downloads the project as <project>.zip from Download .zip", async () => {
     const zip = new Uint8Array([1, 2, 3]);
-    actions.exportLocalProject.mockResolvedValue(zip);
+    actions.exportLocalProject.mockResolvedValue({ zip, fingerprint: "f" });
     await mountSection();
     await click("Download .zip", section());
     expect(actions.exportLocalProject).toHaveBeenCalledTimes(1);

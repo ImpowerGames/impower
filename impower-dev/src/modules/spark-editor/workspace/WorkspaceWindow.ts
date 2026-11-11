@@ -125,10 +125,10 @@ import {
 import { showSnackbar } from "../utils/snackbar";
 import { downloadProjectZip } from "../utils/downloadProjectZip";
 import type { FileData } from "@impower/spark-editor-protocol/src/types";
+import { contentDigest } from "../utils/contentDigest";
 import { foldersWithoutFiles, isProjectMetadata } from "../utils/fileTree";
 import { withProjectRecord } from "../utils/projectRecordLock";
 import {
-  contentDigest,
   FINGERPRINT_SLICE_MS,
   installOfferOf,
   keepOnDevice,
@@ -733,41 +733,41 @@ export default class WorkspaceWindow {
     }
   }
 
-  async backUpProject<T>(
-    backUp: () => Promise<T>,
+  async backUpProject<T extends { fingerprint: string }>(
+    backUp: () => Promise<T | null | undefined>,
     id = this.store.project.id,
-  ): Promise<T> {
+  ): Promise<T | null | undefined> {
     const startedAt = Date.now();
-    const fingerprint = id
-      ? await this.projectFingerprintOf(id).catch((err) => {
-          console.error(err);
-          return null;
-        })
-      : null;
     const backedUp = await backUp();
-    if (backedUp && id && fingerprint) {
+    if (backedUp && id) {
       await withProjectRecord(id, () =>
-        recordBackup(this.backupRecord(id), startedAt, fingerprint),
+        recordBackup(this.backupRecord(id), startedAt, backedUp.fingerprint),
       ).catch((err) => console.error(err));
     }
     return backedUp;
   }
 
-  protected _digests = new Map<string, { key: string; digest: string }>();
+  protected _digests = new WeakMap<FileData, string>();
 
   protected async digestOf(file: FileData) {
-    if (file.text !== undefined) {
-      return contentDigest(new TextEncoder().encode(file.text));
+    const cached = this._digests.get(file);
+    if (cached !== undefined) {
+      return cached;
     }
-    const key = `${file.size}:${file.modified}`;
-    const cached = this._digests.get(file.uri);
-    if (cached?.key === key) {
-      return cached.digest;
-    }
-    const bytes = await this._workspace.fs.readFile({ file: { uri: file.uri } });
-    const digest = await contentDigest(bytes);
-    this._digests.set(file.uri, { key, digest });
+    const digest = await contentDigest(
+      await this._workspace.fs.readProjectFileBytes(file.uri),
+    );
+    this._digests.set(file, digest);
     return digest;
+  }
+
+  protected async exportedSettings() {
+    return (
+      projectSettingsJson(
+        workspaceSettings.projectSettings.peek(),
+        await loadExtensionDefaults(),
+      ) ?? ""
+    );
   }
 
   protected _fingerprints = new Map<string, Promise<string>>();
@@ -800,15 +800,13 @@ export default class WorkspaceWindow {
         slice = performance.now();
       }
     }
-    const settings = Object.entries(workspaceSettings.projectSettings.peek())
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     return projectFingerprint({
       files,
       folders: foldersWithoutFiles(
         contents.map(({ path }) => path),
         await fs.getFolders(id),
       ),
-      settings: JSON.stringify(settings),
+      settings: await this.exportedSettings(),
     });
   }
 
@@ -2811,13 +2809,10 @@ export default class WorkspaceWindow {
             status: "exporting",
           },
         });
-        const settingsJson = projectSettingsJson(
-          workspaceSettings.projectSettings.peek(),
-          await loadExtensionDefaults(),
-        );
-        const projectZip = await this._workspace.fs.readProjectZip(
+        const settings = await this.exportedSettings();
+        const exported = await this._workspace.fs.readProjectZip(
           projectId,
-          settingsJson,
+          settings || undefined,
         );
         this.update({
           ...this.store,
@@ -2826,7 +2821,16 @@ export default class WorkspaceWindow {
             status: "cached",
           },
         });
-        return projectZip;
+        return {
+          zip: exported.zip,
+          fingerprint: projectFingerprint({
+            files: exported.files.filter(
+              ({ path }) => !isProjectMetadata(path),
+            ),
+            folders: exported.folders,
+            settings,
+          }),
+        };
       }
     } catch (err: any) {
       console.error(err);
@@ -2903,6 +2907,7 @@ export default class WorkspaceWindow {
         const filename =
           this._workspace.sync.google.getProjectFilename(projectName);
         const uploaded = await this.backUpProject(async () => {
+          const fingerprint = await this.projectFingerprintOf(projectId);
           const projectTextContent =
             await this._workspace.fs.readProjectScriptBundle(projectId);
           const projectZipContent =
@@ -2921,7 +2926,12 @@ export default class WorkspaceWindow {
               projectFileId,
               createTextFile(filename, projectTextContent),
             );
-          return { projectFileId, remoteProjectZipFile, remoteProjectTextFile };
+          return {
+            fingerprint,
+            projectFileId,
+            remoteProjectZipFile,
+            remoteProjectTextFile,
+          };
         }, projectId);
         if (uploaded) {
           const { projectFileId, remoteProjectZipFile, remoteProjectTextFile } =

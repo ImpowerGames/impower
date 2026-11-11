@@ -36,6 +36,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       readStoredProjectMetadata: vi.fn(async () => ""),
       getFolders: vi.fn(async () => []),
       readFile: vi.fn(async () => new ArrayBuffer(0)),
+      readProjectFileBytes: vi.fn(async () => new ArrayBuffer(0)),
+      readProjectZip: vi.fn(),
       getFiles: async () => ({}),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
@@ -226,7 +228,11 @@ import workspace, {
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
-import { DAY_MS } from "../../src/modules/spark-editor/utils/storagePersistence";
+import {
+  BACKUP_REMINDER_CHECK_MS,
+  DAY_MS,
+} from "../../src/modules/spark-editor/utils/storagePersistence";
+import { contentDigest } from "../../src/modules/spark-editor/utils/contentDigest";
 import { memoryLocks } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import {
   dismissSnackbar,
@@ -569,7 +575,7 @@ describe("WorkspaceWindow store transitions", () => {
         "recordScriptChange",
       ).mockResolvedValue(undefined as never);
       const zip = new Uint8Array([1, 2, 3]);
-      vi.spyOn(win, "exportLocalProject").mockResolvedValue(zip as never);
+      vi.spyOn(win, "exportLocalProject").mockResolvedValue({ zip, fingerprint: "f" } as never);
       current.window = win;
       downloads.mockClear();
       try {
@@ -596,9 +602,17 @@ describe("WorkspaceWindow store transitions", () => {
       let folders: string[];
       let now: number;
       let onFolders: () => void;
+      let duringZip: () => void;
 
       const readMetadata = async (_id: string, field: string) =>
         metadata.get(field) ?? "";
+
+      const bytesOf = (uri: string) => {
+        const text = files[uri]?.text;
+        return text !== undefined
+          ? new TextEncoder().encode(text)
+          : bytes.get(uri)!.slice();
+      };
 
       const remindersShownBy = async (reviews: () => Promise<unknown>) => {
         const shown: string[] = [];
@@ -613,13 +627,6 @@ describe("WorkspaceWindow store transitions", () => {
           stop();
         }
         return shown;
-      };
-
-      const exportNow = async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(
-          new Uint8Array([1]) as never,
-        );
-        expect(await downloadProjectZip()).toBe(true);
       };
 
       const nineDaysLater = () => {
@@ -644,6 +651,7 @@ describe("WorkspaceWindow store transitions", () => {
         bytes = new Map([[ART, new Uint8Array([1, 2, 3, 4])]]);
         folders = [];
         onFolders = () => {};
+        duringZip = () => {};
         now = started;
         localStorage.clear();
         vi.spyOn(Date, "now").mockImplementation(() => now);
@@ -661,9 +669,21 @@ describe("WorkspaceWindow store transitions", () => {
           return folders;
         });
         vi.mocked(Workspace.fs.readFile).mockImplementation(
-          async ({ file }: { file: { uri: string } }) =>
-            bytes.get(file.uri)!.slice().buffer as never,
+          async ({ file }: { file: { uri: string } }) => bytesOf(file.uri).buffer as never,
         );
+        vi.mocked(Workspace.fs.readProjectFileBytes).mockImplementation(
+          async (uri: string) => bytesOf(uri).buffer as never,
+        );
+        vi.mocked(Workspace.fs.readProjectZip).mockImplementation(async () => {
+          duringZip();
+          const captured = await Promise.all(
+            Object.values(files).map(async ({ uri }) => ({
+              path: uri.slice("file://local/".length),
+              digest: await contentDigest(bytesOf(uri)),
+            })),
+          );
+          return { zip: new ArrayBuffer(1), files: captured, folders } as never;
+        });
         workspace.current = {
           ...workspace.current,
           project: { ...workspace.current.project, id: "local", name: "Story" },
@@ -676,6 +696,7 @@ describe("WorkspaceWindow store transitions", () => {
         vi.mocked(Workspace.fs.readStoredProjectMetadata).mockImplementation(async () => "");
         vi.mocked(Workspace.fs.getFolders).mockImplementation(async () => []);
         vi.mocked(Workspace.fs.writeProjectMetadata).mockReset();
+        vi.mocked(Workspace.fs.readProjectZip).mockReset();
         vi.mocked(Workspace.fs.getFiles).mockRestore();
         vi.mocked(Date.now).mockRestore();
         delete (navigator as { locks?: unknown }).locks;
@@ -684,10 +705,9 @@ describe("WorkspaceWindow store transitions", () => {
       });
 
       it("an export records when it started and the fingerprint of what it contains", async () => {
-        vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
+        duringZip = () => {
           now = started + 900;
-          return new Uint8Array([1]) as never;
-        });
+        };
         expect(await downloadProjectZip()).toBe(true);
         expect(metadata.get("backedUpAt")).toBe(String(started));
         expect(metadata.get("backedUpFingerprint")).toBe(
@@ -695,25 +715,31 @@ describe("WorkspaceWindow store transitions", () => {
         );
       });
 
-      it("a second fingerprint request while one runs joins it instead of reading the assets again", async () => {
-        vi.mocked(Workspace.fs.readFile).mockClear();
+      it("a second fingerprint request while one runs joins it instead of reading the files again", async () => {
+        vi.mocked(Workspace.fs.readProjectFileBytes).mockClear();
         const [first, second] = await Promise.all([
           win.projectFingerprintOf("local"),
           win.projectFingerprintOf("local"),
         ]);
         expect(second).toBe(first);
-        expect(vi.mocked(Workspace.fs.readFile)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(Workspace.fs.readProjectFileBytes)).toHaveBeenCalledTimes(2);
       });
 
       it("nothing changed since the export leaves no reminder nine days later", async () => {
-        await exportNow();
+        await downloadProjectZip();
         expect(await nineDaysLater()).toEqual([]);
       });
 
       it("the same content saved again leaves no reminder", async () => {
-        await exportNow();
+        await downloadProjectZip();
         files[MAIN] = { ...files[MAIN]!, modified: started + DAY_MS };
         files[ART] = { ...files[ART]!, modified: started + DAY_MS };
+        expect(await nineDaysLater()).toEqual([]);
+      });
+
+      it("an editor-only setting changed after the export leaves no reminder (round 4 finding 4)", async () => {
+        await downloadProjectZip();
+        workspaceSettings.replaceProjectSettings("local", { previewPanelHeight: 300 });
         expect(await nineDaysLater()).toEqual([]);
       });
 
@@ -724,6 +750,14 @@ describe("WorkspaceWindow store transitions", () => {
           () => {
             bytes.set(ART, new Uint8Array([4, 3, 2, 1]));
             files[ART] = { ...files[ART]!, modified: started + DAY_MS };
+          },
+        ],
+        [
+          "an asset replaced by same-size bytes written at the same recorded time",
+          "round 4 finding 2",
+          () => {
+            bytes.set(ART, new Uint8Array([4, 3, 2, 1]));
+            files[ART] = { ...files[ART]! };
           },
         ],
         [
@@ -741,7 +775,7 @@ describe("WorkspaceWindow store transitions", () => {
           },
         ],
         [
-          "a project setting changed",
+          "a project setting the export writes changed",
           "round 3 blast finding 3",
           () => {
             workspaceSettings.replaceProjectSettings("local", {
@@ -750,15 +784,33 @@ describe("WorkspaceWindow store transitions", () => {
           },
         ],
       ])("%s after the export leaves the project due (%s)", async (_case, _finding, change) => {
-        await exportNow();
+        await win.projectFingerprintOf("local");
+        await downloadProjectZip();
         change();
         expect(await nineDaysLater()).toEqual(DUE);
       });
 
-      it("a change made while the export runs leaves the project due (round 1 undirected finding 2, round 3 undirected finding 1)", async () => {
-        vi.spyOn(win, "exportLocalProject").mockImplementation(async () => {
+      it("a change the export captured is backed up, and undoing it afterwards counts as a change (round 4 finding 1)", async () => {
+        duringZip = () => {
           files[MAIN] = { ...files[MAIN]!, modified: started + 500, text: "end!" };
-          return new Uint8Array([1]) as never;
+        };
+        expect(await downloadProjectZip()).toBe(true);
+        expect(await nineDaysLater()).toEqual([]);
+        files[MAIN] = { ...files[MAIN]!, modified: started + 9 * DAY_MS, text: "end" };
+        now = started + 9 * DAY_MS + BACKUP_REMINDER_CHECK_MS;
+        expect(await remindersShownBy(() => win.reviewDeviceStorage())).toEqual(DUE);
+      });
+
+      it("a change made after the export captured the project leaves it due (round 1 undirected finding 2, round 3 undirected finding 1)", async () => {
+        vi.mocked(Workspace.fs.readProjectZip).mockImplementationOnce(async () => {
+          const captured = await Promise.all(
+            Object.values(files).map(async ({ uri }) => ({
+              path: uri.slice("file://local/".length),
+              digest: await contentDigest(bytesOf(uri)),
+            })),
+          );
+          files[MAIN] = { ...files[MAIN]!, modified: started + 500, text: "end!" };
+          return { zip: new ArrayBuffer(1), files: captured, folders } as never;
         });
         expect(await downloadProjectZip()).toBe(true);
         expect(await nineDaysLater()).toEqual(DUE);
@@ -770,11 +822,12 @@ describe("WorkspaceWindow store transitions", () => {
           finish = resolve;
         });
         const succeeding = win.backUpProject(async () => {
+          const fingerprint = await win.projectFingerprintOf("local");
           await held;
-          return true;
+          return { fingerprint };
         }, "local");
         await new Promise((resolve) => setTimeout(resolve, 0));
-        await win.backUpProject(async () => false, "local");
+        await win.backUpProject(async () => null, "local");
         files[MAIN] = { ...files[MAIN]!, modified: started + 500, text: "end!" };
         finish();
         await succeeding;
@@ -830,22 +883,19 @@ describe("WorkspaceWindow store transitions", () => {
             return value;
           },
         );
-        const earlier = win.backUpProject(async () => true, "local");
+        const earlier = win.backUpProject(async () => ({ fingerprint: "earlier" }), "local");
         await new Promise((resolve) => setTimeout(resolve, 5));
         now = started + 1_000;
-        files[MAIN] = { ...files[MAIN]!, text: "end!" };
-        const later = win.backUpProject(async () => true, "local");
+        const later = win.backUpProject(async () => ({ fingerprint: "later" }), "local");
         await new Promise((resolve) => setTimeout(resolve, 5));
         release();
         await Promise.all([earlier, later]);
         expect(metadata.get("backedUpAt")).toBe(String(started + 1_000));
-        expect(metadata.get("backedUpFingerprint")).toBe(
-          await win.projectFingerprintOf("local"),
-        );
+        expect(metadata.get("backedUpFingerprint")).toBe("later");
       });
 
       it("a failed export records no backup", async () => {
-        vi.spyOn(win, "exportLocalProject").mockResolvedValue(undefined);
+        vi.mocked(Workspace.fs.readProjectZip).mockRejectedValueOnce(new Error("OPFS read failed"));
         expect(await downloadProjectZip()).toBe(false);
         expect(metadata.has("backedUpAt")).toBe(false);
       });
