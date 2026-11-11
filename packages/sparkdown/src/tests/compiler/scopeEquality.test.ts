@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { dirname, join, sep } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, test } from "vitest";
-import { compareEnginesFull, type EngineOptions, formatDivergences } from "./scopeEquality";
+import { compareEnginesFull, type EngineOptions, formatDivergences, vscodeScopeStacksPerChar } from "./scopeEquality";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
@@ -193,6 +193,26 @@ describe("engine scope-stack equality", () => {
         await assertEqual(source);
       });
     }
+  });
+
+  test("a same-line `&` after a declaration's, reassignment's or `until` condition's value is the statement mark", async () => {
+    const statements = [
+      "local a = 0 & a = 2",
+      "store b = 0 & b = 2",
+      "a = 0 & a = 2",
+      "local c = 1 + 2 & c = 3",
+      "c = -c & c = 1",
+      'local f = "a" .. "b" & f = 1',
+      "local e = not a & e = 1",
+      "local d = if a then 1 else 2 & d = #t",
+      "repeat\n    Hi.\n  until a == b & a = 1",
+    ];
+    const source = `scene s\n${statements.map((statement) => `  ${statement}\n`).join("")}end\n`;
+    await assertEqual(source);
+    const stacks = await vscodeScopeStacksPerChar(source);
+    const marks = [...source.matchAll(/&/g)].map((match) => match.index!);
+    expect(marks).toHaveLength(statements.length);
+    expect(marks.map((mark) => stacks[mark]!.at(-1))).toEqual(marks.map(() => "keyword.other.statement.explicit.luau.mark.sd"));
   });
 
   describe("snapshot corpus", () => {
