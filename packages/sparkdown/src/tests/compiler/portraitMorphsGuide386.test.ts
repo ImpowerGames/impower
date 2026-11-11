@@ -241,7 +241,7 @@ describe("the portrait morphs guide chapter", () => {
 });
 
 const bakeGuide = (source: string, recipe: ReturnType<typeof buildMorphRecipe>, selection: Record<string, string> = {}) =>
-  bakeMorphArtifact({ source, selection, recipe, key: "guide", variant: "guide", uri: "file:///guide.svg" });
+  bakeMorphArtifact({ source, selection, recipes: [recipe], key: "guide", variant: "guide", uri: "file:///guide.svg" });
 
 const codesOf = (artifact: MorphArtifact) => artifact.diagnostics.map((d) => [d.code, d.severity]);
 

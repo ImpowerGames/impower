@@ -479,7 +479,7 @@ A morph that drives several groups makes these checks for each of them, and the 
 
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
 
-Two morphs that drive the same portrait cannot both play on it; the portrait stays still, with a warning.
+Several morphs can play on one portrait at once, each on its own timing, so a face can blink while its mouth moves. They play together when they drive different groups, move different labels and name different labels in their clips' `between` and `targets`. If any two of them share a group, a moved label or a clip label, none of them plays: the portrait stays still, with a warning that names the morphs and what they share. A drawing whose showing depends on groups that two of the morphs drive, such as a crease conditioned on `eyes.closed` inside a `mouth.open` layer, also keeps the portrait still, with an error on the artwork.
 
 ## Timing
 
