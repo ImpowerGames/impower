@@ -972,11 +972,12 @@ describe("the Variants tester and the Files section", () => {
   });
 
   it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
-    const answers: (string | null)[] = ["", null];
-    assets.watchPicture.mockImplementation((_path: string, _variant: unknown, listener: (src: string | null) => void) => {
-      listener(answers.shift() ?? null);
-      return () => {};
-    });
+    for (const answer of ["", null]) {
+      assets.watchPicture.mockImplementationOnce((_path: string, _variant: unknown, listener: (src: string | null) => void) => {
+        listener(answer);
+        return () => {};
+      });
+    }
     await mount();
     await open("imani");
     const frame = () => region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
@@ -985,6 +986,21 @@ describe("the Variants tester and the Files section", () => {
     await pick(group("face"), "Happy");
     expect(frame().querySelector("img")).toBeNull();
     expect(frame().querySelector("[data-frame-failed]")?.textContent).toBe("This picture could not be shown.");
+  });
+
+  it("shows a combination again after another one's picture failed to load", async () => {
+    await mount();
+    await open("imani");
+    const frame = () => region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
+    await pick(group("face"), "Happy");
+    await act(async () => {
+      frame().querySelector("img")!.dispatchEvent(new Event("error"));
+    });
+    await settle();
+    expect(frame().querySelector("[data-frame-failed]")).not.toBeNull();
+    await pick(group("face"), "Sad");
+    expect(frame().querySelector("img")!.getAttribute("src")).toBe("/picture/imani~sad");
+    expect(frame().querySelector("[data-frame-failed]")).toBeNull();
   });
 
   it("stays open on the picture when a Files action renames, adds or deletes the file that covers it", async () => {

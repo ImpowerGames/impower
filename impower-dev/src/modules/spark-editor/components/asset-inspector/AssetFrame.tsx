@@ -153,9 +153,9 @@ function PictureFrame({
   pixels?: { width: number; height: number } | null;
   picture?: string | null;
 }) {
-  const [broken, setFailed] = useState(false);
-  const failed = broken || picture === null;
+  const [brokenSrc, setBrokenSrc] = useState<string | undefined>(undefined);
   const src = picture === undefined ? asset.src : picture;
+  const failed = picture === null || (!!src && brokenSrc === src);
   return (
     <ZoomFrame
       label={asset.name}
@@ -164,7 +164,7 @@ function PictureFrame({
       ratio={pixels ? pixels.width / pixels.height : undefined}
     >
       {src ? (
-        <div class="absolute inset-0" onErrorCapture={() => setFailed(true)}>
+        <div class="absolute inset-0" onErrorCapture={() => setBrokenSrc(src)}>
           <Thumbnail size="fill" fit="contain" src={src} class="bg-transparent" />
         </div>
       ) : null}
