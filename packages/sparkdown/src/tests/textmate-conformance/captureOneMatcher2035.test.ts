@@ -1,6 +1,9 @@
 import { MatchRule } from "@impower/textmate-grammar-tree/src/grammar/classes/rules/MatchRule";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
+import SPARKDOWN_GRAMMAR from "../../../language/sparkdown.language-grammar.json";
+import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
 const grammar = (
@@ -176,7 +179,156 @@ cases.push([
   "<abc\nxyz>\n",
 ]);
 
+const reuse: any = {
+  name: "probe",
+  scopeName: "source.probe",
+  patterns: [
+    {
+      match: "^-(.+)(;)(.+)$",
+      captures: {
+        "1": {
+          name: "cap.probe",
+          patterns: [
+            { match: "\\Gz", name: "anchored.probe" },
+            { include: "#Block" },
+            { match: "[A-Za-z]+", name: "word.probe" },
+            { match: "[0-9]+", name: "num.probe" },
+            { match: "." },
+          ],
+        },
+        "2": { name: "separator.probe" },
+        "3": { name: "tail.probe", patterns: [{ match: "[A-Za-z]+", name: "word.probe" }, { match: "." }] },
+      },
+    },
+    { match: ".|\\n" },
+  ],
+  repository: {
+    Block: { name: "block.probe", begin: "<", end: ">", patterns: [{ include: "#Block" }, { match: "[A-Za-z]+", name: "word.probe" }, { match: "." }] },
+  },
+};
+const reuseText = "-a1;t\n-1a;t\n-z<a;t\n-az<;t\n-<<b;tail\n-12;t\n-<a>z;t\n";
+
+const treeOf = (parser: TextmateGrammarParser, text: string) => {
+  const nodes: string[] = [];
+  parser.parse(text).iterate({
+    enter(node) {
+      nodes.push(`${node.name} ${node.from}-${node.to}`);
+    },
+  });
+  return nodes;
+};
+
+describe("capture patterns in the Sparkdown grammar", () => {
+  test("a front matter block line holds one string, with nothing empty after its line break", () => {
+    const text = "---\ntitle:\n  **_RAFFLES_**\n  ~\n  Episode\ncredit: Written by\n---\n\nHello.\n";
+    const strings: string[] = [];
+    createSparkdownParser()
+      .parse(text)
+      .iterate({
+        enter(node) {
+          if (node.name === "FrontMatterString") strings.push(`${node.from}-${node.to}`);
+        },
+      });
+    expect(strings).toEqual(["10-10", "13-27", "29-31", "33-41", "49-60"]);
+  });
+
+  test("text before a chain mark takes the chunk's scope, as in vscode-textmate", async () => {
+    const text =
+      "  His other hand flips through a familiar LEATHER POCKET NOTEBOOK\\:\n\n  \\    **_March 15th_**   \\\n  \\    **[X] Final edits**  \\\n  \\    **[X] Print pitch packet**   \\\n";
+    const g: any = SPARKDOWN_GRAMMAR;
+    expect(treeScopes(g, text)).toEqual(await vscodeScopes(structuredClone(g), text));
+  });
+});
+
 describe("capture patterns run through the line tokenizer", () => {
+  test("captures that reuse a tokenizer read only their own line", async () => {
+    expect(treeScopes(reuse, reuseText)).toEqual(await vscodeScopes(structuredClone(reuse), reuseText));
+  });
+
+  test("a parse after other captures equals a cold parse", () => {
+    const cold = treeOf(new TextmateGrammarParser(structuredClone(reuse)), reuseText);
+    const warm = new TextmateGrammarParser(structuredClone(reuse));
+    treeOf(warm, "-<<<a;tail\n-zzzz9;x\n");
+    treeOf(new TextmateGrammarParser(structuredClone(captured(rootStop))), "-a;tail\n-x a b;tail\n");
+    expect(treeOf(warm, reuseText)).toEqual(cold);
+  });
+
+  test("a parse after a capture abandoned inside an open rule equals a cold parse", () => {
+    const text = "-1z;t\n" + reuseText;
+    const cold = treeOf(new TextmateGrammarParser(structuredClone(reuse)), text);
+    const matchGroups = MatchRule.prototype.matchGroups;
+    MatchRule.prototype.matchGroups = function (this: MatchRule, ...args: Parameters<typeof matchGroups>) {
+      if (args[0].stack.length > 1 && this.id.endsWith("_end")) {
+        throw new Error("abandon the capture");
+      }
+      return matchGroups.apply(this, args);
+    };
+    try {
+      expect(() => new TextmateGrammarParser(structuredClone(reuse)).parse("-<a;t\n")).toThrow("abandon the capture");
+    } finally {
+      MatchRule.prototype.matchGroups = matchGroups;
+    }
+    expect(treeOf(new TextmateGrammarParser(structuredClone(reuse)), text)).toEqual(cold);
+  });
+
+  test("a capture abandoned after a begin that took its line break leaves no scope behind", () => {
+    const lineCapture: any = {
+      name: "probe",
+      scopeName: "source.probe",
+      patterns: [
+        {
+          match: "^(.*\\n)",
+          captures: {
+            "1": {
+              name: "cap.probe",
+              patterns: [
+                { name: "q.probe", begin: "<\\n", end: ">", patterns: [{ match: "." }] },
+                { match: "\\Gz", name: "anchored.probe" },
+                { match: "[A-Za-z]+", name: "word.probe" },
+                { match: ".|\\n" },
+              ],
+            },
+          },
+        },
+      ],
+    };
+    const text = "z\nzz\n";
+    const cold = treeOf(new TextmateGrammarParser(structuredClone(lineCapture)), text);
+    const matchGroups = MatchRule.prototype.matchGroups;
+    MatchRule.prototype.matchGroups = function (this: MatchRule, ...args: Parameters<typeof matchGroups>) {
+      if (args[0].stack.length > 1 && this.id.endsWith("_end")) {
+        throw new Error("abandon the capture");
+      }
+      return matchGroups.apply(this, args);
+    };
+    try {
+      expect(() => new TextmateGrammarParser(structuredClone(lineCapture)).parse("<\n>\n")).toThrow("abandon the capture");
+    } finally {
+      MatchRule.prototype.matchGroups = matchGroups;
+    }
+    expect(treeOf(new TextmateGrammarParser(structuredClone(lineCapture)), text)).toEqual(cold);
+  });
+
+  test("an incremental parse through captures equals a cold parse", () => {
+    const base = "-a1;t\n".repeat(40) + reuseText.repeat(20);
+    const at = base.indexOf("-z<a;t") + 3;
+    const edited = base.slice(0, at) + "<q" + base.slice(at);
+    const parser = new TextmateGrammarParser(structuredClone(reuse));
+    const before = parser.parse(base);
+    const fragments = TreeFragment.applyChanges(TreeFragment.addTree(before), [{ fromA: at, toA: at, fromB: at, toB: at + 2 }]);
+    const nodes = (tree: ReturnType<typeof parser.parse>) => {
+      const out: string[] = [];
+      tree.iterate({
+        enter(node) {
+          out.push(`${node.name} ${node.from}-${node.to}`);
+        },
+      });
+      return out;
+    };
+    const warm = nodes(parser.parse(edited, fragments));
+    expect(warm).toEqual(nodes(new TextmateGrammarParser(structuredClone(reuse)).parse(edited)));
+  });
+
   test.each(cases)("%s", async (_label, g, text) => {
     const expected = await vscodeScopes(structuredClone(g), text);
     expect(treeScopes(g, text)).toEqual(expected);

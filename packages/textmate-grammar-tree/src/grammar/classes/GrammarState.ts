@@ -53,6 +53,22 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
+  resetToLine(line: string, absolutePos: number, enclosing: CallFrame[]) {
+    this.stack.close(1);
+    this.anchor = -1;
+    this._anchorLineStart = -1;
+    this.visited.length = 0;
+    this.enclosing = enclosing;
+    this.str = line;
+    this.absolutePos = absolutePos;
+    this._matchDepth = 0;
+    this._lineStart = 0;
+    this._lineEnd = line.length;
+    this._lineText = line;
+    this._lineStrLength = line.length;
+    this._exhaustedAt = -1;
+  }
+
   advance() {
     if (!this.next) {
       return;
@@ -173,21 +189,30 @@ export class GrammarState {
   }
 
   enclosingAt(lineStart: number, captureId: string, captureAt: number) {
-    const frames: CallFrame[] = [];
-    for (const frame of this.enclosing) {
-      frames.push({ ...frame, position: frame.position - lineStart });
-    }
-    for (const frame of this.visited) {
-      if (frame.scoped) {
-        frames.push({ ...frame, position: frame.position - lineStart });
+    const position = captureAt - lineStart;
+    const frames: CallFrame[] = [
+      { ruleId: captureId, position, scoped: true },
+    ];
+    const visited = this.visited;
+    for (let i = visited.length - 1; i >= 0; i--) {
+      const frame = visited[i]!;
+      if (!frame.scoped) {
+        continue;
       }
+      if (frame.position !== captureAt) {
+        return frames.reverse();
+      }
+      frames.push({ ruleId: frame.ruleId, position, scoped: true });
     }
-    frames.push({
-      ruleId: captureId,
-      position: captureAt - lineStart,
-      scoped: true,
-    });
-    return frames;
+    const enclosing = this.enclosing;
+    for (let i = enclosing.length - 1; i >= 0; i--) {
+      const frame = enclosing[i]!;
+      if (frame.position !== captureAt) {
+        break;
+      }
+      frames.push({ ruleId: frame.ruleId, position, scoped: true });
+    }
+    return frames.reverse();
   }
 
   exit(ruleId: string, position: number) {

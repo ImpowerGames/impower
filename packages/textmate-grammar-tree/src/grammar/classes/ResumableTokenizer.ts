@@ -70,6 +70,10 @@ type DispatchResult =
 
 const REPEATED: DispatchResult = { kind: "repeated" };
 
+const CAPTURE_POOL_LIMIT = 64;
+
+const capturePool: ResumableTokenizer[] = [];
+
 export class ResumableTokenizer {
   declare grammar: Grammar;
 
@@ -119,37 +123,73 @@ export class ResumableTokenizer {
     offset: number,
     enclosing: CallFrame[],
   ): { tokens: GrammarToken[]; to: number } {
-    const tokenizer = new ResumableTokenizer(grammar, () => "", offset);
-    tokenizer.rootRules = rules;
-    tokenizer.tokenizesCapture = true;
-    tokenizer.state.str = text;
-    tokenizer.state.enclosing = enclosing;
-    tokenizer.pos = from;
+    const tokenizer =
+      capturePool.pop() ?? new ResumableTokenizer(grammar, () => "", offset);
+    try {
+      tokenizer.resetForCapture(grammar, rules, text, from, offset, enclosing);
+      return tokenizer.tokenizeCaptureText(from);
+    } finally {
+      if (capturePool.length < CAPTURE_POOL_LIMIT) {
+        capturePool.push(tokenizer);
+      }
+    }
+  }
+
+  protected resetForCapture(
+    grammar: Grammar,
+    rules: Rule[],
+    text: string,
+    from: number,
+    offset: number,
+    enclosing: CallFrame[],
+  ) {
+    this.grammar = grammar;
+    this.anchor = offset;
+    this.pos = from;
+    this.frames.length = 0;
+    this.pending = null;
+    this.drained = false;
+    this.lastSplitCheckPos = 0;
+    this.emittedAtLineStart = -1;
+    this.stoppedLine = false;
+    this.rootRules = rules;
+    this.tokenizesCapture = true;
+    this.stoppedAtRoot = false;
+    this.emitSplitSignals = false;
+    this._stepTokens.length = 0;
+    this.state.resetToLine(text, offset, enclosing);
+  }
+
+  protected tokenizeCaptureText(from: number): {
+    tokens: GrammarToken[];
+    to: number;
+  } {
+    const offset = this.anchor;
     const tokens: GrammarToken[] = [];
-    if (from >= text.length) {
-      tokenizer.tryTopLevel(tokens);
+    if (from >= this.state.str.length) {
+      this.tryTopLevel(tokens);
     }
     let emptySteps = 0;
-    while (!tokenizer.done && !tokenizer.stoppedAtRoot) {
-      const step = tokenizer.step();
+    while (!this.drained && !this.stoppedAtRoot) {
+      const step = this.step();
       for (let i = 0; i < step.tokens.length; i++) {
         tokens.push(step.tokens[i]!);
       }
       emptySteps = step.length === 0 ? emptySteps + 1 : 0;
-      if (emptySteps > EMPTY_STEP_LIMIT && !tokenizer.hasOpenFrames) {
-        tokenizer.stoppedAtRoot = true;
+      if (emptySteps > EMPTY_STEP_LIMIT && this.frames.length === 0) {
+        this.stoppedAtRoot = true;
       }
     }
-    const pending = tokenizer.flushPending();
+    const pending = this.flushPending();
     if (pending) {
       tokens.push(pending);
     }
-    const end = offset + tokenizer.pos;
+    const end = offset + this.pos;
     const covered = tokens.length > 0 ? tokens[tokens.length - 1]![2] : offset + from;
     if (covered < end) {
       tokens.push([null, covered, end]);
     }
-    return { tokens, to: tokenizer.pos };
+    return { tokens, to: this.pos };
   }
 
   get hasOpenFrames() {
@@ -488,14 +528,16 @@ export class ResumableTokenizer {
 
   protected retryOnceAtLineEnd(out: GrammarToken[]): boolean {
     const frame = this.frames[this.frames.length - 1];
+    const atCaptureEnd =
+      this.tokenizesCapture && this.pos >= this.state.str.length;
     if (!frame) {
-      return this.tryTopLevel(out)?.kind === "scope";
+      return atCaptureEnd ? false : this.tryTopLevel(out)?.kind === "scope";
     }
     const rule = frame.rule;
-    if (!rule.applyEndPatternLast) {
+    if (!rule.applyEndPatternLast || atCaptureEnd) {
       const ended = this.retryEndAtLineEnd(out, frame);
-      if (ended != null) {
-        return ended;
+      if (ended != null || atCaptureEnd) {
+        return ended ?? false;
       }
     }
     rule.contentRule.resolve();
