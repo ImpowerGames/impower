@@ -149,6 +149,67 @@ ${more}
 
 export const shiftPath = shift;
 
+export function talkingPortrait(options: EyeOptions & { mouth?: string } = {}): string {
+  const at = (d: string) => shift(d, 140, 40);
+  const mouth = `<g data-name="mouth.open:default">
+<path data-name="teeth" d="${at(EYEBALL)}" fill="#eee"/>
+<path data-name="lip" d="${at(UPPER_OPEN)}" fill="#a33"/>
+<path data-name="lip" d="${at(LOWER_OPEN)}" fill="#a33"/>
+${options.mouth ?? ""}
+</g>
+<g data-name="mouth.closed">
+<path data-name="lip" d="${at(CLOSED)}" fill="#a33"/>
+</g>`;
+  return portrait(options).replace("</svg>", `${mouth}\n</svg>`);
+}
+
+export const talkScript = (extra = "", name = "talk") => `morph ${name} {
+  method = bend
+${extra}  keyframes {
+    0% {
+      mouth {
+        state = open
+      }
+    }
+    50% {
+      mouth {
+        state = closed
+      }
+    }
+    100% {
+      mouth {
+        state = open
+      }
+    }
+  }
+  clips {
+    {
+      between {
+        lip
+      }
+      targets {
+        teeth
+      }
+    }
+  }
+}
+`;
+
+export function talk(overrides: Record<string, unknown> = {}): MorphRecipe {
+  return buildMorphRecipe("talk", {
+    blend: "morph",
+    method: "bend",
+    fallback: "fade",
+    keyframes: [
+      { offset: 0, mouth: { state: "open" } },
+      { offset: 0.5, mouth: { state: "closed" } },
+      { offset: 1, mouth: { state: "open" } },
+    ],
+    clips: [{ between: ["lip"], targets: ["teeth"] }],
+    ...overrides,
+  });
+}
+
 export const blinkScript = (extra = "") => `morph blink {
   method = bend
 ${extra}  keyframes {

@@ -68,7 +68,7 @@ describe("SVG text keeps the whitespace a browser renders", () => {
   });
 
   it("keeps the spacing of text in a baked morph's frames", () => {
-    const artifact = bakeMorphArtifact({ source: labelledPortrait(), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const artifact = bakeMorphArtifact({ source: labelledPortrait(), selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     const frame = renderMorphFrame(artifact, { segment: 0, progress: 0.5 });
     expect(frame).toContain(`${SPACED}</text>`);
   });

@@ -127,7 +127,7 @@ describe("morph poses at a keyframe offset", () => {
       { offset: 1, eyes: { state: "open" } },
     ],
   });
-  const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipe, key: "k", variant: "bunny" });
+  const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
   const timeline = new MorphTimeline(
     timing({ easing: "steps(3)", delay: 0.7, iterations: "infinite", iteration_delay_min: 0.2, iteration_delay_max: 6 }),
     morphRandom("bunny"),
