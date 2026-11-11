@@ -1218,10 +1218,10 @@ await asyncCheck("--step problems presses the problems toggle unless the panel i
   assert.match((await openProblems(hidden)).reason, /problems toggle under the game is not on screen/);
 });
 
-await asyncCheck("--step wheel-list wheels each overflowing list with the mouse over its clipped text and fails a list that does not move, a leak, or a list that fits", async () => {
+await asyncCheck("--step wheel-list wheels each overflowing list with the mouse over its clipped text and fails a list that does not move or stops before its end, a leak, or a list that fits", async () => {
   const list = { index: 0, list: { tag: "div", class: "min-h-0 overflow-y-auto", label: "Search" }, scrollHeight: 2700, clientHeight: 400 };
   const over = { tag: "span", class: "min-w-0 truncate", label: "Search", overflow: "hidden", text: "Main" };
-  const wheelPage = ({ lists = [list], pickOver = over, afterWheel = 400, atEnd = 2300, behind = 0 } = {}) => {
+  const wheelPage = ({ lists = [list], pickOver = over, afterWheel = 400, atEnd = 2300, behind = 0, maxAtEnd = 2300 } = {}) => {
     const calls = [];
     let tops = { 0: 0, 7: 0, "page:main": 0 };
     return {
@@ -1239,6 +1239,7 @@ await asyncCheck("--step wheel-list wheels each overflowing list with the mouse 
         if (op === "plan") return { layer: null, lists };
         if (op === "pick") return { own: "0", ancestors: ["page:main"], max: 2300, tops: { ...tops, 0: 0 }, over: pickOver, ...(pickOver ? { point: { x: 100, y: 120 } } : {}) };
         if (op === "tops") return { ...tops };
+        if (op === "extent") return { top: tops[0], max: maxAtEnd };
         return true;
       },
     };
@@ -1253,6 +1254,14 @@ await asyncCheck("--step wheel-list wheels each overflowing list with the mouse 
   const trapped = await wheelList(wheelPage({ afterWheel: 0, atEnd: 0 }));
   assert.equal(trapped.ran, false);
   assert.match(trapped.reason, /the wheel over span\.min-w-0 \(overflow hidden\) did not scroll the list "Search" \(scrollTop 0 -> 0\)/);
+  const stalled = await wheelList(wheelPage({ afterWheel: 400, atEnd: 400, maxAtEnd: 2200 }));
+  assert.equal(stalled.ran, false);
+  assert.equal(stalled.lists[0].moved, true);
+  assert.equal(stalled.lists[0].reachedEnd, false);
+  assert.match(stalled.reason, /the wheel moved the list "Search" but it stopped at scrollTop 400 of 2200 before its end/);
+  const grown = await wheelList(wheelPage({ atEnd: 2600, maxAtEnd: 2600 }));
+  assert.equal(grown.ran, true, grown.reason);
+  assert.deepEqual(grown.lists[0].scrollTop, { before: 0, afterWheel: 400, atEnd: 2600, max: 2600 });
   const leaking = await wheelList(wheelPage({ behind: 120 }));
   assert.equal(leaking.ran, false);
   assert.match(leaking.reason, /past its end also scrolled 7, which is not a list it sits in/);

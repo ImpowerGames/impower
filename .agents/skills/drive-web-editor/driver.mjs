@@ -2401,6 +2401,10 @@ export function wheelProbe([op, index, tops]) {
     };
   }
   if (op === "tops") return readTops();
+  if (op === "extent") {
+    const el = scroller(index);
+    return { top: el.scrollTop, max: el.scrollHeight - el.clientHeight };
+  }
   if (op === "restore") {
     for (const el of document.querySelectorAll("[data-driver-scroll]")) {
       const top = tops[el.getAttribute("data-driver-scroll")];
@@ -2440,14 +2444,15 @@ export async function wheelList(page, { delta = 400, settleMs = 700 } = {}) {
     await page.mouse.wheel(0, delta);
     await page.waitForTimeout(settleMs);
     const end = await probe("tops");
+    const extent = await probe("extent", entry.index);
     const changed = Object.keys(end).filter((id) => id !== pick.own && end[id] !== pick.tops[id]);
     lists.push({
       ...entry,
       over: pick.over,
       point: pick.point,
-      scrollTop: { before: pick.tops[pick.own], afterWheel: after[pick.own], atEnd: end[pick.own], max: pick.max },
+      scrollTop: { before: pick.tops[pick.own], afterWheel: after[pick.own], atEnd: extent.top, max: extent.max },
       moved: after[pick.own] > pick.tops[pick.own],
-      reachedEnd: end[pick.own] >= pick.max - 1,
+      reachedEnd: extent.top >= extent.max - 1,
       chainedTo: changed.filter((id) => pick.ancestors.includes(id) && !id.startsWith("page:")),
       leakedTo: changed.filter((id) => !pick.ancestors.includes(id) || id.startsWith("page:")),
     });
@@ -2459,6 +2464,7 @@ export async function wheelList(page, { delta = 400, settleMs = 700 } = {}) {
   const problems = [
     ...(wheeled.length ? [] : [`no list ${layer ? "in the open dialog" : "on screen"} has clipped element or text under a visible point to wheel over`]),
     ...wheeled.filter((list) => !list.moved).map((list) => `the wheel over ${list.over.tag}.${list.over.class.split(/\s+/)[0] || "(no class)"} (overflow ${list.over.overflow}) did not scroll the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} (scrollTop ${list.scrollTop.before} -> ${list.scrollTop.afterWheel})`),
+    ...wheeled.filter((list) => list.moved && !list.reachedEnd).map((list) => `the wheel moved the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} but it stopped at scrollTop ${list.scrollTop.atEnd} of ${list.scrollTop.max} before its end`),
     ...wheeled.filter((list) => list.leakedTo.length).map((list) => `wheeling the list ${list.list.label ? `"${list.list.label}"` : list.list.tag} past its end also scrolled ${list.leakedTo.join(", ")}, which is not a list it sits in`),
   ];
   return { step: "wheel-list", ran: problems.length === 0, layer, lists, ...(problems.length ? { reason: problems.join("; ") } : {}) };
