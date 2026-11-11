@@ -1,8 +1,5 @@
+import { getResourceSrcFromPath } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { getPathFromUri } from "./getPathFromUri";
 
-const RESOURCE_PROTOCOL: string = "/file:/";
-
-export const getSrcFromUri = (uri: string) => {
-  const path = getPathFromUri(uri);
-  return RESOURCE_PROTOCOL + path;
-};
+export const getSrcFromUri = (uri: string) =>
+  getResourceSrcFromPath(getPathFromUri(uri));

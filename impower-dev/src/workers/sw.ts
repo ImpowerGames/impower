@@ -5,6 +5,10 @@ import { getOrCreateFilteredSvg as getOrCreateFilteredSvgShared } from "@impower
 import { parseMorphAssetRequest, serveMorphAsset } from "@impower/sparkdown/src/morph/assetService";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import {
+  getResourcePathFromUrl,
+  RESOURCE_PROTOCOL,
+} from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { getStaleCacheNames } from "./swCaches";
 import { fileResponse } from "./swRanges";
 
@@ -26,7 +30,6 @@ const SW_NODE_ENV: string =
   typeof SW_NODE_ENV_INJECTED !== "undefined"
     ? SW_NODE_ENV_INJECTED
     : "development";
-const RESOURCE_PROTOCOL: string = "/file:/";
 
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
@@ -43,7 +46,7 @@ const cacheThenNetwork = async (url: string) => {
 
 async function handleLocalAssetRequest(request: Request) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
+  const path = getResourcePathFromUrl(url);
 
   const root = await navigator.storage.getDirectory();
   let fileHandle;
