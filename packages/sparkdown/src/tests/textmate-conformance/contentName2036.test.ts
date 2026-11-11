@@ -80,3 +80,21 @@ describe("a begin/end rule's contentName scopes the text between begin and end (
     expect(treeScopes(GRAMMARS[grammar], text)).toEqual(await vscodeScopes(structuredClone(GRAMMARS[grammar]), text));
   });
 });
+
+describe("pinned until I-2095: a capture reference in contentName is applied literally, as in name", () => {
+  const grammar = grammarOf({
+    Block: { ...BLOCK, contentName: "content.$1.mini", begin: "<([a-z]+):" },
+  });
+  const text = "<red:ab> <blue:cd>\n";
+
+  test("vscode-textmate expands it per occurrence and the tree keeps the literal reference", async () => {
+    const vscode = await vscodeScopes(structuredClone(grammar), text);
+    const tree = treeScopes(grammar, text);
+    expect(vscode[text.indexOf("ab")]).toBe("source.mini block.mini content.red.mini word.mini");
+    expect(vscode[text.indexOf("cd")]).toBe("source.mini block.mini content.blue.mini word.mini");
+    expect(tree[text.indexOf("ab")]).toBe("source.mini block.mini content.$1.mini word.mini");
+    expect(tree[text.indexOf("cd")]).toBe("source.mini block.mini content.$1.mini word.mini");
+    const differing = text.split("").flatMap((_, i) => (tree[i] === vscode[i] ? [] : [i]));
+    expect(differing).toEqual([5, 6, 15, 16]);
+  });
+});
