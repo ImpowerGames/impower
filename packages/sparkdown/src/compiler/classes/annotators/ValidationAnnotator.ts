@@ -610,7 +610,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     const content = childNamed(condition, `${condition.name}_content`);
     let end = content?.from ?? condition.from;
     for (let c = content?.firstChild; c; c = c.nextSibling) {
-      if (c.name === "ERROR_INCOMPLETE") break;
+      if (c.type.isError) break;
       if (!IF_CONDITION_TRIVIA.has(c.name)) end = c.to;
     }
     return end;

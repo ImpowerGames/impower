@@ -265,7 +265,7 @@
 }
 
 @utility fade-edge {
-  overflow: hidden;
+  overflow: clip;
   white-space: nowrap;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);

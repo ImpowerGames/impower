@@ -504,6 +504,7 @@ class Tokenizer {
   luauThroughout = false;
   private closedBefore?: { at: number; owned: ReadonlySet<string> };
   private headerOnlyLoopEnd?: number;
+  private lexedTo = -1;
   protected interpBraces: number[] = [];
 
   constructor(
@@ -592,7 +593,18 @@ class Tokenizer {
       return;
     }
     if (this.islandCut !== null && node.from >= this.islandCut) return;
+    if (node.from < this.lexedTo) {
+      if (node.to <= this.lexedTo) return;
+      if (!node.firstChild) {
+        this.lex(this.lexedTo, node.to);
+        return;
+      }
+    }
     const name = node.name;
+    if (node.type.isError && node.to > node.from) {
+      this.lexSkipped(node);
+      return;
+    }
     if (isExplicitRuleName(name, "LuauReturnStatement")) {
       const cut = this.islandCut ?? null;
       const end = cut !== null && node.to > cut ? cut : node.to;
@@ -774,11 +786,24 @@ class Tokenizer {
   readChildren(node: SyntaxNode, handle?: (child: SyntaxNode) => boolean): void {
     let at = node.from;
     for (let child = node.firstChild; child; child = child.nextSibling) {
+      at = Math.max(at, this.lexedTo);
       if (child.from > at) this.lex(at, child.from);
       if (!handle?.(child)) this.read(child);
       at = Math.max(at, child.to);
     }
+    at = Math.max(at, this.lexedTo);
     if (node.to > at) this.lex(at, node.to);
+  }
+
+  private lexSkipped(node: SyntaxNode): void {
+    const lineEnd = this.text.indexOf("\n", node.to - 1);
+    const limit = Math.min(lineEnd < 0 ? this.text.length : lineEnd, node.parent?.to ?? node.to);
+    const first = this.tokens.length;
+    this.interpBraces = [];
+    let i = Math.max(node.from, this.lexedTo);
+    while (i < node.to) i = this.lexOne(i, Math.max(limit, node.to));
+    this.lexedTo = i;
+    for (let t = first; t < this.tokens.length; t++) this.tokens[t]!.unread = true;
   }
 
   private statementBreak(from: number, to: number): void {

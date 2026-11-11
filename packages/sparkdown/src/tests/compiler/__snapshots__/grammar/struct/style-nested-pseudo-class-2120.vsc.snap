@@ -1,0 +1,184 @@
+text.source.sparkdown [0..338]
+ ├─ meta.style.luau [0..15]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   └─ meta.embedded.block.luau [6..15]
+ │       ├─ entity.name.type.define.luau [6..13]: "layouts"
+ │       ├─ punctuation.whitespace.sd [13..14]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [14..15]: "{"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.style.luau [16..49]
+ │   ├─ meta.embedded.block.luau [16..23]
+ │   │   ├─ punctuation.whitespace.sd [16..18]: "  "
+ │   │   ├─ keyword.other.selector.operator.sd [18..19]: "&"
+ │   │   ├─ punctuation.whitespace.required.sd [19..20]: " "
+ │   │   ├─ keyword.other.selector.operator.sd [20..21]: ">"
+ │   │   ├─ keyword.other.selector.operator.sd [21..22]: ">"
+ │   │   └─ punctuation.whitespace.required.sd [22..23]: " "
+ │   ├─ meta.embedded.block.luau [23..24]: ":"
+ │   └─ meta.embedded.block.luau [24..49]
+ │       ├─ entity.name.type.class.view.sd [24..29]: "where"
+ │       ├─ punctuation.definition.template-expression.begin.sd [29..30]: "("
+ │       ├─ variable.other.constant.attribute.style.sd [30..31]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [31..46]: "data-ui-handler"
+ │       ├─ punctuation.definition.template-expression.end.sd [46..47]: ")"
+ │       ├─ punctuation.whitespace.sd [47..48]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [48..49]: "{"
+ ├─ Newline [49..50]: "\n"
+ ├─ meta.style.luau [50..91]
+ │   ├─ meta.embedded.block.luau [50..55]
+ │   │   ├─ punctuation.whitespace.sd [50..54]: "    "
+ │   │   └─ keyword.other.selector.operator.sd [54..55]: "&"
+ │   ├─ meta.embedded.block.luau [55..56]: ":"
+ │   └─ meta.embedded.block.luau [56..91]
+ │       ├─ entity.name.type.class.view.sd [56..61]: "where"
+ │       ├─ punctuation.definition.template-expression.begin.sd [61..62]: "("
+ │       ├─ entity.name.function.attribute.name.view.sd [62..63]: ":"
+ │       ├─ entity.name.function.attribute.name.view.sd [63..66]: "not"
+ │       ├─ punctuation.definition.template-expression.begin.sd [66..67]: "("
+ │       ├─ variable.other.constant.attribute.style.sd [67..68]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [68..87]: "data-widget-control"
+ │       ├─ punctuation.definition.template-expression.end.sd [87..88]: ")"
+ │       ├─ punctuation.definition.template-expression.end.sd [88..89]: ")"
+ │       ├─ punctuation.whitespace.sd [89..90]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [90..91]: "{"
+ ├─ Newline [91..92]: "\n"
+ ├─ meta.style.luau [92..119]
+ │   └─ meta.embedded.block.luau [92..119]
+ │       ├─ punctuation.whitespace.sd [92..98]: "      "
+ │       ├─ variable.other.property.define.sd [98..112]: "pointer_events"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [112..113]: " "
+ │       ├─ keyword.operator.assignment.sd [113..114]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [114..115]: " "
+ │       └─ string.unquoted.identifier.sd [115..119]: "auto"
+ ├─ Newline [119..120]: "\n"
+ ├─ meta.style.luau [120..125]
+ │   └─ meta.embedded.block.luau [120..125]
+ │       ├─ punctuation.whitespace.sd [120..124]: "    "
+ │       └─ punctuation.definition.template-expression.end.sd [124..125]: "}"
+ ├─ Newline [125..126]: "\n"
+ ├─ meta.style.luau [126..129]
+ │   └─ meta.embedded.block.luau [126..129]
+ │       ├─ punctuation.whitespace.sd [126..128]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [128..129]: "}"
+ ├─ Newline [129..130]: "\n"
+ ├─ meta.style.luau [130..167]
+ │   ├─ meta.embedded.block.luau [130..135]
+ │   │   ├─ punctuation.whitespace.sd [130..132]: "  "
+ │   │   ├─ keyword.other.selector.operator.sd [132..133]: ">"
+ │   │   ├─ keyword.other.selector.operator.sd [133..134]: ">"
+ │   │   └─ punctuation.whitespace.required.sd [134..135]: " "
+ │   ├─ meta.embedded.block.luau [135..136]: ":"
+ │   └─ meta.embedded.block.luau [136..167]
+ │       ├─ entity.name.type.class.view.sd [136..141]: "where"
+ │       ├─ punctuation.definition.template-expression.begin.sd [141..142]: "("
+ │       ├─ entity.name.function.attribute.name.view.sd [142..143]: ":"
+ │       ├─ entity.name.function.attribute.name.view.sd [143..146]: "not"
+ │       ├─ punctuation.definition.template-expression.begin.sd [146..147]: "("
+ │       ├─ variable.other.constant.attribute.style.sd [147..148]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [148..163]: "data-ui-handler"
+ │       ├─ punctuation.definition.template-expression.end.sd [163..164]: ")"
+ │       ├─ punctuation.definition.template-expression.end.sd [164..165]: ")"
+ │       ├─ punctuation.whitespace.sd [165..166]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [166..167]: "{"
+ ├─ Newline [167..168]: "\n"
+ ├─ meta.style.luau [168..193]
+ │   └─ meta.embedded.block.luau [168..193]
+ │       ├─ punctuation.whitespace.sd [168..172]: "    "
+ │       ├─ variable.other.property.define.sd [172..186]: "pointer_events"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [186..187]: " "
+ │       ├─ keyword.operator.assignment.sd [187..188]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [188..189]: " "
+ │       └─ string.unquoted.identifier.sd [189..193]: "none"
+ ├─ Newline [193..194]: "\n"
+ ├─ meta.style.luau [194..197]
+ │   └─ meta.embedded.block.luau [194..197]
+ │       ├─ punctuation.whitespace.sd [194..196]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [196..197]: "}"
+ ├─ Newline [197..198]: "\n"
+ ├─ meta.style.luau [198..199]
+ │   └─ meta.embedded.block.luau [198..199]
+ │       └─ punctuation.definition.template-expression.end.sd [198..199]: "}"
+ ├─ Newline [199..200]: "\n"
+ ├─ meta.style.luau [200..216]
+ │   ├─ keyword.control.style.luau [200..205]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [205..206]: " "
+ │   └─ meta.embedded.block.luau [206..216]
+ │       ├─ entity.name.type.define.luau [206..214]: "checkbox"
+ │       ├─ punctuation.whitespace.sd [214..215]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [215..216]: "{"
+ ├─ Newline [216..217]: "\n"
+ ├─ meta.style.luau [217..235]
+ │   ├─ meta.embedded.block.luau [217..220]
+ │   │   ├─ punctuation.whitespace.sd [217..219]: "  "
+ │   │   └─ keyword.other.selector.operator.sd [219..220]: "&"
+ │   ├─ meta.embedded.block.luau [220..221]: ":"
+ │   └─ meta.embedded.block.luau [221..235]
+ │       ├─ entity.name.type.class.view.sd [221..226]: "where"
+ │       ├─ punctuation.definition.template-expression.begin.sd [226..227]: "("
+ │       ├─ keyword.other.component.builtin.name.sd [227..232]: "label"
+ │       ├─ punctuation.definition.template-expression.end.sd [232..233]: ")"
+ │       ├─ punctuation.whitespace.sd [233..234]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [234..235]: "{"
+ ├─ Newline [235..236]: "\n"
+ ├─ meta.style.luau [236..256]
+ │   └─ meta.embedded.block.luau [236..256]
+ │       ├─ punctuation.whitespace.sd [236..240]: "    "
+ │       ├─ variable.other.property.define.sd [240..246]: "cursor"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [246..247]: " "
+ │       ├─ keyword.operator.assignment.sd [247..248]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [248..249]: " "
+ │       └─ string.unquoted.identifier.sd [249..256]: "pointer"
+ ├─ Newline [256..257]: "\n"
+ ├─ meta.style.luau [257..260]
+ │   └─ meta.embedded.block.luau [257..260]
+ │       ├─ punctuation.whitespace.sd [257..259]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [259..260]: "}"
+ ├─ Newline [260..261]: "\n"
+ ├─ meta.style.luau [261..305]
+ │   ├─ meta.embedded.block.luau [261..264]
+ │   │   ├─ punctuation.whitespace.sd [261..263]: "  "
+ │   │   └─ keyword.other.selector.operator.sd [263..264]: "&"
+ │   ├─ meta.embedded.block.luau [264..265]: ":"
+ │   ├─ meta.embedded.block.luau [265..283]
+ │   │   ├─ entity.name.type.class.view.sd [265..270]: "where"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [270..271]: "("
+ │   │   ├─ entity.name.function.attribute.name.view.sd [271..272]: ":"
+ │   │   ├─ entity.name.function.attribute.name.view.sd [272..275]: "not"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [275..276]: "("
+ │   │   ├─ keyword.other.component.builtin.name.sd [276..281]: "label"
+ │   │   ├─ punctuation.definition.template-expression.end.sd [281..282]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [282..283]: ")"
+ │   ├─ meta.embedded.block.luau [283..284]: ","
+ │   ├─ meta.embedded.block.luau [284..287]
+ │   │   ├─ punctuation.whitespace.required.sd [284..285]: " "
+ │   │   ├─ keyword.other.selector.operator.sd [285..286]: ">"
+ │   │   └─ punctuation.whitespace.required.sd [286..287]: " "
+ │   ├─ meta.embedded.block.luau [287..288]: ":"
+ │   └─ meta.embedded.block.luau [288..305]
+ │       ├─ entity.name.type.class.view.sd [288..293]: "where"
+ │       ├─ punctuation.definition.template-expression.begin.sd [293..294]: "("
+ │       ├─ punctuation.definition.class.sd [294..295]: "."
+ │       ├─ entity.name.type.class.view.sd [295..302]: "control"
+ │       ├─ punctuation.definition.template-expression.end.sd [302..303]: ")"
+ │       ├─ punctuation.whitespace.sd [303..304]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [304..305]: "{"
+ ├─ Newline [305..306]: "\n"
+ ├─ meta.style.luau [306..331]
+ │   └─ meta.embedded.block.luau [306..331]
+ │       ├─ punctuation.whitespace.sd [306..310]: "    "
+ │       ├─ variable.other.property.define.sd [310..324]: "pointer_events"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [324..325]: " "
+ │       ├─ keyword.operator.assignment.sd [325..326]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [326..327]: " "
+ │       └─ string.unquoted.identifier.sd [327..331]: "auto"
+ ├─ Newline [331..332]: "\n"
+ ├─ meta.style.luau [332..335]
+ │   └─ meta.embedded.block.luau [332..335]
+ │       ├─ punctuation.whitespace.sd [332..334]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [334..335]: "}"
+ ├─ Newline [335..336]: "\n"
+ ├─ meta.style.luau [336..337]
+ │   └─ meta.embedded.block.luau [336..337]
+ │       └─ punctuation.definition.template-expression.end.sd [336..337]: "}"
+ └─ Newline [337..338]: "\n"

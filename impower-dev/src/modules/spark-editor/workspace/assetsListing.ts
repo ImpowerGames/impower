@@ -15,8 +15,8 @@ import {
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
-import { imageStacks, stemOf } from "../utils/imageStacks";
-import { isInside, joinPath, nameOf, parentOf } from "./scriptsListing";
+import { imageStacks, isStacked } from "../utils/imageStacks";
+import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 
 export interface AssetFacts {
   modified: number;
@@ -131,6 +131,9 @@ const knownFolders = (listing: AssetListing, homes: readonly string[]): string[]
   return [...result].sort();
 };
 
+export const foldersUnder = (listing: AssetListing, root: string): string[] =>
+  [root, ...knownFolders(listing, assetHomes(listing)).filter((folder) => isInside(folder, root) && folder !== root)];
+
 export const assetTrail = (
   listing: AssetPaths,
   root: string,
@@ -184,7 +187,7 @@ const stackedRows = (
   }
   return imageStacks(paths).map((stack) => {
     const row = fileRow(listing, stack.cover, type, locate(stack.cover));
-    if (stack.paths.length === 1 && stemOf(stack.cover) === stack.base) {
+    if (!isStacked(stack)) {
       return row;
     }
     const facts = stack.paths.map((path) => listing.files[path]!);
@@ -354,6 +357,103 @@ export const assetSearch = ({
       ),
     };
   }).filter((group) => group.rows.length > 0);
+};
+
+export const stackOfPath = (
+  listing: AssetListing,
+  path: string,
+  endings: AssetEndings,
+): string[] => {
+  if (!Object.hasOwn(listing.files, path) || typeOf(listing, path, endings) !== "image") {
+    return [path];
+  }
+  const folder = parentOf(path);
+  const pictures = Object.keys(listing.files).filter(
+    (p) => parentOf(p) === folder && typeOf(listing, p, endings) === "image",
+  );
+  return imageStacks(pictures).find((stack) => stack.paths.includes(path))?.paths ?? [path];
+};
+
+export const sameNamedPictures = (
+  listing: AssetListing,
+  name: string,
+  endings: AssetEndings,
+): string[] => {
+  const byFolder = new Map<string, string[]>();
+  for (const path of Object.keys(listing.files)) {
+    if (typeOf(listing, path, endings) === "image") {
+      byFolder.set(parentOf(path), [...(byFolder.get(parentOf(path)) ?? []), path]);
+    }
+  }
+  return [...byFolder.values()]
+    .flatMap((paths) => imageStacks(paths))
+    .filter((stack) => stack.name === name)
+    .flatMap((stack) => stack.paths);
+};
+
+export const coveredPaths = (
+  listing: AssetListing,
+  picked: readonly string[],
+  endings: AssetEndings,
+): string[] =>
+  outermost([...new Set(picked.flatMap((path) => stackOfPath(listing, path, endings)))]);
+
+export const coveredFiles = (listing: AssetListing, covered: readonly string[]): string[] =>
+  Object.keys(listing.files)
+    .filter((path) => covered.some((item) => isInside(path, item)))
+    .sort();
+
+export const thingNames = (
+  listing: AssetListing,
+  covered: readonly string[],
+  endings: AssetEndings,
+): string[] => {
+  const things = new Map<string, string>();
+  for (const path of covered) {
+    if (Object.hasOwn(listing.files, path)) {
+      const first = stackOfPath(listing, path, endings)[0]!;
+      things.set(first, assetName(first));
+    } else {
+      things.set(path, nameOf(path));
+    }
+  }
+  return [...things.values()];
+};
+
+export const thingsLabel = (
+  listing: AssetListing,
+  covered: readonly string[],
+  endings: AssetEndings,
+): string => {
+  const names = thingNames(listing, covered, endings);
+  return names.length === 1 ? names[0]! : `${names.length} items`;
+};
+
+export type AssetMoveCheck = { refused: string } | { moving: string[] };
+
+export const assetMoveCheck = (
+  listing: AssetListing,
+  covered: readonly string[],
+  folder: string,
+): AssetMoveCheck => {
+  if (covered.some((path) => !Object.hasOwn(listing.files, path) && isInside(folder, path))) {
+    return { refused: INTO_ITSELF };
+  }
+  const moving = covered.filter((path) => parentOf(path) !== folder);
+  const taken = new Set(
+    [...Object.keys(listing.files), ...listing.folders]
+      .filter((path) => parentOf(path) === folder)
+      .map((path) => nameOf(path).toLowerCase()),
+  );
+  const leaves = new Set<string>();
+  for (const path of moving) {
+    const leaf = nameOf(path).toLowerCase();
+    if (taken.has(leaf) || leaves.has(leaf)) {
+      return { refused: `${nameOf(folder) || "That folder"} already has ${nameOf(path)}.` };
+    }
+    leaves.add(leaf);
+  }
+  return { moving };
 };
 
 export const landingFolder = (

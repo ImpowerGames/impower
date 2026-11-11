@@ -323,3 +323,26 @@ describe("VirtualList grid mode", () => {
     expect(scroller.scrollTop).toBeCloseTo(101 * rowHeight - 10 - 300);
   });
 });
+
+describe("VirtualList listRef", () => {
+  it("hands the caller's ref the element once on mount and null once on unmount, never on a re-render", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const calls: (string | null)[] = [];
+    const list = (round: number) => (
+      <VirtualList
+        label="Rows"
+        items={ITEMS.slice(0, 5)}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        listRef={(element) => {
+          calls.push(element ? `element ${round}` : `null ${round}`);
+        }}
+      />
+    );
+    await act(async () => render(list(1), host!));
+    await act(async () => render(list(2), host!));
+    await act(async () => render(list(3), host!));
+    await act(async () => render(null, host!));
+    expect(calls).toEqual(["element 1", "null 3"]);
+  });
+});

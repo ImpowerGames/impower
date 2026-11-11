@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { JSX } from "preact";
 import { forwardRef } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
+import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { cn } from "../../utils/cn";
 
 export const switchVariants = cva(
@@ -52,6 +53,9 @@ const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
 ) {
   const controlled = checked !== undefined;
   const own = useRef<HTMLInputElement | null>(null);
+  const setRef = useForwardedRef(ref, (element: HTMLInputElement | null) => {
+    own.current = element;
+  });
 
   useEffect(() => {
     const doc = own.current?.ownerDocument;
@@ -73,14 +77,7 @@ const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
 
   return (
     <input
-      ref={(element: HTMLInputElement | null) => {
-        own.current = element;
-        if (typeof ref === "function") {
-          ref(element);
-        } else if (ref) {
-          (ref as { current: HTMLInputElement | null }).current = element;
-        }
-      }}
+      ref={setRef}
       type="checkbox"
       role="switch"
       class={cn(switchVariants({ size }), className)}

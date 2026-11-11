@@ -174,6 +174,60 @@ describe("the Save & sync section", () => {
     expect(row("save-import").textContent).toContain("Could not import that backup.");
   });
 
+  it("says why an import failed, one sentence per reason, naming the file", async () => {
+    await mountSection();
+    const failWith = (outcome: object) =>
+      act(() => {
+        workspace.current = {
+          ...workspace.current,
+          sync: { status: "import_error", importOutcome: { status: "failed", fileName: "story.zip", ...outcome } } as typeof workspace.current.sync,
+        };
+      });
+    await failWith({ reason: "unreadable_zip" });
+    expect(row("save-import").textContent).toContain(
+      "Nothing was changed because “story.zip” is not a .zip the editor can open.",
+    );
+    await failWith({ reason: "storage" });
+    expect(row("save-import").textContent).toContain("Could not save “story.zip” on this device, so free some space and try again.");
+    await failWith({ reason: "unknown" });
+    expect(row("save-import").textContent).toContain("Could not import “story.zip”, so try again or choose another backup.");
+    expect(row("save-import").textContent).not.toContain("Could not import that backup.");
+  });
+
+  it("shows a refused import in the import row while the project still reads Saved locally", async () => {
+    await mountSection();
+    await act(() => {
+      workspace.current = {
+        ...workspace.current,
+        sync: {
+          status: "cached",
+          importOutcome: { status: "failed", fileName: "story.zip", reason: "no_main_script" },
+        } as typeof workspace.current.sync,
+      };
+    });
+    expect(row("save-import").querySelector(".text-error-strong")!.textContent).toBe(
+      "Nothing was changed because “story.zip” has no main.sd, which every project backup needs.",
+    );
+    expect(section().querySelector("[data-local-save]")!.textContent).toBe("Saved locally");
+  });
+
+  it("says what an import left out once it has replaced the project", async () => {
+    await mountSection();
+    await act(() => {
+      workspace.current = {
+        ...workspace.current,
+        sync: {
+          status: "cached",
+          importOutcome: { status: "imported", fileName: "story.zip", leftOut: { count: 1, folders: ["docs"] } },
+        } as typeof workspace.current.sync,
+      };
+    });
+    expect(row("save-import").textContent).toContain(
+      "Imported “story.zip” and left out 1 file outside the project folder, in “docs”.",
+    );
+    expect(row("save-import").querySelector(".text-error-strong")).toBeNull();
+  });
+
   it("offers Connect Google Drive while signed out and runs the shared sign-in", async () => {
     await mountSection();
     expect(row("save-cloud").textContent).toContain("Optional; nothing here needs an account.");
