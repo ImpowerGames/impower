@@ -133,11 +133,17 @@ describe("morphs that drive different groups play together", () => {
     const one = (recipes: ReturnType<typeof blink>[], geometry: MorphGeometryCache) =>
       bakeMorphArtifact({ source: talkingPortrait(), selection: {}, recipes, key: "k", variant: "bunny" }, { geometry });
     const talkAlone = counting();
-    one([talk()], talkAlone);
+    const talking = one([talk()], talkAlone);
     const shared = counting();
-    one([blink()], shared);
+    const blinking = one([blink()], shared);
     const afterBlink = shared.pairs;
-    one([blink(), talk()], shared);
+    const both = one([blink(), talk()], shared);
+    const fresh = counting();
+    const unshared = one([blink(), talk()], fresh);
+    expect([talking, blinking, both, unshared].map((artifact) => artifact.status)).toEqual(["live", "live", "live", "live"]);
+    expect(talkAlone.pairs).toBeGreaterThan(0);
+    expect(afterBlink).toBeGreaterThan(0);
+    expect(fresh.pairs).toBe(afterBlink + talkAlone.pairs);
     expect(shared.pairs - afterBlink).toBe(talkAlone.pairs);
   });
 
