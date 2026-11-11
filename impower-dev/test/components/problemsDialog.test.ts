@@ -203,6 +203,70 @@ describe("the Problems to fix dialog", () => {
     await act(async () => render(null, toasts));
   });
 
+  describe("moves focus when a fix removes the entry that held it", () => {
+    const fixable = (line: number, title: string) => ({
+      ...diagnostic(line, 2, title),
+      data: [
+        {
+          name: `Fix ${title}`,
+          done: "Done.",
+          changes: [{ from: 0, to: 1, insert: "a" }],
+        },
+      ],
+    });
+
+    const fixButton = (title: string) =>
+      Array.from(dialog()!.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === `Fix ${title}`,
+      )!;
+
+    const choose = async (title: string, remaining: string[]) => {
+      const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+      const button = fixButton(title);
+      button.focus();
+      await act(async () => button.click());
+      await act(async () =>
+        problems.record({
+          uri: CHAPTER,
+          version: 3,
+          diagnostics: remaining.map((t, i) => fixable(i + 1, t)),
+        }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      applyFix.mockRestore();
+    };
+
+    beforeEach(() => {
+      problems.record({ uri: MAIN, diagnostics: [] });
+      problems.record({
+        uri: CHAPTER,
+        version: 2,
+        diagnostics: [fixable(1, "first"), fixable(2, "second"), fixable(3, "third")],
+      });
+    });
+
+    it("to the next entry", async () => {
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("second", ["first", "third"]);
+      expect(document.activeElement).toBe(fixButton("third"));
+    });
+
+    it("to the previous entry when it was the last", async () => {
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("third", ["first", "second"]);
+      expect(document.activeElement).toBe(fixButton("second"));
+    });
+
+    it("to the dialog's Close control when no entry is left", async () => {
+      problems.record({ uri: CHAPTER, version: 2, diagnostics: [fixable(1, "only")] });
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("only", []);
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("Close dialog");
+    });
+  });
+
   it("updates its entries as the diagnostics change", async () => {
     await open({ kind: "story" });
     await act(async () =>

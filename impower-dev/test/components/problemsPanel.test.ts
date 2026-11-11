@@ -316,6 +316,38 @@ describe("the Problems panel", () => {
     });
   });
 
+  it("moves focus to the next entry, else the previous one, else the card head, when a fix removes the focused entry", async () => {
+    const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+    const fixable = (line: number, title: string) => ({
+      ...diagnostic(line, 2, title),
+      data: [{ name: `Fix ${title}`, done: "Done.", changes: [{ from: 0, to: 1, insert: "a" }] }],
+    });
+    const fixButton = (title: string) =>
+      Array.from(panel()!.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === `Fix ${title}`,
+      )!;
+    const choose = async (title: string, remaining: string[]) => {
+      const button = fixButton(title);
+      button.focus();
+      await act(async () => button.click());
+      await act(async () =>
+        problems.record({
+          uri: MAIN,
+          version: 3,
+          diagnostics: remaining.map((t, i) => fixable(i + 1, t)),
+        }),
+      );
+      await settle();
+    };
+    problems.record({ uri: MAIN, version: 2, diagnostics: [fixable(1, "first"), fixable(2, "second")] });
+    await openPanel();
+    await choose("first", ["second"]);
+    expect(document.activeElement).toBe(fixButton("second"));
+    await choose("second", []);
+    expect(document.activeElement?.getAttribute("aria-label")).toMatch(/^In the script/);
+    applyFix.mockRestore();
+  });
+
   it("draws a Fix control only on an entry the server can fix, and hands the chosen fix to the store", async () => {
     const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
     const fix = {

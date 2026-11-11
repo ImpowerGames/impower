@@ -36,7 +36,7 @@ export function FixMenu<A extends FixMenuAction>({
   }
   if (actions.length === 1) {
     return (
-      <Button size={size} class={className} onClick={() => onChoose(only)}>
+      <Button data-fix-menu="" size={size} class={className} onClick={() => onChoose(only)}>
         {only.name}
       </Button>
     );
@@ -44,7 +44,7 @@ export function FixMenu<A extends FixMenuAction>({
   return (
     <DropdownRoot onOpenChange={onOpenChange}>
       <DropdownTrigger asChild>
-        <Button size={size} class={className}>
+        <Button data-fix-menu="" size={size} class={className}>
           {FIX_MENU_LABEL}
           <ChevronDownIcon aria-hidden="true" />
         </Button>

@@ -16,11 +16,16 @@ import {
   SCRIPT_PREFIX,
   scopeContext,
   scopedProblems,
+  type DiagnosticFixAction,
+  type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import { DebugCardsList } from "./debugCards";
+import { keepFocusAfterFix, problemSignature } from "./fixFocus";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
+
+const CLOSE_DIALOG = '[aria-label="Close dialog"]';
 
 const LEAVE_FOCUS =
   typeof document === "undefined" ? null : document.createElement("span");
@@ -37,6 +42,7 @@ export default function ProblemsDialog() {
     ? scopedProblems(state.scope, all, { diagnostics, versions })
     : [];
   const navigating = useRef(false);
+  const list = useRef<HTMLDivElement>(null);
 
   const returnFocus = () => {
     if (navigating.current) {
@@ -47,6 +53,21 @@ export default function ProblemsDialog() {
     return trigger?.isConnected
       ? trigger
       : document.querySelector<HTMLElement>(BROWSE_SCRIPTS_SELECTOR);
+  };
+
+  const chooseFix = (problem: Problem, action: DiagnosticFixAction) => {
+    const root = list.current;
+    if (root) {
+      keepFocusAfterFix(
+        root,
+        problemSignature(problem),
+        () =>
+          root
+            .closest('[role="dialog"]')
+            ?.querySelector<HTMLElement>(CLOSE_DIALOG) ?? null,
+      );
+    }
+    void problems.applyFix(fixChoiceOf(problem, action));
   };
 
   const groups = groupByScript(listed);
@@ -84,6 +105,7 @@ export default function ProblemsDialog() {
         </p>
       ) : null}
       <div
+        ref={list}
         class={
           state?.scope.kind === "story"
             ? "-mx-2 max-h-[20vh] overflow-y-auto overscroll-contain [scrollbar-width:thin]"
@@ -101,33 +123,36 @@ export default function ProblemsDialog() {
               </h3>
             ) : null}
             {group.entries.map((problem) => (
-              <MessageEntry
+              <div
                 key={problem.key}
-                severity={problem.severity}
-                prefix={SCRIPT_PREFIX[problem.severity]}
-                title={problem.title}
-                message={problem.message}
-                location={lineLink(problem.line)}
-                locationLabel={`Open ${problem.script} at line ${problem.line}`}
-                onJump={() => {
-                  navigating.current = true;
-                  void problems.jump({
-                    uri: problem.uri,
-                    line: problem.line,
-                    character: problem.range.start.character,
-                  });
-                }}
-                actions={
-                  problem.actions.length ? (
-                    <FixMenu
-                      actions={problem.actions}
-                      onChoose={(action) =>
-                        void problems.applyFix(fixChoiceOf(problem, action))
-                      }
-                    />
-                  ) : undefined
-                }
-              />
+                data-problem-entry={problemSignature(problem)}
+                class="contents"
+              >
+                <MessageEntry
+                  severity={problem.severity}
+                  prefix={SCRIPT_PREFIX[problem.severity]}
+                  title={problem.title}
+                  message={problem.message}
+                  location={lineLink(problem.line)}
+                  locationLabel={`Open ${problem.script} at line ${problem.line}`}
+                  onJump={() => {
+                    navigating.current = true;
+                    void problems.jump({
+                      uri: problem.uri,
+                      line: problem.line,
+                      character: problem.range.start.character,
+                    });
+                  }}
+                  actions={
+                    problem.actions.length ? (
+                      <FixMenu
+                        actions={problem.actions}
+                        onChoose={(action) => chooseFix(problem, action)}
+                      />
+                    ) : undefined
+                  }
+                />
+              </div>
             ))}
           </div>
         ))}

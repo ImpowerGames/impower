@@ -34,11 +34,13 @@ import {
   playedMessages,
   SCRIPT_PREFIX,
   type ConsoleSeverity,
+  type DiagnosticFixAction,
   type PanelRow,
   type PlayedEntry,
   type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
+import { keepFocusAfterFix, problemSignature } from "./fixFocus";
 import {
   DebugRowView,
   debugRowHeight,
@@ -48,6 +50,8 @@ import {
 } from "./debugCards";
 
 export const PROBLEMS_PANEL_ID = "problems-panel";
+
+const SCRIPT_CARD_HEAD = `button[aria-expanded][aria-label^="${CARD_TITLE.script}"]`;
 
 const PANEL_LABEL = "Problems and playback messages";
 
@@ -110,36 +114,46 @@ const playedTime = (time: number) => ({
   dateTime: new Date(time).toISOString(),
 });
 
+function chooseFix(problem: Problem, action: DiagnosticFixAction) {
+  const panel = document.getElementById(PROBLEMS_PANEL_ID);
+  if (panel) {
+    keepFocusAfterFix(panel, problemSignature(problem), () =>
+      panel.querySelector<HTMLElement>(SCRIPT_CARD_HEAD),
+    );
+  }
+  void problems.applyFix(fixChoiceOf(problem, action));
+}
+
 function ProblemRow({ problem }: { problem: Problem }) {
   return (
-    <MessageEntry
-      fit="row"
-      severity={problem.severity}
-      prefix={SCRIPT_PREFIX[problem.severity]}
-      title={problem.title}
-      message={problem.message}
-      location={lineLink(problem.line)}
-      locationLabel={`Open ${problem.script} at line ${problem.line}`}
-      onJump={() =>
-        void problems.jump({
-          uri: problem.uri,
-          line: problem.line,
-          character: problem.range.start.character,
-        })
-      }
-      actions={
-        problem.actions.length ? (
-          <FixMenu
-            size="compact"
-            class="min-h-8 pointer-coarse:min-h-11"
-            actions={problem.actions}
-            onChoose={(action) =>
-              void problems.applyFix(fixChoiceOf(problem, action))
-            }
-          />
-        ) : undefined
-      }
-    />
+    <div data-problem-entry={problemSignature(problem)} class="contents">
+      <MessageEntry
+        fit="row"
+        severity={problem.severity}
+        prefix={SCRIPT_PREFIX[problem.severity]}
+        title={problem.title}
+        message={problem.message}
+        location={lineLink(problem.line)}
+        locationLabel={`Open ${problem.script} at line ${problem.line}`}
+        onJump={() =>
+          void problems.jump({
+            uri: problem.uri,
+            line: problem.line,
+            character: problem.range.start.character,
+          })
+        }
+        actions={
+          problem.actions.length ? (
+            <FixMenu
+              size="compact"
+              class="min-h-8 pointer-coarse:min-h-11"
+              actions={problem.actions}
+              onChoose={(action) => chooseFix(problem, action)}
+            />
+          ) : undefined
+        }
+      />
+    </div>
   );
 }
 
