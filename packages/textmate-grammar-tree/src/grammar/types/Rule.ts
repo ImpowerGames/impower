@@ -3,8 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { GrammarNode } from "../classes/GrammarNode";
-import type { GrammarState } from "../classes/GrammarState";
-import type { Matched } from "../classes/Matched";
 
 export interface Rule {
   id: string;
@@ -12,6 +10,4 @@ export interface Rule {
   node: GrammarNode;
 
   readonly skipped: boolean;
-
-  match: (state: GrammarState, pos: number) => Matched | null;
 }

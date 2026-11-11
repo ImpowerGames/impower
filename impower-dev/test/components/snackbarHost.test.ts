@@ -65,13 +65,14 @@ describe("SnackbarHost", () => {
     expect(history).toEqual(["first"]);
   });
 
-  it("keeps a pinned toast after its action until it is dismissed", async () => {
+  it("puts a toast away after its action, since no toast is pinned", async () => {
     await mount();
     const onAction = vi.fn();
-    const pinned = { message: "Export a copy", actionLabel: "Export", onAction, persistent: true };
-    await act(async () => showSnackbar(pinned));
+    await act(async () =>
+      showSnackbar({ message: "Export a copy", actionLabel: "Export", onAction }),
+    );
     await act(async () => button("Export")!.click());
     expect(onAction).toHaveBeenCalledTimes(1);
-    expect(snackbar.value).toBe(pinned);
+    expect(snackbar.value).toBeNull();
   });
 });

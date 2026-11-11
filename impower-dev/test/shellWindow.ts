@@ -9,6 +9,7 @@ export function shellWindow(
   return {
     setAccount: () => {},
     loadProject: async () => {},
+    refreshDeviceStorage: async () => {},
     navigateTo: () => {},
     closeSettings: () => {},
     setAppMenuOpen: () => {},

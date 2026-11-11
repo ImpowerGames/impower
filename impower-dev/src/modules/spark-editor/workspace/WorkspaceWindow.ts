@@ -35,6 +35,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { InsertEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/InsertEditorConstructMessage";
+import { AuditionEditorConstructMessage } from "@impower/spark-editor-protocol/src/protocols/editor/AuditionEditorConstructMessage";
 import { ToggleEditorBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ToggleEditorBreakpointMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
@@ -123,6 +124,14 @@ import {
   splitScriptPath,
 } from "../utils/nameRules";
 import { showSnackbar } from "../utils/snackbar";
+import {
+  installOfferOf,
+  keepOnDevice,
+  settleStorage,
+  type InstallPromptEvent,
+  type StorageProbe,
+} from "../utils/storagePersistence";
+import { DEVICE_STORAGE_COPY } from "./saveStatus";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -488,9 +497,26 @@ export default class WorkspaceWindow {
     return insertContext(text, offset, sceneSpansOf(symbols));
   }
 
+  async auditionConstruct(
+    filename: string,
+    audition: { construct: InsertConstruct; name: string } | null,
+  ): Promise<boolean> {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return false;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const result = await this.requestEditor(
+      AuditionEditorConstructMessage.type,
+      { textDocument: { uri }, audition },
+    );
+    return !!result?.shown;
+  }
+
   async insertConstruct(
     filename: string,
     construct: InsertConstruct,
+    name?: string,
   ): Promise<boolean> {
     this.closeAddPanel();
     const projectId = this.store.project.id;
@@ -501,6 +527,7 @@ export default class WorkspaceWindow {
     const result = await this.requestEditor(InsertEditorConstructMessage.type, {
       textDocument: { uri },
       construct,
+      ...(name === undefined ? {} : { name }),
     });
     if (!result?.inserted) {
       showSnackbar({
@@ -651,6 +678,57 @@ export default class WorkspaceWindow {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  protected _installPrompt: InstallPromptEvent | null = null;
+
+  async refreshDeviceStorage() {
+    this.setDeviceStorage(
+      await settleStorage(navigator.storage, navigator.permissions),
+    );
+  }
+
+  async keepProjectOnDevice() {
+    const probe = await keepOnDevice(navigator.storage, navigator.permissions);
+    this.setDeviceStorage(probe);
+    if (!probe.persisted) {
+      showSnackbar({ message: DEVICE_STORAGE_COPY.keepRefused });
+    }
+  }
+
+  offerAppInstall(prompt: InstallPromptEvent | null) {
+    this._installPrompt = prompt;
+    const current = workspace.deviceStorage.peek();
+    if (current) {
+      this.setDeviceStorage(current);
+    }
+  }
+
+  async installApp() {
+    const prompt = this._installPrompt;
+    if (!prompt) {
+      return;
+    }
+    this.offerAppInstall(null);
+    try {
+      await prompt.prompt();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  protected setDeviceStorage(probe: StorageProbe) {
+    const standalone = (navigator as { standalone?: boolean }).standalone;
+    workspace.deviceStorage.value = {
+      ...probe,
+      install: installOfferOf({
+        installed:
+          standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches,
+        promptReady: this._installPrompt !== null,
+        homeScreen: standalone === false,
+      }),
+    };
   }
 
   openSyncConflict() {

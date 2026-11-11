@@ -1,5 +1,6 @@
 import type { GameState } from "@impower/spark-editor-protocol/src/types";
 import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
+import { skipRefusal as historySkipRefusal } from "@impower/spark-web-player/src/components/PlayerBar/playerBarState";
 import type { DebugSessionState } from "./WorkspaceStore";
 
 export const STEP_TRAVERSALS = ["over", "in", "out"] as const;
@@ -18,11 +19,6 @@ export const STEP_REASONS = {
   ended: "The story is over, so there is nothing to step to.",
   topLevel: HISTORY_REASONS.stepOut,
   behind: HISTORY_REASONS.step,
-} as const;
-
-export const SKIP_REASONS = {
-  back: HISTORY_REASONS.rollBack,
-  forward: HISTORY_REASONS.rollForward,
 } as const;
 
 export type SkipDirection = -1 | 1;
@@ -51,16 +47,5 @@ export const skipRefusal = (
   game: GameState | undefined,
   session: DebugSessionState,
   direction: SkipDirection,
-): string | undefined => {
-  if (!game?.running) {
-    return undefined;
-  }
-  const history = session.history;
-  return direction < 0
-    ? history?.canRollBack
-      ? undefined
-      : SKIP_REASONS.back
-    : history?.canRollForward
-      ? undefined
-      : SKIP_REASONS.forward;
-};
+): string | undefined =>
+  game?.running ? historySkipRefusal(session.history, direction) : undefined;

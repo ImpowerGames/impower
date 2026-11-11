@@ -4,8 +4,7 @@ import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
-import { inspectedAsset } from "../../utils/assetInspector";
-import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
+import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
 import {
   DesktopShell,
@@ -61,7 +60,7 @@ export default function MainWindow(_props: MainWindowProps) {
   const panes = (
     <div class="relative flex h-full min-h-0 flex-1">
       {!isSSR && (
-        <>
+        <InspectorDockProvider>
           <SplitPane
             orientation={strip ? "vertical" : "horizontal"}
             reverse={strip}
@@ -91,18 +90,14 @@ export default function MainWindow(_props: MainWindowProps) {
               <div class="relative flex h-full w-full flex-col bg-stage">
                 {phone && <PhonePreviewBack />}
                 <Preview />
-                {pane === "assets" && inspectedAsset.value && (
-                  <div class="absolute inset-0 z-10">
-                    <AssetInspectorPane />
-                  </div>
-                )}
+                <InspectorDock />
               </div>
             }
           />
 
           <FileDropzone />
           <LiveRegion />
-        </>
+        </InspectorDockProvider>
       )}
     </div>
   );

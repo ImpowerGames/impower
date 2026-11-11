@@ -2045,6 +2045,53 @@ const SCREENS = {
   assets: '[data-assets-action="add"]',
   share: "#share-page",
 };
+const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]';
+const ASSET_INSPECTOR_SELECTOR = 'section[aria-label="Asset details"]';
+const ASSET_FOLDER_DEPTH = 4;
+
+export async function openAssetInspector(page, { timeout = 10_000 } = {}) {
+  const fail = (reason, extra = {}) => ({ step: "asset-inspector", ran: false, ...extra, reason });
+  await page.evaluate(() => {
+    if (!/^#collection(?:[?&]|$)/i.test(location.hash)) location.hash = "#collection";
+  });
+  try {
+    await page.locator(SCREENS.assets).first().waitFor({ state: "visible", timeout });
+  } catch {
+    return fail(`the Assets page did not appear within ${timeout / 1000} s of going to #collection`);
+  }
+  const rows = page.locator(ASSET_ROW_SELECTOR);
+  for (let depth = 0; depth <= ASSET_FOLDER_DEPTH; depth += 1) {
+    try {
+      await rows.first().waitFor({ state: "visible", timeout });
+    } catch {
+      break;
+    }
+    const labels = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    const file = labels.findIndex((label) => !label.startsWith("Open folder "));
+    if (file < 0) {
+      await rows.nth(0).click();
+      const moved = await page
+        .waitForFunction(
+          ({ selector, before }) => [...document.querySelectorAll(selector)].map((el) => el.getAttribute("aria-label")).join("\n") !== before,
+          { selector: ASSET_ROW_SELECTOR, before: labels.join("\n") },
+          { timeout },
+        )
+        .then(() => true, () => false);
+      if (!moved) return fail(`opening ${labels[0].split(",")[0].replace(/^Open folder /, "")} did not change the list within ${timeout / 1000} s`);
+      continue;
+    }
+    const asset = labels[file].split(",")[0].replace(/^Open \S+ /, "");
+    await rows.nth(file).click();
+    const inspector = page.locator(ASSET_INSPECTOR_SELECTOR).first();
+    try {
+      await inspector.waitFor({ state: "visible", timeout });
+    } catch {
+      return fail(`the inspector did not open within ${timeout / 1000} s of pressing ${asset}`, { asset });
+    }
+    return { step: "asset-inspector", ran: true, asset, host: await inspector.getAttribute("data-asset-inspector") };
+  }
+  return fail(`no file row on the Assets page within ${timeout / 1000} s, in its type folder or the ${ASSET_FOLDER_DEPTH} first folders inside it`);
+}
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
 const SELECTED_SCREEN_TAB = Object.keys(SCREENS).map((name) => `${tabSelector(name)}[aria-selected="true"]`).join(", ");
 const LANGUAGE_TARGETS = {
@@ -3590,6 +3637,10 @@ async function ui(args, deps = liveDeps) {
             }
             if (step.step === "file-menu") {
               result.steps.push(await openFileMenu(page));
+              continue;
+            }
+            if (step.step === "asset-inspector") {
+              result.steps.push(await openAssetInspector(page));
               continue;
             }
             if (step.step === "settings") {

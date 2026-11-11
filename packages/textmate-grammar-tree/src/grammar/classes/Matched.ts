@@ -23,6 +23,19 @@ export class Matched {
     }
   }
 
+  static tokenized(
+    node: GrammarNode,
+    from: number,
+    length: number,
+    tokens: GrammarToken[],
+  ): Matched {
+    const matched = new Matched(node, from, length);
+    matched.tokens = tokens;
+    return matched;
+  }
+
+  tokens?: GrammarToken[];
+
   constructor(
     public node: GrammarNode,
     public from: number,
@@ -31,22 +44,19 @@ export class Matched {
     public wrapping: Wrapping = Wrapping.FULL,
   ) {}
 
-  offset(offset: number) {
-    if (this.children) {
-      for (let i = 0; i < this.children.length; i++) {
-        const child = this.children[i]!;
-        child.offset(child.from - this.from + offset);
-      }
-    }
-    this.from = offset;
-    return this;
-  }
-
   wrap(node: GrammarNode, wrap = this.wrapping) {
     return new Matched(node, this.from, this.length, [this], wrap);
   }
 
   private _compile() {
+    if (this.tokens) {
+      const tokens: GrammarToken[] = [];
+      for (let i = 0; i < this.tokens.length; i++) {
+        const t = this.tokens[i]!;
+        tokens.push([t[0], t[1], t[2], t[3]?.slice(), t[4]?.slice()]);
+      }
+      return compileTree(this, tokens);
+    }
     if (!this.children) {
       return compileLeaf(this);
     }

@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAppMenu, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -1005,6 +1005,77 @@ await asyncCheck("--step file-menu fails by name when the Scripts page, a row me
   assert.deepEqual(await openFileMenu(noRows, { timeout: 2000 }), { step: "file-menu", ran: false, reason: "no row menu button (Options for …) on the Scripts page within 2 s" });
   const stuck = scriptsPageStub({ menuOpens: false });
   assert.deepEqual(await openFileMenu(stuck, { timeout: 1000 }), { step: "file-menu", ran: false, row: "Definitions", reason: "the menu for Definitions did not open within 1 s of pressing Options for Definitions" });
+});
+
+function assetsPageStub({ hash = "#write", levels = [["Open folder Backdrops, 3 images", "Open folder Portraits, 1 image"], ["Open image harbor, modified just now · 5 kB"]], showsPage = true, opens = true, host = "dock" } = {}) {
+  const state = { hash, level: 0, clicked: [] };
+  const timeout = async () => { throw new Error("timeout"); };
+  const labels = () => levels[state.level] ?? [];
+  return {
+    state,
+    evaluate: async (fn) => {
+      const src = String(fn);
+      if (src.includes('location.hash = "#collection"')) { if (showsPage) state.hash = "#collection"; return; }
+      throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
+    },
+    waitForFunction: async () => {
+      if (!labels().length) throw new Error("timeout");
+    },
+    locator: (selector) => {
+      if (selector === '[data-assets-action="add"]') return { first: () => ({ waitFor: state.hash === "#collection" ? async () => {} : timeout }) };
+      if (selector === '[role="listitem"] button[aria-label^="Open "]') {
+        return {
+          first: () => ({ waitFor: async () => { if (!labels().length) throw new Error("timeout"); } }),
+          evaluateAll: async (fn) => fn(labels().map((label) => ({ getAttribute: () => label }))),
+          nth: (i) => ({
+            click: async () => {
+              const label = labels()[i];
+              state.clicked.push(label.split(",")[0]);
+              if (label.startsWith("Open folder ")) state.level += 1;
+              else state.open = opens;
+            },
+          }),
+        };
+      }
+      if (selector === 'section[aria-label="Asset details"]') {
+        return { first: () => ({ waitFor: state.open ? async () => {} : timeout, getAttribute: async () => host }) };
+      }
+      throw new Error(`stub page has no locator for ${selector}`);
+    },
+  };
+}
+
+await asyncCheck("--step asset-inspector goes to #collection, opens folders until a file row shows, presses it and reports the inspector's host", async () => {
+  const page = assetsPageStub();
+  assert.deepEqual(await openAssetInspector(page), { step: "asset-inspector", ran: true, asset: "harbor", host: "dock" });
+  assert.equal(page.state.hash, "#collection");
+  assert.deepEqual(page.state.clicked, ["Open folder Backdrops", "Open image harbor"]);
+  const phone = assetsPageStub({ levels: [["Open audio chime, modified just now · 22 kB"]], host: "sheet" });
+  assert.deepEqual(await openAssetInspector(phone), { step: "asset-inspector", ran: true, asset: "chime", host: "sheet" });
+});
+
+await asyncCheck("--step asset-inspector fails by name when the Assets page, a file row or the inspector never appears", async () => {
+  assert.deepEqual(await openAssetInspector(assetsPageStub({ showsPage: false }), { timeout: 1000 }), {
+    step: "asset-inspector",
+    ran: false,
+    reason: "the Assets page did not appear within 1 s of going to #collection",
+  });
+  assert.deepEqual(await openAssetInspector(assetsPageStub({ levels: [["Open folder Empty, empty"], []] }), { timeout: 2000 }), {
+    step: "asset-inspector",
+    ran: false,
+    reason: "opening Empty did not change the list within 2 s",
+  });
+  assert.deepEqual(await openAssetInspector(assetsPageStub({ levels: [[]] }), { timeout: 1000 }), {
+    step: "asset-inspector",
+    ran: false,
+    reason: "no file row on the Assets page within 1 s, in its type folder or the 4 first folders inside it",
+  });
+  assert.deepEqual(await openAssetInspector(assetsPageStub({ opens: false }), { timeout: 1000 }), {
+    step: "asset-inspector",
+    ran: false,
+    asset: "harbor",
+    reason: "the inspector did not open within 1 s of pressing harbor",
+  });
 });
 
 await asyncCheck("--step settings=<section> goes to #project?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {

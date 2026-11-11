@@ -22,6 +22,7 @@ export {
   sheetVariants,
   type DialogProps,
   type SheetProps,
+  type SheetSize,
   type DialogSize,
 } from "./dialog/Dialog";
 export {
@@ -353,3 +354,33 @@ export {
   type TileShape,
   type TileKind,
 } from "./tile/Tile";
+export {
+  default as ZoomFrame,
+  zoomFrameVariants,
+  zoomFrameContentVariants,
+  type ZoomFrameProps,
+  type ZoomFrameSurface,
+  type ZoomFrameBackdrop,
+} from "./zoom-frame/ZoomFrame";
+export {
+  default as PanelHead,
+  panelHeadVariants,
+  type PanelHeadProps,
+  type PanelHeadSize,
+  type PanelHeadTitleSize,
+} from "./panel-head/PanelHead";
+export {
+  default as DetailList,
+  detailListVariants,
+  type DetailListProps,
+  type DetailListRow,
+  type DetailListSize,
+} from "./detail-list/DetailList";
+export {
+  default as Carousel,
+  carouselVariants,
+  carouselTrackVariants,
+  carouselItemVariants,
+  type CarouselProps,
+  type CarouselSize,
+} from "./carousel/Carousel";

@@ -664,6 +664,46 @@ Three more invariants hold:
 - `lineComments.test.ts` writes the marker of each line's language at its start and requires the line to read as a comment; the classes of line it skips are named in the test with their reasons.
 - `languageReachability.test.ts` walks the generated grammar from every marked region and from the `.luau` root.
 
+### 8.2 Editor rules by language
+
+Each language has its own config: `definitions/yaml/sparkdown.language-config.yaml` for story and `definitions/yaml/sparkdown-luau.language-config.yaml` for Luau. An entry goes to the language whose syntax it serves, and an entry that serves both is in both.
+
+| Entry | Story | Luau |
+| --- | --- | --- |
+| Comments | `//`, `/* */` | `--`, `--[[ ]]` |
+| Auto-closing pairs | `~~`, `::`, `/*` | `--[[`, `--[=[`, `--[==[` |
+| Surrounding pairs | | `--[[ ]]` |
+| Enter rules | bullets (`+`, `*`, `-`), `->`, `Label:`, a `define` header | `--[[` comments, `---` doc comments, `function`, `then`, `do`, `else`, `repeat` |
+| Indentation | after a block header only (`if`/`elseif … then`, `for`/`while … do`, `else`, `do`, `repeat`, `scene`, `branch`, `define`, a `function` that opens, an open bracket); never after prose that ends in one of those words | after a line ending in `then`, `do`, `else`, `repeat`, an open `function` or an open bracket |
+
+Both files hold the bracket, quote and backtick pairs and the brace, bracket and paren Enter rules.
+
+The web editor (`packages/codemirror-vscode-language`) takes every entry from the config of the language at the cursor (§8.1), and Enter and indentation rules see the cursor's run of one language on the line when that run neither starts the line nor shares the line's first language, as VS Code's `createScopedLineTokens` does. VS Code takes comments and Enter rules from the language at the cursor too, but reads auto-closing and surrounding pairs from the document's language (`CursorConfiguration` is built from `model.getLanguageId()`), and the indentation patterns it inherits from the line above from the document's language (`getInheritIndentForLine` in `autoIndent.ts`). So the story patterns also indent the Luau block headers a `.sd` document holds, and in a `.sd` document VS Code differs from the web editor in two places:
+
+- Typing `::` in a Luau expression adds a closing `::`, as in story text: `local y = x :` becomes `local y = x ::::`.
+- Typing `[` after `--[` in a function body closes the bracket alone, not the comment's `]]`.
+
+A `.luau` document behaves the same in both editors: typing `::` there inserts `::` alone. Nothing a config can say changes VS Code's reading in a `.sd` document:
+
+- A pair's `notIn` names token types (`string`, `comment`), and a Luau expression's tokens are of the same type as story text's.
+- An opening sequence is matched literally, so no narrower `::` pair tells the two languages apart.
+- Dropping `::` from the story config would lose the closing pair in story text too.
+
+Only an extension that takes over VS Code's `type` command, as editor emulators do, could choose by the embedded language.
+
+The indentation patterns skip comments with a scanner that steps over strings, so a `--` or `//` inside a string does not hide a `then`, a `do` or an open bracket. It runs in the Luau `increaseIndentPattern`, in both files' `indentNextLinePattern`, and in the story `increaseIndentPattern`'s `function` and open-bracket alternatives. The story `if`, `elseif`, `for` and `while` alternatives are anchored at the line start, so a commented-out header cannot match them; they do not scan for comments. A `then` or `do` written inside a trailing comment (`if x -- then`) therefore indents there. The scanner reads:
+
+- double- and single-quoted strings that close on their line;
+- backtick strings that close on their line, including interpolations that hold no brace outside a string, where a string inside them is any of the forms in this list;
+- long-bracket strings of level 0, 1 and 2 (`[[…]]`, `[=[…]=]`, `[==[…]==]`) that close on their line.
+
+Beyond that reach, a comment marker inside a string reads as a comment, and the line does not indent. Both limits are pinned in `indentation.test.ts`:
+
+- a long bracket of level 3 or more (`call([===[a--b]===], (`);
+- an interpolation that holds its own braces (`` `{ {1} }--` ``).
+
+Both editors leave the line after `define Hero with`, `define companion as character with` and `function f()` unindented in a `.sd` document. The marks put the header's text after the keyword in Luau, so the cursor's run at the end of the line is `Hero with` or `f()`, and neither the `define` Enter rule nor an indentation pattern sees the keyword (I-2090). `scene` and `branch` headers, brace-body headers and narrative `if`, `for` and `while` headers indent in both.
+
 ## 9. Other rule properties
 
 Beyond `tag` and `name`, rules accept optional properties that opt into specific editor behaviors — bracket matching, smart indent, end-pattern timing. None are required to make a rule "work"; each is an opt-in. The two that come up most often:
@@ -1335,7 +1375,7 @@ One deliberate difference stays: in a rule body the tree closes the rule `ERROR_
 
 Two cases are exceptions, where the tree's line tokenizer stops the line as vscode-textmate does and leaves the rest of it in the scope that stays open (I-1968). A match that does not advance inside a begin/end rule pops that rule. A begin that does not advance, of a rule already opened at the same position, leaves the earlier one open. Either way the next line starts from that state, and nothing else on the stopped line is matched. Every other unmatched text still closes the rule `ERROR_INCOMPLETE`.
 
-A capture's `patterns` do not run through the line tokenizer but through a separate recursive matcher. It stops at the capture's end for the two cases above as the conformance tests exercise them, but it can still differ from vscode-textmate. For example, a repeated begin whose `\G` alternative consumes text on re-entry is skipped there, while vscode-textmate opens it. Running captures through the line tokenizer so the tree has one matcher is I-2035.
+A capture's `patterns` run through the same line tokenizer, from the capture's start over the line up to the capture's end, so the tree has one matcher and both cases above stop at the capture's end as they stop at a line's end. A match that does not advance at the capture's own level ends the capture there and leaves the rest of its text in the enclosing scope, as vscode-textmate pops the capture (I-2035).
 
 ### 17.2 Why they diverge — and the one rule that prevents it
 
