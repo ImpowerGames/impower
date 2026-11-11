@@ -1,0 +1,15 @@
+scene start
+  choose
+    + Go /* draft
+      hidden */ left
+      done
+    + [Wait /* [inner] */ here] /* open
+      still */ now
+      done
+    + Run -> next /* why
+      because */
+  end
+end
+scene next
+  done
+end

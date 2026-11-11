@@ -1,4 +1,7 @@
-import type { Rule } from "eslint";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { Linter, type Rule } from "eslint";
+import yml from "eslint-plugin-yml";
 import {
   findPair,
   isMapping,
@@ -30,7 +33,7 @@ export interface PatternSite {
   anchorLines: number[];
 }
 
-export interface GrammarIndex {
+export interface GrammarDocument {
   root: YAMLMapping | null;
   rules: Map<string, YAMLPair>;
   variables: Map<string, YAMLPair>;
@@ -39,13 +42,92 @@ export interface GrammarIndex {
   commentBlockAbove(line: number): string[];
 }
 
+export interface GrammarIndex extends GrammarDocument {
+  grammar: {
+    documents: GrammarDocument[];
+    rules: Map<string, YAMLPair>;
+    variables: Map<string, YAMLPair>;
+    patternSites: PatternSite[];
+  };
+}
+
+export interface GrammarSources {
+  story?: string;
+  luau?: string;
+}
+
+export const SETTINGS_KEY = "sparkdown-grammar";
+
+export function grammarSources(context: Rule.RuleContext): GrammarSources {
+  const settings = (context.settings?.[SETTINGS_KEY] ?? {}) as GrammarSources;
+  const absolute = (file: string | undefined) =>
+    file === undefined ? undefined : resolve(context.cwd, file);
+  return { story: absolute(settings.story), luau: absolute(settings.luau) };
+}
+
+export function currentFile(context: Rule.RuleContext): string {
+  return resolve(context.cwd, context.physicalFilename);
+}
+
 const cache = new WeakMap<object, GrammarIndex>();
+const companions = new Map<string, { text: string; document: GrammarDocument }>();
+
+function companionDocument(file: string): GrammarDocument {
+  const text = readFileSync(file, "utf8");
+  const cached = companions.get(file);
+  if (cached?.text === text) return cached.document;
+  let document: GrammarDocument | null = null;
+  const capture: Rule.RuleModule = {
+    create(context) {
+      return {
+        "Program:exit"() {
+          document = buildIndex(context.sourceCode);
+        },
+      };
+    },
+  };
+  const filename = "companion.yaml";
+  const messages = new Linter({ configType: "flat" }).verify(
+    text,
+    [
+      ...(yml.configs["flat/base"] as Linter.Config[]),
+      {
+        files: [filename],
+        plugins: { companion: { rules: { capture } } },
+        rules: { "companion/capture": "error" },
+      },
+    ],
+    filename,
+  );
+  const fatal = messages.find((m) => m.fatal);
+  if (fatal || document === null) {
+    throw new Error(`could not parse the grammar source ${file}: ${fatal?.message}`);
+  }
+  companions.set(file, { text, document });
+  return document;
+}
 
 export function getGrammarIndex(context: Rule.RuleContext): GrammarIndex {
   const sourceCode = context.sourceCode;
   const cached = cache.get(sourceCode);
   if (cached) return cached;
-  const index = buildIndex(sourceCode);
+  const local = buildIndex(sourceCode);
+  const self = currentFile(context);
+  const sources = Object.values(grammarSources(context)).filter(
+    (file): file is string => file !== undefined,
+  );
+  const documents = sources.includes(self)
+    ? sources.map((file) => (file === self ? local : companionDocument(file)))
+    : [local];
+  const index: GrammarIndex = {
+    ...local,
+    grammar: {
+      documents,
+      rules: new Map(documents.flatMap((d) => [...d.rules])),
+      variables: new Map(documents.flatMap((d) => [...d.variables])),
+      patternSites: documents.flatMap((d) => d.patternSites),
+    },
+  };
   cache.set(sourceCode, index);
   return index;
 }
@@ -56,7 +138,7 @@ function documentRoot(ast: unknown): YAMLMapping | null {
   return isMapping(content) ? content : null;
 }
 
-function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
+function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarDocument {
   const root = documentRoot(sourceCode.ast);
   const lines = sourceCode.lines;
   const rules = new Map<string, YAMLPair>();
@@ -196,7 +278,7 @@ function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
 }
 
 export function markedComment(
-  index: GrammarIndex,
+  index: GrammarDocument,
   lines: number[],
   marker: string,
 ): string[] | null {

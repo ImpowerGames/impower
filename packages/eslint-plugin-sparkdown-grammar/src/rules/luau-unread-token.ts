@@ -106,7 +106,7 @@ function includesUnreadToken(index: GrammarIndex, mapping: YAMLMapping, seen = n
     if (name === UNREAD_TOKEN) return true;
     if (!name || seen.has(name)) continue;
     seen.add(name);
-    const pair = index.rules.get(name);
+    const pair = index.grammar.rules.get(name);
     if (!pair || !isMapping(pair.value)) continue;
     const isSwitch = ["match", "begin", "end"].every((key) => !findPair(pair.value as YAMLMapping, key));
     if (isSwitch && includesUnreadToken(index, pair.value, seen)) return true;

@@ -2,7 +2,7 @@
 
 All commands run from the worktree root unless stated otherwise.
 
-The coordinator assigns this lens to any PR whose diff touches `definitions/yaml/sparkdown.language-grammar.yaml` or anything under `packages/sparkdown/src/compiler/lower/`. It sets no reviewer floor: it is carried by one of the reviewers the sizing step chose, the undirected one when that is the only reviewer, never an extra process. Section numbers below refer to `packages/sparkdown/docs/compiler/GRAMMAR.md` in the worktree; read the sections a question cites before answering it.
+The coordinator assigns this lens to any PR whose diff touches `definitions/yaml/sparkdown.language-grammar.yaml`, `definitions/yaml/sparkdown-luau.language-grammar.yaml` or anything under `packages/sparkdown/src/compiler/lower/`. It sets no reviewer floor: it is carried by one of the reviewers the sizing step chose, the undirected one when that is the only reviewer, never an extra process. Section numbers below refer to `packages/sparkdown/docs/compiler/GRAMMAR.md` in the worktree; read the sections a question cites before answering it.
 
 The lints can require a justification comment; only a reviewer can judge whether the justification holds. This lens exists for those judgments. Answer each question below for every construct the diff adds or changes, cite the `file:line`, and report a violation of a rule the guide states as a requirement as `blocking`.
 

@@ -1,0 +1,47 @@
+sparkdown [0..56]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..20]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..20]
+ │   │   └─ ActionLineEnd [14..20]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..20]
+ │   │       │   └─ TextChunk [14..20]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..20]
+ │   │       │       │   ├─ Word [14..19]: "Shown"
+ │   │       │       │   └─ Punctuation [19..20]: "."
+ │   │       │       └─ TextChunk_end 20
+ │   │       └─ ActionLineEnd_end 20
+ │   └─ ImplicitAction_end 20
+ ├─ Newline [20..21]: "\n"
+ └─ SparkdownBlockComment [21..56]
+     ├─ SparkdownBlockComment_begin [21..25]
+     │   ├─ SparkdownBlockComment_begin_c1 [21..23]
+     │   │   └─ OptionalWhitespace [21..23]: "  "
+     │   └─ SparkdownBlockComment_begin_c2 [23..25]: "/*"
+     └─ SparkdownBlockComment_content [25..56]
+         ├─ SparkdownBlockCommentContent [25..38]: " never closed"
+         ├─ Newline [38..39]: "\n"
+         ├─ SparkdownBlockCommentContent [39..48]: "  Hidden."
+         ├─ Newline [48..49]: "\n"
+         ├─ SparkdownBlockCommentContent [49..55]: "  done"
+         └─ Newline [55..56]: "\n"

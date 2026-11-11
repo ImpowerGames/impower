@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { grammar, lintRule } from "../utils/lint-fixture.ts";
+import { grammar, lintRule, readGrammarSource, type GrammarSource } from "../utils/lint-fixture.ts";
 import { exemption } from "./luau-unread-token.ts";
 
-const findings = (source: string) =>
-  lintRule(source, "luau-unread-token").map((m) => `${m.line}: ${m.message.split(", so")[0]!.split(" (")[0]}`);
+const findings = (source: string, as?: GrammarSource) =>
+  lintRule(source, "luau-unread-token", {}, as).map((m) => `${m.line}: ${m.message.split(", so")[0]!.split(" (")[0]}`);
 
 const CATCH_ALL = `LuauUnreadToken:
   patterns:
@@ -145,9 +144,7 @@ LuauStyle:
 });
 
 test("the grammar tiles every closer-bounded Luau rule", () => {
-  const source = readFileSync(
-    new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
-    "utf8",
-  );
-  assert.deepEqual(findings(source).filter((f) => !f.includes("eslint-disable")), []);
+  for (const as of ["story", "luau"] as const) {
+    assert.deepEqual(findings(readGrammarSource(as), as).filter((f) => !f.includes("eslint-disable")), []);
+  }
 });

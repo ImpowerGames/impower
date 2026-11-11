@@ -1,5 +1,6 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import { readSkipping } from "@impower/sparkdown/src/compiler/utils/readSkipping";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
@@ -22,6 +23,7 @@ const CHOOSE_KEYWORD = "LuauChooseKeyword";
 const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
+const COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
 const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
 const FALLBACK_NAME = "choose";
 
@@ -80,6 +82,13 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
+  const textWithoutComments = (node: SyntaxNode) =>
+    readSkipping(
+      node,
+      (from, to) => text.slice(from, to),
+      (child) => COMMENTS.has(child.name),
+    );
+
   const source = {
     read: (from: number, to: number) => text.slice(from, to),
     characterNumber: (pos: number) => document.positionAt(pos).character,
@@ -90,7 +99,7 @@ export const getChoiceMenus = (
     boundary: number,
   ): ChoiceMenuOption | undefined => {
     const content = choice.getChild(CHOICE_CONTENT);
-    const name = content ? oneLine(text.slice(content.from, content.to)) : "";
+    const name = content ? oneLine(textWithoutComments(content)) : "";
     if (!name) {
       return undefined;
     }

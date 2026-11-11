@@ -636,7 +636,8 @@ function collectTopLevelInjections(
       }
       if (
         node.name === "SparkdownLineComment" ||
-        node.name === "SparkdownInlineComment"
+        node.name === "SparkdownInlineComment" ||
+        node.name === "SparkdownBlockComment"
       ) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "comment", node, from: node.from, to: node.to });
@@ -875,6 +876,8 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "TrailingWhitespace",
   "SparkdownLineComment",
   "SparkdownInlineComment",
+  "SparkdownBlockComment",
+  "SparkdownBlockCommentOnLine",
   "Tags",
 ]);
 

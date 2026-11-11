@@ -24,7 +24,7 @@ function main() {
       `${GRAMMAR} and ${GRAMMAR_COPY} declare different rules` +
         ` (only in the first: ${onlyHere.join(", ") || "none"};` +
         ` only in the second: ${onlyThere.join(", ") || "none"}).` +
-        ` Both are generated from definitions/yaml/sparkdown.language-grammar.yaml;` +
+        ` Both are generated from definitions/yaml/sparkdown.language-grammar.yaml and sparkdown-luau.language-grammar.yaml;` +
         ` regenerate both with \`${REGENERATE}\` and commit them together.`,
     );
     process.exitCode = 1;

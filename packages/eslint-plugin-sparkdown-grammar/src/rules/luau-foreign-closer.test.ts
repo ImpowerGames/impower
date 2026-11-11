@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { grammar, lintRule } from "../utils/lint-fixture.ts";
+import { grammar, lintRule, readGrammarSource, type GrammarSource } from "../utils/lint-fixture.ts";
 import { exemption } from "./luau-foreign-closer.ts";
 
-const findings = (source: string) =>
-  lintRule(source, "luau-foreign-closer").filter((m) => !m.message.includes("eslint-disable")).map((m) => `${m.line}: ${m.message.split(", a closer")[0]!.replace(/ \(.*\), so its `end:` must end with nothing before/, " before")}`);
+const findings = (source: string, as?: GrammarSource) =>
+  lintRule(source, "luau-foreign-closer", {}, as).filter((m) => !m.message.includes("eslint-disable")).map((m) => `${m.line}: ${m.message.split(", a closer")[0]!.replace(/ \(.*\), so its `end:` must end with nothing before/, " before")}`);
 
 const CATCH_ALL = `LuauUnreadToken:
   patterns:
@@ -98,7 +97,8 @@ Parenthetical:
   begin: "[(]"
   end: "[)]"`,
   });
-  assert.deepEqual(findings(source), []);
+  assert.deepEqual(findings(readGrammarSource("story"), "story"), []);
+  assert.deepEqual(findings(source, "luau"), []);
   assert.match(exemption("LuauFunctionDefinition")!, /outermost body/);
   assert.match(exemption("LuauSparkdownExplicitDoBlock")!, /story scope/);
   assert.equal(exemption("LuauParenthetical"), undefined);
@@ -106,25 +106,20 @@ Parenthetical:
 });
 
 test("the grammar ends every closer-bounded Luau rule before a closer it did not open", () => {
-  const source = readFileSync(
-    new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
-    "utf8",
-  );
-  assert.deepEqual(findings(source), []);
+  const source = readGrammarSource("luau");
+  assert.deepEqual(findings(readGrammarSource("story"), "story"), []);
+  assert.deepEqual(findings(source, "luau"), []);
 });
 
 test("a bracket of the grammar that loses its shared lookahead fails", () => {
-  const source = readFileSync(
-    new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
-    "utf8",
-  );
+  const source = readGrammarSource("luau");
   const changed = source.replace(
     /^( {2}LuauParenthetical:\n(?: {4}.*\n)*? {4}end: .*)\|\(\?=\{\{WS\}\}\*\{\{LUAU_NOT_PARENTHESIS_CLOSER\}\}\)$/m,
     "$1",
   );
   assert.notEqual(changed, source, "fixture rule not found");
   assert.deepEqual(
-    findings(changed).map((f) => f.replace(/^\d+: /, "")),
+    findings(changed, "luau").map((f) => f.replace(/^\d+: /, "")),
     ["LuauParenthetical is closer-bounded before `end`"],
   );
 });

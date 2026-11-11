@@ -70,7 +70,7 @@ jobs:
         run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
 
       - name: Lint the grammar
-        run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
+        run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml definitions/yaml/sparkdown-luau.language-grammar.yaml
 
       - name: Test the Radix import boundary rule
         run: node --test eslint.config.test.mjs

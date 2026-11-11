@@ -62,7 +62,7 @@ Design principles that constrain every decision below:
 
 ```
 .sd source
-  │  grammar (definitions/yaml/sparkdown.language-grammar.yaml)
+  │  grammar (definitions/yaml/sparkdown-luau.language-grammar.yaml, LuauSparkle*)
   ▼
 parse tree
   │  lowerer (packages/sparkdown/src/compiler/lower/lowerers/lowerLuauUI.ts, …)

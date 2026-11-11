@@ -77,7 +77,7 @@ export const getRouteRuleSegments = (state: EditorState): RouteRuleSegment[] => 
   for (const [first, last] of getRouteLineRuns(state)) {
     for (let line = first; line <= last; line++) {
       let owner = line;
-      while (owner < last && isGap(state.doc.line(owner).text)) {
+      while (owner < last && isGap(state.doc.line(owner), state)) {
         owner += 1;
       }
       const isForced = forced.has(owner);

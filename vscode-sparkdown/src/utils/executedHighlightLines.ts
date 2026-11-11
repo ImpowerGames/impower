@@ -1,7 +1,7 @@
 export const addExecutedHighlightLines = (
   lines: Set<number>,
   ranges: number[],
-  lineText: (line: number) => string,
+  isGap: (line: number) => boolean,
 ) => {
   for (let i = 0; i + 1 < ranges.length; i += 2) {
     const start = ranges[i]!;
@@ -9,8 +9,7 @@ export const addExecutedHighlightLines = (
     if (i > 0) {
       const gap: number[] = [];
       for (let line = ranges[i - 1]! + 1; line < start; line++) {
-        const trimmed = lineText(line).trim();
-        if (trimmed && !trimmed.startsWith("//")) {
+        if (!isGap(line)) {
           gap.length = 0;
           break;
         }

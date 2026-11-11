@@ -51,6 +51,10 @@ export class Grammar {
     this.declarator = declarator;
 
     this.repository = this.load(this.definition);
+    this.repository.enter(this.repository.self);
+    for (const repository of this.repositories.values()) {
+      repository.resolveAll();
+    }
     this.prune();
     this.rules = this.repository.self.rules ?? [];
 

@@ -1,7 +1,9 @@
 import {
   combineConfig,
+  EditorState,
   Extension,
   Facet,
+  Line,
   Range,
   RangeSet,
   StateEffect,
@@ -15,7 +17,7 @@ import {
 } from "@codemirror/view";
 
 export interface HighlightsConfiguration {
-  isGap?: (text: string) => boolean;
+  isGap?: (line: Line, state: EditorState) => boolean;
 }
 
 export const highlightsConfig = Facet.define<
@@ -24,7 +26,7 @@ export const highlightsConfig = Facet.define<
 >({
   combine(configs) {
     return combineConfig(configs, {
-      isGap: (text: string) => !text.trim(),
+      isGap: (line: Line) => !line.text.trim(),
     });
   },
 });
@@ -93,7 +95,7 @@ export const highlightsField = StateField.define<DecorationSet>({
                 i < highlightedLineNumber;
                 i++
               ) {
-                if (config.isGap(tr.state.doc.line(i).text)) {
+                if (config.isGap(tr.state.doc.line(i), tr.state)) {
                   consecutiveGapLines.add(i);
                 } else {
                   consecutiveGapLines.clear();

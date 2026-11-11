@@ -194,13 +194,22 @@ describe("a .luau document", () => {
 });
 
 describe("toggleBlockComment", () => {
-  it("does nothing on story text, which has no block comment yet", () => {
+  it("wraps a story selection in /* */ and unwraps it again", () => {
+    const text = EditorState.create({ doc: SCRIPT }).doc;
+    const from = text.line(2).from + 2;
+    const to = text.line(3).to;
     const state = parsedState(
       SCRIPT,
       SD_URI,
-      EditorSelection.create([EditorSelection.range(16, 27)]),
+      EditorSelection.create([EditorSelection.range(from, to)]),
     );
-    expect(toggleBlockComment({ state, dispatch: () => {} })).toBe(false);
+    const wrapped = run(toggleBlockComment, state);
+    expect(wrapped.doc.toString().split("\n").slice(1, 3)).toEqual([
+      "  /* Hello there",
+      "  How are you */",
+    ]);
+    expect(ensureSyntaxTree(wrapped, wrapped.doc.length, 10_000)).not.toBeNull();
+    expect(run(toggleBlockComment, wrapped).doc.toString()).toBe(SCRIPT);
   });
 
   it("wraps a selection inside a function body in --[[ ]]", () => {

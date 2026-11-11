@@ -39,6 +39,7 @@ export interface MatchRuleDefinition extends RuleDefinition {
 export interface SwitchRuleDefinition extends RuleDefinition {
   emit?: boolean;
   patterns: IncludeDefinition[];
+  repository?: Record<string, RepositoryDefinition>;
 }
 
 export interface ScopedRuleDefinition extends RuleDefinition {
@@ -51,7 +52,10 @@ export interface ScopedRuleDefinition extends RuleDefinition {
   applyEndPatternLast?: boolean;
 }
 
-export type IncludeDefinition = { include: string };
+export type IncludeDefinition = {
+  include: string;
+  repository?: Record<string, RepositoryDefinition>;
+};
 
 export interface CapturesOnlyRuleDefinition extends RuleDefinition {
   captures: Record<string, RuleDefinition | SwitchRuleDefinition>;

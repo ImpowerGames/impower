@@ -1,0 +1,6 @@
+scene start
+  Hello there. /* note: x */
+  Hello /* aside: y */ there.
+  RAFFLES: Hi /* cue: z */ there.
+  done
+end

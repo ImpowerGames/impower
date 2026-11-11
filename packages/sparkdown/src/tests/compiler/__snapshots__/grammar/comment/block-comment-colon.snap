@@ -1,0 +1,141 @@
+sparkdown [0..116]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..40]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..40]
+ │   │   └─ ActionLineEnd [14..40]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..40]
+ │   │       │   ├─ TextChunk [14..26]
+ │   │       │   │   ├─ TextChunk_begin 14
+ │   │       │   │   ├─ TextChunk_content [14..26]
+ │   │       │   │   │   ├─ Word [14..19]: "Hello"
+ │   │       │   │   │   ├─ Space [19..20]: " "
+ │   │       │   │   │   ├─ Word [20..25]: "there"
+ │   │       │   │   │   └─ Punctuation [25..26]: "."
+ │   │       │   │   └─ TextChunk_end 26
+ │   │       │   └─ SparkdownBlockComment [26..40]
+ │   │       │       ├─ SparkdownBlockComment_begin [26..29]
+ │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [26..27]
+ │   │       │       │   │   └─ OptionalWhitespace [26..27]: " "
+ │   │       │       │   └─ SparkdownBlockComment_begin_c2 [27..29]: "/*"
+ │   │       │       ├─ SparkdownBlockComment_content [29..38]
+ │   │       │       │   └─ SparkdownBlockCommentContent [29..38]: " note: x "
+ │   │       │       └─ SparkdownBlockComment_end [38..40]
+ │   │       │           └─ SparkdownBlockComment_end_c1 [38..40]: "*/"
+ │   │       └─ ActionLineEnd_end 40
+ │   └─ ImplicitAction_end 40
+ ├─ Newline [40..41]: "\n"
+ ├─ ImplicitAction [41..70]
+ │   ├─ ImplicitAction_begin [41..43]
+ │   │   └─ ImplicitAction_begin_c1 [41..43]
+ │   │       └─ OptionalWhitespace [41..43]: "  "
+ │   ├─ ImplicitAction_content [43..70]
+ │   │   └─ ActionLineEnd [43..70]
+ │   │       ├─ ActionLineEnd_begin 43
+ │   │       │   └─ ActionLineEnd_begin_c1 43
+ │   │       │       └─ OptionalWhitespace 43
+ │   │       ├─ ActionLineEnd_content [43..70]
+ │   │       │   ├─ TextChunk [43..48]
+ │   │       │   │   ├─ TextChunk_begin 43
+ │   │       │   │   ├─ TextChunk_content [43..48]
+ │   │       │   │   │   └─ Word [43..48]: "Hello"
+ │   │       │   │   └─ TextChunk_end 48
+ │   │       │   ├─ SparkdownBlockComment [48..63]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [48..51]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [48..49]
+ │   │       │   │   │   │   └─ OptionalWhitespace [48..49]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [49..51]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [51..61]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [51..61]: " aside: y "
+ │   │       │   │   └─ SparkdownBlockComment_end [61..63]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [61..63]: "*/"
+ │   │       │   └─ TextChunk [63..70]
+ │   │       │       ├─ TextChunk_begin 63
+ │   │       │       ├─ TextChunk_content [63..70]
+ │   │       │       │   ├─ Space [63..64]: " "
+ │   │       │       │   ├─ Word [64..69]: "there"
+ │   │       │       │   └─ Punctuation [69..70]: "."
+ │   │       │       └─ TextChunk_end 70
+ │   │       └─ ActionLineEnd_end 70
+ │   └─ ImplicitAction_end 70
+ ├─ Newline [70..71]: "\n"
+ ├─ InlineDialogue [71..104]
+ │   ├─ InlineDialogue_begin [71..82]
+ │   │   ├─ InlineDialogue_begin_c1 [71..73]
+ │   │   │   └─ OptionalWhitespace [71..73]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [73..80]
+ │   │   │   └─ DialogueCharacter [73..80]
+ │   │   │       ├─ DialogueCharacter_c1 73
+ │   │   │       ├─ DialogueCharacter_c2 [73..80]
+ │   │   │       │   └─ DialogueCharacterName [73..80]
+ │   │   │       │       └─ DialogueCharacterName_c1 [73..80]
+ │   │   │       │           └─ Word [73..80]: "RAFFLES"
+ │   │   │       ├─ DialogueCharacter_c3 80
+ │   │   │       ├─ DialogueCharacter_c4 80
+ │   │   │       ├─ DialogueCharacter_c5 80
+ │   │   │       ├─ DialogueCharacter_c6 80
+ │   │   │       └─ DialogueCharacter_c7 80
+ │   │   ├─ InlineDialogue_begin_c3 [80..81]
+ │   │   │   └─ ColonSeparator [80..81]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [81..82]
+ │   │   │   └─ RequiredWhitespace [81..82]: " "
+ │   │   └─ InlineDialogue_begin_c5 82
+ │   ├─ InlineDialogue_content [82..104]
+ │   │   └─ LineEnd [82..104]
+ │   │       ├─ LineEnd_begin 82
+ │   │       │   └─ LineEnd_begin_c1 82
+ │   │       │       └─ OptionalWhitespace 82
+ │   │       ├─ LineEnd_content [82..104]
+ │   │       │   ├─ TextChunk [82..84]
+ │   │       │   │   ├─ TextChunk_begin 82
+ │   │       │   │   ├─ TextChunk_content [82..84]
+ │   │       │   │   │   └─ Word [82..84]: "Hi"
+ │   │       │   │   └─ TextChunk_end 84
+ │   │       │   ├─ SparkdownBlockComment [84..97]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [84..87]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [84..85]
+ │   │       │   │   │   │   └─ OptionalWhitespace [84..85]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [85..87]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [87..95]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [87..95]: " cue: z "
+ │   │       │   │   └─ SparkdownBlockComment_end [95..97]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [95..97]: "*/"
+ │   │       │   └─ TextChunk [97..104]
+ │   │       │       ├─ TextChunk_begin 97
+ │   │       │       ├─ TextChunk_content [97..104]
+ │   │       │       │   ├─ Space [97..98]: " "
+ │   │       │       │   ├─ Word [98..103]: "there"
+ │   │       │       │   └─ Punctuation [103..104]: "."
+ │   │       │       └─ TextChunk_end 104
+ │   │       └─ LineEnd_end 104
+ │   └─ InlineDialogue_end 104
+ ├─ Newline [104..105]: "\n"
+ ├─ DoneStatement [105..111]
+ │   ├─ DoneStatement_c1 [105..107]
+ │   │   └─ OptionalWhitespace [105..107]: "  "
+ │   ├─ DoneStatement_c2 [107..111]
+ │   │   └─ DoneKeyword [107..111]: "done"
+ │   └─ DoneStatement_c3 111
+ │       └─ OptionalWhitespace 111
+ ├─ Newline [111..112]: "\n"
+ ├─ LuauEndKeyword [112..115]: "end"
+ └─ Newline [115..116]: "\n"

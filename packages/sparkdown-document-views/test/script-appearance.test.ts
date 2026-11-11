@@ -387,6 +387,23 @@ describe("the route rule", () => {
     );
   });
 
+  it("joins the lines of a block comment between two executed lines", () => {
+    const doc = [
+      "scene a",
+      "  one",
+      "  /* a note",
+      "  across lines */",
+      "  two",
+      "  three /* trailing",
+      "  still the note */",
+      "  four",
+      "end",
+    ].join("\n");
+    mount(ALL_OFF_APPEARANCE, doc);
+    setHighlights(view!, [2, 5, 6, 8]);
+    expect(getRouteLineRuns(view!.state)).toEqual([[2, 8]]);
+  });
+
   it("runs unbroken from a scene's first executed line to dialogue under a speaker cue", () => {
     const doc = [
       "scene a",

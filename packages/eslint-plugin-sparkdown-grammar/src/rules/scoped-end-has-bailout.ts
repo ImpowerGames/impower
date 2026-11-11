@@ -42,8 +42,8 @@ const beatLinesCache = new WeakMap<GrammarIndex, string[] | null>();
 function beatLines(index: GrammarIndex): string[] | null {
   if (beatLinesCache.has(index)) return beatLinesCache.get(index)!;
   let lines: string[] = [];
-  if (index.variables.has("BEAT")) {
-    const declared = index.variables.get("FLOW_BEAT_KEYWORDS")?.value ?? null;
+  if (index.grammar.variables.has("BEAT")) {
+    const declared = index.grammar.variables.get("FLOW_BEAT_KEYWORDS")?.value ?? null;
     const keywords = isSequence(declared)
       ? declared.entries.flatMap((e) =>
           isScalar(e) && typeof e.value === "string" ? [e.value] : [],
@@ -80,7 +80,7 @@ export function resolveVariables(
 ): string {
   return source.replace(TOKEN, (whole, name: string) => {
     if ((keepBeat && name === "BEAT") || seen.has(name)) return whole;
-    const value = index.variables.get(name)?.value ?? null;
+    const value = index.grammar.variables.get(name)?.value ?? null;
     let raw: string | null = null;
     if (isScalar(value) && typeof value.value === "string") raw = value.value;
     else if (isSequence(value)) {

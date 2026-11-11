@@ -1,0 +1,8 @@
+/* a top-level note */
+scene start
+  Before.
+  /* a whole-line note */
+  After.
+  /*no space after the opener*/
+  /* a note */ Text after it.
+  done

@@ -1,6 +1,6 @@
 # Sparkdown Grammar Guide
 
-This guide is for anyone adding, modifying, or debugging a rule in `definitions/yaml/sparkdown.language-grammar.yaml` — the file that tells sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
+This guide is for anyone adding, modifying, or debugging a rule in the grammar's source, `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` (§1.4) — the files that tell sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
 
 > **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
@@ -8,7 +8,7 @@ This guide is for anyone adding, modifying, or debugging a rule in `definitions/
 
 The guide is built for two passes:
 
-- **First pass — orientation.** Read Parts I–III in order (about 20 min). You'll come away knowing what the grammar is, what the YAML file looks like, what the three rule shapes are, and the principle that ties everything together.
+- **First pass — orientation.** Read Parts I–III in order (about 20 min). You'll come away knowing what the grammar is, what the YAML files look like, what the three rule shapes are, and the principle that ties everything together.
 - **Second pass — playbook.** When you actually have a change to make, the rest of the guide is reference material organized by what you're trying to do. The "adding a new feature" checklist (§14) is the natural starting point for any new construct.
 
 The grammar is the **first** stage of sparkdown's pipeline. Everything downstream — the lowerer, the runtime, syntax highlighting, the formatter — consumes the tree this grammar produces. Get the grammar right and the rest of the pipeline is mostly mechanical translation. Get it wrong and you fight downstream code forever. That's why the first-pass orientation is worth doing properly.
@@ -37,7 +37,7 @@ Here's what happens to `.sd` source between the keystroke and the running game. 
 
 ```
 .sd source
-    │  (TextMate grammar — definitions/yaml/sparkdown.language-grammar.yaml)
+    │  (TextMate grammar — definitions/yaml/, §1.4)
     ▼
 Syntax tree (Lezer-shaped)              ← what printTree shows
     │  (lowerers — src/compiler/lower/, see LOWERING.md)
@@ -65,9 +65,16 @@ The same grammar file is consumed by five different systems. If the grammar name
 | **Auto-close brackets, smart indent**      | `brackets: true`, `openedBy` / `closedBy` properties                                                                                                                |
 | **Lowerer** (compile pipeline)             | The tree shape — every meaningful construct gets its own named node                                                                                                 |
 
-### 1.4 Tour of the YAML file
+### 1.4 Tour of the YAML files
 
-Every TextMate grammar follows the same skeleton. Here's `definitions/yaml/sparkdown.language-grammar.yaml` cut down to its frame:
+The grammar's source is two files, which the build (`definitions/src/language.ts`) merges into the one generated grammar, `sparkdown.language-grammar.json`:
+
+- **`definitions/yaml/sparkdown-luau.language-grammar.yaml`**, the Luau file, holds every rule whose name starts with `Luau` and every variable whose name starts with `LUAU_` once a leading underscore is set aside (`LUAU_IDENTIFIER`, `_LUAU_TRIVIA_AHEAD_`). That includes the Luau forms read in story context (`LuauSparkdown*`) and the Sparkle and struct rules (`LuauSparkle*`, `LuauStruct*`).
+- **`definitions/yaml/sparkdown.language-grammar.yaml`**, the story file, holds the top-level keys, the root `patterns:` and every other rule and variable, `AFTER_LUAU_*` among them.
+
+The prefix alone decides the file, and the `prefix-matches-file` lint fails a rule or variable in the other one. Rules share one namespace across the two files and so do variables, so a `#Rule` include or a `{{VAR}}` reference in either file reaches a name defined in the other, and a name defined in both fails the build. A comment above a rule or variable stays with it.
+
+Every TextMate grammar follows the same skeleton. Here's the story file cut down to its frame:
 
 ```yaml
 fileTypes: ["sd"]
@@ -86,7 +93,7 @@ variables:                   # shared regex fragments and keyword lists (§7)
   WS: (?:[^\S\n\r])
   NL: (?:\r\n|\r|\n)
   IDENTIFIER: (?:[_\p{L}][0-9_\p{L}-]*(?<![-]))
-  LUAU_END_KEYWORDS: ["end"] # arrays auto-wrap to \b(?:end)\b
+  FLOW_BEAT_KEYWORDS: ["scene", "branch"] # arrays auto-wrap to \b(?:scene|branch)\b
 
 patterns:                    # root dispatch — what a top-level line can start with
   - { include: "#Newline" }
@@ -103,6 +110,19 @@ repository:                  # every named rule lives here
     patterns: [ ... ]
     end: (?={{BEAT}})|$
     endCaptures: { ... }
+```
+
+The Luau file has the same `variables:` and `repository:` sections and nothing else:
+
+```yaml
+variables:
+  LUAU_END_KEYWORDS: ["end"]
+  ...
+
+repository:
+  LuauFile:
+    patterns: [ ... ]
+  ...
 ```
 
 Three sections to know:
@@ -506,7 +526,7 @@ Now the lowerer does `getDescendent("IncludeKeyword", node)` or `getDescendent("
 
 Real grammars repeat the same regex fragments everywhere — whitespace patterns, identifier shapes, keyword lists. Without a way to share them, you'd copy-paste the same regex into a hundred rules and silently drift out of sync the first time one of them needed to change.
 
-The `variables:` block at the top of the file solves this: every fragment defined there can be referenced as `{{NAME}}` from any rule's `begin`, `end`, or `match` pattern, and the build pipeline expands the reference before the grammar runs.
+The `variables:` blocks of the two source files (§1.4) solve this: every fragment defined in either can be referenced as `{{NAME}}` from any rule's `begin`, `end`, or `match` pattern in either file, and the build pipeline expands the reference before the grammar runs.
 
 **Rule of thumb: every regex fragment used in more than one place should be a variable.** Don't repeat patterns inline.
 
@@ -1340,7 +1360,7 @@ This is the engine-facing complement to §3.2 ("the biggest gotcha: incomplete s
 
 ### 17.3 Blank lines and comment lines do NOT break a legitimately-open scope
 
-A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
+A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
 
 ### 17.4 The gate: `scopeEquality.test.ts`
 
@@ -1358,12 +1378,28 @@ All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-patter
 
 | `end` shape | count | examples | verdict |
 | --- | --- | --- | --- |
-| `(?=^(?!$\|//\|\1{{WS}}))` (indentation block) | 14 | `BlockAction`, `BlockDialogue`, `BlockTitle`, `BlockHeading`, `BlockTransitional`, `BlockWrite`, `ImplicitAction`, `FrontMatterField`, the `Inline*` variants | **Ambiguity-free.** Both engines hold the scope across blank/indented/comment lines identically (§17.3). |
+| `(?=^(?!$\|//\|{{SPARKDOWN_BLOCK_COMMENT_START}}\|\1{{WS}}))` (indentation block) | 14 | `BlockAction`, `BlockDialogue`, `BlockTitle`, `BlockHeading`, `BlockTransitional`, `BlockWrite`, `ImplicitAction`, `FrontMatterField`, the `Inline*` variants | **Ambiguity-free.** Both engines hold the scope across blank/indented/comment lines identically (§17.3). |
 | `end: $` (boundary line) | 5 | `Scene`, `Branch`, `ImageCommand`, `AudioCommand`, `LuauSparkdownSingleLineConditionalAlternatorBlock` | **Ambiguity-free after this fix.** `Scene`/`Branch` now tile their line (§16.3). `ImageCommand`/`AudioCommand` already close at `$` _or_ their `]]`/`))` terminator, so an unterminated marker is line-bounded, not run-on. |
 | `(?=…)` lookahead | 96 | expression / operator / declaration / loop / `if`-block rules | **Ambiguity-free for valid input.** Verified across the full snapshot corpus. |
 | other (`$\|…`, explicit `\n`, bracket-balanced) | 36 | strings, tables, parentheticals, `LuauIfBlockCondition`, interpolation | **Ambiguity-free for valid input.** Verified across the corpus. |
 
 **Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
+
+**A story block comment reads to its `*/` or to the end of the script** (`SparkdownBlockComment`). Its `end:` has no `{{BEAT}}` bail-out, because a `scene` line inside the comment is commented out, and the compiler reports the unclosed opener instead. `SparkdownBlockCommentContent` and `Newline` tile every character up to the `*/`, so neither engine leaves a gap. An unclosed comment keeps one scope open to the end of the script, with the re-parse cost §16 describes. Measured as the first incremental re-parse after a one-character edit below an unclosed `/*` at the top of a script, against a `//` line in its place, the medians are:
+
+| Script length | Unclosed `/*` | `//` line |
+| --- | --- | --- |
+| 1,000 lines | 8.07 ms | 1.29 ms |
+| 10,000 lines | 49.2 ms | 3.48 ms |
+| 30,000 lines | 187 ms | 10.4 ms |
+
+The story config auto-closes `/*` with `*/`, so typing a comment does not pass through the unclosed state.
+
+**A block comment that starts in choice text or on a chain line must close on that line.** Choice text (`ChoiceWithSuppressedText`, `ChoiceWithNoSuppressedText`), a divert and a chained display line (`ActionLineChain`, `LineChain`) are single-line matches, and a capture cannot hold a scope past its line. They read a block comment through `SparkdownBlockCommentOnLine`, which reads `SparkdownBlockComment` only when its `*/` is on the same line. There, a `/*` with no `*/` after it is text: `SparkdownOpenCommentText` on a chain line, and plain choice text in a choice. These rules keep main's forms otherwise, so interpolations and suppression brackets in them are read exactly as they are without comments.
+
+**In choice text, a comment cannot contain `[`, `]` or `->`.** The choice rules split the line at a suppression bracket and at a divert arrow before any capture is read, so a bracket or arrow inside a comment is read by them, for `//` and `/* */` alike. `+ Go // [secret] home` is the choice `Gosecret`, `+ Go /* [secret] */ home` is `Go /* secret`, and `+ Go // -> next` and `+ Go /* -> next */ home` divert to `next`. On a chain line the chain is decided by the line's last character: after `// note`, a final `\` still chains, and a `\` inside a closed `/* … */` is part of the comment and does not chain. #2083 rebuilds choice text so that a comment is read as one unit first.
+
+**A comment that opens inside a styled span must close on its line.** The spans that read story text (`Italic`, `Bold`, `Underline`, `Centered`, `EmphasisTilde`, `EmphasisColon`, and `BoldItalic` through its `Italic`) read a comment first, through `SparkdownBlockCommentOnLine`, so `*far /*note*/ away*` is the span `*far away*` and a `*` of `/*` or `*/` never closes it. A span ends at its line, so a `/*` inside one with no `*/` on the line is text (`*x /* open`). `Raw` spans keep their text literal. A `//` inside a span is text, as is any `//` that does not start a line comment.
 
 **Stray text after a divert's targets** (`-> a -> b > After`, `x .. queue|-> A > y|b .. z`) is tiled rather than left to close the rule incomplete. `Divert` and the nested `Tunnel` end their line, so each takes a `// note` comment and then the rest of the line as `Unknown`. Inside an alternator arm the line-eating `Unknown` would swallow the arm's `|`, closing glue and `end`, so `ArmDivert` chains `ArmTunnel` (a `Tunnel` bounded by the arm) and both take stray text as `ArmUnknown`, which stops at those same boundaries. Arms have no `//` comments, so neither arm rule includes one.
 
@@ -1400,8 +1436,8 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 
 ## 19. Useful files to read
 
-- `definitions/yaml/sparkdown.language-grammar.yaml` — the grammar itself.
-- `definitions/src/language.ts` — the build pipeline (YAML → JSON, variable substitution, capturing-variable check).
+- `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` — the grammar itself, its story half and its Luau half (§1.4).
+- `definitions/src/language.ts` — the build pipeline (merging the two YAML files, YAML → JSON, variable substitution, capturing-variable check).
 - `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts` — the full schema of allowed rule properties.
 - `packages/textmate-grammar-tree/src/grammar/classes/rules/ScopedRule.ts` — `applyEndPatternLast` logic.
 - `packages/textmate-grammar-tree/src/tree/utils/printTree.ts` — the tree printer.

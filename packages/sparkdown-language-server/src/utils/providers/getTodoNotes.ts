@@ -1,8 +1,12 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
-import { type Tree } from "@lezer/common";
+import { type SyntaxNode, type Tree } from "@lezer/common";
 import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver";
 
 const COMMENT_NAMES = new Set(["SparkdownLineComment", "SparkdownInlineComment"]);
+
+const BLOCK_COMMENT_NAME = "SparkdownBlockComment";
+
+const BLOCK_COMMENT_CONTENT_NAME = "SparkdownBlockCommentContent";
 
 const TODO_REGEX = /^\s*todo(?![\p{L}\p{N}_])\s*:?\s*/iu;
 
@@ -15,27 +19,46 @@ export const getTodoNotes = (
   tree: Tree | undefined,
 ): Diagnostic[] => {
   const notes: Diagnostic[] = [];
+  const note = (from: number, bodyFrom: number, bodyTo: number, to: number) => {
+    const text = document.read(bodyFrom, bodyTo);
+    const match = TODO_REGEX.exec(text);
+    if (!match) return;
+    const rest = text.slice(match[0].length).trimEnd();
+    notes.push({
+      range: {
+        start: document.positionAt(from),
+        end: document.positionAt(to),
+      },
+      severity: DiagnosticSeverity.Information,
+      source: TODO_NOTE_SOURCE,
+      message: rest ? `${TODO_NOTE_TITLE}: ${rest}` : TODO_NOTE_TITLE,
+      data: { expect: document.read(from, to) },
+    });
+  };
+  const blockCommentNotes = (comment: SyntaxNode) => {
+    const content = comment.getChild(`${BLOCK_COMMENT_NAME}_content`);
+    for (let line = content?.firstChild; line; line = line.nextSibling) {
+      if (line.name !== BLOCK_COMMENT_CONTENT_NAME) continue;
+      const text = document.read(line.from, line.to);
+      note(
+        line.from + (text.length - text.trimStart().length),
+        line.from,
+        line.to,
+        line.from + text.trimEnd().length,
+      );
+    }
+  };
   tree?.iterate({
     enter: (node) => {
+      if (node.name === BLOCK_COMMENT_NAME) {
+        blockCommentNotes(node.node);
+        return false;
+      }
       if (!COMMENT_NAMES.has(node.name)) return;
       const mark = node.node.getChild(`${node.name}_c2`);
       const body = node.node.getChild(`${node.name}_c3`);
       if (mark && body) {
-        const text = document.read(body.from, body.to);
-        const match = TODO_REGEX.exec(text);
-        if (match) {
-          const rest = text.slice(match[0].length).trimEnd();
-          notes.push({
-            range: {
-              start: document.positionAt(mark.from),
-              end: document.positionAt(body.to),
-            },
-            severity: DiagnosticSeverity.Information,
-            source: TODO_NOTE_SOURCE,
-            message: rest ? `${TODO_NOTE_TITLE}: ${rest}` : TODO_NOTE_TITLE,
-            data: { expect: document.read(mark.from, body.to) },
-          });
-        }
+        note(mark.from, body.from, body.to, body.to);
       }
       return false;
     },

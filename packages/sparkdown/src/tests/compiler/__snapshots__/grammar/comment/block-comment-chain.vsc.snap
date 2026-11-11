@@ -1,0 +1,96 @@
+text.source.sparkdown [0..175]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..20]
+ │   └─ markup.raw.text.sd [14..20]: "Before"
+ ├─ string.display.text.chunk.sd [20..23]: " /*"
+ ├─ string.display.text.chunk.sd [23..28]
+ │   ├─ markup.raw.space.sd [23..24]: " "
+ │   └─ markup.raw.text.sd [24..28]: "note"
+ ├─ meta.chain.sd [28..29]
+ │   └─ keyword.other.chain.sd [28..29]: "\\"
+ ├─ Newline [29..30]: "\n"
+ ├─ punctuation.whitespace.optional.sd [30..32]: "  "
+ ├─ string.display.text.chunk.sd [32..46]
+ │   ├─ markup.raw.text.sd [32..37]: "still"
+ │   ├─ markup.raw.space.sd [37..38]: " "
+ │   └─ markup.other.italic.sd [38..46]
+ │       ├─ markup.raw.text.sd [38..39]: "*"
+ │       ├─ markup.raw.punctuation.sd [39..40]: "/"
+ │       ├─ markup.raw.space.sd [40..41]: " "
+ │       └─ markup.raw.text.sd [41..46]: "after"
+ ├─ Newline [46..47]: "\n"
+ ├─ punctuation.whitespace.optional.sd [47..49]: "  "
+ ├─ string.display.text.chunk.sd [49..52]
+ │   └─ markup.raw.text.sd [49..52]: "One"
+ ├─ comment.block.sd [52..65]
+ │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [53..55]: "/*"
+ │   ├─ comment.block.content.sd [55..63]: " a note "
+ │   └─ punctuation.definition.comment.end.sd [63..65]: "*/"
+ ├─ string.display.text.chunk.sd [65..69]
+ │   ├─ markup.raw.space.sd [65..66]: " "
+ │   └─ markup.raw.text.sd [66..69]: "two"
+ ├─ meta.chain.sd [69..70]
+ │   └─ keyword.other.chain.sd [69..70]: "\\"
+ ├─ Newline [70..71]: "\n"
+ ├─ punctuation.whitespace.optional.sd [71..73]: "  "
+ ├─ string.display.text.chunk.sd [73..78]
+ │   └─ markup.raw.text.sd [73..78]: "three"
+ ├─ Newline [78..79]: "\n"
+ ├─ punctuation.whitespace.optional.sd [79..81]: "  "
+ ├─ string.display.text.chunk.sd [81..84]
+ │   └─ markup.raw.text.sd [81..84]: "Two"
+ ├─ comment.block.sd [84..99]
+ │   ├─ punctuation.whitespace.optional.sd [84..85]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [85..87]: "/*"
+ │   ├─ comment.block.content.sd [87..90]: "one"
+ │   ├─ punctuation.definition.comment.end.sd [90..92]: "*/"
+ │   ├─ punctuation.definition.comment.begin.sd [92..94]: "/*"
+ │   ├─ comment.block.content.sd [94..97]: "two"
+ │   └─ punctuation.definition.comment.end.sd [97..99]: "*/"
+ ├─ string.display.text.chunk.sd [99..105]
+ │   ├─ markup.raw.space.sd [99..100]: " "
+ │   └─ markup.raw.text.sd [100..105]: "notes"
+ ├─ meta.chain.sd [105..106]
+ │   └─ keyword.other.chain.sd [105..106]: "\\"
+ ├─ Newline [106..107]: "\n"
+ ├─ punctuation.whitespace.optional.sd [107..109]: "  "
+ ├─ string.display.text.chunk.sd [109..113]
+ │   └─ markup.raw.text.sd [109..113]: "four"
+ ├─ Newline [113..114]: "\n"
+ ├─ punctuation.whitespace.optional.sd [114..116]: "  "
+ ├─ string.display.text.chunk.sd [116..120]
+ │   └─ markup.raw.text.sd [116..120]: "Five"
+ ├─ comment.line.double-slash.sd [120..128]
+ │   ├─ punctuation.whitespace.optional.sd [120..121]: " "
+ │   ├─ punctuation.definition.comment.sd [121..123]: "//"
+ │   └─ comment.line.double-slash.content.sd [123..128]: " note"
+ ├─ meta.chain.sd [128..129]
+ │   └─ keyword.other.chain.sd [128..129]: "\\"
+ ├─ Newline [129..130]: "\n"
+ ├─ punctuation.whitespace.optional.sd [130..132]: "  "
+ ├─ string.display.text.chunk.sd [132..135]
+ │   └─ markup.raw.text.sd [132..135]: "six"
+ ├─ Newline [135..136]: "\n"
+ ├─ punctuation.whitespace.optional.sd [136..138]: "  "
+ ├─ string.display.text.chunk.sd [138..143]
+ │   └─ markup.raw.text.sd [138..143]: "Seven"
+ ├─ comment.block.sd [143..155]
+ │   ├─ punctuation.whitespace.optional.sd [143..144]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [144..146]: "/*"
+ │   ├─ comment.block.content.sd [146..153]: " note \\"
+ │   └─ punctuation.definition.comment.end.sd [153..155]: "*/"
+ ├─ Newline [155..156]: "\n"
+ ├─ punctuation.whitespace.optional.sd [156..158]: "  "
+ ├─ string.display.text.chunk.sd [158..163]
+ │   └─ markup.raw.text.sd [158..163]: "eight"
+ ├─ Newline [163..164]: "\n"
+ ├─ punctuation.whitespace.optional.sd [164..166]: "  "
+ ├─ keyword.control.divert.done.sd [166..170]: "done"
+ ├─ Newline [170..171]: "\n"
+ ├─ keyword.control.end.luau [171..174]: "end"
+ └─ Newline [174..175]: "\n"

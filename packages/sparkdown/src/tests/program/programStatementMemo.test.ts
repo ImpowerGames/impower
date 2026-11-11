@@ -596,14 +596,17 @@ describe("a statement whose objects another pass reads", () => {
     );
   });
 
-  it("an assignment is lowered again when a local declared earlier changes what it assigns, and no other statement is", () => {
+  it("an assignment is lowered again when a local declared earlier changes what it assigns, with the `if` block and the statement of its body that read it, in one attempt, and no other statement is (#2081)", () => {
     const s = warmed(kindsScript());
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
     s.edit("    Line one.\n", "    Line one.\n    local trust = 5\n");
-    expect(loweredOutside(s)).toEqual(["& trust = trust + 1", "if trust > 2 then"]);
+    expect(attempts.mock.calls.length).toBe(2);
+    attempts.mockRestore();
+    expect(loweredOutside(s)).toEqual(["& trust = trust + 1", "Big trust {trust}.", "if trust > 2 then"]);
     sameAsCold(s);
   });
 
-  it("an `if` block is lowered again with the statement of its body whose lowering reads otherwise, or when its own lowering does, and no other statement is", () => {
+  it("an `if` block is lowered again with the statement of its body whose lowering or resolution reads otherwise, or when its own lowering does, in one attempt, and no other statement is (#2081)", () => {
     try {
       probe.value = "one";
       const s = warmed(
@@ -619,8 +622,11 @@ describe("a statement whose objects another pass reads", () => {
     const t = warmed(
       kindsScript([], ["store x = 1", ""]).replace("  Big trust {trust}.", "  Big trust {x}."),
     );
+    const attempts = vi.spyOn(t.compiler as any, "compileStoryOnce");
     t.edit("    Line one.\n", "    Line one.\n    local x = 2\n");
-    expect(loweredOutside(t)).toEqual(["if trust > 2 then"]);
+    expect(attempts.mock.calls.length).toBe(2);
+    attempts.mockRestore();
+    expect(loweredOutside(t)).toEqual(["Big trust {x}.", "if trust > 2 then"]);
     sameAsCold(t);
   });
 
@@ -664,6 +670,15 @@ describe("a local declaration", () => {
       top,
     );
 
+  const servedInBlock = (text: string) => {
+    const s = warmed(text);
+    s.edit("Line one.", "Line one!");
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
+    return s;
+  };
+
+  const READS_HERE = ["local here = 2", "Here {here}."];
+
   it("is served when an edit elsewhere lowers its block again, and declares its local again for the statements after it", () => {
     const s = warmed(localScript());
     const before = new Set(rootChunks(s.root));
@@ -685,12 +700,14 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("leaves the line that reads it served by the edit after a compile that carried its block while a store of its name was written below it (#1974)", () => {
-    const s = warmed(`${localScript()}\nstore other = 1\n`);
+  it("is lowered again with the line that reads it, and no other statement outside the rebuilt lines is, by a store of its name written below its served block, and both are served by the edit after (#1974, #2081)", () => {
+    const s = servedInBlock(`${localScript()}\nstore other = 1\n`);
     s.edit("store other = 1", "store here = 1");
-    expect(loweredOutside(s)).toEqual([]);
+    expect(loweredOutside(s)).toEqual(READS_HERE);
+    sameAsCold(s);
     s.edit("Line last.", "Line last, edited.");
     expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
     expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier `here`");
     sameAsCold(s);
   });
@@ -736,24 +753,65 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is served, with the line that reads it, by the edit after an update that renamed its scene as it declared a store of its name (#1974)", () => {
-    const s = warmed(localScript(["store other = 1", ""]));
+  it("is lowered again with every served statement of its block, which keep their memos, by the attempt after a second one that still meets a stale memo, and all are served by the edit after (#2081)", () => {
+    const s = servedInBlock(`${localScript()}\nstore other = 1\n`);
+    const resolve = ProgramResolver.prototype.resolve;
+    let calls = 0;
+    let first: unknown[] = [];
+    const unsettled = vi
+      .spyOn(ProgramResolver.prototype, "resolve")
+      .mockImplementation(function (this: any, ...args: Parameters<typeof resolve>) {
+        const tables = resolve.apply(this, args);
+        calls += 1;
+        if (calls === 1) {
+          first = this.staleMemosLastResolve;
+        } else if (calls === 2) {
+          this.staleMemosLastResolve = first;
+        }
+        return tables;
+      });
+    const relower = vi.spyOn(s.compiler as any, "relowerMemos");
+    s.edit("store other = 1", "store here = 1");
+    unsettled.mockRestore();
+    expect(relower.mock.calls.map((call) => call[1])).toEqual([false, true]);
+    relower.mockRestore();
+    sameAsCold(s);
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
+    sameAsCold(s);
+  });
+
+  it("is lowered again with every statement of its scene, and no other scene's, by an update that renamed its served scene as it declared a store of its name, and all are served by the edit after (#1974, #2081)", () => {
+    const other = ["scene OTHER", "  Other opening.", ...FILLER.map((line) => `  Other: ${line}`), "  Other last.", "end", ""];
+    const s = servedInBlock(`${localScript(["store other = 1", ""])}\n${other.join("\n")}`);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
     s.editAll([
       ["store other = 1", "store here = 1"],
       ["scene MAIN", "scene RENAMED"],
     ]);
+    expect(attempts.mock.calls.length).toBe(2);
+    attempts.mockRestore();
+    expect(new Set(loweredOutside(s))).toEqual(
+      new Set(["You go on.", "You stay.", "Warm line!", "Line one!", ...FILLER, ...READS_HERE, "Line last."]),
+    );
+    sameAsCold(s);
     s.edit("Line last.", "Line last!");
     expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
     sameAsCold(s);
   });
 
-  it("is served, with the line that reads it, by the edit after a rename whose compile made no program (#1974)", () => {
-    const s = warmed(localScript(["store other = 1", ""]));
+  it("is lowered again with the line that reads it by a rename whose compile made no program, and both are lowered again by the edit after the compile that restores it while a stale unit index lowers them again (#1974, #2088)", () => {
+    const s = servedInBlock(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1\nexternal message(x)");
     expect(s.program.chunks ?? null).toBeNull();
+    expect(loweredOutside(s)).toEqual(READS_HERE);
     s.edit("external message(x)\n", "");
-    s.edit("Line last.", "Line last!");
     expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    s.edit("Line last.", "Line last!");
+    expect(loweredOutside(s)).toEqual(READS_HERE);
     sameAsCold(s);
   });
 

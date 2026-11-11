@@ -214,6 +214,31 @@ describe("the remove-the-note quick fix", () => {
     ]);
   });
 
+  test("removes a block comment's note and leaves the comment open and closed where it was", () => {
+    const text = lines(
+      "scene start",
+      "  /* todo: first",
+      "  todo: second",
+      "  done */",
+      "  /* TODO one line */",
+      "  Hello.",
+      "end",
+      "",
+    );
+    expect(todoNotes(text).flatMap((note) => summary(text, [note]))).toEqual([
+      {
+        title: "Remove the note",
+        done: "Note removed.",
+        text: lines("scene start", "  /*", "  todo: second", "  done */", "  /* TODO one line */", "  Hello.", "end", ""),
+      },
+      {
+        title: "Remove the note",
+        done: "Note removed.",
+        text: lines("scene start", "  /* todo: first", "  done */", "  /* TODO one line */", "  Hello.", "end", ""),
+      },
+    ]);
+  });
+
   test("removes a note on a last line with no line break of its own", () => {
     const text = lines("Hello.", "// TODO: last");
     expect(summary(text, todoNotes(text)).map((a) => a.text)).toEqual(["Hello."]);
