@@ -652,6 +652,83 @@ describe("the asset inspector", () => {
     expect(region()!.querySelector("[data-frame-failed]")!.textContent).toBe("This picture could not be shown.");
   });
 
+  it("returns focus to the search field when the item it closes is not in the shown list", async () => {
+    const searchField = () => host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!;
+    const nextFrame = () =>
+      act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+      });
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("harbor");
+    await search("market");
+    expect(title()).toBe("harbor");
+    await key(closeButton(), "Escape");
+    await nextFrame();
+    expect(region()).toBeNull();
+    expect(document.activeElement).toBe(searchField());
+
+    await search("");
+    await open("harbor");
+    await act(async () => lists({ assetsFolders: { image: "Assets/Images" } }));
+    await rerender();
+    expect(title()).toBe("harbor");
+    await key(closeButton(), "Escape");
+    await nextFrame();
+    expect(region()).toBeNull();
+    expect(document.activeElement).toBe(searchField());
+  });
+
+  it("moves focus to Close when the focused player goes because the video cannot play, so Escape still closes", async () => {
+    lists({ assetsType: "video", assetsFolders: {} });
+    await mount();
+    await open("intro");
+    const video = region()!.querySelector("video")!;
+    video.tabIndex = 0;
+    video.focus();
+    expect(document.activeElement).toBe(video);
+    await act(async () => {
+      video.dispatchEvent(new Event("error"));
+    });
+    await settle();
+    expect(document.activeElement).toBe(closeButton());
+    await key(closeButton(), "Escape");
+    expect(region()).toBeNull();
+  });
+
+  it("tries a font again when it is opened again after a load that failed", async () => {
+    const original = (globalThis as { FontFace?: unknown }).FontFace;
+    const fonts = (document as { fonts?: unknown }).fonts;
+    let loads = 0;
+    (globalThis as { FontFace?: unknown }).FontFace = class {
+      load() {
+        loads += 1;
+        return loads === 1 ? Promise.reject(new Error("offline")) : Promise.resolve(this);
+      }
+    };
+    Object.defineProperty(document, "fonts", { value: { add() {} }, configurable: true });
+    try {
+      workspace.assetListing.value = {
+        ...workspace.assetListing.value!,
+        files: { ...workspace.assetListing.value!.files, "Assets/Fonts/courier_prime.ttf": { ...fact(2049), src: "/p/retry-font" } },
+      };
+      lists({ assetsType: "font", assetsFolders: {} });
+      await mount();
+      await open("courier_prime");
+      await settle();
+      expect(region()!.querySelector("[data-font-failed]")).not.toBeNull();
+      await key(closeButton(), "Escape");
+      await open("courier_prime");
+      await settle();
+      expect(loads).toBe(2);
+      expect(region()!.querySelector("[data-font-failed]")).toBeNull();
+      expect(region()!.querySelector("[data-font-specimen]")!.textContent).toContain("The quick brown fox");
+    } finally {
+      (globalThis as { FontFace?: unknown }).FontFace = original;
+      Object.defineProperty(document, "fonts", { value: fonts, configurable: true });
+    }
+  });
+
   it("says a font that cannot be loaded cannot be shown, instead of leaving its frame blank", async () => {
     const original = (globalThis as { FontFace?: unknown }).FontFace;
     (globalThis as { FontFace?: unknown }).FontFace = class {

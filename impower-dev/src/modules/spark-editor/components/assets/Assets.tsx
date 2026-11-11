@@ -220,6 +220,7 @@ function AssetsBrowser() {
   const lastPath = useRef<string | null>(null);
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
+  const page = useRef<HTMLDivElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
   const dock = useInspectorDock();
@@ -280,9 +281,12 @@ function AssetsBrowser() {
       (element) => element.getAttribute("data-asset-path") === path,
     ) ?? null;
 
+  const returnTarget = (path: string) =>
+    rowElement(path) ?? page.current?.querySelector<HTMLElement>('input[type="search"]') ?? null;
+
   const focusRow = (path: string) => {
     revealRow(path);
-    requestAnimationFrame(() => rowElement(path)?.focus({ preventScroll: true }));
+    requestAnimationFrame(() => returnTarget(path)?.focus({ preventScroll: true }));
   };
 
   useEffect(() => {
@@ -473,6 +477,7 @@ function AssetsBrowser() {
 
   return (
     <LibraryPage<Item>
+      area={{ ref: page }}
       searchLabel="Search assets"
       query={query}
       onQueryChange={setQuery}
@@ -625,7 +630,7 @@ function AssetsBrowser() {
             if (!open) closeInspector();
           }}
           initialFocus={closeButton}
-          returnFocus={() => (lastPath.current ? rowElement(lastPath.current) : null)}
+          returnFocus={() => (lastPath.current ? returnTarget(lastPath.current) : null)}
         >
           {lastInspector}
         </Sheet>

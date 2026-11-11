@@ -13,6 +13,7 @@ import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameOrReport } from "../utils/renameOrReport";
+import { showSnackbar } from "../utils/snackbar";
 import { replacementOf } from "../utils/replaceRule";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
@@ -77,6 +78,15 @@ const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
 };
 
 const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+const failedWrite = (
+  prefix: string,
+  written: { unchanged: boolean; error: unknown },
+  unchanged: string,
+) =>
+  `${prefix}: ${reasonOf(written.error)}. ${
+    written.unchanged ? unchanged : "What it holds now could not be confirmed, so open it to check."
+  }`;
 
 const readImageSize = async (src: string): Promise<ImageSize | null> => {
   try {
@@ -408,34 +418,57 @@ export default class WorkspaceAssets {
     if ("refused" in rule) {
       throw new NameError(rule.refused);
     }
-    const { fs, window } = this._workspace;
+    const { fs } = this._workspace;
     const uri = fs.getFileUri(projectId, rule.path);
     const leaf = nameOf(rule.path);
     const before = await fs.readFile({ file: { uri } });
     const data = await file.getBuffer();
+    const written = await this.writeChecked(uri, data, before);
+    if (!written.landed) {
+      throw new NameError(failedWrite(`Couldn't replace ${leaf}`, written, "The old file is still there."));
+    }
+    const restore = (bytes: ArrayBuffer, from: ArrayBuffer, verb: string) => async () => {
+      const restored = await this.writeChecked(uri, bytes, from);
+      if (!restored.landed) {
+        showSnackbar({
+          message: failedWrite(`Couldn't ${verb} the replace of ${leaf}`, restored, "Its contents are unchanged."),
+        });
+      }
+    };
+    recordReplace({
+      label: leaf,
+      message: written.error
+        ? `Replaced, though saving ${leaf} reported a problem: ${reasonOf(written.error)}`
+        : REPLACED_MESSAGE,
+      undo: restore(before, data, "undo"),
+      redo: restore(data, before, "redo"),
+    });
+    return rule.path;
+  }
+
+  protected async writeChecked(
+    uri: string,
+    data: ArrayBuffer,
+    previous: ArrayBuffer,
+  ): Promise<{ landed: true; error?: unknown } | { landed: false; unchanged: boolean; error: unknown }> {
+    const { fs, window } = this._workspace;
     try {
       await fs.createFiles({ files: [{ uri, data: data.slice(0) }] });
     } catch (error) {
       const now = await fs.readFile({ file: { uri } }).catch(() => null);
       if (now && sameBytes(now, data)) {
         await window.recordAssetChange();
-        recordReplace(uri, before, data, leaf, `Replaced, though saving ${leaf} reported a problem: ${reasonOf(error)}`);
         await this.load();
-        return rule.path;
+        return { landed: true, error };
       }
-      const unchanged = !!now && sameBytes(now, before);
+      const unchanged = !!now && sameBytes(now, previous);
       if (!unchanged) {
         await this.load().catch(() => null);
       }
-      throw new NameError(
-        unchanged
-          ? `Couldn't replace ${leaf}: ${reasonOf(error)}. The old file is still there.`
-          : `Couldn't replace ${leaf}: ${reasonOf(error)}. What it holds now could not be confirmed, so open it to check.`,
-      );
+      return { landed: false, unchanged, error };
     }
     await window.recordAssetChange();
-    recordReplace(uri, before, data, leaf, REPLACED_MESSAGE);
     await this.load();
-    return rule.path;
+    return { landed: true };
   }
 }

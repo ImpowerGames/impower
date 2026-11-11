@@ -175,22 +175,21 @@ export function recordCreate(
 
 export const REPLACED_MESSAGE = "Replaced. Every line that shows it now uses the new file.";
 
-export function recordReplace(
-  uri: string,
-  oldData: ArrayBuffer,
-  newData: ArrayBuffer,
-  label: string,
-  message = REPLACED_MESSAGE,
-) {
-  const write = async (bytes: ArrayBuffer) => {
-    const { Workspace } = await import("../workspace/Workspace");
-    await Workspace.fs.createFiles({ files: [{ uri, data: bytes.slice(0) }] });
-    await markProjectDirty();
-  };
+export function recordReplace({
+  label,
+  message,
+  undo: restoreOld,
+  redo: restoreNew,
+}: {
+  label: string;
+  message: string;
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+}) {
   pushUndo({
     label: `Replace ${label}`,
-    undo: () => write(oldData),
-    redo: () => write(newData),
+    undo: restoreOld,
+    redo: restoreNew,
   });
   showSnackbar({
     message,

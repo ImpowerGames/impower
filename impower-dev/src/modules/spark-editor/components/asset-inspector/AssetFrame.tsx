@@ -11,10 +11,16 @@ const loadFace = (src: string): Promise<string> => {
   let loading = loadedFaces.get(src);
   if (!loading) {
     const family = `inspected-font-${(fonts += 1)}`;
-    loading = new FontFace(family, `url("${src}")`).load().then((face) => {
-      document.fonts.add(face);
-      return family;
-    });
+    loading = new FontFace(family, `url("${src}")`).load().then(
+      (face) => {
+        document.fonts.add(face);
+        return family;
+      },
+      (error: unknown) => {
+        loadedFaces.delete(src);
+        throw error;
+      },
+    );
     loadedFaces.set(src, loading);
   }
   return loading;

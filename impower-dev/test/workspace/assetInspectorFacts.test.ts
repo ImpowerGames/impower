@@ -28,6 +28,7 @@ const { default: WorkspaceLanguageServer } = await import(
 );
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 const { PROJECT_SETTINGS_SCHEMA } = await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
+const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
 
 const PROJECT = "project";
 const uri = (path: string) => `file:///${PROJECT}/${path}`;
@@ -221,14 +222,41 @@ describe("Replace", () => {
     expect(files.get("Assets/Images/harbor.png")).toBe("new");
     expect(fs.createFiles).toHaveBeenCalledOnce();
     expect(window.recordAssetChange).toHaveBeenCalled();
-    const [replacedUri, oldData, newData, label, message] = mocks.recordReplace.mock.calls[0]!;
-    expect([replacedUri, text(oldData), text(newData), label, message]).toEqual([
-      uri("Assets/Images/harbor.png"),
-      "old",
-      "new",
+    const recorded = mocks.recordReplace.mock.calls[0]![0];
+    expect([recorded.label, recorded.message]).toEqual([
       "harbor.png",
       "Replaced. Every line that shows it now uses the new file.",
     ]);
+    await recorded.undo();
+    expect(files.get("Assets/Images/harbor.png")).toBe("old");
+    expect(workspace.assetListing.value!.files["Assets/Images/harbor.png"]!.size).toBe(3);
+    await recorded.redo();
+    expect(files.get("Assets/Images/harbor.png")).toBe("new");
+    expect(workspace.assetListing.value!.files["Assets/Images/harbor.png"]!.size).toBe(3);
+  });
+
+  it("reads back and reloads after a failed Undo or Redo of a replace, and says what happened", async () => {
+    const { assets, fs, files } = fakeWorkspace({ "Assets/Images/harbor.png": "old" });
+    await assets.load();
+    await assets.replace("Assets/Images/harbor.png", picked("night.png", "new file"));
+    const { undo, redo } = mocks.recordReplace.mock.calls[0]![0];
+    const cutOff = () =>
+      fs.createFiles.mockImplementationOnce(async () => {
+        files.set("Assets/Images/harbor.png", "partial");
+        throw new Error("The write was cut off");
+      });
+    cutOff();
+    await undo();
+    expect(workspace.assetListing.value!.files["Assets/Images/harbor.png"]!.size).toBe(7);
+    expect(snackbar.value?.message).toBe(
+      "Couldn't undo the replace of harbor.png: The write was cut off. What it holds now could not be confirmed, so open it to check.",
+    );
+    files.set("Assets/Images/harbor.png", "old");
+    fs.createFiles.mockRejectedValueOnce(new Error("The storage is full"));
+    await redo();
+    expect(snackbar.value?.message).toBe(
+      "Couldn't redo the replace of harbor.png: The storage is full. Its contents are unchanged.",
+    );
   });
 
   it("refuses a file of another type with the reason and writes nothing", async () => {
@@ -285,7 +313,7 @@ describe("Replace", () => {
       throw new Error("The change list could not be sent");
     });
     expect(await assets.replace("Assets/Images/harbor.png", picked("night.png", "new"))).toBe("Assets/Images/harbor.png");
-    expect(mocks.recordReplace.mock.calls[0]![4]).toBe(
+    expect(mocks.recordReplace.mock.calls[0]![0].message).toBe(
       "Replaced, though saving harbor.png reported a problem: The change list could not be sent",
     );
   });

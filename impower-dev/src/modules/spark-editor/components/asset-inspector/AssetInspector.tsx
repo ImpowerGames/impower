@@ -180,6 +180,7 @@ export default function AssetInspector({
   const stepped = useRef<"previous" | "next" | null>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
   const body = useRef<HTMLDivElement | null>(null);
+  const region = useRef<HTMLElement | null>(null);
   const picker = useRef<HTMLInputElement | null>(null);
   const [facts, setFacts] = useState<InspectorFacts | null>(null);
   const [videoSeconds, setVideoSeconds] = useState<number | null>(null);
@@ -221,22 +222,31 @@ export default function AssetInspector({
   }, [asset.path, asset.src]);
 
   useEffect(() => {
-    const last = lastFocused.current;
-    const active = document.activeElement;
-    if (!last || last.isConnected || (active && active !== document.body)) {
+    const element = region.current;
+    if (!element || typeof MutationObserver === "undefined") {
       return;
     }
-    const sameKind = last.matches("[data-zoom-frame]")
-      ? "[data-zoom-frame][tabindex]"
-      : last.matches("[data-text-contents]")
-        ? "[data-text-contents]"
-        : last.matches("video")
-          ? "video"
-          : null;
-    ((sameKind ? body.current?.querySelector<HTMLElement>(sameKind) : null) ?? close.current)?.focus({
-      preventScroll: true,
-    });
-  }, [asset.path, asset.src]);
+    const restore = () => {
+      const last = lastFocused.current;
+      const active = document.activeElement;
+      if (!last || last.isConnected || (active && active !== document.body)) {
+        return;
+      }
+      const sameKind = last.matches("[data-zoom-frame]")
+        ? "[data-zoom-frame][tabindex]"
+        : last.matches("[data-text-contents]")
+          ? "[data-text-contents]"
+          : last.matches("video")
+            ? "video"
+            : null;
+      ((sameKind ? body.current?.querySelector<HTMLElement>(sameKind) : null) ?? close.current)?.focus({
+        preventScroll: true,
+      });
+    };
+    const observer = new MutationObserver(restore);
+    observer.observe(element, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const direction = stepped.current;
@@ -342,6 +352,7 @@ export default function AssetInspector({
 
   return (
     <section
+      ref={region}
       aria-label="Asset details"
       data-asset-inspector={host}
       class={
