@@ -33,12 +33,13 @@ export const ASPECT_RATIO_ROWS: readonly {
 export const aspectRatioLabel = (
   choice: AspectRatioChoice,
   size: GameSize | undefined,
-): string => {
-  const name = choice === "auto" ? "Auto" : choice;
-  return size && size.width > 0 && size.height > 0
-    ? `${name} · ${Math.round(size.width)}×${Math.round(size.height)}`
-    : name;
-};
+): { name: string; size: string } => ({
+  name: choice === "auto" ? "Auto" : choice,
+  size:
+    size && size.width > 0 && size.height > 0
+      ? ` · ${Math.round(size.width)}×${Math.round(size.height)}`
+      : "",
+});
 
 export type SizeControl = "paper" | "aspectRatio" | "pageFillsPane";
 

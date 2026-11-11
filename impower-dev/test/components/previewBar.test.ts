@@ -550,6 +550,27 @@ describe("the bar under the game", () => {
     expect(ratio().hasAttribute("aria-disabled")).toBe(false);
   });
 
+  it("reserves the width of Auto for the ratio's name in both modes, so a switch moves nothing in the bar", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "4:3");
+    await mount();
+    await setState((s) => {
+      s.preview.modes.game = {
+        size: { width: 564, height: 423, aspectRatio: "4:3" },
+      };
+      return s;
+    });
+    const name = () => ratio().querySelector<HTMLElement>("[data-reserve]");
+    expect(ratio().textContent).toBe("4:3 · 564×423");
+    expect(name()?.textContent).toBe("4:3");
+    expect(name()?.dataset.reserve).toBe("Auto");
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(ratio().textContent).toBe("Auto · 564×423");
+    expect(name()?.textContent).toBe("Auto");
+    expect(name()?.dataset.reserve).toBe("Auto");
+  });
+
   it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {
     await mount();
     const stage = document.querySelector('[data-stage="game"]')!;

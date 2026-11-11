@@ -13,6 +13,7 @@ import {
   ShrinkIcon,
   WarningIcon,
 } from "@impower/impower-ui/components";
+import type { GameSize } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
@@ -24,6 +25,7 @@ import {
   ASPECT_RATIO_ROWS,
   aspectRatioLabel,
   barReadout,
+  type AspectRatioChoice,
   PAGE_FILLS_PANE,
   PAPER_SIZE_LABELS,
   sizeControl,
@@ -135,6 +137,27 @@ function RouteReadout() {
   );
 }
 
+function RatioLabel({
+  choice,
+  size,
+}: {
+  choice: AspectRatioChoice;
+  size: GameSize | undefined;
+}) {
+  const label = aspectRatioLabel(choice, size);
+  return (
+    <span>
+      <span
+        data-reserve="Auto"
+        class="inline-grid justify-items-end after:invisible after:content-[attr(data-reserve)] after:[grid-area:1/1] [&>*]:[grid-area:1/1]"
+      >
+        <span>{label.name}</span>
+      </span>
+      {label.size}
+    </span>
+  );
+}
+
 function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
   const choice = workspaceSettings.projectSettings.value.previewAspectRatio;
   const size = useComputed(
@@ -150,7 +173,7 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
         title={PAGE_FILLS_PANE}
         class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
       >
-        {aspectRatioLabel("auto", size)}
+        <RatioLabel choice="auto" size={size} />
       </Button>
     );
   }
@@ -171,7 +194,7 @@ function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
           title="Game aspect ratio"
           class={`px-2.5 text-muted ${BAR_TEXT}`}
         >
-          {aspectRatioLabel(choice, size)}
+          <RatioLabel choice={choice} size={size} />
         </Button>
       </DropdownTrigger>
       <DropdownContent side="top" align="end" class="min-w-[210px]">
