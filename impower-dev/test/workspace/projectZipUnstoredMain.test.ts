@@ -127,6 +127,29 @@ describe("replacing a project whose starter main.sd was never saved", () => {
     expect([...onDisk.keys()]).toEqual([`file://${PROJECT}/other/b.sd`]);
   });
 
+  it("refuses a file that is not a zip as unreadable_zip", async () => {
+    const { fs } = starterProject();
+    await expect(
+      WorkspaceFileSystem.prototype.writeProjectZip.call(
+        fs,
+        PROJECT,
+        enc.encode("not a zip").buffer as ArrayBuffer,
+      ),
+    ).rejects.toMatchObject({ reason: "unreadable_zip" });
+  });
+
+  it("reports a storage failure as storage", async () => {
+    const { fs } = starterProject();
+    (fs as any).createFiles = async () => {
+      throw new DOMException("full", "QuotaExceededError");
+    };
+    const flat = zipSync({ "main.sd": enc.encode("Hi.\n") })
+      .buffer as ArrayBuffer;
+    await expect(
+      WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, flat),
+    ).rejects.toMatchObject({ reason: "storage" });
+  });
+
   it("replaces its scripts from a script bundle", async () => {
     const { fs, onDisk } = starterProject({ "Scripts/a.sd": "Old.\n" });
     await expect(

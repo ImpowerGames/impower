@@ -174,6 +174,26 @@ describe("the Save & sync section", () => {
     expect(row("save-import").textContent).toContain("Could not import that backup.");
   });
 
+  it("says why an import failed, one sentence per reason, naming the file", async () => {
+    await mountSection();
+    const failWith = (outcome: object) =>
+      act(() => {
+        workspace.current = {
+          ...workspace.current,
+          sync: { status: "import_error", importOutcome: { status: "failed", fileName: "story.zip", ...outcome } } as typeof workspace.current.sync,
+        };
+      });
+    await failWith({ reason: "unreadable_zip" });
+    expect(row("save-import").textContent).toContain(
+      "“story.zip” is not a .zip this editor can open. Choose a backup made with Download .zip.",
+    );
+    await failWith({ reason: "storage" });
+    expect(row("save-import").textContent).toContain("Could not save “story.zip” on this device. Free some space and try again.");
+    await failWith({ reason: "unknown" });
+    expect(row("save-import").textContent).toContain("Could not import “story.zip”. Try again, or choose another backup.");
+    expect(row("save-import").textContent).not.toContain("Could not import that backup.");
+  });
+
   it("offers Connect Google Drive while signed out and runs the shared sign-in", async () => {
     await mountSection();
     expect(row("save-cloud").textContent).toContain("Optional; nothing here needs an account.");

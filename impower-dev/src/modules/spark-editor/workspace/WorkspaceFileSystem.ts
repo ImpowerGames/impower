@@ -61,6 +61,7 @@ import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
+import { ProjectImportError } from "./projectImport";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
@@ -640,7 +641,9 @@ export default class WorkspaceFileSystem {
     content: ArrayBuffer,
   ): Promise<string | undefined> {
     const existingFiles = await this.getFiles(projectId);
-    const archive = await this.unzipFiles({ data: content });
+    const archive = await this.unzipFiles({ data: content }).catch((cause) => {
+      throw new ProjectImportError({ reason: "unreadable_zip" }, { cause });
+    });
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
@@ -660,12 +663,16 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
-    if (zipFilesToDelete.length > 0) {
-      await this.deleteFiles({ files: zipFilesToDelete });
+    try {
+      if (zipFilesToDelete.length > 0) {
+        await this.deleteFiles({ files: zipFilesToDelete });
+      }
+      await this.replaceFolders(projectId, unzipped);
+      await this.createFiles({ files: zipFilesToWrite });
+      await this.writeProjectMetadata(projectId, "folders", "1");
+    } catch (cause) {
+      throw new ProjectImportError({ reason: "storage" }, { cause });
     }
-    await this.replaceFolders(projectId, unzipped);
-    await this.createFiles({ files: zipFilesToWrite });
-    await this.writeProjectMetadata(projectId, "folders", "1");
     return settingsEntry
       ? new TextDecoder().decode(settingsEntry.data)
       : undefined;

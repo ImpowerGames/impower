@@ -130,8 +130,17 @@ export interface ProjectState {
   directory?: string;
 }
 
+export type ImportFailureReason = "unreadable_zip" | "storage" | "unknown";
+
+export type ImportOutcome = {
+  status: "failed";
+  fileName: string;
+  reason: ImportFailureReason;
+};
+
 export interface SyncState {
   status?: SyncStatus;
+  importOutcome?: ImportOutcome;
   textPulledAt?: string;
   zipPulledAt?: string;
   revisions?: Revision[];

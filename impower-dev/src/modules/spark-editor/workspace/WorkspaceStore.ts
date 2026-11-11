@@ -267,6 +267,7 @@ class WorkspaceStore {
     pane: computed(() => this.state.value.pane ?? "logic"),
     projectId: computed(() => this.state.value.project?.id ?? ""),
     syncStatus: computed(() => this.state.value.sync?.status),
+    importOutcome: computed(() => this.state.value.sync?.importOutcome),
     account: computed<AccountInfo | null>(() => {
       const info = this.account.value;
       return info && info.uid && info.consented ? info : null;
