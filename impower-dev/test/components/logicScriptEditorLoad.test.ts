@@ -280,6 +280,30 @@ describe("LogicScriptEditor load handover", { timeout: 60_000 }, () => {
     end: { line, character: 0 },
   });
 
+  it("loads the script it was switched to while it was still reading the first one", async () => {
+    const loads: { textDocument: { uri: string } }[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/load" && "params" in message) {
+        loads.push(message.params);
+      }
+    };
+    window.addEventListener("jsonrpc", hear);
+    try {
+      await mount();
+      mocks.editor = { uri: "file:///project/scripts/other.sd" };
+      await act(async () => {
+        render(h(LogicScriptEditor, { filename: "scripts/other.sd" }), host!);
+      });
+      await connectController();
+      await answerReads();
+      expect(loads.length).toBeGreaterThan(0);
+      expect(loads.at(-1)!.textDocument.uri).toBe("file:///project/scripts/other.sd");
+    } finally {
+      window.removeEventListener("jsonrpc", hear);
+    }
+  });
+
   it("loads with the selection made while it was still reading the file", async () => {
     const loads: { selectedRange?: unknown }[] = [];
     const hear = (e: Event) => {

@@ -52,6 +52,7 @@ import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/sr
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { startingDisplayModeRequest } from "../utils/previewStartingMode";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -204,6 +205,10 @@ export class SparkdownPreviewGamePanelManager {
     this.sendControls();
   }
 
+  protected sendStartingDisplayMode() {
+    this._panel?.webview.postMessage(startingDisplayModeRequest());
+  }
+
   protected sendControls() {
     this._panel?.webview.postMessage(
       SetPreviewControlsMessage.type.notification({
@@ -330,6 +335,7 @@ export class SparkdownPreviewGamePanelManager {
         this.sendStartingValues(SparkdownStartingValuesManager.instance.values);
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
         this.sendControls();
+        this.sendStartingDisplayMode();
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -506,6 +512,7 @@ export class SparkdownPreviewGamePanelManager {
       }
       if (GameStartedMessage.type.isNotification(message)) {
         this._gameRunning = true;
+        this.sendStartingDisplayMode();
         if (!vscode.debug.activeDebugSession) {
           vscode.commands.executeCommand("sparkdown.debugGame");
         }
@@ -725,6 +732,7 @@ export class SparkdownPreviewGamePanelManager {
     this.sendNotification(DidChangeConfigurationMessage.type, {
       settings,
     });
+    this.sendStartingDisplayMode();
   }
 
   async notifySelectedEditor(

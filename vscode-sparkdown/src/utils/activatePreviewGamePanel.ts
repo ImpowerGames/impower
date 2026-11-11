@@ -6,6 +6,7 @@ import { SparkdownStartingValuesManager } from "../managers/SparkdownStartingVal
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
+import { setPreviewStartingMode } from "./previewStartingMode";
 
 export const activatePreviewGamePanel = async (
   context: vscode.ExtensionContext,
@@ -19,6 +20,15 @@ export const activatePreviewGamePanel = async (
         editor?.document,
       );
     }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sparkdown.game.playAsVisualNovel", () =>
+      setPreviewStartingMode("visualNovel"),
+    ),
+    vscode.commands.registerCommand(
+      "sparkdown.game.playAsInteractiveFiction",
+      () => setPreviewStartingMode("interactiveFiction"),
+    ),
   );
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((change) => {
