@@ -22,7 +22,7 @@ const history = (canRollBack: boolean, canRollForward: boolean): GameHistory => 
   heldChoices: [],
 });
 
-it("gives the player bar the run history from the game's stepped and rolled events", () => {
+it("gives the player bar the run history from the game's stepped and rolled events, tagged with the owner's run", () => {
   setWorkspace({ gameLink: { detach() {} }, programHeld: async () => {} } as any);
   const host = document.createElement("div");
   document.body.append(host);
@@ -42,7 +42,7 @@ it("gives the player bar the run history from the game's stepped and rolled even
     bar = state;
   });
   try {
-    controller.listen(game);
+    controller.listen(game, { run: 7 });
     listeners.get(GameSteppedMessage.method)!(
       GameSteppedMessage.type.notification({
         location: {
@@ -52,14 +52,14 @@ it("gives the player bar the run history from the game's stepped and rolled even
         history: history(true, false),
       }),
     );
-    expect(bar?.history).toEqual(history(true, false));
+    expect(bar?.runHistory.pending).toEqual({ run: 7, history: history(true, false) });
     listeners.get(GameRolledMessage.method)!(
       GameRolledMessage.type.notification({
         restored: {} as SettledBeat,
         history: history(false, true),
       }),
     );
-    expect(bar?.history).toEqual(history(false, true));
+    expect(bar?.runHistory.pending).toEqual({ run: 7, history: history(false, true) });
   } finally {
     unsubscribe();
     host.remove();

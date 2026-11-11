@@ -23,25 +23,60 @@ export interface PlayerBarState {
   paused: boolean;
   stepping: boolean;
   playing: boolean;
-  run: number | null;
   completion: CompletionPreviewStatus | null;
   ending: GameStateEnding | null;
   executed: GameExecutedParams | null;
   size: GameResizedParams | null;
-  history: GameHistory | null;
+  runHistory: RunHistoryState;
 }
+
+export interface RunHistoryState {
+  run: number | null;
+  history: GameHistory | null;
+  pending: { run: number | null; history: GameHistory } | null;
+}
+
+export type RunHistoryInput =
+  | { started: number | null }
+  | { run: number | null; history: GameHistory | null | undefined };
+
+export const initialRunHistory: RunHistoryState = {
+  run: null,
+  history: null,
+  pending: null,
+};
+
+export const foldRunHistory = (
+  state: RunHistoryState,
+  input: RunHistoryInput,
+): RunHistoryState => {
+  if ("started" in input) {
+    const run = input.started;
+    if (run === state.run) {
+      return state;
+    }
+    const adopted = state.pending?.run === run ? state.pending.history : null;
+    return { run, history: adopted, pending: null };
+  }
+  const history = input.history;
+  if (history == null) {
+    return state;
+  }
+  return input.run === state.run
+    ? { ...state, history }
+    : { ...state, pending: { run: input.run, history } };
+};
 
 export const initialPlayerBarState: PlayerBarState = {
   launchState: null,
   paused: false,
   stepping: false,
   playing: false,
-  run: null,
   completion: null,
   ending: null,
   executed: null,
   size: null,
-  history: null,
+  runHistory: initialRunHistory,
 };
 
 export const skipRefusal = (
@@ -59,14 +94,15 @@ export const skipRefusal = (
 export const reducePlayerBar = (
   state: PlayerBarState,
   message: unknown,
+  run: number | null = null,
 ): PlayerBarState => {
   if (DidChangeGameStateMessage.type.isNotification(message)) {
     const game = message.params;
-    const run = game.run ?? null;
     return {
       ...state,
-      run,
-      history: run === state.run ? state.history : null,
+      runHistory: foldRunHistory(state.runHistory, {
+        started: game.run ?? null,
+      }),
       launchState: game.launchState,
       paused: game.paused,
       stepping: game.stepping,
@@ -79,14 +115,23 @@ export const reducePlayerBar = (
     return {
       ...state,
       executed: message.params,
-      history: message.params.history ?? state.history,
+      runHistory: foldRunHistory(state.runHistory, {
+        run,
+        history: message.params.history,
+      }),
     };
   }
   if (
     GameSteppedMessage.type.isNotification(message) ||
     GameRolledMessage.type.isNotification(message)
   ) {
-    return { ...state, history: message.params.history ?? state.history };
+    return {
+      ...state,
+      runHistory: foldRunHistory(state.runHistory, {
+        run,
+        history: message.params.history,
+      }),
+    };
   }
   if (GameResizedMessage.type.isNotification(message)) {
     return { ...state, size: message.params };

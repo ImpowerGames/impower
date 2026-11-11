@@ -10,12 +10,15 @@ import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/
 import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
-import type { SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import type { GameHistory, SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
 import PlayerBar, { type PlayerBarProps } from "./PlayerBar";
 import {
+  foldRunHistory,
   initialPlayerBarState,
+  initialRunHistory,
   reducePlayerBar,
   type PlayerBarState,
+  type RunHistoryInput,
 } from "./playerBarState";
 
 const WORKSPACE = "file:///project";
@@ -229,6 +232,7 @@ describe("PlayerBar controls", () => {
         ...executed.params,
         history: history(false, false),
       }),
+      1,
     );
     expect(skips(atFirst)).toEqual([back, forward]);
     const stepped = reducePlayerBar(
@@ -237,6 +241,7 @@ describe("PlayerBar controls", () => {
         location: location(5),
         history: history(true, false),
       }),
+      1,
     );
     expect(skips(stepped)).toEqual([backOpen, forward]);
     const between = reducePlayerBar(
@@ -245,6 +250,7 @@ describe("PlayerBar controls", () => {
         restored: {} as SettledBeat,
         history: history(true, true),
       }),
+      1,
     );
     expect(skips(between)).toEqual([backOpen, forwardOpen]);
     const rolledToFirst = reducePlayerBar(
@@ -253,6 +259,7 @@ describe("PlayerBar controls", () => {
         restored: {} as SettledBeat,
         history: history(false, true),
       }),
+      1,
     );
     expect(skips(rolledToFirst)).toEqual([back, forwardOpen]);
     expect(
@@ -267,6 +274,81 @@ describe("PlayerBar controls", () => {
     expect(
       skips(reducePlayerBar(between, gameState({ launchState: "pause", run: 2, paused: true }))),
     ).toEqual([back, forward]);
+  });
+
+  it("keeps only the current run's history whatever order runs and their reports arrive in", () => {
+    const h = (canRollBack: boolean) => ({
+      canRollBack,
+      canRollForward: false,
+      behindLatest: false,
+      canStepOut: false,
+      rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+      rollForwardRefusal: HISTORY_REASONS.rollForward,
+      stepRefusal: null,
+      stepOutRefusal: HISTORY_REASONS.stepOut,
+      heldChoices: [],
+    });
+    const old = h(true);
+    const fresh = h(false);
+    const cases: {
+      name: string;
+      inputs: RunHistoryInput[];
+      expected: GameHistory | null;
+    }[] = [
+      {
+        name: "a report for the current run",
+        inputs: [{ started: 1 }, { run: 1, history: old }],
+        expected: old,
+      },
+      {
+        name: "a restart drops the previous run's history",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { started: 2 }],
+        expected: null,
+      },
+      {
+        name: "a late stepped from the previous run after a restart",
+        inputs: [
+          { started: 1 },
+          { run: 1, history: old },
+          { started: 2 },
+          { run: 2, history: fresh },
+          { run: 1, history: old },
+        ],
+        expected: fresh,
+      },
+      {
+        name: "a late rolled from the previous run before the new run reports",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { started: 2 }, { run: 1, history: old }],
+        expected: null,
+      },
+      {
+        name: "a report for the new run before its start is announced",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { run: 2, history: fresh }, { started: 2 }],
+        expected: fresh,
+      },
+      {
+        name: "Stop then Play",
+        inputs: [
+          { started: 1 },
+          { run: 1, history: old },
+          { started: null },
+          { run: 1, history: old },
+          { started: 2 },
+        ],
+        expected: null,
+      },
+      {
+        name: "a report without history keeps the current one",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { run: 1, history: undefined }],
+        expected: old,
+      },
+    ];
+    for (const { name, inputs, expected } of cases) {
+      expect(
+        inputs.reduce(foldRunHistory, initialRunHistory).history,
+        name,
+      ).toEqual(expected);
+    }
   });
 
   it("skips nothing from a press on a skip at its end of the history, nor from a hold that reaches it", () => {
@@ -289,6 +371,7 @@ describe("PlayerBar controls", () => {
             heldChoices: [],
           },
         }),
+        1,
       );
     const $ = mount({ state: at(false), controls: { skip: true }, onSkip });
     act(() => {

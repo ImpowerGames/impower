@@ -172,14 +172,14 @@ export default function PlayerBar({
           {controls.skip ? (
             <SkipButton
               direction={-1}
-              reason={state.playing ? skipRefusal(state.history, -1) : undefined}
+              reason={state.playing ? skipRefusal(state.runHistory.history, -1) : undefined}
               onSkip={onSkip}
             />
           ) : null}
           {controls.skip ? (
             <SkipButton
               direction={1}
-              reason={state.playing ? skipRefusal(state.history, 1) : undefined}
+              reason={state.playing ? skipRefusal(state.runHistory.history, 1) : undefined}
               onSkip={onSkip}
             />
           ) : null}
