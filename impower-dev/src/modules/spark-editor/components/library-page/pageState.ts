@@ -62,6 +62,11 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
   });
 
   const shown = useRef({ key, tab });
+  const restored = useRef<{
+    element: HTMLDivElement;
+    key: ScrollsKey;
+    tab: string;
+  } | null>(null);
 
   useEffect(() => {
     if (shown.current.key !== key || shown.current.tab !== tab) {
@@ -69,6 +74,7 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
       top.current = workspace.state.peek().lists?.[key]?.[tab] ?? 0;
       if (attached.current) {
         attached.current.scrollTop = top.current;
+        restored.current = { element: attached.current, key, tab };
       }
     }
     return () => {
@@ -94,7 +100,18 @@ export function useSavedScroll(key: ScrollsKey, tab: string) {
     attached.current?.removeEventListener("scroll", onScroll.current);
     attached.current = element;
     if (element) {
-      element.scrollTop = top.current;
+      const { key: shownKey, tab: shownTab } = shown.current;
+      const last = restored.current;
+      if (
+        last?.element === element &&
+        last.key === shownKey &&
+        last.tab === shownTab
+      ) {
+        top.current = element.scrollTop;
+      } else {
+        element.scrollTop = top.current;
+        restored.current = { element, key: shownKey, tab: shownTab };
+      }
       element.addEventListener("scroll", onScroll.current, { passive: true });
     }
   }, []);
