@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { bindMorph, poseSelection } from "../../compiler/morph/bindMorph";
+import { bindMorph } from "../../compiler/morph/bindMorph";
 import { normalizeMorphKeyframes } from "../../compiler/morph/normalizeMorphKeyframes";
 import { parseMorphRecipe } from "../../morph/recipe";
 import { compileSource } from "./compileSnapshot";
@@ -1024,29 +1024,16 @@ end
     expect(warning!.message).toContain('folder "right" draws no `eyes.closed`');
   });
 
-  test("a directional refinement satisfies its base state and keeps its concrete rest", () => {
-    const text = `${SIMPLE_BLINK}
-scene start
-  [[bunny~eyes.open-wide]]
-end
-`;
-    const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
-    const candidate = binding.candidates[0]!;
-    const wide = candidate.variants.find((v) => v.name === "bunny~eyes.open-wide")!;
-    expect(wide.status).toBe("active");
-    expect(wide.rest).toEqual({ eyes: "open" });
-    expect(poseSelection(candidate.vocabulary, wide.selection, wide.rest)).toEqual({ eyes: "open-wide" });
-  });
-
-  test("a refinement is shown by its base artwork, but a base state is not invented from a refinement", () => {
+  test("a hyphenated state is its own state, not a refinement of the word before it", () => {
     const refined = SIMPLE_BLINK.replace("state = closed", "state = open-wide");
-    expect(morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }])).toEqual([]);
+    const found = morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }]);
+    expect(found.find((d) => d.message.includes("image `bunny`: its `eyes` group has no `open-wide` state"))).toBeDefined();
     const wideOnly = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="lids:eyes.open-wide:default" id="wide"/>
 <g data-name="lids:eyes.closed" id="closed"/>
 </svg>`;
-    const found = morphDiagnostics(SIMPLE_BLINK, [{ name: "owl", svg: wideOnly }]);
-    expect(found.find((d) => d.message.includes("image `owl`: its `eyes` group has no `open` state"))).toBeDefined();
+    const owl = morphDiagnostics(SIMPLE_BLINK, [{ name: "owl", svg: wideOnly }]);
+    expect(owl.find((d) => d.message.includes("image `owl`: its `eyes` group has no `open` state"))).toBeDefined();
   });
 
   test("a state missing from only some images warns for those images only", () => {

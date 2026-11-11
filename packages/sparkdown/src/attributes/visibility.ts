@@ -1,4 +1,4 @@
-import { matchesAttributeOption, resolveAttributes } from "./resolveAttributes";
+import { resolveAttributes } from "./resolveAttributes";
 import type {
   AttributeDiagnostic,
   AttributeFolder,
@@ -47,9 +47,7 @@ export const evaluateAttributeVisibility = (
       (!parent || visit(parent)) &&
       layer.parsed.conditions.every((condition) =>
         choices(condition.group, layer.parent).some((selected) =>
-          condition.options.some((option) =>
-            matchesAttributeOption(selected, option),
-          ),
+          condition.options.includes(selected),
         ),
       );
     visiting.delete(layer.key);

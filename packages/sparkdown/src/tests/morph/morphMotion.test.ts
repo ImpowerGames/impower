@@ -245,16 +245,17 @@ describe("baking secondary states and layer motion", () => {
     expect(drawnNames(artifact.rest)).not.toContain("brow-left:brows.down");
   });
 
-  test("a look's own choice that is a kind of the morph's state survives: brows resting up-high return to up-high", () => {
+  test("a look's own choice the morph does not name gives way to its rest: brows chosen up-high rest up", () => {
     const artifact = bake({}, { brows: "up-high" });
     expect(artifact.status).toBe("live");
     expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
     const shown = new Set(artifact.visibility["brows"]!["up"]);
     const part = artifact.parts[3]!.svg;
-    const high = withAttribute(part, "data-name", "brow-left:brows.up-high")[0]!.el.attributes["data-morph"]!;
+    const up = withAttribute(part, "data-name", "brow-left:brows.up:default")[0]!.el.attributes["data-morph"]!;
     const down = withAttribute(part, "data-name", "brow-left:brows.down")[0]!.el.attributes["data-morph"]!;
-    expect(shown.has(high)).toBe(true);
+    expect(shown.has(up)).toBe(true);
     expect(shown.has(down)).toBe(false);
+    expect(withAttribute(part, "data-name", "brow-left:brows.up-high")).toEqual([]);
   });
 
   test("a group whose drawing folder lacks a state the morph names makes the whole morph inapplicable, not half of the face", () => {

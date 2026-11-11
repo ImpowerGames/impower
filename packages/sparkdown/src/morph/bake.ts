@@ -579,7 +579,7 @@ export function* bakeSteps(
   const needs = (element: Element, group: string, state: string) =>
     [...ancestry(doc!, element)].some((entry) =>
       entry.layer?.parsed.conditions.some(
-        (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state || o.startsWith(`${state}-`)),
+        (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state),
       ),
     );
   const restDrawn = allLeaves.filter((element) => visibleAt(element, restVisible));

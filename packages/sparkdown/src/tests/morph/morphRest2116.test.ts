@@ -129,11 +129,11 @@ describe("a morph's rest in the bake", () => {
     expect(morphPoseAt(recipe, 0)).toEqual({ mouth: "teeth" });
   });
 
-  test("a keyframe state the look's own choice is a kind of plays as the look's choice", () => {
+  test("a keyframe state shows exactly that state, not a hyphenated state the look chooses", () => {
     const artifact = bake(flap(CLOSED_OPEN_CLOSED), {}, WIDE);
     expect(artifact.status).toBe("live");
     const open = new Set(artifact.visibility["mouth"]!["open"]);
-    expect(open.has(nodeOf(artifact, "m-wide")!)).toBe(true);
+    expect(open.has(nodeOf(artifact, "m-wide")!)).toBe(false);
     expect(open.has(nodeOf(artifact, "m-open")!)).toBe(true);
     const shown = ids(artifact.rest);
     expect(shown).toContain("m-closed");

@@ -46,8 +46,8 @@ describe("SVG attribute ingestion contract", () => {
     const vocabulary = buildAttributeVocabulary([{key: "a", name: "pose.a.b"}, {key: "b", name: "pose.b.c", parent: "a"}, {key: "c", name: "pose.a.c", parent: "b"}]);
     expect(vocabulary.diagnostics).toContainEqual(expect.objectContaining({code: "contradictory-inherited-condition", layer: "pose.a.c"}));
   });
-  it("accepts intersecting hyphen prefixes and independent sibling conditions", () => {
-    const vocabulary = buildAttributeVocabulary([{key: "a", name: "arms.phone"}, {key: "b", name: "arms.phone-left", parent: "a"}, {key: "c", name: "arms.down"}]);
+  it("accepts intersecting option lists and independent sibling conditions", () => {
+    const vocabulary = buildAttributeVocabulary([{key: "a", name: "arms.phone"}, {key: "b", name: "arms.phone.phone-left", parent: "a"}, {key: "c", name: "arms.down"}]);
     expect(vocabulary.diagnostics).toEqual([]);
   });
 });

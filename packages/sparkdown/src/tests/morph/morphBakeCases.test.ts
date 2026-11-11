@@ -163,16 +163,11 @@ describe("morph bake: resting states", () => {
     expect(artifact.visibility["eyes"]!["open"]).toHaveLength(4);
   });
 
-  test("a refinement of the starting state rests as itself and returns to itself", () => {
-    const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe(), { eyes: "open-wide" });
-    expect(artifact.status).toBe("live");
-    expect(artifact.schedules["eyes"]!.map((k) => k.state)).toEqual(["open-wide", "closed", "open-wide"]);
-  });
-
-  test("a variant explicitly resting in another state is left alone", () => {
+  test("a variant whose look chooses another state plays and rests on the morph's rest", () => {
     const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe(), { eyes: "closed" });
-    expect(artifact.status).toBe("static");
-    expect(artifact.rest).toBe(filterSVGAttributes(art(LASHES_OPEN, LASH_CLOSED), { eyes: "closed" }));
+    expect(artifact.status).toBe("live");
+    expect(artifact.rest).toContain(UPPER_OPEN);
+    expect(artifact.rest).not.toContain(CLOSED);
   });
 
   test("probing the closed pose does not report what a script selecting it would hear", () => {

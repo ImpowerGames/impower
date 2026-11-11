@@ -225,13 +225,13 @@ end
     expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
   });
 
-  test("a condition holds for a state that is a kind of the one it names", () => {
+  test("a condition holds only for the state it names, not for a hyphenated state", () => {
     const text = `${blink("  unless = eyes.open\n")}
 scene start
   [[wide]]
 end
 `;
-    expect(statusOf(text, [{ name: "wide", svg: WIDE }], "blink")["wide"]).toBe("excluded");
+    expect(statusOf(text, [{ name: "wide", svg: WIDE }], "blink")["wide"]).toBe("active");
   });
 
   test("a look lacking a rest state is skipped and reported", () => {

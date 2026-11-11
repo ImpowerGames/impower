@@ -1,7 +1,6 @@
 import {
   ATTRIBUTE_ROOT,
   evaluateAttributeVisibility,
-  matchesAttributeOption,
   type AttributeFolder,
   type AttributeSelection,
   type AttributeVocabulary,
@@ -124,9 +123,7 @@ export function groupHasState(
   group: string,
   state: string,
 ): boolean {
-  return (vocabulary.groups[group]?.options ?? []).some((option) =>
-    matchesAttributeOption(state, option),
-  );
+  return (vocabulary.groups[group]?.options ?? []).includes(state);
 }
 
 export function morphImages(context: ImageContext): {
@@ -209,9 +206,7 @@ export function stateIsActive(
   condition: MorphCondition,
   visible?: Record<string, boolean>,
 ): boolean {
-  return lookChoices(vocabulary, selection, condition.group, visible).some((choice) =>
-    matchesAttributeOption(choice, condition.state),
-  );
+  return lookChoices(vocabulary, selection, condition.group, visible).includes(condition.state);
 }
 
 const VISIBILITY_MEMO_LIMIT = 256;
@@ -239,7 +234,7 @@ export function poseSelection(
   const posed: AttributeSelection = { ...selection };
   for (const [group, state] of Object.entries(pose)) {
     const choices = lookChoices(vocabulary, selection, group, visible);
-    if (choices.length > 0 && choices.every((choice) => matchesAttributeOption(choice, state))) continue;
+    if (choices.length > 0 && choices.every((choice) => choice === state)) continue;
     posed[group] = state;
   }
   return posed;
@@ -261,7 +256,7 @@ export function bindVariant(
   for (const [group, states] of requirements.groups) {
     for (const [, folder] of drawingFolders(vocabulary, visible, group)) {
       const options = folder.options[group]!;
-      const missing = [...states].filter((state) => !options.some((option) => matchesAttributeOption(state, option)));
+      const missing = [...states].filter((state) => !options.includes(state));
       if (missing.length > 0) {
         problems.push({
           group,

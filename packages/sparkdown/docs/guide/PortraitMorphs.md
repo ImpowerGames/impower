@@ -169,7 +169,7 @@ A `state` is always the name of an option, never a variable or a number, so `sta
 
 Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. Each group rests in the state of the last pose that names it, or in the state the morph's `rest` gives it ([Where a morph rests](#where-a-morph-rests)). A morph whose first and last poses are both its rest comes back to rest seamlessly whichever direction it plays in; between the rest and a first or last pose that differs, the portrait cuts, whatever the morph's `blend`. As in CSS keyframes, a group whose first pose sits after `0%`, or whose last pose sits before `100%`, holds the morph's rest there.
 
-An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). Where the look's own choice is a kind of a pose's state, the look's choice shows: a morph whose poses name `open` shows `open-wide` on a look the script or the art's `:default` gives `open-wide`, and rests it there. This is the one way a look's own choice changes what a playing morph shows. The art still has to draw the state the morph names: a folder that draws only `open-wide` does not fit a morph that names `open`.
+States match exactly ([The naming rules](./Portraits.md#the-naming-rules)): a morph whose poses name `open` shows the `open` drawings, and `open-wide` is a state of its own. A folder that draws only `open-wide` does not fit a morph that names `open`.
 
 ### How shapes change
 
@@ -510,7 +510,7 @@ morph blink {
 
 - With `unless`, the morph does not play on a look where any listed state is active.
 - With `when`, the morph plays only on a look where every listed state is active.
-- A state is active on a look when the script line or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A kind of the state counts: `when = arms.phone` holds on a look in `arms.phone-left`.
+- A state is active on a look when the script line or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group.
 - A condition may name a group the morph drives, as the blink's `unless = eyes.closed` does, or any other group, such as `mask.on`.
 - Conditions are judged on the look as the script and the art give it, before the morph's rest replaces anything.
 - A child morph that writes `when` or `unless` replaces its parent's. There is no way to clear an inherited one.
