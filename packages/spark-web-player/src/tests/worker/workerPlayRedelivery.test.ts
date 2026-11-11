@@ -237,6 +237,17 @@ describe("a redelivered line behaves as a line already read (#2031)", () => {
     }
   }, 120_000);
 
+  it("shows the line at once when a zero pace becomes a positive one", async () => {
+    const { h, editWords } = await playing(
+      `define dialogue as typewriter with\n  letter_pause = 0\nend\n\n${LONG}`,
+    );
+    try {
+      expect(writesOf(await editWords("letter_pause = 0", "letter_pause = 0.05"), "The second line.")).toEqual([true]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("keeps the line before it on a text stream page", async () => {
     const { h, editWords } = await playing(
       `define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n${LONG}`,

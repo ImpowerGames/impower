@@ -60,6 +60,19 @@ const rows: Row[] = [
   { name: "a line moved down by an insertion above", beat: line("The second line.", {}, "HERO", [0, 8, 4, 8, 20]), delivery: "redelivery", onScreen: shownBeat, atOnce: true },
   { name: "the same line with a changed portrait", beat: line("The second line.", portrait("frown")), delivery: "redelivery", onScreen: line("The second line.", portrait("smile")), atOnce: true, kept: ["image"] },
   { name: "the same words with a slower typewriter", beat: line("The second line.", {}, "HERO", [0, 7, 4, 7, 20], 0.06), delivery: "redelivery", onScreen: shownBeat, atOnce: true },
+  {
+    name: "the same words grouped into other events, as a zero pace groups them",
+    beat: {
+      ...line("The second line."),
+      text: {
+        character_name: [{ text: "HERO" }],
+        dialogue: [{ text: "The second line.", after: 0, over: 0 }],
+      },
+    } as Instructions,
+    delivery: "redelivery",
+    onScreen: shownBeat,
+    atOnce: true,
+  },
   { name: "the same words in a new style", beat: line("The second line.", {}, "HERO", [0, 7, 4, 7, 20], 0.03, { font_style: "italic" }), delivery: "redelivery", onScreen: shownBeat, atOnce: false },
   { name: "a line edited by one character", beat: line("The second line!"), delivery: "redelivery", onScreen: shownBeat, atOnce: false },
   { name: "the same text from a different speaker", beat: line("The second line.", {}, "VILLAIN"), delivery: "redelivery", onScreen: shownBeat, atOnce: false },

@@ -2,13 +2,25 @@ import type { Instructions } from "../types/Instructions";
 
 export type Delivery = "landing" | "redelivery";
 
+const runs = (events: { text: string; style?: unknown }[]) =>
+  events.reduce<[string, string][]>((read, event) => {
+    const style = JSON.stringify(event.style ?? null);
+    const last = read.at(-1);
+    if (last && last[1] === style) {
+      last[0] += event.text;
+    } else {
+      read.push([event.text, style]);
+    }
+    return read;
+  }, []);
+
 const reads = (beat: Instructions) =>
   JSON.stringify([
     beat.kind ?? null,
     beat.speaker ?? null,
     Object.entries(beat.text ?? {}).map(([target, events]) => [
       target,
-      events.map((event) => [event.text, event.style ?? null]),
+      runs(events),
     ]),
   ]);
 
