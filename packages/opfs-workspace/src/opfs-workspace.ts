@@ -1040,99 +1040,17 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit } = message.params;
-
     const log = new CommitLog();
-    const fileEvents: FileEvent[] = [];
-    const created: WriteResult[] = [];
-    const deleted: DeleteResult[] = [];
-    const renamed: RenameOutcome[] = [];
-    const wrote = (result: WriteResult) => {
-      log.wrote(result);
-      if (result.created) {
-        created.push(result);
-      }
-      fileEvents.push({
-        uri: result.file.uri,
-        type: result.created ? FileChangeType.Created : FileChangeType.Changed,
-      });
-    };
+    const { effects, failure } = await applyWorkspaceEdit(
+      message.params.edit,
+      log,
+    );
 
-    let changeIndex = 0;
-    let failure: { message: string } | undefined;
-
-    try {
-      if (edit.documentChanges) {
-        for (const c of edit.documentChanges) {
-          if ("kind" in c && !("textDocument" in c)) {
-            if (c.kind === "create") {
-              (await createFiles([c])).forEach(wrote);
-            } else if (c.kind === "delete") {
-              const [result] = await deleteFiles([c]);
-              if (result) {
-                log.record(result.uri, result.local, result.commit);
-                deleted.push(result);
-                fileEvents.push({ uri: c.uri, type: FileChangeType.Deleted });
-              }
-            } else if (c.kind === "rename") {
-              const [outcome] = await renameFiles([c]);
-              if (outcome?.write) {
-                log.wrote(outcome.write);
-              }
-              if (outcome?.deleted) {
-                log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
-                renamed.push(outcome);
-                fileEvents.push({
-                  uri: c.oldUri,
-                  type: FileChangeType.Deleted,
-                });
-              }
-              if (outcome?.write) {
-                fileEvents.push({
-                  uri: c.newUri,
-                  type: FileChangeType.Created,
-                });
-              }
-              if (outcome?.error != null) {
-                throw outcome.error;
-              }
-            }
-          } else {
-            const [written] = await editTextFiles([c]);
-            if (written) {
-              wrote(written);
-            } else {
-              fileEvents.push({
-                uri: c.textDocument.uri,
-                type: FileChangeType.Changed,
-              });
-            }
-          }
-          changeIndex++;
-        }
-      } else if (edit.changes) {
-        for (const [uri, edits] of Object.entries(edit.changes)) {
-          const beforeVersion = State.files.get(uri)?.version ?? 0;
-          const [written] = await editTextFiles([
-            { textDocument: { uri, version: beforeVersion }, edits },
-          ]);
-          if (written) {
-            wrote(written);
-          } else {
-            fileEvents.push({ uri, type: FileChangeType.Changed });
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error(err, err.stack);
-      failure = { message: err?.message ?? String(err) };
-    }
-
-    broadcastCreates(log, created);
-    broadcastDeletes(log, deleted);
-    broadcastRenames(log, renamed);
+    broadcastCreates(log, effects.created);
+    broadcastDeletes(log, effects.deleted);
+    broadcastRenames(log, effects.renamed);
     broadcastWrites(log);
-    broadcastWatchedChanges(log, fileEvents);
+    broadcastWatchedChanges(log, effects.fileEvents);
     await announceUnordered(log);
 
     respond(
@@ -1141,13 +1059,237 @@ onmessage = async (e) => {
         failure
           ? {
               applied: false,
-              failureReason: failure.message,
-              failedChange: changeIndex,
+              failureReason: failure.reason,
+              failedChange: failure.change,
             }
           : { applied: true },
       ),
     );
   }
+};
+
+type WorkspaceEditChange = NonNullable<
+  ApplyWorkspaceEditMessage.Request["params"]["edit"]["documentChanges"]
+>[number];
+
+interface EditEffects {
+  created: WriteResult[];
+  deleted: DeleteResult[];
+  renamed: RenameOutcome[];
+  fileEvents: FileEvent[];
+}
+
+interface PriorFile {
+  uri: string;
+  bytes?: ArrayBuffer;
+  version?: number;
+  document?: TextDocument;
+}
+
+const noEffects = (): EditEffects => ({
+  created: [],
+  deleted: [],
+  renamed: [],
+  fileEvents: [],
+});
+
+const urisOfChange = (change: WorkspaceEditChange) =>
+  "textDocument" in change
+    ? [change.textDocument.uri]
+    : change.kind === "rename"
+      ? [change.oldUri, change.newUri]
+      : [change.uri];
+
+const storedBytes = (uri: string) =>
+  withCommitLock(uri, async () => {
+    const handle = await findFileHandle(uri);
+    return handle ? (await handle.getFile()).arrayBuffer() : undefined;
+  });
+
+const missingDirectories = async (uri: string) => {
+  const missing: string[] = [];
+  for (
+    let path = getParentPath(getPathFromUri(uri));
+    path && !(await isStoredDirectory(getUriFromPath(path)));
+    path = getParentPath(path)
+  ) {
+    missing.push(getUriFromPath(path));
+  }
+  return missing;
+};
+
+class UndoLog {
+  prior = new Map<string, PriorFile>();
+  directories = new Set<string>();
+
+  async record(uris: string[]) {
+    for (const uri of uris) {
+      if (this.prior.has(uri)) {
+        continue;
+      }
+      await drainWrites(uri);
+      const bytes = await storedBytes(uri);
+      this.prior.set(uri, {
+        uri,
+        bytes,
+        version: State.files.get(uri)?.version,
+        document: State.documents.get(uri),
+      });
+      for (const directory of await missingDirectories(uri)) {
+        this.directories.add(directory);
+      }
+    }
+  }
+
+  async restore(log: CommitLog) {
+    const effects = noEffects();
+    const unknown: string[] = [];
+    const prior = [...this.prior.values()].reverse();
+    for (const file of prior.filter((f) => f.bytes)) {
+      try {
+        const current = await storedBytes(file.uri);
+        if (!current || !sameBytes(current, file.bytes!)) {
+          const result = await enqueueWrite(
+            file.uri,
+            file.version ?? 0,
+            new Uint8Array(file.bytes!),
+            true,
+          );
+          log.wrote(result);
+          effects.fileEvents.push({
+            uri: file.uri,
+            type: FileChangeType.Changed,
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(file.uri);
+      }
+    }
+    for (const file of prior.filter((f) => !f.bytes)) {
+      try {
+        if (await findFileHandle(file.uri)) {
+          const removed = await removeFile(file.uri);
+          if (removed) {
+            log.record(removed.uri, removed.local, removed.commit);
+            effects.deleted.push(removed);
+            effects.fileEvents.push({
+              uri: file.uri,
+              type: FileChangeType.Deleted,
+            });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(file.uri);
+      }
+    }
+    try {
+      await deleteEmptyDirectories([...this.directories], log);
+    } catch (err) {
+      console.error(err);
+      unknown.push(...this.directories);
+    }
+    for (const file of prior) {
+      if (unknown.includes(file.uri)) {
+        continue;
+      }
+      if (file.document) {
+        State.documents.set(file.uri, file.document);
+      } else {
+        State.documents.delete(file.uri);
+      }
+    }
+    return { effects, unknown };
+  }
+}
+
+const applyChange = async (
+  change: WorkspaceEditChange,
+  log: CommitLog,
+  effects: EditEffects,
+) => {
+  const wrote = (result: WriteResult) => {
+    log.wrote(result);
+    if (result.created) {
+      effects.created.push(result);
+    }
+    effects.fileEvents.push({
+      uri: result.file.uri,
+      type: result.created ? FileChangeType.Created : FileChangeType.Changed,
+    });
+  };
+  if ("textDocument" in change) {
+    const [written] = await editTextFiles([change]);
+    if (written) {
+      wrote(written);
+    } else {
+      effects.fileEvents.push({
+        uri: change.textDocument.uri,
+        type: FileChangeType.Changed,
+      });
+    }
+  } else if (change.kind === "create") {
+    (await createFiles([change])).forEach(wrote);
+  } else if (change.kind === "delete") {
+    const [result] = await deleteFiles([change]);
+    if (result) {
+      log.record(result.uri, result.local, result.commit);
+      effects.deleted.push(result);
+      effects.fileEvents.push({ uri: change.uri, type: FileChangeType.Deleted });
+    }
+  } else if (change.kind === "rename") {
+    const [outcome] = await renameFiles([change]);
+    if (outcome?.write) {
+      log.wrote(outcome.write);
+    }
+    if (outcome?.deleted) {
+      log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
+      effects.renamed.push(outcome);
+      effects.fileEvents.push({ uri: change.oldUri, type: FileChangeType.Deleted });
+    }
+    if (outcome?.write) {
+      effects.fileEvents.push({ uri: change.newUri, type: FileChangeType.Created });
+    }
+    if (outcome?.error != null) {
+      throw outcome.error;
+    }
+  }
+};
+
+const applyWorkspaceEdit = async (
+  edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
+  log: CommitLog,
+) => {
+  const changes: WorkspaceEditChange[] =
+    edit.documentChanges ??
+    Object.entries(edit.changes ?? {}).map(([uri, edits]) => ({
+      textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
+      edits,
+    }));
+  const undo = new UndoLog();
+  const effects = noEffects();
+  for (const [index, change] of changes.entries()) {
+    try {
+      await undo.record(urisOfChange(change));
+      await applyChange(change, log, effects);
+    } catch (err: any) {
+      console.error(err, err?.stack);
+      const reason = err?.message ?? String(err);
+      const restored = await undo.restore(log);
+      return {
+        effects: restored.effects,
+        failure: {
+          change: index,
+          reason:
+            restored.unknown.length === 0
+              ? reason
+              : `${reason}; the edit was partly applied and restoring the earlier changes failed, so these may be left changed: ${restored.unknown.join(", ")}`,
+        },
+      };
+    }
+  }
+  return { effects, failure: undefined };
 };
 
 const loadConfiguration = (settings: any) => {
