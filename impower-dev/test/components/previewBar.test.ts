@@ -308,6 +308,106 @@ describe("the bar under the game", () => {
     expect(note()).toBeUndefined();
   });
 
+  it("reads a stop before a line in the phone's readout itself, with no note and nothing moved", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await setState((s) => {
+      s.preview.modes.game = {
+        running: true,
+        position: { uri: "file:///local/main.sd", line: 11 },
+      };
+      return s;
+    });
+    const controls = () => Array.from(bar().querySelectorAll<HTMLElement>("button, a"));
+    const readout = () => controls()[1]!;
+    const note = () =>
+      [...bar().querySelectorAll("span")].find((span) =>
+        span.textContent?.startsWith("Stopped before line"),
+      );
+    const before = controls();
+    expect(readout().textContent).toBe("main : 12");
+    expect(readout().hasAttribute("data-stopped")).toBe(false);
+    expect(readout().querySelector("[data-icon]")).toBeNull();
+
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: { reason: "breakpoint", threadId: 0, beat: "none" },
+        stackTrace: {
+          stackFrames: [
+            { id: 0, name: "start", line: 15, column: 0, source: { path: "file:///local/main.sd" } },
+          ],
+        },
+      };
+    });
+    expect(controls()).toHaveLength(before.length);
+    expect(controls().every((control, i) => control === before[i])).toBe(true);
+    expect(readout().textContent).toBe("Stopped before main : 16");
+    expect(readout().hasAttribute("data-stopped")).toBe(true);
+    expect(readout().classList).toContain("data-stopped:text-warning");
+    const icons = readout().querySelectorAll("[data-icon]");
+    expect(icons).toHaveLength(1);
+    expect(icons[0]!.getAttribute("data-icon")).toBe("stop-sign");
+    expect(readout().getAttribute("aria-label")).toBe(
+      "Stopped before main : 16. Stopped before line 16. It has not run yet.",
+    );
+    expect(readout().title).toBe("Stopped before line 16. It has not run yet.");
+    expect(note()).toBeUndefined();
+
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: null,
+        stackTrace: null,
+      };
+    });
+    expect(controls().every((control, i) => control === before[i])).toBe(true);
+    expect(controls()).toHaveLength(before.length);
+    expect(readout().textContent).toBe("main : 12");
+    expect(readout().hasAttribute("data-stopped")).toBe(false);
+    expect(readout().hasAttribute("aria-label")).toBe(false);
+  });
+
+  it("keeps the sentence beside the readout on the compact layout", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: { reason: "breakpoint", threadId: 0, beat: "none" },
+        stackTrace: {
+          stackFrames: [
+            { id: 0, name: "start", line: 15, column: 0, source: { path: "file:///local/main.sd" } },
+          ],
+        },
+      };
+    });
+    const note = [...bar().querySelectorAll("span")].find(
+      (span) => span.textContent === "Stopped before line 16. It has not run yet.",
+    );
+    expect(note).toBeDefined();
+    expect(bar().querySelector("[data-stopped]")).toBeNull();
+  });
+
+  it("leaves the aspect ratio out of the phone's bar in every mode", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    const labels = () =>
+      Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
+        (control) => control.getAttribute("aria-label") ?? control.textContent,
+      );
+    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+  });
+
   it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {
     await mount();
     await act(() => {

@@ -72,6 +72,13 @@ export {
   type FilterChipSize,
 } from "./filter-chip/FilterChip";
 export {
+  default as FixMenu,
+  FIX_MENU_LABEL,
+  type FixMenuAction,
+  type FixMenuProps,
+  type FixMenuSize,
+} from "./fix-menu/FixMenu";
+export {
   default as MessageEntry,
   messageEntryVariants,
   messageEntryGlyphVariants,
@@ -364,6 +371,7 @@ export {
 } from "./zoom-frame/ZoomFrame";
 export {
   default as PanelHead,
+  panelHeadTitleVariants,
   panelHeadVariants,
   type PanelHeadProps,
   type PanelHeadSize,

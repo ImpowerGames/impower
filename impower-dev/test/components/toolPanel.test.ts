@@ -131,6 +131,62 @@ describe("ToolPanel chrome", () => {
   });
 });
 
+describe("the ToolPanel heading", () => {
+  const head = () => panel()!.querySelector<HTMLElement>("[data-panel-head]");
+  const pressKeepsFocus = (button: HTMLElement) => {
+    const down = new PointerEvent("pointerdown", { bubbles: true, cancelable: true });
+    button.dispatchEvent(down);
+    return down.defaultPrevented;
+  };
+
+  it.each(["desktop", "phone"])(
+    "is the shared PanelHead, titled in its 15px ink style, with Back and Close that keep focus (%s)",
+    async (value) => {
+      layout.value = value;
+      await mount();
+      const header = head()!;
+      expect(header).not.toBeNull();
+      expect(header.className).toContain("min-h-[52px]");
+      expect(header.className).toContain("border-b");
+      const title = header.querySelector("h2")!;
+      expect(title.textContent).toBe("Search");
+      expect(title.className).toContain("text-[15px]/[1.4]");
+      expect(title.className).toContain("text-ink");
+      const back = header.querySelector<HTMLElement>('[aria-label="Back to writing tools"]')!;
+      const close = header.querySelector<HTMLElement>('[aria-label="Close writing tools"]')!;
+      expect(pressKeepsFocus(back)).toBe(true);
+      expect(pressKeepsFocus(close)).toBe(true);
+    },
+  );
+
+  it("names the sheet by the DialogTitle in the PanelHead", async () => {
+    layout.value = "phone";
+    await mount();
+    const labelledBy = panel()!.getAttribute("aria-labelledby");
+    const named = labelledBy ? document.getElementById(labelledBy) : null;
+    expect(named?.textContent).toBe("Search");
+    expect(head()!.contains(named)).toBe(true);
+    expect(named!.className).toContain("text-[15px]/[1.4]");
+  });
+
+  it("sits above the keyboard panel and returns focus when Close is pressed", async () => {
+    layout.value = "phone";
+    const writing = document.body.appendChild(document.createElement("textarea"));
+    const onClose = vi.fn();
+    await mount(undefined, onClose, { returnFocus: () => writing }, "keyboard");
+    const header = head()!;
+    expect(header.className).toContain("absolute");
+    expect(header.className).toContain("bottom-full");
+    expect(header.className).toContain("h-[52px]");
+    expect(header.className).toContain("bg-panel");
+    const close = header.querySelector<HTMLElement>('[aria-label="Close writing tools"]')!;
+    expect(pressKeepsFocus(close)).toBe(true);
+    await act(async () => close.click());
+    expect(onClose).toHaveBeenCalledWith("close");
+    expect(document.activeElement).toBe(writing);
+  });
+});
+
 describe("the bar presentation", () => {
   const mountBar = async (open: boolean, onClose = vi.fn()) => {
     host = document.body.appendChild(document.createElement("div"));

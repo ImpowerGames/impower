@@ -119,6 +119,177 @@ describe("the Problems to fix dialog", () => {
     expect(entries()).toEqual(["Warning · Sound not found"]);
   });
 
+  it("gives an entry the server can fix one 44px Fix control, and none to the others", async () => {
+    const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+    const action = (name: string) => ({
+      name,
+      done: "Changed.",
+      changes: [{ from: 0, to: 1, insert: name }],
+    });
+    problems.record({
+      uri: CHAPTER,
+      version: 2,
+      diagnostics: [
+        {
+          ...diagnostic(1, 2, "Sound not found"),
+          data: [action("Use ding instead"), action("Use dong instead")],
+        },
+        { ...diagnostic(3, 2, "Note"), data: [action("Remove the note")] },
+      ],
+    });
+    await open({ kind: "story" });
+    const fixes = Array.from(
+      dialog()!.querySelectorAll<HTMLButtonElement>("[data-message-entry] button"),
+    ).filter((button) => !button.getAttribute("aria-label"));
+    expect(fixes.map((button) => button.textContent)).toEqual([
+      "Fix",
+      "Remove the note",
+    ]);
+    expect(fixes[0]!.getAttribute("aria-haspopup")).toBe("menu");
+    expect(fixes.every((button) => button.classList.contains("min-h-11"))).toBe(true);
+    await act(async () => fixes[1]!.click());
+    expect(applyFix).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Remove the note",
+        fix: expect.objectContaining({ uri: CHAPTER, version: 2 }),
+      }),
+    );
+    applyFix.mockRestore();
+  });
+
+  it("shows the fix's Undo inside the dialog, where the keyboard can reach it", async () => {
+    const { default: SnackbarHost } = await import(
+      "../../src/modules/spark-editor/components/snackbar-host/SnackbarHost"
+    );
+    const { showSnackbar, dismissSnackbar } = await import(
+      "../../src/modules/spark-editor/utils/snackbar"
+    );
+    const undone = vi.fn();
+    const applyFix = vi.spyOn(problems, "applyFix").mockImplementation(async () => {
+      showSnackbar({ message: "Changed to alice.", actionLabel: "Undo", onAction: undone });
+      return true;
+    });
+    const toasts = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(SnackbarHost, null), toasts));
+    problems.record({
+      uri: CHAPTER,
+      version: 2,
+      diagnostics: [
+        {
+          ...diagnostic(1, 2, "Cannot find alcie"),
+          data: [
+            {
+              name: "Use alice instead",
+              done: "Changed to alice.",
+              changes: [{ from: 0, to: 1, insert: "a" }],
+            },
+          ],
+        },
+      ],
+    });
+    await open({ kind: "story" });
+    const fix = Array.from(
+      dialog()!.querySelectorAll<HTMLButtonElement>("[data-message-entry] button"),
+    ).find((button) => button.textContent === "Use alice instead")!;
+    await act(async () => fix.click());
+    const undo = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Undo",
+    )!;
+    expect(dialog()!.contains(undo)).toBe(true);
+    await act(async () => undo.click());
+    expect(undone).toHaveBeenCalledTimes(1);
+    applyFix.mockRestore();
+    await act(async () => dismissSnackbar());
+    await act(async () => render(null, toasts));
+  });
+
+  describe("moves focus when a fix removes the entry that held it", () => {
+    const fixable = (line: number, title: string) => ({
+      ...diagnostic(line, 2, title),
+      data: [
+        {
+          name: `Fix ${title}`,
+          done: "Done.",
+          changes: [{ from: 0, to: 1, insert: "a" }],
+        },
+      ],
+    });
+
+    const fixButton = (title: string) =>
+      Array.from(dialog()!.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === `Fix ${title}`,
+      )!;
+
+    const choose = async (title: string, remaining: string[]) => {
+      const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+      const button = fixButton(title);
+      button.focus();
+      await act(async () => button.click());
+      await act(async () =>
+        problems.record({
+          uri: CHAPTER,
+          version: 3,
+          diagnostics: remaining.map((t, i) => fixable(i + 1, t)),
+        }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      applyFix.mockRestore();
+    };
+
+    beforeEach(() => {
+      problems.record({ uri: MAIN, diagnostics: [] });
+      problems.record({
+        uri: CHAPTER,
+        version: 2,
+        diagnostics: [fixable(1, "first"), fixable(2, "second"), fixable(3, "third")],
+      });
+    });
+
+    it("to the next entry", async () => {
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("second", ["first", "third"]);
+      expect(document.activeElement).toBe(fixButton("third"));
+    });
+
+    it("to the previous entry when it was the last", async () => {
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("third", ["first", "second"]);
+      expect(document.activeElement).toBe(fixButton("second"));
+    });
+
+    it("to the previous entry when the fixed one was the last of two identical problems", async () => {
+      problems.record({
+        uri: CHAPTER,
+        version: 2,
+        diagnostics: [fixable(1, "same"), fixable(2, "same")],
+      });
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      const [, last] = Array.from(dialog()!.querySelectorAll<HTMLButtonElement>("button")).filter(
+        (button) => button.textContent === "Fix same",
+      );
+      const applyFix = vi.spyOn(problems, "applyFix").mockResolvedValue(true);
+      last!.focus();
+      await act(async () => last!.click());
+      await act(async () =>
+        problems.record({ uri: CHAPTER, version: 3, diagnostics: [fixable(1, "same")] }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      applyFix.mockRestore();
+      expect(document.activeElement).toBe(fixButton("same"));
+    });
+
+    it("to the dialog's Close control when no entry is left", async () => {
+      problems.record({ uri: CHAPTER, version: 2, diagnostics: [fixable(1, "only")] });
+      await open({ kind: "script", path: "scripts/chapter_1.sd" });
+      await choose("only", []);
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("Close dialog");
+    });
+  });
+
   it("updates its entries as the diagnostics change", async () => {
     await open({ kind: "story" });
     await act(async () =>
@@ -156,5 +327,20 @@ describe("the Problems to fix dialog", () => {
       end: { line: 1, character: 2 },
     });
     expect(document.activeElement).not.toBe(trigger);
+  });
+
+  it("leaves focus to the script when a fix for a script no editor holds opens it from the dialog", async () => {
+    await open({ kind: "story" });
+    await act(async () => {
+      await problems.jump({ uri: CHAPTER, line: 2, character: 2 });
+    });
+    await transition();
+    expect(dialog()).toBeUndefined();
+    expect(intents.revealDocument).toHaveBeenCalledWith(CHAPTER, {
+      start: { line: 1, character: 2 },
+      end: { line: 1, character: 2 },
+    });
+    expect(document.activeElement).not.toBe(trigger);
+    expect(problems.takeLeftForScript()).toBe(false);
   });
 });

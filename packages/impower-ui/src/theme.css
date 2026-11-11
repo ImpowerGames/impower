@@ -109,7 +109,6 @@
   --editor-problem-error: #f14c4c;
   --editor-problem-warning: #cca700;
   --editor-problem-info: #59a4f9;
-  --editor-action-ink: #9cdcfe;
   --editor-match: #18a3ff;
   --editor-faint: #808080;
   --editor-placeholder: #888888;
@@ -558,7 +557,6 @@
   --editor-problem-error: var(--error);
   --editor-problem-warning: var(--warning);
   --editor-problem-info: var(--muted);
-  --editor-action-ink: var(--accent);
   --editor-match: var(--accent);
   --editor-faint: var(--muted);
   --editor-placeholder: var(--muted);

@@ -1,58 +1,65 @@
 import { Action, Diagnostic, setDiagnostics } from "@codemirror/lint";
-import { EditorSelection } from "@codemirror/state";
+import { Facet } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
+export interface DiagnosticFixAction {
+  name: string;
+  done: string;
+  expect?: string;
+  kind?: "name" | "note";
+  changes: { from: number; to: number; insert: string }[];
+}
+
+export interface DiagnosticFix {
+  uri: string;
+  version: number;
+  range: lsp.Range;
+  action: DiagnosticFixAction;
+}
+
+export type DiagnosticFixHandler = (fix: DiagnosticFix) => void;
+
+export const diagnosticFixHandler = Facet.define<
+  DiagnosticFixHandler,
+  DiagnosticFixHandler | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
+export const fixActionsOf = (data: unknown): DiagnosticFixAction[] =>
+  Array.isArray(data)
+    ? data.filter(
+        (action): action is DiagnosticFixAction =>
+          typeof action?.name === "string" &&
+          typeof action?.done === "string" &&
+          Array.isArray(action?.changes) &&
+          action.changes.length > 0,
+      )
+    : [];
+
 export function convertFromDiagnosticDataToActions(
-  data: {
-    name: string;
-    focus?: { from: number; to: number };
-    changes?: { from: number; to?: number; insert?: string }[];
-  }[],
+  plugin: LSPPlugin,
+  range: lsp.Range,
+  data: unknown,
 ): Action[] {
-  const actions: Action[] = [];
-  if (!data) {
-    return actions;
-  }
-  data.forEach((a) => {
-    actions.push({
-      name: a.name,
-      apply: (view: EditorView) => {
-        const doc = view.state.doc.toString();
-        if (a.focus) {
-          view.dispatch({
-            selection: {
-              anchor: Math.min(doc.length, Math.max(0, a.focus.from)),
-              head: Math.min(doc.length, a.focus.to),
-            },
-            effects: EditorView.scrollIntoView(
-              EditorSelection.range(
-                Math.min(doc.length, Math.max(0, a.focus.from)),
-                Math.min(doc.length, a.focus.to),
-              ),
-              { y: "center" },
-            ),
-          });
-          view.focus();
-        }
-        if (a.changes && a.changes.length > 0) {
-          const lastChange = a.changes[a.changes.length - 1]!;
-          const cursor =
-            lastChange.insert != null
-              ? lastChange.from + lastChange.insert.length
-              : lastChange.from;
-          view.dispatch({
-            changes: a.changes,
-            selection: { anchor: cursor, head: cursor },
-          });
-        }
-      },
-    });
-  });
-  return actions;
+  const version = plugin.client.workspace.getFile(plugin.uri)?.version;
+  return fixActionsOf(data).map((action) => ({
+    name: action.name,
+    apply: (view: EditorView) => {
+      if (version != null) {
+        view.state.facet(diagnosticFixHandler)?.({
+          uri: plugin.uri,
+          version,
+          range,
+          action,
+        });
+      }
+    },
+  }));
 }
 
 interface ServerDiagnostic extends Omit<lsp.Diagnostic, "message"> {
@@ -77,7 +84,7 @@ export function convertFromServerDiagnostics(
           typeof d.message === "object" && "value" in d.message
             ? d.message.value
             : d.message,
-        actions: convertFromDiagnosticDataToActions(d["data"]),
+        actions: convertFromDiagnosticDataToActions(plugin, d.range, d.data),
         renderMessage: () => {
           return renderDiagnosticMessage(plugin, d.message);
         },

@@ -1,3 +1,4 @@
+import type { Layout } from "@impower/impower-ui/layout";
 import type { GameSize, WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import {
   routeIcon,
@@ -86,7 +87,7 @@ const at = (path: string, line: number, playing: boolean): BarPosition => {
   };
 };
 
-export type ReadoutIcon = RouteIcon;
+export type ReadoutIcon = RouteIcon | "stopped";
 
 export interface BarReadout {
   name: string;
@@ -94,6 +95,7 @@ export interface BarReadout {
   icon: ReadoutIcon;
   title: string;
   failed: boolean;
+  stopped: boolean;
   opensRoute: boolean;
   uri?: string;
   line: number;
@@ -105,15 +107,51 @@ const positionReadout = (position: BarPosition): BarReadout => ({
   icon: null,
   title: position.title,
   failed: false,
+  stopped: false,
   opensRoute: false,
   uri: position.uri,
   line: position.line,
 });
 
+const stoppedBeforeFrame = (session: DebugSessionState) => {
+  const frame = session.stackTrace?.stackFrames[0];
+  return session.stopped?.beat === "none" && frame ? frame : null;
+};
+
+const stopSentence = (line: number) =>
+  `Stopped before line ${line + 1}. It has not run yet.`;
+
+const stoppedReadout = (session: DebugSessionState): BarReadout | null => {
+  const frame = stoppedBeforeFrame(session);
+  if (!frame) {
+    return null;
+  }
+  const uri = frame.source?.path;
+  return {
+    name: uri
+      ? `Stopped before ${scriptName(uri)} : ${frame.line + 1}`
+      : `Stopped before line ${frame.line + 1}`,
+    lines: "",
+    icon: "stopped",
+    title: stopSentence(frame.line),
+    failed: false,
+    stopped: true,
+    opensRoute: false,
+    uri,
+    line: frame.line,
+  };
+};
+
 export const barReadout = (
   state: WorkspaceCache,
   view: HostedRouteView | null,
+  session: DebugSessionState,
+  layout: Layout,
 ): BarReadout | null => {
+  const stopped = layout === "phone" ? stoppedReadout(session) : null;
+  if (stopped) {
+    return stopped;
+  }
   const position = barPosition(state);
   if (state.preview?.modes?.game?.running && position) {
     return positionReadout(position);
@@ -129,6 +167,7 @@ export const barReadout = (
         icon: routeIcon(route),
         title: routeTitle(route, routeScriptName),
         failed: !!view.failure,
+        stopped: false,
         opensRoute: true,
         uri: target?.uri,
         line: target?.range.start.line ?? 0,
@@ -157,9 +196,6 @@ export const barPosition = (state: WorkspaceCache): BarPosition | null => {
 };
 
 export const stopNote = (session: DebugSessionState): string | null => {
-  const frame = session.stackTrace?.stackFrames[0];
-  if (session.stopped?.beat !== "none" || !frame) {
-    return null;
-  }
-  return `Stopped before line ${frame.line + 1}. It has not run yet.`;
+  const frame = stoppedBeforeFrame(session);
+  return frame ? stopSentence(frame.line) : null;
 };

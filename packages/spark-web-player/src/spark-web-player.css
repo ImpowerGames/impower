@@ -284,6 +284,7 @@ spark-web-player #game {
   container-type: size;
   container-name: screen;
   resize: none;
+  overflow: clip;
 }
 
 spark-web-player .fullscreen #game {

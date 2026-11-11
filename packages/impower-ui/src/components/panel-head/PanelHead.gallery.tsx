@@ -1,7 +1,7 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import { BackIcon, ChevronIcon, ChevronLeftIcon, CloseIcon } from "../icon/icons.generated";
-import PanelHead, { type PanelHeadSize, type PanelHeadTitleSize } from "./PanelHead";
+import PanelHead, { panelHeadTitleVariants, type PanelHeadSize, type PanelHeadTitleSize } from "./PanelHead";
 
 const SIZES: Record<PanelHeadSize, string> = {
   compact: "Compact, 44px",
@@ -54,12 +54,20 @@ function PanelHeadDemo() {
           />
         </div>
       </GalleryRow>
+      <GalleryRow label="A title node of the caller's own, styled by panelHeadTitleVariants">
+        <div class="bg-panel">
+          <PanelHead
+            title={<h2 class={panelHeadTitleVariants({ titleSize: "md" })}>Add to script</h2>}
+            end={close}
+          />
+        </div>
+      </GalleryRow>
     </div>
   );
 }
 
 export const panelHeadGallery: GalleryEntry = {
   title: "PanelHead",
-  exports: ["PanelHead", "panelHeadVariants"],
+  exports: ["PanelHead", "panelHeadVariants", "panelHeadTitleVariants"],
   Demo: PanelHeadDemo,
 };

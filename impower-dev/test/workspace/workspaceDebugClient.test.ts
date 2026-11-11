@@ -120,6 +120,27 @@ describe("the web editor's debug client", () => {
     ]);
   });
 
+  it("puts a stop's frames in the store before it moves the run to the stopped line, so the two can disagree", async () => {
+    const fake = fakeAdapter();
+    const { debug, onStop } = client(fake);
+    ending = debug;
+    await debug.start(MAIN);
+    fake.stackAt(15);
+    const movedWhenFramesLanded: boolean[] = [];
+    const stop = workspace.debugSession.subscribe((session) => {
+      if (session.stopped?.beat === "none" && session.stackTrace) {
+        movedWhenFramesLanded.push(onStop.mock.calls.length > 0);
+      }
+    });
+    try {
+      fake.event("stopped", { reason: "breakpoint", threadId: 0, beat: "none" });
+      await vi.waitFor(() => expect(onStop).toHaveBeenCalledWith({ uri: MAIN, line: 15 }));
+    } finally {
+      stop();
+    }
+    expect(movedWhenFramesLanded[0]).toBe(false);
+  });
+
   it("keeps a stop and its stack trace in the store and moves the run to the stopped line", async () => {
     const fake = fakeAdapter();
     const { debug, onStop } = client(fake);

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useCoarsePointer } from "../../hooks/useCoarsePointer";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
+import { topToastLayer } from "../../utils/toastLayer";
 import Button from "../button/Button";
 import {
   CloseIcon,
@@ -133,6 +134,6 @@ export default function Toast({
         )}
       </div>
     </div>,
-    document.body,
+    topToastLayer() ?? document.body,
   );
 }

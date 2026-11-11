@@ -15,11 +15,30 @@ const SHARED_PACKAGES = [
 ];
 
 export default defineConfig({
-  resolve: { dedupe: SHARED_PACKAGES },
+  resolve: {
+    dedupe: SHARED_PACKAGES,
+    alias: [
+      { find: /^react(-dom)?$/, replacement: "preact/compat" },
+      { find: /^react\/jsx-runtime$/, replacement: "preact/jsx-runtime" },
+    ],
+    mainFields: ["module", "main"],
+  },
   test: {
     include: ["test/**/*.test.ts"],
     environment: "jsdom",
     pool: "threads",
     testTimeout: 30_000,
+    server: {
+      deps: {
+        inline: [
+          /@radix-ui\//,
+          /@floating-ui\/react-dom/,
+          /react-remove-scroll/,
+          /react-style-singleton/,
+          /use-callback-ref/,
+          /use-sidecar/,
+        ],
+      },
+    },
   },
 });
