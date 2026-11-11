@@ -277,10 +277,12 @@ export function poseGradient(element: Element, state: MorphGradientState) {
 
 export type MorphGroupPose = { state: string; last?: number } | { segment: number; progress: number };
 
-export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<string, MorphGroupPose> {
-  const at = clamp01(offset);
+export function morphPosesAt(artifact: MorphArtifact, offset: number | Readonly<Record<string, number>>): Record<string, MorphGroupPose> {
   const poses: Record<string, MorphGroupPose> = table();
   for (const [group, entries] of Object.entries(artifact.schedules)) {
+    const driven = typeof offset === "number" ? offset : own(offset, own(artifact.groups, group) ?? "");
+    if (driven === undefined) continue;
+    const at = clamp01(driven);
     let last: number | undefined;
     let pose: MorphGroupPose | undefined;
     for (const [index, segment] of artifact.segments.entries()) {
@@ -590,7 +592,7 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
   return renderMorphState(artifact, morphFrameState(artifact, poses));
 }
 
-export function renderMorphAt(artifact: MorphArtifact, offset: number): string {
+export function renderMorphAt(artifact: MorphArtifact, offset: number | Readonly<Record<string, number>>): string {
   if (artifact.status !== "live") return artifact.rest;
   return renderMorphState(artifact, morphFrameState(artifact, morphPosesAt(artifact, offset)));
 }

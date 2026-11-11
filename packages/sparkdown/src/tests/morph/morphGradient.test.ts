@@ -27,7 +27,7 @@ const shown = (svg: string, name: string) =>
   elements(svg).filter((e) => e.attributes["data-name"] === name && e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
 
 const bake = (source = gradientPortrait(), recipe = paintBlink()) =>
-  bakeMorphArtifact({ source, selection: {}, recipe, key: "gradient", variant: "gradient" });
+  bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "gradient", variant: "gradient" });
 
 const track = (artifact: MorphArtifact, name: string): Morph => {
   const from = shown(renderMorphAt(artifact, 0), name)[0]!.attributes["data-morph"];

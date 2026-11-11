@@ -118,7 +118,7 @@ const crosses = (pts: P[]): boolean => {
 const STEPS = 1000;
 
 const measure = (svg: string, right = false) => {
-  const art = bakeMorphArtifact({ source: svg, selection: {}, recipe: blink({}, right), key: "k", variant: "v" });
+  const art = bakeMorphArtifact({ source: svg, selection: {}, recipes: [blink({}, right)], key: "k", variant: "v" });
   expect(art.status, JSON.stringify(art.diagnostics)).toBe("live");
   let blends = 0;
   art.apertures.forEach((table, index) => {
@@ -174,7 +174,7 @@ describe("a blended aperture", () => {
       expect(aperturePathData(table, { index: 0, reversed: false }, 1)).toBe(last);
       expect(aperturePathData(table, { index: 0, reversed: true }, 0)).toBe(last);
     };
-    const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipe: blink(), key: "k", variant: "v" });
+    const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipes: [blink()], key: "k", variant: "v" });
     ends(art.apertures[0]!);
     const square = [0, 0, 10, 0, 10, 10, 0, 10];
     const bow = [0, 0, 10, 10, 0, 10, 10, 0];

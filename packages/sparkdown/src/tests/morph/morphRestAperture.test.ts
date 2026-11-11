@@ -193,7 +193,7 @@ describe("a live morph's rest render", () => {
       eye("M20,50 C40,15 95,0 120,45 C92,85 60,88 35,47 L20,50Z", "M35,47 C65,70 95,75 120,45 C92,85 60,88 35,47Z"),
     ],
   ])("looks the same as the variant's static image away from the drawn outlines: %s", (_name, SVG) => {
-    const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(artifact.status).toBe("live");
     const rest = paintList(artifact.rest);
@@ -235,7 +235,7 @@ const properlyCrosses = (pts: Point[]): boolean => {
 
 describe("a live morph's aperture masks", () => {
   const SVG = eye(WHITE, LOWER);
-  const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+  const artifact = bakeMorphArtifact({ source: SVG, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
 
   const underParent = (parent: string, undo: string) =>
     SVG.replace(
@@ -290,7 +290,7 @@ describe("a live morph's aperture masks", () => {
   };
 
   test.each(FIXTURES)("reach half a screen pixel past the aperture's outline under the edges: %s", (_name, source, unit) => {
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
@@ -309,7 +309,7 @@ describe("a live morph's aperture masks", () => {
   });
 
   test.each(FIXTURES)("at rest, change nothing but toward the static image: %s", (_name, source, unit) => {
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
       const outline = apertureOutline(svg);
       expect(outline.length).toBeGreaterThan(0);
@@ -360,7 +360,7 @@ describe("a live morph's aperture masks", () => {
   const MID_BLINK = MOVING.flatMap(([name, source]) => OFFSETS.map(([when, offset]) => [`${name}, ${when}`, source, offset] as const));
 
   test.each(MID_BLINK)("reach half a screen pixel past the aperture's outline under the moving edges: %s", (_name, source, offset) => {
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     const svg = renderMorphAt(baked, offset);
     for (const scale of [4, 20]) {
@@ -414,7 +414,7 @@ describe("a live morph's aperture masks", () => {
       '<path data-name="face"',
       '<defs><clipPath id="morph-clip-0-0-reach"><path d="M60,0H80V100H60Z"/></clipPath></defs><path data-name="face"',
     ).replace(`<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>`, `<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff" clip-path="url(#morph-clip-0-0-reach)"/>`);
-    const baked = bakeMorphArtifact({ source: authored, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: authored, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     const svg = renderMorphAt(baked, 0.2);
     expect(svg).toContain("-reach");
@@ -430,7 +430,7 @@ describe("a live morph's aperture masks", () => {
     const recipe = blink({
       clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "pupil-left", "eyeball-white-right", "pupil-right"] }],
     });
-    const baked = bakeMorphArtifact({ source: portrait({ right: true }), selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: portrait({ right: true }), selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     const svg = renderMorphAt(baked, offset);
@@ -486,7 +486,7 @@ describe("a live morph's aperture masks", () => {
       .replace(whites[0]![0], `<path data-name="eyeball-whites" d="${whites[0]![2]}${whites[1]![2]}" fill="#fff"/>`)
       .replace(whites[1]![0], "");
     const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-whites", "pupil-left", "pupil-right"] }] });
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     const svg = when === "rest" ? baked.rest : renderMorphAt(baked, when);
@@ -517,7 +517,7 @@ describe("a live morph's aperture masks", () => {
     const source = portrait()
       .replace("<defs>", '<defs><mask id="shade"><path d="M0,0H260V58H0Z" fill="#fff"/></mask>')
       .replace(/(<path data-name="eyeball-white-left" d="[^"]+" fill="#fff")\/>/, `$1 ${ownMask}/>`);
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     for (const svg of [baked.rest, renderMorphAt(baked, 0.1), renderMorphAt(baked, 0.2)]) {
@@ -540,7 +540,7 @@ describe("a live morph's aperture masks", () => {
   });
 
   test.each(BENEATH)("reach no target painted above the moving edges: %s", (_name, source, offset, recipe) => {
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     const svg = renderMorphAt(baked, offset);
     expect(svg).not.toContain("-reach");
@@ -550,7 +550,7 @@ describe("a live morph's aperture masks", () => {
   test.each([...MID_BLINK.map((row) => [...row, blink()] as const), ...CLOSED_POSES.map((row) => [...row, blink()] as const), ...BENEATH])(
     "reach nowhere it would show away from rest: %s",
     (_name, source, offset, recipe) => {
-      const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
+      const baked = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
       const svg = renderMorphAt(baked, offset);
       const outline = apertureOutline(svg);
       expect(outline.length).toBeGreaterThan(0);
@@ -588,7 +588,7 @@ describe("a live morph's aperture masks", () => {
     ["a parent translated ten million units", [1, 0.1, 0.2, 1, 10000000.3, 10000000.4]],
   ] as [string, Affine][])("clip a target under %s in its own space, with no reach", (_name, parent) => {
     const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
@@ -605,7 +605,7 @@ describe("a live morph's aperture masks", () => {
   test("mask a target under a parent translated ten thousand units in root space, with its reach", () => {
     const parent: Affine = [1, 0.1, 0.2, 1, 10000, 10000];
     const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
-    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     const white = masksOf(baked.rest).find(({ wrapper }) => ((wrapper?.children[0] as Element)?.children[0] as Element | undefined)?.attributes["data-name"] === "eyeball-white-left")!;
     expect(white.kind).toBe("mask");
@@ -631,7 +631,7 @@ describe("a live morph's aperture masks", () => {
 <path data-name="eyeball-white-right" d="${right(WHITE)}" fill="#fff"/>
 </svg>`;
     const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "eyeball-white-right"] }] });
-    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     for (const svg of [baked.rest, renderMorphAt(baked, 0)]) {
@@ -652,7 +652,7 @@ describe("a live morph's aperture masks", () => {
 
   test("keep the reach for an open eye drawn in tiny root units", () => {
     const tiny = SVG.replace('viewBox="0 0 140 100" width="140" height="100">', 'viewBox="0 0 0.007 0.005" width="140" height="100"><g transform="scale(0.00005)">').replace("</svg>", "</g></svg>");
-    const baked = bakeMorphArtifact({ source: tiny, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: tiny, selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     const masks = masksOf(baked.rest);
@@ -679,7 +679,7 @@ describe("a live morph's aperture masks", () => {
         { offset: 1, eyes: { state: "closed" } },
       ],
     });
-    const baked = bakeMorphArtifact({ source: closedFirst, selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: closedFirst, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(baked.status).toBe("live");
     for (const svg of [baked.rest, renderMorphAt(baked, 0), renderMorphAt(baked, 1)]) {
@@ -712,7 +712,7 @@ describe("a live morph's aperture masks", () => {
 
   const spreadClip = (spread?: number) => blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread: `${spread}px` }) }] });
   const restStyles = (spread?: number) => {
-    const baked = bakeMorphArtifact({ source: SVG, selection: {}, recipe: spreadClip(spread), key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: SVG, selection: {}, recipes: [spreadClip(spread)], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     return { baked, styles: masksOf(baked.rest).map(({ path }) => path["style"]) };
   };
@@ -762,7 +762,7 @@ describe("a live morph's aperture masks", () => {
 <path data-name="eyeball-white-right" d="${right(WHITE)}" fill="#fff"/>
 </svg>`;
     const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "eyeball-white-right"], spread: `${spread}px` }] });
-    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipe, key: "k", variant: "bunny" });
+    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipes: [recipe], key: "k", variant: "bunny" });
     expect(baked.status).toBe("live");
     const doc = parse(baked.rest);
     const masks: Element[] = [];
@@ -789,7 +789,7 @@ describe("a live morph's aperture masks", () => {
   test("warn once that a clip-path aperture ignores the spread its entry sets", () => {
     const parent: Affine = [1, 1, 1, 1.000001, 0, 0];
     const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
-    const bake = (spread?: number) => bakeMorphArtifact({ source, selection: {}, recipe: spreadClip(spread), key: "k", variant: "bunny" });
+    const bake = (spread?: number) => bakeMorphArtifact({ source, selection: {}, recipes: [spreadClip(spread)], key: "k", variant: "bunny" });
     expect(bake().diagnostics.filter((d) => d.code === "spread-ignored")).toEqual([]);
     const ignored = bake(2).diagnostics.filter((d) => d.code === "spread-ignored");
     expect(ignored).toHaveLength(1);
@@ -804,7 +804,7 @@ describe("a live morph's baked apertures", () => {
     const lower = "M45,40 C60,52 95,78 120,50 C92,88 60,60 45,40Z";
     const closed = "M20,50 C50,44 90,44 120,50 C90,50 50,50 20,50Z";
     const white = "M20,50 C50,5 90,5 120,50 C92,88 60,60 45,40 L20,50Z";
-    const artifact = bakeMorphArtifact({ source: eye(white, lower, upper, closed), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    const artifact = bakeMorphArtifact({ source: eye(white, lower, upper, closed), selection: {}, recipes: [blink()], key: "k", variant: "bunny" });
     expect(artifact.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(artifact.status).toBe("live");
     expect(artifact.apertures.length).toBeGreaterThan(0);

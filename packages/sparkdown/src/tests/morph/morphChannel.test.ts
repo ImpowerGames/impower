@@ -49,7 +49,7 @@ describe("morph channel", () => {
     expect(recipe?.clips).toEqual([{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"] }]);
     const refs = channel.variants["bunny"]!;
     expect(refs).toHaveLength(1);
-    expect(refs[0]).toMatchObject({ morph: "blink", image: "bunny", selection: "{}", groups: ["eyes"] });
+    expect(refs[0]).toMatchObject({ morphs: ["blink"], image: "bunny", selection: "{}", groups: ["eyes"] });
     expect(refs[0]!.src).toBeUndefined();
     expect(channel.variants["bunny~eyes.closed"]).toBeUndefined();
   });
@@ -88,7 +88,7 @@ describe("morph channel", () => {
       const program = compile(`${blinkScript()}\n[[${name}]]\n`, { name });
       const refs = program.morphs!.variants[name];
       expect(refs).toHaveLength(1);
-      expect(refs![0]).toMatchObject({ morph: "blink", image: name });
+      expect(refs![0]).toMatchObject({ morphs: ["blink"], image: name });
     }
   });
 

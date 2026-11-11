@@ -79,7 +79,7 @@ describe("morph asset requests through the standalone player's service worker", 
     expect(response.headers.get("Content-Type")).toBe("application/json");
     const artifact = (await response.json()) as MorphArtifact;
     expect(artifact.key).toBe(ref.key);
-    expect(artifact.morph).toBe("blink");
+    expect(artifact.morphs).toEqual(["blink"]);
     expect(artifact.status).toBe("live");
   });
 

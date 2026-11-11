@@ -8,7 +8,8 @@ import { blink, portrait } from "./fixtures";
 const artifactFor = (key: string): MorphArtifact => ({
   format: MORPH_BAKE_FORMAT,
   key,
-  morph: "blink",
+  morphs: ["blink"],
+  groups: {},
   status: "static",
   rest: `<svg data-key='${key}'/>`,
   idPrefix: "_m0_",
@@ -23,7 +24,7 @@ const artifactFor = (key: string): MorphArtifact => ({
   diagnostics: [],
 });
 
-const input = (key: string): MorphBakeInput => ({ source: "<svg/>", selection: {}, recipe: blink(), key });
+const input = (key: string): MorphBakeInput => ({ source: "<svg/>", selection: {}, recipes: [blink()], key });
 const bakeLoad = (key: string, source = "s1") => async (): Promise<MorphLoad> => ({ kind: "bake", input: input(key), source });
 
 function controlledService(options: ConstructorParameters<typeof MorphBakeService>[0] = {}) {
@@ -186,7 +187,7 @@ describe("morph bake service", () => {
     const svg = portrait();
     const load = (key: string, selection: Record<string, string>) => async (): Promise<MorphLoad> => ({
       kind: "bake",
-      input: { source: svg, selection, recipe: blink(), key },
+      input: { source: svg, selection, recipes: [blink()], key },
       source: "bunny",
     });
     (await service.request("plain", load("plain", {}))).release();
@@ -197,7 +198,7 @@ describe("morph bake service", () => {
 });
 
 describe("morph artifact slot", () => {
-  const ref = (key: string): MorphRef => ({ morph: "blink", key, image: "bunny", selection: "{}", groups: ["eyes"] });
+  const ref = (key: string): MorphRef => ({ morphs: ["blink"], key, image: "bunny", selection: "{}", groups: ["eyes"] });
 
   test("a result for a reference the slot has moved on from is released unseen", async () => {
     const { service, runs } = controlledService();
