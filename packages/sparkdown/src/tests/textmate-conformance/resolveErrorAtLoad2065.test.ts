@@ -1,4 +1,5 @@
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src/extensions/vscodeLanguage";
+import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { describe, expect, test } from "vitest";
 
@@ -43,11 +44,49 @@ describe("a pattern the matcher cannot compile is deferred to the parse that rea
     expect(() => parser.parse("{ x }")).toThrow("Invalid RegExp: (?<=a)(?!b");
   });
 
-  test("an unsupported while rule no text reaches still loads", () => {
-    const withWhile = {
-      scopeName: "source.probe",
-      patterns: [{ match: "a", name: "a" }, block([{ begin: "x", while: "x", patterns: [] }])],
-    };
-    expect(() => new TextmateGrammarParser(withWhile as any).parse("a")).not.toThrow();
+});
+
+describe("an unsupported while rule is deferred to the parse whose text begins it (I-2065)", () => {
+  const whileRule = { begin: "x", while: "x", patterns: [] };
+  const a = { match: "a", name: "a" };
+
+  test.each<[string, object, object[], string, string | null]>([
+    ["in the grammar's root patterns", { scopeName: "source.probe", patterns: [a, whileRule] }, [], "a a", "a x"],
+    [
+      "in a top-level repository rule no include reaches",
+      { scopeName: "source.probe", patterns: [a], repository: { never: whileRule } },
+      [],
+      "a x",
+      null,
+    ],
+    [
+      "in a scoped rule's patterns",
+      { scopeName: "source.probe", patterns: [a, block([whileRule])] },
+      [],
+      "a {a} x",
+      "a {x}",
+    ],
+    [
+      "as a capture, whose begin vscode-textmate ignores",
+      { scopeName: "source.probe", patterns: [a, { match: "b(x)", captures: { "1": whileRule } }] },
+      [],
+      "a bx",
+      null,
+    ],
+    [
+      "in an embedded grammar's root patterns",
+      { scopeName: "source.host", patterns: [{ include: "source.guest" }] },
+      [{ scopeName: "source.guest", patterns: [a, whileRule] }],
+      "a a",
+      "a x",
+    ],
+  ])("%s loads, parses text that does not begin it and fails the parse that does", (_, grammar, others, quiet, reaching) => {
+    const parser = new TextmateGrammarParser(
+      others.length ? new GrammarRegistry([grammar, ...others] as any) : (grammar as any),
+    );
+    expect(() => parser.parse(quiet)).not.toThrow();
+    if (reaching) {
+      expect(() => parser.parse(reaching)).toThrow(/^while rules are not currently supported/);
+    }
   });
 });

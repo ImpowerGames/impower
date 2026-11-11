@@ -8,8 +8,8 @@ Total cases: 95
 - mismatch: 1
 - incomplete: 15
 - capture-model: 0
-- while-rule: 20
-- regex-invalid: 53
+- while-rule: 18
+- regex-invalid: 55
 - throw-other: 2
 - load-error: 0
 
@@ -41,7 +41,7 @@ Total cases: 95
 - suite1#9 [fixtures/testlang12.plist] Issue #12 — line 1 "[test]|": token[0] ("[test]|") scopes got ["text.testlang"] want ["text.testlang","string.unquoted.verbatim.youki"]
 - suite1#16 [fixtures/105.grammarA.json] Issue #105 — line 3 "some test pattern": token[0] ("some test pattern") scopes got ["source.test"] want ["source.test","test.name"]
 
-### while-rule (20)
+### while-rule (18)
 - first-mate#1 [fixtures/coffee-script.json] TEST #4 — Invalid RegExp: (?x)
 				\b(?<![\.\$])(
 					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
@@ -96,19 +96,17 @@ Total cases: 95
 					then|throw|try|unless|when|while|until|loop|do|(?<=for)\s+own
 				)(?!\s*:)\b
 			
-- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — while rules are not currently supported
-- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — while rules are not currently supported
-- suite1#0 [fixtures/whileLang.plist] While should match begin and stop on next line if while condition fails — while rules are not currently supported
-- suite1#1 [fixtures/whileLang.plist] While should match multiple lines while condition holds — while rules are not currently supported
-- suite1#2 [fixtures/whileLang.plist] While condition can match anywhere in line — while rules are not currently supported
-- suite1#3 [fixtures/whileLang.plist] Begin of while should consume entire rest of line. — while rules are not currently supported
-- suite1#4 [fixtures/whileLang.plist] Nested whiles should match using only inner most while on a mached line — while rules are not currently supported
-- suite1#5 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported
-- suite1#6 [fixtures/whileLang.plist] Nested whiles should move line ahead before checking other conditions — while rules are not currently supported
-- suite1#7 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported
-- suite1#8 [fixtures/whileLang.plist] Should Correctly handle anchor in while rule — while rules are not currently supported
+- suite1#0 [fixtures/whileLang.plist] While should match begin and stop on next line if while condition fails — while rules are not currently supported: alist
+- suite1#1 [fixtures/whileLang.plist] While should match multiple lines while condition holds — while rules are not currently supported: alist
+- suite1#2 [fixtures/whileLang.plist] While condition can match anywhere in line — while rules are not currently supported: alist
+- suite1#3 [fixtures/whileLang.plist] Begin of while should consume entire rest of line. — while rules are not currently supported: alist
+- suite1#4 [fixtures/whileLang.plist] Nested whiles should match using only inner most while on a mached line — while rules are not currently supported: alist
+- suite1#5 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported: alist
+- suite1#6 [fixtures/whileLang.plist] Nested whiles should move line ahead before checking other conditions — while rules are not currently supported: alist
+- suite1#7 [fixtures/whileLang.plist] Nested whiles should check line for outer most while to inner most while — while rules are not currently supported: alist
+- suite1#8 [fixtures/whileLang.plist] Should Correctly handle anchor in while rule — while rules are not currently supported: blist
 
-### regex-invalid (53)
+### regex-invalid (55)
 - first-mate#17 [fixtures/ruby.json] TEST #20 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
 - first-mate#20 [fixtures/coffee-script.json] TEST #23 — Invalid RegExp: \#\{
 - first-mate#22 [fixtures/ruby.json] TEST #25 — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
@@ -216,6 +214,7 @@ Total cases: 95
 				
 - first-mate#62 [fixtures/thrift.json] TEST #73 — Invalid RegExp: (?<!\S)(include)(?!\S)(?:\s+((['"])(?>.*?(\3))))?
 - suite1#0 [fixtures/groovy.json] Groovy — Invalid RegExp: }
+- suite1#1 [fixtures/markdown.plist] Nested repositories in Markdown — Invalid RegExp: (?:^|\G)(#{1,6})\s*(?=[\S[^#]])
 - suite1#2 [fixtures/aspvbnet.plist] asp — Invalid RegExp: (?i:((?<=(\+|=|-|\&|\\|/|<|>|\(|,))\s*\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?!(\(|\.))|\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?=\s*(\+|=|-|\&|\\|/|<|>|\(|\)))))
 - suite1#3 [fixtures/aspvbnet.plist] asp2 — Invalid RegExp: (?i:((?<=(\+|=|-|\&|\\|/|<|>|\(|,))\s*\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?!(\(|\.))|\b([a-zA-Z_x7f-xff][a-zA-Z0-9_x7f-xff]*?)\b(?=\s*(\+|=|-|\&|\\|/|<|>|\(|\)))))
 - suite1#4 [fixtures/php.plist] Injections in PHP — Invalid RegExp: (<)([a-zA-Z0-9:]++)(?=[^>]*></\2>)
@@ -224,6 +223,7 @@ Total cases: 95
 - suite1#7 [fixtures/Ruby.plist] Ruby — Invalid RegExp: (?>[a-zA-Z_]\w*(?>[?!])?)(:)(?!:)
 - suite1#8 [fixtures/Makefile.plist] Issue #8 — Invalid RegExp: ^(?!\t)([^:]*)(:)(?!\=)
 - suite1#10 [fixtures/Jade.json] Issue #17 — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
+- suite1#11 [fixtures/Markdown.tmLanguage] Issue #10 — Invalid RegExp: (?:^|\G)(#{1,6})\s*(?=[\S[^#]])
 - suite1#12 [fixtures/html2.json] Issue #46 — Invalid RegExp: ^(///)\s*(?=<(reference|amd-dependency|amd-module)(\s+(path|types|no-default-lib|name)\s*=\s*((\'[^']*\')|(\"[^"]*\")))+\s*/>\s*$)
 - suite1#13 [fixtures/Jade22.json] Issue #22 — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
 - suite1#14 [fixtures/Pug.tmLanguage] Issue #82 — Invalid RegExp: ^(\s*)(?=[\w.#].*?\.$)(?=(?:(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*)(?:(?:(?::\s+)|(?<=\)))(?:(?:(?:(?:#[\w-]+)|(?:\.[\w-]+))|(?:(?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))(?:(?:#[\w-]+)|(?:\.[\w-]+)|(?:\((?:[^()\'\"]*(?:(?:\'(?:[^\']|(?:(?<!\\)\\\'))*\')|(?:\"(?:[^\"]|(?:(?<!\\)\\\"))*\")))*[^()]*\))*)*))*)\.$)(?:(?:(#[\w-]+)|(\.[\w-]+))|((?:[#!]\{[^}]*\})|(?:\w(?:(?:[\w:-]+[\w-])|(?:[\w-]*)))))
