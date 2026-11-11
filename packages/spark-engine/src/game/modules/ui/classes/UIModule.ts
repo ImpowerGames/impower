@@ -1558,8 +1558,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
-    const head = new MorphTimeline(this.morphTiming(recipe.name), () => 0).at(0);
-    return "offset" in head ? morphPoseAt(recipe, head.offset) : morphRestPose(recipe);
+    const timeline = new MorphTimeline(this.morphTiming(recipe.name), () => 0);
+    return timeline.at(0).phase === "off" ? morphRestPose(recipe) : morphPoseAt(recipe, timeline.start);
   };
 
   protected morphTiming(morph: string): MorphTiming {

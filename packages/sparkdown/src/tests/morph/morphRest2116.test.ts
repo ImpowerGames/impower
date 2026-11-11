@@ -3,6 +3,9 @@ import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe, morphPoseAt, morphRestPose } from "../../morph/recipe";
 import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
+import { morphFrameState, morphPosesAt } from "../../morph/render";
+import { MorphTimeline } from "../../morph/timeline";
+import { blink, LOWER_OPEN, partnerPortrait, UPPER_OPEN } from "./fixtures";
 
 const square = (name: string, id: string, y: number) => `<path data-name="${name}" id="${id}" d="M0,${y}H10V${y + 10}H0Z"/>`;
 
@@ -145,5 +148,99 @@ describe("a morph's rest in the bake", () => {
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics[0]).toMatchObject({ code: "inactive-variant", morphs: ["flap"] });
     expect(artifact.diagnostics[0]!.message).toContain("`mouth.teeth`");
+  });
+});
+
+const twoMorphFace = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+${square("lids:eyes.open:default", "e-open", 0)}
+${square("lids:eyes.closed", "e-closed", 15)}
+${square("lips:mouth.closed:default", "m-closed", 30)}
+${square("lips:mouth.open", "m-open", 45)}
+${TEETH_LAYER}
+</svg>`;
+
+const between = (name: string, group: string, a: string, b: string, rest?: string) =>
+  buildMorphRecipe(name, {
+    blend: "cut",
+    keyframes: [{ offset: 0, [group]: { state: a } }, { offset: 1, [group]: { state: b } }],
+    ...(rest ? { rest: { [group]: { state: rest } } } : {}),
+  });
+
+const maskLoops = (svg: string): number[][] => {
+  const loops: number[][] = [];
+  const visit = (nodes: unknown[], inside: boolean) => {
+    for (const node of nodes) {
+      if (!node || typeof node !== "object") continue;
+      const element = node as Element;
+      const masking = inside || element.tagName === "mask" || element.tagName === "clipPath";
+      if (masking && element.tagName === "path") loops.push((element.attributes["d"] ?? "").match(/-?[0-9.]+/g)?.map(Number) ?? []);
+      visit(element.children, masking);
+    }
+  };
+  const doc = parse(svg);
+  visit(Array.isArray(doc) ? doc : [doc], false);
+  return loops;
+};
+
+const loopArea = (flat: number[]) => {
+  let sum = 0;
+  for (let i = 0; i + 3 < flat.length; i += 2) sum += flat[i]! * flat[i + 3]! - flat[i + 2]! * flat[i + 1]!;
+  return Math.abs(sum) / 2;
+};
+
+describe("a morph's rest beside other poses", () => {
+  test("a morph with no offset beside a playing morph shows its own rest, not its first keyframe", () => {
+    const artifact = bakeMorphArtifact({
+      source: twoMorphFace,
+      selection: {},
+      key: "two",
+      recipes: [between("blink", "eyes", "open", "closed"), between("talk", "mouth", "closed", "open", "teeth")],
+    });
+    expect(artifact.status).toBe("live");
+    expect(artifact.rests).toEqual({ eyes: "closed", mouth: "teeth" });
+    const frame = morphFrameState(artifact, morphPosesAt(artifact, { blink: 0 }));
+    expect(artifact.visibility["mouth"]!["teeth"]!.every((node) => frame.shown.has(node))).toBe(true);
+    expect(artifact.visibility["mouth"]!["closed"]!.some((node) => frame.shown.has(node))).toBe(false);
+  });
+
+  test("a rest no keyframe names is clipped by its own opening, not by the first keyframe's", () => {
+    const art = partnerPortrait({
+      more: { half: `<path data-name="eyelash-left" d="${UPPER_OPEN}" transform="translate(0 6)"/><path data-name="eyelash-left" d="${LOWER_OPEN}" transform="translate(0 -6)"/>` },
+    });
+    const recipe = (ends: string) =>
+      blink({
+        rest: { eyes: { state: "open" } },
+        keyframes: [
+          { offset: 0, eyes: { state: ends } },
+          { offset: 0.5, eyes: { state: "half" } },
+          { offset: 1, eyes: { state: ends } },
+        ],
+      });
+    const bake = (ends: string) => bakeMorphArtifact({ source: art, selection: {}, recipes: [recipe(ends)], key: `rest-${ends}` });
+    const reached = bake("open");
+    const outside = bake("closed");
+    expect(reached.status).toBe("live");
+    expect(outside.status).toBe("live");
+    const area = (svg: string) => maskLoops(svg).reduce((sum, loop) => sum + loopArea(loop), 0);
+    const open = area(reached.rest);
+    expect(open).toBeGreaterThan(100);
+    expect(Math.abs(area(outside.rest) - open) / open).toBeLessThan(0.05);
+  });
+
+  test("a morph waiting for its first play shows that play's directed start, which its still can show", () => {
+    const recipe = buildMorphRecipe("blink", {
+      method: "bend",
+      keyframes: [
+        { offset: 0, eyes: { state: "closed" } },
+        { offset: 1, eyes: { state: "open" } },
+      ],
+    });
+    const artifact = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipes: [recipe], key: "eased" });
+    const head = new MorphTimeline({ duration: 1, delay: 1, iterations: 1, direction: "normal", easing: "steps(2, start)" }, () => 0).at(0);
+    expect(head).toEqual({ phase: "waiting", play: 0, offset: 0 });
+    expect(morphPoseAt(recipe, 0)).toEqual({ eyes: "closed" });
+    const frame = morphFrameState(artifact, morphPosesAt(artifact, 0));
+    expect(frame.geometry.size).toBe(0);
+    expect(artifact.visibility["eyes"]!["closed"]!.every((node) => frame.shown.has(node))).toBe(true);
   });
 });

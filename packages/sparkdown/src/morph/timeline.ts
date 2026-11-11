@@ -50,6 +50,10 @@ export class MorphTimeline {
     if (this.duration > 0 && this.plays > 0) this.starts.push(this.delay);
   }
 
+  get start(): number {
+    return this.directed(0, 0);
+  }
+
   protected gapAfter(): number {
     if (!this.gap) return 0;
     return this.gap.min + (this.gap.max - this.gap.min) * this.random();
@@ -74,7 +78,7 @@ export class MorphTimeline {
 
   at(t: number): MorphPlayhead {
     if (!this.starts.length) return { phase: "off" };
-    if (t < this.delay) return { phase: "waiting", play: 0, offset: this.offset(0, 0) };
+    if (t < this.delay) return { phase: "waiting", play: 0, offset: this.start };
     const starts = this.starts;
     while (starts.length < this.plays && starts[starts.length - 1]! + this.duration <= t) {
       const last = starts[starts.length - 1]!;

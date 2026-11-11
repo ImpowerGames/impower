@@ -1593,6 +1593,26 @@ export function* bakeSteps(
       return disable();
     }
   }
+  for (const [index, clip] of clips.entries()) {
+    if (restLoopsAtRest[index]) continue;
+    yield;
+    const edges: EdgeTrack[] = [];
+    for (const leaf of leaves) {
+      if (!clip.between.includes(leaf.label) || !visibleAt(leaf.element, restVisible)) continue;
+      const geometry = rootGeometry(leaf);
+      const result = geometry ? morphSubpaths(geometry, geometry, { method: "bend", stillTolerance: -1 }) : undefined;
+      const track = result?.ok && result.morph.tracks.length === 1 ? result.morph.tracks[0] : undefined;
+      if (!isBend(track)) {
+        edges.length = 0;
+        break;
+      }
+      edges.push({ id: leaf.node, label: leaf.label, track });
+    }
+    if (!edges.length) continue;
+    const built = buildApertures(edges);
+    if (built.diagnostics.length || !built.apertures.length) continue;
+    restLoops[index] = built.apertures.map((aperture) => aperture.loop(0).flatMap(([x, y]) => [round(x), round(y)]));
+  }
 
   const clipTargets: MorphClipTarget[] = [];
   const targetOf = new Map<string, Element>();
@@ -1901,6 +1921,7 @@ export function* bakeSteps(
   const visibility: MorphArtifact["visibility"] = table();
   const scheduleOut: MorphArtifact["schedules"] = table();
   const groupsOut: MorphArtifact["groups"] = table();
+  const restsOut: Record<string, string> = table();
   for (const [group, entries] of schedules) {
     groupsOut[group] = recipeOfGroup.get(group)!.name;
     const byState = visibleIn.get(group)!;
@@ -1912,6 +1933,7 @@ export function* bakeSteps(
     }
     visibility[group] = states;
     scheduleOut[group] = entries.map((e) => ({ offset: e.offset, state: e.state === REST ? restName(group) : e.state }));
+    restsOut[group] = restName(group);
   }
 
   const paintPoses = paintPosesOf();
@@ -1930,6 +1952,7 @@ export function* bakeSteps(
     idPrefix: prefix,
     parts,
     visibility,
+    rests: restsOut,
     schedules: scheduleOut,
     segments,
     frames,

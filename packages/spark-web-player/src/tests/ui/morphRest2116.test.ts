@@ -124,6 +124,41 @@ describe("a morph's still, first frame and rest in the page", () => {
     expect(showsState(span, baked.artifact!, "closed")).toBe(false);
   });
 
+  test("a layer still pending keeps its still while another layer of the stack draws live", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const inner = createMorphHost({
+      service: new MorphBakeService({ createObjectURL: () => "blob:rest", revokeObjectURL: () => {} }),
+      channel: () => ({ recipes: { shut: serializeMorphRecipe(SHUT) }, variants: {} }),
+      readSource: async () => ({ text: talkingPortrait() }),
+    });
+    const releases = new Map<string, () => void>();
+    const gates = new Map(["a", "b"].map((key) => [key, new Promise<void>((resolve) => releases.set(key, resolve))]));
+    const host: MorphHost = {
+      resolve: async (r, options) => {
+        await gates.get(r.key);
+        return inner.resolve(r, options);
+      },
+    };
+    const playback = new MorphPlayback(env.overlay, { host, seed: "s", requestFrame: () => 0, cancelFrame: () => {} });
+    const span = env.overlay.ownerDocument.createElement("span");
+    env.overlay.appendChild(span);
+    const stack: MorphImageContent = {
+      plays: ["a", "b"].map((key, layer) => ({ layer, ref: { ...ref, key, image: key }, morph: "shut", timing, definition: "d" })),
+      epoch: 0,
+      still: 'url("first-b.svg"), url("first-a.svg")',
+    };
+    playback.mount(span, stack, 'url("rest-b.svg"), url("rest-a.svg")', "background", "portrait:0");
+    await flushMicrotasks(10);
+    expect(span.style.backgroundImage).toBe(stack.still);
+    releases.get("a")!();
+    await until(() => playback.stats.live === 1, "the first artifact");
+    const statics = () => Array.from(span.querySelector(":scope > span.morph")!.shadowRoot!.querySelectorAll("div")).map((div) => div.style.backgroundImage).filter(Boolean);
+    expect(statics()).toEqual(['url("first-b.svg")']);
+    playback.setEnabled(false);
+    expect(statics()).toEqual(['url("rest-b.svg")']);
+  });
+
   test("a mask shows the rest, never the still", async () => {
     const { playback, span } = setup();
     span.style.backgroundImage = "";

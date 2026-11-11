@@ -230,6 +230,7 @@ export interface MorphArtifact {
   width?: string;
   height?: string;
   rest: string;
+  rests?: Record<string, string>;
   idPrefix: string;
   parts: MorphPart[];
   visibility: Record<string, Record<string, string[]>>;

@@ -507,11 +507,19 @@ export class MorphLayer {
     if (kind === "background" && content.still) this.still = cssList(content.still).reverse();
   }
 
+  protected staticLayer(index: number): string {
+    const image = this.images.find((entry) => entry.layer === index);
+    const pending = !!image && (image.slot.state === "idle" || image.slot.state === "pending");
+    return pending && this.still && this.playback.animating ? (this.still[index] ?? this.layers[index]!) : this.layers[index]!;
+  }
+
   showStill() {
-    if (!this.still || this.shadowHost || this.frozen || this.disposed) return;
-    const pending = this.images.some((image) => image.slot.state === "idle" || image.slot.state === "pending");
-    const layers = pending && this.playback.animating ? this.still : this.layers;
-    this.span.style.setProperty("background-image", [...layers].reverse().join(", "));
+    if (!this.still || this.frozen || this.disposed) return;
+    if (this.shadowHost) {
+      this.layout();
+      return;
+    }
+    this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
   }
 
   get live(): boolean {
@@ -738,7 +746,7 @@ export class MorphLayer {
       }
     }
     for (const { div, layer } of this.statics) {
-      const style = `position:absolute;inset:0;background-image:${this.layers[layer]};${this.layerStyle(computed, count - 1 - layer)}`;
+      const style = `position:absolute;inset:0;background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
     const area = positioningArea(this.span, computed);

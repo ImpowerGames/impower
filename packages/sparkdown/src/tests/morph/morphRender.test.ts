@@ -417,7 +417,7 @@ ${TORSO}
   });
 
   test("a static artifact plays as its rest render", () => {
-    const disabled = bakeMorphArtifact({ source: portrait(), selection: { eyes: "closed" }, recipes: [blink()], key: "k2" });
+    const disabled = bakeMorphArtifact({ source: portrait().replace("<defs>", "<defs><style></style>"), selection: {}, recipes: [blink()], key: "k2" });
     expect(disabled.status).toBe("static");
     expect(renderMorphFrame(disabled, { segment: 0, progress: 0.5 })).toBe(disabled.rest);
   });
