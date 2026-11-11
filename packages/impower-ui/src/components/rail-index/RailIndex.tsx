@@ -95,7 +95,7 @@ export default function RailIndex({ title, label, groups, current, onJump, class
       </div>
       <nav
         aria-label={label}
-        class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-0.5 pr-[14px] pl-[26px]"
+        class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-0.5 pr-[14px] pl-[26px]"
       >
         <ul class="m-0 grid min-w-0 list-none grid-cols-[minmax(0,1fr)] gap-0.5 p-0 [&>li+li]:mt-1.5">
           {groups.map((group) => {

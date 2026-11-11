@@ -7,7 +7,7 @@ import type { MorphArtifact, MorphTransition } from "../../morph/types";
 import { blink, CLOSED, portrait, spreadBlink, spreadPortrait, UPPER_OPEN } from "./fixtures";
 
 const bake = (svg: string, recipe = blink(), selection: Record<string, string> = {}) =>
-  bakeMorphArtifact({ source: svg, selection, recipe, key: "k1", variant: "bunny", uri: "file:///bunny.svg" });
+  bakeMorphArtifact({ source: svg, selection, recipes: [recipe], key: "k1", variant: "bunny", uri: "file:///bunny.svg" });
 
 const errors = (artifact: MorphArtifact) => artifact.diagnostics.filter((d) => d.severity === "error");
 
@@ -164,7 +164,7 @@ describe("morph bake", () => {
 
 describe("a drawing's `spread` in the bake", () => {
   const spreadBake = (layers: Parameters<typeof spreadBlink>[0] = {}, overrides: Record<string, unknown> = {}, variant = "bunny") =>
-    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipe: spreadBlink(layers, overrides), key: `k-${variant}`, variant, uri: "file:///spread.svg" });
+    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipes: [spreadBlink(layers, overrides)], key: `k-${variant}`, variant, uri: "file:///spread.svg" });
   const live = (artifact: MorphArtifact) => artifact.parts.filter((p) => p.kind === "live").flatMap((p) => elements(p.svg));
   const nodeNamed = (artifact: MorphArtifact, label: string) => live(artifact).find((e) => e.attributes["data-name"] === label && e.attributes["data-morph"])!.attributes["data-morph"]!;
   const transitionOf = (artifact: MorphArtifact, label: string, segment = 0) => {

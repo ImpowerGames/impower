@@ -1,0 +1,18 @@
+style layouts {
+  & >> :where(#data-ui-handler) {
+    &:where(:not(#data-widget-control)) {
+      pointer_events = auto
+    }
+  }
+  >> :where(:not(#data-ui-handler)) {
+    pointer_events = none
+  }
+}
+style checkbox {
+  &:where(label) {
+    cursor = pointer
+  }
+  &:where(:not(label)), > :where(.control) {
+    pointer_events = auto
+  }
+}

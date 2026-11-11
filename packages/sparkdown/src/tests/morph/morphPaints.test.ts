@@ -56,7 +56,7 @@ const bake = (variant: Variant, paints: Record<string, unknown>[] = [ENTRY]) =>
   bakeMorphArtifact({
     source: maskedPortrait(),
     selection: { ...MASKED_VARIANTS[variant] },
-    recipe: maskedBlink(paints),
+    recipes: [maskedBlink(paints)],
     key: `masked-${variant}`,
     variant,
     uri: "file:///masked.svg",
@@ -145,7 +145,7 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
   test("a target drawing no driven group switches takes the colour at the pose and over the span", () => {
     const source = maskedPortrait().replace("</svg>", '<path data-name="shared" d="M0,0H10V10H0Z" fill="#111"/>\n</svg>');
     const shared = (paints: Record<string, unknown>[]) =>
-      bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipe: maskedBlink(paints), key: "shared", variant: "masked" });
+      bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipes: [maskedBlink(paints)], key: "shared", variant: "masked" });
     const artifact = shared([{ targets: ["shared"], state: "eyes.closed", fill: "red", span: "40%" }]);
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toEqual([]);
@@ -161,7 +161,7 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
       '<defs><linearGradient id="shade"><stop offset="0" stop-color="#536"/><stop offset="1" stop-color="#a7c"/></linearGradient></defs>\n<path data-name="eyeshadow" d="M0,0H10V10H0Z" fill="url(#shade)" opacity="0.8"/>\n</svg>',
     );
     const shaded = (paints: Record<string, unknown>[]) =>
-      bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipe: maskedBlink(paints), key: "shaded", variant: "masked" });
+      bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipes: [maskedBlink(paints)], key: "shaded", variant: "masked" });
     const artifact = shaded([{ targets: ["eyeshadow"], state: "eyes.closed", opacity: 0, span: "40%" }]);
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toEqual([]);
@@ -180,7 +180,7 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
     const artifact = bakeMorphArtifact({
       source,
       selection: { ...MASKED_VARIANTS.masked },
-      recipe: maskedBlink([{ targets: ["lid"], state: "eyes.closed", opacity: "0%" }]),
+      recipes: [maskedBlink([{ targets: ["lid"], state: "eyes.closed", opacity: "0%" }])],
       key: "lid",
       variant: "masked",
     });
@@ -214,7 +214,7 @@ describe("`paints` recolours a drawing a partner carries to its pose", () => {
     bakeMorphArtifact({
       source: partnerPortrait(),
       selection: {},
-      recipe: buildMorphRecipe("blink", {
+      recipes: [buildMorphRecipe("blink", {
         blend: "morph",
         method: "bend",
         fallback: "fade",
@@ -225,7 +225,7 @@ describe("`paints` recolours a drawing a partner carries to its pose", () => {
           { offset: 1, eyes: { state: "open" } },
         ],
         paints,
-      }),
+      })],
       key: "carried-paints",
       variant: "open",
       uri: "file:///partner.svg",

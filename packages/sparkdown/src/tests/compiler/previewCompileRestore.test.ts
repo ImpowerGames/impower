@@ -104,7 +104,7 @@ function digester() {
     a ? Array.from({ length: n }, (_, i) => a[i]).join(",") : "-";
   const resume = (r: any) =>
     r
-      ? `${id(r)}[${r.frames.map((f: any) => `${id(f)}:${f.openedAtAbs}:${f.enteredAtAbs}:${f.contentOpened}:${f.contentDropped}`).join(";")}|${r.stack.length}]`
+      ? `${id(r)}[${r.frames.map((f: any, i: number) => `${id(f)}:${r.openedAtAbs[i]}:${f.enteredAtAbs}:${f.contentOpened}:${f.contentDropped}`).join(";")}|${r.stack.length}]`
       : "-";
   const chunk = (ch: any) =>
     [
@@ -115,7 +115,7 @@ function digester() {
       ch.nodeCount,
       id(ch.compiled),
       ints(ch.compiled, ch.nodeCount * 4),
-      `stack:${ints(ch.stack.ids, ch.stack.length)}/${ints(ch.stack.positions, ch.stack.length)}/${ints(ch.stack.children, ch.stack.length)}`,
+      `stack:${ints(ch.stack.entries, ch.stack.length * 3)}`,
       `scopes:${ch.scopes ? ch.scopes.join(",") : "-"}`,
       `tb:${ch.treeBuffer === null ? "null" : id(ch.treeBuffer)}`,
       ch.compilerNodeCount,
@@ -126,7 +126,7 @@ function digester() {
       ch.spliceSafe,
       `resume:${resume(ch.resume)}`,
       ch.entrySeeds
-        ? `seeds:${id(ch.entrySeeds)}:${ints(ch.entrySeeds.ids)}/${ints(ch.entrySeeds.children)}/${ints(ch.entrySeeds.absPositions)}`
+        ? `seeds:${id(ch.entrySeeds)}:${ints(ch.entrySeeds.ids)}/${ints(ch.entrySeeds.children)}`
         : "seeds:-",
       ch.inheritedCloseRecords
         ? `closes:${id(ch.inheritedCloseRecords)}:${ch.inheritedCloseRecords.map((r: any) => `${r.seedIndex}@${r.offset}`).join(",")}`

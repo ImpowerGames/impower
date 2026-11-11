@@ -5,7 +5,7 @@ import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { cn } from "../../utils/cn";
 
 export const virtualListVariants = cva(
-  "relative min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:thin]",
+  "relative min-h-0 overflow-x-hidden overflow-y-auto [scrollbar-width:thin]",
 );
 
 export const VIRTUAL_LIST_ROW_HEIGHT = {
