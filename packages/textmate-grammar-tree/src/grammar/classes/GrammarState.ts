@@ -170,12 +170,19 @@ export class GrammarState {
     return popped;
   }
 
-  possibleStackOverflow(ruleId: string, position: number): boolean {
-    const visited = this.visited;
-    if (visited.length > 10000) {
-      console.warn("Possible stack overflow!", visited);
+  exceedsDepth(): boolean {
+    if (this.visited.length > 10000) {
+      console.warn("Possible stack overflow!", this.visited);
       return true;
     }
+    return false;
+  }
+
+  possibleStackOverflow(ruleId: string, position: number): boolean {
+    if (this.exceedsDepth()) {
+      return true;
+    }
+    const visited = this.visited;
     for (let i = visited.length - 1; i >= 0; i--) {
       const frame = visited[i]!;
       if (frame.position === position && frame.ruleId === ruleId) {

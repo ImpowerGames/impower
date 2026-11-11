@@ -68,6 +68,9 @@ export class MatchRule implements Rule {
     state: GrammarState,
     from: number,
   ): { matched: Matched; groups: RegExpMatchResult } | null {
+    if (state.exceedsDepth()) {
+      return null;
+    }
     state.line(from);
     const lineStart = state.lineStart;
     const lineText = state.lineText;

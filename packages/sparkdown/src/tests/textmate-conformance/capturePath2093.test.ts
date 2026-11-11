@@ -1,4 +1,5 @@
 import { GrammarState } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarState";
+import { RegExpMatcher } from "@impower/textmate-grammar-tree/src/grammar/classes/RegExpMatcher";
 import { MatchRule } from "@impower/textmate-grammar-tree/src/grammar/classes/rules/MatchRule";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
@@ -87,23 +88,54 @@ describe("a capture's patterns are read as vscode-textmate reads them on the lig
 });
 
 describe("the recursion guard holds only rules that can recurse (I-2093)", () => {
-  test("a cold parse of builtins.sd records no single match rule on the recursion guard", () => {
-    const matchIds = new Set<string>();
+  test("while a match rule runs its pattern in a cold parse of builtins.sd, the recursion guard holds no frame for it", () => {
+    const running: { id: string; state: GrammarState }[] = [];
+    let matches = 0;
+    let guarded = 0;
+    const guardedIds = new Set<string>();
     const matchGroups = MatchRule.prototype.matchGroups;
     vi.spyOn(MatchRule.prototype, "matchGroups").mockImplementation(function (this: MatchRule, ...args) {
-      matchIds.add(this.id);
-      return matchGroups.apply(this, args);
+      running.push({ id: this.id, state: args[0] });
+      try {
+        return matchGroups.apply(this, args);
+      } finally {
+        running.pop();
+      }
     });
-    const entered: string[] = [];
-    const enter = GrammarState.prototype.enter;
-    vi.spyOn(GrammarState.prototype, "enter").mockImplementation(function (this: GrammarState, ...args) {
-      entered.push(args[0]);
-      return enter.apply(this, args);
+    const match = RegExpMatcher.prototype.match;
+    vi.spyOn(RegExpMatcher.prototype, "match").mockImplementation(function (this: RegExpMatcher, ...args) {
+      const current = running.at(-1);
+      if (current) {
+        matches++;
+        if (current.state.visited.some((frame) => frame.ruleId === current.id)) {
+          guarded++;
+          guardedIds.add(current.id);
+        }
+      }
+      return match.apply(this, args);
     });
     createSparkdownParser().parse(BUILTINS);
-    expect(matchIds.size).toBeGreaterThan(100);
-    expect(entered.length).toBeGreaterThan(0);
-    expect(entered.filter((id) => matchIds.has(id)).slice(0, 5)).toEqual([]);
+    expect(matches).toBeGreaterThan(10000);
+    expect({ guarded, ids: [...guardedIds].slice(0, 5) }).toEqual({ guarded: 0, ids: [] });
+  });
+
+  test("nesting deeper than the guard's limit is cut off at the same depth as before (I-2093)", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const nested = grammar(
+      { Block: { name: "block.probe", begin: "<", end: ">", patterns: [{ include: "#Block" }, { match: "x", name: "x.probe" }] } },
+      [{ include: "#Block" }],
+    );
+    const text = `${"<".repeat(10002)}x${">".repeat(10002)}`;
+    const tree = new TextmateGrammarParser(structuredClone(nested) as never).parse(text);
+    const counts = { Block_begin: 0, Block_end: 0, ERROR_UNRECOGNIZED: 0 };
+    tree.iterate({
+      enter: (node) => {
+        if (node.name in counts) {
+          counts[node.name as keyof typeof counts]++;
+        }
+      },
+    });
+    expect(counts).toEqual({ Block_begin: 10000, Block_end: 10000, ERROR_UNRECOGNIZED: 3 });
   });
 });
 
