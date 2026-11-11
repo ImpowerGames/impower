@@ -38,9 +38,11 @@ const run = (redelivers?: Instructions) => {
       .join("")
       .trim();
     const drawnBeat = coordinator?._instructions as Instructions | undefined;
-    const allShown = Object.entries(drawnBeat?.text ?? {}).every(
-      ([target, events]) => drawnBeat?.extended?.[target] === events.length,
-    );
+    const allShown =
+      drawnBeat?.end === 0 &&
+      Object.values(drawnBeat?.text ?? {})
+        .flat()
+        .every((event) => event.after === 0 && event.over === 0);
     return {
       text,
       drawing: !playing.mock.contexts.includes(coordinator)
@@ -48,7 +50,6 @@ const run = (redelivers?: Instructions) => {
         : allShown
           ? "shown"
           : "typed",
-      recordedExtended: onScreen?.extended,
     };
   };
   return { game, drawn };
@@ -72,7 +73,8 @@ describe("a run that redelivers the beat on screen (#2031)", () => {
 
     const again = run(onScreen);
     again.game.start();
-    expect(again.drawn()).toEqual({ text: "The first line.", drawing: "shown", recordedExtended: undefined });
+    expect(again.drawn()).toEqual({ text: "The first line.", drawing: "shown" });
+    expect((again.game as any)._shownBeatOnScreen).toEqual(onScreen);
     again.game.clickedToContinue();
     expect(again.drawn()).toMatchObject({ text: "The second line.", drawing: "typed" });
   });

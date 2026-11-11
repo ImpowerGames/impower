@@ -3,7 +3,14 @@ import type { Instructions } from "../types/Instructions";
 export type Delivery = "landing" | "redelivery";
 
 const reads = (beat: Instructions) =>
-  JSON.stringify([beat.kind ?? null, beat.speaker ?? null, beat.text ?? null]);
+  JSON.stringify([
+    beat.kind ?? null,
+    beat.speaker ?? null,
+    Object.entries(beat.text ?? {}).map(([target, events]) => [
+      target,
+      events.map((event) => [event.text, event.style ?? null]),
+    ]),
+  ]);
 
 export const beatDrawing = (
   beat: Instructions,
@@ -20,8 +27,11 @@ export const beatDrawing = (
   }
   return {
     ...beat,
-    extended: Object.fromEntries(
-      Object.entries(beat.text).map(([target, events]) => [target, events.length]),
+    text: Object.fromEntries(
+      Object.entries(beat.text).map(([target, events]) => [
+        target,
+        events.map((event) => ({ ...event, after: 0, over: 0 })),
+      ]),
     ),
     ...(beat.audio
       ? {
@@ -30,5 +40,6 @@ export const beatDrawing = (
           ),
         }
       : {}),
+    end: 0,
   };
 };

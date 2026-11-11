@@ -1,3 +1,4 @@
+import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -42,7 +43,11 @@ const writesOf = (messages: any[], words: string): boolean[] => {
       .join("");
     if (text.includes(words)) {
       const { instant, shown, instructions } = message.params;
-      atOnce.push(Boolean(instant) || (shown ?? 0) >= instructions.length);
+      atOnce.push(
+        Boolean(instant) ||
+          (shown ?? 0) >= instructions.length ||
+          instructions.every((i: any) => (i.after ?? 0) === 0 && (i.over ?? 0) === 0),
+      );
     }
   };
   for (const message of messages) visit(message);
@@ -102,17 +107,38 @@ const playing = async (source = SOURCE) => {
   await settle(40);
   await h.tick(1000 / 60, 120);
   const played = writesOf(h.toRouter.slice(from), "The second line.");
-  const editAndRestart = async (line: number, from: string, to: string) => {
+  const editAndRestart = async (line: number, from: string, to: string, frames = 120) => {
     const reloads = h.toEditor.filter((m) => m.method === "game/reloaded").length;
     const at = h.toRouter.length;
     await h.edit(replace(line, from, to));
     await h.compile();
     await restarts(h, reloads);
     await settle(40);
-    await h.tick(1000 / 60, 120);
+    await h.tick(1000 / 60, frames);
     return h.toRouter.slice(at);
   };
-  return { h, played, editAndRestart };
+  const editWords = async (from: string, to: string, frames = 120) => {
+    const lines = source.split("\n");
+    const line = lines.findIndex((l) => l.includes(from));
+    const character = lines[line]!.indexOf(from);
+    const reloads = h.toEditor.filter((m) => m.method === "game/reloaded").length;
+    const at = h.toRouter.length;
+    await h.edit([
+      {
+        range: {
+          start: { line, character },
+          end: { line, character: character + from.length },
+        },
+        text: to,
+      },
+    ]);
+    await h.compile();
+    await restarts(h, reloads);
+    await settle(40);
+    await h.tick(1000 / 60, frames);
+    return h.toRouter.slice(at);
+  };
+  return { h, played, editAndRestart, editWords };
 };
 
 describe("a line PLAY redelivers after an edit restarts the run (#2031)", () => {
@@ -165,6 +191,65 @@ describe("a line PLAY redelivers after an edit restarts the run (#2031)", () => 
       const after = await editAndRestart(third, "The third line.", "The third line, edited.");
       expect(writesOf(after, "The second line.")).toEqual([true]);
       expect(imagesOf(after)).toContain("portrait");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+const LONG = `-> start
+
+scene start
+  HERO:
+    The first line.
+
+  HERO:
+    The second line. It has enough words to take a long time to type.
+
+  HERO:
+    The third line.
+end
+`;
+
+describe("a redelivered line behaves as a line already read (#2031)", () => {
+  it("advances on the first tap once it is shown", async () => {
+    const { h, editWords } = await playing(LONG);
+    try {
+      expect(writesOf(await editWords("The third line.", "The third line, edited.", 15), "The second line.")).toEqual([true]);
+      const at = h.toRouter.length;
+      h.controller._app.emit(EventMessage.type.notification({ type: "pointerdown", button: 0 } as never));
+      await settle(20);
+      await h.tick(1000 / 60, 15);
+      expect(writesOf(h.toRouter.slice(at), "The third line, edited.")).toHaveLength(1);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("shows the line at once when only the typewriter's pace was edited", async () => {
+    const { h, editWords } = await playing(
+      `define dialogue as typewriter with\n  letter_pause = 0.025\nend\n\n${LONG}`,
+    );
+    try {
+      expect(writesOf(await editWords("letter_pause = 0.025", "letter_pause = 0.05"), "The second line.")).toEqual([true]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keeps the line before it on a text stream page", async () => {
+    const { h, editWords } = await playing(
+      `define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n${LONG}`,
+    );
+    try {
+      const entries = () =>
+        h.playing()!.module.ui.page.entries
+          .filter((e: any) => e.text)
+          .map((e: any) => e.text.map((t: any) => t.text).join("").trim());
+      const before = entries();
+      expect(before).toContain("The first line.");
+      expect(writesOf(await editWords("The third line.", "The third line, edited."), "The second line.")).toEqual([true]);
+      expect(entries()).toEqual(before);
     } finally {
       h.dispose();
     }
