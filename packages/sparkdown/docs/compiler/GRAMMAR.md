@@ -661,6 +661,8 @@ The web editor (`packages/codemirror-vscode-language`) takes every entry from th
 
 A `.luau` document behaves the same in both editors.
 
+Both editors leave the line after `define Hero with`, `define companion as character with` and `function f()` unindented in a `.sd` document. The marks put the header's text after the keyword in Luau, so the cursor's run at the end of the line is `Hero with` or `f()`, and neither the `define` Enter rule nor an indentation pattern sees the keyword (I-2090). `scene` and `branch` headers, brace-body headers and narrative `if`, `for` and `while` headers indent in both.
+
 ## 9. Other rule properties
 
 Beyond `tag` and `name`, rules accept optional properties that opt into specific editor behaviors — bracket matching, smart indent, end-pattern timing. None are required to make a rule "work"; each is an opt-in. The two that come up most often:

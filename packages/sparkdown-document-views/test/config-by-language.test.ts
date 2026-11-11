@@ -137,6 +137,44 @@ describe("Enter in the web editor follows the language at the cursor", () => {
   });
 });
 
+const VSCODE_HEADER_ENTER: [header: string, close: string, indent: string, indents: boolean][] = [
+  ["scene name", "end", "", true],
+  ["branch name", "end", "", true],
+  ["define Hero with", "end", "", false],
+  ["define companion as character with", "end", "", false],
+  ["function f()", "end", "", false],
+  ["layout sheet {", "}", "", true],
+  ["style list {", "}", "", true],
+  ["component card(title) {", "}", "", true],
+  ["screen hud {", "}", "", true],
+  ["animation fade {", "}", "", true],
+  ["theme label {", "}", "", true],
+  ["morph blink {", "}", "", true],
+  ["if x then", "end", "  ", true],
+  ["for i = 1, 3 do", "end", "  ", true],
+  ["while x do", "end", "  ", true],
+];
+
+const headerSource = (header: string, close: string, indent: string, body: string) => {
+  const block = `${indent}${header}${body}\n${indent}${close}\n`;
+  return indent ? `scene start()\n${block}end\n` : block;
+};
+
+describe("Enter after a block header agrees with VS Code, which reads the cursor's run of one language", () => {
+  it.each(VSCODE_HEADER_ENTER)("`%s`", (header, close, indent, indents) => {
+    const editor = parsedView(headerSource(header, close, indent, "|"), SD_URI);
+    const next = indents ? `${indent}  ` : indent;
+    expect(pressEnter(editor)).toBe(headerSource(header, close, indent, `\n${next}|`));
+  });
+
+  for (const header of ["define Hero with", "define companion as character with", "function f()"]) {
+    it.fails(`indents after \`${header}\` once the header stays story through its body's opening (I-2090)`, () => {
+      const editor = parsedView(headerSource(header, "end", "", "|"), SD_URI);
+      expect(pressEnter(editor)).toBe(headerSource(header, "end", "", "\n  |"));
+    });
+  }
+});
+
 describe("auto-closing pairs in the web editor follow the language at the cursor", () => {
   it("inserts `::` alone inside a Luau expression", () => {
     const editor = parsedView(FUNCTION("local y = x :|"), SD_URI);
