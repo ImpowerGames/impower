@@ -1615,7 +1615,17 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     };
   };
 
-  const failWrite = (file: MemoryFile, nth: number) => {
+  const failCreating = (directory: MemoryDirectory, name: string) => {
+    const get = directory.getFileHandle.bind(directory);
+    directory.getFileHandle = async (entry, options = {}) => {
+      if (entry === name && options.create && !directory.entries.has(entry)) {
+        throw new DOMException(`${name} cannot be created`, "QuotaExceededError");
+      }
+      return get(entry, options);
+    };
+  };
+
+  const failWrite = (file: MemoryFile, ...nth: number[]) => {
     const access = file.createSyncAccessHandle.bind(file);
     let writes = 0;
     file.createSyncAccessHandle = async () => {
@@ -1624,7 +1634,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
         ...handle,
         write: (data: DataView | Uint8Array) => {
           writes += 1;
-          if (writes === nth) {
+          if (nth.includes(writes)) {
             throw new DOMException("disk full", "QuotaExceededError");
           }
           return handle.write(data);
@@ -1697,6 +1707,91 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result.failureReason).not.toContain(uriOf("b.sd"));
     expect(textAt(root, "main.sd")).toBe("see b");
     expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
+  });
+
+  it("announces what storage holds, not the edit's text, for a file whose restore failed", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    failRemoving(projectDirectory(root), "a.sd");
+    failWrite(fileAt(root, "main.sd")!, 2, 3);
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: referenceRename("a.sd", "b.sd"),
+    });
+    expect(response.result.failureReason).toContain(uriOf("main.sd"));
+    expect(textAt(root, "main.sd")).toBe("");
+    expect(h.writtenTexts("main.sd", from)).not.toContain("see b");
+    expect((await h.cached("main.sd")).text).toBe("");
+  });
+
+  it("keeps a renamed file's only copy when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(response.result.failureReason).toContain("partly applied");
+    expect(response.result.failureReason).toContain(uriOf("a.sd"));
+    expect(response.result.failureReason).toContain(uriOf("b.sd"));
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY");
+  });
+
+  it("keeps a save that lands on an edited file while the edit is still running", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          insert("a.sd", 1, "!"),
+          insert("b.sd", 1, "!"),
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(textAt(root, "a.sd")).toBe("A!");
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    fileAt(root, "b.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    const response = h.response("edit");
+    expect(response.result).toMatchObject({ applied: false, failedChange: 2 });
+    expect(response.result.failureReason).toContain("partly applied");
+    expect(response.result.failureReason).toContain(uriOf("a.sd"));
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  it("brings back an empty folder an earlier change deleted", async () => {
+    const root = seed({ "main.sd": "M" }, ["kept"]);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "delete", uri: uriOf("kept") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(listMemory(root, "local")).toEqual(["kept/", "main.sd"]);
   });
 
   it("brings back a file an earlier change deleted", async () => {

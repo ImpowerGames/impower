@@ -312,6 +312,10 @@ class CommitLog {
     }
   }
 
+  reconcile(uri: string, directory: boolean) {
+    this.unordered.set(uri, directory || (this.unordered.get(uri) ?? false));
+  }
+
   isCurrent(uri: string) {
     if (this.unordered.has(uri)) {
       return false;
@@ -1079,9 +1083,11 @@ interface EditEffects {
   fileEvents: FileEvent[];
 }
 
-interface PriorFile {
+interface PriorEntry {
   uri: string;
   bytes?: ArrayBuffer;
+  directory: boolean;
+  local?: number;
   version?: number;
   document?: TextDocument;
 }
@@ -1092,13 +1098,6 @@ const noEffects = (): EditEffects => ({
   renamed: [],
   fileEvents: [],
 });
-
-const urisOfChange = (change: WorkspaceEditChange) =>
-  "textDocument" in change
-    ? [change.textDocument.uri]
-    : change.kind === "rename"
-      ? [change.oldUri, change.newUri]
-      : [change.uri];
 
 const storedBytes = (uri: string) =>
   withCommitLock(uri, async () => {
@@ -1119,10 +1118,21 @@ const missingDirectories = async (uri: string) => {
 };
 
 class UndoLog {
-  prior = new Map<string, PriorFile>();
+  prior = new Map<string, PriorEntry>();
   directories = new Set<string>();
+  committed = new Map<string, number>();
+  moves = new Map<string, string>();
 
-  async record(uris: string[]) {
+  async record(change: WorkspaceEditChange) {
+    if ("kind" in change && change.kind === "rename") {
+      this.moves.set(change.newUri, change.oldUri);
+    }
+    const uris =
+      "textDocument" in change
+        ? [change.textDocument.uri]
+        : change.kind === "rename"
+          ? [change.oldUri, change.newUri]
+          : [change.uri];
     for (const uri of uris) {
       if (this.prior.has(uri)) {
         continue;
@@ -1132,6 +1142,8 @@ class UndoLog {
       this.prior.set(uri, {
         uri,
         bytes,
+        directory: !bytes && (await isStoredDirectory(uri)),
+        local: State.localVersions.get(uri),
         version: State.files.get(uri)?.version,
         document: State.documents.get(uri),
       });
@@ -1141,47 +1153,78 @@ class UndoLog {
     }
   }
 
+  commit(uri: string, local: number) {
+    this.committed.set(uri, local);
+  }
+
   async restore(log: CommitLog) {
     const effects = noEffects();
     const unknown: string[] = [];
-    const prior = [...this.prior.values()].reverse();
-    for (const file of prior.filter((f) => f.bytes)) {
+    const kept: string[] = [];
+    const restoring: PriorEntry[] = [];
+    for (const entry of [...this.prior.values()].reverse()) {
+      await drainWrites(entry.uri);
+      const expected = this.committed.get(entry.uri) ?? entry.local;
+      if (State.localVersions.get(entry.uri) !== expected) {
+        kept.push(entry.uri);
+      } else {
+        restoring.push(entry);
+      }
+    }
+    for (const entry of restoring.filter((e) => e.bytes)) {
       try {
-        const current = await storedBytes(file.uri);
-        if (!current || !sameBytes(current, file.bytes!)) {
+        const current = await storedBytes(entry.uri);
+        if (!current || !sameBytes(current, entry.bytes!)) {
           const result = await enqueueWrite(
-            file.uri,
-            file.version ?? 0,
-            new Uint8Array(file.bytes!),
+            entry.uri,
+            entry.version ?? 0,
+            new Uint8Array(entry.bytes!),
             true,
           );
           log.wrote(result);
           effects.fileEvents.push({
-            uri: file.uri,
+            uri: entry.uri,
             type: FileChangeType.Changed,
           });
         }
       } catch (err) {
         console.error(err);
-        unknown.push(file.uri);
+        unknown.push(entry.uri);
       }
     }
-    for (const file of prior.filter((f) => !f.bytes)) {
+    for (const entry of restoring.filter((e) => e.directory)) {
       try {
-        if (await findFileHandle(file.uri)) {
-          const removed = await removeFile(file.uri);
+        if (!(await isStoredDirectory(entry.uri))) {
+          await createDirectories([entry.uri], log);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(entry.uri);
+      }
+    }
+    for (const entry of restoring.filter((e) => !e.bytes && !e.directory)) {
+      try {
+        const source = this.moves.get(entry.uri);
+        const onlyCopy =
+          source != null && (unknown.includes(source) || kept.includes(source));
+        if (await findFileHandle(entry.uri)) {
+          if (onlyCopy) {
+            unknown.push(entry.uri);
+            continue;
+          }
+          const removed = await removeFile(entry.uri);
           if (removed) {
             log.record(removed.uri, removed.local, removed.commit);
             effects.deleted.push(removed);
             effects.fileEvents.push({
-              uri: file.uri,
+              uri: entry.uri,
               type: FileChangeType.Deleted,
             });
           }
         }
       } catch (err) {
         console.error(err);
-        unknown.push(file.uri);
+        unknown.push(entry.uri);
       }
     }
     try {
@@ -1190,17 +1233,23 @@ class UndoLog {
       console.error(err);
       unknown.push(...this.directories);
     }
-    for (const file of prior) {
-      if (unknown.includes(file.uri)) {
+    for (const uri of unknown) {
+      log.reconcile(
+        uri,
+        this.directories.has(uri) || !!this.prior.get(uri)?.directory,
+      );
+    }
+    for (const entry of restoring) {
+      if (unknown.includes(entry.uri)) {
         continue;
       }
-      if (file.document) {
-        State.documents.set(file.uri, file.document);
+      if (entry.document) {
+        State.documents.set(entry.uri, entry.document);
       } else {
-        State.documents.delete(file.uri);
+        State.documents.delete(entry.uri);
       }
     }
-    return { effects, unknown };
+    return { effects, unknown, kept };
   }
 }
 
@@ -1208,8 +1257,10 @@ const applyChange = async (
   change: WorkspaceEditChange,
   log: CommitLog,
   effects: EditEffects,
+  undo: UndoLog,
 ) => {
   const wrote = (result: WriteResult) => {
+    undo.commit(result.file.uri, result.local);
     log.wrote(result);
     if (result.created) {
       effects.created.push(result);
@@ -1234,6 +1285,7 @@ const applyChange = async (
   } else if (change.kind === "delete") {
     const [result] = await deleteFiles([change]);
     if (result) {
+      undo.commit(result.uri, result.local);
       log.record(result.uri, result.local, result.commit);
       effects.deleted.push(result);
       effects.fileEvents.push({ uri: change.uri, type: FileChangeType.Deleted });
@@ -1241,9 +1293,11 @@ const applyChange = async (
   } else if (change.kind === "rename") {
     const [outcome] = await renameFiles([change]);
     if (outcome?.write) {
+      undo.commit(outcome.write.file.uri, outcome.write.local);
       log.wrote(outcome.write);
     }
     if (outcome?.deleted) {
+      undo.commit(outcome.deleted.uri, outcome.deleted.local);
       log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
       effects.renamed.push(outcome);
       effects.fileEvents.push({ uri: change.oldUri, type: FileChangeType.Deleted });
@@ -1271,20 +1325,28 @@ const applyWorkspaceEdit = async (
   const effects = noEffects();
   for (const [index, change] of changes.entries()) {
     try {
-      await undo.record(urisOfChange(change));
-      await applyChange(change, log, effects);
+      await undo.record(change);
+      await applyChange(change, log, effects, undo);
     } catch (err: any) {
       console.error(err, err?.stack);
       const reason = err?.message ?? String(err);
-      const restored = await undo.restore(log);
+      const { effects, unknown, kept } = await undo.restore(log);
+      const partial = [
+        ...(unknown.length > 0
+          ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
+          : []),
+        ...(kept.length > 0
+          ? [`these were saved again while the edit ran and were kept as saved: ${kept.join(", ")}`]
+          : []),
+      ];
       return {
-        effects: restored.effects,
+        effects,
         failure: {
           change: index,
           reason:
-            restored.unknown.length === 0
+            partial.length === 0
               ? reason
-              : `${reason}; the edit was partly applied and restoring the earlier changes failed, so these may be left changed: ${restored.unknown.join(", ")}`,
+              : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
         },
       };
     }
