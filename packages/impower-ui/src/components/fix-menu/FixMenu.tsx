@@ -1,6 +1,4 @@
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../utils/cn";
-import Button from "../button/Button";
+import Button, { type ButtonSize } from "../button/Button";
 import {
   DropdownContent,
   DropdownItem,
@@ -11,27 +9,14 @@ import { ChevronDownIcon } from "../icon/icons.generated";
 
 export const FIX_MENU_LABEL = "Fix";
 
-export const fixMenuVariants = cva("", {
-  variants: {
-    size: {
-      default: "",
-      compact: "min-h-8 px-2.5 text-[12px]/[1.4] pointer-coarse:min-h-11",
-    },
-  },
-  defaultVariants: { size: "default" },
-});
-
-export type FixMenuSize = NonNullable<
-  VariantProps<typeof fixMenuVariants>["size"]
->;
+export type FixMenuSize = Extract<ButtonSize, "default" | "compact">;
 
 export interface FixMenuAction {
   name: string;
 }
 
-export type FixMenuProps<A extends FixMenuAction> = VariantProps<
-  typeof fixMenuVariants
-> & {
+export type FixMenuProps<A extends FixMenuAction> = {
+  size?: FixMenuSize;
   actions: readonly A[];
   onChoose: (action: A) => void;
   onOpenChange?: (open: boolean) => void;
@@ -45,14 +30,13 @@ export function FixMenu<A extends FixMenuAction>({
   size,
   class: className,
 }: FixMenuProps<A>) {
-  const classes = cn(fixMenuVariants({ size }), className);
   const [only] = actions;
   if (!only) {
     return null;
   }
   if (actions.length === 1) {
     return (
-      <Button class={classes} onClick={() => onChoose(only)}>
+      <Button size={size} class={className} onClick={() => onChoose(only)}>
         {only.name}
       </Button>
     );
@@ -60,7 +44,7 @@ export function FixMenu<A extends FixMenuAction>({
   return (
     <DropdownRoot onOpenChange={onOpenChange}>
       <DropdownTrigger asChild>
-        <Button class={classes}>
+        <Button size={size} class={className}>
           {FIX_MENU_LABEL}
           <ChevronDownIcon aria-hidden="true" />
         </Button>

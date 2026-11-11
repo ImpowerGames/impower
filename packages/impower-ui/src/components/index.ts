@@ -72,7 +72,6 @@ export {
 } from "./filter-chip/FilterChip";
 export {
   default as FixMenu,
-  fixMenuVariants,
   FIX_MENU_LABEL,
   type FixMenuAction,
   type FixMenuProps,

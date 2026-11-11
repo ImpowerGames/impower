@@ -11,7 +11,7 @@ const SEVERAL = [
 
 const SIZES: Record<FixMenuSize, string> = {
   default: "Default: a 44px button, the dialog and the popover",
-  compact: "Compact: a short button in a panel row, 44px on a coarse pointer",
+  compact: "Compact: the Button compact size, as a panel row sets it",
 };
 
 function FixMenuDemo() {
@@ -37,6 +37,6 @@ function FixMenuDemo() {
 
 export const fixMenuGallery: GalleryEntry = {
   title: "FixMenu",
-  exports: ["FixMenu", "fixMenuVariants", "FIX_MENU_LABEL"],
+  exports: ["FixMenu", "FIX_MENU_LABEL"],
   Demo: FixMenuDemo,
 };

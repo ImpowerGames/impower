@@ -36,7 +36,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "filterChipVariants",
   "MESSAGE_ENTRY_ROW_HEIGHT",
   "FIX_MENU_LABEL",
-  "fixMenuVariants",
   "messageEntryGlyphVariants",
   "messageEntryVariants",
   "PANEL_CARD_HEIGHT",

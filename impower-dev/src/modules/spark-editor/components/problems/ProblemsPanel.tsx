@@ -131,6 +131,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
         problem.actions.length ? (
           <FixMenu
             size="compact"
+            class="min-h-8 pointer-coarse:min-h-11"
             actions={problem.actions}
             onChoose={(action) =>
               void problems.applyFix(fixChoiceOf(problem, action))
