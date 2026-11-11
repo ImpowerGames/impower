@@ -6,7 +6,7 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import { Compiler } from "../../compiler/classes/Compiler";
+import { Compiler, type CompilerJournal } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
 import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
@@ -21,6 +21,8 @@ export class TextmateGrammarParse implements PartialParse {
   declare protected region: TextmateParseRegion;
 
   declare protected compiler: Compiler;
+
+  declare protected journal?: CompilerJournal;
 
   declare protected tokenizer: ResumableTokenizer;
 
@@ -59,8 +61,12 @@ export class TextmateGrammarParse implements PartialParse {
             stampedEpoch !== undefined &&
             stampedEpoch !== cachedCompiler.reuseEpoch
           ) {
-            break;
+            if (!cachedCompiler.canRollBackTo(stampedEpoch)) {
+              break;
+            }
+            cachedCompiler.rollback();
           }
+          this.journal = cachedCompiler.beginParseJournal();
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
@@ -138,6 +144,9 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected finish(): Tree {
+    if (this.journal) {
+      this.journal.finished = true;
+    }
     const pending = this.tokenizer.flushPending();
     if (pending) {
       this.compiler.add(pending);
@@ -254,12 +263,23 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected tryImpureSplice(): boolean {
-    const ahead = this.compiler.ahead;
-    const first = ahead?.first;
-    if (!ahead || !first) {
+    let ahead = this.compiler.ahead;
+    if (!ahead?.first || !this.region.contiguous) {
       return false;
     }
-    if (!this.region.contiguous) {
+    if (this.parsedPos > ahead.first.from) {
+      const next = ahead.findAheadSplitPoint(this.parsedPos - 1);
+      if (!next.chunk || next.index == null) {
+        this.compiler.ahead = undefined;
+        return false;
+      }
+      if (next.index > 0) {
+        ahead = ahead.split(next.index).right;
+        this.compiler.ahead = ahead;
+      }
+    }
+    const first = ahead.first;
+    if (!first) {
       return false;
     }
     if ((ahead.last?.to ?? 0) < this.region.to) {

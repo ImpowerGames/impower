@@ -34,13 +34,15 @@ export namespace Workspace {
     ls,
     configuration,
   );
-  export const scripts = new WorkspaceScripts({ fs, ls, window });
-  export const assets = new WorkspaceAssets({
+  export const autoRenameFiles = () =>
+    settings.preferences.peek().autoRenameFiles;
+  export const scripts = new WorkspaceScripts({
     fs,
     ls,
     window,
-    autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,
+    autoRenameFiles,
   });
+  export const assets = new WorkspaceAssets({ fs, window, autoRenameFiles });
   export const audition = new WorkspaceAudition({
     preview: (filename, shown) => window.auditionConstruct(filename, shown),
     audio: () => new Audio(),

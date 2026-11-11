@@ -25,6 +25,7 @@ import {
   aspectRatioLabel,
   barReadout,
   PAPER_SIZE_LABELS,
+  stopNote,
 } from "./barState";
 
 export interface PreviewBarProps {
@@ -74,6 +75,7 @@ function RouteReadout() {
     barReadout(workspace.state.value, route.view.value),
   ).value;
   const open = useComputed(() => route.open.value).value;
+  const note = useComputed(() => stopNote(workspace.debugSession.value)).value;
 
   const onClick = async () => {
     if (!readout) return;
@@ -90,7 +92,15 @@ function RouteReadout() {
   };
 
   return (
-    <div class="flex min-w-0 flex-1 justify-end">
+    <div class="flex min-w-0 flex-1 items-center justify-end">
+      {note ? (
+        <span
+          title={note}
+          class={`min-w-0 flex-1 basis-0 truncate text-right text-muted ${BAR_TEXT}`}
+        >
+          {note}
+        </span>
+      ) : null}
       {readout ? (
         <Button
           variant="quiet"

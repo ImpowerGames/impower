@@ -1,11 +1,13 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { DocumentLocation } from "../../types/DocumentLocation";
+import type { StoppedBeat } from "../../types/StoppedBeat";
 
 export type GameHitBreakpointMethod = typeof GameHitBreakpointMessage.method;
 
 export interface GameHitBreakpointParams {
   location: DocumentLocation;
+  beat?: StoppedBeat;
   run?: number;
 }
 

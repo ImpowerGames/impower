@@ -5,7 +5,7 @@ import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { canMoveFolder } from "../utils/fileTree";
-import { recordCreate, recordMove, recordReferenceRename } from "../utils/fileUndo";
+import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
@@ -15,7 +15,6 @@ import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
 import { isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
-import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
 import workspace from "./WorkspaceStore";
 
@@ -35,7 +34,6 @@ type Deps = {
     | "deleteFiles"
     | "deleteFolder"
   >;
-  ls: Pick<WorkspaceLanguageServer, "getFileReferences">;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
 };
@@ -231,33 +229,18 @@ export default class WorkspaceAssets {
     if (kind === "folder") {
       return this.moveFolder(projectId, path, to);
     }
-    const { fs, ls, window } = this._workspace;
-    let referenced = false;
-    if (this._workspace.autoRenameFiles()) {
-      try {
-        referenced = (await ls.getFileReferences(fs.getFileUri(projectId, path))).length > 0;
-      } catch {
-        referenced = true;
-      }
+    const { window } = this._workspace;
+    const renamed = await renameOrReport(path, to, () =>
+      renameFile(this._workspace, projectId, path, to),
+    );
+    if (!renamed.renamed) {
+      return path;
     }
-    if (referenced) {
-      const renamed = await renameOrReport(path, to, () =>
-        fs.renameFileWithReferences(projectId, path, to),
-      );
-      if (!renamed.renamed) {
-        return path;
-      }
+    if (renamed.result.referencesUpdated > 0) {
       await window.recordScriptChange();
-      await window.recordAssetChange();
-      recordReferenceRename(projectId, path, to);
-    } else {
-      const moved = await renameOrReport(path, to, () => fs.moveFile(projectId, path, to));
-      if (!moved.renamed) {
-        return path;
-      }
-      await window.recordAssetChange();
-      recordMove(projectId, path, to, false);
     }
+    await window.recordAssetChange();
+    recordMove(projectId, path, to, false);
     await this.load();
     return to;
   }
