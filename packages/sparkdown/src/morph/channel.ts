@@ -133,10 +133,9 @@ export function morphRefsForStruct(
   if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") return [];
   const members: MorphMember[] = [];
   for (const [morph, text] of Object.entries(channel.recipes)) {
-    const recipe = parseMorphRecipe(text);
-    if (!recipe) continue;
-    const requirements = morphRequirements({ ...recipeAsMorph(recipe), ...own(channel.conditions ?? {}, morph) });
-    const groups = [...requirements.groups.keys()];
+    const entry = recipeEntry(text, own(channel.conditions ?? {}, morph));
+    if (!entry) continue;
+    const { recipe, requirements, groups } = entry;
     const compatible =
       startsEveryGroup(requirements) &&
       groups.length > 0 &&
@@ -157,14 +156,26 @@ function conditionsOf(morph: Record<string, unknown>): MorphConditions | undefin
   return conditions.when || conditions.unless ? conditions : undefined;
 }
 
-const parsedRecipes = new Map<string, MorphRecipe | undefined>();
-const parsedRecipe = (text: string): MorphRecipe | undefined => {
-  if (parsedRecipes.has(text)) return parsedRecipes.get(text);
-  if (parsedRecipes.size >= 256) parsedRecipes.clear();
+interface RecipeEntry {
+  recipe: MorphRecipe;
+  requirements: MorphRequirements;
+  groups: string[];
+}
+
+const recipeEntries = new Map<string, RecipeEntry | undefined>();
+
+function recipeEntry(text: string, conditions: MorphConditions | undefined): RecipeEntry | undefined {
+  const key = conditions ? `${text}\n${JSON.stringify(conditions)}` : text;
+  if (recipeEntries.has(key)) return recipeEntries.get(key);
+  if (recipeEntries.size >= 256) recipeEntries.clear();
   const recipe = parseMorphRecipe(text);
-  parsedRecipes.set(text, recipe);
-  return recipe;
-};
+  const requirements = recipe ? morphRequirements({ ...recipeAsMorph(recipe), ...conditions }) : undefined;
+  const entry = recipe && requirements ? { recipe, requirements, groups: [...requirements.groups.keys()] } : undefined;
+  recipeEntries.set(key, entry);
+  return entry;
+}
+
+const parsedRecipe = (text: string): MorphRecipe | undefined => recipeEntry(text, undefined)?.recipe;
 
 export interface ShownLook {
   image: any;

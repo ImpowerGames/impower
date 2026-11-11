@@ -167,21 +167,34 @@ function folderChoices(
   return vocabulary.groups[group]?.switch ? ["off"] : [];
 }
 
+const groupFolders = new WeakMap<AttributeVocabulary, Map<string, [string, AttributeFolder][]>>();
+
 function drawingFolders(
   vocabulary: AttributeVocabulary,
   visible: Record<string, boolean>,
   group: string,
 ): [string, AttributeFolder][] {
-  return Object.entries(vocabulary.folders).filter(
-    ([key, folder]) => (key === ATTRIBUTE_ROOT || visible[key]) && !!folder.options[group]?.length,
-  );
+  let byGroup = groupFolders.get(vocabulary);
+  if (!byGroup) {
+    byGroup = new Map();
+    for (const entry of Object.entries(vocabulary.folders)) {
+      for (const [drawn, options] of Object.entries(entry[1].options)) {
+        if (!options.length) continue;
+        const list = byGroup.get(drawn) ?? [];
+        list.push(entry);
+        byGroup.set(drawn, list);
+      }
+    }
+    groupFolders.set(vocabulary, byGroup);
+  }
+  return (byGroup.get(group) ?? []).filter(([key]) => key === ATTRIBUTE_ROOT || visible[key]);
 }
 
 export function lookChoices(
   vocabulary: AttributeVocabulary,
   selection: AttributeSelection,
   group: string,
-  visible: Record<string, boolean> = evaluateAttributeVisibility(vocabulary, selection).visible,
+  visible: Record<string, boolean> = visibleIn(vocabulary, selection),
 ): string[] {
   const choices = new Set<string>();
   for (const [key] of drawingFolders(vocabulary, visible, group)) {
@@ -201,12 +214,28 @@ export function stateIsActive(
   );
 }
 
+const VISIBILITY_MEMO_LIMIT = 256;
+const visibilityMemo = new WeakMap<AttributeVocabulary, Map<string, Record<string, boolean>>>();
+
+function visibleIn(vocabulary: AttributeVocabulary, selection: AttributeSelection): Record<string, boolean> {
+  const key = JSON.stringify(Object.entries(selection).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  let memo = visibilityMemo.get(vocabulary);
+  if (!memo) visibilityMemo.set(vocabulary, (memo = new Map()));
+  let visible = memo.get(key);
+  if (!visible) {
+    if (memo.size >= VISIBILITY_MEMO_LIMIT) memo.clear();
+    visible = evaluateAttributeVisibility(vocabulary, selection).visible;
+    memo.set(key, visible);
+  }
+  return visible;
+}
+
 export function poseSelection(
   vocabulary: AttributeVocabulary,
   selection: AttributeSelection,
   pose: Readonly<Record<string, string>>,
 ): AttributeSelection {
-  const visible = evaluateAttributeVisibility(vocabulary, selection).visible;
+  const visible = visibleIn(vocabulary, selection);
   const posed: AttributeSelection = { ...selection };
   for (const [group, state] of Object.entries(pose)) {
     const choices = lookChoices(vocabulary, selection, group, visible);
@@ -222,7 +251,7 @@ export function bindVariant(
   selection: AttributeSelection,
   requirements: MorphRequirements,
 ): MorphVariantBinding {
-  const { visible } = evaluateAttributeVisibility(vocabulary, selection);
+  const visible = visibleIn(vocabulary, selection);
   const rest = Object.fromEntries(requirements.rest);
   const active = (condition: MorphCondition) => stateIsActive(vocabulary, selection, condition, visible);
   if (requirements.unless.some(active) || !requirements.when.every(active)) {
