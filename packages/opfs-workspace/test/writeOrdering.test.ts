@@ -1857,6 +1857,23 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(textAt(root, "a.sd")).toBe("A");
   });
 
+  it("reports a refused first change as nothing applied, with nothing to roll back", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("missing.sd", 0, "x"), insert("main.sd", 0, "x")] },
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 0,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(textAt(root, "main.sd")).toBe("M");
+    expect(h.writtenTexts("main.sd", from)).toEqual([]);
+  });
+
   it("restores the earlier files of an edit given as changes by file", async () => {
     const root = seed({ "main.sd": "M" });
     const h = await worker(root);
