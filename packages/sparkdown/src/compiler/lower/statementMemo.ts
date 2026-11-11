@@ -206,6 +206,7 @@ export class StatementMemoRetry extends Error {
 
 export interface StatementMemoHost {
   enabled: boolean;
+  serving: boolean;
   usable(entry: StatementMemoEntry): boolean;
   provisional?: boolean;
 }
@@ -484,7 +485,7 @@ export class StatementMemoSession {
     ctx: LowerContext,
     shape: StatementShape,
   ): StatementMemoEntry | undefined {
-    if (!this.host.enabled || !this.servable(node, to, ctx)) {
+    if (!this.host.enabled || !this.host.serving || !this.servable(node, to, ctx)) {
       return undefined;
     }
     const entry = this.lookup.get(memoKey(syntax, this.before(node.from)));
