@@ -8,6 +8,7 @@ import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
 import { focusReturnTarget } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
+import { useToastLayer } from "../../utils/toastLayer";
 
 export const DIALOG_TRANSITION_MS = 180;
 
@@ -51,7 +52,7 @@ export const dialogVariants = cva(
         false: "p-5",
       },
       visible: {
-        true: "scale-100 opacity-100 ease-[ease-out]",
+        true: "scale-none opacity-100 ease-[ease-out]",
         false: "scale-97 opacity-0 ease-[ease-in]",
       },
     },
@@ -72,7 +73,7 @@ export const sheetVariants = cva(
         false: "p-5",
       },
       visible: {
-        true: "translate-y-0 ease-[ease-out]",
+        true: "translate-none ease-[ease-out]",
         false: "translate-y-full ease-[ease-in]",
       },
     },
@@ -123,6 +124,7 @@ function Modal({
     [open, placement],
   );
   const content = useRef<HTMLDivElement | null>(null);
+  const toastLayer = useToastLayer(open);
   const returnFocus = useRef<() => HTMLElement | null>(() => null);
   const wasOpen = useRef(false);
   if (open && !wasOpen.current && typeof document !== "undefined") {
@@ -177,6 +179,7 @@ function Modal({
             onInteractOutside={refuse}
           >
             {children}
+            <div ref={toastLayer} data-toast-layer class="contents" />
           </DialogPrimitive.Content>
         </DialogPrimitive.Overlay>
       </DialogPrimitive.Portal>

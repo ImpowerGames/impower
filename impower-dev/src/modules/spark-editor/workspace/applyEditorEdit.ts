@@ -11,7 +11,11 @@ import {
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
-import { textFingerprint } from "@impower/spark-editor-protocol/src/utils/textFingerprint";
+import {
+  FIX_SNAPSHOT_PROOFS,
+  textFingerprint,
+  type OfferedFix,
+} from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
 import { stillExpected } from "@impower/sparkdown/src/compiler/utils/closeMatch";
 import type { Position, TextEdit } from "vscode-languageserver-protocol";
 
@@ -240,28 +244,11 @@ const applyClosedChanges = async (
   return outcome.applied;
 };
 
-export type OfferedFix = Pick<EditorFix, "changes" | "expect" | "kind">;
+export type { OfferedFix };
 
 export interface EditorFixFiles extends EditorEditFiles {
   offeredFixes: (uri: string) => Promise<readonly OfferedFix[] | null>;
 }
-
-const sameChanges = (
-  a: readonly EditorFixChange[],
-  b: readonly EditorFixChange[],
-) =>
-  a.length === b.length &&
-  a.every(
-    (c, i) => c.from === b[i]!.from && c.to === b[i]!.to && c.insert === b[i]!.insert,
-  );
-
-const stillOffered = (fix: EditorFix, offered: readonly OfferedFix[] | null) =>
-  !!offered?.some(
-    (o) =>
-      o.expect === fix.expect &&
-      o.kind === fix.kind &&
-      sameChanges(o.changes, fix.changes),
-  );
 
 const undoFix = async (
   files: EditorFixFiles,
@@ -278,7 +265,7 @@ const undoFix = async (
     return editor.outcome === "applied";
   }
   const text = await files.getFileText(uri);
-  if (textFingerprint(text) !== revert.after) {
+  if (!FIX_SNAPSHOT_PROOFS.undoElsewhere.holds({ text, after: revert.after })) {
     return false;
   }
   return applyClosedChanges(files, uri, text, revert.changes, label);
@@ -312,7 +299,10 @@ export const applyEditorFix = async (
   }
   if (
     editor.outcome === "refused" ||
-    !stillOffered(fix, await files.offeredFixes(uri))
+    !FIX_SNAPSHOT_PROOFS.closedScript.holds({
+      fix,
+      offered: await files.offeredFixes(uri),
+    })
   ) {
     return REFUSED;
   }

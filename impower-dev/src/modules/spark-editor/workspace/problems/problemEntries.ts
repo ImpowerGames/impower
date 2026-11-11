@@ -10,6 +10,7 @@ import {
   fixActionsOf,
   type DiagnosticFixAction,
 } from "@impower/codemirror-vscode-lsp-client/src/diagnostics";
+import { FIX_SNAPSHOT_PROOFS } from "@impower/spark-editor-protocol/src/utils/fixSnapshots";
 import type { ReadonlySignal } from "@preact/signals";
 import type { Diagnostic, Range } from "vscode-languageserver-protocol";
 
@@ -365,12 +366,13 @@ const publishedVersion = (
   uri: string,
   diagnostics: readonly Diagnostic[],
   published?: PublishedDiagnostics,
-) => {
-  const current = new Set(published?.diagnostics[uri] ?? []);
-  return diagnostics.every((diagnostic) => current.has(diagnostic))
+) =>
+  FIX_SNAPSHOT_PROOFS.outlineScope.holds({
+    row: diagnostics,
+    published: published?.diagnostics[uri] ?? [],
+  })
     ? published?.versions[uri]
     : undefined;
-};
 
 export function scopedProblems(
   scope: ProblemsScope,

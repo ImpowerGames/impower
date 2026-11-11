@@ -157,6 +157,52 @@ describe("the Problems to fix dialog", () => {
     applyFix.mockRestore();
   });
 
+  it("shows the fix's Undo inside the dialog, where the keyboard can reach it", async () => {
+    const { default: SnackbarHost } = await import(
+      "../../src/modules/spark-editor/components/snackbar-host/SnackbarHost"
+    );
+    const { showSnackbar, dismissSnackbar } = await import(
+      "../../src/modules/spark-editor/utils/snackbar"
+    );
+    const undone = vi.fn();
+    const applyFix = vi.spyOn(problems, "applyFix").mockImplementation(async () => {
+      showSnackbar({ message: "Changed to alice.", actionLabel: "Undo", onAction: undone });
+      return true;
+    });
+    const toasts = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(SnackbarHost, null), toasts));
+    problems.record({
+      uri: CHAPTER,
+      version: 2,
+      diagnostics: [
+        {
+          ...diagnostic(1, 2, "Cannot find alcie"),
+          data: [
+            {
+              name: "Use alice instead",
+              done: "Changed to alice.",
+              changes: [{ from: 0, to: 1, insert: "a" }],
+            },
+          ],
+        },
+      ],
+    });
+    await open({ kind: "story" });
+    const fix = Array.from(
+      dialog()!.querySelectorAll<HTMLButtonElement>("[data-message-entry] button"),
+    ).find((button) => button.textContent === "Use alice instead")!;
+    await act(async () => fix.click());
+    const undo = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Undo",
+    )!;
+    expect(dialog()!.contains(undo)).toBe(true);
+    await act(async () => undo.click());
+    expect(undone).toHaveBeenCalledTimes(1);
+    applyFix.mockRestore();
+    await act(async () => dismissSnackbar());
+    await act(async () => render(null, toasts));
+  });
+
   it("updates its entries as the diagnostics change", async () => {
     await open({ kind: "story" });
     await act(async () =>
