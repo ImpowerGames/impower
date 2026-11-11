@@ -160,6 +160,36 @@ ${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}`;
     expect(found!.message).toContain("`rest`");
   });
 
+  test("`rest` written as a value is an error on the value that shows the block form", () => {
+    const text = talkSmile("  rest = mouth.teeth\n");
+    const found = diagnosticsOf(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([
+      expect.objectContaining({ line: 2, text: "mouth.teeth", message: "`rest` is a block, not a value: write `rest { mouth { state = teeth } }`." }),
+    ]);
+  });
+
+  test("a `rest` group written as a value is an error on its line that shows the container form", () => {
+    for (const value of ["mouth.teeth", "teeth"]) {
+      const found = diagnosticsOf(talkSmile(`  rest {\n    mouth = ${value}\n  }\n`)).filter((d) => d.severity === 1);
+      expect(found).toEqual([
+        expect.objectContaining({ line: 3, text: `mouth = ${value}`, message: "`mouth = …` is not a pose. Write `rest { mouth { state = teeth } }`." }),
+      ]);
+    }
+  });
+
+  test("a keyframe group written as a qualified value is reported on its line, not as internal fields at the name", () => {
+    const text = talkSmile("").replace("    from {\n      mouth {\n        state = closed\n      }\n    }", "    from {\n      mouth = mouth.closed\n    }");
+    const found = diagnosticsOf(text).filter((d) => d.severity === 1);
+    expect(found.find((d) => d.text === "mouth = mouth.closed")?.message).toContain("`mouth = …` is not a pose");
+    expect(found.filter((d) => d.message.includes("$type") || d.message.includes("$name"))).toEqual([]);
+  });
+
+  test("a malformed condition inherited from a parent the scripts do not write is reported on the `as`", () => {
+    const text = `define base as morph with\n  unless = "closed"\nend\n\n${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
+    const found = diagnosticsOf(text).find((d) => d.message.startsWith("`unless`, inherited from `base`"));
+    expect(found).toMatchObject({ line: 4, text: "base", severity: 1 });
+  });
+
   test("a condition that is not a state with its group is an error", () => {
     const found = diagnosticsOf(blink("  unless = closed\n")).find((d) => d.text === "closed" && d.line === 2);
     expect(found).toMatchObject({ severity: 1 });

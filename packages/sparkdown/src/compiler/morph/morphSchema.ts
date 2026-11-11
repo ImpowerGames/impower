@@ -120,7 +120,7 @@ export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke",
 
 export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
-export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "unless", "fill", "stroke", "partner"]);
+export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "unless", "rest", "fill", "stroke", "partner"]);
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set([
   ...MORPH_CLIP_LIST_FIELDS,
   ...MORPH_LAYER_FIELDS,
