@@ -14,6 +14,7 @@ import type { GrammarRepository } from "../GrammarRepository";
 import { GrammarState } from "../GrammarState";
 import { Matched } from "../Matched";
 import { RegExpMatcher, type RegExpMatchResult } from "../RegExpMatcher";
+import { ResumableTokenizer } from "../ResumableTokenizer";
 import { SwitchRule } from "./SwitchRule";
 
 export class MatchRule implements Rule {
@@ -97,6 +98,7 @@ export class MatchRule implements Rule {
           result.indices,
           lineStart,
           lineText,
+          state,
         );
       } else {
         let pos = from;
@@ -104,10 +106,19 @@ export class MatchRule implements Rule {
         result.forEach((resultStr, resultIndex) => {
           const capture = this.captures?.[resultIndex];
           if (capture) {
-            matched.children ??= [];
-            matched.children.push(
-              this.capture(capture, resultStr, pos, lineStart, lineText),
+            const captured = this.capture(
+              capture,
+              resultStr,
+              pos,
+              lineStart,
+              lineText,
+              state,
             );
+            matched.children ??= [];
+            matched.children.push(captured);
+            if (captured.length < (resultStr?.length ?? 0)) {
+              uncovered = true;
+            }
           } else if (resultIndex > 0 && resultStr) {
             uncovered = true;
           }
@@ -131,6 +142,7 @@ export class MatchRule implements Rule {
     indices: ([number, number] | undefined)[],
     lineStart: number,
     lineText: string,
+    state: GrammarState,
   ) {
     const parents = this.matcher.groupParents;
     const captures = this.captures;
@@ -171,6 +183,7 @@ export class MatchRule implements Rule {
         start,
         lineStart,
         lineText,
+        state,
       );
       host.children ??= [];
       host.children.push(captureMatched);
@@ -189,55 +202,28 @@ export class MatchRule implements Rule {
     pos: number,
     lineStart: number,
     lineText: string,
+    state: GrammarState,
   ) {
     const resultStrLength = resultStr?.length ?? 0;
     if (!(capture instanceof SwitchRule)) {
       return Matched.create(capture, pos, resultStrLength);
     }
+    if (resultStr == null) {
+      return Matched.create(capture.node, pos, 0);
+    }
     const start = pos - lineStart;
-    const state = GrammarState.ofLine(
+    const { tokens, to } = ResumableTokenizer.tokenizeCapture(
+      this.repo.grammar,
+      [capture],
       lineText.slice(0, start + resultStrLength),
+      start,
+      lineStart,
+      state.enclosingAt(lineStart, capture.id, pos),
     );
-    const children: Matched[] = [];
-    if (resultStr != null && resultStr.length === 0) {
-      const matched = capture.match(state, start);
-      if (matched) {
-        matched.offset(pos);
-        children.push(matched);
-      }
+    if (tokens.length === 0) {
+      return Matched.create(capture.node, pos, 0);
     }
-    let i = 0;
-    while (i < resultStrLength) {
-      const matched = capture.match(state, start + i);
-      if (matched?.length) {
-        matched.offset(pos + i);
-        children.push(matched);
-        i += matched.length;
-      }
-      if (state.stopped) {
-        if (i < resultStrLength) {
-          children.push(
-            new Matched(GrammarNode.None, pos + i, resultStrLength - i),
-          );
-        }
-        break;
-      }
-      if (!matched?.length) {
-        const noneMatched = Matched.create(
-          GrammarNode.Unrecognized,
-          pos + i,
-          1,
-        );
-        children.push(noneMatched);
-        i += 1;
-      }
-    }
-    return Matched.create(
-      capture.node,
-      pos,
-      resultStrLength,
-      children.length > 0 ? children : undefined,
-    );
+    return Matched.tokenized(capture.node, pos, to - start, tokens);
   }
 }
 

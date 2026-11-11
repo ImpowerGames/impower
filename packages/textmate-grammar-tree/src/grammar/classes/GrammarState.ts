@@ -5,7 +5,7 @@
 import { GrammarNode } from "./GrammarNode";
 import { GrammarStack } from "./GrammarStack";
 
-type CallFrame = { ruleId: string; position: number; scoped: boolean };
+export type CallFrame = { ruleId: string; position: number; scoped: boolean };
 
 export class GrammarState {
   stack: GrammarStack = new GrammarStack([
@@ -23,9 +23,7 @@ export class GrammarState {
 
   visited: CallFrame[] = [];
 
-  stopped = false;
-
-  emptyScopeMatched = false;
+  enclosing: CallFrame[] = [];
 
   str: string;
 
@@ -55,13 +53,20 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
-  static ofLine(str: string) {
-    const state = new GrammarState(str);
-    state._lineStart = 0;
-    state._lineEnd = str.length;
-    state._lineText = str;
-    state._lineStrLength = str.length;
-    return state;
+  resetToLine(line: string, absolutePos: number, enclosing: CallFrame[]) {
+    this.stack.close(1);
+    this.anchor = -1;
+    this._anchorLineStart = -1;
+    this.visited.length = 0;
+    this.enclosing = enclosing;
+    this.str = line;
+    this.absolutePos = absolutePos;
+    this._matchDepth = 0;
+    this._lineStart = 0;
+    this._lineEnd = line.length;
+    this._lineText = line;
+    this._lineStrLength = line.length;
+    this._exhaustedAt = -1;
   }
 
   advance() {
@@ -119,11 +124,6 @@ export class GrammarState {
 
   get lineStart() {
     return this._lineStart;
-  }
-
-  lineEndAt(at: number) {
-    this.line(at);
-    return this._lineEnd;
   }
 
   get lineText() {
@@ -184,26 +184,35 @@ export class GrammarState {
     return hasVisited;
   }
 
-  includeCycle(ruleId: string, position: number): boolean {
-    if (this.visited.length > 10000) {
-      console.warn("Possible stack overflow!", this.visited);
-      return true;
-    }
-    for (let i = this.visited.length - 1; i >= 0; i--) {
-      const frame = this.visited[i]!;
-      if (frame.scoped) {
-        return false;
-      }
-      if (frame.ruleId === ruleId && frame.position === position) {
-        console.warn("Infinite recursion detected!", ruleId, position);
-        return true;
-      }
-    }
-    return false;
-  }
-
   enter(ruleId: string, position: number, scoped = false) {
     this.visited.push({ ruleId, position, scoped });
+  }
+
+  enclosingAt(lineStart: number, captureId: string, captureAt: number) {
+    const position = captureAt - lineStart;
+    const frames: CallFrame[] = [
+      { ruleId: captureId, position, scoped: true },
+    ];
+    const visited = this.visited;
+    for (let i = visited.length - 1; i >= 0; i--) {
+      const frame = visited[i]!;
+      if (!frame.scoped) {
+        continue;
+      }
+      if (frame.position !== captureAt) {
+        return frames.reverse();
+      }
+      frames.push({ ruleId: frame.ruleId, position, scoped: true });
+    }
+    const enclosing = this.enclosing;
+    for (let i = enclosing.length - 1; i >= 0; i--) {
+      const frame = enclosing[i]!;
+      if (frame.position !== captureAt) {
+        break;
+      }
+      frames.push({ ruleId: frame.ruleId, position, scoped: true });
+    }
+    return frames.reverse();
   }
 
   exit(ruleId: string, position: number) {

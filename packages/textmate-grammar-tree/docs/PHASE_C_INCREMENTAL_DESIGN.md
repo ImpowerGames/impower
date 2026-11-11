@@ -45,7 +45,7 @@ defect is somewhere in the `Compiler.step`/`finish` global assembly or the
 > proves the OTHER half (the reverted regression lived here):
 > `packages/sparkdown/src/tests/incremental/matcherResumeSpike.test.ts` (10
 > tests). A small synthetic grammar through the REAL `Grammar`/`ScopedRule`/
-> `RegExpMatcher` machinery; oracle = real whole-block `grammar.match().compile()`.
+> `RegExpMatcher` machinery; oracle = the whole-block recursive matcher, since removed in favour of `ResumableTokenizer` as the only matcher.
 > A flat, stack-driven per-line tokenizer (reusing the real
 > `ScopedRule.begin`/`content`/`end` primitives) proves:
 > - **per-line dispatch == whole-block token stream, byte-for-byte** — incl. the
@@ -241,7 +241,7 @@ From the grammar investigation (Table 1, both `Luau*` and `LuauSparkdown*` famil
 | `tree/classes/TextmateGrammarParse.ts` | At the `nextChunk` matcher call site (line ~226): consult/populate the memo around `grammar.match`. Thread the shared `LineMemo` in. EOF / lookahead carve-out. |
 | `tree/classes/TextmateGrammarParser.ts` | Own one `LineMemo` per parser; pass into `createParse`. (Model A — verify parser-per-document in `SparkdownDocumentRegistry`; if shared, fall back to Model B: ride the memo on the tree via a `NodeProp` like `cachedCompilerProp`.) |
 
-**No changes to** `ScopedRule`, `Grammar.match` dispatch, `Chunk`, `Compiler`, `Packet`, `CompileStack`, grammar JSON, lowerer.
+**No changes to** `ScopedRule`, the matcher's dispatch, `Chunk`, `Compiler`, `Packet`, `CompileStack`, grammar JSON, lowerer.
 
 ### 3.2 Data structures
 
@@ -306,7 +306,7 @@ if (cached && this.state.stackMatches(cached /* its recorded entry stack */)) {
 } else {
   // CACHE MISS — identical to today's committed path.
   const lenBefore = this.region.remaining();     // to detect lookahead consumption
-  const match = this.grammar.match(this.state, str, next, pos - start, pos);
+  const match = matchLineAt(pos);                // sketch: today a ResumableTokenizer step
   if (match) { matchTokens = match.compile(); matchLength = match.length; }
   else { matchTokens = [[NodeID.unrecognized, pos, pos + 1]]; matchLength = 1; }
 

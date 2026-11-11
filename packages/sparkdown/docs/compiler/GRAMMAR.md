@@ -1331,7 +1331,7 @@ One deliberate difference stays: in a rule body the tree closes the rule `ERROR_
 
 Two cases are exceptions, where the tree's line tokenizer stops the line as vscode-textmate does and leaves the rest of it in the scope that stays open (I-1968). A match that does not advance inside a begin/end rule pops that rule. A begin that does not advance, of a rule already opened at the same position, leaves the earlier one open. Either way the next line starts from that state, and nothing else on the stopped line is matched. Every other unmatched text still closes the rule `ERROR_INCOMPLETE`.
 
-A capture's `patterns` do not run through the line tokenizer but through a separate recursive matcher. It stops at the capture's end for the two cases above as the conformance tests exercise them, but it can still differ from vscode-textmate. For example, a repeated begin whose `\G` alternative consumes text on re-entry is skipped there, while vscode-textmate opens it. Running captures through the line tokenizer so the tree has one matcher is I-2035.
+A capture's `patterns` run through the same line tokenizer, from the capture's start over the line up to the capture's end, so the tree has one matcher and both cases above stop at the capture's end as they stop at a line's end. A match that does not advance at the capture's own level ends the capture there and leaves the rest of its text in the enclosing scope, as vscode-textmate pops the capture (I-2035).
 
 ### 17.2 Why they diverge — and the one rule that prevents it
 
