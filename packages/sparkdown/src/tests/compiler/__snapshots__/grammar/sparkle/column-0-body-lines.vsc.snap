@@ -123,7 +123,8 @@ text.source.sparkdown [0..232]
  │       ├─ entity.name.type.define.luau [161..165]: "card"
  │       ├─ meta.parameter.luau [165..172]
  │       │   ├─ punctuation.definition.template-expression.begin.sd [165..166]: "("
- │       │   ├─ variable.parameter.function.luau [166..171]: "title"
+ │       │   ├─ meta.embedded.block.luau [166..171]
+ │       │   │   └─ variable.parameter.function.luau [166..171]: "title"
  │       │   └─ punctuation.definition.template-expression.end.sd [171..172]: ")"
  │       ├─ punctuation.whitespace.sd [172..173]: " "
  │       └─ punctuation.definition.template-expression.begin.sd [173..174]: "{"

@@ -662,7 +662,7 @@ variables:
   LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+{{LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD}}\S)
   LUAU_FUNCTION_BODY_AFTER_PARAMETERS: (?<=[)])(?={{LUAU_NOT_END_OR_COMMENT_AHEAD}}(?:[\w"'`(\[{&\-@#;]|::))
   LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))
-  LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*\n
+  LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*(?=\n)
   LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
   # lookaround: a deeper line is the method's body (LuauBlockBody), and the
   # method's own `end` at that indentation is the end's last alternative;
@@ -692,6 +692,12 @@ variables:
   _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_: (?:--\[(=*)\[(?:(?!\]\10\])[^\r\n])*\]\10\]{{WS}}*)+
   LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
   LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  LUAU_DEFINE_HEADER_NAME_TO_WITH: (?:{{LUAU_IDENTIFIER}}{{LUAU_DEFINE_HEADER_TAIL_PART}}*{{LUAU_DEFINE_HEADER_WITH}}?)
+  LUAU_DEFINE_HEADER_TAIL_PART: (?:{{LUAU_DEFINE_HEADER_AS_PARENT}}|{{WS}}+)
+  LUAU_DEFINE_HEADER_AS_PARENT: (?:{{WS}}*as\b{{WS}}*{{LUAU_INHERITANCE_PARENT_NAME}}{{LUAU_INHERITANCE_PARENT_GAP}})
+  LUAU_INHERITANCE_PARENT_NAME: (?:$|{{LUAU_IDENTIFIER}})
+  LUAU_INHERITANCE_PARENT_GAP: (?:$|{{WS}}*)
+  LUAU_DEFINE_HEADER_WITH: (?:{{WS}}*with\b)
   LUAU_CODE_BEFORE_DEFINE_HEADER: (?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)
   LUAU_CODE_CHAR_OR_CLOSED_COMMENT: (?:[^\-\r\n]|-[^\-\r\n]|{{LUAU_PLAIN_BLOCK_COMMENT}})
   LUAU_DEFINE_HEADER_PARENT: (?:{{LUAU_DEFINE_HEADER_GAP}}as{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}})
@@ -1072,7 +1078,7 @@ repository:
     tag: meta
     name: meta.function.luau
     contentName: meta.embedded.block.luau
-    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)
+    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)({{LUAU_DEFINE_HEADER_NAME_TO_WITH}})?
     beginCaptures:
       1:
         patterns:
@@ -1087,9 +1093,11 @@ repository:
       5:
         patterns:
           - { include: "#LuauComment" }
+      7:
+        patterns:
+          - { include: "#LuauDefineNameAndInheritance" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauDefineNameAndInheritance" }
       - { include: "#LuauPropertyDefinition" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauMethodDefinition" }
@@ -1168,7 +1176,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauDefineNameAndInheritance:
-    begin: \G({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -1187,7 +1195,7 @@ repository:
           - { include: "#LuauWithKeyword" }
 
   LuauInheritanceOperation:
-    match: ({{WS}}*)(as)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
+    match: ({{WS}}*)(as)\b({{WS}}*)({{LUAU_INHERITANCE_PARENT_NAME}})({{LUAU_INHERITANCE_PARENT_GAP}})
     captures:
       1:
         patterns:
@@ -3015,7 +3023,6 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    contentName: meta.embedded.block.luau
     begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{_LUAU_LEVEL_BLOCK_COMMENT_}}*))?(function)\b({{WS}}*)
     beginCaptures:
       1:
@@ -3071,6 +3078,7 @@ repository:
   LuauFunctionBody:
     tag: meta
     name: meta.function.body.luau
+    contentName: meta.embedded.block.luau
     begin: "{{LUAU_FUNCTION_BODY_AT_COMMENT_CLOSE}}|{{LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT}}|{{LUAU_FUNCTION_BODY_AFTER_PARAMETERS}}|{{LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT}}|{{LUAU_FUNCTION_BODY_AT_LINE_BREAK}}|{{LUAU_FUNCTION_BODY_AT_LINE_START}}"
     patterns:
       - { include: "#LuauBlockBody" }
@@ -3081,6 +3089,7 @@ repository:
   LuauFunctionParameters:
     tag: meta
     name: meta.parameter.luau
+    contentName: meta.embedded.block.luau
     brackets: true
     begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_NAME_BEHIND}}{{WS}}*)[(])
     beginCaptures:
@@ -3126,6 +3135,7 @@ repository:
     name: variable.parameter.function.luau
 
   LuauFunctionReturnType:
+    contentName: meta.embedded.block.luau
     begin: (?<=[)]{{WS}}*)([:])(?![:])({{WS}}*)
     beginCaptures:
       1:

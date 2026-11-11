@@ -6,7 +6,8 @@ text.source.sparkdown [0..2675]
  │       ├─ entity.name.type.define.luau [10..14]: "card"
  │       ├─ meta.parameter.luau [14..21]
  │       │   ├─ punctuation.definition.template-expression.begin.sd [14..15]: "("
- │       │   ├─ variable.parameter.function.luau [15..20]: "title"
+ │       │   ├─ meta.embedded.block.luau [15..20]
+ │       │   │   └─ variable.parameter.function.luau [15..20]: "title"
  │       │   └─ punctuation.definition.template-expression.end.sd [20..21]: ")"
  │       ├─ punctuation.whitespace.sd [21..22]: " "
  │       └─ punctuation.definition.template-expression.begin.sd [22..23]: "{"

@@ -52,8 +52,9 @@ sparkdown [0..94]
  │   │   │       └─ LuauFunctionParameters_end_c1 [30..31]
  │   │   │           └─ PunctuationParenClose [30..31]: ")"
  │   │   └─ LuauFunctionBody [31..90]
- │   │       ├─ LuauFunctionBody_begin [31..32]: "\n"
- │   │       ├─ LuauFunctionBody_content [32..90]
+ │   │       ├─ LuauFunctionBody_begin 31
+ │   │       ├─ LuauFunctionBody_content [31..90]
+ │   │       │   ├─ Newline [31..32]: "\n"
  │   │       │   ├─ LuauReturnStatement [32..89]
  │   │       │   │   ├─ LuauReturnStatement_begin [32..41]
  │   │       │   │   │   ├─ LuauReturnStatement_begin_c1 [32..34]

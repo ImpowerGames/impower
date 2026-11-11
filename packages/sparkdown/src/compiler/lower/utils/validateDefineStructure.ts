@@ -114,8 +114,9 @@ export function validateDefineStructure(
     ];
   }
 
-  const header = content
-    ? findChildByName(content, "LuauDefineNameAndInheritance")
+  const begin = findChildByName(node, "LuauDefine_begin");
+  const header = begin
+    ? (getDescendent("LuauDefineNameAndInheritance", begin) ?? null)
     : null;
   const headerEnd = header
     ? findChildByName(header, "LuauDefineNameAndInheritance_end")
@@ -124,7 +125,7 @@ export function validateDefineStructure(
     !!headerEnd && !!getDescendent("LuauWithKeyword", headerEnd);
   const endNode = findChildByName(node, "LuauDefine_end");
   const hasEnd = !!endNode && !!getDescendent("LuauEndKeyword", endNode);
-  let rest = header?.nextSibling ?? null;
+  let rest = header ? (content?.firstChild ?? null) : null;
   while (rest && isTrivia(rest)) rest = rest.nextSibling;
   if (
     header &&
@@ -168,7 +169,7 @@ export function validateDefineStructure(
   }
   if (!content || !header) return diagnostics;
 
-  let child = header.nextSibling;
+  let child = content.firstChild;
   while (child && isTrivia(child)) child = child.nextSibling;
   if (!child) return diagnostics;
   if (reachedWith) {

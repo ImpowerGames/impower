@@ -25,8 +25,9 @@ sparkdown [0..420]
  │   │   │       └─ LuauFunctionParameters_end_c1 [16..17]
  │   │   │           └─ PunctuationParenClose [16..17]: ")"
  │   │   └─ LuauFunctionBody [17..388]
- │   │       ├─ LuauFunctionBody_begin [17..18]: "\n"
- │   │       ├─ LuauFunctionBody_content [18..388]
+ │   │       ├─ LuauFunctionBody_begin 17
+ │   │       ├─ LuauFunctionBody_content [17..388]
+ │   │       │   ├─ Newline [17..18]: "\n"
  │   │       │   ├─ ExtraWhitespace [18..20]: "  "
  │   │       │   ├─ LuauAccessPath [20..25]
  │   │       │   │   ├─ LuauAccessPath_begin 20

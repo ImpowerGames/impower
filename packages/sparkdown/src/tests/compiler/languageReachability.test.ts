@@ -103,7 +103,7 @@ function violations(grammar: GrammarJson): string[] {
 describe("Luau regions reach no story text", () => {
   test("the grammar marks Luau regions", () => {
     const owners = markedRegions(GRAMMAR).map((r) => r.owner);
-    for (const rule of ["LuauFunctionDefinition", "LuauDefine", "LuauLayout", "LuauSparkdownExplicitStatement"]) {
+    for (const rule of ["LuauFunctionBody", "LuauDefine", "LuauLayout", "LuauSparkdownExplicitStatement"]) {
       expect(owners.some((o) => o.startsWith(`${rule} `))).toBe(true);
     }
   });
@@ -114,10 +114,10 @@ describe("Luau regions reach no story text", () => {
 
   test("a display-text rule added to a marked rule's patterns is reported", () => {
     const mutated = structuredClone(GRAMMAR) as GrammarJson;
-    const rule = mutated.repository["LuauFunctionDefinition"] as { patterns: unknown[] };
+    const rule = mutated.repository["LuauFunctionBody"] as { patterns: unknown[] };
     rule.patterns.push({ include: "#DisplayStatements" });
     expect(violations(mutated)).toContain(
-      "LuauFunctionDefinition (contentName) reaches DisplayStatements",
+      "LuauFunctionBody (contentName) reaches DisplayStatements",
     );
   });
 });

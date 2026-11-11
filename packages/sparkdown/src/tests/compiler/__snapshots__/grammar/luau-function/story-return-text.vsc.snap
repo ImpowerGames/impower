@@ -117,21 +117,20 @@ text.source.sparkdown [0..239]
  ├─ meta.function.luau [198..210]
  │   ├─ keyword.control.luau [198..206]: "function"
  │   ├─ punctuation.whitespace.optional.sd [206..207]: " "
- │   └─ meta.embedded.block.luau [207..210]
- │       ├─ entity.name.function.luau [207..208]: "f"
- │       └─ meta.parameter.luau [208..210]
- │           ├─ punctuation.definition.template-expression.begin.sd [208..209]: "("
- │           └─ punctuation.definition.template-expression.end.sd [209..210]: ")"
+ │   ├─ entity.name.function.luau [207..208]: "f"
+ │   └─ meta.parameter.luau [208..210]
+ │       ├─ punctuation.definition.template-expression.begin.sd [208..209]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [209..210]: ")"
  ├─ Newline [210..211]: "\n"
  ├─ meta.function.luau [211..215]
- │   └─ meta.embedded.block.luau [211..215]
- │       └─ meta.function.body.luau [211..215]
+ │   └─ meta.function.body.luau [211..215]
+ │       └─ meta.embedded.block.luau [211..215]
  │           ├─ punctuation.whitespace.optional.sd [211..213]: "  "
  │           └─ keyword.control.do.luau [213..215]: "do"
  ├─ Newline [215..216]: "\n"
  ├─ meta.function.luau [216..228]
- │   └─ meta.embedded.block.luau [216..228]
- │       └─ meta.function.body.luau [216..228]
+ │   └─ meta.function.body.luau [216..228]
+ │       └─ meta.embedded.block.luau [216..228]
  │           └─ meta.function.luau [216..228]
  │               ├─ punctuation.whitespace.optional.sd [216..220]: "    "
  │               ├─ keyword.control.luau [220..226]: "return"
@@ -139,8 +138,8 @@ text.source.sparkdown [0..239]
  │               └─ constant.numeric.decimal.luau [227..228]: "5"
  ├─ Newline [228..229]: "\n"
  ├─ meta.function.luau [229..234]
- │   └─ meta.embedded.block.luau [229..234]
- │       └─ meta.function.body.luau [229..234]
+ │   └─ meta.function.body.luau [229..234]
+ │       └─ meta.embedded.block.luau [229..234]
  │           ├─ punctuation.whitespace.optional.sd [229..231]: "  "
  │           └─ keyword.control.end.luau [231..234]: "end"
  ├─ Newline [234..235]: "\n"

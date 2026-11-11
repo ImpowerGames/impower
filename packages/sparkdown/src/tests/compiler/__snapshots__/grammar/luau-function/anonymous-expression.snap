@@ -52,8 +52,9 @@ sparkdown [0..124]
      │   │       └─ LuauFunctionParameters_end_c1 [25..26]
      │   │           └─ PunctuationParenClose [25..26]: ")"
      │   └─ LuauFunctionBody [26..121]
-     │       ├─ LuauFunctionBody_begin [26..27]: "\n"
-     │       ├─ LuauFunctionBody_content [27..121]
+     │       ├─ LuauFunctionBody_begin 26
+     │       ├─ LuauFunctionBody_content [26..121]
+     │       │   ├─ Newline [26..27]: "\n"
      │       │   ├─ LuauReturnStatement [27..120]
      │       │   │   ├─ LuauReturnStatement_begin [27..36]
      │       │   │   │   ├─ LuauReturnStatement_begin_c1 [27..29]
@@ -162,8 +163,9 @@ sparkdown [0..124]
      │       │   │   │       │   │       └─ LuauFunctionParameters_end_c1 [80..81]
      │       │   │   │       │   │           └─ PunctuationParenClose [80..81]: ")"
      │       │   │   │       │   └─ LuauFunctionBody [81..115]
-     │       │   │   │       │       ├─ LuauFunctionBody_begin [81..82]: "\n"
-     │       │   │   │       │       ├─ LuauFunctionBody_content [82..115]
+     │       │   │   │       │       ├─ LuauFunctionBody_begin 81
+     │       │   │   │       │       ├─ LuauFunctionBody_content [81..115]
+     │       │   │   │       │       │   ├─ Newline [81..82]: "\n"
      │       │   │   │       │       │   ├─ LuauReturnStatement [82..114]
      │       │   │   │       │       │   │   ├─ LuauReturnStatement_begin [82..93]
      │       │   │   │       │       │   │   │   ├─ LuauReturnStatement_begin_c1 [82..86]

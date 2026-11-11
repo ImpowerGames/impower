@@ -25,8 +25,9 @@ sparkdown [0..101]
  │   │   │       └─ LuauFunctionParameters_end_c1 [12..13]
  │   │   │           └─ PunctuationParenClose [12..13]: ")"
  │   │   └─ LuauFunctionBody [13..53]
- │   │       ├─ LuauFunctionBody_begin [13..14]: "\n"
- │   │       ├─ LuauFunctionBody_content [14..53]
+ │   │       ├─ LuauFunctionBody_begin 13
+ │   │       ├─ LuauFunctionBody_content [13..53]
+ │   │       │   ├─ Newline [13..14]: "\n"
  │   │       │   ├─ LuauWhileLoop [14..52]
  │   │       │   │   ├─ LuauWhileLoop_begin [14..20]
  │   │       │   │   │   ├─ LuauWhileLoop_begin_c1 14
@@ -165,8 +166,9 @@ sparkdown [0..101]
  │   │   │       └─ LuauFunctionParameters_end_c1 [69..70]
  │   │   │           └─ PunctuationParenClose [69..70]: ")"
  │   │   └─ LuauFunctionBody [70..97]
- │   │       ├─ LuauFunctionBody_begin [70..71]: "\n"
- │   │       ├─ LuauFunctionBody_content [71..97]
+ │   │       ├─ LuauFunctionBody_begin 70
+ │   │       ├─ LuauFunctionBody_content [70..97]
+ │   │       │   ├─ Newline [70..71]: "\n"
  │   │       │   ├─ LuauAccessPath [71..96]
  │   │       │   │   ├─ LuauAccessPath_begin 71
  │   │       │   │   ├─ LuauAccessPath_content [71..96]

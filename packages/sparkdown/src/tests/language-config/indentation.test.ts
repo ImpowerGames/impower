@@ -204,10 +204,18 @@ describe("the division of entries between the two files", () => {
   });
 
   it("keeps the Luau Enter rules out of the story file", () => {
-    for (const before of ["  --[[ note", "  --- doc", "  function f()", "  if a then", "  for i = 1, 3 do", "  else", "  repeat"]) {
+    for (const before of ["  --[[ note", "  --- doc", "  if a then", "  for i = 1, 3 do", "  else", "  repeat"]) {
       expect(enterRuleMatching(LUAU, before), before).toBeDefined();
       expect(enterRuleMatching(STORY, before), before).toBeUndefined();
     }
+  });
+
+  it("gives the story file a function header's Enter rule only for the end of its line (I-2090)", () => {
+    const story = enterRuleMatching(STORY, "  function f()");
+    expect(enterRuleMatching(LUAU, "  function f()")).toBeDefined();
+    expect(story?.action.indent).toBe("indent");
+    expect(new RegExp(story!.afterText!, "u").test("")).toBe(true);
+    expect(new RegExp(story!.afterText!, "u").test(" end")).toBe(false);
   });
 });
 

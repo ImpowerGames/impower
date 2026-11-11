@@ -1,38 +1,39 @@
 sparkdown [0..56]
  └─ LuauDefine [0..56]
-     ├─ LuauDefine_begin [0..7]
+     ├─ LuauDefine_begin [0..34]
      │   ├─ LuauDefine_begin_c1 0
      │   │   └─ OptionalWhitespace 0
      │   ├─ LuauDefine_begin_c2 [0..6]
      │   │   └─ LuauDefineKeyword [0..6]: "define"
-     │   └─ LuauDefine_begin_c3 [6..7]
-     │       └─ LuauDefine_begin_c3 [6..7]
-     │           └─ OptionalWhitespace [6..7]: " "
-     ├─ LuauDefine_content [7..53]
-     │   ├─ LuauDefineNameAndInheritance [7..34]
-     │   │   ├─ LuauDefineNameAndInheritance_begin [7..16]
-     │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [7..16]
-     │   │   │       └─ LuauDefineName [7..16]: "companion"
-     │   │   ├─ LuauDefineNameAndInheritance_content [16..30]
-     │   │   │   └─ LuauInheritanceOperation [16..30]
-     │   │   │       ├─ LuauInheritanceOperation_c1 [16..17]
-     │   │   │       │   └─ OptionalWhitespace [16..17]: " "
-     │   │   │       ├─ LuauInheritanceOperation_c2 [17..19]
-     │   │   │       │   └─ LuauAsKeyword [17..19]: "as"
-     │   │   │       ├─ LuauInheritanceOperation_c3 [19..20]
-     │   │   │       │   └─ LuauInheritanceOperation_c3 [19..20]
-     │   │   │       │       └─ OptionalWhitespace [19..20]: " "
-     │   │   │       ├─ LuauInheritanceOperation_c4 [20..29]
-     │   │   │       │   └─ LuauDefineParentName [20..29]: "character"
-     │   │   │       └─ LuauInheritanceOperation_c5 [29..30]
-     │   │   │           └─ LuauInheritanceOperation_c5 [29..30]
-     │   │   │               └─ OptionalWhitespace [29..30]: " "
-     │   │   └─ LuauDefineNameAndInheritance_end [30..34]
-     │   │       ├─ LuauDefineNameAndInheritance_end_c1 30
-     │   │       │   └─ LuauDefineNameAndInheritance_end_c1 30
-     │   │       │       └─ OptionalWhitespace 30
-     │   │       └─ LuauDefineNameAndInheritance_end_c2 [30..34]
-     │   │           └─ LuauWithKeyword [30..34]: "with"
+     │   ├─ LuauDefine_begin_c3 [6..7]
+     │   │   └─ LuauDefine_begin_c3 [6..7]
+     │   │       └─ OptionalWhitespace [6..7]: " "
+     │   └─ LuauDefine_begin_c7 [7..34]
+     │       └─ LuauDefineNameAndInheritance [7..34]
+     │           ├─ LuauDefineNameAndInheritance_begin [7..16]
+     │           │   └─ LuauDefineNameAndInheritance_begin_c1 [7..16]
+     │           │       └─ LuauDefineName [7..16]: "companion"
+     │           ├─ LuauDefineNameAndInheritance_content [16..30]
+     │           │   └─ LuauInheritanceOperation [16..30]
+     │           │       ├─ LuauInheritanceOperation_c1 [16..17]
+     │           │       │   └─ OptionalWhitespace [16..17]: " "
+     │           │       ├─ LuauInheritanceOperation_c2 [17..19]
+     │           │       │   └─ LuauAsKeyword [17..19]: "as"
+     │           │       ├─ LuauInheritanceOperation_c3 [19..20]
+     │           │       │   └─ LuauInheritanceOperation_c3 [19..20]
+     │           │       │       └─ OptionalWhitespace [19..20]: " "
+     │           │       ├─ LuauInheritanceOperation_c4 [20..29]
+     │           │       │   └─ LuauDefineParentName [20..29]: "character"
+     │           │       └─ LuauInheritanceOperation_c5 [29..30]
+     │           │           └─ LuauInheritanceOperation_c5 [29..30]
+     │           │               └─ OptionalWhitespace [29..30]: " "
+     │           └─ LuauDefineNameAndInheritance_end [30..34]
+     │               ├─ LuauDefineNameAndInheritance_end_c1 30
+     │               │   └─ LuauDefineNameAndInheritance_end_c1 30
+     │               │       └─ OptionalWhitespace 30
+     │               └─ LuauDefineNameAndInheritance_end_c2 [30..34]
+     │                   └─ LuauWithKeyword [30..34]: "with"
+     ├─ LuauDefine_content [34..53]
      │   ├─ Newline [34..35]: "\n"
      │   ├─ LuauPropertyDefinition [35..52]
      │   │   ├─ LuauPropertyDefinition_begin [35..43]

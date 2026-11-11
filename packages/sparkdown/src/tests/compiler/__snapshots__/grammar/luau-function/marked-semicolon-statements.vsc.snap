@@ -31,17 +31,19 @@ text.source.sparkdown [0..138]
  │   │   ├─ punctuation.whitespace.optional.sd [49..50]: " "
  │   │   ├─ meta.function.luau [50..77]
  │   │   │   ├─ keyword.control.luau [50..58]: "function"
- │   │   │   └─ meta.embedded.block.luau [58..77]
- │   │   │       ├─ meta.parameter.luau [58..64]
- │   │   │       │   ├─ punctuation.definition.template-expression.begin.sd [58..59]: "("
- │   │   │       │   ├─ variable.parameter.function.luau [59..63]: "self"
- │   │   │       │   └─ punctuation.definition.template-expression.end.sd [63..64]: ")"
- │   │   │       ├─ meta.function.body.luau [64..73]
- │   │   │       │   └─ meta.function.luau [64..73]
- │   │   │       │       ├─ punctuation.whitespace.optional.sd [64..65]: " "
- │   │   │       │       ├─ keyword.control.luau [65..71]: "return"
- │   │   │       │       ├─ punctuation.whitespace.optional.sd [71..72]: " "
- │   │   │       │       └─ constant.numeric.decimal.luau [72..73]: "5"
+ │   │   │   ├─ meta.parameter.luau [58..64]
+ │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [58..59]: "("
+ │   │   │   │   ├─ meta.embedded.block.luau [59..63]
+ │   │   │   │   │   └─ variable.parameter.function.luau [59..63]: "self"
+ │   │   │   │   └─ punctuation.definition.template-expression.end.sd [63..64]: ")"
+ │   │   │   ├─ meta.function.body.luau [64..73]
+ │   │   │   │   └─ meta.embedded.block.luau [64..73]
+ │   │   │   │       └─ meta.function.luau [64..73]
+ │   │   │   │           ├─ punctuation.whitespace.optional.sd [64..65]: " "
+ │   │   │   │           ├─ keyword.control.luau [65..71]: "return"
+ │   │   │   │           ├─ punctuation.whitespace.optional.sd [71..72]: " "
+ │   │   │   │           └─ constant.numeric.decimal.luau [72..73]: "5"
+ │   │   │   └─ meta.embedded.block.luau [73..77]
  │   │   │       ├─ punctuation.whitespace.optional.sd [73..74]: " "
  │   │   │       └─ keyword.control.end.luau [74..77]: "end"
  │   │   ├─ punctuation.whitespace.extra.sd [77..78]: " "

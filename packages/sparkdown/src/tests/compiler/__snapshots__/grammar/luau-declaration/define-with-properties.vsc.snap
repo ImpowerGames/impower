@@ -2,14 +2,13 @@ text.source.sparkdown [0..65]
  ├─ meta.function.luau [0..26]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
- │   └─ meta.embedded.block.luau [7..26]
- │       ├─ entity.name.type.define.luau [7..8]: "O"
- │       ├─ punctuation.whitespace.optional.sd [8..9]: " "
- │       ├─ keyword.control.as.luau [9..11]: "as"
- │       ├─ punctuation.whitespace.optional.sd [11..12]: " "
- │       ├─ entity.name.type.define.parent.luau [12..21]: "companion"
- │       ├─ punctuation.whitespace.optional.sd [21..22]: " "
- │       └─ keyword.control.as.luau [22..26]: "with"
+ │   ├─ entity.name.type.define.luau [7..8]: "O"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ keyword.control.as.luau [9..11]: "as"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   ├─ entity.name.type.define.parent.luau [12..21]: "companion"
+ │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │   └─ keyword.control.as.luau [22..26]: "with"
  ├─ Newline [26..27]: "\n"
  ├─ meta.function.luau [27..44]
  │   └─ meta.embedded.block.luau [27..44]

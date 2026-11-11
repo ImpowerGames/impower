@@ -223,8 +223,9 @@ sparkdown [0..156]
  │   │   │       └─ LuauFunctionParameters_end_c1 [103..104]
  │   │   │           └─ PunctuationParenClose [103..104]: ")"
  │   │   └─ LuauFunctionBody [104..152]
- │   │       ├─ LuauFunctionBody_begin [104..105]: "\n"
- │   │       ├─ LuauFunctionBody_content [105..152]
+ │   │       ├─ LuauFunctionBody_begin 104
+ │   │       ├─ LuauFunctionBody_content [104..152]
+ │   │       │   ├─ Newline [104..105]: "\n"
  │   │       │   ├─ LuauIfBlock [105..151]
  │   │       │   │   ├─ LuauIfBlock_begin [105..110]
  │   │       │   │   │   ├─ LuauIfBlock_begin_c1 [105..107]

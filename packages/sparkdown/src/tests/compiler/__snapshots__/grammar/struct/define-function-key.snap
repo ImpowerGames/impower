@@ -1,24 +1,25 @@
 sparkdown [0..140]
  ├─ LuauDefine [0..139]
- │   ├─ LuauDefine_begin [0..7]
+ │   ├─ LuauDefine_begin [0..15]
  │   │   ├─ LuauDefine_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauDefine_begin_c2 [0..6]
  │   │   │   └─ LuauDefineKeyword [0..6]: "define"
- │   │   └─ LuauDefine_begin_c3 [6..7]
- │   │       └─ LuauDefine_begin_c3 [6..7]
- │   │           └─ OptionalWhitespace [6..7]: " "
- │   ├─ LuauDefine_content [7..136]
- │   │   ├─ LuauDefineNameAndInheritance [7..15]
- │   │   │   ├─ LuauDefineNameAndInheritance_begin [7..10]
- │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [7..10]
- │   │   │   │       └─ LuauDefineName [7..10]: "box"
- │   │   │   └─ LuauDefineNameAndInheritance_end [10..15]
- │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 [10..11]
- │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 [10..11]
- │   │   │       │       └─ OptionalWhitespace [10..11]: " "
- │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [11..15]
- │   │   │           └─ LuauWithKeyword [11..15]: "with"
+ │   │   ├─ LuauDefine_begin_c3 [6..7]
+ │   │   │   └─ LuauDefine_begin_c3 [6..7]
+ │   │   │       └─ OptionalWhitespace [6..7]: " "
+ │   │   └─ LuauDefine_begin_c7 [7..15]
+ │   │       └─ LuauDefineNameAndInheritance [7..15]
+ │   │           ├─ LuauDefineNameAndInheritance_begin [7..10]
+ │   │           │   └─ LuauDefineNameAndInheritance_begin_c1 [7..10]
+ │   │           │       └─ LuauDefineName [7..10]: "box"
+ │   │           └─ LuauDefineNameAndInheritance_end [10..15]
+ │   │               ├─ LuauDefineNameAndInheritance_end_c1 [10..11]
+ │   │               │   └─ LuauDefineNameAndInheritance_end_c1 [10..11]
+ │   │               │       └─ OptionalWhitespace [10..11]: " "
+ │   │               └─ LuauDefineNameAndInheritance_end_c2 [11..15]
+ │   │                   └─ LuauWithKeyword [11..15]: "with"
+ │   ├─ LuauDefine_content [15..136]
  │   │   ├─ Newline [15..16]: "\n"
  │   │   ├─ LuauPropertyDefinition [16..30]
  │   │   │   ├─ LuauPropertyDefinition_begin [16..26]
@@ -102,8 +103,9 @@ sparkdown [0..140]
  │   │   │   │   │       └─ LuauFunctionParameters_end_c1 [69..70]
  │   │   │   │   │           └─ PunctuationParenClose [69..70]: ")"
  │   │   │   │   └─ LuauFunctionBody [70..84]
- │   │   │   │       ├─ LuauFunctionBody_begin [70..71]: "\n"
- │   │   │   │       ├─ LuauFunctionBody_content [71..84]
+ │   │   │   │       ├─ LuauFunctionBody_begin 70
+ │   │   │   │       ├─ LuauFunctionBody_content [70..84]
+ │   │   │   │       │   ├─ Newline [70..71]: "\n"
  │   │   │   │       │   ├─ LuauReturnStatement [71..83]
  │   │   │   │       │   │   ├─ LuauReturnStatement_begin [71..82]
  │   │   │   │       │   │   │   ├─ LuauReturnStatement_begin_c1 [71..75]
@@ -158,8 +160,9 @@ sparkdown [0..140]
  │   │   │   │   │       └─ LuauFunctionParameters_end_c1 [115..116]
  │   │   │   │   │           └─ PunctuationParenClose [115..116]: ")"
  │   │   │   │   └─ LuauFunctionBody [116..130]
- │   │   │   │       ├─ LuauFunctionBody_begin [116..117]: "\n"
- │   │   │   │       ├─ LuauFunctionBody_content [117..130]
+ │   │   │   │       ├─ LuauFunctionBody_begin 116
+ │   │   │   │       ├─ LuauFunctionBody_content [116..130]
+ │   │   │   │       │   ├─ Newline [116..117]: "\n"
  │   │   │   │       │   ├─ LuauReturnStatement [117..129]
  │   │   │   │       │   │   ├─ LuauReturnStatement_begin [117..128]
  │   │   │   │       │   │   │   ├─ LuauReturnStatement_begin_c1 [117..121]
