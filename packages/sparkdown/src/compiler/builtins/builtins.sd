@@ -1585,6 +1585,7 @@ style loading_content {
   align_items = center
   gap = 1rem
   width = min(60%, 320px)
+  color = white
 }
 
 style loading_bar {
@@ -1716,6 +1717,7 @@ style choice {
     width = 90%
     max_width = 800px
     background_color = rgb(0 0 0 / 65%)
+    color = white
     padding = 8px
     border_radius = 8px
     border = 1px solid
@@ -2532,6 +2534,7 @@ style muted {
 // a game re-themes the page by redefining them.
 style paper {
   background-color = neutral_99
+  text-color = slate_20
 }
 
 style ink {
@@ -2618,6 +2621,7 @@ style code {
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_30
+  text-color = slate_80
   corner = 0.25rem
   padding = 0.125rem 0.375rem
 }
@@ -2966,6 +2970,7 @@ style menu {
     border-style = solid
     border-color = slate_40
     background-color = slate_30
+    text-color = slate_80
   }
   > list > item {
     margin-top = 0
@@ -3126,6 +3131,7 @@ style article {
   display = block
   margin-bottom = 1rem
   background-color = slate_30
+  text-color = slate_80
   corner = 0.25rem
   padding = 1rem
   -- A header/footer is a SECTIONING band, not a divided-off box. Pico gives it
@@ -3291,6 +3297,7 @@ style card {
   child-layout = column
   child-gap = 1rem
   background-color = slate_30
+  text-color = slate_80
   corner = 0.5rem
   padding = 1.5rem
   border-width = 0.0625rem

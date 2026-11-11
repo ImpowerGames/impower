@@ -154,31 +154,33 @@ text.source.sparkdown [0..303]
  ├─ meta.function.luau [207..252]
  │   ├─ keyword.control.luau [207..215]: "function"
  │   ├─ punctuation.whitespace.optional.sd [215..216]: " "
- │   └─ meta.embedded.block.luau [216..252]
- │       ├─ comment.block.luau [216..227]
- │       │   ├─ comment.luau [216..219]: "--["
- │       │   ├─ comment.luau [219..220]: "="
- │       │   ├─ comment.luau [220..221]: "["
- │       │   ├─ punctuation.definition.comment.content.sd [221..222]: "a"
- │       │   ├─ punctuation.definition.comment.content.sd [222..223]: "]"
- │       │   ├─ comment.luau [223..224]: "]"
- │       │   ├─ comment.luau [224..225]: "="
- │       │   ├─ comment.luau [225..226]: "]"
- │       │   └─ punctuation.whitespace.optional.sd [226..227]: " "
- │       ├─ entity.name.function.luau [227..228]: "h"
- │       ├─ meta.parameter.luau [228..239]
- │       │   ├─ punctuation.definition.template-expression.begin.sd [228..229]: "("
- │       │   ├─ variable.parameter.function.luau [229..230]: "x"
- │       │   ├─ keyword.operator.type.luau [230..231]: ":"
- │       │   ├─ punctuation.whitespace.optional.sd [231..232]: " "
- │       │   ├─ support.type.primitive.luau [232..238]: "number"
- │       │   └─ punctuation.definition.template-expression.end.sd [238..239]: ")"
- │       ├─ meta.function.body.luau [239..248]
- │       │   └─ meta.function.luau [239..248]
- │       │       ├─ punctuation.whitespace.optional.sd [239..240]: " "
- │       │       ├─ keyword.control.luau [240..246]: "return"
- │       │       ├─ punctuation.whitespace.optional.sd [246..247]: " "
- │       │       └─ variable.other.readwrite.luau [247..248]: "x"
+ │   ├─ comment.block.luau [216..227]
+ │   │   ├─ comment.luau [216..219]: "--["
+ │   │   ├─ comment.luau [219..220]: "="
+ │   │   ├─ comment.luau [220..221]: "["
+ │   │   ├─ punctuation.definition.comment.content.sd [221..222]: "a"
+ │   │   ├─ punctuation.definition.comment.content.sd [222..223]: "]"
+ │   │   ├─ comment.luau [223..224]: "]"
+ │   │   ├─ comment.luau [224..225]: "="
+ │   │   ├─ comment.luau [225..226]: "]"
+ │   │   └─ punctuation.whitespace.optional.sd [226..227]: " "
+ │   ├─ entity.name.function.luau [227..228]: "h"
+ │   ├─ meta.parameter.luau [228..239]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [228..229]: "("
+ │   │   ├─ meta.embedded.block.luau [229..238]
+ │   │   │   ├─ variable.parameter.function.luau [229..230]: "x"
+ │   │   │   ├─ keyword.operator.type.luau [230..231]: ":"
+ │   │   │   ├─ punctuation.whitespace.optional.sd [231..232]: " "
+ │   │   │   └─ support.type.primitive.luau [232..238]: "number"
+ │   │   └─ punctuation.definition.template-expression.end.sd [238..239]: ")"
+ │   ├─ meta.function.body.luau [239..248]
+ │   │   └─ meta.embedded.block.luau [239..248]
+ │   │       └─ meta.function.luau [239..248]
+ │   │           ├─ punctuation.whitespace.optional.sd [239..240]: " "
+ │   │           ├─ keyword.control.luau [240..246]: "return"
+ │   │           ├─ punctuation.whitespace.optional.sd [246..247]: " "
+ │   │           └─ variable.other.readwrite.luau [247..248]: "x"
+ │   └─ meta.embedded.block.luau [248..252]
  │       ├─ punctuation.whitespace.optional.sd [248..249]: " "
  │       └─ keyword.control.end.luau [249..252]: "end"
  ├─ Newline [252..253]: "\n"

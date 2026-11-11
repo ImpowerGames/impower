@@ -308,6 +308,106 @@ describe("the bar under the game", () => {
     expect(note()).toBeUndefined();
   });
 
+  it("reads a stop before a line in the phone's readout itself, with no note and nothing moved", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await setState((s) => {
+      s.preview.modes.game = {
+        running: true,
+        position: { uri: "file:///local/main.sd", line: 11 },
+      };
+      return s;
+    });
+    const controls = () => Array.from(bar().querySelectorAll<HTMLElement>("button, a"));
+    const readout = () => controls()[1]!;
+    const note = () =>
+      [...bar().querySelectorAll("span")].find((span) =>
+        span.textContent?.startsWith("Stopped before line"),
+      );
+    const before = controls();
+    expect(readout().textContent).toBe("main : 12");
+    expect(readout().hasAttribute("data-stopped")).toBe(false);
+    expect(readout().querySelector("[data-icon]")).toBeNull();
+
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: { reason: "breakpoint", threadId: 0, beat: "none" },
+        stackTrace: {
+          stackFrames: [
+            { id: 0, name: "start", line: 15, column: 0, source: { path: "file:///local/main.sd" } },
+          ],
+        },
+      };
+    });
+    expect(controls()).toHaveLength(before.length);
+    expect(controls().every((control, i) => control === before[i])).toBe(true);
+    expect(readout().textContent).toBe("Stopped before main : 16");
+    expect(readout().hasAttribute("data-stopped")).toBe(true);
+    expect(readout().classList).toContain("data-stopped:text-warning");
+    const icons = readout().querySelectorAll("[data-icon]");
+    expect(icons).toHaveLength(1);
+    expect(icons[0]!.getAttribute("data-icon")).toBe("stop-sign");
+    expect(readout().getAttribute("aria-label")).toBe(
+      "Stopped before main : 16. Stopped before line 16. It has not run yet.",
+    );
+    expect(readout().title).toBe("Stopped before line 16. It has not run yet.");
+    expect(note()).toBeUndefined();
+
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: null,
+        stackTrace: null,
+      };
+    });
+    expect(controls().every((control, i) => control === before[i])).toBe(true);
+    expect(controls()).toHaveLength(before.length);
+    expect(readout().textContent).toBe("main : 12");
+    expect(readout().hasAttribute("data-stopped")).toBe(false);
+    expect(readout().hasAttribute("aria-label")).toBe(false);
+  });
+
+  it("keeps the sentence beside the readout on the compact layout", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await act(() => {
+      workspace.debugSession.value = {
+        ...workspace.debugSession.peek(),
+        stopped: { reason: "breakpoint", threadId: 0, beat: "none" },
+        stackTrace: {
+          stackFrames: [
+            { id: 0, name: "start", line: 15, column: 0, source: { path: "file:///local/main.sd" } },
+          ],
+        },
+      };
+    });
+    const note = [...bar().querySelectorAll("span")].find(
+      (span) => span.textContent === "Stopped before line 16. It has not run yet.",
+    );
+    expect(note).toBeDefined();
+    expect(bar().querySelector("[data-stopped]")).toBeNull();
+  });
+
+  it("leaves the aspect ratio out of the phone's bar in every mode", async () => {
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    const labels = () =>
+      Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
+        (control) => control.getAttribute("aria-label") ?? control.textContent,
+      );
+    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+    expect(labels()).toEqual(["No problems", "main : 1", "Fullscreen preview"]);
+  });
+
   it("opens the route list from the readout in the Problems panel's place, one panel at a time", async () => {
     await mount();
     await act(() => {
@@ -517,6 +617,96 @@ describe("the bar under the game", () => {
     expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
     expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
+  });
+
+  it("keeps the aspect-ratio control in place in Interactive Fiction, disabled and reading Auto", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "9:16");
+    await mount();
+    const controls = () =>
+      Array.from(bar().querySelectorAll<HTMLElement>("button, a")).map(
+        (control) => control.getAttribute("aria-label") ?? control.textContent,
+      );
+    const visualNovel = controls();
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
+
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("Auto");
+    expect(ratio().getAttribute("aria-disabled")).toBe("true");
+    expect(ratio().title).toBe("The page fills the pane in Interactive Fiction");
+    ratio().focus();
+    await key(ratio(), "ArrowDown");
+    await act(async () => ratio().click());
+    await settle(50);
+    expect(document.querySelectorAll('[role="menuitemradio"]')).toHaveLength(0);
+    expect(workspaceSettings.projectSettings.value.previewAspectRatio).toBe("9:16");
+
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(controls()).toEqual(visualNovel);
+    expect(ratio().textContent).toBe("9:16");
+    expect(ratio().hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("lays every part of the label that a switch changes over an invisible reservation, the rule that keeps the control's width", async () => {
+    workspaceSettings.setProjectSetting("previewAspectRatio", "4:3");
+    await mount();
+    const sized = (width: number, height: number) =>
+      setState((s) => {
+        s.preview.modes.game = { size: { width, height, aspectRatio: "4:3" } };
+        return s;
+      });
+    await sized(923, 692);
+    const cells = () =>
+      Array.from(ratio().querySelectorAll<HTMLElement>("[data-reserve]")).map(
+        (cell) => {
+          expect(cell.classList).toContain("inline-grid");
+          expect(cell.classList).toContain("before:content-[attr(data-reserve-alt)]");
+          expect(cell.classList).toContain("before:invisible");
+          expect(cell.classList).toContain("before:[grid-area:1/1]");
+          expect(cell.classList).toContain("after:content-[attr(data-reserve)]");
+          expect(cell.classList).toContain("after:invisible");
+          expect(cell.classList).toContain("after:[grid-area:1/1]");
+          expect(cell.classList).toContain("[&>*]:[grid-area:1/1]");
+          expect(cell.children).toHaveLength(1);
+          return [cell.textContent, cell.dataset.reserve, cell.dataset.reserveAlt];
+        },
+      );
+    expect(ratio().textContent).toBe("4:3 · 923×692");
+    expect(cells()).toEqual([
+      ["4:3 · 923×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+    ]);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    await sized(1090, 692);
+    expect(ratio().textContent).toBe("Auto · 1090×692");
+    expect(cells()).toEqual([
+      ["Auto · 1090×692", "Auto · 0000×0000", "16:9 · 0000×0000"],
+    ]);
+  });
+
+  it("keeps the same game stage shown between Visual Novel and Interactive Fiction", async () => {
+    await mount();
+    const stage = document.querySelector('[data-stage="game"]')!;
+    const shown = (element: Element) =>
+      !element.parentElement!.classList.contains("hidden");
+    expect(shown(stage)).toBe(true);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "textstream"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(true);
+    expect(document.querySelector('[data-stage="screenplay"]')).toBeNull();
+    await act(async () => workspaceSettings.setPreference("previewMode", "game"));
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    await act(async () =>
+      workspaceSettings.setPreference("previewMode", "screenplay"),
+    );
+    expect(document.querySelector('[data-stage="game"]')).toBe(stage);
+    expect(shown(stage)).toBe(false);
   });
 
   it("leaves fullscreen before the paper-size link opens the settings", async () => {

@@ -2,15 +2,14 @@ text.source.sparkdown [0..159]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
- │   └─ meta.embedded.block.luau [9..12]
- │       ├─ entity.name.function.luau [9..10]: "f"
- │       └─ meta.parameter.luau [10..12]
- │           ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
- │           └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
  ├─ Newline [12..13]: "\n"
  ├─ meta.function.luau [13..38]
- │   └─ meta.embedded.block.luau [13..38]
- │       └─ meta.function.body.luau [13..38]
+ │   └─ meta.function.body.luau [13..38]
+ │       └─ meta.embedded.block.luau [13..38]
  │           ├─ punctuation.whitespace.optional.sd [13..15]: "  "
  │           ├─ storage.modifier.scope.luau [15..20]: "local"
  │           ├─ punctuation.whitespace.optional.sd [20..21]: " "
@@ -30,15 +29,15 @@ text.source.sparkdown [0..159]
  │                   └─ punctuation.definition.comment.content.sd [33..38]: " note"
  ├─ Newline [38..39]: "\n"
  ├─ meta.function.luau [39..44]
- │   └─ meta.embedded.block.luau [39..44]
- │       └─ meta.function.body.luau [39..44]
+ │   └─ meta.function.body.luau [39..44]
+ │       └─ meta.embedded.block.luau [39..44]
  │           └─ meta.embedded.line.luau [39..44]
  │               ├─ punctuation.whitespace.extra.sd [39..43]: "    "
  │               └─ constant.numeric.decimal.luau [43..44]: "4"
  ├─ Newline [44..45]: "\n"
  ├─ meta.function.luau [45..62]
- │   └─ meta.embedded.block.luau [45..62]
- │       └─ meta.function.body.luau [45..62]
+ │   └─ meta.function.body.luau [45..62]
+ │       └─ meta.embedded.block.luau [45..62]
  │           ├─ punctuation.whitespace.optional.sd [45..47]: "  "
  │           ├─ storage.modifier.scope.luau [47..52]: "local"
  │           ├─ punctuation.whitespace.optional.sd [52..53]: " "
@@ -55,8 +54,8 @@ text.source.sparkdown [0..159]
  ├─ Newline [62..63]: "\n"
  ├─ Newline [63..64]: "\n"
  ├─ meta.function.luau [64..87]
- │   └─ meta.embedded.block.luau [64..87]
- │       └─ meta.function.body.luau [64..87]
+ │   └─ meta.function.body.luau [64..87]
+ │       └─ meta.embedded.block.luau [64..87]
  │           └─ meta.embedded.line.luau [64..87]
  │               └─ comment.line.double-dash.luau [64..87]
  │                   ├─ punctuation.whitespace.sd [64..68]: "    "
@@ -64,15 +63,15 @@ text.source.sparkdown [0..159]
  │                   └─ punctuation.definition.comment.content.sd [70..87]: " the second value"
  ├─ Newline [87..88]: "\n"
  ├─ meta.function.luau [88..93]
- │   └─ meta.embedded.block.luau [88..93]
- │       └─ meta.function.body.luau [88..93]
+ │   └─ meta.function.body.luau [88..93]
+ │       └─ meta.embedded.block.luau [88..93]
  │           └─ meta.embedded.line.luau [88..93]
  │               ├─ punctuation.whitespace.extra.sd [88..92]: "    "
  │               └─ constant.numeric.decimal.luau [92..93]: "6"
  ├─ Newline [93..94]: "\n"
  ├─ meta.function.luau [94..116]
- │   └─ meta.embedded.block.luau [94..116]
- │       └─ meta.function.body.luau [94..116]
+ │   └─ meta.function.body.luau [94..116]
+ │       └─ meta.embedded.block.luau [94..116]
  │           └─ meta.function.luau [94..116]
  │               ├─ punctuation.whitespace.optional.sd [94..96]: "  "
  │               ├─ keyword.control.luau [96..102]: "return"

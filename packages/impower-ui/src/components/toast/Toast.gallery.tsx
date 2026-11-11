@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
+import { Dialog, DialogActions, DialogTitle } from "../dialog/Dialog";
 import Toast from "./Toast";
 
 const MESSAGES = {
@@ -10,6 +11,48 @@ const MESSAGES = {
 } as const;
 
 type Shown = keyof typeof MESSAGES | null;
+
+function ToastOverDialog() {
+  const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState(false);
+  const [name, setName] = useState("alcie");
+  return (
+    <GalleryRow label="Over a dialog: the toast mounts inside the open dialog, so Tab reaches Undo within its focus scope; it returns to the page when the dialog closes">
+      <div class="flex flex-wrap items-center gap-2">
+        <Button aria-haspopup="dialog" onClick={() => setOpen(true)}>
+          Open a dialog with a fix
+        </Button>
+        <span class="text-sm text-muted">Portrait: {name}</span>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTitle>Problems to fix</DialogTitle>
+        <p class="my-3 text-sm">Cannot find image named {name}</p>
+        <DialogActions>
+          <Button
+            disabled={name === "alice"}
+            onClick={() => {
+              setName("alice");
+              setToast(true);
+            }}
+          >
+            Use alice instead
+          </Button>
+          <Button onClick={() => setOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      <Toast
+        open={toast}
+        message="Changed to alice."
+        actionLabel="Undo"
+        onAction={() => {
+          setName("alcie");
+          setToast(false);
+        }}
+        onDismiss={() => setToast(false)}
+      />
+    </GalleryRow>
+  );
+}
 
 function ToastDemo() {
   const [shown, setShownState] = useState<Shown>(null);
@@ -42,6 +85,7 @@ function ToastDemo() {
         }}
         onDismiss={() => setShown(null)}
       />
+      <ToastOverDialog />
     </div>
   );
 }

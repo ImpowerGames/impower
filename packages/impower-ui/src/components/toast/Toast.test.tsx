@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { hitArea } from "../../../test/hitArea";
+import { DIALOG_TRANSITION_MS, Dialog, DialogTitle, Sheet } from "../dialog/Dialog";
 import Toast, { TOAST_SWIPE_DISMISS_PX, TOAST_TRANSITION_MS, toastVariants } from "./Toast";
 
 let coarse = false;
@@ -191,5 +192,124 @@ describe("Toast", () => {
       expect(animated.length).toBeGreaterThan(0);
       expect(animated.every((name) => name.startsWith("motion-safe:"))).toBe(true);
     }
+  });
+});
+
+describe("Toast over a modal surface", () => {
+  const tab = (shift = false) =>
+    act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", shiftKey: shift, bubbles: true, cancelable: true }),
+      );
+    });
+
+  const escape = () =>
+    act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+
+  const action = () =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === "Undo")!;
+
+  function Surfaces({
+    surface,
+    nested = false,
+    onAction,
+  }: {
+    surface: "dialog" | "sheet";
+    nested?: boolean;
+    onAction: () => void;
+  }) {
+    const [open, setOpen] = useState(true);
+    const [inner, setInner] = useState(nested);
+    const Surface = surface === "dialog" ? Dialog : Sheet;
+    return (
+      <>
+        <Surface open={open} onOpenChange={setOpen}>
+          <DialogTitle>Problems to fix</DialogTitle>
+          <button type="button">Use alice instead</button>
+        </Surface>
+        <Dialog open={inner} onOpenChange={setInner}>
+          <DialogTitle>Inner</DialogTitle>
+          <button type="button" onClick={() => setInner(false)}>
+            Inner action
+          </button>
+        </Dialog>
+        <Toast open message="Changed to alice." actionLabel="Undo" onAction={onAction} onDismiss={() => {}} />
+      </>
+    );
+  }
+
+  const mountOver = async (surface: "dialog" | "sheet", nested = false) => {
+    const onAction = vi.fn();
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<Surfaces surface={surface} nested={nested} onAction={onAction} />, host!));
+    await settle(DIALOG_TRANSITION_MS + 20);
+    return onAction;
+  };
+
+  const modal = (title: string) =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((d) =>
+      d.querySelector("h2")?.textContent === title,
+    )!;
+
+  it("mounts on the page, as before, when no modal surface is open", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(<Toast open message="Saved." actionLabel="Undo" onAction={() => {}} onDismiss={() => {}} />, host!),
+    );
+    expect(action().closest('[role="status"]')!.parentElement).toBe(document.body);
+  });
+
+  it.each(["dialog", "sheet"] as const)(
+    "puts its action inside an open %s's focus scope, where Tab reaches it and it works",
+    async (surface) => {
+      const onAction = await mountOver(surface);
+      const card = modal("Problems to fix");
+      expect(card.contains(action())).toBe(true);
+      expect(action().closest('[role="status"]')!.getAttribute("aria-live")).toBe("polite");
+      const first = Array.from(card.querySelectorAll<HTMLButtonElement>("button")).find(
+        (b) => b.textContent === "Use alice instead",
+      )!;
+      const controls = Array.from(action().closest("[data-toast]")!.querySelectorAll("button"));
+      expect(controls.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual([
+        "Undo",
+        "Dismiss",
+      ]);
+      first.focus();
+      await tab(true);
+      expect(document.activeElement).toBe(controls[1]);
+      await tab();
+      expect(document.activeElement).toBe(first);
+      await setCoarse(true);
+      first.focus();
+      await tab(true);
+      expect(document.activeElement).toBe(action());
+      await act(async () => action().click());
+      expect(onAction).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("lets Escape from its action close the surface, then follows the toast back to the page", async () => {
+    await mountOver("dialog");
+    action().focus();
+    await escape();
+    await settle(DIALOG_TRANSITION_MS + 20);
+    expect(modal("Problems to fix")).toBeUndefined();
+    expect(action().closest('[role="status"]')!.parentElement).toBe(document.body);
+  });
+
+  it("goes to the topmost of stacked surfaces, and to the next one down when that one closes", async () => {
+    await mountOver("dialog", true);
+    expect(modal("Inner").contains(action())).toBe(true);
+    const close = Array.from(modal("Inner").querySelectorAll<HTMLButtonElement>("button")).find(
+      (b) => b.textContent.trim() === "Inner action",
+    )!;
+    await act(async () => close.click());
+    await settle(DIALOG_TRANSITION_MS + 20);
+    expect(modal("Inner")).toBeUndefined();
+    expect(modal("Problems to fix").contains(action())).toBe(true);
   });
 });

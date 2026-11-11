@@ -25,6 +25,7 @@ import {
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
+  type DiagnosticFix,
   findReferences,
   formatDocument,
   getDocumentVersion,
@@ -43,6 +44,7 @@ import {
 import { endsDialogueBlock } from "@impower/sparkdown/src/compiler/utils/endsDialogueBlock";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ApplyEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorEditMessage";
+import { ChoseEditorFixMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChoseEditorFixMessage";
 import { ClaimedEditorEditMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ClaimedEditorEditMessage";
 import {
   RequestedEditorToolMessage,
@@ -184,6 +186,7 @@ import { getVisibleRange } from "../../utils/getVisibleRange";
 import { scrollY } from "../../utils/scrollY";
 import { sharedEditorHistory } from "./classes/EditorHistoryCache";
 import { SparkdownCodemirrorWorkspace } from "./classes/SparkdownCodemirrorWorkspace";
+import { applyEditorFix, undoEditorFix } from "./utils/extensions/editorFixes";
 import { setFindMatchesEffect } from "./utils/extensions/findMatches";
 import createEditorView, {
   editableConfig,
@@ -1172,6 +1175,18 @@ export class ScriptEditorController {
     });
   }
 
+  protected handleFix = ({ uri, version, range, action }: DiagnosticFix) => {
+    const { name, done, expect, kind, changes } = action;
+    sendProtocolMessage(
+      ChoseEditorFixMessage.type.notification({
+        fix: { uri, version, range, changes, expect, kind },
+        name,
+        done,
+      }),
+      this.host,
+    );
+  };
+
   protected handleChoiceMark = (line: number, action: ChoiceMarkerAction) => {
     const uri = this._textDocument?.uri;
     if (uri) {
@@ -1208,9 +1223,37 @@ export class ScriptEditorController {
   protected handleApplyEditorEdit = async (
     message: ApplyEditorEditMessage.Request,
   ) => {
-    const { edit, closedTexts } = message.params;
+    const { edit, closedTexts, fix, undoFix } = message.params;
     const view = this._view;
     const uri = this._textDocument?.uri;
+    const fixed = fix?.uri ?? undoFix?.uri;
+    if (fixed !== undefined) {
+      if (!view || fixed !== uri) {
+        return ApplyEditorEditMessage.type.response(message.id, {
+          applied: [],
+        });
+      }
+      sendProtocolMessage(
+        ClaimedEditorEditMessage.type.notification({
+          request: message.id,
+          uri,
+        }),
+        this.host,
+      );
+      if (fix) {
+        const revert = applyEditorFix(view, fix, message.id);
+        return ApplyEditorEditMessage.type.response(
+          message.id,
+          revert ? { applied: [uri], revert } : { applied: [], refused: [uri] },
+        );
+      }
+      return ApplyEditorEditMessage.type.response(
+        message.id,
+        undoEditorFix(view, undoFix!)
+          ? { applied: [uri] }
+          : { applied: [], refused: [uri] },
+      );
+    }
     const applied: string[] = [];
     const textEdits = edit.documentChanges
       ? edit.documentChanges.flatMap((change) =>
@@ -1444,6 +1487,7 @@ export class ScriptEditorController {
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
           routePins,
           onChoiceMark: this.handleChoiceMark,
+          onFix: this.handleFix,
           scrollToLineNumber:
             visibleRange && typeof visibleRange !== "string"
               ? (visibleRange?.start.line ?? 0) + 1

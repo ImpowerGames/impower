@@ -190,16 +190,16 @@ text.source.sparkdown [0..320]
  ├─ meta.function.luau [273..290]
  │   ├─ keyword.control.luau [273..281]: "function"
  │   ├─ punctuation.whitespace.optional.sd [281..282]: " "
- │   └─ meta.embedded.block.luau [282..290]
- │       ├─ entity.name.function.luau [282..287]: "value"
- │       └─ meta.parameter.luau [287..290]
- │           ├─ punctuation.definition.template-expression.begin.sd [287..288]: "("
- │           ├─ variable.parameter.function.luau [288..289]: "n"
- │           └─ punctuation.definition.template-expression.end.sd [289..290]: ")"
+ │   ├─ entity.name.function.luau [282..287]: "value"
+ │   └─ meta.parameter.luau [287..290]
+ │       ├─ punctuation.definition.template-expression.begin.sd [287..288]: "("
+ │       ├─ meta.embedded.block.luau [288..289]
+ │       │   └─ variable.parameter.function.luau [288..289]: "n"
+ │       └─ punctuation.definition.template-expression.end.sd [289..290]: ")"
  ├─ Newline [290..291]: "\n"
  ├─ meta.function.luau [291..301]
- │   └─ meta.embedded.block.luau [291..301]
- │       └─ meta.function.body.luau [291..301]
+ │   └─ meta.function.body.luau [291..301]
+ │       └─ meta.embedded.block.luau [291..301]
  │           └─ meta.function.luau [291..301]
  │               ├─ punctuation.whitespace.optional.sd [291..293]: "  "
  │               ├─ keyword.control.luau [293..299]: "return"
@@ -207,8 +207,8 @@ text.source.sparkdown [0..320]
  │               └─ punctuation.definition.template-expression.begin.sd [300..301]: "("
  ├─ Newline [301..302]: "\n"
  ├─ meta.function.luau [302..311]
- │   └─ meta.embedded.block.luau [302..311]
- │       └─ meta.function.body.luau [302..311]
+ │   └─ meta.function.body.luau [302..311]
+ │       └─ meta.embedded.block.luau [302..311]
  │           └─ meta.function.luau [302..311]
  │               ├─ punctuation.whitespace.extra.sd [302..306]: "    "
  │               ├─ variable.other.readwrite.luau [306..307]: "n"
@@ -218,8 +218,8 @@ text.source.sparkdown [0..320]
  │               └─ constant.numeric.decimal.luau [310..311]: "1"
  ├─ Newline [311..312]: "\n"
  ├─ meta.function.luau [312..315]
- │   └─ meta.embedded.block.luau [312..315]
- │       └─ meta.function.body.luau [312..315]
+ │   └─ meta.function.body.luau [312..315]
+ │       └─ meta.embedded.block.luau [312..315]
  │           └─ meta.function.luau [312..315]
  │               ├─ punctuation.whitespace.extra.sd [312..314]: "  "
  │               └─ punctuation.definition.template-expression.end.sd [314..315]: ")"

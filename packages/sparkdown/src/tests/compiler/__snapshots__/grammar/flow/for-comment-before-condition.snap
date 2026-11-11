@@ -180,8 +180,9 @@ sparkdown [0..179]
  │   │   │       └─ LuauFunctionParameters_end_c1 [77..78]
  │   │   │           └─ PunctuationParenClose [77..78]: ")"
  │   │   └─ LuauFunctionBody [78..175]
- │   │       ├─ LuauFunctionBody_begin [78..79]: "\n"
- │   │       ├─ LuauFunctionBody_content [79..175]
+ │   │       ├─ LuauFunctionBody_begin 78
+ │   │       ├─ LuauFunctionBody_content [78..175]
+ │   │       │   ├─ Newline [78..79]: "\n"
  │   │       │   ├─ LuauForLoop [79..133]
  │   │       │   │   ├─ LuauForLoop_begin [79..85]
  │   │       │   │   │   ├─ LuauForLoop_begin_c1 [79..81]

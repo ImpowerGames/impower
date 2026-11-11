@@ -64,6 +64,8 @@ export class GrammarRepository {
 
   private ids = new WeakMap<object, string>();
 
+  private owners = new Map<string, object>();
+
   private owned = new Map<string, Record<string, RepositoryDefinition>>();
 
   private scopes = new Map<string, RuleScope | undefined>();
@@ -109,10 +111,29 @@ export class GrammarRepository {
       for (const name in repository) {
         const item = repository[name];
         if (item != null) {
+          this.owners.set(nodeName(this.prefix, name), item);
+        }
+      }
+      for (const name in repository) {
+        const item = repository[name];
+        if (item != null) {
           this.add(item, nodeName(this.prefix, name), true);
         }
       }
     }
+  }
+
+  claim(obj: object, id: string) {
+    let claimed = id;
+    for (let n = 1; ; n++) {
+      const owner = this.owners.get(claimed);
+      if (owner === undefined || owner === obj) {
+        break;
+      }
+      claimed = `${id}-${n}`;
+    }
+    this.owners.set(claimed, obj);
+    return claimed;
   }
 
   enter(rule: Rule) {
@@ -182,7 +203,9 @@ export class GrammarRepository {
     id?: string,
     isRepositoryRule?: boolean,
   ): GrammarNode | Rule {
-    const ruleId = this.ids.get(obj) || id || obj.id;
+    const known = this.ids.get(obj);
+    const requested = known || id || obj.id;
+    const ruleId = known || !requested ? requested : this.claim(obj, requested);
     if (ruleId) {
       this.ids.set(obj, ruleId);
       const existing = this.map.get(ruleId);
@@ -227,8 +250,7 @@ export class GrammarRepository {
     }
 
     if (id && isRepositoryRule) {
-      const matchDef = { match: "(.+)", ...(def as any) };
-      const rule = new MatchRule(this, matchDef);
+      const rule = new SwitchRule(this, { ...def, patterns: [] });
       this.map.set(rule.id, rule);
       return rule;
     }

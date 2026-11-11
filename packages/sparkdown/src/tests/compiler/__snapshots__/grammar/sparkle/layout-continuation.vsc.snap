@@ -456,7 +456,8 @@ text.source.sparkdown [0..842]
  │       ├─ entity.name.type.define.luau [736..740]: "tile"
  │       ├─ meta.parameter.luau [740..747]
  │       │   ├─ punctuation.definition.template-expression.begin.sd [740..741]: "("
- │       │   ├─ variable.parameter.function.luau [741..746]: "label"
+ │       │   ├─ meta.embedded.block.luau [741..746]
+ │       │   │   └─ variable.parameter.function.luau [741..746]: "label"
  │       │   └─ punctuation.definition.template-expression.end.sd [746..747]: ")"
  │       ├─ punctuation.whitespace.sd [747..748]: " "
  │       └─ punctuation.definition.template-expression.begin.sd [748..749]: "{"

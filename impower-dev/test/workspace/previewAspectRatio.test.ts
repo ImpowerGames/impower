@@ -1,8 +1,13 @@
 import { signal } from "@preact/signals";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectSettings } from "../../src/modules/spark-editor/workspace/settings/settingsSchema";
+import type {
+  PreviewMode,
+  ProjectSettings,
+} from "../../src/modules/spark-editor/workspace/settings/settingsSchema";
 
 type Ratio = ProjectSettings["previewAspectRatio"];
+
+const visualNovel = () => signal<{ previewMode: PreviewMode }>({ previewMode: "game" });
 
 let width = 1440;
 let listeners: (() => void)[] = [];
@@ -67,7 +72,10 @@ describe("the strip's ratio through the shared sender", () => {
       previewAspectRatio: "auto",
     });
     const request = vi.fn();
-    const sync = createAspectRatioSync(previewAspectRatioFor(settings), request);
+    const sync = createAspectRatioSync(
+      previewAspectRatioFor(settings, visualNovel()),
+      request,
+    );
     sync.initialized();
     resize(1100);
     resize(900);
@@ -92,7 +100,10 @@ describe("the strip's ratio through the shared sender", () => {
       previewAspectRatio: "auto",
     });
     const request = vi.fn();
-    const sync = createAspectRatioSync(previewAspectRatioFor(settings), request);
+    const sync = createAspectRatioSync(
+      previewAspectRatioFor(settings, visualNovel()),
+      request,
+    );
     sync.initialized();
     sync.initialized();
     expect(request.mock.calls).toEqual([["16:9"], ["16:9"]]);
@@ -106,13 +117,45 @@ describe("the strip's ratio through the shared sender", () => {
       previewAspectRatio: "9:16",
     });
     const request = vi.fn();
-    const sync = createAspectRatioSync(previewAspectRatioFor(settings), request);
+    const sync = createAspectRatioSync(
+      previewAspectRatioFor(settings, visualNovel()),
+      request,
+    );
     sync.initialized();
     resize(1440);
     resize(900);
     settings.value = { previewAspectRatio: "auto" };
     settings.value = { previewAspectRatio: "4:3" };
     expect(request.mock.calls).toEqual([["9:16"], ["16:9"], ["4:3"]]);
+    sync.dispose();
+  });
+});
+
+describe("the ratio while Interactive Fiction fills the pane", () => {
+  it("asks for Auto in Interactive Fiction, in the strip too, and for the chosen ratio again in Visual Novel", async () => {
+    const { previewAspectRatioFor, createAspectRatioSync } = await load();
+    const settings = signal<{ previewAspectRatio: Ratio }>({
+      previewAspectRatio: "9:16",
+    });
+    const mode = visualNovel();
+    const request = vi.fn();
+    const sync = createAspectRatioSync(
+      previewAspectRatioFor(settings, mode),
+      request,
+    );
+    sync.initialized();
+    mode.value = { previewMode: "textstream" };
+    settings.value = { previewAspectRatio: "4:3" };
+    mode.value = { previewMode: "game" };
+    mode.value = { previewMode: "screenplay" };
+    resize(900);
+    mode.value = { previewMode: "textstream" };
+    expect(request.mock.calls).toEqual([
+      ["9:16"],
+      ["auto"],
+      ["4:3"],
+      ["auto"],
+    ]);
     sync.dispose();
   });
 });

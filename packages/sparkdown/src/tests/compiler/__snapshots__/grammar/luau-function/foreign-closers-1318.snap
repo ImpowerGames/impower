@@ -23,8 +23,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [15..16]
  │   │   │           └─ PunctuationParenClose [15..16]: ")"
  │   │   └─ LuauFunctionBody [16..24]
- │   │       ├─ LuauFunctionBody_begin [16..17]: "\n"
- │   │       ├─ LuauFunctionBody_content [17..24]
+ │   │       ├─ LuauFunctionBody_begin 16
+ │   │       ├─ LuauFunctionBody_content [16..24]
+ │   │       │   ├─ Newline [16..17]: "\n"
  │   │       │   ├─ ExtraWhitespace [17..19]: "  "
  │   │       │   └─ LuauParenthetical [19..24]
  │   │       │       ├─ LuauParenthetical_begin [19..20]
@@ -76,8 +77,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [52..53]
  │   │   │           └─ PunctuationParenClose [52..53]: ")"
  │   │   └─ LuauFunctionBody [53..138]
- │   │       ├─ LuauFunctionBody_begin [53..54]: "\n"
- │   │       ├─ LuauFunctionBody_content [54..138]
+ │   │       ├─ LuauFunctionBody_begin 53
+ │   │       ├─ LuauFunctionBody_content [53..138]
+ │   │       │   ├─ Newline [53..54]: "\n"
  │   │       │   ├─ LuauVariableDefinition [54..67]
  │   │       │   │   ├─ LuauVariableDefinition_begin [54..62]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [54..56]
@@ -330,8 +332,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [165..166]
  │   │   │           └─ PunctuationParenClose [165..166]: ")"
  │   │   └─ LuauFunctionBody [166..316]
- │   │       ├─ LuauFunctionBody_begin [166..167]: "\n"
- │   │       ├─ LuauFunctionBody_content [167..316]
+ │   │       ├─ LuauFunctionBody_begin 166
+ │   │       ├─ LuauFunctionBody_content [166..316]
+ │   │       │   ├─ Newline [166..167]: "\n"
  │   │       │   ├─ LuauVariableDefinition [167..181]
  │   │       │   │   ├─ LuauVariableDefinition_begin [167..175]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [167..169]
@@ -748,8 +751,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [344..345]
  │   │   │           └─ PunctuationParenClose [344..345]: ")"
  │   │   └─ LuauFunctionBody [345..359]
- │   │       ├─ LuauFunctionBody_begin [345..346]: "\n"
- │   │       ├─ LuauFunctionBody_content [346..359]
+ │   │       ├─ LuauFunctionBody_begin 345
+ │   │       ├─ LuauFunctionBody_content [345..359]
+ │   │       │   ├─ Newline [345..346]: "\n"
  │   │       │   └─ LuauWhileLoop [346..359]
  │   │       │       ├─ LuauWhileLoop_begin [346..354]
  │   │       │       │   ├─ LuauWhileLoop_begin_c1 [346..348]
@@ -803,8 +807,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [385..386]
  │   │   │           └─ PunctuationParenClose [385..386]: ")"
  │   │   └─ LuauFunctionBody [386..400]
- │   │       ├─ LuauFunctionBody_begin [386..387]: "\n"
- │   │       ├─ LuauFunctionBody_content [387..400]
+ │   │       ├─ LuauFunctionBody_begin 386
+ │   │       ├─ LuauFunctionBody_content [386..400]
+ │   │       │   ├─ Newline [386..387]: "\n"
  │   │       │   └─ LuauForLoop [387..400]
  │   │       │       ├─ LuauForLoop_begin [387..393]
  │   │       │       │   ├─ LuauForLoop_begin_c1 [387..389]
@@ -876,8 +881,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [432..433]
  │   │   │           └─ PunctuationParenClose [432..433]: ")"
  │   │   └─ LuauFunctionBody [433..451]
- │   │       ├─ LuauFunctionBody_begin [433..434]: "\n"
- │   │       ├─ LuauFunctionBody_content [434..451]
+ │   │       ├─ LuauFunctionBody_begin 433
+ │   │       ├─ LuauFunctionBody_content [433..451]
+ │   │       │   ├─ Newline [433..434]: "\n"
  │   │       │   └─ LuauRepeatLoop [434..451]
  │   │       │       ├─ LuauRepeatLoop_begin [434..442]
  │   │       │       │   ├─ LuauRepeatLoop_begin_c1 [434..436]
@@ -961,8 +967,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [482..483]
  │   │   │           └─ PunctuationParenClose [482..483]: ")"
  │   │   └─ LuauFunctionBody [483..551]
- │   │       ├─ LuauFunctionBody_begin [483..484]: "\n"
- │   │       ├─ LuauFunctionBody_content [484..551]
+ │   │       ├─ LuauFunctionBody_begin 483
+ │   │       ├─ LuauFunctionBody_content [483..551]
+ │   │       │   ├─ Newline [483..484]: "\n"
  │   │       │   ├─ ExtraWhitespace [484..486]: "  "
  │   │       │   └─ LuauAccessPath [486..551]
  │   │       │       ├─ LuauAccessPath_begin 486
@@ -1193,8 +1200,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [575..576]
  │   │   │           └─ PunctuationParenClose [575..576]: ")"
  │   │   └─ LuauFunctionBody [576..602]
- │   │       ├─ LuauFunctionBody_begin [576..577]: "\n"
- │   │       ├─ LuauFunctionBody_content [577..602]
+ │   │       ├─ LuauFunctionBody_begin 576
+ │   │       ├─ LuauFunctionBody_content [576..602]
+ │   │       │   ├─ Newline [576..577]: "\n"
  │   │       │   ├─ LuauVariableDefinition [577..595]
  │   │       │   │   ├─ LuauVariableDefinition_begin [577..585]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [577..579]
@@ -1311,8 +1319,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [630..631]
  │   │   │           └─ PunctuationParenClose [630..631]: ")"
  │   │   └─ LuauFunctionBody [631..699]
- │   │       ├─ LuauFunctionBody_begin [631..632]: "\n"
- │   │       ├─ LuauFunctionBody_content [632..699]
+ │   │       ├─ LuauFunctionBody_begin 631
+ │   │       ├─ LuauFunctionBody_content [631..699]
+ │   │       │   ├─ Newline [631..632]: "\n"
  │   │       │   ├─ LuauVariableDefinition [632..651]
  │   │       │   │   ├─ LuauVariableDefinition_begin [632..640]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [632..634]
@@ -1571,8 +1580,9 @@ sparkdown [0..883]
  │   │   │       └─ LuauFunctionParameters_end_c1 [724..725]
  │   │   │           └─ PunctuationParenClose [724..725]: ")"
  │   │   └─ LuauFunctionBody [725..844]
- │   │       ├─ LuauFunctionBody_begin [725..726]: "\n"
- │   │       ├─ LuauFunctionBody_content [726..844]
+ │   │       ├─ LuauFunctionBody_begin 725
+ │   │       ├─ LuauFunctionBody_content [725..844]
+ │   │       │   ├─ Newline [725..726]: "\n"
  │   │       │   ├─ LuauReturnStatement [726..738]
  │   │       │   │   ├─ LuauReturnStatement_begin [726..735]
  │   │       │   │   │   ├─ LuauReturnStatement_begin_c1 [726..728]

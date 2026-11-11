@@ -56,6 +56,16 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { isSupersededCommit } from "@impower/spark-editor-protocol/src/utils/fileCommits";
 import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams";
+import { assetEndings, assetTypeOf } from "../utils/assetTypes";
+import {
+  planClash,
+  reasonOf,
+  settleFailedMoves,
+  snapshotPaths,
+  type FileMove,
+  type RenameOutcome,
+} from "../utils/fileMoves";
+import { imageStacks } from "../utils/imageStacks";
 import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -101,6 +111,51 @@ const withoutSettingsJson = <T extends { filename: string }>(
   return folderHoldsMore
     ? rest
     : rest.filter(({ filename }) => filename !== SETTINGS_JSON_FOLDER);
+};
+
+const REFERENCE_ATTEMPTS = 3;
+
+const LINE_BREAK = String.fromCharCode(10);
+
+const CARRIAGE_RETURN = String.fromCharCode(13);
+
+interface ReferenceEdits {
+  texts: LSP.TextDocumentEdit[];
+  siblings: FileMove[];
+  scripts: Map<string, string>;
+}
+
+const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+
+const symbolOf = (path: string) => leafOf(path).split(".")[0]!;
+
+const normalized = (text: string) =>
+  text.split(CARRIAGE_RETURN + LINE_BREAK).join(LINE_BREAK).split(CARRIAGE_RETURN).join(LINE_BREAK);
+
+const offsetAt = (lines: readonly string[], position: LSP.Position) => {
+  let offset = 0;
+  for (let line = 0; line < position.line && line < lines.length; line += 1) {
+    offset += lines[line]!.length + 1;
+  }
+  return offset + position.character;
+};
+
+const withEdits = (text: string, edits: readonly (LSP.TextEdit | LSP.AnnotatedTextEdit | LSP.SnippetTextEdit)[]) => {
+  const lines = text.split(LINE_BREAK);
+  return edits
+    .filter((edit): edit is LSP.TextEdit => "newText" in edit)
+    .map((edit) => ({ from: offsetAt(lines, edit.range.start), to: offsetAt(lines, edit.range.end), newText: edit.newText }))
+    .sort((a, b) => b.from - a.from)
+    .reduce((result, edit) => result.slice(0, edit.from) + edit.newText + result.slice(edit.to), text);
+};
+
+const sameReferenceEdits = (a: ReferenceEdits, b: ReferenceEdits) =>
+  JSON.stringify([a.texts.map((change) => [change.textDocument.uri, change.edits]), a.siblings, [...a.scripts]]) ===
+  JSON.stringify([b.texts.map((change) => [change.textDocument.uri, change.edits]), b.siblings, [...b.scripts]]);
+
+const textAt = (text: string, range: LSP.Range) => {
+  const lines = text.split(LINE_BREAK);
+  return text.slice(offsetAt(lines, range.start), offsetAt(lines, range.end));
 };
 
 export default class WorkspaceFileSystem {
@@ -897,27 +952,207 @@ export default class WorkspaceFileSystem {
     projectId: string,
     fromPath: string,
     toPath: string,
-  ): Promise<{ referencesUpdated: number; scriptsAffected: number }> {
-    const oldUri = this.getFileUri(projectId, fromPath);
-    const newName = this.getDisplayName(this.getFileUri(projectId, toPath));
-    const edit = await this._ls.getFileRenameEdits(oldUri, newName);
-    const textEdits = (edit?.documentChanges ?? []).filter(
-      (c): c is LSP.TextDocumentEdit => "edits" in c,
-    );
-    if (!edit || textEdits.length === 0) {
-      await this.moveFile(projectId, fromPath, toPath);
-      return { referencesUpdated: 0, scriptsAffected: 0 };
+  ): Promise<RenameOutcome & { scriptsAffected: number }> {
+    return this.renameFilesWithReferences(projectId, [{ from: fromPath, to: toPath }]);
+  }
+
+  protected async collectReferenceEdits(
+    projectId: string,
+    symbols: ReadonlyMap<string, { uri: string; to: string }>,
+    refuse: (reason: string) => Error,
+  ): Promise<ReferenceEdits | null> {
+    const edits = new Map<string, LSP.TextDocumentEdit>();
+    const placed = new Map<string, { document: string; newText: string; old: string; range: LSP.Range }>();
+    const siblings: FileMove[] = [];
+    for (const [from, { uri, to }] of symbols) {
+      let edit: WorkspaceEdit | null;
+      try {
+        edit = await this._ls.getFileRenameEdits(uri, to);
+      } catch (error) {
+        throw refuse(
+          `the lines that use ${from} could not be looked up (${reasonOf(error)}). Nothing was renamed.`,
+        );
+      }
+      for (const change of edit?.documentChanges ?? []) {
+        if ("edits" in change) {
+          const document = change.textDocument.uri;
+          const merged = edits.get(document) ?? { textDocument: change.textDocument, edits: [] };
+          edits.set(document, merged);
+          for (const text of change.edits) {
+            if (!("newText" in text)) {
+              throw refuse("the language server sent an edit this rename cannot apply. Nothing was renamed.");
+            }
+            const { start, end } = text.range;
+            const at = `${document}:${start.line}:${start.character}:${end.line}:${end.character}`;
+            const written = placed.get(at);
+            if (written === undefined) {
+              placed.set(at, { document, newText: text.newText, old: from, range: text.range });
+              merged.edits.push(text);
+            } else if (written.newText !== text.newText) {
+              throw refuse(`two names would be written at the same place in ${leafOf(document)}. Nothing was renamed.`);
+            }
+          }
+        } else if (change.kind === "rename") {
+          siblings.push({
+            from: this.getRelativePath(projectId, change.oldUri),
+            to: this.getRelativePath(projectId, change.newUri),
+          });
+        }
+      }
     }
+    const scripts = new Map<string, string>();
+    for (const document of edits.keys()) {
+      scripts.set(document, normalized(await this.getFileText(document)));
+    }
+    for (const { document, old, range } of placed.values()) {
+      if (textAt(scripts.get(document)!, range) !== old) {
+        return null;
+      }
+    }
+    return {
+      texts: [...edits.values()].filter((change) => change.edits.length),
+      siblings,
+      scripts,
+    };
+  }
+
+  protected async putBackScripts(collected: ReferenceEdits): Promise<string[]> {
+    const notes: string[] = [];
+    for (const change of collected.texts) {
+      const uri = change.textDocument.uri;
+      const before = collected.scripts.get(uri)!;
+      const written = withEdits(before, change.edits);
+      try {
+        const now = normalized(await this.getFileText(uri));
+        if (now === before) {
+          continue;
+        }
+        if (now !== written) {
+          notes.push(`${leafOf(uri)} holds neither its old lines nor the renamed ones, so it was left as it is; check it.`);
+          continue;
+        }
+        const lines = written.split(LINE_BREAK);
+        const restored = await this.applyWorkspaceEdit(
+          {
+            documentChanges: [
+              {
+                textDocument: { uri, version: null },
+                edits: [
+                  {
+                    range: {
+                      start: { line: 0, character: 0 },
+                      end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
+                    },
+                    newText: before,
+                  },
+                ],
+              },
+            ],
+          },
+          `Put back ${leafOf(uri)}`,
+          undefined,
+          { [uri]: written },
+        );
+        if (!restored.applied) {
+          notes.push(`${leafOf(uri)} changed before its lines could be put back, so it was left as it is (${restored.failureReason ?? "not saved"}); check it.`);
+        } else if (normalized(await this.getFileText(uri)) !== before) {
+          notes.push(`The lines in ${leafOf(uri)} could not be put back.`);
+        }
+      } catch (error) {
+        notes.push(`The lines in ${leafOf(uri)} could not be put back (${reasonOf(error)}).`);
+      }
+    }
+    return notes;
+  }
+
+  async renameFilesWithReferences(
+    projectId: string,
+    moves: readonly FileMove[],
+  ): Promise<RenameOutcome & { scriptsAffected: number }> {
+    const name = symbolOf(moves[0]?.from ?? "").split(/[@~]/)[0]!;
+    const refuse = (reason: string) =>
+      new Error(`Couldn't rename ${name}: ${reason}`);
+    const before = await snapshotPaths(this, projectId);
+    const present = new Set([...before.files, ...before.folders]);
+    const missing = moves.find((move) => !present.has(move.from));
+    if (missing) {
+      throw refuse(`${missing.from} is no longer there. Nothing was renamed.`);
+    }
+    const symbols = new Map<string, { uri: string; to: string }>();
+    for (const move of moves) {
+      const from = symbolOf(move.from);
+      const to = symbolOf(move.to);
+      const known = symbols.get(from);
+      if (known && known.to !== to) {
+        throw refuse(`${from} would get two names. Nothing was renamed.`);
+      }
+      if (from !== to && !known) {
+        symbols.set(from, { uri: this.getFileUri(projectId, move.from), to });
+      }
+    }
+    let collected: ReferenceEdits | null = null;
+    for (let attempt = 0; attempt < REFERENCE_ATTEMPTS && !collected; attempt += 1) {
+      const first = await this.collectReferenceEdits(projectId, symbols, refuse);
+      const second = first && (await this.collectReferenceEdits(projectId, symbols, refuse));
+      collected = first && second && sameReferenceEdits(first, second) ? second : null;
+    }
+    if (!collected) {
+      throw refuse("the scripts that use it kept changing while the rename was prepared. Nothing was renamed; try again.");
+    }
+    const plan = new Map(moves.map((move) => [move.from, move.to]));
+    const also: FileMove[] = [];
+    for (const sibling of collected.siblings) {
+      if (!plan.has(sibling.from)) {
+        const folder = sibling.from.slice(0, sibling.from.lastIndexOf("/") + 1);
+        const image = (path: string) => assetTypeOf(path, assetEndings.peek()) === "image";
+        const stack = image(sibling.from)
+          ? imageStacks(
+              [...before.files].filter(
+                (path) => path.startsWith(folder) && !path.slice(folder.length).includes("/") && image(path),
+              ),
+            ).find((candidate) => candidate.paths.includes(sibling.from))
+          : undefined;
+        const outside = stack?.paths.find((path) => !plan.has(path) && path !== sibling.from);
+        if (outside) {
+          throw refuse(`${sibling.from} shares its name but belongs to a picture with more files (${outside}); rename that picture from its own folder. Nothing was renamed.`);
+        }
+        plan.set(sibling.from, sibling.to);
+        also.push(sibling);
+      }
+    }
+    const clash = planClash(
+      [...plan].map(([from, to]) => ({ from, to })),
+      present,
+    );
+    if (clash) {
+      throw refuse(`${clash}. Nothing was renamed.`);
+    }
+    const renames = [...plan]
+      .filter(([from, to]) => from !== to)
+      .map(([from, to]) => ({ from, to }));
     const result = await this.applyWorkspaceEdit(
-      edit,
-      `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
+      {
+        documentChanges: [
+          ...renames.map(({ from, to }) => ({
+            kind: "rename" as const,
+            oldUri: this.getFileUri(projectId, from),
+            newUri: this.getFileUri(projectId, to),
+          })),
+          ...collected.texts,
+        ],
+      },
+      `Rename ${name}`,
       { isRefactoring: true },
+      Object.fromEntries(collected.scripts),
     );
     if (!result.applied) {
+      const reason = result.failureReason ?? "the change was not saved";
+      const scripts = await this.putBackScripts(collected);
+      const files = await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
       const relative = (uris: string[]) =>
         uris.map((uri) => this.getRelativePath(projectId, uri));
       throw Object.assign(
-        new Error(result.failureReason ?? `Cannot rename ${oldUri}`),
+        new Error([files.message, ...scripts].join(" ")),
         result.rollback && {
           rollback: {
             complete: result.rollback.complete,
@@ -927,8 +1162,12 @@ export default class WorkspaceFileSystem {
         },
       );
     }
-    const referencesUpdated = textEdits.reduce((n, c) => n + c.edits.length, 0);
-    return { referencesUpdated, scriptsAffected: textEdits.length };
+    const lines = new Set(
+      collected.texts.flatMap((change) =>
+        change.edits.map((text) => `${change.textDocument.uri}:${text.range.start.line}`),
+      ),
+    );
+    return { referencesUpdated: lines.size, scriptsAffected: collected.texts.length, also };
   }
 
   async moveFolder(projectId: string, fromFolder: string, toFolder: string) {
@@ -1075,6 +1314,7 @@ export default class WorkspaceFileSystem {
     edit: WorkspaceEdit,
     label?: string,
     metadata?: { isRefactoring?: boolean },
+    expectedTexts?: Record<string, string>,
   ): Promise<ApplyWorkspaceEditResult> {
     const result = await this.sendRequest(
       ApplyWorkspaceEditMessage.type,
@@ -1082,6 +1322,7 @@ export default class WorkspaceFileSystem {
         edit,
         label,
         metadata,
+        ...(expectedTexts ? { expectedTexts } : {}),
       },
       edit.documentChanges
         ?.filter((c) => "kind" in c && c.kind === "create")

@@ -1047,10 +1047,12 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
+    const { edit, expectedTexts } = message.params;
     const log = new CommitLog();
     const { effects, failure } = await applyWorkspaceEdit(
-      message.params.edit,
+      edit,
       log,
+      expectedTexts,
     );
 
     broadcastCreates(log, effects.created);
@@ -1376,6 +1378,7 @@ const applyChange = async (
   log: CommitLog,
   effects: EditEffects,
   undo: UndoLog,
+  expectedTexts?: Record<string, string>,
 ) => {
   const wrote = (result: WriteResult) => {
     undo.commit(result.local);
@@ -1389,7 +1392,7 @@ const applyChange = async (
     });
   };
   if ("textDocument" in change) {
-    const [written] = await editTextFiles([change]);
+    const [written] = await editTextFiles([change], expectedTexts);
     if (written) {
       wrote(written);
     } else {
@@ -1432,6 +1435,7 @@ const applyChange = async (
 const applyWorkspaceEdit = async (
   edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
   log: CommitLog,
+  expectedTexts?: Record<string, string>,
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??
@@ -1439,6 +1443,19 @@ const applyWorkspaceEdit = async (
       textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
       edits,
     }));
+  const changed = Object.keys(expectedTexts ?? {}).find(
+    (uri) => !matchesExpectedText(uri, expectedTexts),
+  );
+  if (changed) {
+    return {
+      effects: noEffects(),
+      failure: {
+        change: 0,
+        reason: `${changed.split("/").pop()} changed before the edit could be applied`,
+        rollback: { complete: true, failed: [], kept: [] },
+      },
+    };
+  }
   const undo = new UndoLog();
   const effects = noEffects();
   commitWatchers.add(undo.watch);
@@ -1446,7 +1463,7 @@ const applyWorkspaceEdit = async (
     for (const [index, change] of changes.entries()) {
       try {
         await undo.record(change);
-        await applyChange(change, log, effects, undo);
+        await applyChange(change, log, effects, undo, expectedTexts);
       } catch (err: any) {
         console.error(err, err?.stack);
         const reason = err?.message ?? String(err);
@@ -1745,7 +1762,18 @@ const dataUrlToBytes = async (dataUrl: string) => {
   return new Uint8Array(arrayBuffer);
 };
 
-const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
+const latestTextOf = (uri: string) =>
+  (pendingText(uri) ?? State.files.get(uri)?.text)?.replace(NEWLINE_REGEX, "\n");
+
+const matchesExpectedText = (uri: string, expectedTexts?: Record<string, string>) => {
+  const expected = expectedTexts?.[uri];
+  return expected === undefined || latestTextOf(uri) === expected.replace(NEWLINE_REGEX, "\n");
+};
+
+const editTextFiles = async (
+  textDocumentEdits: TextDocumentEdit[],
+  expectedTexts?: Record<string, string>,
+) => {
   const result = await Promise.all(
     textDocumentEdits.map(async (textDocumentEdit) => {
       const td = textDocumentEdit.textDocument;
@@ -1756,9 +1784,10 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         return null;
       }
       let syncedDocument = State.documents.get(td.uri);
-      const latestText = (
-        pendingText(td.uri) ?? State.files.get(td.uri)?.text
-      )?.replace(NEWLINE_REGEX, "\n");
+      if (!matchesExpectedText(td.uri, expectedTexts)) {
+        throw new Error(`${td.uri.split("/").pop()} changed before the edit could be applied`);
+      }
+      const latestText = latestTextOf(td.uri);
       if (!syncedDocument && latestText == null) {
         throw new Error(`File does not exist: ${td.uri}`);
       }

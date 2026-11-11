@@ -25,15 +25,14 @@ text.source.sparkdown [0..95]
  ├─ meta.function.luau [38..50]
  │   ├─ keyword.control.luau [38..46]: "function"
  │   ├─ punctuation.whitespace.optional.sd [46..47]: " "
- │   └─ meta.embedded.block.luau [47..50]
- │       ├─ entity.name.function.luau [47..48]: "f"
- │       └─ meta.parameter.luau [48..50]
- │           ├─ punctuation.definition.template-expression.begin.sd [48..49]: "("
- │           └─ punctuation.definition.template-expression.end.sd [49..50]: ")"
+ │   ├─ entity.name.function.luau [47..48]: "f"
+ │   └─ meta.parameter.luau [48..50]
+ │       ├─ punctuation.definition.template-expression.begin.sd [48..49]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [49..50]: ")"
  ├─ Newline [50..51]: "\n"
  ├─ meta.function.luau [51..90]
- │   └─ meta.embedded.block.luau [51..90]
- │       └─ meta.function.body.luau [51..90]
+ │   └─ meta.function.body.luau [51..90]
+ │       └─ meta.embedded.block.luau [51..90]
  │           ├─ punctuation.whitespace.optional.sd [51..53]: "  "
  │           ├─ storage.modifier.scope.luau [53..58]: "local"
  │           ├─ punctuation.whitespace.optional.sd [58..59]: " "

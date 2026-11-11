@@ -417,17 +417,19 @@ function RadioIndicator() {
 export function DropdownRadioItem({
   value,
   indicator,
+  disabled,
   class: className,
   children,
   ...rest
 }: {
   value: string;
   indicator?: DropdownRadioItemIndicator;
+  disabled?: boolean;
   class?: string;
   children?: ComponentChildren;
 } & Omit<
   JSX.HTMLAttributes<HTMLDivElement>,
-  "class" | "value" | "onChange" | "onSelect"
+  "class" | "value" | "disabled" | "onChange" | "onSelect"
 >) {
   const ctx = useMenuCtx();
   const radio = useContext(RadioContext);
@@ -444,6 +446,7 @@ export function DropdownRadioItem({
         role="menuitemradio"
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
+        disabled={disabled}
         class={classes}
         onClick={() => {
           radio.onValueChange?.(value);
@@ -456,7 +459,12 @@ export function DropdownRadioItem({
     );
   }
   return (
-    <DropdownMenuPrimitive.RadioItem value={value} class={classes} {...rest}>
+    <DropdownMenuPrimitive.RadioItem
+      value={value}
+      disabled={disabled}
+      class={classes}
+      {...rest}
+    >
       <RadioIndicator />
       {children}
     </DropdownMenuPrimitive.RadioItem>

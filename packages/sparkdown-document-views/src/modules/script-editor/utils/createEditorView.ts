@@ -68,6 +68,10 @@ import {
   type ChoiceMarkerHandler,
 } from "../../../cm-choice-markers/choiceMarkers";
 import {
+  diagnosticFixHandler,
+  type DiagnosticFixHandler,
+} from "@impower/codemirror-vscode-lsp-client/src";
+import {
   getRoutePins,
   routePins,
   setsRoutePins,
@@ -170,6 +174,7 @@ interface EditorConfig {
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
   onChoiceMark?: ChoiceMarkerHandler;
+  onFix?: DiagnosticFixHandler;
   onHeightChanged?: () => void;
   hoverValue?: HoverValueSource;
   onCompletionPreview?: (
@@ -360,6 +365,7 @@ const createEditorView = (
         }),
         routePins(config?.routePins ?? [], initialText),
         config.onChoiceMark ? choiceMarkerActions.of(config.onChoiceMark) : [],
+        config.onFix ? diagnosticFixHandler.of(config.onFix) : [],
         sparkdownLanguageExtension({
           textDocument,
           serverWorker,

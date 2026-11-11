@@ -86,13 +86,13 @@ async function harness() {
   return { assets, fileAt, rename, read, snackbar };
 }
 
-const failRemoving = (directory: MemoryDirectory, name: string) => {
-  const remove = directory.removeEntry.bind(directory);
-  directory.removeEntry = async (entry, options) => {
-    if (entry === name) {
-      throw new DOMException(`${name} is locked`, "NoModificationAllowedError");
+const failCreating = (directory: MemoryDirectory, name: string) => {
+  const get = directory.getFileHandle.bind(directory);
+  directory.getFileHandle = async (entry, options = {}) => {
+    if (entry === name && options.create && !directory.entries.has(entry)) {
+      throw new DOMException(`${name} cannot be created`, "QuotaExceededError");
     }
-    return remove(entry, options);
+    return get(entry, options);
   };
 };
 
@@ -116,7 +116,7 @@ const failWrites = (file: MemoryFile, ...nth: number[]) => {
 
 it("tells the author nothing changed when a rename with references is rolled back whole", async () => {
   const h = await harness();
-  failRemoving(h.assets, "a.png");
+  failWrites(h.fileAt("main.sd"), 1);
   expect(await h.rename()).toEqual({ renamed: false });
   expect(h.snackbar.value?.message).toBe("Couldn't rename a.png. Nothing was changed.");
   expect(await h.read("main.sd")).toBe("see a");
@@ -125,11 +125,12 @@ it("tells the author nothing changed when a rename with references is rolled bac
 
 it("names the files left changed when the rollback of a rename with references is partial", async () => {
   const h = await harness();
-  failRemoving(h.assets, "a.png");
-  failWrites(h.fileAt("main.sd"), 2, 3);
+  failWrites(h.fileAt("main.sd"), 1);
+  failCreating(h.assets, "a.png");
   expect(await h.rename()).toEqual({ renamed: false });
   expect(h.snackbar.value?.message).toBe(
-    "Couldn't rename a.png, and these files may be left changed: main.sd, assets/b.png.",
+    "Couldn't rename a.png, and these files may be left changed: assets/a.png, assets/b.png.",
   );
-  expect([...h.assets.entries.keys()].sort()).toEqual(["a.png", "b.png"]);
+  expect([...h.assets.entries.keys()]).toEqual(["b.png"]);
+  expect(await h.read("main.sd")).toBe("see a");
 }, 15_000);

@@ -1,6 +1,6 @@
 sparkdown [0..412]
  ├─ LuauDefine [0..45]
- │   ├─ LuauDefine_begin [0..17]
+ │   ├─ LuauDefine_begin [0..28]
  │   │   ├─ LuauDefine_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauDefine_begin_c2 [0..6]
@@ -8,39 +8,40 @@ sparkdown [0..412]
  │   │   ├─ LuauDefine_begin_c3 [6..7]
  │   │   │   └─ LuauDefine_begin_c3 [6..7]
  │   │   │       └─ OptionalWhitespace [6..7]: " "
- │   │   └─ LuauDefine_begin_c5 [7..17]
- │   │       └─ LuauBlockComment [7..17]
- │   │           ├─ LuauBlockComment_begin [7..11]
- │   │           │   ├─ LuauBlockComment_begin_c1 7
- │   │           │   ├─ LuauBlockComment_begin_c2 [7..10]
- │   │           │   │   └─ LuauCommentMark [7..10]: "--["
- │   │           │   ├─ LuauBlockComment_begin_c3 10
- │   │           │   └─ LuauBlockComment_begin_c4 [10..11]
- │   │           │       └─ LuauCommentMark [10..11]: "["
- │   │           ├─ LuauBlockComment_content [11..14]
- │   │           │   ├─ LuauBlockCommentContent [11..12]: " "
- │   │           │   ├─ LuauBlockCommentContent [12..13]: "c"
- │   │           │   └─ LuauBlockCommentContent [13..14]: " "
- │   │           └─ LuauBlockComment_end [14..17]
- │   │               ├─ LuauBlockComment_end_c1 [14..15]
- │   │               │   └─ LuauCommentMark [14..15]: "]"
- │   │               ├─ LuauBlockComment_end_c2 15
- │   │               ├─ LuauBlockComment_end_c3 [15..16]
- │   │               │   └─ LuauCommentMark [15..16]: "]"
- │   │               └─ LuauBlockComment_end_c4 [16..17]
- │   │                   └─ LuauBlockComment_end_c4 [16..17]
- │   │                       └─ OptionalWhitespace [16..17]: " "
- │   ├─ LuauDefine_content [17..42]
- │   │   ├─ LuauDefineNameAndInheritance [17..28]
- │   │   │   ├─ LuauDefineNameAndInheritance_begin [17..23]
- │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [17..23]
- │   │   │   │       └─ LuauDefineName [17..23]: "Person"
- │   │   │   └─ LuauDefineNameAndInheritance_end [23..28]
- │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 [23..24]
- │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 [23..24]
- │   │   │       │       └─ OptionalWhitespace [23..24]: " "
- │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [24..28]
- │   │   │           └─ LuauWithKeyword [24..28]: "with"
+ │   │   ├─ LuauDefine_begin_c5 [7..17]
+ │   │   │   └─ LuauBlockComment [7..17]
+ │   │   │       ├─ LuauBlockComment_begin [7..11]
+ │   │   │       │   ├─ LuauBlockComment_begin_c1 7
+ │   │   │       │   ├─ LuauBlockComment_begin_c2 [7..10]
+ │   │   │       │   │   └─ LuauCommentMark [7..10]: "--["
+ │   │   │       │   ├─ LuauBlockComment_begin_c3 10
+ │   │   │       │   └─ LuauBlockComment_begin_c4 [10..11]
+ │   │   │       │       └─ LuauCommentMark [10..11]: "["
+ │   │   │       ├─ LuauBlockComment_content [11..14]
+ │   │   │       │   ├─ LuauBlockCommentContent [11..12]: " "
+ │   │   │       │   ├─ LuauBlockCommentContent [12..13]: "c"
+ │   │   │       │   └─ LuauBlockCommentContent [13..14]: " "
+ │   │   │       └─ LuauBlockComment_end [14..17]
+ │   │   │           ├─ LuauBlockComment_end_c1 [14..15]
+ │   │   │           │   └─ LuauCommentMark [14..15]: "]"
+ │   │   │           ├─ LuauBlockComment_end_c2 15
+ │   │   │           ├─ LuauBlockComment_end_c3 [15..16]
+ │   │   │           │   └─ LuauCommentMark [15..16]: "]"
+ │   │   │           └─ LuauBlockComment_end_c4 [16..17]
+ │   │   │               └─ LuauBlockComment_end_c4 [16..17]
+ │   │   │                   └─ OptionalWhitespace [16..17]: " "
+ │   │   └─ LuauDefine_begin_c7 [17..28]
+ │   │       └─ LuauDefineNameAndInheritance [17..28]
+ │   │           ├─ LuauDefineNameAndInheritance_begin [17..23]
+ │   │           │   └─ LuauDefineNameAndInheritance_begin_c1 [17..23]
+ │   │           │       └─ LuauDefineName [17..23]: "Person"
+ │   │           └─ LuauDefineNameAndInheritance_end [23..28]
+ │   │               ├─ LuauDefineNameAndInheritance_end_c1 [23..24]
+ │   │               │   └─ LuauDefineNameAndInheritance_end_c1 [23..24]
+ │   │               │       └─ OptionalWhitespace [23..24]: " "
+ │   │               └─ LuauDefineNameAndInheritance_end_c2 [24..28]
+ │   │                   └─ LuauWithKeyword [24..28]: "with"
+ │   ├─ LuauDefine_content [28..42]
  │   │   ├─ Newline [28..29]: "\n"
  │   │   ├─ LuauPropertyDefinition [29..41]
  │   │   │   ├─ LuauPropertyDefinition_begin [29..31]

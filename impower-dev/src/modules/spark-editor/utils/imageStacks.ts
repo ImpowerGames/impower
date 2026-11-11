@@ -103,6 +103,9 @@ const stackOf = (folder: string, base: string, paths: string[]): ImageStack => {
   };
 };
 
+export const isStacked = (stack: ImageStack): boolean =>
+  stack.paths.length > 1 || stemOf(stack.cover) !== stack.base;
+
 export const imageStacks = (paths: readonly string[]): ImageStack[] => {
   const keyOf = (path: string) => `${folderOf(path)}/${stackBaseOf(path)}`;
   const rolled = new Set(

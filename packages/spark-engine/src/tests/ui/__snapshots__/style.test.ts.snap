@@ -76,6 +76,7 @@ exports[`style > authored style block content payload 1`] = `
       "display": "block",
       "margin-bottom": "1rem",
       "padding": "1rem",
+      "text-color": "slate_80",
     },
     "backdrop": {
       "$name": "backdrop",
@@ -232,6 +233,7 @@ exports[`style > authored style block content payload 1`] = `
       "corner": "0.5rem",
       "display": "flex",
       "padding": "1.5rem",
+      "text-color": "slate_80",
     },
     "cell": {
       "$name": "cell",
@@ -340,6 +342,7 @@ exports[`style > authored style block content payload 1`] = `
         "background_color": "rgb(0 0 0 / 65%)",
         "border": "1px solid",
         "border_radius": "8px",
+        "color": "white",
         "cursor": "pointer",
         "display": "flex",
         "flex_direction": "row",
@@ -380,6 +383,7 @@ exports[`style > authored style block content payload 1`] = `
       "corner": "0.25rem",
       "font-family": "ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace",
       "padding": "0.125rem 0.375rem",
+      "text-color": "slate_80",
       "text-size": "0.875rem",
     },
     "column": {
@@ -1176,6 +1180,7 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "loading_content",
       "$type": "style",
       "align_items": "center",
+      "color": "white",
       "display": "flex",
       "flex_direction": "column",
       "gap": "1rem",
@@ -1269,6 +1274,7 @@ exports[`style > authored style block content payload 1`] = `
         "padding": "0.25rem",
         "position": "absolute",
         "shadow": "0 0.5rem 1rem rgb(0 0 0 / 30%)",
+        "text-color": "slate_80",
         "top": "100%",
         "z-index": "10",
       },
@@ -1392,6 +1398,7 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "paper",
       "$type": "style",
       "background-color": "neutral_99",
+      "text-color": "slate_20",
     },
     "paragraph": {
       "$name": "paragraph",
@@ -3365,6 +3372,7 @@ exports[`style > style + variables construction stream 1`] = `
             "display": "block",
             "margin-bottom": "1rem",
             "padding": "1rem",
+            "text-color": "slate_80",
           },
           "backdrop": {
             "$name": "backdrop",
@@ -3521,6 +3529,7 @@ exports[`style > style + variables construction stream 1`] = `
             "corner": "0.5rem",
             "display": "flex",
             "padding": "1.5rem",
+            "text-color": "slate_80",
           },
           "cell": {
             "$name": "cell",
@@ -3629,6 +3638,7 @@ exports[`style > style + variables construction stream 1`] = `
               "background_color": "rgb(0 0 0 / 65%)",
               "border": "1px solid",
               "border_radius": "8px",
+              "color": "white",
               "cursor": "pointer",
               "display": "flex",
               "flex_direction": "row",
@@ -3669,6 +3679,7 @@ exports[`style > style + variables construction stream 1`] = `
             "corner": "0.25rem",
             "font-family": "ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace",
             "padding": "0.125rem 0.375rem",
+            "text-color": "slate_80",
             "text-size": "0.875rem",
           },
           "column": {
@@ -4465,6 +4476,7 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "loading_content",
             "$type": "style",
             "align_items": "center",
+            "color": "white",
             "display": "flex",
             "flex_direction": "column",
             "gap": "1rem",
@@ -4558,6 +4570,7 @@ exports[`style > style + variables construction stream 1`] = `
               "padding": "0.25rem",
               "position": "absolute",
               "shadow": "0 0.5rem 1rem rgb(0 0 0 / 30%)",
+              "text-color": "slate_80",
               "top": "100%",
               "z-index": "10",
             },
@@ -4681,6 +4694,7 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "paper",
             "$type": "style",
             "background-color": "neutral_99",
+            "text-color": "slate_20",
           },
           "paragraph": {
             "$name": "paragraph",

@@ -129,6 +129,7 @@ import type {
   RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
+import { beatDrawing } from "../utils/beatDrawing";
 import { conditionText } from "../utils/conditionText";
 import type { ExecutedLines } from "../types/ExecutedLines";
 import type { GameConfiguration } from "../types/GameConfiguration";
@@ -173,6 +174,8 @@ import { CheckpointStore, type StoredCheckpoint } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
+import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
+import { initialLayouts } from "./presenters/textLayouts";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -427,6 +430,11 @@ export class Game<T extends M = {}> {
   protected _awaiting: ScriptLocation | null = null;
 
   protected _shownBeatOnScreen?: Instructions;
+  get shownBeatOnScreen() {
+    return this._shownBeatOnScreen;
+  }
+
+  protected _redelivers?: Instructions;
 
   protected _sceneSaveDue: string | null = null;
 
@@ -720,6 +728,8 @@ export class Game<T extends M = {}> {
 
   protected _startingValues: StartingValues = {};
 
+  protected _startingDisplayMode: StartingDisplayMode = "textbox";
+
   protected _scriptLineText?: (uri: string, line: number) => string | undefined;
 
   protected _plannedRouteStart?: string;
@@ -791,6 +801,7 @@ export class Game<T extends M = {}> {
     });
 
     this._restarted = options?.restarted ?? false;
+    this._redelivers = options?.redelivers;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -806,6 +817,7 @@ export class Game<T extends M = {}> {
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this._startingValues = options?.startingValues ?? {};
+    this._startingDisplayMode = options?.startingDisplayMode ?? "textbox";
     this._savesSceneEntries = options?.savesSceneEntries ?? false;
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
@@ -1334,6 +1346,60 @@ export class Game<T extends M = {}> {
     }
     this._startingValues = values;
     this._startPlans.clear();
+    return true;
+  }
+
+  get startingDisplayMode(): StartingDisplayMode {
+    return this._startingDisplayMode;
+  }
+
+  setStartingDisplayMode(mode: StartingDisplayMode): boolean {
+    if (mode === this._startingDisplayMode) {
+      return false;
+    }
+    this._startingDisplayMode = mode;
+    const shown = this._shownBeatOnScreen;
+    if (
+      this.showStartingDisplayMode() &&
+      shown &&
+      this._coordinator &&
+      !this._context.system.previewing
+    ) {
+      this._coordinator = new Coordinator(this, shown, { settled: "restored" });
+    }
+    return true;
+  }
+
+  protected showStartingDisplayMode(): boolean {
+    const ui = this.module.ui;
+    const mode = this._startingDisplayMode;
+    const shownMode = ui.displayMode;
+    if (!ui.initialLayoutsOpened || shownMode === mode) {
+      return false;
+    }
+    ui.displayMode = mode;
+    const before = initialLayouts(this, ui, shownMode);
+    const after = initialLayouts(this, ui, mode);
+    const open = ui.openedLayoutsAfter([]);
+    const closing = before.filter((name) => !after.includes(name));
+    if (closing.some((name) => !open.includes(name))) {
+      return false;
+    }
+    const opening = after.filter(
+      (name) => !before.includes(name) && !open.includes(name),
+    );
+    if (closing.length === 0 && opening.length === 0) {
+      return false;
+    }
+    ui.composeWait(
+      ui.applyLayoutInstructions(
+        [
+          ...closing.map((name) => ({ control: "close" as const, name })),
+          ...opening.map((name) => ({ control: "open" as const, name })),
+        ],
+        true,
+      ),
+    );
     return true;
   }
 
@@ -2501,6 +2567,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
+    this.showStartingDisplayMode();
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
@@ -2774,13 +2841,18 @@ export class Game<T extends M = {}> {
     if (roll !== this._rolls || this._destroyed) {
       return { moved: false, superseded: true, history };
     }
+    this.showStartingDisplayMode();
     this.noteShownChoices(beat.shown);
     this._shownBeatOnScreen = beat.shown;
     this._coordinator = new Coordinator(this, beat.shown, {
       settled: "restored",
     });
     this.connection.emit(
-      GameRolledMessage.type.notification({ restored, history }),
+      GameRolledMessage.type.notification({
+        restored,
+        history,
+        executed: beat.executed && { ...beat.executed, history },
+      }),
     );
     return { moved: true, restored, history };
   }
@@ -3722,7 +3794,7 @@ export class Game<T extends M = {}> {
   protected showBeat(instructions: Instructions | null, settled: boolean) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
-      this._coordinator = new Coordinator(this, instructions, {
+      this._coordinator = new Coordinator(this, this.toDraw(instructions), {
         settled: settled ? "presented" : undefined,
       });
       if (this._simulation !== "simulating") {
@@ -3759,6 +3831,15 @@ export class Game<T extends M = {}> {
     if (ending) {
       this.endStory(ending);
     }
+  }
+
+  protected toDraw(beat: Instructions): Instructions {
+    if (this._simulation === "simulating") {
+      return beat;
+    }
+    const onScreen = this._redelivers;
+    this._redelivers = undefined;
+    return beatDrawing(beat, onScreen ? "redelivery" : "landing", onScreen);
   }
 
   protected presentsAtStop(): boolean {
@@ -4313,6 +4394,10 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyExecuted(params: GameExecutedParams = this.executedParams()) {
+    const beat = this._run.current;
+    if (beat && !this._run.behindLatest && this.recordsRun()) {
+      beat.executed = params;
+    }
     this.connection.emit(GameExecutedMessage.type.notification(params));
   }
 

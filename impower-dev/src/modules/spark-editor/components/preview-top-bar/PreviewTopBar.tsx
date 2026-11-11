@@ -23,6 +23,7 @@ import {
   StepOutIcon,
   StepOverIcon,
   StopIcon,
+  TextLinesIcon,
   useHoldRepeat,
   VisualIcon,
   type IconComponent,
@@ -38,6 +39,7 @@ import {
 import workspace from "../../workspace/WorkspaceStore";
 import { useCaretScript } from "../../workspace/useActiveEditor";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+import { AspectRatioSettings } from "../preview-bar";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
 import {
@@ -69,6 +71,11 @@ export const VIEWING_MODES: Record<
     name: "Visual Novel",
     hint: "Play your game as a series of dialogue boxes and choice menus",
     icon: VisualIcon,
+  },
+  textstream: {
+    name: "Interactive Fiction",
+    hint: "Play your game as a stream of text and choices",
+    icon: TextLinesIcon,
   },
   screenplay: {
     name: "Screenplay",
@@ -112,6 +119,7 @@ export const PREVIEW_TOGGLES: Record<
 
 export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
   game: ["previewFollowsCursor", "previewIdleAnimations", "previewTypingPauses"],
+  textstream: ["previewFollowsCursor"],
   screenplay: [
     "previewScreenplaySync",
     "screenplayPaper",
@@ -351,6 +359,7 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
 }
 
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
+  const phone = useLayout() === "phone";
   const menuWidth = useMenuWidth();
   const { preferences, setPreference } = useSettings();
   return (
@@ -395,6 +404,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
             </DropdownCheckboxItem>
           );
         })}
+        {phone ? <AspectRatioSettings mode={mode} /> : null}
       </DropdownContent>
     </DropdownRoot>
   );

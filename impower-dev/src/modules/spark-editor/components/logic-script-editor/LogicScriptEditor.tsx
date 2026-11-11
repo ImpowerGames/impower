@@ -147,6 +147,10 @@ export default function LogicScriptEditor({
         const languageServerInitializeResult =
           await Workspace.ls.getInitializeResult();
         if (disposed) return;
+        if ((filenameRef.current || "main.sd") !== fn) {
+          loadFile();
+          return;
+        }
 
         uriRef.current = uri;
         versionRef.current = version;

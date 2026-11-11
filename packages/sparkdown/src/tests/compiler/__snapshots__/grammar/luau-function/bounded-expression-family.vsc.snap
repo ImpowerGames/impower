@@ -106,31 +106,30 @@ text.source.sparkdown [0..351]
  │       ├─ punctuation.whitespace.optional.sd [178..179]: " "
  │       └─ meta.function.luau [179..188]
  │           ├─ keyword.control.luau [179..187]: "function"
- │           └─ meta.embedded.block.luau [187..188]
- │               └─ meta.parameter.luau [187..188]
- │                   └─ punctuation.definition.template-expression.begin.sd [187..188]: "("
+ │           └─ meta.parameter.luau [187..188]
+ │               └─ punctuation.definition.template-expression.begin.sd [187..188]: "("
  ├─ Newline [188..189]: "\n"
  ├─ meta.embedded.line.luau [189..194]
  │   └─ meta.embedded.line.luau [189..194]
  │       └─ meta.function.luau [189..194]
- │           └─ meta.embedded.block.luau [189..194]
- │               └─ meta.parameter.luau [189..194]
+ │           └─ meta.parameter.luau [189..194]
+ │               └─ meta.embedded.block.luau [189..194]
  │                   ├─ punctuation.whitespace.extra.sd [189..193]: "    "
  │                   └─ variable.parameter.function.luau [193..194]: "n"
  ├─ Newline [194..195]: "\n"
  ├─ meta.embedded.line.luau [195..198]
  │   └─ meta.embedded.line.luau [195..198]
  │       └─ meta.function.luau [195..198]
- │           └─ meta.embedded.block.luau [195..198]
- │               └─ meta.parameter.luau [195..198]
- │                   ├─ punctuation.whitespace.extra.sd [195..197]: "  "
- │                   └─ punctuation.definition.template-expression.end.sd [197..198]: ")"
+ │           └─ meta.parameter.luau [195..198]
+ │               ├─ meta.embedded.block.luau [195..197]
+ │               │   └─ punctuation.whitespace.extra.sd [195..197]: "  "
+ │               └─ punctuation.definition.template-expression.end.sd [197..198]: ")"
  ├─ Newline [198..199]: "\n"
  ├─ meta.embedded.line.luau [199..211]
  │   └─ meta.embedded.line.luau [199..211]
  │       └─ meta.function.luau [199..211]
- │           └─ meta.embedded.block.luau [199..211]
- │               └─ meta.function.body.luau [199..211]
+ │           └─ meta.function.body.luau [199..211]
+ │               └─ meta.embedded.block.luau [199..211]
  │                   └─ meta.function.luau [199..211]
  │                       ├─ punctuation.whitespace.optional.sd [199..203]: "    "
  │                       ├─ keyword.control.luau [203..209]: "return"

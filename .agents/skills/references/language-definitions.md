@@ -39,6 +39,15 @@ them — the YAML uses `{{VARIABLE}}` templating (e.g. `{{WS}}` expands to
 `(?:[^\S\n\r])`; the `variables:` blocks of the two grammar YAML files define
 them). Rule NAMES do match, so grep for the rule name instead.
 
+A repository rule, or a rule in a `patterns` list, that has a `name`, `tag` or
+`captures` but no `match`, `begin`, `include` or `patterns` is a shorthand of
+the generator, which writes it out with `match: "(.+)"` (`applyDefaultMatch` in
+`definitions/src/language.ts`). An entry under `captures` is not a rule and is
+left as it is.
+Both engines read an unexpanded rule like that as matching nothing, so a grammar
+handed to the tree or to vscode-textmate without going through the generator
+must spell out the match itself.
+
 To change a grammar/config/snippets rule:
 
 ```sh

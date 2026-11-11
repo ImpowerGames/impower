@@ -1,4 +1,5 @@
 import type { Instructions } from "../types/Instructions";
+import type { GameExecutedParams } from "./messages/GameExecutedMessage";
 import type { RollTarget } from "../types/RunHistory";
 
 export interface RunBeat {
@@ -7,6 +8,7 @@ export interface RunBeat {
   readonly menus: number;
   chosen?: number;
   held?: boolean;
+  executed?: GameExecutedParams;
 }
 
 export class RunRecord {

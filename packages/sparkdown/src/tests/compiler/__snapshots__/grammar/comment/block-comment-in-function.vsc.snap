@@ -2,15 +2,14 @@ text.source.sparkdown [0..80]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
- │   └─ meta.embedded.block.luau [9..12]
- │       ├─ entity.name.function.luau [9..10]: "f"
- │       └─ meta.parameter.luau [10..12]
- │           ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
- │           └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
  ├─ Newline [12..13]: "\n"
  ├─ meta.function.luau [13..46]
- │   └─ meta.embedded.block.luau [13..46]
- │       └─ meta.function.body.luau [13..46]
+ │   └─ meta.function.body.luau [13..46]
+ │       └─ meta.embedded.block.luau [13..46]
  │           ├─ punctuation.whitespace.optional.sd [13..15]: "  "
  │           ├─ storage.modifier.scope.luau [15..20]: "local"
  │           ├─ punctuation.whitespace.optional.sd [20..21]: " "
@@ -35,8 +34,8 @@ text.source.sparkdown [0..80]
  │           └─ keyword.operator.arithmetic.luau [45..46]: "/"
  ├─ Newline [46..47]: "\n"
  ├─ meta.function.luau [47..64]
- │   └─ meta.embedded.block.luau [47..64]
- │       └─ meta.function.body.luau [47..64]
+ │   └─ meta.function.body.luau [47..64]
+ │       └─ meta.embedded.block.luau [47..64]
  │           ├─ punctuation.whitespace.extra.sd [47..49]: "  "
  │           ├─ keyword.operator.arithmetic.luau [49..50]: "/"
  │           ├─ keyword.operator.arithmetic.luau [50..51]: "*"
@@ -50,8 +49,8 @@ text.source.sparkdown [0..80]
  │           └─ keyword.operator.arithmetic.luau [63..64]: "/"
  ├─ Newline [64..65]: "\n"
  ├─ meta.function.luau [65..75]
- │   └─ meta.embedded.block.luau [65..75]
- │       └─ meta.function.body.luau [65..75]
+ │   └─ meta.function.body.luau [65..75]
+ │       └─ meta.embedded.block.luau [65..75]
  │           ├─ punctuation.whitespace.extra.sd [65..67]: "  "
  │           └─ meta.function.luau [67..75]
  │               ├─ keyword.control.luau [67..73]: "return"

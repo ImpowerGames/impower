@@ -3,9 +3,13 @@ import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
-import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
+import {
+  playsGame,
+  PROJECT_SETTINGS_SCHEMA,
+  type PreviewMode,
+} from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
-import PreviewBar from "../preview-bar/PreviewBar";
+import { PreviewBar } from "../preview-bar";
 import { ProblemsPanel } from "../problems";
 import PreviewGame from "../preview-game/PreviewGame";
 import { RoutePanel } from "../preview-route";
@@ -19,8 +23,8 @@ const BAR_HEIGHT = PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
 const PANEL_MIN_HEIGHT = 144;
 const STAGE_MIN_HEIGHT = 160;
 
-const playerClass = (mode: string, choosing: boolean) => {
-  if (mode === "game") {
+const playerClass = (mode: PreviewMode, choosing: boolean) => {
+  if (playsGame(mode)) {
     return "contents";
   }
   return choosing ? "absolute inset-0 z-[2] flex flex-col bg-stage" : "hidden";
@@ -67,7 +71,7 @@ export default function Preview(_props: PreviewProps) {
     <>
       <div
         class={playerClass(mode, choosing)}
-        data-choosing={mode !== "game" && choosing ? "" : undefined}
+        data-choosing={!playsGame(mode) && choosing ? "" : undefined}
       >
         <PreviewGame />
       </div>

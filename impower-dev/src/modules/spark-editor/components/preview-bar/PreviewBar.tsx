@@ -2,8 +2,6 @@ import {
   Button,
   DetourIcon,
   DropdownContent,
-  DropdownRadioGroup,
-  DropdownRadioItem,
   DropdownRoot,
   DropdownTrigger,
   ExpandIcon,
@@ -11,8 +9,11 @@ import {
   ScissorsIcon,
   SettingsIcon,
   ShrinkIcon,
+  StopSignIcon,
   WarningIcon,
 } from "@impower/impower-ui/components";
+import { useLayout, type Layout } from "@impower/impower-ui/layout";
+import type { GameSize } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
@@ -20,11 +21,15 @@ import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { ProblemsToggle } from "../problems";
 import { ROUTE_PANEL_ID } from "../preview-route";
 import { settingsSectionHref } from "../settings";
+import { AspectRatioGroup } from "./AspectRatioGroup";
 import {
-  ASPECT_RATIO_ROWS,
+  ASPECT_RATIO_LABEL_RESERVES,
   aspectRatioLabel,
   barReadout,
+  type AspectRatioChoice,
+  PAGE_FILLS_PANE,
   PAPER_SIZE_LABELS,
+  sizeControl,
   stopNote,
 } from "./barState";
 
@@ -39,7 +44,8 @@ export default function PreviewBar({
   fullscreen,
   onToggleFullscreen,
 }: PreviewBarProps) {
-  const mode = workspaceSettings.preferences.value.previewMode;
+  const layout = useLayout();
+  const size = sizeControl(workspaceSettings.preferences.value.previewMode);
   return (
     <div
       role="group"
@@ -47,8 +53,12 @@ export default function PreviewBar({
       class="flex h-11 shrink-0 items-center gap-1 px-2"
     >
       <ProblemsToggle />
-      <RouteReadout />
-      {mode === "screenplay" ? <PaperSizeLink /> : <AspectRatioMenu />}
+      <RouteReadout layout={layout} />
+      {size === "paper" ? (
+        <PaperSizeLink />
+      ) : layout === "phone" ? null : (
+        <AspectRatioMenu pageFillsPane={size === "pageFillsPane"} />
+      )}
       <Button
         variant="quiet"
         size="icon"
@@ -68,14 +78,19 @@ const READOUT_ICONS = {
   clipped: <ScissorsIcon data-icon="scissors" class="text-warning" />,
   pinned: <PinIcon data-icon="pin" class="text-accent" />,
   failure: <WarningIcon data-icon="warning" class="text-error" />,
+  stopped: <StopSignIcon data-icon="stop-sign" class="text-warning" />,
 };
 
-function RouteReadout() {
-  const readout = useComputed(() =>
-    barReadout(workspace.state.value, route.view.value),
-  ).value;
+function RouteReadout({ layout }: { layout: Layout }) {
+  const readout = barReadout(
+    workspace.state.value,
+    route.view.value,
+    workspace.debugSession.value,
+    layout,
+  );
   const open = useComputed(() => route.open.value).value;
-  const note = useComputed(() => stopNote(workspace.debugSession.value)).value;
+  const note =
+    layout === "phone" ? null : stopNote(workspace.debugSession.value);
 
   const onClick = async () => {
     if (!readout) return;
@@ -108,12 +123,15 @@ function RouteReadout() {
           aria-label={
             readout.opensRoute
               ? `${readout.name} ${readout.lines}. ${readout.title}`
-              : undefined
+              : readout.stopped
+                ? `${readout.name}. ${readout.title}`
+                : undefined
           }
           aria-expanded={readout.opensRoute ? open : undefined}
           aria-controls={readout.opensRoute ? ROUTE_PANEL_ID : undefined}
           data-failed={readout.failed ? "" : undefined}
-          class={`max-w-full min-w-0 justify-end gap-1.5 px-2.5 text-muted data-failed:text-error ${BAR_TEXT}`}
+          data-stopped={readout.stopped ? "" : undefined}
+          class={`max-w-full min-w-0 justify-end gap-1.5 px-2.5 text-muted data-failed:text-error data-stopped:text-warning ${BAR_TEXT}`}
           onClick={onClick}
         >
           {readout.icon ? READOUT_ICONS[readout.icon] : null}
@@ -129,18 +147,44 @@ function RouteReadout() {
   );
 }
 
-function AspectRatioMenu() {
+function RatioLabel({
+  choice,
+  size,
+}: {
+  choice: AspectRatioChoice;
+  size: GameSize | undefined;
+}) {
+  const [reserve, reserveAlt] = ASPECT_RATIO_LABEL_RESERVES;
+  return (
+    <span
+      data-reserve={reserve}
+      data-reserve-alt={reserveAlt}
+      class="inline-grid justify-items-end before:invisible before:content-[attr(data-reserve-alt)] before:[grid-area:1/1] after:invisible after:content-[attr(data-reserve)] after:[grid-area:1/1] [&>*]:[grid-area:1/1]"
+    >
+      <span>{aspectRatioLabel(choice, size)}</span>
+    </span>
+  );
+}
+
+function AspectRatioMenu({ pageFillsPane }: { pageFillsPane: boolean }) {
   const choice = workspaceSettings.projectSettings.value.previewAspectRatio;
   const size = useComputed(
     () => workspace.state.value.preview?.modes?.game?.size,
   ).value;
 
-  const onValueChange = (value: string) => {
-    const row = ASPECT_RATIO_ROWS.find((r) => r.value === value);
-    if (row) {
-      workspaceSettings.setProjectSetting("previewAspectRatio", row.value);
-    }
-  };
+  if (pageFillsPane) {
+    return (
+      <Button
+        variant="quiet"
+        aria-label="Game aspect ratio"
+        aria-disabled
+        title={PAGE_FILLS_PANE}
+        class={`px-2.5 text-muted aria-disabled:cursor-default aria-disabled:opacity-40 ${BAR_TEXT}`}
+      >
+        <RatioLabel choice="auto" size={size} />
+      </Button>
+    );
+  }
 
   return (
     <DropdownRoot>
@@ -151,24 +195,11 @@ function AspectRatioMenu() {
           title="Game aspect ratio"
           class={`px-2.5 text-muted ${BAR_TEXT}`}
         >
-          {aspectRatioLabel(choice, size)}
+          <RatioLabel choice={choice} size={size} />
         </Button>
       </DropdownTrigger>
       <DropdownContent side="top" align="end" class="min-w-[210px]">
-        <DropdownRadioGroup
-          label="Game aspect ratio"
-          value={choice}
-          onValueChange={onValueChange}
-        >
-          {ASPECT_RATIO_ROWS.map(({ value, name, hint }) => (
-            <DropdownRadioItem key={value} value={value} class="gap-2.5">
-              <span class="w-[3.6em] tabular-nums group-data-[state=checked]:text-accent">
-                {name}
-              </span>
-              <small class="text-[11px] font-normal text-muted">{hint}</small>
-            </DropdownRadioItem>
-          ))}
-        </DropdownRadioGroup>
+        <AspectRatioGroup />
       </DropdownContent>
     </DropdownRoot>
   );

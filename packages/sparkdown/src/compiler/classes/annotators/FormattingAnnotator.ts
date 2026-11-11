@@ -620,7 +620,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
-          isSpacedBraceEdge(nodeRef.node, (from, to) => this.read(from, to))
+          isSpacedBraceEdge(nodeRef.node, (from, to) => this.read(from, to)) ||
+            precedesKeywordBraceBody(nodeRef.node)
             ? "keyword_separator"
             : "extra",
         ).range(
