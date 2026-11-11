@@ -428,3 +428,30 @@ describe("searching stacked pictures", () => {
     ]);
   });
 });
+
+describe("a folder stack in the Assets page", () => {
+  const MIA = "Assets/Images/Portraits/mia";
+  const project = listing(
+    {
+      [`${MIA}/90_body.png`]: 4000,
+      [`${MIA}/30_face.happy.png`]: 2000,
+      [`${MIA}/30_face.neutral~default.png`]: 2000,
+      [`${MIA}/10_hat.on.png`]: 1000,
+      [`${MIA}/notes.png`]: 500,
+    },
+    ["Assets", "Assets/Images", "Assets/Images/Portraits", MIA],
+  );
+
+  it("shows the folder's numbered files as one picture named after the folder, beside its other files", () => {
+    const level = assetLevel({ listing: project, type: "image", folder: MIA, sort: "name-asc", endings: ENDINGS });
+    expect(level.rows.map((row) => [row.name, row.path, row.paths?.length, row.variantCount, row.folderStack, row.size])).toEqual([
+      ["mia", `${MIA}/90_body.png`, 4, 4, true, 9000],
+      ["notes", `${MIA}/notes.png`, undefined, undefined, undefined, 500],
+    ]);
+  });
+
+  it("covers the folder's row in its parent with the picture's bottom layer", () => {
+    const level = assetLevel({ listing: project, type: "image", folder: "Assets/Images/Portraits", sort: "name-asc", endings: ENDINGS });
+    expect(level.rows.find((row) => row.path === MIA)?.covers).toEqual([`${MIA}/90_body.png`, `${MIA}/notes.png`]);
+  });
+});

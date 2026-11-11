@@ -44,7 +44,11 @@ export interface AssetRow extends ListEntry {
   paths?: string[];
   variantCount?: number;
   covers?: string[];
+  folderStack?: true;
 }
+
+export const folderStackReason = (name: string): string =>
+  `${name} is made of the numbered files in its folder. Rename or move the folder ${name} instead.`;
 
 export interface AssetLevel {
   type: AssetType;
@@ -198,6 +202,7 @@ const stackedRows = (
       size: facts.reduce((sum, fact) => sum + fact.size, 0),
       paths: stack.paths,
       ...(stack.variantCount > 1 ? { variantCount: stack.variantCount } : {}),
+      ...(stack.kind === "folder" ? { folderStack: true as const } : {}),
     };
   });
 };
@@ -387,8 +392,25 @@ export const sameNamedPictures = (
   }
   return [...byFolder.values()]
     .flatMap((paths) => imageStacks(paths))
-    .filter((stack) => stack.name === name)
+    .filter((stack) => stack.kind === "files" && stack.name === name)
     .flatMap((stack) => stack.paths);
+};
+
+export const folderStacksIn = (
+  listing: AssetListing,
+  covered: readonly string[],
+  endings: AssetEndings,
+): string[] => {
+  const names = new Set<string>();
+  for (const path of covered) {
+    if (Object.hasOwn(listing.files, path) && typeOf(listing, path, endings) === "image") {
+      const [stack] = imageStacks(stackOfPath(listing, path, endings));
+      if (stack?.kind === "folder") {
+        names.add(stack.name);
+      }
+    }
+  }
+  return [...names];
 };
 
 export const coveredPaths = (
@@ -411,8 +433,9 @@ export const thingNames = (
   const things = new Map<string, string>();
   for (const path of covered) {
     if (Object.hasOwn(listing.files, path)) {
-      const first = stackOfPath(listing, path, endings)[0]!;
-      things.set(first, assetName(first));
+      const members = stackOfPath(listing, path, endings);
+      const first = members[0]!;
+      things.set(first, typeOf(listing, first, endings) === "image" ? imageStacks(members)[0]!.name : assetName(first));
     } else {
       things.set(path, nameOf(path));
     }
@@ -435,7 +458,12 @@ export const assetMoveCheck = (
   listing: AssetListing,
   covered: readonly string[],
   folder: string,
+  endings: AssetEndings,
 ): AssetMoveCheck => {
+  const [kept] = folderStacksIn(listing, covered, endings);
+  if (kept) {
+    return { refused: folderStackReason(kept) };
+  }
   if (covered.some((path) => !Object.hasOwn(listing.files, path) && isInside(folder, path))) {
     return { refused: INTO_ITSELF };
   }

@@ -68,6 +68,7 @@ function fakeWorkspace(stored: Record<string, string>) {
   const ls = {
     getFileReferences: vi.fn(async (): Promise<{ uri: string; range: ReturnType<typeof range> }[]> => []),
     getFileDiagnostics: vi.fn(async (): Promise<unknown[]> => []),
+    getProgram: vi.fn(async (): Promise<unknown> => ({ context: {} })),
     onPublishedDiagnostics: (listener: (params: { uri: string }) => void) => {
       published.add(listener);
       return () => published.delete(listener);
@@ -346,5 +347,35 @@ describe("Download and the text frame", () => {
     const [name, type, data] = mocks.downloadFile.mock.calls[0]!;
     expect([name, type, text(data)]).toEqual(["notes.txt", "application/octet-stream", "The lamps come on."]);
     expect(await assets.readText("Assets/Text/notes.txt")).toBe("The lamps come on.");
+  });
+});
+
+describe("the Variants tester's picture", () => {
+  const pictured = (src: string) => ({ image: { kai: { $type: "image", $name: "kai", src } } });
+
+  it("draws the combination from the compiled program and redraws it when the program changes", async () => {
+    const { assets, ls } = fakeWorkspace({});
+    ls.getProgram.mockImplementation(async () => ({ context: pictured("/one.png") }));
+    const seen: (string | null)[] = [];
+    const stop = assets.watchPicture({ image: "kai", attributes: [] }, (src) => seen.push(src));
+    await settle();
+    sendProtocolMessage(CompiledProgramMessage.type.notification({ program: { context: pictured("/two.png") } } as never));
+    await settle();
+    stop();
+    sendProtocolMessage(CompiledProgramMessage.type.notification({ program: { context: pictured("/three.png") } } as never));
+    await settle();
+    expect(seen).toEqual(["/one.png", "/two.png"]);
+  });
+
+  it("draws nothing before the language server has a program", async () => {
+    const { assets, ls } = fakeWorkspace({});
+    ls.getProgram.mockImplementation(async () => {
+      throw new Error("Language server not initialized.");
+    });
+    const seen: (string | null)[] = [];
+    const stop = assets.watchPicture({ image: "kai", attributes: [] }, (src) => seen.push(src));
+    await settle();
+    stop();
+    expect(seen).toEqual([null]);
   });
 });

@@ -60,6 +60,7 @@ import {
   assetMoveCheck,
   assetTrail,
   coveredPaths,
+  folderStackReason,
   foldersUnder,
   thingsLabel,
   type AssetListing,
@@ -439,7 +440,7 @@ function AssetsBrowser() {
   };
 
   const drag = useLibraryDrag({
-    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder),
+    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder, endings),
     carried: (path) => {
       const chosen = selection.selected.peek();
       return chosen.includes(path) ? [...chosen] : [path];
@@ -515,7 +516,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );
@@ -575,7 +582,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );

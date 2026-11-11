@@ -344,6 +344,18 @@ export {
   type VariantsChipSize,
 } from "./variants-chip/VariantsChip";
 export {
+  default as WheelPicker,
+  WheelSheet,
+  wheelPickerVariants,
+  wheelIndexAt,
+  WHEEL_ROW,
+  WHEEL_SHOWN,
+  type WheelOption,
+  type WheelPickerProps,
+  type WheelPickerSize,
+  type WheelSheetProps,
+} from "./wheel-picker/WheelPicker";
+export {
   default as VariantsBadge,
   variantsBadgeVariants,
   type VariantsBadgeProps,

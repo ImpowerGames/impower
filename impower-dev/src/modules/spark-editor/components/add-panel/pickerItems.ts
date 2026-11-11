@@ -77,8 +77,9 @@ const candidatesOf = (
     type === "audio"
       ? paths
       : paths.filter((path) => {
-          const picture = imageStacks([path])[0]?.pictures[0];
-          return picture?.alternate === null && picture.path === path;
+          const [stack] = imageStacks([path]);
+          const picture = stack?.pictures[0];
+          return picture?.alternate === null && (stack!.kind === "folder" || picture.path === path);
         });
   const shared = sharedNames(files, type);
   return bases.map((path) => {

@@ -308,6 +308,14 @@ describe("the files a picker leaves out", () => {
     expect(pickerLeftOut(kind as AddMenuKind, files, FOLDERS)).toBe(count);
   });
 
+  it("treats a folder stack's numbered files as it did before they rolled into one picture", () => {
+    const layers = ["90_body.png", "30_face.happy.png", "30_face.neutral~default.png", "10_hat.on.png"].map((leaf) =>
+      file(`assets/Portraits/mia/${leaf}`),
+    );
+    expect(pickerItems("portrait", layers, FOLDERS)).toEqual([]);
+    expect(pickerLeftOut("portrait", layers, FOLDERS)).toBe(4);
+  });
+
   it("counts only files the picker would otherwise offer, so offered and left out add up to its things", () => {
     const things = ADD_MENU_KINDS.map(
       (kind) => pickerItems(kind, FILES, FOLDERS).length + pickerLeftOut(kind, FILES, FOLDERS),

@@ -43,6 +43,7 @@ import { folderCoverGallery } from "./components/folder-cover/FolderCover.galler
 import { variantsChipGallery } from "./components/variants-chip/VariantsChip.gallery";
 import { variantsBadgeGallery } from "./components/variants-badge/VariantsBadge.gallery";
 import { tileGallery } from "./components/tile/Tile.gallery";
+import { wheelPickerGallery } from "./components/wheel-picker/WheelPicker.gallery";
 import { zoomFrameGallery } from "./components/zoom-frame/ZoomFrame.gallery";
 import { panelHeadGallery } from "./components/panel-head/PanelHead.gallery";
 import { detailListGallery } from "./components/detail-list/DetailList.gallery";
@@ -93,6 +94,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   folderCoverGallery,
   variantsChipGallery,
   variantsBadgeGallery,
+  wheelPickerGallery,
   tileGallery,
   zoomFrameGallery,
   panelHeadGallery,
