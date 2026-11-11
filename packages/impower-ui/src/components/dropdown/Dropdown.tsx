@@ -20,7 +20,7 @@ import {
 import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
-import { handFocusOff, registerFocusReturn } from "../../utils/focusReturn";
+import { registerFocusReturn } from "../../utils/focusReturn";
 import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
@@ -120,7 +120,6 @@ export function DropdownRoot({
   };
   const handOff = useCallback(() => {
     returnsFocus.current = false;
-    handFocusOff(trigger.current);
     setHandingOff(true);
   }, []);
   const setOpen = useCallback(

@@ -14,7 +14,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
 import {
@@ -96,6 +96,7 @@ function AllScripts() {
   }).value;
   const [query, setQuery] = useTabQuery(ALL_TAB);
   const scroller = useSavedScroll(ALL_TAB);
+  const newButton = useRef<HTMLButtonElement>(null);
   const [creating, setCreating] = useState<"script" | "folder" | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const focusRenamed = useRowFocusReturn(
@@ -267,6 +268,7 @@ function AllScripts() {
       searchLabel="Search scripts"
       query={query}
       onQueryChange={setQuery}
+      newRef={newButton}
       newMenu={
         <>
           <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("script"); }}>
@@ -321,6 +323,7 @@ function AllScripts() {
           <NameRow
             icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
             label={creating === "script" ? "New script name" : "New folder name"}
+            returnFocus={() => newButton.current}
             suffix={creating === "script" ? ".sd" : undefined}
             onCancel={() => setCreating(null)}
             onCommit={async (name) => {

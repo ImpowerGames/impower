@@ -1,4 +1,4 @@
-import { focusOrigin, ListRow, TextField } from "@impower/impower-ui/components";
+import { ListRow, TextField } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 
@@ -8,6 +8,7 @@ export type NameRowProps = {
   initial?: string;
   suffix?: string;
   wrapError?: boolean;
+  returnFocus?: () => HTMLElement | null;
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
 };
@@ -18,6 +19,7 @@ export default function NameRow({
   initial = "",
   suffix,
   wrapError = false,
+  returnFocus,
   onCommit,
   onCancel,
 }: NameRowProps) {
@@ -26,7 +28,6 @@ export default function NameRow({
   const [error, setError] = useState("");
   const busy = useRef(false);
   const cancelled = useRef(false);
-  const [origin] = useState(focusOrigin);
 
   useLayoutEffect(() => {
     input.current?.focus();
@@ -81,7 +82,7 @@ export default function NameRow({
                 e.preventDefault();
                 e.stopPropagation();
                 cancelled.current = true;
-                const back = origin();
+                const back = returnFocus?.();
                 onCancel();
                 if (back?.isConnected) {
                   back.focus();

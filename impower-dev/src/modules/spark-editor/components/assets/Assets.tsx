@@ -225,6 +225,7 @@ function AssetsBrowser() {
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const newButton = useRef<HTMLButtonElement>(null);
   const selecting = selection.active.value;
   const picked = selection.selected.value;
 
@@ -619,6 +620,7 @@ function AssetsBrowser() {
       query={query}
       onQueryChange={setQuery}
       newAttributes={{ "data-assets-action": "add" }}
+      newRef={newButton}
       newMenu={
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
@@ -706,6 +708,7 @@ function AssetsBrowser() {
           <NameRow
             icon={<FolderIcon />}
             label="New folder name"
+            returnFocus={() => newButton.current}
             onCancel={() => setCreating(false)}
             onCommit={async (name) => {
               const path = await (await intents()).assets.createFolder(level.folder, name);

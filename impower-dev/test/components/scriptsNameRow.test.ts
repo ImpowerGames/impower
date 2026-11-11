@@ -1,6 +1,5 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { DropdownContent, DropdownItem, DropdownRoot, DropdownTrigger } from "@impower/impower-ui/components";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NameRow } from "../../src/modules/spark-editor/components/library-page";
 import { availableName } from "../../src/modules/spark-editor/utils/fileListModel";
@@ -121,39 +120,20 @@ describe("the Scripts page's inline name field", () => {
     expect(document.activeElement).toBe(host.querySelector("input"));
   });
 
-  it("returns focus to the menu trigger that opened it when Escape cancels", async () => {
+  it("returns focus to the element its caller names when Escape cancels", async () => {
+    const back = document.body.appendChild(document.createElement("button"));
     host = document.body.appendChild(document.createElement("div"));
-    const Page = ({ creating }: { creating: boolean }) =>
-      h(
-        "div",
-        null,
-        h(DropdownRoot, null, [
-          h(DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "New")),
-          h(DropdownContent, null, h(DropdownItem, { returnFocus: false, onSelect: () => show() }, "New folder")),
-        ]),
-        creating && h(NameRow, { icon: null, label: "New folder name", onCommit: vi.fn(async () => {}), onCancel: () => hide() }),
-      );
-    let show = () => {};
-    let hide = () => {};
-    const draw = (creating: boolean) => render(h(Page, { creating }), host!);
-    show = () => draw(true);
-    hide = () => draw(false);
-    await act(async () => draw(false));
-    const trigger = host.querySelector("button")!;
-    trigger.focus();
-    await act(async () => {
-      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
-    });
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
-    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
-    item.focus();
-    await act(async () => item.click());
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
-    const input = host.querySelector("input")!;
-    expect(document.activeElement).toBe(input);
-    await press(input, "Escape");
-    expect(host.querySelector("input")).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    const onCancel = vi.fn(() => render(null, host!));
+    await act(async () =>
+      render(
+        h(NameRow, { icon: null, label: "New folder name", returnFocus: () => back, onCommit: vi.fn(async () => {}), onCancel }),
+        host!,
+      ),
+    );
+    await press(host.querySelector("input")!, "Escape");
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(back);
+    back.remove();
   });
 
   it("commits a valid name", async () => {

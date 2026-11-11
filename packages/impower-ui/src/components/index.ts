@@ -287,7 +287,6 @@ export {
 } from "./live-region/LiveRegion";
 export { announce, useAnnouncer } from "../hooks/useAnnouncer";
 export { useMountTransition } from "../hooks/useMountTransition";
-export { focusOrigin } from "../utils/focusReturn";
 export {
   useHoldRepeat,
   HOLD_REPEAT_DELAY_MS,
