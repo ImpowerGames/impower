@@ -1100,6 +1100,30 @@ const noEffects = (): EditEffects => ({
   fileEvents: [],
 });
 
+interface Unchanged {
+  bytes?: ArrayBuffer;
+  local?: number;
+}
+
+interface Restoring {
+  entry: PriorEntry;
+  current?: ArrayBuffer;
+  local?: number;
+  backedUp?: boolean;
+}
+
+const isUnchanged = async (uri: string, unchanged: Unchanged) =>
+  (!("local" in unchanged) ||
+    State.localVersions.get(uri) === unchanged.local) &&
+  sameStored(await readStored(uri), unchanged.bytes);
+
+const backupUriOf = (uri: string) => {
+  const path = getPathFromUri(uri);
+  const parent = getParentPath(path);
+  const name = `.${getFileName(path)}.rollback-${crypto.randomUUID().slice(0, 8)}`;
+  return getUriFromPath(parent ? `${parent}/${name}` : name);
+};
+
 const readStored = async (uri: string) => {
   const handle = await findFileHandle(uri);
   return handle ? (await handle.getFile()).arrayBuffer() : undefined;
@@ -1158,9 +1182,39 @@ class UndoLog {
     this.committed.set(uri, local);
   }
 
+  expectedLocal(entry: PriorEntry) {
+    return this.committed.get(entry.uri) ?? entry.local;
+  }
+
   movedOn(entry: PriorEntry) {
-    const expected = this.committed.get(entry.uri) ?? entry.local;
-    return State.localVersions.get(entry.uri) !== expected;
+    return State.localVersions.get(entry.uri) !== this.expectedLocal(entry);
+  }
+
+  async put(target: Restoring, log: CommitLog, effects: EditEffects) {
+    const { entry, current, local } = target;
+    const unchanged = { bytes: current, local };
+    if (entry.bytes) {
+      const result = await commitWrite(
+        entry.uri,
+        new Uint8Array(entry.bytes),
+        entry.version ?? 0,
+        unchanged,
+      );
+      if (!result) {
+        return false;
+      }
+      log.wrote(result);
+      effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Changed });
+      return true;
+    }
+    const removed = await removeFile(entry.uri, { ...unchanged, bytes: current! });
+    if (!removed) {
+      return false;
+    }
+    log.record(removed.uri, removed.local, removed.commit);
+    effects.deleted.push(removed);
+    effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Deleted });
+    return true;
   }
 
   async restore(log: CommitLog) {
@@ -1181,78 +1235,102 @@ class UndoLog {
         unknown.push(entry.uri);
       }
     }
-    let pending = entries.filter((e) => !e.directory);
-    let progress = true;
-    while (progress && pending.length > 0) {
-      progress = false;
-      for (const entry of [...pending]) {
-        const settle = (list: string[]) => {
-          list.push(entry.uri);
-          pending = pending.filter((e) => e !== entry);
-          progress = true;
-        };
-        try {
-          await drainWrites(entry.uri);
-          if (this.movedOn(entry)) {
-            settle(kept);
-            continue;
-          }
-          const current = await storedBytes(entry.uri);
-          if (sameStored(current, entry.bytes)) {
-            settle(restored);
-            continue;
-          }
-          const holders = [...this.prior.values()].filter(
-            (other) =>
-              other !== entry &&
-              current &&
-              other.bytes &&
-              sameBytes(other.bytes, current),
-          );
-          if (holders.some((h) => unknown.includes(h.uri) || kept.includes(h.uri))) {
-            settle(unknown);
-            continue;
-          }
-          if (holders.some((h) => pending.includes(h))) {
-            continue;
-          }
-          if (entry.bytes) {
-            const result = await commitWrite(
-              entry.uri,
-              new Uint8Array(entry.bytes),
-              entry.version ?? 0,
-              { bytes: current },
-            );
-            if (!result) {
-              settle(kept);
-              continue;
-            }
-            log.wrote(result);
-            effects.fileEvents.push({
-              uri: entry.uri,
-              type: FileChangeType.Changed,
-            });
-          } else {
-            const removed = await removeFile(entry.uri, current);
-            if (!removed) {
-              settle(kept);
-              continue;
-            }
-            log.record(removed.uri, removed.local, removed.commit);
-            effects.deleted.push(removed);
-            effects.fileEvents.push({
-              uri: entry.uri,
-              type: FileChangeType.Deleted,
-            });
-          }
-          settle(restored);
-        } catch (err) {
-          console.error(err);
-          settle(unknown);
+    const creates: Restoring[] = [];
+    const overwrites: Restoring[] = [];
+    const removals: Restoring[] = [];
+    for (const entry of entries.filter((e) => !e.directory)) {
+      try {
+        await drainWrites(entry.uri);
+        if (this.movedOn(entry)) {
+          kept.push(entry.uri);
+          continue;
         }
+        const current = await storedBytes(entry.uri);
+        const target = { entry, current, local: this.expectedLocal(entry) };
+        if (sameStored(current, entry.bytes)) {
+          restored.push(entry.uri);
+        } else if (!current) {
+          creates.push(target);
+        } else if (entry.bytes) {
+          overwrites.push(target);
+        } else {
+          removals.push(target);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(entry.uri);
       }
     }
-    unknown.push(...pending.map((e) => e.uri));
+    const settle = async (target: Restoring) => {
+      try {
+        const done = await this.put(target, log, effects);
+        (done ? restored : kept).push(target.entry.uri);
+        return true;
+      } catch (err) {
+        console.error(err);
+        unknown.push(target.entry.uri);
+        return false;
+      }
+    };
+    for (const target of creates) {
+      await settle(target);
+    }
+    const backups: string[] = [];
+    let pending = [...overwrites];
+    if (unknown.length > 0) {
+      unknown.push(...pending.map((t) => t.entry.uri));
+      pending = [];
+    }
+    const failedOverwrites: Restoring[] = [];
+    const needed = (target: Restoring) =>
+      !target.backedUp &&
+      [...pending, ...failedOverwrites].some(
+        (other) =>
+          other !== target && sameStored(other.entry.bytes, target.current),
+      );
+    while (pending.length > 0) {
+      const ready = pending.find((target) => !needed(target));
+      if (ready) {
+        pending = pending.filter((t) => t !== ready);
+        if (!(await settle(ready))) {
+          failedOverwrites.push(ready);
+        }
+        continue;
+      }
+      if (failedOverwrites.length > 0) {
+        break;
+      }
+      const cycle = pending[0]!;
+      const backup = backupUriOf(cycle.entry.uri);
+      try {
+        await commitWrite(backup, new Uint8Array(cycle.current!), 0);
+        backups.push(backup);
+        cycle.backedUp = true;
+      } catch (err) {
+        console.error(err);
+        break;
+      }
+    }
+    unknown.push(...pending.map((t) => t.entry.uri));
+    if (unknown.length > 0) {
+      unknown.push(...removals.map((t) => t.entry.uri));
+    } else {
+      for (const target of removals) {
+        await settle(target);
+      }
+    }
+    for (const backup of backups) {
+      try {
+        if (unknown.length > 0) {
+          unknown.push(backup);
+        } else {
+          await removeFile(backup);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(backup);
+      }
+    }
     try {
       await deleteEmptyDirectories([...this.directories], log);
     } catch (err) {
@@ -1892,13 +1970,12 @@ const commitWrite = async (
   fileUri: string,
   buffer: DataView | Uint8Array,
   version: number,
-  unchangedSince?: { bytes?: ArrayBuffer },
+  unchangedSince?: Unchanged,
 ): Promise<WriteResult | undefined> => {
   const { result: created, commit, local } = await commitChange(
     fileUri,
     async () =>
-      unchangedSince &&
-      !sameStored(await readStored(fileUri), unchangedSince.bytes)
+      unchangedSince && !(await isUnchanged(fileUri, unchangedSince))
         ? null
         : writeToDisk(fileUri, buffer),
     (created) => (created === null ? [] : withAncestors(fileUri)),
@@ -2222,7 +2299,7 @@ const evictFile = (uri: string) => {
 
 const removeFile = async (
   uri: string,
-  unchangedSince?: ArrayBuffer,
+  unchangedSince?: Unchanged & { bytes: ArrayBuffer },
 ): Promise<DeleteResult | undefined> => {
   console.log(MAGENTA, "DELETE", uri);
   const root = await navigator.storage.getDirectory();
@@ -2243,7 +2320,11 @@ const removeFile = async (
             await directoryHandle.getFileHandle(getFileName(relativePath))
           ).getFile()
         ).arrayBuffer();
-        if (!sameBytes(stored, unchangedSince)) {
+        if (
+          !sameBytes(stored, unchangedSince.bytes) ||
+          ("local" in unchangedSince &&
+            State.localVersions.get(uri) !== unchangedSince.local)
+        ) {
           return null;
         }
       }
@@ -2313,7 +2394,7 @@ const copyThenRemove = async (
     const data = await readFile(sourceUri);
     const [write] = await createFiles([{ uri: destinationUri, data }]);
     copied?.(write);
-    const deleted = await removeFile(sourceUri, data);
+    const deleted = await removeFile(sourceUri, { bytes: data });
     if (deleted) {
       return deleted;
     }

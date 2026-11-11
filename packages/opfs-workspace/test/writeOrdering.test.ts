@@ -1708,10 +1708,14 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result.failureReason).toContain("a.sd is locked");
     expect(response.result.failureReason).toContain("partly applied");
     expect(response.result.failureReason).toContain(uriOf("main.sd"));
-    expect(response.result.failureReason).not.toContain(uriOf("b.sd"));
-    expect(response.result.rollback).toEqual({ complete: false, failed: [uriOf("main.sd")], kept: [] });
+    expect(response.result.failureReason).toContain(uriOf("b.sd"));
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("main.sd"), uriOf("b.sd")],
+      kept: [],
+    });
     expect(textAt(root, "main.sd")).toBe("see b");
-    expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
+    expect(listMemory(root, "local")).toEqual(["a.sd", "b.sd", "main.sd"]);
   });
 
   it("announces what storage holds, not the edit's text, for a file whose restore failed", async () => {
@@ -1799,6 +1803,52 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(textAt(root, "b.sd")).toBe("ONLY COPY");
   });
 
+  it("keeps an edited copy of a renamed file when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          insert("b.sd", 9, "!"),
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY!");
+  });
+
+  it("undoes a swap made of three renames", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("tmp.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("a.sd") },
+          { kind: "rename", oldUri: uriOf("tmp.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 3,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(listMemory(root, "local")).toEqual(["a.sd", "b.sd", "main.sd"]);
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
   it("puts back an overwritten rename target once the renamed file is restored", async () => {
     const root = seed({ "main.sd": "M", "a.sd": "MOVED", "b.sd": "OLD TARGET" });
     const h = await worker(root);
@@ -1884,6 +1934,27 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
       kept: [uriOf("a.sd")],
     });
     expect(textAt(root, "a.sd")).toBe("SAVED");
+  });
+
+  it("keeps a save of the edit's own text that lands between the rollback's look at a file and its restore", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const hold = holdRead(fileAt(root, "a.sd")!);
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    h.start("save", "workspace/willWriteFiles", writeOf("a.sd", "A!", "editor"));
+    await vi.advanceTimersByTimeAsync(250);
+    hold.release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("save")).toMatchObject({ result: [{ text: "A!" }] });
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("A!");
   });
 
   it("keeps a save that lands on an edited file while the edit is still running", async () => {

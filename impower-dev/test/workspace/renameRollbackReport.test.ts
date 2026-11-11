@@ -21,7 +21,7 @@ const bytes = (text: string) => new TextEncoder().encode(text);
 async function harness() {
   vi.resetModules();
   const root = memoryRoot();
-  for (const [path, text] of Object.entries({ "main.sd": "see a", "a.png": "PNG" })) {
+  for (const [path, text] of Object.entries({ "main.sd": "see a", "assets/a.png": "PNG" })) {
     writeMemoryFile(root, `local/${path}`, bytes(text));
   }
   Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
@@ -68,19 +68,22 @@ async function harness() {
           textDocument: { uri: fs.getFileUri("local", "main.sd"), version: null },
           edits: [{ range: { start: { line: 0, character: 4 }, end: { line: 0, character: 5 } }, newText: newName }],
         },
-        { kind: "rename", oldUri, newUri: fs.getFileUri("local", `${newName}.png`) },
+        { kind: "rename", oldUri, newUri: fs.getFileUri("local", `assets/${newName}.png`) },
       ],
     }),
   };
   fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
   await fs.getFiles("local");
   const project = root.entries.get("local") as MemoryDirectory;
+  const assets = project.entries.get("assets") as MemoryDirectory;
   const fileAt = (name: string) => project.entries.get(name) as MemoryFile;
   const rename = () =>
-    renameOrReport("a.png", "b.png", () => fs.renameFileWithReferences("local", "a.png", "b.png"));
+    renameOrReport("assets/a.png", "assets/b.png", () =>
+      fs.renameFileWithReferences("local", "assets/a.png", "assets/b.png"),
+    );
   const read = async (path: string) =>
     new TextDecoder().decode(await fs.readFile({ file: { uri: fs.getFileUri("local", path) } }));
-  return { project, fileAt, rename, read, snackbar };
+  return { assets, fileAt, rename, read, snackbar };
 }
 
 const failRemoving = (directory: MemoryDirectory, name: string) => {
@@ -113,18 +116,20 @@ const failWrites = (file: MemoryFile, ...nth: number[]) => {
 
 it("tells the author nothing changed when a rename with references is rolled back whole", async () => {
   const h = await harness();
-  failRemoving(h.project, "a.png");
+  failRemoving(h.assets, "a.png");
   expect(await h.rename()).toEqual({ renamed: false });
   expect(h.snackbar.value?.message).toBe("Couldn't rename a.png. Nothing was changed.");
   expect(await h.read("main.sd")).toBe("see a");
-});
+  expect([...h.assets.entries.keys()]).toEqual(["a.png"]);
+}, 15_000);
 
 it("names the files left changed when the rollback of a rename with references is partial", async () => {
   const h = await harness();
-  failRemoving(h.project, "a.png");
+  failRemoving(h.assets, "a.png");
   failWrites(h.fileAt("main.sd"), 2, 3);
   expect(await h.rename()).toEqual({ renamed: false });
   expect(h.snackbar.value?.message).toBe(
-    "Couldn't rename a.png, and these files may be left changed: main.sd.",
+    "Couldn't rename a.png, and these files may be left changed: main.sd, assets/b.png.",
   );
-});
+  expect([...h.assets.entries.keys()].sort()).toEqual(["a.png", "b.png"]);
+}, 15_000);
