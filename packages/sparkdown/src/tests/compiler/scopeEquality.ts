@@ -21,25 +21,15 @@ function parseAs(source: string, { luauFile = false }: EngineOptions) {
 const rootScopeOf = ({ luauFile = false }: EngineOptions) => (luauFile ? LUAU_FILE_SCOPE_NAME : SCOPE_NAME);
 
 const NAME_BY_TYPE_ID = new Map<string, string>();
-const CONTENT_NAME_BY_TYPE_ID = new Map<string, string>();
 for (const node of (getParser() as any).grammar.nodes as any[]) {
   const props = node?.props ?? {};
   if (typeof props.name === "string") {
     NAME_BY_TYPE_ID.set(node.typeId, props.name);
   }
-  if (typeof props.contentName === "string") {
-    CONTENT_NAME_BY_TYPE_ID.set(node.typeId, props.contentName);
-  }
 }
 
 export function treeNodeScope(nodeName: string): string | undefined {
-  const name = NAME_BY_TYPE_ID.get(nodeName);
-  if (name !== undefined) return name;
-  if (nodeName.endsWith("_content")) {
-    const parent = nodeName.slice(0, -"_content".length);
-    return CONTENT_NAME_BY_TYPE_ID.get(parent);
-  }
-  return undefined;
+  return NAME_BY_TYPE_ID.get(nodeName);
 }
 
 export function treeScopeStackAt(tree: any, offset: number, options: EngineOptions = {}): string[] {
