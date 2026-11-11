@@ -10,7 +10,7 @@ import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
-import { imageStacks } from "../utils/imageStacks";
+import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
@@ -55,6 +55,8 @@ type Deps = {
     | "deleteFiles"
     | "deleteFolder"
     | "renameFilesWithReferences"
+    | "createFolders"
+    | "deleteFolders"
     | "zipFiles"
     | "readFile"
     | "getFileText"
@@ -282,8 +284,9 @@ export default class WorkspaceAssets {
     const projectId = this.requireProject();
     const kind = this.kindOf(path);
     const members = kind === "file" ? this.covered([path]) : [path];
-    if (members.length > 1) {
-      return this.renameStack(projectId, path, members, name);
+    const [stack] = kind === "file" && this.typeOf(path) === "image" ? imageStacks(members) : [];
+    if (stack && isStacked(stack)) {
+      return this.renameStack(projectId, path, stack, name);
     }
     const folder = parentOf(path);
     const leaf = availableName(
@@ -316,16 +319,17 @@ export default class WorkspaceAssets {
     return to;
   }
 
+  protected typeOf(path: string) {
+    return assetTypeOf(path, assetEndings.peek(), this.listing.files[path]?.address);
+  }
+
   protected async renameStack(
     projectId: string,
     path: string,
-    members: readonly string[],
+    stack: ImageStack,
     name: string,
   ): Promise<string> {
-    const [stack] = imageStacks(members);
-    if (!stack) {
-      return path;
-    }
+    const members = stack.paths;
     const extension = extensionOf(stack.cover);
     const typed = validName(name, extension).slice(0, -extension.length || undefined);
     if (/[@~]/.test(typed)) {

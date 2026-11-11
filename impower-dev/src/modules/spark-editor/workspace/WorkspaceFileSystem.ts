@@ -137,6 +137,15 @@ const offsetAt = (lines: readonly string[], position: LSP.Position) => {
   return offset + position.character;
 };
 
+const withEdits = (text: string, edits: readonly (LSP.TextEdit | LSP.AnnotatedTextEdit | LSP.SnippetTextEdit)[]) => {
+  const lines = text.split(LINE_BREAK);
+  return edits
+    .filter((edit): edit is LSP.TextEdit => "newText" in edit)
+    .map((edit) => ({ from: offsetAt(lines, edit.range.start), to: offsetAt(lines, edit.range.end), newText: edit.newText }))
+    .sort((a, b) => b.from - a.from)
+    .reduce((result, edit) => result.slice(0, edit.from) + edit.newText + result.slice(edit.to), text);
+};
+
 const textAt = (text: string, range: LSP.Range) => {
   const lines = text.split(LINE_BREAK);
   return text.slice(offsetAt(lines, range.start), offsetAt(lines, range.end));
@@ -1027,6 +1036,32 @@ export default class WorkspaceFileSystem {
     };
   }
 
+  protected async putBackScripts(collected: ReferenceEdits): Promise<string[]> {
+    const notes: string[] = [];
+    for (const change of collected.texts) {
+      const uri = change.textDocument.uri;
+      const before = collected.scripts.get(uri)!;
+      const written = withEdits(before, change.edits);
+      try {
+        const now = normalized(await this.getFileText(uri));
+        if (now === before) {
+          continue;
+        }
+        if (now !== written) {
+          notes.push(`${leafOf(uri)} holds neither its old lines nor the renamed ones, so it was left as it is; check it.`);
+          continue;
+        }
+        await this.writeTextDocument({ textDocument: { uri, version: 0, text: before } });
+        if (normalized(await this.getFileText(uri)) !== before) {
+          notes.push(`The lines in ${leafOf(uri)} could not be put back.`);
+        }
+      } catch (error) {
+        notes.push(`The lines in ${leafOf(uri)} could not be put back (${reasonOf(error)}).`);
+      }
+    }
+    return notes;
+  }
+
   async renameFilesWithReferences(
     projectId: string,
     moves: readonly FileMove[],
@@ -1085,11 +1120,6 @@ export default class WorkspaceFileSystem {
     const renames = [...plan]
       .filter(([from, to]) => from !== to)
       .map(([from, to]) => ({ from, to }));
-    for (const [document, text] of collected.scripts) {
-      if (normalized(await this.getFileText(document)) !== text) {
-        throw refuse(`${leafOf(document)} changed while the rename was prepared. Nothing was renamed; try again.`);
-      }
-    }
     const result = await this.applyWorkspaceEdit(
       {
         documentChanges: [
@@ -1103,15 +1133,13 @@ export default class WorkspaceFileSystem {
       },
       `Rename ${name}`,
       { isRefactoring: true },
+      Object.fromEntries(collected.scripts),
     );
     if (!result.applied) {
       const reason = result.failureReason ?? "the change was not saved";
-      if ((result.failedChange ?? 0) < renames.length) {
-        throw await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
-      }
-      throw new Error(
-        `Renamed the files of ${name}, but the lines that use it could not all be updated: ${reason}. Check the scripts that show ${name}.`,
-      );
+      const scripts = await this.putBackScripts(collected);
+      const files = await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
+      throw new Error([files.message, ...scripts].join(" "));
     }
     const lines = new Set(
       collected.texts.flatMap((change) =>
@@ -1265,6 +1293,7 @@ export default class WorkspaceFileSystem {
     edit: WorkspaceEdit,
     label?: string,
     metadata?: { isRefactoring?: boolean },
+    expectedTexts?: Record<string, string>,
   ): Promise<ApplyWorkspaceEditResult> {
     const result = await this.sendRequest(
       ApplyWorkspaceEditMessage.type,
@@ -1272,6 +1301,7 @@ export default class WorkspaceFileSystem {
         edit,
         label,
         metadata,
+        ...(expectedTexts ? { expectedTexts } : {}),
       },
       edit.documentChanges
         ?.filter((c) => "kind" in c && c.kind === "create")

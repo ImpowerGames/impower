@@ -531,7 +531,8 @@ function AssetsBrowser() {
     }
     const row = item;
     if (renaming === row.path) {
-      const [stem, extension] = row.kind === "file" ? stemAndExtension(leafOf(row.path)) : [row.name, ""];
+      const [stem, extension] =
+        row.kind === "folder" ? [row.name, ""] : row.paths ? [row.name, stemAndExtension(leafOf(row.path))[1]!] : stemAndExtension(leafOf(row.path));
       return (
         <NameRow
           icon={<RowGlyph row={row} listing={listing} />}

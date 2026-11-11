@@ -15,7 +15,7 @@ import {
   type ListEntry,
   type SortField,
 } from "../utils/fileListModel";
-import { imageStacks, stemOf } from "../utils/imageStacks";
+import { imageStacks, isStacked } from "../utils/imageStacks";
 import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 
 export interface AssetFacts {
@@ -187,7 +187,7 @@ const stackedRows = (
   }
   return imageStacks(paths).map((stack) => {
     const row = fileRow(listing, stack.cover, type, locate(stack.cover));
-    if (stack.paths.length === 1 && stemOf(stack.cover) === stack.base) {
+    if (!isStacked(stack)) {
       return row;
     }
     const facts = stack.paths.map((path) => listing.files[path]!);

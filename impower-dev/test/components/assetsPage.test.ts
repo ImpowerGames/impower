@@ -537,6 +537,15 @@ describe("renaming from the row menu", () => {
     expect(assets.rename).toHaveBeenCalledWith("Assets/Images/Portraits/imani.png", "zadie");
   });
 
+  it("starts the field of a picture with only an alternate at the name the script writes", async () => {
+    setListing({ "Assets/Images/Portraits/imani@night.png": facts(6004) });
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for imani"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Rename"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Rename")));
+    expect(host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!.value).toBe("imani");
+  });
+
   it("shows a refused single-file rename's whole message under the field in its tile", async () => {
     const message = "That name is already in use in this folder.";
     assets.rename.mockRejectedValueOnce(new Error(message));

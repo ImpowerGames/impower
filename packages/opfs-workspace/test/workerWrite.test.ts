@@ -171,6 +171,24 @@ it("applies every edit of a script against the text the edit was made for", asyn
   expect(new TextDecoder().decode(h.bytes())).toBe("A tale, another tale.");
 });
 
+it("applies nothing from a workspace edit whose expected script text no longer matches, and applies it when it does", async () => {
+  const h = await worker();
+  void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: { scriptFiles: "*.sd" } } } });
+  const text = "A rumour.";
+  await h.send("create", Array.from(new TextEncoder().encode(text)));
+  const edit = { documentChanges: [{ textDocument: { uri: "file://local/main.sd", version: null }, edits: [{ range: { start: { line: 0, character: 2 }, end: { line: 0, character: 8 } }, newText: "tale" }] }] };
+  await h.request("stale", "workspace/applyWorkspaceEdit", { edit, expectedTexts: { "file://local/main.sd": "An older rumour." } });
+  await vi.advanceTimersByTimeAsync(101);
+  expect(h.messages.find(message => message.id === "stale")).toMatchObject({
+    result: { applied: false, failureReason: "main.sd changed before the edit could be applied", failedChange: 0 },
+  });
+  expect(new TextDecoder().decode(h.bytes())).toBe(text);
+  await h.request("fresh", "workspace/applyWorkspaceEdit", { edit, expectedTexts: { "file://local/main.sd": text } });
+  await vi.advanceTimersByTimeAsync(101);
+  expect(h.messages.find(message => message.id === "fresh")).toMatchObject({ result: { applied: true } });
+  expect(new TextDecoder().decode(h.bytes())).toBe("A tale.");
+});
+
 const gatedWorker = async () => {
   let blockAt = 0;
   let calls = 0;

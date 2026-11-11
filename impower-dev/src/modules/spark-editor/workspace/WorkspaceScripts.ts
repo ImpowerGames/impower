@@ -46,6 +46,8 @@ type Deps = {
     | "moveFolder"
     | "renameFileWithReferences"
     | "renameFilesWithReferences"
+    | "createFolders"
+    | "deleteFolders"
     | "readFile"
     | "zipFiles"
     | "deleteFiles"

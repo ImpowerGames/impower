@@ -1040,7 +1040,7 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit } = message.params;
+    const { edit, expectedTexts } = message.params;
 
     const log = new CommitLog();
     const fileEvents: FileEvent[] = [];
@@ -1062,6 +1062,12 @@ onmessage = async (e) => {
     let failure: { message: string } | undefined;
 
     try {
+      const changed = Object.keys(expectedTexts ?? {}).find(
+        (uri) => !matchesExpectedText(uri, expectedTexts),
+      );
+      if (changed) {
+        throw new Error(`${changed.split("/").pop()} changed before the edit could be applied`);
+      }
       if (edit.documentChanges) {
         for (const c of edit.documentChanges) {
           if ("kind" in c && !("textDocument" in c)) {
@@ -1098,7 +1104,7 @@ onmessage = async (e) => {
               }
             }
           } else {
-            const [written] = await editTextFiles([c]);
+            const [written] = await editTextFiles([c], expectedTexts);
             if (written) {
               wrote(written);
             } else {
@@ -1417,7 +1423,18 @@ const dataUrlToBytes = async (dataUrl: string) => {
   return new Uint8Array(arrayBuffer);
 };
 
-const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
+const latestTextOf = (uri: string) =>
+  (pendingText(uri) ?? State.files.get(uri)?.text)?.replace(NEWLINE_REGEX, "\n");
+
+const matchesExpectedText = (uri: string, expectedTexts?: Record<string, string>) => {
+  const expected = expectedTexts?.[uri];
+  return expected === undefined || latestTextOf(uri) === expected.replace(NEWLINE_REGEX, "\n");
+};
+
+const editTextFiles = async (
+  textDocumentEdits: TextDocumentEdit[],
+  expectedTexts?: Record<string, string>,
+) => {
   const result = await Promise.all(
     textDocumentEdits.map(async (textDocumentEdit) => {
       const td = textDocumentEdit.textDocument;
@@ -1428,9 +1445,10 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         return null;
       }
       let syncedDocument = State.documents.get(td.uri);
-      const latestText = (
-        pendingText(td.uri) ?? State.files.get(td.uri)?.text
-      )?.replace(NEWLINE_REGEX, "\n");
+      if (!matchesExpectedText(td.uri, expectedTexts)) {
+        throw new Error(`${td.uri.split("/").pop()} changed before the edit could be applied`);
+      }
+      const latestText = latestTextOf(td.uri);
       if (!syncedDocument && latestText == null) {
         throw new Error(`File does not exist: ${td.uri}`);
       }

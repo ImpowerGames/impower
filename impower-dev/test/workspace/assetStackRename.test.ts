@@ -169,7 +169,13 @@ async function harness(stored: Record<string, string>) {
       return original(name, options);
     };
   };
-  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, failRemoving, saved };
+  const failWriting = (path: string) => {
+    const entry = folder(path);
+    entry.createSyncAccessHandle = async () => {
+      throw new DOMException("The script could not be written", "NoModificationAllowedError");
+    };
+  };
+  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, failRemoving, failWriting, saved };
 }
 
 const P = "Assets/Images/Portraits";
@@ -396,6 +402,70 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(after).toContain(`${P}/Cast/b.png`);
     expect(after.filter((path) => path.startsWith("Assets/Images/Destination/"))).toEqual([]);
     expect(await inPortraits(h)).toEqual([...ORIGINAL, `${P}/Cast/a.png`, `${P}/Cast/b.png`].sort());
+  });
+
+  it("refuses, renaming nothing, when a script is written just before the edit reaches storage", async () => {
+    const h = await harness(project());
+    const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
+    vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: Parameters<typeof apply>) => {
+      await h.write("main.sd", "An inserted line." + NL + SCRIPT);
+      return apply(...args);
+    });
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      "Couldn't rename imani: main.sd changed before the edit could be applied. Every file is back where it was.",
+    );
+    expect(await h.read("main.sd")).toBe("An inserted line." + NL + SCRIPT);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("puts back the files and every script it wrote when a script cannot be written", async () => {
+    const other = lines("scene other", "  [[show portrait imani]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    const main = await h.read("main.sd");
+    const write = vi.spyOn(h.fs, "writeTextDocument");
+    h.failWriting("zz.sd");
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      /^Couldn't rename imani: .*The script could not be written.*\. Every file is back where it was\.$/,
+    );
+    expect(await h.read("main.sd")).toBe(main);
+    expect(await h.read("zz.sd")).toBe(other);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(h.history.canUndo.value).toBe(false);
+    expect(write.mock.calls.map(([params]) => params.textDocument.uri)).toEqual([h.uri("main.sd")]);
+  });
+
+  it("renames a lone alternate or layer as the thing it is, keeping its @ or ~ part", async () => {
+    const h = await harness({
+      "main.sd": lines("scene start", "  [[show portrait imani]]", "end"),
+      [`${P}/imani@night.png`]: "night",
+      "Assets/Images/Backdrops/harbor~sky.clear.png": "sky",
+    });
+    expect(await h.assets.rename(`${P}/imani@night.png`, "zadie")).toBe(`${P}/zadie@night.png`);
+    expect(await h.assets.rename("Assets/Images/Backdrops/harbor~sky.clear.png", "dock")).toBe(
+      "Assets/Images/Backdrops/dock~sky.clear.png",
+    );
+    expect(await h.paths()).toEqual(["Assets/Images/Backdrops/dock~sky.clear.png", `${P}/zadie@night.png`, "main.sd"]);
+  });
+
+  it("renames a sound whose name has an at sign as a single file", async () => {
+    const h = await harness({ "main.sd": lines("scene start", "end"), "Assets/Audio/theme@v2.mp3": "audio" });
+    expect(await h.assets.rename("Assets/Audio/theme@v2.mp3", "song")).toBe("Assets/Audio/song.mp3");
+  });
+
+  it("puts an empty folder back when a move stops part-way", async () => {
+    const h = await harness(project());
+    await h.fs.createFolder(PROJECT, `${P}/AEmpty`);
+    await h.fs.createFolder(PROJECT, "Assets/Images/Destination");
+    await h.assets.load();
+    h.failRemoving(STACK[0]!);
+    await expect(h.assets.move([`${P}/AEmpty`, STACK[0]!], "Assets/Images/Destination")).rejects.toThrow(
+      "Every file is back where it was.",
+    );
+    const folders = await h.fs.getFolders(PROJECT);
+    expect(folders).toContain(`${P}/AEmpty`);
+    expect(folders).not.toContain("Assets/Images/Destination/AEmpty");
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
   it("renames a picture whose name has a dot to the name typed, and undoes it", async () => {

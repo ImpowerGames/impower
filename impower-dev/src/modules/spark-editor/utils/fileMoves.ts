@@ -18,7 +18,15 @@ export interface PathSnapshot {
 
 export type MovingFileSystem = Pick<
   WorkspaceFileSystem,
-  "moveFile" | "moveFolder" | "getFiles" | "getFolders" | "getRelativePath" | "getFileUri" | "deleteFiles"
+  | "moveFile"
+  | "moveFolder"
+  | "getFiles"
+  | "getFolders"
+  | "getRelativePath"
+  | "getFileUri"
+  | "deleteFiles"
+  | "createFolders"
+  | "deleteFolders"
 >;
 
 const basename = (path: string) => path.split("/").pop() || path;
@@ -50,6 +58,11 @@ const fileMovesOf = (moves: readonly FileMove[], before: PathSnapshot): FileMove
           .map((path) => ({ from: path, to: move.to + path.slice(move.from.length) }))
       : [{ from: move.from, to: move.to }],
   );
+
+const within = (path: string, folder: string) => path === folder || path.startsWith(`${folder}/`);
+
+const outermostOf = (paths: readonly string[]) =>
+  paths.filter((path) => !paths.some((other) => other !== path && within(path, other)));
 
 const moveOne = (fs: MovingFileSystem, projectId: string, move: FileMove) =>
   move.isDir
@@ -86,6 +99,30 @@ export async function settleFailedMoves(
       problems.set(move.to, reasonOf(error));
     }
   }
+  const folders = moves.filter((move) => move.isDir);
+  const lost = (now: PathSnapshot) =>
+    folders.flatMap((move) =>
+      [...before.folders].filter((folder) => within(folder, move.from) && !now.folders.has(folder)),
+    );
+  const made = (now: PathSnapshot) =>
+    folders.flatMap((move) =>
+      [...now.folders].filter((folder) => within(folder, move.to) && !before.folders.has(folder)),
+    );
+  const settled = await snapshotPaths(fs, projectId);
+  try {
+    const missing = lost(settled);
+    if (missing.length) {
+      await fs.createFolders(projectId, missing);
+    }
+    const empty = outermostOf(
+      made(settled).filter((folder) => ![...settled.files].some((path) => within(path, folder))),
+    );
+    if (empty.length) {
+      await fs.deleteFolders(projectId, empty);
+    }
+  } catch (error) {
+    problems.set("folders", reasonOf(error));
+  }
   const now = await snapshotPaths(fs, projectId);
   const why = (path: string) => (problems.has(path) ? `: ${problems.get(path)}` : "");
   const stranded = moved(now).map(
@@ -94,9 +131,13 @@ export async function settleFailedMoves(
   const doubled = copied(now).map(
     (move) => `${move.to} (a copy of ${move.from}, which is still there; removing the copy failed${why(move.to)})`,
   );
+  const gone = lost(now);
+  const left = made(now);
   const state = [
     stranded.length ? `Not put back: ${stranded.join(", ")}.` : "",
     doubled.length ? `Left behind: ${doubled.join(", ")}.` : "",
+    gone.length ? `Folders not put back${why("folders")}: ${gone.join(", ")}.` : "",
+    left.length ? `Folders left behind${why("folders")}: ${left.join(", ")}.` : "",
   ]
     .filter(Boolean)
     .join(" ");
