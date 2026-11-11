@@ -39,6 +39,7 @@ import {
 import workspace from "../../workspace/WorkspaceStore";
 import { useCaretScript } from "../../workspace/useActiveEditor";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
+import { AspectRatioSettings } from "../preview-bar";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
 import {
@@ -358,6 +359,7 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
 }
 
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
+  const phone = useLayout() === "phone";
   const menuWidth = useMenuWidth();
   const { preferences, setPreference } = useSettings();
   return (
@@ -402,6 +404,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
             </DropdownCheckboxItem>
           );
         })}
+        {phone ? <AspectRatioSettings mode={mode} /> : null}
       </DropdownContent>
     </DropdownRoot>
   );

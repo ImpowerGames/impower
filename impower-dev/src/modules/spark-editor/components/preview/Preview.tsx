@@ -9,7 +9,7 @@ import {
   type PreviewMode,
 } from "../../workspace/settings/settingsSchema";
 import workspace from "../../workspace/WorkspaceStore";
-import PreviewBar from "../preview-bar/PreviewBar";
+import { PreviewBar } from "../preview-bar";
 import { ProblemsPanel } from "../problems";
 import PreviewGame from "../preview-game/PreviewGame";
 import { RoutePanel } from "../preview-route";

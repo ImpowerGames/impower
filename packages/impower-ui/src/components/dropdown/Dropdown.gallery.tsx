@@ -59,8 +59,10 @@ const RATIO_ROWS = [
 
 function RadioItems({
   indicator,
+  disabled,
 }: {
   indicator: DropdownRadioItemIndicator;
+  disabled?: boolean;
 }) {
   const [value, setValue] = useState<string>("auto");
   return (
@@ -70,7 +72,12 @@ function RadioItems({
       onValueChange={setValue}
     >
       {RATIO_ROWS.map(([id, name, hint]) => (
-        <DropdownRadioItem key={id} value={id} indicator={indicator}>
+        <DropdownRadioItem
+          key={id}
+          value={id}
+          indicator={indicator}
+          disabled={disabled}
+        >
           <span>{name}</span>
           <small class="text-xs font-normal text-muted">{hint}</small>
         </DropdownRadioItem>
@@ -127,6 +134,16 @@ function DropdownDemo() {
           </GalleryRow>
         ),
       )}
+      <GalleryRow label="Disabled radio items (the aspect-ratio group in Interactive Fiction)">
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button>Choose a ratio</Button>
+          </DropdownTrigger>
+          <DropdownContent align="start">
+            <RadioItems indicator="start" disabled />
+          </DropdownContent>
+        </DropdownRoot>
+      </GalleryRow>
       <GalleryRow label="Open on load in the menu layout: label, item, disabled item, separator, checked and unchecked checkbox items">
         <div class="h-64">
           <DropdownRoot open={pinned} onOpenChange={setPinned} modal={false}>

@@ -114,6 +114,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
     DropdownSeparator: element("hr"),
+    DropdownLabel: element("div"),
     DropdownItem: ({ disabled, onSelect, children, ...props }: any) =>
       h(
         "button",
