@@ -1,7 +1,8 @@
 # `@impower/eslint-plugin-sparkdown-grammar`
 
-ESLint rules that enforce sparkdown-grammar YAML conventions over
-`definitions/yaml/sparkdown.language-grammar.yaml`. The rules surface
+ESLint rules that enforce sparkdown-grammar YAML conventions over the
+grammar's two source files, `definitions/yaml/sparkdown.language-grammar.yaml`
+and `definitions/yaml/sparkdown-luau.language-grammar.yaml`. The rules surface
 mistakes _while authors are writing the grammar_, instead of at
 build time (or worse, at runtime in the editor).
 
@@ -30,6 +31,7 @@ pointer back to the rationale.
 | `scoped-end-has-bailout`         | error, baselined | §3.1, §18. A `begin`/`end` rule's `end:`, with its variables substituted, must be able to match without its closer: at a line end or the next unindented line (§11.1's indentation-block end) whatever the line holds, or at the start of every beat line the grammar's `BEAT` recognises (witness lines are generated per beat keyword with several indentations and payloads, and `BEAT` picks the ones that are beats). The rule runs the whole pattern against those probe lines, so `[)]$`, `(scene)` and `(?=\b{{BEAT}})` (which misses indented beats) fail while `$\|([)])` and `(?={{BEAT}}\|[a-z]+)` pass. A pattern JavaScript cannot compile, or a `BEAT` that recognises none of the witness lines, falls back to looking for a `$` or `{{BEAT}}` outside negative lookarounds.                                                                                                                                                            |
 | `luau-unread-token`              | error            | §3.2, §17.2. A pure-Luau body or bracket tiles with `LuauUnreadToken`. A `Luau` rule whose `end:` consumes a closer (`end`, `until`, `)`, `]`, `}`, `>>`, a type's `>`) and no ordinary token, or that holds `#LuauBlockBody`, ends its `patterns:` with `#LuauUnreadToken`; a rule whose `end:` consumes nothing, or that has `applyEndPatternLast`, includes it neither directly nor through a `Switch` rule. The rule's `EXEMPT` list names the closer-bounded rules that are not pure Luau (story-scope rules, struct and layout blocks, Sparkdown's interpolations, a regex's character class) with the reason. |
 | `luau-foreign-closer`            | error            | §3.2, §17.2. A closer-bounded `Luau` rule (as `luau-unread-token` finds them) ends, with nothing in its `_end`, before a closer it did not open, written at once or after whitespace: `end` and `until` for every such rule, and `)`, `]` and `}` for a bracket (an `end:` that consumes a bracket closer, a type's `>` or `>>`), so the rule that owns the closer reads it and the converter reports Luau's error for what is missing. A block is not checked at a bracket closer, which Luau's block parser does not stop at. Exempt: the rules `luau-unread-token` exempts, the outermost bodies of Luau code (a function's, a method's, a define's, a type function's and a sparkle handler's), which take only their own closer, and `applyEndPatternLast` rules. |
+| `prefix-matches-file`            | error            | §1.4. A rule whose name starts with `Luau`, and a variable whose name starts with `LUAU_` once a leading underscore is set aside, lives in the Luau source; every other rule and variable lives in the story source. |
 
 The root `eslint.config.js` enables every rule at the level shown, which
 is also the plugin's `recommended` configuration.
@@ -96,12 +98,16 @@ rules and variables as the known-exception lists in
 The repo wires this plugin up automatically via the root
 `eslint.config.js`. Install the recommended VS Code extension
 (`dbaeumer.vscode-eslint`) and the rules show as squiggles in the
-YAML file.
+YAML files. The configuration names the two sources in the plugin's
+`sparkdown-grammar` settings (`story` and `luau`), so a rule linting one
+file reads the other as well: an include, a `{{VAR}}` reference or a
+repeated fragment across the two counts, and each file reports only its
+own rules and variables. A file outside those settings is linted alone.
 
 To run from the command line:
 
 ```
-npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
+npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml definitions/yaml/sparkdown-luau.language-grammar.yaml
 ```
 
 The typecheck workflow (`.github/workflows/typecheck.yml`) runs that

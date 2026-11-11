@@ -17,7 +17,7 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     if (!index.root) return [];
     const used = new Set<string>();
-    for (const site of index.patternSites) {
+    for (const site of index.grammar.patternSites) {
       for (const match of site.source.matchAll(/\{\{(\w+)\}\}/g)) {
         if (site.owner.kind === "variable" && site.owner.name === match[1]) continue;
         used.add(match[1]!);

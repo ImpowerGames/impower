@@ -5,6 +5,11 @@ import sparkdownGrammar from "./packages/eslint-plugin-sparkdown-grammar/src/ind
 
 const SCRIPT_FILES = ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"];
 
+const GRAMMAR_SOURCES = {
+  story: "definitions/yaml/sparkdown.language-grammar.yaml",
+  luau: "definitions/yaml/sparkdown-luau.language-grammar.yaml",
+};
+
 const RADIX_SOURCE = "/^@radix-ui[^a-z0-9-]/";
 const RADIX_MESSAGE =
   "Import @radix-ui/* only inside packages/impower-ui; use the @impower/impower-ui component that wraps the primitive instead.";
@@ -62,10 +67,11 @@ export default [
   },
   ...yml.configs["flat/base"],
   {
-    files: ["definitions/yaml/sparkdown.language-grammar.yaml"],
+    files: Object.values(GRAMMAR_SOURCES),
     plugins: {
       "sparkdown-grammar": sparkdownGrammar,
     },
+    settings: { "sparkdown-grammar": GRAMMAR_SOURCES },
     rules: { ...sparkdownGrammar.configs.recommended.rules },
   },
   {

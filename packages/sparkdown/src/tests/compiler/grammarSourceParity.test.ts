@@ -1,24 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import YAML from "yaml";
-
-function findUp(rel: string): string {
-  let dir = resolve(process.cwd());
-  for (;;) {
-    const candidate = join(dir, rel);
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) throw new Error(`could not find ${rel}`);
-    dir = parent;
-  }
-}
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { findUp, readGrammarSource } from "./grammarSource";
 
 const read = (rel: string) => readFileSync(findUp(rel), "utf8");
 
-const SOURCE = YAML.parse(
-  read(join("definitions", "yaml", "sparkdown.language-grammar.yaml")),
-);
+const SOURCE = readGrammarSource();
 const GENERATED = JSON.parse(
   read(join("packages", "sparkdown", "language", "sparkdown.language-grammar.json")),
 );

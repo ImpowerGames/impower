@@ -27,16 +27,19 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     if (!index.root) return [];
     const queue: string[] = [];
-    const patterns = findPair(index.root, "patterns");
-    if (patterns) queue.push(...includesUnder(patterns.value));
-    const luauFile = findPair(index.root, "luauFile");
-    if (luauFile && isMapping(luauFile.value)) {
-      const root = getStringValue(luauFile.value, "rule");
-      if (root) queue.push(root.value);
-    }
-    for (const [name, pair] of index.rules) {
-      if (markedComment(index, [pair.loc.start.line], REFERENCED_FROM)) {
-        queue.push(name);
+    for (const document of index.grammar.documents) {
+      if (!document.root) continue;
+      const patterns = findPair(document.root, "patterns");
+      if (patterns) queue.push(...includesUnder(patterns.value));
+      const luauFile = findPair(document.root, "luauFile");
+      if (luauFile && isMapping(luauFile.value)) {
+        const root = getStringValue(luauFile.value, "rule");
+        if (root) queue.push(root.value);
+      }
+      for (const [name, pair] of document.rules) {
+        if (markedComment(document, [pair.loc.start.line], REFERENCED_FROM)) {
+          queue.push(name);
+        }
       }
     }
     const reached = new Set<string>();
@@ -44,7 +47,7 @@ const { rule, find } = defineBaselinedRule(
       const name = queue.pop()!;
       if (reached.has(name)) continue;
       reached.add(name);
-      const pair = index.rules.get(name);
+      const pair = index.grammar.rules.get(name);
       if (pair && isMapping(pair.value)) queue.push(...includesUnder(pair.value));
     }
     const findings: Finding[] = [];
