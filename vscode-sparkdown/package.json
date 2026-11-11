@@ -482,6 +482,16 @@
           "command": "sparkdown.previewScreenplay",
           "when": "editorLangId == sparkdown",
           "group": "navigation@4"
+        },
+        {
+          "command": "sparkdown.game.playAsVisualNovel",
+          "when": "activeWebviewPanelId == 'sparkdown-preview-game' && config.sparkdown.game.previewStartingMode == interactiveFiction",
+          "group": "1_startingMode@1"
+        },
+        {
+          "command": "sparkdown.game.playAsInteractiveFiction",
+          "when": "activeWebviewPanelId == 'sparkdown-preview-game' && config.sparkdown.game.previewStartingMode != interactiveFiction",
+          "group": "1_startingMode@2"
         }
       ],
       "debug/toolBar": [
@@ -519,6 +529,16 @@
         "when": "editorLangId == sparkdown",
         "title": "Preview Screenplay",
         "icon": "$(book)"
+      },
+      {
+        "command": "sparkdown.game.playAsVisualNovel",
+        "title": "Play as Visual Novel",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.game.playAsInteractiveFiction",
+        "title": "Play as Interactive Fiction",
+        "category": "Sparkdown"
       },
       {
         "command": "sparkdown.previewScreen",
@@ -730,6 +750,19 @@
             "type": "boolean",
             "default": true,
             "description": "Synchronize game preview with editor's cursor position"
+          },
+          "sparkdown.game.previewStartingMode": {
+            "type": "string",
+            "enum": [
+              "visualNovel",
+              "interactiveFiction"
+            ],
+            "enumDescriptions": [
+              "Start with dialogue in a textbox over the stage",
+              "Start with the story on a scrolling text page"
+            ],
+            "default": "visualNovel",
+            "description": "How the game preview starts the game; a script's own textstream commands still apply"
           },
           "sparkdown.screenplay.previewSynchronizedWithCursor": {
             "type": "boolean",
