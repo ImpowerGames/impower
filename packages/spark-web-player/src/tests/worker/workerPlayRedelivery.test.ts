@@ -248,6 +248,20 @@ describe("a redelivered line behaves as a line already read (#2031)", () => {
     }
   }, 120_000);
 
+  it("shows a styled line at once when only a wait inside it was edited", async () => {
+    const { h, editWords } = await playing(
+      LONG.replace(
+        "The second line. It has enough words to take a long time to type.",
+        "*The second line.<wait> It stays italic across the wait.*",
+      ),
+    );
+    try {
+      expect(writesOf(await editWords("<wait>", "<wait:1>"), "The second line.")).toEqual([true]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("keeps the line before it on a text stream page", async () => {
     const { h, editWords } = await playing(
       `define ui as config with\n  layouts_initial = { "textstream" }\nend\n\n${LONG}`,

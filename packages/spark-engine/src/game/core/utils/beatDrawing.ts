@@ -4,6 +4,9 @@ export type Delivery = "landing" | "redelivery";
 
 const runs = (events: { text: string; style?: unknown }[]) =>
   events.reduce<[string, string][]>((read, event) => {
+    if (!event.text) {
+      return read;
+    }
     const style = JSON.stringify(event.style ?? null);
     const last = read.at(-1);
     if (last && last[1] === style) {

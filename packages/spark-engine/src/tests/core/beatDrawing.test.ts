@@ -73,6 +73,18 @@ const rows: Row[] = [
     onScreen: shownBeat,
     atOnce: true,
   },
+  {
+    name: "the same styled words without the empty event a bare wait leaves",
+    beat: line("The second line.", {}, "HERO", [0, 7, 4, 7, 20], 0.03, { font_style: "italic" }),
+    delivery: "redelivery",
+    onScreen: (() => {
+      const shown = line("The second line.", {}, "HERO", [0, 7, 4, 7, 20], 0.03, { font_style: "italic" });
+      const [first, rest] = shown.text!["dialogue"]!;
+      shown.text!["dialogue"] = [first!, { text: "", after: 0.2 }, rest!];
+      return shown;
+    })(),
+    atOnce: true,
+  },
   { name: "the same words in a new style", beat: line("The second line.", {}, "HERO", [0, 7, 4, 7, 20], 0.03, { font_style: "italic" }), delivery: "redelivery", onScreen: shownBeat, atOnce: false },
   { name: "a line edited by one character", beat: line("The second line!"), delivery: "redelivery", onScreen: shownBeat, atOnce: false },
   { name: "the same text from a different speaker", beat: line("The second line.", {}, "VILLAIN"), delivery: "redelivery", onScreen: shownBeat, atOnce: false },
