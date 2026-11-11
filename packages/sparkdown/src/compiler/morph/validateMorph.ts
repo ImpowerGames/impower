@@ -624,6 +624,20 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
+  const effectiveRest = decl.effective["rest"];
+  if (decl.parent && isRecord(effectiveRest)) {
+    const ownGroups = isRecord(rest) ? Object.keys(rest) : [];
+    const parentDrives = decl.parentEffective ? keyframeStates(decl.parentEffective["keyframes"]) : undefined;
+    for (const group of Object.keys(effectiveRest)) {
+      if (group.startsWith("$") || ownGroups.includes(group) || driven.has(group)) continue;
+      if (parentDrives && !parentDrives.has(group)) continue;
+      push(
+        decl.parent,
+        `\`rest.${group}\`, inherited: \`rest\` gives \`${group}\` a state, but no keyframe of this morph sets \`${group}\`'s \`state\`, so it does not drive it.`,
+      );
+    }
+  }
+
   const effective = decl.effective;
   const effectiveKeyframes = effective["keyframes"];
   const poseCount = Array.isArray(effectiveKeyframes)

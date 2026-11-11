@@ -404,6 +404,7 @@ function coverageIssues(
   }
 
   for (const candidate of binding.candidates) {
+    if (candidate.excluded) continue;
     const related = candidate.uri
       ? { uri: candidate.uri, message: `Artwork for \`${candidate.image}\`` }
       : undefined;

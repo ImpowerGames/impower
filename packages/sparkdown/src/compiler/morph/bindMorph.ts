@@ -110,6 +110,7 @@ export interface MorphCandidate {
   missingGroups: string[];
   missingStates: { group: string; state: string }[];
   compatible: boolean;
+  excluded: boolean;
   variants: MorphVariantBinding[];
 }
 
@@ -240,6 +241,16 @@ export function poseSelection(
   return posed;
 }
 
+export function conditionsExclude(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  requirements: Pick<MorphRequirements, "when" | "unless">,
+): boolean {
+  const visible = visibleIn(vocabulary, selection);
+  const active = (condition: MorphCondition) => stateIsActive(vocabulary, selection, condition, visible);
+  return requirements.unless.some(active) || !requirements.when.every(active);
+}
+
 export function bindVariant(
   vocabulary: AttributeVocabulary,
   name: string,
@@ -248,8 +259,7 @@ export function bindVariant(
 ): MorphVariantBinding {
   const visible = visibleIn(vocabulary, selection);
   const rest = Object.fromEntries(requirements.rest);
-  const active = (condition: MorphCondition) => stateIsActive(vocabulary, selection, condition, visible);
-  if (requirements.unless.some(active) || !requirements.when.every(active)) {
+  if (conditionsExclude(vocabulary, selection, requirements)) {
     return { name, selection, status: "excluded", rest, problems: [] };
   }
   const problems: MorphVariantProblem[] = [];
@@ -290,18 +300,17 @@ export function bindMorph(
     }
     const compatible =
       driven.length > 0 && missingGroups.length === 0 && missingStates.length === 0;
-    const variants: MorphVariantBinding[] = [];
-    if (compatible) {
-      variants.push(bindVariant(image.vocabulary, image.name, {}, requirements));
-      for (const [name, filtered] of Object.entries(context["filtered_image"] ?? {})) {
-        if (name.startsWith("$") || name === image.name) continue;
-        const resolved = resolveImageAttributes(context, filtered);
-        if (resolved.image !== image.struct) continue;
-        variants.push(
-          bindVariant(image.vocabulary, name, resolved.selection, requirements),
-        );
-      }
+    const looks: { name: string; selection: AttributeSelection }[] = [{ name: image.name, selection: {} }];
+    for (const [name, filtered] of Object.entries(context["filtered_image"] ?? {})) {
+      if (name.startsWith("$") || name === image.name) continue;
+      const resolved = resolveImageAttributes(context, filtered);
+      if (resolved.image !== image.struct) continue;
+      looks.push({ name, selection: resolved.selection });
     }
+    const variants: MorphVariantBinding[] = compatible
+      ? looks.map((look) => bindVariant(image.vocabulary, look.name, look.selection, requirements))
+      : [];
+    const excluded = looks.every((look) => conditionsExclude(image.vocabulary, look.selection, requirements));
     candidates.push({
       image: image.name,
       type: image.type,
@@ -310,6 +319,7 @@ export function bindMorph(
       missingGroups,
       missingStates,
       compatible,
+      excluded,
       variants,
     });
   }

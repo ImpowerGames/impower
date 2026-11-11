@@ -255,6 +255,66 @@ end
     expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
   });
 
+  test("`when` with several states admits only a look where all of them are active", () => {
+    const text = `${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}
+scene start
+  [[bunny~mouth.teeth]]
+  [[bunny~mouth.teeth~eyes.closed]]
+end
+`;
+    expect(statusOf(text, [{ name: "bunny", svg: FACE }], "talk_smile")).toEqual({
+      bunny: "excluded",
+      "bunny~mouth.teeth": "active",
+      "bunny~mouth.teeth~eyes.closed": "excluded",
+    });
+  });
+
+  test("`unless` with several states keeps the morph off a look where any one of them is active", () => {
+    const text = `${blink("  unless {\n    eyes.closed\n    mouth.teeth\n  }\n")}
+scene start
+  [[bunny~mouth.teeth]]
+  [[bunny~eyes.closed]]
+end
+`;
+    expect(statusOf(text, [{ name: "bunny", svg: FACE }], "blink")).toEqual({
+      bunny: "active",
+      "bunny~mouth.teeth": "excluded",
+      "bunny~eyes.closed": "excluded",
+    });
+  });
+
+  test("an image every look of which a condition keeps out is not reported, even when it lacks a state the morph names", () => {
+    const asleep = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lid:eyes.closed:default" id="closed"/>
+</svg>`;
+    const images = [
+      { name: "bunny", svg: FACE },
+      { name: "asleep", svg: asleep },
+    ];
+    for (const condition of ["  unless = eyes.closed\n", "  when = eyes.open\n"]) {
+      expect(diagnosticsOf(blink(condition), images).filter((d) => d.code === "morph").map((d) => d.message)).toEqual([]);
+    }
+    expect(diagnosticsOf(blink(), images).filter((d) => d.message.includes("does not apply to image `asleep`"))).toHaveLength(1);
+  });
+
+  test("an inherited `rest` naming a group the child's keyframes no longer drive is reported on the `as`", () => {
+    const text = `morph base {
+  method = bend
+  rest {
+    eyes { state = closed }
+  }
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = closed } }
+  }
+}
+
+${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
+    const found = diagnosticsOf(text).filter((d) => d.message.includes("`rest.eyes`, inherited"));
+    expect(found).toEqual([expect.objectContaining({ line: 11, text: "base", severity: 1 })]);
+    expect(diagnosticsOf(text).filter((d) => d.code === "morph" && d.line < 10 && d.severity === 1)).toEqual([]);
+  });
+
   test("a condition holds only for the state it names, not for a hyphenated state", () => {
     const text = `${blink("  unless = eyes.open\n")}
 scene start
