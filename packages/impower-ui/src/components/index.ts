@@ -364,6 +364,7 @@ export {
 } from "./zoom-frame/ZoomFrame";
 export {
   default as PanelHead,
+  panelHeadTitleVariants,
   panelHeadVariants,
   type PanelHeadProps,
   type PanelHeadSize,

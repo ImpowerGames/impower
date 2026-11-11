@@ -10,6 +10,7 @@ import {
   MessageEntry,
   OpenIcon,
   PanelHead,
+  panelHeadTitleVariants,
   ReplaceSwapIcon,
   SaveIcon,
   TextField,
@@ -371,7 +372,7 @@ export default function AssetInspector({
         class="px-2"
         title={
           sheet ? (
-            <DialogTitle class="m-0 min-w-0 truncate text-[14px]/[1.4] font-semibold text-ink">{asset.name}</DialogTitle>
+            <DialogTitle class={panelHeadTitleVariants({ titleSize: "sm" })}>{asset.name}</DialogTitle>
           ) : (
             asset.name
           )

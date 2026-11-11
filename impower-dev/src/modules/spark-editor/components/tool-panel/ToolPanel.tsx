@@ -3,6 +3,8 @@ import {
   Button,
   CloseIcon,
   DialogTitle,
+  PanelHead,
+  panelHeadTitleVariants,
   Popover,
   PopoverAnchor,
   PopoverContent,
@@ -146,46 +148,46 @@ function Heading({
   const { sheet, keyboard } = useContext(Context);
   const closes = keyboard || closeButton !== "trigger";
   return (
-    <header
-      class={cn(
-        "flex min-h-[52px] flex-none items-center gap-1 border-b border-edge py-1 pl-2.5 pr-2.5",
-        keyboard && "absolute inset-x-0 bottom-full h-[52px] bg-panel",
-      )}
-    >
-      {onBack && (
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={backLabel}
-          class="text-muted"
-          onPointerDown={keepFocus}
-          onClick={onBack}
-        >
-          <BackIcon />
-        </Button>
-      )}
-      {sheet ? (
-        <DialogTitle class="mx-1 min-w-0 flex-1 truncate text-[15px]/[1.4] font-semibold">
-          {title}
-        </DialogTitle>
-      ) : (
-        <h2 class="mx-1 min-w-0 flex-1 truncate text-[15px]/[1.4] font-semibold">
-          {title}
-        </h2>
-      )}
-      {closes && (
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={closeLabel}
-          class="text-muted"
-          onPointerDown={keepFocus}
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </Button>
-      )}
-    </header>
+    <PanelHead
+      size="default"
+      titleSize="md"
+      class={keyboard ? "absolute inset-x-0 bottom-full h-[52px] bg-panel" : undefined}
+      title={
+        sheet ? (
+          <DialogTitle class={panelHeadTitleVariants({ titleSize: "md" })}>{title}</DialogTitle>
+        ) : (
+          title
+        )
+      }
+      start={
+        onBack && (
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label={backLabel}
+            class="text-muted"
+            onPointerDown={keepFocus}
+            onClick={onBack}
+          >
+            <BackIcon />
+          </Button>
+        )
+      }
+      end={
+        closes && (
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label={closeLabel}
+            class="text-muted"
+            onPointerDown={keepFocus}
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </Button>
+        )
+      }
+    />
   );
 }
 
