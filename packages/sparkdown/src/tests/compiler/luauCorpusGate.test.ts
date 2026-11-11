@@ -81,7 +81,7 @@ function incompleteNodes(input: CorpusInput, fn: SyntaxNode): string[] {
   const found: string[] = [];
   const visit = (node: SyntaxNode): void => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "ERROR_INCOMPLETE") found.push(where(input, child.from));
+      if (child.type.isError) found.push(`${child.name} ${where(input, child.from)}`);
       visit(child);
     }
   };
@@ -176,7 +176,7 @@ describe("Luau corpus gate", () => {
       if (typeof fn === "string") return;
 
       const incomplete = incompleteNodes(input, fn);
-      expectGate(input, "incomplete", incomplete.length > 0, `ERROR_INCOMPLETE at\n  ${incomplete.join("\n  ")}`);
+      expectGate(input, "incomplete", incomplete.length > 0, `text the grammar does not read, at\n  ${incomplete.join("\n  ")}`);
 
       const extent = luauExtent(input, errors);
       expectGate(

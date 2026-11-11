@@ -266,69 +266,42 @@ Two consequences flow from this:
 
 **When NOT to use a `Scoped` rule.** If the region will cover a large part of the document (a whole scene, a whole branch, a top-level document section), capture the _boundary_ (the declaration line) rather than wrapping the entire body. `Scene` and `Branch` are scoped only over their declaration lines; their bodies live at root and the lowerer reconstructs the hierarchy. See §16.3.
 
-### 3.2 The biggest gotcha: incomplete scope
+### 3.2 The biggest gotcha: text a rule passes over
 
 This is the single biggest landmine in writing scoped rules.
 
-> **If a `Scoped` rule's `patterns:` list doesn't cover something it encounters in the body, AND the rule's `end:` pattern can't match either, the rule terminates without closing.** The unmatched content becomes a sibling of the (now-closed) rule at the parent level, several nesting levels too shallow.
+> **If a `Scoped` rule's `patterns:` list doesn't cover something it encounters in the body, AND the rule's `end:` pattern can't match either, the rule stays open and passes over that character.** Both engines do this (§17.1): the character keeps the rule's scopes, and matching tries the rule's `end:` and `patterns:` again at the next character. The rule closes only where its `end:` matches, which may be much later than intended, and a pattern can match in the middle of a word whose first character was passed over.
 
-The parser surfaces this two ways:
+The tree records each run of passed-over characters on a line as one `ERROR_UNRECOGNIZED` leaf in the open rule's content (a line break it passes over is plain text in the rule). `printTree` renders these in red (the node type has `isError: true`). The converter lexes such a leaf as Luau, from its start through the end of the Luau token that begins it, so Luau's error is reported at the text the grammar could not read (§13.2); the struct header validator reports a header that holds one as unreadable past the text before it.
 
-- **A `console.warn`** of the form `[ScopedRule:RuleName] Incomplete scope at pos=...!` — look in stderr / your console first.
-- **An `ERROR_INCOMPLETE` node** appended as the last child of the offending scope. `printTree` renders these in red (the node type has `isError: true`).
-
-**A worked failure.** Parse this recursive function:
+**A worked example.** The story `if` condition has no rule for `do`:
 
 ```sparkdown
-function count(n)
-  if n > 0 then
-    & count(n - 1)
-  end
+if x do then
+  Hi.
 end
 ```
 
-What the tree _should_ look like:
+The condition passes over the `d`, and the name rule then reads `o`:
 
 ```
-LuauFunctionDefinition
- └─ LuauFunctionDefinition_content
-     ├─ LuauFunctionDeclarationName: "count"
-     ├─ LuauFunctionParameters
-     └─ LuauIfBlock
-         └─ LuauIfBlock_content
-             ├─ LuauIfBlockCondition
-             └─ LuauExplicitStatement     ← `& count(n - 1)` lives HERE
+LuauSparkdownExplicitIfCondition [3..12]
+ ├─ LuauSparkdownExplicitIfCondition_content [3..7]
+ │   ├─ LuauSparkdownExplicitAccessPath [3..4]      ← `x`
+ │   ├─ ExtraWhitespace [4..5]
+ │   ├─ ERROR_UNRECOGNIZED [5..6]: "d"              ← passed over
+ │   └─ LuauSparkdownExplicitAccessPath [6..7]      ← `o`, read as a name
+ └─ LuauSparkdownExplicitIfCondition_end [7..12]    ← `then`
 ```
 
-What the tree _actually_ looked like (before the fix):
-
-```
-LuauFunctionDefinition [0..38]                  ← function closed at 38, too early!
- ├─ LuauFunctionDefinition_content [9..38]
- │   └─ LuauIfBlock [18..38]                    ← if closed at 38 too
- │       ├─ LuauIfBlock_content [23..38]
- │       │   └─ LuauIfBlockCondition             (no `end` captured — body just stops)
- │       └─ ERROR_INCOMPLETE 38                  ← parser flags incomplete scope
- └─ ERROR_INCOMPLETE 38                          ← outer function also incomplete
-LuauExplicitStatement [38..52]                  ← `& count(n - 1)` ended up here
-LuauEndKeyword [55..58]: "end"                   ← stray top-level tokens
-LuauEndKeyword [59..62]: "end"
-```
-
-Plus two `console.warn`s in stderr.
-
-**Cause.** `LuauIfBlock.patterns` (the pure-Luau variant) didn't include `LuauExplicitStatement`. When the parser hit `& count(n - 1)` inside the if-body, no inner pattern matched the `&`, the end pattern didn't match either, and the rule had to close without finding `end`. The discard-call then matched at the parent (function-definition) level, but that level also rejected it, so the function also closed incomplete. The two `end` keywords ended up as stray top-level tokens.
-
-The runtime symptom was that the function appeared to never terminate — but the actual bug was structural: the recursive call was unconditionally executed every time the function ran, regardless of the guard.
-
-**Fix.** `LuauControlBlock` (which `LuauIfBlock` includes) needed `LuauExplicitStatement` and `LuauImplicitStatement` added so `&`-statements and declarations would parse inside the body.
+The converter lexes `do` from the unrecognized leaf, so the error is Luau's, `Expected 'then' when parsing if statement, got 'do'`, at `do`.
 
 **Two rules for avoiding this:**
 
 1. **When you add a new statement type, audit every block that should accept it.** If/elseif/else, for, while, repeat, do, function-body, alternator-arm, etc. There is no inheritance — each block's `patterns:` list must include the new rule explicitly. The shared `LuauBlockBody` / `LuauSparkdownBlockBody` Switch rules (§13.2) cut this audit down to two places for most cases.
-2. **When a feature "doesn't work" with no error, dump the tree first.** `ERROR_INCOMPLETE` nodes or `[ScopedRule:...]` warnings are the signal. The fix is in the parent's `patterns:` list, not in the lowerer.
+2. **When a feature "doesn't work" with no error, dump the tree first.** `ERROR_UNRECOGNIZED` nodes inside a rule are the signal. The fix is in the parent's `patterns:` list, not in the lowerer.
 
-**A pure-Luau body never closes incomplete.** Since #1905 every pure-Luau body and bracket tiles: a rule whose `end:` consumes a closer (`end`, `until`, `)`, `]`, `}`, `>>`, a type's `>`) or that holds `LuauBlockBody` ends its `patterns:` with `LuauUnreadToken`, the catch-all that takes one token none of the patterns before it read (a comment, a string, a number, a name, or a symbol or other character, never a line break). So such a rule closes only at its own closer, at a bail-out its own `end:` has, or at the end of the input. A body's `end:` bails out at a beat; a bracket's does not, so `scene` written as a name on its own line inside parentheses stays Luau (`return (` then `scene` then `)`), and an unclosed bracket reads on to its closer or to an `end` it refuses. The worked failure above cannot happen today at body level: a `&` statement the body lacked a rule for would be read token by token to the `if`'s `end`, and the function would keep its own `end`. Since #1374 a function body has no `&` statement marker at all, and the example is written `count(n - 1)`: everything in a function body is Luau, and a line there that starts with `&` continues a type as an intersection member (`LuauTypeOperatorLineContinuation`, §11.5), which Luau reports when the line before it ends in no type.
+**A pure-Luau body never passes over text.** Since #1905 every pure-Luau body and bracket tiles: a rule whose `end:` consumes a closer (`end`, `until`, `)`, `]`, `}`, `>>`, a type's `>`) or that holds `LuauBlockBody` ends its `patterns:` with `LuauUnreadToken`, the catch-all that takes one token none of the patterns before it read (a comment, a string, a number, a name, or a symbol or other character, never a line break). It reads whole tokens, so no pattern starts again in the middle of a word, as one does after a passed-over character. So such a rule closes only at its own closer, at a bail-out its own `end:` has, or at the end of the input. A body's `end:` bails out at a beat; a bracket's does not, so `scene` written as a name on its own line inside parentheses stays Luau (`return (` then `scene` then `)`), and an unclosed bracket reads on to its closer or to an `end` it refuses. A function body has no `&` statement marker: everything in a function body is Luau, and a line there that starts with `&` continues a type as an intersection member (`LuauTypeOperatorLineContinuation`, §11.5), which Luau reports when the line before it ends in no type.
 
 The catch-all refuses `end`, `else`, `elseif` and `until`, since each can close a block around the rule that the rule cannot see: `print(1` then `end` closes the call's parameters there, and the function's `end` reads the `end`. The converter reads the tokens the grammar left unread as Luau's lexer reads them, and Luau's errors for their statement are reported as Luau reports them (§13.2).
 
@@ -353,7 +326,7 @@ A reserved word as a method's name on the line after its receiver (`(t)` then `:
 
 **A string ends at its line (I-1318).** A quoted string whose closing quote is not on its line ends there (`$`), as Luau's lexer ends it, and Luau's malformed-string error is reported at it; only a `\` at the end of the line, or a `\z` with the whitespace after it, line breaks included, carries it on (`LuauEscapeLine`, `LuauEscapeSkipWhitespace`). Each takes the continued line's first character as the string's text too (`LUAU_STRING_CARRIED_CHARACTER`), so the string never stands at the start of that line. A backtick string's interpolation may go on over lines, as in Luau, and ends before a closer it did not open, or by taking into its end a string its line ends inside (`` `a {b`) ``, `LUAU_UNFINISHED_LINE_STRING`), after which Luau reads nothing of it; a nested string a `\` or `\z` carries on, or a nested backtick string whose own interpolation is open at the line's end, is not one, and stays the interpolation's expression (a `}` in a quoted string, a long string or a comment inside that interpolation does not close it). When the interpolation ends before a closer that begins a later line, the backtick string ends there too, which is the only way it stands at a line's start. So an open string never takes in the function's `end` and the code after it. A long string (`[[...]]`) spans lines by Luau's rules and is unchanged.
 
-Two kinds of rule never include it. A rule whose `end:` is zero-width (an operation, an access path, a value, a statement that ends at whitespace, a line end or a keyword) ends exactly where its content stops matching, so for it "nothing matches" is the end signal; tiling it would make it eat the next construct (`if a == (1)then` would read `then` into the parenthetical). Such a rule can still close incomplete at a token it cannot read, but the body around it tiles, so the body goes on to its own `end`. vscode-textmate instead keeps such a rule open and passes over the token with the rule's scopes, which is why `LuauUnreadCharacter` has no scope of its own. A rule with `applyEndPatternLast` tries its content before its end, so a catch-all there would take the closer and the end would never match. The `luau-unread-token` grammar lint enforces all three conditions; its `EXEMPT` list names the closer-bounded rules that are not pure Luau (story-scope rules, struct and layout blocks, Sparkdown's interpolations, a regex's character class).
+Two kinds of rule never include it. A rule whose `end:` is zero-width (an operation, an access path, a value, a statement that ends at whitespace, a line end or a keyword) ends only where that `end:` matches, so its `end:` is written to match wherever the next construct can begin (whitespace, a closer, a separator, a keyword); tiling it would make it eat the next construct (`if a == (1)then` would read `then` into the parenthetical). Where it meets a token its `end:` does not stop before and its content cannot read, both engines keep it open and pass over the token with the rule's scopes, and the converter lexes the passed-over text, which is why `LuauUnreadCharacter` has no scope of its own; a construct that must not be passed over needs its own stop in the `end:` (§17.2). A rule with `applyEndPatternLast` tries its content before its end, so a catch-all there would take the closer and the end would never match. The `luau-unread-token` grammar lint enforces all three conditions; its `EXEMPT` list names the closer-bounded rules that are not pure Luau (story-scope rules, struct and layout blocks, Sparkdown's interpolations, a regex's character class).
 
 ## 4. `Switch` — pure dispatch
 
@@ -655,11 +628,11 @@ Three more invariants hold:
 
 - **No story text inside a Luau region.** No rule with a `string.display` scope, and none of `SparkdownStatement`, `DisplayStatements` and `Choice`, is reachable from a marked region or from the `.luau` root. Only the narrative block rules reach display text, and they are story, so one mark is enough and nothing maps back to story.
 - **A mark adds no node.** It goes on an existing rule's `contentName`, `name` or capture names. A new wrapping rule would add a node to the tree the lowerer reads.
-- **A marked rule does not close incomplete partway across a line on a character Luau never reads** (§17.2). The tree would then leave the rest of the line outside the region while vscode-textmate passes over the character inside it, and the two editors would disagree on the language there. Each marked statement, condition and interpolation rule that does not end with `LuauUnreadToken` ends its `patterns:` with `LuauUnreadableCharacter`, which reads one character of `LUAU_UNREADABLE_CHARACTER` (`$`, `!`, `?`, `%`, `^`, `|`, `~`, `[`, a backslash, an `@` before neither an identifier nor `[`, a non-ASCII character) as an unread token, so both engines keep the region open past it. The class holds only characters that begin no construct that can follow a statement on its line; a wider catch-all such as `LuauUnreadCharacter` would take the `&` of `local a = 0 & a = 2`, whose statement the declaration has to leave to the line. The interpolations and call shorthands read `,` and `;` as separators, the narrative conditions read `;` (and `until` a `,`). The interpolations, call shorthands and the `if`, `while` and `for` conditions, where no statement can follow, read an `&` as `LuauUnreadStatementMark`, an unread token; an `until` condition, a declaration and a reassignment cannot, since an `&` after them may open the next statement on the line (I-2038). A `define` header without `with` ends at its line, so that a header typed incomplete opens the same body in both engines.
+- **A marked rule reads a character Luau never reads as an unread token** rather than passing over it (§17.1). Each marked statement, condition and interpolation rule that does not end with `LuauUnreadToken` ends its `patterns:` with `LuauUnreadableCharacter`, which reads one character of `LUAU_UNREADABLE_CHARACTER` (`$`, `!`, `?`, `%`, `^`, `|`, `~`, `[`, a backslash, an `@` before neither an identifier nor `[`, a non-ASCII character) as an unread token. The class holds only characters that begin no construct that can follow a statement on its line; a wider catch-all such as `LuauUnreadCharacter` would take the `&` of `local a = 0 & a = 2`, whose statement the declaration has to leave to the line. The interpolations and call shorthands read `,` and `;` as separators, the narrative conditions read `;` (and `until` a `,`). The interpolations, call shorthands and the `if`, `while` and `for` conditions, where no statement can follow, read an `&` as `LuauUnreadStatementMark`, an unread token. A story declaration, reassignment and `until` condition, and the story operations, assignment and if expression in their values, end before an `&` instead (`(?={{WS}}*[&])`, or `&` in the class of characters their `end:` stops before), so the `&` opens the next statement on the line in both engines; without that end both engines would pass over the `&` inside the declaration and the second statement would be lost (I-2038). A `define` header without `with` ends at its line, so that a header typed incomplete opens the same body in both engines.
 
 `createLanguageReader` in `packages/textmate-grammar-tree/src/tree/utils/createLanguageReader.ts` reads the language from the tree, the document's language and an `embeddedLanguages` map, by vscode-textmate's rule: walking out from the innermost node, the first scope that equals a key of the map, or extends it at a dot, decides, and with none the document's language applies. `character` gives the language of the character at an offset. `cursor` gives the language at a cursor position as VS Code's `getLanguageIdAtPosition` does: the character after the cursor, the line's last character at the end of a line, and on an empty line the line break that ends it (on an empty last line, the one before it), which the tree places in the rules still open at that line's start. A `\r` counts as part of a line break. Four checks in `src/tests/compiler/` hold the regions:
 
-- `languageEquality.test.ts` compares the reader's `cursor` with vscode-textmate's token language ids at every cursor position of every grammar fixture, ends of lines and of the document included, for the `.sd` and `.luau` roots, and at the end of open regions, past unreadable characters and after an incomplete `define` header in sources of its own. It pins the known differences by their positions, each tracked by its ticket; a pin may shrink and may not grow, so a case fails on a position its pin does not list and passes, reporting the stale pin and its ticket, when a pinned position is gone: an `&` after a declaration's, reassignment's or `until` condition's value, which the tree reads as the start of an `&` statement on the same line where vscode-textmate passes over it inside the value (I-2038); and a structural word (`end`, `then`, `do`, `until`, `else`, `elseif`) inside a marked interpolation or call shorthand, or inside the wrong narrative condition, which the tree closes incomplete where vscode-textmate passes over it (I-2048). Each exists without the marks; the marks make it a difference of language.
+- `languageEquality.test.ts` compares the reader's `cursor` with vscode-textmate's token language ids at every cursor position of every grammar fixture, ends of lines and of the document included, for the `.sd` and `.luau` roots, and at the end of open regions, past unreadable characters and after an incomplete `define` header in sources of its own. It also holds the two engines equal on an `&` after a declaration's, reassignment's or `until` condition's value (I-2038) and on a structural word (`end`, `then`, `do`, `until`, `else`, `elseif`) inside a marked interpolation or call shorthand, or inside the wrong narrative condition (I-2048). A known difference is pinned by its positions and tracked by its ticket; a pin may shrink and may not grow, so a case fails on a position its pin does not list and passes, reporting the stale pin and its ticket, when a pinned position is gone.
 - `languageContext.test.ts` asserts the language at each position of the feature's sample script (I-2019).
 - `lineComments.test.ts` writes the marker of each line's language at its start and requires the line to read as a comment; the classes of line it skips are named in the test with their reasons.
 - `languageReachability.test.ts` walks the generated grammar from every marked region and from the `.luau` root.
@@ -1177,7 +1150,7 @@ When you see a bug like "this works in a scene body but not inside a function," 
 
 To avoid having to keep the body-content pattern list in sync across all 7 paired block rules, the actual body tail lives in two shared `Switch` rules:
 
-- **`LuauBlockBody`** — body content accepted inside every pure-Luau block (`LuauIfBlock`, `LuauForLoop`, `LuauWhileLoop`, `LuauRepeatLoop`, `LuauDoBlock`, `LuauElseifBlock`, `LuauElseBlock`, `LuauFunctionDefinition`, an alternator's arms, `LuauAlternatorArms`). Wraps `LuauControlBlock`, `LuauExpression`, `LuauCommaSeparator`, `ExtraWhitespace`, `Newline`, and last `LuauUnreadToken` (§3.2). A pure-Luau body holds no narrative text. A line in it that is not Luau (`Hello there.`, `Hello!`, `U.S.`) is read as far as the statement rules read it (`Hello` is a name, `there.` an access path with a dangling `.`), and a token none of them reads (`!`, `@`, a stray `)`, a `then` no `if` owns) is a `LuauUnreadName` or `LuauUnreadCharacter` leaf. A name keeps its usual scope; a character has no scope or tag of its own, since vscode-textmate passes over it inside a statement rule that the tree ends there, so only a scope both engines give it (the body's) keeps them equal. Its error marks it. The tiling, not a line-shape test, keeps the block to its own `end`: the former `LuauInvalidStatement`, which took such a line whole when it could tell from the line alone that it was not Luau, is gone.
+- **`LuauBlockBody`** — body content accepted inside every pure-Luau block (`LuauIfBlock`, `LuauForLoop`, `LuauWhileLoop`, `LuauRepeatLoop`, `LuauDoBlock`, `LuauElseifBlock`, `LuauElseBlock`, `LuauFunctionDefinition`, an alternator's arms, `LuauAlternatorArms`). Wraps `LuauControlBlock`, `LuauExpression`, `LuauCommaSeparator`, `ExtraWhitespace`, `Newline`, and last `LuauUnreadToken` (§3.2). A pure-Luau body holds no narrative text. A line in it that is not Luau (`Hello there.`, `Hello!`, `U.S.`) is read as far as the statement rules read it (`Hello` is a name, `there.` an access path with a dangling `.`), and a token none of them reads (`!`, `@`, a stray `)`, a `then` no `if` owns) is a `LuauUnreadName` or `LuauUnreadCharacter` leaf. A name keeps its usual scope; a character has no scope or tag of its own, so it takes the body's scope, as text a statement rule passes over does in both engines (§17.1). Its error marks it. The tiling, not a line-shape test, keeps the block to its own `end`: the former `LuauInvalidStatement`, which took such a line whole when it could tell from the line alone that it was not Luau, is gone.
 
   The converter (`readLuauAst.ts`) reads an unread leaf through its own Luau lexer, as it reads a `run` file's text, and marks the tokens `unread`. The validator reports nothing for a statement that holds one, or that Luau's recovery reads after one on its line (`ValidationAnnotator.ownedByUnreadReading`). So `print(1;)` reports `Expected ')' (to close '(' at column 8), got ';'`, and `Hello there, friend.` reports what Luau reports for it. A line whose reading depends on the line before it (a lone name, a comma list of values) is reported by the lowerer when it is not a statement (`reportExpressionStatement` in `lower.ts`).
 
@@ -1326,9 +1299,8 @@ Scene:
   patterns:
     - { include: "#SceneWithParametersDeclaration" }
     - { include: "#SceneWithoutParametersDeclaration" }
-    # Tile the REST of the declaration line so the rule always reaches
-    # `end: $` instead of closing ERROR_INCOMPLETE mid-line. This is a
-    # hard engine-equality requirement — see §17.
+    # Tile the REST of the declaration line so stray text is read as
+    # `Unknown` instead of passed over unread — see §17.2.
     - { include: "#SparkdownLineComment" } # trailing `// comment`
     - { include: "#Annotation" } #            trailing `# annotation`
     - { include: "#Unknown" } #               anything else → invalid
@@ -1337,7 +1309,7 @@ Scene:
 
 Note the `end` pattern: end-of-line. The scope closes after the declaration; the body — the actual scene content — is parsed at root level. The way the parser identifies the _next_ scene's boundary (so this scene's body knows where to stop logically) is the `BEAT` lookahead mechanism shown in §11.
 
-The content `patterns:` deliberately **tile the entire declaration line** — any trailing comment, annotation, or stray text is consumed — so the rule reaches `end: $` cleanly instead of closing `ERROR_INCOMPLETE` partway across the line. (An earlier `Scene` accepted a trailing `:` as a declaration terminator via `end: ([:])|(?=$)`; the Luau-syntax port dropped that, and the un-consumed `:` is what exposed the engine-divergence bug that §17 exists to prevent.)
+The content `patterns:` deliberately **tile the entire declaration line** — any trailing comment, annotation, or stray text is consumed — so the rule reaches `end: $` having read every character, and stray text is highlighted and reported as `Unknown` rather than passed over unread (§17.2).
 
 ### 16.4 The compromise: `LuauFunctionDefinition`
 
@@ -1351,7 +1323,7 @@ So we accept the bill: a 200-line function re-parses on every keystroke inside i
 
 ## 17. Engine equality: the grammar must parse identically in both engines
 
-**The TL;DR:** the same grammar JSON drives two engines, and they must produce the **same scope at every character**. vscode-textmate is the reference; where the tree reads the grammar differently, the tree is fixed (§17.1). The most common way they silently drift is a `Scoped` rule that closes `ERROR_INCOMPLETE` partway across a line. The fix is always to **fully tile the line** so the rule reaches its `end` at a clean line boundary. A CI test (`scopeEquality.test.ts`) fails the build on any per-character divergence.
+**The TL;DR:** the same grammar JSON drives two engines, and they must produce the **same scope at every character**. vscode-textmate is the reference; where the tree reads the grammar differently, the tree is fixed (§17.1). Both engines pass over text the open rule cannot read and keep the rule open (§17.1); the grammar still **tiles its lines** so that every character is read by a rule that means it (§17.2). A CI test (`scopeEquality.test.ts`) fails the build on any per-character divergence.
 
 ### 17.1 Two engines, one grammar
 
@@ -1371,40 +1343,46 @@ The tree loads several grammars and reads every include form vscode-textmate rea
 - An include of a scope the registry does not hold, or of a rule its grammar's repository lacks, is skipped, and so is a begin/end or `patterns`-only rule that such skips leave with no patterns, which can in turn empty the rule that includes it, as in vscode-textmate.
 - The registry's first grammar keeps its rule names as node names, and its `name` names the top node, whichever grammar the parse starts from. A node from any other grammar is named `<scopeName>#<rule>` (`source.css#Whitespace`), whatever `id` its definition carries. A `%` or `#` inside a rule or scope name is written `%25` or `%23`, in every grammar, the first included. `#` therefore appears in a node name only as the namespace separator, and no two rules of the grammars a parse loads share a name or a rule id. A grammar's references to its own nodes stay local: `openedBy`, `closedBy` and the parent path of a `tag` name its rules as written. The declarator qualifies `openedBy` and `closedBy` once. `parseTag`, given the grammar's namespace, is the one reader of a tag's parent path, so a tag reads the same in an embedded grammar as alone. Node type ids count up across every grammar the parse can reach, so two grammars that each define a rule of the same name keep separate node types, and incremental reuse compares ids that no other grammar shares.
 
-One deliberate difference stays: in a rule body the tree closes the rule `ERROR_INCOMPLETE` where vscode-textmate gap-skips (§17.2), so the grammar tiles its lines rather than the tree gap-skipping (I-1244). Scanning on inside a capture is not gap-skipping: the capture's extent is fixed by the outer match.
+**The tree gap-skips as vscode-textmate does (I-2055).** vscode-textmate searches the rest of the line for the leftmost match among the open rule's `end:` and `patterns:` and gives the text before it the rule's scopes. The tree tries them at each position in turn, in the same priority, and where none matches it passes over one character (a surrogate pair whole) inside the rule and tries again at the next, so it finds the same match. A `\G` matches only where the last begin ended, so it never matches after a passed-over character, as in vscode-textmate. Where nothing on the rest of the line matches, the rule stays open across the line break onto the next line. The tree keeps what it passed over: each run of passed-over characters on a line is one `ERROR_UNRECOGNIZED` leaf in the rule's content, and a passed-over line break is plain text there (§3.2). The compiler reads those leaves, so text the grammar cannot read is reported where it is written. Outside any rule the tree passes over one character at a time, each an `ERROR_UNRECOGNIZED` leaf with the root scope. Scanning on inside a capture is the same rule: the capture's extent is fixed by the outer match.
 
-Two cases are exceptions, where the tree's line tokenizer stops the line as vscode-textmate does and leaves the rest of it in the scope that stays open (I-1968). A match that does not advance inside a begin/end rule pops that rule. A begin that does not advance, of a rule already opened at the same position, leaves the earlier one open. Either way the next line starts from that state, and nothing else on the stopped line is matched. Every other unmatched text still closes the rule `ERROR_INCOMPLETE`.
+The tree stops the line as vscode-textmate does in three cases, leaving the rest of the line in the scopes that stay open, and the next line starts from that state (I-1968, I-2077, I-2078):
+
+- A match that does not advance pops the open rule; outside any rule it only stops the line.
+- A begin that does not advance, of a rule already entered at the same position on this line, leaves the earlier one open.
+- An end that does not advance, of a rule entered at the same position on this line, leaves the rule open, without its `contentName` scope from there on.
+
+Positions count per line, as vscode-textmate resets them at each line: a rule opened at the end of a line is not entered at the next line's start.
 
 A capture's `patterns` run through the same line tokenizer, from the capture's start over the line up to the capture's end, so the tree has one matcher and both cases above stop at the capture's end as they stop at a line's end. A match that does not advance at the capture's own level ends the capture there and leaves the rest of its text in the enclosing scope, as vscode-textmate pops the capture (I-2035).
 
-### 17.2 Why they diverge — and the one rule that prevents it
+### 17.2 Why the grammar still tiles its lines
 
-The two engines walk a line differently:
+Both engines pass over text the open rule cannot read (§17.1), so passing over text is not a divergence. It is still a defect in the grammar, for three reasons:
 
-- **vscode-textmate is line-oriented.** It tokenizes one line at a time. `^` matches only at true column 0, and within a line it can _skip_ un-matched text as a gap (assigning it the enclosing scope) to find a later `end` match.
-- **textmate-grammar-tree is contiguous + sticky.** Each regex runs against the current line only, as in vscode-textmate (§17.1), but patterns must match back-to-back. When nothing in a `Scoped` rule's `patterns:` (nor its `end`) matches the next character, the rule closes `ERROR_INCOMPLETE` _at that character_ and the parser re-enters root matching **mid-line** — where a sticky, multiline `^` happily matches, so an `^`-anchored `begin` rule can fire at a position that is **not** a real line start.
+- **The rule runs on.** A rule that passes over a character stays open until its `end:` matches, which may be the rest of the line, the next lines, or the end of the document, so everything up to there gets the rule's scopes and lands in the rule's node.
+- **Matching starts again mid-word.** The engines pass over one character at a time, so after an unreadable first character a pattern can match the rest of the word (`do` in an `if` condition is passed over at `d` and read as the name `o`, §3.2).
+- **Nothing reads the text as what it is.** It is highlighted only with the rule's scopes, and the compiler sees it only as an `ERROR_UNRECOGNIZED` leaf.
 
-That asymmetry is the whole bug class. The reported case:
+**The rule:**
 
-```
-scene TEASER:
-```
-
-`Scene` matched `scene TEASER`, then its content could not consume the trailing `:` and `end: $` could not match before it, so `Scene` closed `ERROR_INCOMPLETE` at the `:`. The parser re-entered root **at the colon**, and `BlockAction`'s `^({{WS}}*)([:])…` begin matched there (sticky `^` at a re-fed mid-line chunk), opening a phantom action block that swallowed the rest of the document. VS Code never opened one — its `^` cannot match mid-line, and it absorbed the `:` as a gap on the way to `end: $`.
-
-**The rule that prevents the entire class:**
-
-> A `Scoped` rule must **fully tile** every line it covers, so it always closes at a clean line boundary (its `end`) and **never** closes `ERROR_INCOMPLETE` mid-line. Do not rely on vscode-textmate's gap-skipping, and do not rely on textmate-grammar-tree's mid-line permissiveness — neither is portable.
+> A `Scoped` rule must **fully tile** every line it covers, so every character is read by a rule that means it, and the rule reaches its `end` where it should.
 
 For boundary rules (`Scene`, `Branch`, and any future `end: $` declaration rule), "fully tile" means: after the declaration patterns, include the trailing-content rules so nothing is ever left un-consumed — comments, annotations, and finally `Unknown` (the `invalid.illegal.unknown-statement.sd` catch-all) for stray junk. See the `Scene` example in §16.3.
 
-For pure-Luau bodies and brackets the tiling is an enforced invariant: each one ends its `patterns:` with `LuauUnreadToken` (§3.2), and the `luau-unread-token` grammar lint fails CI when a closer-bounded `Luau` rule lacks it, or when a zero-width-end or `applyEndPatternLast` rule includes it. Because the catch-all is an ordinary grammar rule, both engines apply it identically, and VS Code's gap-skipping never runs inside such a body: no gap is left. A statement rule inside the body that stops at a token it cannot read still closes incomplete there, which this section's gate catches where it diverges; prefer an `end:` that closes cleanly before the token (a name after whitespace ends `LuauAccessPath`, `LUAU_SHARED_PATH_NO_CONTINUATION`). The four closers are the case every body and bracket meets: each ends before a closer it does not own, and the rules that end at whitespace end before a keyword glued to their operand, so both engines close there (§3.2). A bracket ends the same way before a bracket closer of another kind (`{ f(1 }`), as a block does before `end` or `until` it does not own, so the closer is the owning rule's in both engines rather than a gap vscode-textmate passes over inside the wrong rule; the `luau-foreign-closer` grammar lint requires that lookahead beside the tiling the `luau-unread-token` lint requires (I-1318).
+For pure-Luau bodies and brackets the tiling is an enforced invariant: each one ends its `patterns:` with `LuauUnreadToken` (§3.2), and the `luau-unread-token` grammar lint fails CI when a closer-bounded `Luau` rule lacks it, or when a zero-width-end or `applyEndPatternLast` rule includes it. Because the catch-all is an ordinary grammar rule reading whole tokens, both engines apply it identically and nothing in such a body is passed over. A statement rule inside the body that meets a token it cannot read passes over it; prefer an `end:` that closes cleanly before the token (a name after whitespace ends `LuauAccessPath`, `LUAU_SHARED_PATH_NO_CONTINUATION`). The four closers are the case every body and bracket meets: each ends before a closer it does not own, and the rules that end at whitespace end before a keyword glued to their operand, so both engines close there (§3.2). A bracket ends the same way before a bracket closer of another kind (`{ f(1 }`), as a block does before `end` or `until` it does not own, so the closer is the owning rule's in both engines rather than text both pass over inside the wrong rule; the `luau-foreign-closer` grammar lint requires that lookahead beside the tiling the `luau-unread-token` lint requires (I-1318).
 
-This is the engine-facing complement to §3.2 ("the biggest gotcha: incomplete scope") — §3.2 explains the symptom inside one engine; this section explains why an incomplete close in the _tree_ produces a _divergence_ from VS Code.
+The rules both lints exempt (story-scope `LuauSparkdown*` rules, struct and layout blocks, Sparkdown's interpolations) do not tile, so each states in its `end:` where the next construct begins, since text its content cannot read is otherwise passed over and the rule runs on:
+
+- The interpolations and call shorthands (`LuauInterpolatedStringExpression`, `LuauFunctionCallShorthand` and their story and double-quoted variants) end before a closer they do not own (`LUAU_NOT_BRACE_CLOSER`, as `LuauTable` does), so an unclosed `{` on a story line leaves a later `end` to the block it closes.
+- A story `repeat` (`LuauSparkdownRepeatLoop`, `LuauSparkdownExplicitRepeatLoop`) ends before `end`, `else` or `elseif` (`LUAU_END_OR_BRANCH`), as the other story blocks end before `until`.
+- A define's or struct's name header ends at the first text its content cannot read (`LUAU_NAME_HEADER_STOP`, `LUAU_LAYOUT_HEADER_STOP`, `LUAU_COMPONENT_HEADER_STOP`; `LuauScreenNameHeader` reads only whitespace and ends at any other text), so `LuauDefine` and the struct rules read that text and their validators report the header as unreadable past it. A `with` body ends before a `{` (`LuauStructWithBody`, `LuauSparkleWithBody`), which then opens the brace body.
+- The value operations end before a `|`, an alternator's separator, and the story operations, assignments, declarations, reassignments, `until` condition and if expression before an `&`, which opens the next statement on the line (I-2038); an `&` statement ends before a spaced `&` too. A bracket key in a define body (`LuauBracketKeyAssignment`) ends before a `:`.
+
+This is the engine-facing complement to §3.2 ("the biggest gotcha: text a rule passes over") — §3.2 explains the symptom in the tree; this section explains why the grammar is written so that it does not happen.
 
 ### 17.3 Blank lines and comment lines do NOT break a legitimately-open scope
 
-A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
+A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|{{SPARKDOWN_BLOCK_COMMENT_START}}|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures).
 
 ### 17.4 The gate: `scopeEquality.test.ts`
 
@@ -1475,7 +1453,7 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 - **Don't extend a `begin:`, `end:`, or `match:` pattern past the trailing `\n`.** Matching the `\n` itself is fine; consuming into the _next line's_ content (or referencing it via a cross-line lookbehind/lookahead) is not. VS Code tokenizes one line at a time and won't follow the pattern across, and textmate-grammar-tree matches each regex against its line alone (I-1283), so the pattern fails in both. To span newlines, open the scope on a single line and let `Newline` + a whitespace class inside the `patterns:` array consume the intervening whitespace. To stop before a line, take the break and end at that line's start (`^(?=…)`), in a rule whose begin consumes text, so it never stands at that line start when it opens. (§11.5)
 - **Don't have the child rule consume what belongs to the parent.** Use `(?=...)` lookaheads in child end patterns when the terminator is part of the parent's structure. (§11.3)
 - **Don't ship without checking VS Code.** Always add a matching `.vsc.snap` for new fixtures so engine divergence shows up as a diff at fixture-add time. If the diff shows divergence, restructure the rule until both engines agree. (§15.3)
-- **Don't let a `Scoped` rule close `ERROR_INCOMPLETE` mid-line.** Fully tile every line a rule covers (trailing comments, annotations, then `Unknown`) so it always reaches its `end` at a line boundary. A mid-line incomplete close makes the tree re-enter root matching where an `^`-anchored `begin` can fire — a position VS Code never reaches. This is the most common source of editor-vs-tree divergence; the `scopeEquality` gate catches it. (§17)
+- **Don't let a `Scoped` rule pass over text.** Fully tile every line a rule covers (trailing comments, annotations, then `Unknown`). A rule that cannot read a character passes over it in both engines and stays open until its `end` matches, so it runs on past where it should close and its patterns start again mid-word; the tree shows it as `ERROR_UNRECOGNIZED` inside the rule. (§3.2, §17.2)
 - **Don't forget to rebuild.** `cd definitions && npm run build`. (§15.4)
 
 ## 19. Useful files to read

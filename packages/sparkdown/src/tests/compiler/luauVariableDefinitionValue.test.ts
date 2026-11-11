@@ -23,13 +23,17 @@ describe("LuauVariableDefinitionValue", () => {
   });
 });
 
+const STATEMENT_MARK_STOP = "|(?=(?:[^\\S\\n\\r])*[&])";
+const CLOSERS = "[,;)\\]}])";
+const NARRATIVE_CLOSERS = "[,;)\\]}&])";
+
 const bounded = (p: { include: string }) => {
   const twin = `LuauSparkdownExplicit${p.include.slice("#Luau".length)}`;
   return repository[twin] ? { include: `#${twin}` } : p;
 };
 
 describe("the two declaration rules", () => {
-  test("share their begin but for the modifier's shape and the comments after it, their captures but for the comment, and their end but for the comment's", () => {
+  test("share their begin but for the modifier's shape and the comments after it, their captures but for the comment, and their end but for the comment's and the narrative one's stop before an `&`", () => {
     const luau = repository["LuauVariableDefinition"]!;
     const narrative = repository["LuauSparkdownVariableDefinition"]!;
     const ws = "((?:[^\\S\\n\\r])*)";
@@ -42,12 +46,14 @@ describe("the two declaration rules", () => {
       captures(luau),
     );
     expect(captures(narrative)[3]!.patterns[0]).toEqual({ include: "#LuauComment" });
-    expect(luau.end!.startsWith(`${narrative.end!}|(?<=`)).toBe(true);
+    expect(narrative.end!.endsWith(STATEMENT_MARK_STOP)).toBe(true);
+    expect(luau.end!).not.toContain(STATEMENT_MARK_STOP);
+    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -STATEMENT_MARK_STOP.length)}|(?<=`)).toBe(true);
   });
 });
 
 describe("the narrative assignment rules", () => {
-  test("a narrative name assignment is the Luau one but for its operation and its end at a later line's first token", () => {
+  test("a narrative name assignment is the Luau one but for its operation, its end at a later line's first token and its stop before an `&`", () => {
     const luau = repository["LuauVariableAssignment"]!;
     const narrative = repository["LuauSparkdownVariableAssignment"]!;
     expect(narrative.begin).toBe(luau.begin);
@@ -55,12 +61,14 @@ describe("the narrative assignment rules", () => {
     expect(
       luau.patterns!.map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
     ).toEqual(narrative.patterns);
-    const afterComment = narrative.end!.lastIndexOf("|(?<=\\]=*\\])");
+    expect(narrative.end!).toContain(NARRATIVE_CLOSERS);
+    const narrativeEnd = narrative.end!.replace(NARRATIVE_CLOSERS, CLOSERS);
+    const afterComment = narrativeEnd.lastIndexOf("|(?<=\\]=*\\])");
     expect(afterComment).toBeGreaterThan(0);
-    expect(luau.end!.startsWith(`${narrative.end!.slice(0, afterComment)}|(?<=^`)).toBe(true);
+    expect(luau.end!.startsWith(`${narrativeEnd.slice(0, afterComment)}|(?<=^`)).toBe(true);
   });
 
-  test("a narrative assignment operation is the Luau one without the line break and its ends", () => {
+  test("a narrative assignment operation is the Luau one without the line break and its ends, and with a stop before an `&`", () => {
     const luau = repository["LuauAssignmentOperation"]!;
     const narrative = repository["LuauSparkdownAssignmentOperation"]!;
     expect(narrative.begin).toBe(luau.begin);
@@ -71,8 +79,9 @@ describe("the narrative assignment rules", () => {
     const at = narrative.end!.indexOf(lineEnds);
     expect(at).toBeGreaterThan(0);
     expect(luau.end!.startsWith(`${narrative.end!.slice(0, at)}(?=^|`)).toBe(true);
-    const closers = "[,;)\\]}])";
-    const groupEnd = narrative.end!.indexOf(closers, at) + closers.length;
+    expect(narrative.end!.indexOf(NARRATIVE_CLOSERS, at)).toBeGreaterThan(at);
+    expect(luau.end!).toContain(CLOSERS);
+    const groupEnd = narrative.end!.indexOf(NARRATIVE_CLOSERS, at) + NARRATIVE_CLOSERS.length;
     expect(luau.end!.endsWith(narrative.end!.slice(groupEnd))).toBe(true);
   });
 });

@@ -104,7 +104,7 @@ function digester() {
     a ? Array.from({ length: n }, (_, i) => a[i]).join(",") : "-";
   const resume = (r: any) =>
     r
-      ? `${id(r)}[${r.frames.map((f: any) => `${id(f)}:${f.openedAtAbs}:${f.contentOpened}:${f.emptyMatchCount}`).join(";")}|${r.stack.length}]`
+      ? `${id(r)}[${r.frames.map((f: any) => `${id(f)}:${f.openedAtAbs}:${f.enteredAtAbs}:${f.contentOpened}:${f.contentDropped}`).join(";")}|${r.stack.length}]`
       : "-";
   const chunk = (ch: any) =>
     [
