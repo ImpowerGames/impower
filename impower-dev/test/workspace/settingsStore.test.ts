@@ -499,7 +499,7 @@ describe(".vscode/settings.json", () => {
       ]),
     ).buffer as ArrayBuffer;
 
-    const imported = await harness.writeProjectZip(zip);
+    const { settingsJson: imported } = await harness.writeProjectZip(zip);
 
     expect(harness.paths()).toEqual(["main.sd"]);
     expect(dec.decode(harness.opfs.get(`file:///${PROJECT}/main.sd`))).toBe(
@@ -529,7 +529,7 @@ describe(".vscode/settings.json", () => {
     const zip = await harness.readProjectZip(
       projectSettingsJson({ ...defaultsOf(), ...changed }, defaults),
     );
-    const imported = await zipHarness({}).writeProjectZip(zip);
+    const { settingsJson: imported } = await zipHarness({}).writeProjectZip(zip);
     expect(projectSettingsFromJson(imported!)).toEqual(changed);
   });
 

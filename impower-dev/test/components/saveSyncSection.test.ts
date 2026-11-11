@@ -194,6 +194,23 @@ describe("the Save & sync section", () => {
     expect(row("save-import").textContent).not.toContain("Could not import that backup.");
   });
 
+  it("says what an import left out once it has replaced the project", async () => {
+    await mountSection();
+    await act(() => {
+      workspace.current = {
+        ...workspace.current,
+        sync: {
+          status: "cached",
+          importOutcome: { status: "imported", fileName: "story.zip", leftOut: { count: 1, folders: ["docs"] } },
+        } as typeof workspace.current.sync,
+      };
+    });
+    expect(row("save-import").textContent).toContain(
+      "Imported “story.zip”. Left out 1 file outside the project folder, in “docs”.",
+    );
+    expect(row("save-import").querySelector(".text-error-strong")).toBeNull();
+  });
+
   it("offers Connect Google Drive while signed out and runs the shared sign-in", async () => {
     await mountSection();
     expect(row("save-cloud").textContent).toContain("Optional; nothing here needs an account.");

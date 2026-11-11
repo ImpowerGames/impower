@@ -183,7 +183,7 @@ import {
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { renameOrReport } from "../utils/renameOrReport";
-import { ProjectImportError } from "./projectImport";
+import { keepImportOutcome, ProjectImportError } from "./projectImport";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -2755,11 +2755,10 @@ export default class WorkspaceWindow {
         });
         const extIndex = fileName.indexOf(".");
         const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
-        const settingsJson = await this._workspace.fs.writeProjectZip(
-          projectId,
-          fileBuffer,
-        );
+        const { settingsJson, leftOut } =
+          await this._workspace.fs.writeProjectZip(projectId, fileBuffer);
         await this._workspace.fs.writeProjectMetadata(projectId, "name", name);
+        keepImportOutcome({ status: "imported", fileName, leftOut });
         workspaceSettings.replaceProjectSettings(
           projectId,
           settingsJson === undefined
@@ -2779,7 +2778,7 @@ export default class WorkspaceWindow {
       console.error(err);
       const failure =
         err instanceof ProjectImportError
-          ? { reason: err.reason }
+          ? { reason: err.reason, folders: err.folders }
           : { reason: "unknown" as const };
       this.update({
         ...this.store,

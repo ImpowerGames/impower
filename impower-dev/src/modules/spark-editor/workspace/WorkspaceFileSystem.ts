@@ -61,7 +61,11 @@ import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
-import { ProjectImportError } from "./projectImport";
+import {
+  findProjectRoot,
+  isArchiveDropping,
+  ProjectImportError,
+} from "./projectImport";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
@@ -639,11 +643,27 @@ export default class WorkspaceFileSystem {
   async writeProjectZip(
     projectId: string,
     content: ArrayBuffer,
-  ): Promise<string | undefined> {
+  ): Promise<{
+    settingsJson?: string;
+    leftOut: { count: number; folders: string[] };
+  }> {
     const existingFiles = await this.getFiles(projectId);
-    const archive = await this.unzipFiles({ data: content }).catch((cause) => {
-      throw new ProjectImportError({ reason: "unreadable_zip" }, { cause });
-    });
+    const unzippedArchive = await this.unzipFiles({ data: content }).catch(
+      (cause) => {
+        throw new ProjectImportError({ reason: "unreadable_zip" }, { cause });
+      },
+    );
+    const found = findProjectRoot(unzippedArchive.map((e) => e.filename));
+    if (found.kind === "refused") {
+      throw new ProjectImportError(found);
+    }
+    const archive = unzippedArchive.flatMap((entry) =>
+      entry.filename.startsWith(found.root) &&
+      entry.filename !== found.root &&
+      !isArchiveDropping(entry.filename)
+        ? [{ ...entry, filename: entry.filename.slice(found.root.length) }]
+        : [],
+    );
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
@@ -673,9 +693,12 @@ export default class WorkspaceFileSystem {
     } catch (cause) {
       throw new ProjectImportError({ reason: "storage" }, { cause });
     }
-    return settingsEntry
-      ? new TextDecoder().decode(settingsEntry.data)
-      : undefined;
+    return {
+      settingsJson: settingsEntry
+        ? new TextDecoder().decode(settingsEntry.data)
+        : undefined,
+      leftOut: found.leftOut,
+    };
   }
 
   async readProjectScriptBundle(projectId: string) {

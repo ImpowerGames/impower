@@ -105,26 +105,74 @@ describe("replacing a project whose starter main.sd was never saved", () => {
         PROJECT,
         wrapperZip(),
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ leftOut: { count: 0, folders: [] } });
     expect([...onDisk.keys()].sort()).toEqual([
-      `file://${PROJECT}/project/Scripts/a.sd`,
-      `file://${PROJECT}/project/main.sd`,
+      `file://${PROJECT}/Scripts/a.sd`,
+      `file://${PROJECT}/main.sd`,
     ]);
   });
 
-  it("imports a second zip over the first while main.sd is still unsaved", async () => {
+  it("refuses a zip with no main.sd and changes nothing", async () => {
+    const { fs, onDisk } = starterProject({ "Scripts/kept.sd": "Kept.\n" });
+    const before = [...onDisk.entries()];
+    const zip = zipSync({ "notes/readme.txt": enc.encode("Hi.\n") })
+      .buffer as ArrayBuffer;
+    await expect(
+      WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, zip),
+    ).rejects.toMatchObject({ reason: "no_main_script" });
+    expect([...onDisk.entries()]).toEqual(before);
+  });
+
+  it("leaves the project untouched when the zip holds two projects", async () => {
+    const { fs, onDisk } = starterProject({ "Scripts/kept.sd": "Kept.\n" });
+    const before = [...onDisk.entries()];
+    const zip = zipSync({
+      "one/main.sd": enc.encode("One.\n"),
+      "two/main.sd": enc.encode("Two.\n"),
+    }).buffer as ArrayBuffer;
+    await expect(
+      WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, zip),
+    ).rejects.toMatchObject({
+      reason: "several_main_scripts",
+      folders: ["one", "two"],
+    });
+    expect([...onDisk.entries()]).toEqual(before);
+  });
+
+  it("imports the project two folders deep and reports the readme beside it", async () => {
+    const { fs, onDisk } = starterProject();
+    const zip = zipSync({
+      "README.md": enc.encode("Read me.\n"),
+      "outer/": new Uint8Array(),
+      "outer/story/": new Uint8Array(),
+      "outer/story/main.sd": enc.encode("Hello.\n"),
+      "outer/story/.vscode/settings.json": enc.encode("{}"),
+      "outer/story/art/": new Uint8Array(),
+      "__MACOSX/outer/story/._main.sd": enc.encode("x"),
+      "outer/story/.DS_Store": enc.encode("x"),
+    }).buffer as ArrayBuffer;
+    await expect(
+      WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, zip),
+    ).resolves.toEqual({
+      settingsJson: "{}",
+      leftOut: { count: 1, folders: [""] },
+    });
+    expect([...onDisk.keys()]).toEqual([`file://${PROJECT}/main.sd`]);
+  });
+
+  it("imports a second wrapper zip over the first", async () => {
     const { fs, onDisk } = starterProject();
     await WorkspaceFileSystem.prototype.writeProjectZip.call(
       fs,
       PROJECT,
       wrapperZip(),
     );
-    const second = zipSync({ "other/b.sd": enc.encode("Third.\n") })
+    const second = zipSync({ "other/main.sd": enc.encode("Third.\n") })
       .buffer as ArrayBuffer;
     await expect(
       WorkspaceFileSystem.prototype.writeProjectZip.call(fs, PROJECT, second),
-    ).resolves.toBeUndefined();
-    expect([...onDisk.keys()]).toEqual([`file://${PROJECT}/other/b.sd`]);
+    ).resolves.toEqual({ leftOut: { count: 0, folders: [] } });
+    expect([...onDisk.keys()]).toEqual([`file://${PROJECT}/main.sd`]);
   });
 
   it("refuses a file that is not a zip as unreadable_zip", async () => {
