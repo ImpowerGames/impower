@@ -178,8 +178,6 @@ function loadLuauFiles(): Fixture[] {
     }));
 }
 
-const LUAU_ROOT_DIVERGENT = new Set(["luau-conformance/upstream/conformance/errors"]);
-
 async function assertEqual(source: string, options: EngineOptions = {}) {
   const result = await compareEnginesFull(source, options);
   expect(
@@ -207,8 +205,7 @@ describe("engine scope-stack equality", () => {
 
   describe(".luau files under the .luau root", () => {
     for (const fixture of loadLuauFiles()) {
-      const name = `${fixture.category}/${fixture.name}`;
-      (LUAU_ROOT_DIVERGENT.has(name) ? test.fails : test)(name, async () => {
+      test(`${fixture.category}/${fixture.name}`, async () => {
         await assertEqual(fixture.source, { luauFile: true });
       });
     }
