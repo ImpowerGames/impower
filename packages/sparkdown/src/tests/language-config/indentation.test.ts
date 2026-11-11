@@ -298,6 +298,38 @@ describe("the story increaseIndentPattern", () => {
   });
 });
 
+describe("the stated reach of the indent patterns' comment scanner (GRAMMAR.md 8.2)", () => {
+  const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
+  const luauIncrease = new RegExp(LUAU.indentationRules.increaseIndentPattern);
+
+  it("reads a comment marker in a level-3 long bracket as a comment", () => {
+    for (const increase of [storyIncrease, luauIncrease]) {
+      expect(increase.test("  call([===[a--b]===], ("), String(increase).slice(0, 40)).toBe(false);
+    }
+    expect(luauIncrease.test("  if s == [===[a--b]===] then")).toBe(false);
+  });
+
+  it("reads a comment marker after an interpolation that holds its own braces as a comment", () => {
+    for (const increase of [storyIncrease, luauIncrease]) {
+      expect(increase.test("  call(`{ {1} }--`, ("), String(increase).slice(0, 40)).toBe(false);
+    }
+    expect(luauIncrease.test("  if s == `{ {1} }--` then")).toBe(false);
+    expect(luauIncrease.test("  if s == `{f({1})}--` then")).toBe(false);
+  });
+
+  it("does not scan a story if, for or while header for comments", () => {
+    for (const line of [
+      "  if s == [===[a--b]===] then",
+      "  if s == `{ {1} }--` then",
+      "  if a // 2 == 0 then",
+      "  if x -- then",
+      "  while busy // do",
+    ]) {
+      expect(storyIncrease.test(line), line).toBe(true);
+    }
+  });
+});
+
 describe("the story define onEnterRule", () => {
   const defineRule = STORY.onEnterRules.find(
     (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),
