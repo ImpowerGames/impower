@@ -22,7 +22,7 @@ export type AssetRowMenuProps = {
 
 function Kept({ label, reason }: { label: string; reason?: string }) {
   return reason ? (
-    <span class="flex min-w-0 flex-1 flex-col whitespace-normal">
+    <span class="flex max-w-60 min-w-0 flex-1 flex-col whitespace-normal">
       <span>{label}</span>
       <small class="text-xs/[1.5] text-muted">{reason}</small>
     </span>

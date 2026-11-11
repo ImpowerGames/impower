@@ -401,9 +401,12 @@ try {
   );
   connection.onRequest(
     "sparkdown/variantPicture",
-    (params: { uri: string; variant: ImageVariant }) => {
+    async (params: { uri: string; variant: ImageVariant }) => {
       const mainUri = workspace.getMainScriptUri(params.uri);
-      const program = workspace.program(mainUri ?? params.uri);
+      if (!mainUri) {
+        return null;
+      }
+      const program = workspace.program(mainUri) || (await workspace.compile(mainUri, false));
       return getVariantPicture(program?.context, params.variant, imageCompositeOptions);
     },
   );
