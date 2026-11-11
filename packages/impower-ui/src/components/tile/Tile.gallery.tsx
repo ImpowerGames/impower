@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import FolderCover from "../folder-cover/FolderCover";
@@ -11,6 +12,39 @@ import Tile, { TILE_GAP, TILE_MIN_WIDTH, tileHeight, type TileShape } from "./Ti
 const SHAPES: TileShape[] = ["landscape", "portrait"];
 
 const ITEMS = Array.from({ length: 200 }, (_, i) => i);
+
+const SELECTION_STATES = [
+  { label: "available (hover)", selection: "available", dropTarget: false },
+  { label: "selecting", selection: "active", dropTarget: false },
+  { label: "selected", selection: "active", dropTarget: false },
+  { label: "drop target", selection: "none", dropTarget: true },
+] as const;
+
+function SelectionDemo({ shape }: { shape: TileShape }) {
+  const [picked, setPicked] = useState<number[]>([2]);
+  return (
+    <div class="grid grid-cols-4 gap-3">
+      {SELECTION_STATES.map((state, index) => (
+        <div key={state.label} style={{ height: `${tileHeight(shape, 176)}px` }}>
+          <Tile
+            shape={shape}
+            kind={state.dropTarget ? "folder" : "file"}
+            media={state.dropTarget ? <FolderCover sources={[SAMPLE_PICTURE]} /> : <Thumbnail size="fill" src={SAMPLE_PICTURE} />}
+            label={state.label}
+            description="Modified 2d · 40 kb"
+            aria-label={`Open ${state.label}`}
+            selection={state.selection}
+            selected={picked.includes(index)}
+            selectLabel={`Select ${state.label}`}
+            onSelectedChange={() => setPicked((now) => (now.includes(index) ? now.filter((i) => i !== index) : [...now, index]))}
+            dropTarget={state.dropTarget}
+            onClick={() => {}}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const menu = (name: string) => (
   <Button variant="quiet" size="icon" aria-label={`Options for ${name}`}>
@@ -43,6 +77,11 @@ function TileDemo() {
           </div>
         </GalleryRow>
       ))}
+      {SHAPES.map((shape) => (
+        <GalleryRow key={`select-${shape}`} label={`${shape}: the selection mark on hover, while selecting, when selected, and a folder as a drop target`}>
+          <SelectionDemo shape={shape} />
+        </GalleryRow>
+      ))}
       <GalleryRow label="A VirtualList in grid mode, 200 landscape tiles: only the rows in view are mounted">
         <VirtualList
           label="Tiles"
@@ -67,6 +106,6 @@ function TileDemo() {
 
 export const tileGallery: GalleryEntry = {
   title: "Tile",
-  exports: ["Tile", "tileVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MIN_WIDTH"],
+  exports: ["Tile", "tileVariants", "tileOpenVariants", "tileMarkVariants", "tileMediaVariants", "tileLabelVariants", "tileHeight", "TILE_GAP", "TILE_MIN_WIDTH"],
   Demo: TileDemo,
 };

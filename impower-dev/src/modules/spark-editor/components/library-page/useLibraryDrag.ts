@@ -1,14 +1,16 @@
 import { useCoarsePointer } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { moveCheck, nameOf, type ScriptListing } from "../../workspace/scriptsListing";
+import { nameOf } from "../../workspace/scriptsListing";
 
 const LONG_PRESS_MS = 500;
 const SLOP_PX = 8;
 
 export const DROP_FOLDER = "data-drop-folder";
 
-export type ScriptsDragOptions = {
-  listing: ScriptListing;
+export type LibraryMoveCheck = { refused: string } | { moving: readonly string[] };
+
+export type LibraryDragOptions = {
+  check: (paths: readonly string[], folder: string) => LibraryMoveCheck;
   carried: (path: string) => string[];
   onLongPress: (path: string) => void;
   onDrop: (paths: string[], folder: string) => void;
@@ -32,7 +34,7 @@ const folderAt = (element: EventTarget | Element | null): string | null => {
 
 const stopScroll = (event: TouchEvent) => event.preventDefault();
 
-export function useScriptsDrag(options: ScriptsDragOptions) {
+export function useLibraryDrag(options: LibraryDragOptions) {
   const coarse = useCoarsePointer();
   const latest = useRef(options);
   latest.current = options;
@@ -60,7 +62,7 @@ export function useScriptsDrag(options: ScriptsDragOptions) {
 
   const check = (folder: string | null) =>
     carried.current && folder !== null
-      ? moveCheck(latest.current.listing, carried.current, folder)
+      ? latest.current.check(carried.current, folder)
       : null;
 
   const hover = (folder: string | null) => {

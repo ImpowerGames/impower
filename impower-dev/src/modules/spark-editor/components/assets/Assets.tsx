@@ -49,6 +49,7 @@ import {
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { neighborsOf, type InspectedAsset } from "../../utils/assetDetails";
 import { plural, rowLine } from "../../utils/fileListModel";
+import type { FileMove } from "../../utils/fileMoves";
 import { majorityShape } from "../../utils/imageSize";
 import { showSnackbar } from "../../utils/snackbar";
 import {
@@ -56,23 +57,37 @@ import {
   assetLevel,
   assetSearch,
   assetSort,
+  assetMoveCheck,
   assetTrail,
+  coveredPaths,
+  foldersUnder,
+  thingsLabel,
   type AssetListing,
   type AssetRow,
 } from "../../workspace/assetsListing";
-import { parentOf } from "../../workspace/scriptsListing";
+import selection from "../../workspace/assetsSelection";
+import { isInside, parentOf } from "../../workspace/scriptsListing";
+import type { SearchGroup } from "../../workspace/searchState";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
 import { AssetInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
+import { UsesList } from "../find-references-rename";
 import {
+  DeleteDialog,
+  DROP_FOLDER,
   EmptyState,
   LibraryPage,
+  MoveDialog,
   NameRow,
+  SelectionBar,
   SortMenu,
   Trail,
   useFolderLayout,
+  useLibraryDrag,
   useSavedScroll,
+  useSelectionKeys,
   useTabQuery,
+  type SelectionAction,
 } from "../library-page";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
@@ -85,6 +100,8 @@ const EMPTY: AssetListing = { files: {}, folders: [] };
 const PAGE_TAB = "all";
 
 const HEADING_HEIGHT = 48;
+
+const SHOWN_USES = 3;
 const ROW_HEIGHT = 63;
 
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
@@ -158,6 +175,24 @@ const inspectedOf = (listing: AssetListing, row: AssetRow): InspectedAsset => {
 
 const srcOf = (listing: AssetListing, path: string) => listing.files[path]?.src;
 
+const usesCount = (groups: readonly SearchGroup[]) => groups.reduce((sum, group) => sum + group.uses.length, 0);
+
+const firstUses = (groups: readonly SearchGroup[], count: number): SearchGroup[] => {
+  const shown: SearchGroup[] = [];
+  let left = count;
+  for (const group of groups) {
+    if (left <= 0) break;
+    shown.push({ ...group, uses: group.uses.slice(0, left) });
+    left -= group.uses.length;
+  }
+  return shown;
+};
+
+const followed = (path: string, moves: readonly FileMove[]) => {
+  const move = moves.find((m) => m.from === path || isInside(path, m.from));
+  return move ? move.to + path.slice(move.from.length) : path;
+};
+
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
   if (row.kind === "folder") return <FolderIcon />;
   if (row.type === "image" && !row.link) return <Thumbnail src={srcOf(listing, row.path)} />;
@@ -186,11 +221,16 @@ function AssetsBrowser() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [moving, setMoving] = useState<readonly string[] | null>(null);
+  const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const selecting = selection.active.value;
+  const picked = selection.selected.value;
 
   useEffect(() => {
     let dispose: (() => void) | undefined;
     let cancelled = false;
+    selection.end();
     void intents().then((Workspace) => {
       if (!cancelled) {
         dispose = Workspace.assets.watch();
@@ -289,17 +329,44 @@ function AssetsBrowser() {
     requestAnimationFrame(() => returnTarget(path)?.focus({ preventScroll: true }));
   };
 
+  const settling = useRef<readonly string[]>([]);
+  const relocated = useRef<readonly FileMove[]>([]);
+  const [settled, setSettled] = useState(0);
+
   useEffect(() => {
     if (openPath && !openRowOf) {
+      if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
+        return;
+      }
+      const next = followed(openPath, relocated.current);
+      relocated.current = [];
+      if (next !== openPath && rowOf(next)) {
+        setOpenPath(next);
+        return;
+      }
       setOpenPath(null);
       const active = document.activeElement;
-      if (openedIn !== host && (!active || active === document.body)) {
+      const lost = !active || active === document.body || !active.isConnected;
+      if (lost && (openedIn !== host || !rowOf(openPath))) {
         focusRow(openPath);
       }
     }
-  }, [openPath, openRowOf]);
+  }, [openPath, openRowOf, settled]);
+
+  const relocating = async (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => {
+    settling.current = paths;
+    try {
+      const moves = await action();
+      relocated.current = moves;
+      for (const move of moves) selection.replace(move.from, move.to);
+    } finally {
+      settling.current = [];
+      setSettled((count) => count + 1);
+    }
+  };
 
   const openAsset = (path: string) => {
+    relocated.current = [];
     setOpenedIn(host);
     setOpenPath(path);
   };
@@ -353,9 +420,55 @@ function AssetsBrowser() {
     });
   };
 
+  const remove = (paths: readonly string[]) =>
+    void run(async () => {
+      await (await intents()).assets.remove(paths);
+      selection.end();
+    });
+
+  const requestDelete = (paths: readonly string[]) =>
+    void run(async () => {
+      const groups = await (await intents()).assets.usedBy(paths);
+      if (groups && usesCount(groups) === 0) remove(paths);
+      else setDeleting({ paths, groups });
+    });
+
+  const moveTo = async (paths: readonly string[], folder: string) => {
+    await relocating(coveredPaths(listing, paths, endings), async () => (await intents()).assets.move(paths, folder));
+    selection.end();
+  };
+
+  const drag = useLibraryDrag({
+    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder),
+    carried: (path) => {
+      const chosen = selection.selected.peek();
+      return chosen.includes(path) ? [...chosen] : [path];
+    },
+    onLongPress: (path) => selection.start(path),
+    onRefused: (message) => showSnackbar({ message }),
+    onDrop: (paths, folder) => void run(() => moveTo(paths, folder)),
+  });
+
+  const listedPaths = items.filter((item): item is AssetRow => item.kind !== "heading").map((row) => row.path);
+
+  useSelectionKeys({
+    active: selecting,
+    paused: !!moving || !!deleting,
+    onEnd: () => selection.end(),
+    onSelectAll: () => selection.selectAll(listedPaths),
+  });
+
   const onAction = (row: AssetRow, action: AssetRowAction) => {
-    if (action === "rename") setRenaming(row.path);
-    else void run(async () => (await intents()).assets.remove(row.paths ?? [row.path]));
+    if (action === "select") selection.start(row.path);
+    else if (action === "rename") setRenaming(row.path);
+    else if (action === "move") setMoving([row.path]);
+    else requestDelete([row.path]);
+  };
+
+  const onSelectionAction = (action: SelectionAction) => {
+    if (action === "move") setMoving(picked);
+    else if (action === "delete") requestDelete(picked);
+    else void run(async () => (await intents()).assets.downloadAll(picked));
   };
 
   const openLabel = (row: AssetRow, line: string) => {
@@ -364,7 +477,22 @@ function AssetsBrowser() {
     return `${opens} ${row.name}${variants}${line ? `, ${line.toLowerCase()}` : ""}`;
   };
 
-  const openRow = (row: AssetRow) => (row.kind === "folder" ? openFolder(row.path) : openAsset(row.path));
+  const openRow = (row: AssetRow) => {
+    if (!drag.clicked()) return;
+    if (selecting) selection.toggle(row.path);
+    else if (row.kind === "folder") openFolder(row.path);
+    else openAsset(row.path);
+  };
+
+  const selectable = (row: AssetRow) => ({
+    selection: selecting ? ("active" as const) : ("available" as const),
+    selected: picked.includes(row.path),
+    selectLabel: `Select ${row.name}`,
+    onSelectedChange: () => (selecting ? selection.toggle(row.path) : selection.start(row.path)),
+    dropTarget: row.kind === "folder" && drag.target === row.path,
+    ...drag.source(row.path),
+    ...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {}),
+  });
 
   const renderTile = (row: AssetRow) => {
     const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
@@ -386,7 +514,8 @@ function AssetsBrowser() {
         aria-label={openLabel(row, line)}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
-        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
+        {...selectable(row)}
+        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
     );
@@ -413,7 +542,9 @@ function AssetsBrowser() {
           suffix={extension}
           onCancel={() => setRenaming(null)}
           onCommit={async (name) => {
-            await (await intents()).assets.rename(row.path, name);
+            await relocating(row.paths ?? [row.path], async () => [
+              { from: row.path, to: await (await intents()).assets.rename(row.path, name) },
+            ]);
             setRenaming(null);
           }}
         />
@@ -442,7 +573,8 @@ function AssetsBrowser() {
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
-        actions={<AssetRowMenu row={row} onAction={(action) => onAction(row, action)} />}
+        {...selectable(row)}
+        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
         onClick={() => openRow(row)}
       />
     );
@@ -477,7 +609,7 @@ function AssetsBrowser() {
 
   return (
     <LibraryPage<Item>
-      area={{ ref: page }}
+      area={{ ref: page, ...drag.area }}
       searchLabel="Search assets"
       query={query}
       onQueryChange={setQuery}
@@ -517,6 +649,14 @@ function AssetsBrowser() {
         )
       }
       bar={
+        selecting && !drag.dragging ? (
+          <SelectionBar
+            count={picked.length}
+            onSelectAll={() => selection.selectAll(listedPaths)}
+            onAction={onSelectionAction}
+            onClose={() => selection.end()}
+          />
+        ) : (
         <>
           {searching ? (
             <span class="pl-2 text-[12px] text-muted">Results in all types</span>
@@ -530,6 +670,8 @@ function AssetsBrowser() {
               crumbs={trail.crumbs}
               root={level.root}
               parent={trail.parent}
+              dropTarget={drag.target}
+              dropAttribute={DROP_FOLDER}
               onOpen={openFolder}
             />
           )}
@@ -552,6 +694,7 @@ function AssetsBrowser() {
             onChange={(key) => setLists({ assetsSort: key })}
           />
         </>
+        )
       }
       creating={
         creating && (
@@ -620,6 +763,50 @@ function AssetsBrowser() {
           })
         }
       />
+      <MoveDialog
+        paths={moving}
+        label={moving ? thingsLabel(listing, coveredPaths(listing, moving, endings), endings) : ""}
+        root={level.root}
+        folders={foldersUnder(listing, level.root).filter(
+          (f) => !(moving ?? []).some((p) => !Object.hasOwn(listing.files, p) && isInside(f, p)),
+        )}
+        from={moving?.length && moving.every((p) => parentOf(p) === parentOf(moving[0]!)) ? parentOf(moving[0]!) : null}
+        folderLabel={(f) => (f === level.root ? assetTypeSpec(type).title : f.slice(level.root.length + 1))}
+        onClose={() => setMoving(null)}
+        onMove={moveTo}
+        onCreateFolder={(parent, name) => intents().then((Workspace) => Workspace.assets.createFolder(parent, name))}
+      />
+      <DeleteDialog
+        label={deleting ? thingsLabel(listing, coveredPaths(listing, deleting.paths, endings), endings) : null}
+        description={
+          deleting?.groups
+            ? `Used in ${plural(usesCount(deleting.groups), "line")}`
+            : `Couldn't check which scripts use ${deleting?.paths.length === 1 ? "it" : "them"}.`
+        }
+        onClose={() => setDeleting(null)}
+        onDelete={() => {
+          const paths = deleting!.paths;
+          setDeleting(null);
+          remove(paths);
+        }}
+      >
+        {deleting?.groups && usesCount(deleting.groups) > 0 && (
+          <div class="-mx-2 mt-1" data-delete-uses>
+            <UsesList
+              groups={firstUses(deleting.groups, SHOWN_USES)}
+              onOpen={(use) => {
+                setDeleting(null);
+                void intents().then((Workspace) => Workspace.window.revealDocument(use.uri, use.range));
+              }}
+            />
+            {usesCount(deleting.groups) > SHOWN_USES && (
+              <p class="m-0 px-2 pt-1 text-[12px] text-muted">
+                and {plural(usesCount(deleting.groups) - SHOWN_USES, "more line")}
+              </p>
+            )}
+          </div>
+        )}
+      </DeleteDialog>
       {inspector && host === "dock" && dock ? createPortal(inspector, dock) : null}
       {host === "sheet" && (
         <Sheet

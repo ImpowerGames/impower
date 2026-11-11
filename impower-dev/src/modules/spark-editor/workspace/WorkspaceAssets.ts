@@ -4,23 +4,36 @@ import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/Spar
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
-import { availableName, NameError, plural } from "../utils/fileListModel";
+import { availableName, NameError, plural, validName } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
 import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
-import { recordCreate, recordMove, recordReplace, renameFile, REPLACED_MESSAGE } from "../utils/fileUndo";
+import { reasonOf, type FileMove } from "../utils/fileMoves";
+import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
+import { imageStacks } from "../utils/imageStacks";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameOrReport } from "../utils/renameOrReport";
 import { showSnackbar } from "../utils/snackbar";
+import { undo } from "../utils/undoManager";
 import { replacementOf } from "../utils/replaceRule";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
-import { assetHomes, landingFolder, type AssetListing } from "./assetsListing";
+import {
+  assetHomes,
+  assetMoveCheck,
+  assetName,
+  coveredFiles,
+  coveredPaths,
+  landingFolder,
+  thingNames,
+  thingsLabel,
+  type AssetListing,
+} from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
 import type { SearchGroup } from "./searchState";
 import { groupLocations } from "./WorkspaceSearch";
-import { isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
+import { commonFolder, isInside, joinPath, nameOf, parentOf } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
@@ -41,6 +54,8 @@ type Deps = {
     | "renameFileWithReferences"
     | "deleteFiles"
     | "deleteFolder"
+    | "renameFilesWithReferences"
+    | "zipFiles"
     | "readFile"
     | "getFileText"
     | "writeTextDocument"
@@ -63,6 +78,17 @@ const extensionOf = (path: string) => {
 
 const MEASURE_BATCH = 8;
 
+const showRenamed = (name: string, lines: number, also: readonly FileMove[]) =>
+  showSnackbar({
+    message: `Renamed ${name}${lines ? ` and ${plural(lines, "line")}` : ""}.${
+      also.length
+        ? ` Also renamed ${also.map((move) => move.from).join(", ")}, which ${also.length === 1 ? "shares" : "share"} its name.`
+        : ""
+    }`,
+    actionLabel: "Undo",
+    onAction: () => void undo(),
+  });
+
 export interface InspectorFacts {
   uses: SearchGroup[] | null;
   problems: SparkDiagnostic[] | null;
@@ -77,7 +103,6 @@ const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
   return x.every((byte, index) => byte === y[index]);
 };
 
-const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const failedWrite = (
   prefix: string,
@@ -249,9 +274,17 @@ export default class WorkspaceAssets {
     return path;
   }
 
+  protected covered(paths: readonly string[]): string[] {
+    return coveredPaths(this.listing, paths, assetEndings.peek());
+  }
+
   async rename(path: string, name: string): Promise<string> {
     const projectId = this.requireProject();
     const kind = this.kindOf(path);
+    const members = kind === "file" ? this.covered([path]) : [path];
+    if (members.length > 1) {
+      return this.renameStack(projectId, path, members, name);
+    }
     const folder = parentOf(path);
     const leaf = availableName(
       name,
@@ -279,7 +312,76 @@ export default class WorkspaceAssets {
     await window.recordAssetChange();
     recordMove(projectId, path, to, false);
     await this.load();
+    showRenamed(assetName(path), renamed.result.referencesUpdated, []);
     return to;
+  }
+
+  protected async renameStack(
+    projectId: string,
+    path: string,
+    members: readonly string[],
+    name: string,
+  ): Promise<string> {
+    const [stack] = imageStacks(members);
+    if (!stack) {
+      return path;
+    }
+    const extension = extensionOf(stack.cover);
+    const typed = validName(name, extension).slice(0, -extension.length || undefined);
+    if (/[@~]/.test(typed)) {
+      throw new NameError("Use a name without @ or ~. They mark a picture's alternates and layers.");
+    }
+    if (typed === stack.name) {
+      return path;
+    }
+    const moves: FileMove[] = members.map((from) => ({
+      from,
+      to: joinPath(parentOf(from), typed + nameOf(from).slice(stack.name.length)),
+    }));
+    let outcome;
+    try {
+      outcome = await renameFiles(this._workspace, projectId, moves);
+    } catch (error) {
+      await this.load().catch(() => null);
+      throw new NameError(reasonOf(error));
+    }
+    const { window } = this._workspace;
+    if (outcome.referencesUpdated > 0) {
+      await window.recordScriptChange();
+    }
+    await window.recordAssetChange();
+    recordMoves(projectId, [...moves, ...outcome.also], typed);
+    await this.load();
+    showRenamed(stack.name, outcome.referencesUpdated, outcome.also);
+    return moves.find((move) => move.from === path)?.to ?? path;
+  }
+
+  async move(paths: readonly string[], folder: string): Promise<FileMove[]> {
+    const projectId = this.requireProject();
+    const listing = this.listing;
+    const covered = this.covered(paths);
+    const check = assetMoveCheck(listing, covered, folder);
+    if ("refused" in check) {
+      throw new NameError(check.refused);
+    }
+    if (!check.moving.length) {
+      return [];
+    }
+    const moves: FileMove[] = check.moving.map((from) => ({
+      from,
+      to: joinPath(folder, nameOf(from)),
+      isDir: !Object.hasOwn(listing.files, from),
+    }));
+    try {
+      await renameFiles(this._workspace, projectId, moves);
+    } catch (error) {
+      await this.load().catch(() => null);
+      throw new NameError(reasonOf(error));
+    }
+    await this._workspace.window.recordAssetChange();
+    recordMoves(projectId, moves, thingsLabel(listing, covered, assetEndings.peek()), "Move");
+    await this.load();
+    return moves;
   }
 
   async measureImages(paths: readonly string[]): Promise<void> {
@@ -353,16 +455,46 @@ export default class WorkspaceAssets {
 
   async remove(paths: readonly string[]): Promise<void> {
     const projectId = this.requireProject();
-    const items = outermost(paths);
+    const items = this.covered(paths);
     const trashed = items.map((path) => ({ path, folder: this.kindOf(path) === "folder" }));
-    const label =
-      items.length === 1
-        ? nameOf(items[0]!)
-        : plural(items.length, trashed.some((item) => item.folder) ? "item" : "file");
+    const label = thingsLabel(this.listing, items, assetEndings.peek());
     await moveToTrash(this._workspace.fs, projectId, trashed, label);
     await this._workspace.window.recordAssetChange();
     await this.load();
   }
+
+  async usedBy(paths: readonly string[]): Promise<SearchGroup[] | null> {
+    const files = coveredFiles(this.listing, this.covered(paths));
+    try {
+      return files.length ? await this.uses(files) : [];
+    } catch {
+      return null;
+    }
+  }
+
+  async downloadAll(paths: readonly string[]): Promise<void> {
+    const projectId = this.requireProject();
+    const listing = this.listing;
+    const covered = this.covered(paths);
+    const files = coveredFiles(listing, covered);
+    const [only] = files;
+    if (files.length === 1 && only && covered.length === 1) {
+      await this.download(only);
+      return;
+    }
+    const base = covered.length === 1 ? parentOf(covered[0]!) : commonFolder(covered);
+    const { fs } = this._workspace;
+    const zip = await fs.zipFiles({
+      files: files.map((path) => ({
+        uri: fs.getFileUri(projectId, path),
+        path: base ? path.slice(base.length + 1) : path,
+      })),
+      directories: [],
+    });
+    const names = thingNames(listing, covered, assetEndings.peek());
+    downloadFile(`${names.length === 1 ? names[0] : "Assets"}.zip`, "application/zip", zip);
+  }
+
   async uses(paths: readonly string[]): Promise<SearchGroup[]> {
     const projectId = this.projectId;
     if (!projectId) {

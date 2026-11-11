@@ -15,8 +15,11 @@ const assets = vi.hoisted(() => ({
   upload: vi.fn(async (): Promise<string[]> => []),
   addLink: vi.fn(async () => ""),
   createFolder: vi.fn(async () => ""),
-  rename: vi.fn(async () => ""),
-  remove: vi.fn(async () => undefined),
+  rename: vi.fn(async (path: string, _name: string) => path),
+  remove: vi.fn(async (_paths: readonly string[]) => undefined),
+  move: vi.fn(async (_paths: readonly string[], _folder: string): Promise<{ from: string; to: string }[]> => []),
+  usedBy: vi.fn(async (_paths: readonly string[]): Promise<unknown[] | null> => []),
+  downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
   measureImages: vi.fn(async (_paths: string[]) => undefined),
   watchFacts: vi.fn((_paths: string[]) => () => {}),
 }));
@@ -25,6 +28,7 @@ const window = vi.hoisted(() => ({
   setListState: vi.fn(),
   navigateTo: vi.fn(),
   openTrash: vi.fn(),
+  revealDocument: vi.fn(),
 }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { assets, window },
@@ -37,6 +41,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 };
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { default: selection } = await import("../../src/modules/spark-editor/workspace/assetsSelection");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
@@ -250,8 +255,9 @@ describe("the Assets page", () => {
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/600");
     await click(inspector.querySelector<HTMLElement>("[data-inspector-close]")!);
     await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
-    await vi.waitFor(() => expect(menuItems()).toEqual(["Rename", "Delete"]));
+    await vi.waitFor(() => expect(menuItems()).toEqual(["Select", "Rename", "Move…", "Delete"]));
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
+    expect(assets.usedBy).toHaveBeenCalledWith(["Assets/Images/bunny.png"]);
     expect(assets.remove).toHaveBeenCalledWith(["Assets/Images/bunny.png"]);
   });
 
@@ -509,10 +515,26 @@ describe("renaming from the row menu", () => {
     return items;
   };
 
-  it("offers Rename for a single file and not for a stacked picture", async () => {
+  it("offers the same actions for a single file and a stacked picture", async () => {
     await mount();
-    expect(await menuOf("bunny")).toEqual(["Rename", "Delete"]);
-    expect(await menuOf("imani")).toEqual(["Delete"]);
+    expect(await menuOf("bunny")).toEqual(["Select", "Rename", "Move…", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Select", "Rename", "Move…", "Delete"]);
+  });
+
+  it("renames a stacked picture from its tile, holding the name as the script writes it", async () => {
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for imani"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Rename"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Rename")));
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani"]')!;
+    expect(input.value).toBe("imani");
+    await act(async () => {
+      input.value = "zadie";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.rename).toHaveBeenCalledWith("Assets/Images/Portraits/imani.png", "zadie");
   });
 
   it("shows a refused single-file rename's whole message under the field in its tile", async () => {
@@ -535,5 +557,143 @@ describe("renaming from the row menu", () => {
     expect(alert.textContent).toBe(message);
     expect(alert.closest("small")!.className).toContain("whitespace-normal");
     expect(alert.closest("small")!.className).not.toContain("fade-edge");
+  });
+});
+
+describe("selecting, moving and deleting", () => {
+  const P = "Assets/Images/Portraits";
+  const bar = () => host!.querySelector<HTMLElement>('[role="status"]')?.textContent;
+  const barButton = (label: string) =>
+    all<HTMLButtonElement>("button").find((button) => button.textContent?.trim() === label);
+  const mark = (name: string) => host!.querySelector<HTMLInputElement>(`input[aria-label="Select ${name}"]`)!;
+  const check = async (name: string) => {
+    await act(async () => mark(name).click());
+    await settle();
+  };
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+  beforeEach(() => {
+    selection.end();
+    setListing(
+      {
+        [`${P}/imani.png`]: facts(7001),
+        [`${P}/imani@night.png`]: facts(7002),
+        [`${P}/bunny.png`]: facts(7003),
+      },
+      [`${P}/Cast`],
+    );
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
+  });
+
+  it("enters selection from a tile's mark, counts, selects all and stops on Escape", async () => {
+    await mount();
+    expect(mark("imani").closest("[data-tile]")).not.toBeNull();
+    await check("imani");
+    expect(bar()).toBe("1 selected");
+    expect(mark("imani").checked).toBe(true);
+    await click(barButton("Select all"));
+    expect(bar()).toBe("3 selected");
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    expect(bar()).toBeUndefined();
+  });
+
+  it("enters selection from the row menu's Select, and a press then toggles instead of opening", async () => {
+    await mount();
+    await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Select"));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Select")));
+    expect(bar()).toBe("1 selected");
+    await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
+    expect(bar()).toBe("2 selected");
+    expect(document.querySelector('section[aria-label="Asset details"]')).toBeNull();
+  });
+
+  it("moves the selection through the Move dialog, and downloads it", async () => {
+    await mount();
+    await check("imani");
+    await check("bunny");
+    await click(barButton("Download"));
+    expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/bunny.png`, `${P}/imani.png`]);
+    await click(barButton("Move…"));
+    expect(dialog()!.querySelector("h2")!.textContent).toBe("Move 2 items");
+    await click([...dialog()!.querySelectorAll<HTMLElement>('[role="option"]')].find((el) => el.textContent?.includes("Cast")));
+    await click([...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Move here"));
+    expect(assets.move).toHaveBeenCalledWith([`${P}/bunny.png`, `${P}/imani.png`], `${P}/Cast`);
+    expect(bar()).toBeUndefined();
+  });
+
+  it("deletes an unused selection at once, and asks first with its lines when a script uses it", async () => {
+    await mount();
+    await check("bunny");
+    await click(barButton("Delete…"));
+    expect(assets.remove).toHaveBeenCalledWith([`${P}/bunny.png`]);
+    expect(dialog()).toBeNull();
+    const use = (line: number, text: string) => ({
+      uri: "file:///p/main.sd",
+      range: { start: { line, character: 18 }, end: { line, character: 23 } },
+      lineText: text,
+      declaration: false,
+    });
+    assets.usedBy.mockResolvedValueOnce([
+      {
+        uri: "file:///p/main.sd",
+        uses: [
+          use(1, "  [[show portrait imani]]"),
+          use(2, "  [[show portrait imani@night]]"),
+          use(3, "  [[show portrait imani~face.happy]]"),
+          use(4, "  [[show portrait imani]]"),
+        ],
+      },
+    ]);
+    assets.remove.mockClear();
+    await check("imani");
+    await click(barButton("Delete…"));
+    expect(dialog()!.querySelector("h2")!.textContent).toBe("Delete imani?");
+    expect(dialog()!.textContent).toContain("Used in 4 lines");
+    expect(dialog()!.querySelectorAll("[data-delete-uses] li")).toHaveLength(3);
+    expect(dialog()!.textContent).toContain("and 1 more line");
+    expect(assets.remove).not.toHaveBeenCalled();
+    await click([...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Delete"));
+    expect(assets.remove).toHaveBeenCalledWith([`${P}/imani.png`]);
+  });
+
+  it("asks first when it could not check the uses", async () => {
+    assets.usedBy.mockResolvedValueOnce(null);
+    await mount();
+    await check("bunny");
+    await click(barButton("Delete…"));
+    expect(dialog()!.textContent).toContain("Couldn't check which scripts use it.");
+    expect(assets.remove).not.toHaveBeenCalled();
+  });
+
+  it("drops a dragged tile on a crumb of the trail, and on a folder tile", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: `${P}/Cast` } } };
+    setListing(
+      { [`${P}/Cast/ada.png`]: facts(7101), [`${P}/imani.png`]: facts(7001) },
+      [`${P}/Cast`, `${P}/Cast/Extras`],
+    );
+    await mount();
+    const drag = async (source: HTMLElement, target: HTMLElement) => {
+      const dataTransfer = { setData: () => {}, effectAllowed: "", dropEffect: "" };
+      await act(async () => {
+        source.dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }));
+        target.dispatchEvent(Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer }));
+        target.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }));
+      });
+      await settle();
+    };
+    const ada = host!.querySelector<HTMLElement>('button[aria-label^="Open image ada"]')!;
+    const crumb = [...host!.querySelectorAll<HTMLElement>('nav[aria-label="Folder path"] [data-drop-folder]')].find(
+      (el) => el.textContent === "Portraits",
+    )!;
+    expect(crumb.getAttribute("data-drop-folder")).toBe(P);
+    await drag(ada, crumb);
+    expect(assets.move).toHaveBeenLastCalledWith([`${P}/Cast/ada.png`], P);
+    const extras = host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast/Extras"]`)!;
+    await drag(host!.querySelector<HTMLElement>('button[aria-label^="Open image ada"]')!, extras);
+    expect(assets.move).toHaveBeenLastCalledWith([`${P}/Cast/ada.png`], `${P}/Cast/Extras`);
   });
 });

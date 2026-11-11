@@ -14,6 +14,7 @@ import {
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import { imageStacks } from "../../utils/imageStacks";
 import { showSnackbar } from "../../utils/snackbar";
 
 function timeAgo(ms: number): string {
@@ -34,7 +35,19 @@ function topFolders(batch: TrashBatch): string[] {
   );
 }
 
+function onePicture(batch: TrashBatch): string | null {
+  if (batch.folders?.length || batch.entries.length < 2 || batch.entries.some((e) => e.type !== "image")) {
+    return null;
+  }
+  const stacks = imageStacks(batch.entries.map((e) => e.relPath));
+  return stacks.length === 1 ? stacks[0]!.name : null;
+}
+
 function batchLabel(batch: TrashBatch): string {
+  const picture = onePicture(batch);
+  if (picture) {
+    return picture;
+  }
   const tops = topFolders(batch);
   const loose = batch.entries.filter(
     (e) => !tops.some((t) => e.relPath.startsWith(`${t}/`)),
@@ -218,7 +231,7 @@ export default function TrashPanel() {
               <ListRow
                 key={batch.batchId}
                 class="px-2"
-                icon={batch.entries.length === 1 && !batch.folders?.length ? <FileIcon /> : <FolderIcon />}
+                icon={(batch.entries.length === 1 && !batch.folders?.length) || onePicture(batch) ? <FileIcon /> : <FolderIcon />}
                 label={batchLabel(batch)}
                 description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
                 actions={

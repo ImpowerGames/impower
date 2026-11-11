@@ -1,4 +1,5 @@
 import type WorkspaceFileSystem from "../workspace/WorkspaceFileSystem";
+import { moveAll, reasonOf, reversed, type FileMove, type MovingFileSystem, type RenameOutcome } from "./fileMoves";
 import { renameOrReport } from "./renameOrReport";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
@@ -103,10 +104,36 @@ export async function recordTrashDeletion(
 
 const basename = (p: string) => p.split("/").pop() || p;
 
+const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+
 export type FileRenamer = {
-  fs: Pick<WorkspaceFileSystem, "moveFile" | "renameFileWithReferences">;
+  fs: MovingFileSystem &
+    Pick<WorkspaceFileSystem, "renameFileWithReferences" | "renameFilesWithReferences">;
   autoRenameFiles: () => boolean;
 };
+
+export async function renameFiles(
+  workspace: FileRenamer,
+  projectId: string,
+  moves: readonly FileMove[],
+): Promise<RenameOutcome> {
+  const follows =
+    moves.every((move) => !move.isDir && folderOf(move.from) === folderOf(move.to)) &&
+    workspace.autoRenameFiles();
+  const [only] = moves;
+  if (moves.length === 1 && only) {
+    if (follows) {
+      const result = await workspace.fs.renameFileWithReferences(projectId, only.from, only.to);
+      return { referencesUpdated: result.referencesUpdated, also: [] };
+    }
+    if (only.isDir) await workspace.fs.moveFolder(projectId, only.from, only.to);
+    else await workspace.fs.moveFile(projectId, only.from, only.to);
+    return { referencesUpdated: 0, also: [] };
+  }
+  return follows
+    ? workspace.fs.renameFilesWithReferences(projectId, moves)
+    : moveAll(workspace.fs, projectId, moves);
+}
 
 export async function renameFile(
   workspace: FileRenamer,
@@ -114,12 +141,41 @@ export async function renameFile(
   fromPath: string,
   toPath: string,
 ): Promise<{ referencesUpdated: number }> {
-  const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
-  if (folderOf(fromPath) === folderOf(toPath) && workspace.autoRenameFiles()) {
-    return workspace.fs.renameFileWithReferences(projectId, fromPath, toPath);
-  }
-  await workspace.fs.moveFile(projectId, fromPath, toPath);
-  return { referencesUpdated: 0 };
+  return renameFiles(workspace, projectId, [{ from: fromPath, to: toPath }]);
+}
+
+export function recordMoves(
+  projectId: string,
+  moves: readonly FileMove[],
+  label: string,
+  verb: "Rename" | "Move" = "Rename",
+) {
+  const run = async (set: readonly FileMove[]) => {
+    const { Workspace } = await import("../workspace/Workspace");
+    const [only] = set;
+    if (set.length === 1 && only) {
+      const move = await renameOrReport<unknown>(only.from, only.to, () =>
+        renameFiles(Workspace, projectId, set),
+      );
+      if (!move.renamed) {
+        throw new Error(`Rename of ${only.from} to ${only.to} was refused`);
+      }
+    } else {
+      try {
+        await renameFiles(Workspace, projectId, set);
+      } catch (error) {
+        showSnackbar({ message: reasonOf(error) });
+        throw error;
+      }
+    }
+    await markProjectDirty();
+  };
+  const all = [...moves];
+  pushUndo({
+    label: `${verb} ${label}`,
+    undo: () => run(reversed(all)),
+    redo: () => run(all),
+  });
 }
 
 export function recordMove(
@@ -128,23 +184,7 @@ export function recordMove(
   toPath: string,
   isDir: boolean,
 ) {
-  const move = async (from: string, to: string) => {
-    const { Workspace } = await import("../workspace/Workspace");
-    const move = await renameOrReport<unknown>(from, to, () =>
-      isDir
-        ? Workspace.fs.moveFolder(projectId, from, to)
-        : renameFile(Workspace, projectId, from, to),
-    );
-    if (!move.renamed) {
-      throw new Error(`Rename of ${from} to ${to} was refused`);
-    }
-    await markProjectDirty();
-  };
-  pushUndo({
-    label: `Rename ${basename(toPath)}`,
-    undo: () => move(toPath, fromPath),
-    redo: () => move(fromPath, toPath),
-  });
+  recordMoves(projectId, [{ from: fromPath, to: toPath, isDir }], basename(toPath));
 }
 
 export function recordCreate(

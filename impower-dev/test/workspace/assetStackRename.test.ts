@@ -1,0 +1,391 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { memoryLocks, memoryRoot, writeMemoryFile } from "../../../packages/opfs-workspace/test/memoryOpfs";
+
+vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
+
+const services = vi.hoisted(() => ({
+  fs: null as any,
+  ls: null as any,
+  autoRenameFiles: () => true,
+  window: {
+    recordScriptChange: async () => undefined,
+    recordAssetChange: async () => undefined,
+    openFileEditor: () => undefined,
+    getActiveEditorForFile: () => undefined,
+  },
+}));
+vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({ Workspace: services }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete (navigator as { storage?: unknown }).storage;
+  delete (navigator as { locks?: unknown }).locks;
+});
+
+const PROJECT = "local";
+const NL = String.fromCharCode(10);
+const encode = (text: string) => new TextEncoder().encode(text);
+
+async function harness(stored: Record<string, string>) {
+  vi.resetModules();
+  const saved: { blob: Blob; name: string }[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    saved.at(-1)!.name = this.download;
+  });
+  const root = memoryRoot();
+  for (const [path, text] of Object.entries({ ".layout": "1", ".folders": "1", ...stored })) {
+    writeMemoryFile(root, `${PROJECT}/${path}`, encode(text));
+  }
+  Object.defineProperty(navigator, "storage", { configurable: true, value: { getDirectory: async () => root } });
+  Object.defineProperty(navigator, "locks", { configurable: true, value: memoryLocks() });
+  vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
+  vi.stubGlobal("URL", Object.assign(class extends URL {}, {
+    createObjectURL: (blob: Blob) => {
+      saved.push({ blob, name: "" });
+      return "blob:asset-stack-rename";
+    },
+    revokeObjectURL: () => undefined,
+  }));
+  const workers: { deliver(message: unknown): void }[] = [];
+  class LoopbackWorker {
+    listeners: ((event: { data: unknown }) => void)[] = [];
+    constructor() { workers.push(this); }
+    addEventListener(_type: string, listener: (event: { data: unknown }) => void) { this.listeners.push(listener); }
+    postMessage(message: unknown) {
+      const data = structuredClone(message);
+      setTimeout(() => void (globalThis as any).onmessage({ data }), 0);
+    }
+    deliver(message: unknown) {
+      const data = structuredClone(message);
+      setTimeout(() => this.listeners.forEach((listener) => listener({ data })), 0);
+    }
+  }
+  vi.stubGlobal("Worker", LoopbackWorker);
+  vi.stubGlobal("BroadcastChannel", class { postMessage() {} close() {} });
+  vi.stubGlobal("postMessage", (message: unknown) => workers.forEach((worker) => worker.deliver(message)));
+  vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  await import("../../../packages/opfs-workspace/src/opfs-workspace");
+  const settings = { scriptFiles: "*.{sd,luau}", imageFiles: "*.{png,jpg}", audioFiles: "*.mp3", videoFiles: "*.mp4", fontFiles: "*.ttf" };
+  await (globalThis as any).onmessage({ data: {
+    jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings },
+  } });
+  const { SparkdownCompiler } = await import("@impower/sparkdown/src/compiler/classes/SparkdownCompiler");
+  const { SparkdownDocumentRegistry } = await import("@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry");
+  const { SparkdownLanguageServerWorkspace } = await import(
+    "../../../packages/sparkdown-language-server/src/classes/SparkdownLanguageServerWorkspace"
+  );
+  const { getFileRenameEdits } = await import(
+    "../../../packages/sparkdown-language-server/src/utils/providers/getFileRenameEdits"
+  );
+  const { default: WorkspaceFileSystem } = await import("../../src/modules/spark-editor/workspace/WorkspaceFileSystem");
+  const { default: WorkspaceAssets } = await import("../../src/modules/spark-editor/workspace/WorkspaceAssets");
+  const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+  const history = await import("../../src/modules/spark-editor/utils/undoManager");
+  const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
+  const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
+  setAssetFiles({ imageFiles: "*.{png,jpg}", audioFiles: "*.mp3", videoFiles: "*.mp4", fontFiles: "*.ttf" });
+  history.clearUndoHistory();
+
+  let fs: InstanceType<typeof WorkspaceFileSystem>;
+  const languageServer = async () => {
+    const files = Object.keys(await fs.getFiles(PROJECT));
+    const scripts = files.filter((uri) => uri.endsWith(".sd"));
+    const images = files.filter((uri) => /[.](png|jpg)$/.test(uri));
+    const texts = new Map(await Promise.all(scripts.map(async (uri) => [uri, await fs.getFileText(uri)] as const)));
+    const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
+    for (const [uri, text] of texts) {
+      documents.add({ textDocument: { uri, languageId: "sparkdown", version: 1, text } });
+    }
+    const server = Object.create(SparkdownLanguageServerWorkspace.prototype);
+    Object.assign(server, {
+      _documents: documents,
+      _watchedFiles: new Map(files.map((uri) => [uri, { uri }])),
+      _programStates: new Map(),
+      _documentVersions: new Map(),
+      _imageFilePattern: /[.](png|jpg)$/,
+    });
+    const compiler = new SparkdownCompiler();
+    const leaf = (uri: string) => uri.split("/").at(-1)!;
+    compiler.configure({
+      files: [
+        ...scripts.map((uri) => ({ uri, type: "script", name: leaf(uri).split(".")[0]!, ext: "sd", text: texts.get(uri), version: 1, languageId: "sparkdown" })),
+        ...images.map((uri) => ({ uri, type: "image", name: leaf(uri).split(".")[0]!, ext: leaf(uri).split(".").at(-1)!, src: uri, version: 1 })),
+      ] as never,
+    });
+    const main = scripts.find((uri) => uri.endsWith("/main.sd"))!;
+    const program = compiler.compile({ textDocument: { uri: main } }).program;
+    return { server, program };
+  };
+  const ls = {
+    connection: { onRequest() {}, sendNotification() {} },
+    start: async () => {},
+    getScriptReferences: async () => [],
+    getFileRenameEdits: vi.fn(async (oldUri: string, newName: string) => {
+      const { server, program } = await languageServer();
+      return getFileRenameEdits(server, program, oldUri, newName);
+    }),
+    getFileReferences: async () => [],
+    getFileDiagnostics: async () => [],
+    onPublishedDiagnostics: () => () => {},
+  };
+  fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
+  services.fs = fs;
+  services.ls = ls;
+  services.autoRenameFiles = () => true;
+  workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: PROJECT } };
+  const deps = { fs, ls, window: services.window, autoRenameFiles: () => services.autoRenameFiles() };
+  const assets = new WorkspaceAssets(deps as never);
+  const uri = (path: string) => fs.getFileUri(PROJECT, path);
+  const read = async (path: string) => new TextDecoder().decode(await fs.readFile({ file: { uri: uri(path) } }));
+  const paths = async () =>
+    Object.keys(await fs.getFiles(PROJECT)).map((u) => fs.getRelativePath(PROJECT, u)).filter((p) => !p.startsWith(".")).sort();
+  const write = (path: string, text: string) =>
+    fs.createFiles({ files: [{ uri: uri(path), data: encode(text).buffer as ArrayBuffer }] });
+  const folder = (path: string) =>
+    path.split("/").reduce<any>((dir, name) => dir.entries.get(name), root.entries.get(PROJECT));
+  const failCreating = (path: string, when: () => boolean = () => true) => {
+    const dir = folder(path.slice(0, path.lastIndexOf("/")));
+    const leafName = path.slice(path.lastIndexOf("/") + 1);
+    const original = dir.getFileHandle.bind(dir);
+    dir.getFileHandle = async (name: string, options: { create?: boolean } = {}) => {
+      if (name === leafName && options.create && when()) {
+        throw new DOMException("The storage is full", "QuotaExceededError");
+      }
+      return original(name, options);
+    };
+  };
+  await assets.load();
+  return { fs, ls, assets, history, snackbar, uri, read, write, paths, failCreating, saved };
+}
+
+const P = "Assets/Images/Portraits";
+const STACK = [`${P}/imani.png`, `${P}/imani@night.png`, `${P}/imani@night~face.sad.png`, `${P}/imani~face.happy.png`];
+const RENAMED = STACK.map((path) => path.replace("/imani", "/zadie"));
+const SCRIPT = [
+  "scene start",
+  "  [[show portrait imani]]",
+  "  [[show portrait imani@night]]",
+  "  [[show portrait imani~face.happy]]",
+  "  [[show portrait imani_extra]]",
+  "end",
+  "",
+].join(NL);
+const lines = (...text: string[]) => [...text, ""].join(NL);
+const project = (extra: Record<string, string> = {}) => ({
+  "main.sd": SCRIPT,
+  ...Object.fromEntries(STACK.map((path, i) => [path, `picture ${i}`])),
+  [`${P}/imani_extra.png`]: "extra",
+  ...extra,
+});
+const shown = (text: string) => text.split(NL).filter((line) => line.includes("[[show")).map((line) => line.trim());
+const inPortraits = async (h: Awaited<ReturnType<typeof harness>>) =>
+  (await h.paths()).filter((path) => path.startsWith(`${P}/`));
+const ORIGINAL = [...STACK, `${P}/imani_extra.png`].sort();
+
+describe("renaming a stacked picture", { timeout: 120000 }, () => {
+  it("renames every file of the stack, keeps their @ and ~ parts, and follows the lines that show it", async () => {
+    const h = await harness(project());
+    expect(await h.assets.rename(STACK[0]!, "zadie")).toBe(RENAMED[0]);
+    expect(await inPortraits(h)).toEqual([`${P}/imani_extra.png`, ...RENAMED].sort());
+    expect(await h.read(RENAMED[1]!)).toBe("picture 1");
+    expect(await h.read(RENAMED[3]!)).toBe("picture 3");
+    expect(shown(await h.read("main.sd"))).toEqual([
+      "[[show portrait zadie]]",
+      "[[show portrait zadie@night]]",
+      "[[show portrait zadie~face.happy]]",
+      "[[show portrait imani_extra]]",
+    ]);
+    expect(h.snackbar.value?.message).toBe("Renamed imani and 3 lines.");
+  });
+
+  it("says the same for a single picture, which leaves a reference to a longer name alone", async () => {
+    const h = await harness(project());
+    expect(await h.assets.rename(`${P}/imani_extra.png`, "kai")).toBe(`${P}/kai.png`);
+    expect(shown(await h.read("main.sd"))).toEqual([
+      "[[show portrait imani]]",
+      "[[show portrait imani@night]]",
+      "[[show portrait imani~face.happy]]",
+      "[[show portrait kai]]",
+    ]);
+    expect(h.snackbar.value?.message).toBe("Renamed imani_extra and 1 line.");
+    expect(await inPortraits(h)).toEqual([...STACK, `${P}/kai.png`].sort());
+  });
+
+  it("renames the files only when Auto-rename files is off", async () => {
+    const h = await harness(project());
+    services.autoRenameFiles = () => false;
+    await h.assets.rename(STACK[0]!, "zadie");
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([...RENAMED].sort());
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+    expect(h.ls.getFileRenameEdits).not.toHaveBeenCalled();
+  });
+
+  it("undoes and redoes as one step after an unrelated edit, asking for fresh edits each time", async () => {
+    const h = await harness(project({ "chapter.sd": lines("scene other", "  Unrelated.", "end") }));
+    await h.assets.rename(STACK[0]!, "zadie");
+    await h.write("chapter.sd", lines("scene other", "  Edited.", "end"));
+    const asked = h.ls.getFileRenameEdits.mock.calls.length;
+    expect(await h.history.undo()).toBe(true);
+    expect(h.ls.getFileRenameEdits.mock.calls.length).toBeGreaterThan(asked);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+    expect(await h.history.redo()).toBe(true);
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([...RENAMED].sort());
+    expect(shown(await h.read("main.sd"))[0]).toBe("[[show portrait zadie]]");
+    expect(await h.read("chapter.sd")).toContain("Edited.");
+  });
+
+  it("follows a reference added after a rename that had none", async () => {
+    const h = await harness(project({ "main.sd": lines("scene start", "end") }));
+    await h.assets.rename(STACK[0]!, "zadie");
+    expect(h.snackbar.value?.message).toBe("Renamed imani.");
+    await h.write("main.sd", lines("scene start", "  [[show portrait zadie@night]]", "end"));
+    expect(await h.history.undo()).toBe(true);
+    expect(shown(await h.read("main.sd"))).toEqual(["[[show portrait imani@night]]"]);
+    expect(await h.paths()).toContain(STACK[1]);
+  });
+
+  it("refuses an undo whose member was removed, says which, and keeps the step", async () => {
+    const h = await harness(project());
+    await h.assets.rename(STACK[0]!, "zadie");
+    await h.fs.deleteFiles({ files: [{ uri: h.uri(RENAMED[2]!) }] });
+    expect(await h.history.undo()).toBe(false);
+    expect(h.snackbar.value?.message).toBe(`Couldn't rename zadie: ${RENAMED[2]} is no longer there. Nothing was renamed.`);
+    expect(h.history.canUndo.value).toBe(true);
+    expect((await inPortraits(h)).filter((path) => path.includes("/zadie"))).toEqual([RENAMED[0], RENAMED[1], RENAMED[3]]);
+  });
+
+  it("renames a same-name picture in another format and another folder with it, and says so", async () => {
+    const h = await harness(project({
+      [`${P}/imani.jpg`]: "jpg",
+      "Assets/Images/Backdrops/imani.png": "backdrop",
+    }));
+    await h.assets.rename(STACK[0]!, "zadie");
+    const after = await h.paths();
+    expect(after).toContain(`${P}/zadie.jpg`);
+    expect(after).toContain("Assets/Images/Backdrops/zadie.png");
+    expect(after.filter((path) => /[/]imani[.@~]/.test(path))).toEqual([]);
+    expect(h.snackbar.value?.message).toBe(
+      "Renamed imani and 3 lines. Also renamed Assets/Images/Backdrops/imani.png, which shares its name.",
+    );
+    expect(await h.history.undo()).toBe(true);
+    expect(await h.paths()).toContain("Assets/Images/Backdrops/imani.png");
+    expect(await h.paths()).toContain(`${P}/imani.jpg`);
+  });
+
+  it("refuses a target that is taken, or two targets that collide, and changes nothing", async () => {
+    const cases: [Record<string, string>, string][] = [
+      [{ [`${P}/zadie@night.png`]: "taken" }, `Couldn't rename imani: ${P}/zadie@night.png already exists. Nothing was renamed.`],
+      [
+        { "Assets/Images/Backdrops/imani.png": "a", "Assets/Images/Backdrops/zadie.png": "b" },
+        "Couldn't rename imani: Assets/Images/Backdrops/zadie.png already exists. Nothing was renamed.",
+      ],
+      [
+        { [`${P}/imani@NIGHT.png`]: "case" },
+        `Couldn't rename imani: ${P}/imani@NIGHT.png and ${P}/imani@night.png would both become zadie@night.png. Nothing was renamed.`,
+      ],
+    ];
+    for (const [extra, message] of cases) {
+      const h = await harness(project(extra));
+      const before = await h.paths();
+      await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(message);
+      expect(await h.paths()).toEqual(before);
+      expect(await h.read("main.sd")).toBe(SCRIPT);
+      expect(h.history.canUndo.value).toBe(false);
+    }
+  });
+
+  it("does nothing for its own name, renames a case-only change, and refuses @ and ~", async () => {
+    const h = await harness(project());
+    expect(await h.assets.rename(STACK[0]!, " imani.png ")).toBe(STACK[0]);
+    expect(h.history.canUndo.value).toBe(false);
+    await expect(h.assets.rename(STACK[0]!, "zadie@day")).rejects.toThrow("Use a name without @ or ~.");
+    await h.assets.rename(STACK[0]!, "Imani");
+    expect((await inPortraits(h)).filter((path) => path.includes("/Imani"))).toEqual(
+      STACK.map((path) => path.replace("/imani", "/Imani")).sort(),
+    );
+    expect(shown(await h.read("main.sd"))[2]).toBe("[[show portrait Imani~face.happy]]");
+  });
+
+  for (const [which, failing] of [["first", 0], ["last", 3]] as const) {
+    it(`puts every file back when storage fails on the ${which} member, and records no step`, async () => {
+      const h = await harness(project());
+      h.failCreating(RENAMED[failing]!);
+      await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+        "Couldn't rename imani: The storage is full. Every file is back where it was.",
+      );
+      expect(await inPortraits(h)).toEqual(ORIGINAL);
+      expect(await h.read("main.sd")).toBe(SCRIPT);
+      expect(h.history.canUndo.value).toBe(false);
+    });
+  }
+
+  it("names the file it could not put back after a failure", async () => {
+    const h = await harness(project());
+    let failed = false;
+    h.failCreating(RENAMED[3]!, () => (failed = true));
+    h.failCreating(STACK[1]!, () => failed);
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
+      `Couldn't rename imani: The storage is full. Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
+    );
+    expect(await h.paths()).toContain(RENAMED[1]);
+    expect(h.history.canUndo.value).toBe(false);
+  });
+});
+
+describe("moving and deleting a stacked picture", { timeout: 120000 }, () => {
+  it("moves every file of the stack as one step, leaves the lines alone, and undoes it", async () => {
+    const h = await harness(project());
+    await h.fs.createFolder(PROJECT, "Assets/Images/Cast");
+    await h.assets.load();
+    const moved = await h.assets.move([STACK[0]!], "Assets/Images/Cast");
+    expect(moved.map((move) => move.to)).toEqual(STACK.map((path) => path.replace(P, "Assets/Images/Cast")));
+    expect(await inPortraits(h)).toEqual([`${P}/imani_extra.png`]);
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+    expect(await h.history.undo()).toBe(true);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
+  it("downloads a stacked picture as one zip named for it, holding every file", async () => {
+    const h = await harness(project());
+    await h.assets.downloadAll([STACK[0]!]);
+    const [zip] = h.saved;
+    expect(zip!.name).toBe("imani.zip");
+    const bytes = await new Promise<Uint8Array>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+      reader.readAsArrayBuffer(zip!.blob);
+    });
+    const names: string[] = [];
+    for (let i = 0; i + 46 < bytes.length; i++) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 1 && bytes[i + 3] === 2) {
+        const length = bytes[i + 28]! | (bytes[i + 29]! << 8);
+        names.push(new TextDecoder().decode(bytes.subarray(i + 46, i + 46 + length)));
+      }
+    }
+    expect(names.sort()).toEqual(STACK.map((path) => path.slice(P.length + 1)).sort());
+    await h.assets.downloadAll([`${P}/imani_extra.png`]);
+    expect(h.saved.at(-1)!.name).toBe("imani_extra.png");
+  });
+
+  it("refuses a move onto a name the folder already has", async () => {
+    const h = await harness(project({ "Assets/Images/Cast/imani@night.png": "other" }));
+    await expect(h.assets.move([STACK[0]!], "Assets/Images/Cast")).rejects.toThrow("Cast already has imani@night.png.");
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
+  it("deletes every file of the stack to the bin, and Undo restores them all to their folder", async () => {
+    const h = await harness(project());
+    await h.assets.remove([STACK[0]!]);
+    expect(await inPortraits(h)).toEqual([`${P}/imani_extra.png`]);
+    expect(h.snackbar.value?.message).toBe("Deleted imani");
+    const [batch] = await h.fs.listTrash(PROJECT);
+    expect(batch!.entries.map((entry) => entry.relPath).sort()).toEqual([...STACK].sort());
+    expect(await h.history.undo()).toBe(true);
+    await vi.waitFor(async () => expect(await inPortraits(h)).toEqual(ORIGINAL));
+    expect(await h.read(STACK[2]!)).toBe("picture 2");
+  });
+});
