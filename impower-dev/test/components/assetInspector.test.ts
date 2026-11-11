@@ -369,6 +369,41 @@ describe("the asset inspector", () => {
     expect(details()).toContain("File: 600 B");
   });
 
+  it("shows a link's address as it is now when it changes elsewhere, and keeps a link hidden by a search when its type changes", async () => {
+    workspace.assetListing.value = {
+      ...workspace.assetListing.value!,
+      files: {
+        ...workspace.assetListing.value!.files,
+        "Assets/Images/Backdrops/sky.url": { ...fact(27), address: "https://example.com/sky.png" },
+      },
+    };
+    lists({ assetsType: "image", assetsFolders: { image: "Assets/Images/Backdrops" } });
+    await mount();
+    await open("sky");
+    const relink = async (address: string) => {
+      await act(async () => {
+        const listing = workspace.assetListing.value!;
+        workspace.assetListing.value = {
+          ...listing,
+          files: { ...listing.files, "Assets/Images/Backdrops/sky.url": { ...fact(28), address } },
+        };
+      });
+      await settle();
+    };
+    await relink("https://example.com/dusk.png");
+    expect(region()!.querySelector<HTMLInputElement>('input[aria-label="Address"]')!.value).toBe(
+      "https://example.com/dusk.png",
+    );
+    await search("market");
+    expect(title()).toBe("sky");
+    await relink("https://example.com/rain.mp3");
+    expect(title()).toBe("sky");
+    expect(subtitle()).toBe("Audio · MP3 · link");
+    expect(region()!.querySelector<HTMLInputElement>('input[aria-label="Address"]')!.value).toBe(
+      "https://example.com/rain.mp3",
+    );
+  });
+
   it("shows a link's address, saves a new one, opens it, and downloads the link file, but offers no Replace", async () => {
     workspace.assetListing.value = {
       ...workspace.assetListing.value!,

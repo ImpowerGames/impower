@@ -406,7 +406,7 @@ export default function AssetInspector({
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
         />
-        {asset.link && <LinkAddress key={asset.path} asset={asset} intents={intents} />}
+        {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
         {problems === null ? (
           <Section title="Problems" label="Problems">
             <p class="m-0 text-[12px]/[1.5] text-muted" data-problems-failed>

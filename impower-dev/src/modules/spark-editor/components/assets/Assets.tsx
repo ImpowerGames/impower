@@ -217,27 +217,27 @@ function AssetsBrowser() {
   const files = items.filter((item): item is AssetRow => item.kind === "file");
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [openedIn, setOpenedIn] = useState<InspectorHost | null>(null);
-  const shownRow = useRef<AssetRow | null>(null);
+  const lastPath = useRef<string | null>(null);
   const [reveal, setReveal] = useState<{ path: string; request: number } | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
-  const listed = openPath && openedIn === host ? files.find((row) => row.path === openPath) : undefined;
-  const hidden =
-    !listed && openPath && openedIn === host && shownRow.current?.path === openPath && Object.hasOwn(listing.files, openPath)
-      ? shownRow.current
-      : null;
-  const openRowOf =
-    listed ??
-    (hidden
-      ? (assetLevel({ listing, type: hidden.type, folder: parentOf(hidden.path), sort, endings }).rows.find(
-          (row) => row.kind === "file" && row.path === hidden.path,
-        ) ?? null)
+  const rowOf = (path: string): AssetRow | null =>
+    files.find((row) => row.path === path) ??
+    (Object.hasOwn(listing.files, path)
+      ? (assetLevel({
+          listing,
+          type: assetTypeOf(path, endings, listing.files[path]?.address),
+          folder: parentOf(path),
+          sort,
+          endings,
+        }).rows.find((row) => row.kind === "file" && row.path === path) ?? null)
       : null);
-  if (openRowOf) {
-    shownRow.current = openRowOf;
+  const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
+  if (openPath) {
+    lastPath.current = openPath;
   }
   const near = openPath ? neighborsOf(files, openPath) : null;
   const [layout, setLayout] = useFolderLayout(
@@ -306,7 +306,7 @@ function AssetsBrowser() {
   };
 
   const closeInspector = () => {
-    const path = shownRow.current?.path;
+    const path = openPath;
     setOpenPath(null);
     if (path && host === "dock") {
       focusRow(path);
@@ -457,7 +457,8 @@ function AssetsBrowser() {
     />
   );
   const inspector = openRowOf ? inspectorOf(openRowOf) : null;
-  const lastInspector = inspector ?? (shownRow.current ? inspectorOf(shownRow.current) : null);
+  const closing = !inspector && lastPath.current ? rowOf(lastPath.current) : null;
+  const lastInspector = inspector ?? (closing ? inspectorOf(closing) : null);
 
   const TypeGlyph = TYPE_ICONS[type];
   const trail = assetTrail(listing, level.root, level.folder);
@@ -624,7 +625,7 @@ function AssetsBrowser() {
             if (!open) closeInspector();
           }}
           initialFocus={closeButton}
-          returnFocus={() => (shownRow.current ? rowElement(shownRow.current.path) : null)}
+          returnFocus={() => (lastPath.current ? rowElement(lastPath.current) : null)}
         >
           {lastInspector}
         </Sheet>
