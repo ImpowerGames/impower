@@ -24,6 +24,7 @@ import {
   type FixDeps,
 } from "../../src/modules/spark-editor/workspace/problems/applyFix";
 import {
+  FIX_OPEN_WAIT_MS,
   findSameFix,
   openForFix,
   type OpenForFixDeps,
@@ -285,6 +286,19 @@ describe("applying a fix from a problem", () => {
 });
 
 describe("opening a script for a fix", () => {
+  it("gives the editor and the server one shared deadline, so a refusal comes within it", async () => {
+    let clock = 0;
+    const { opening } = reopening(() => SCRIPT, 9);
+    opening.pull = vi.fn(async () => ({ diagnostics: [nameDiagnostic(SCRIPT)], version: 8 }));
+    opening.now = () => clock;
+    opening.wait = async (ms) => {
+      clock += ms;
+    };
+    expect(await openForFix(opening, useAlice().fix)).toBeNull();
+    expect(clock).toBeGreaterThanOrEqual(FIX_OPEN_WAIT_MS);
+    expect(clock).toBeLessThan(FIX_OPEN_WAIT_MS + 1000);
+  });
+
   it("finds only the identical fix in the fresh diagnostics", () => {
     const choice = useAlice();
     expect(findSameFix([nameDiagnostic(SCRIPT)], choice.fix)).toBeDefined();

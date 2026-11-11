@@ -27,6 +27,12 @@ function FixMenuDemo() {
           </div>
         </GalleryRow>
       ))}
+      <GalleryRow label="Busy: a chosen fix still opening its script; it keeps focus and ignores another press">
+        <div class="flex items-center gap-3">
+          <FixMenu busy actions={ONE} onChoose={choose} />
+          <FixMenu busy actions={SEVERAL} onChoose={choose} />
+        </div>
+      </GalleryRow>
       <GalleryRow label="No actions: draws nothing">
         <FixMenu actions={[]} onChoose={choose} />
       </GalleryRow>

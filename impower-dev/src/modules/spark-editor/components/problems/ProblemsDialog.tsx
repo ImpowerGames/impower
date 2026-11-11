@@ -21,7 +21,7 @@ import {
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import { DebugCardsList } from "./debugCards";
-import { keepFocusAfterFix, problemSignature } from "./fixFocus";
+import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
 
@@ -38,6 +38,7 @@ export default function ProblemsDialog() {
   const all = useComputed(() => problems.problems.value).value;
   const versions = useComputed(() => problems.versions.value).value;
   const diagnostics = useComputed(() => problems.diagnostics.value).value;
+  const fixing = useComputed(() => problems.fixing.value).value;
   const listed = state
     ? scopedProblems(state.scope, all, { diagnostics, versions })
     : [];
@@ -144,6 +145,7 @@ export default function ProblemsDialog() {
                   actions={
                     problem.actions.length ? (
                       <FixMenu
+                        busy={isFixing(problem, fixing)}
                         actions={problem.actions}
                         onChoose={(action) => chooseFix(problem, action)}
                       />

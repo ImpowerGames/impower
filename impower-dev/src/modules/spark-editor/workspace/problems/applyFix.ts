@@ -9,6 +9,9 @@ export const FIX_UNDO_LABEL = "Undo";
 
 export type FixChoice = ChoseEditorFixParams;
 
+export const fixKey = (fix: Pick<EditorFix, "uri" | "changes">) =>
+  [fix.uri, JSON.stringify(fix.changes)].join("|");
+
 export interface FixDeps {
   openForFix: (fix: EditorFix) => Promise<EditorFix | null>;
   openScript: (fix: EditorFix) => Promise<boolean>;

@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Diagnostic } from "vscode-languageserver-protocol";
 
 const {
@@ -173,6 +173,41 @@ describe("the problems model", () => {
         (p) => p.version,
       ),
     ).toEqual([undefined]);
+  });
+
+  it("joins a second choice of the same fix to the first, marks it in flight, and runs a different fix for the script after it", async () => {
+    const runs: { name: string; resolve: (done: boolean) => void }[] = [];
+    const store = problems as unknown as {
+      runFix: (choice: { name: string }) => Promise<boolean>;
+    };
+    const runFix = vi.spyOn(store, "runFix").mockImplementation(
+      (choice) => new Promise((resolve) => runs.push({ name: choice.name, resolve })),
+    );
+    const choice = (name: string, from: number) => ({
+      fix: {
+        uri: MAIN,
+        version: 1,
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+        changes: [{ from, to: from + 1, insert: "a" }],
+      },
+      name,
+      done: "Done.",
+    });
+    const first = problems.applyFix(choice("first", 0));
+    const again = problems.applyFix(choice("first", 0));
+    const other = problems.applyFix(choice("other", 4));
+    expect(again).toBe(first);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(runs.map((run) => run.name)).toEqual(["first"]);
+    expect(problems.fixing.value.size).toBe(2);
+    runs[0]!.resolve(true);
+    expect(await first).toBe(true);
+    await vi.waitFor(() => expect(runs.map((run) => run.name)).toEqual(["first", "other"]));
+    runs[1]!.resolve(false);
+    expect(await other).toBe(false);
+    expect(problems.fixing.value.size).toBe(0);
+    runFix.mockRestore();
   });
 
   it("maps a game's runtime error to a played entry at its script's line", () => {

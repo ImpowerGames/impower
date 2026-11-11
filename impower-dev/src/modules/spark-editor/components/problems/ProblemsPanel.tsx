@@ -40,7 +40,7 @@ import {
   type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
-import { keepFocusAfterFix, problemSignature } from "./fixFocus";
+import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
 import {
   DebugRowView,
   debugRowHeight,
@@ -149,6 +149,7 @@ function ProblemRow({ problem }: { problem: Problem }) {
         actions={
           problem.actions.length ? (
             <FixMenu
+              busy={isFixing(problem, problems.fixing.value)}
               size="compact"
               class="min-h-8 pointer-coarse:min-h-11"
               actions={problem.actions}

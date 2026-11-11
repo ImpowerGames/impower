@@ -7,9 +7,7 @@ import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protoco
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { Diagnostic } from "vscode-languageserver-protocol";
 
-export const EDITOR_OPEN_WAIT_MS = 10_000;
-
-export const EDITOR_SYNC_WAIT_MS = 3_000;
+export const FIX_OPEN_WAIT_MS = 6_000;
 
 const SYNC_POLL_MS = 150;
 
@@ -24,6 +22,7 @@ export interface OpenForFixDeps {
     version: number | undefined;
   }) => void;
   wait?: (ms: number) => Promise<void>;
+  now?: () => number;
 }
 
 const sameChanges = (a: readonly EditorFixChange[], b: readonly EditorFixChange[]) =>
@@ -45,7 +44,7 @@ export const findSameFix = (
     ),
   );
 
-const loadedVersion = (uri: string) =>
+const loadedVersion = (uri: string, timeoutMs: number) =>
   new Promise<number | null>((resolve) => {
     const stop = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
       if (message.params.textDocument.uri === uri) {
@@ -57,11 +56,15 @@ const loadedVersion = (uri: string) =>
     const timer = setTimeout(() => {
       stop();
       resolve(null);
-    }, EDITOR_OPEN_WAIT_MS);
+    }, Math.max(0, timeoutMs));
   });
 
-export const openScript = async (deps: OpenForFixDeps, fix: EditorFix) => {
-  const loaded = loadedVersion(fix.uri);
+export const openScript = async (
+  deps: OpenForFixDeps,
+  fix: EditorFix,
+  timeoutMs = FIX_OPEN_WAIT_MS,
+) => {
+  const loaded = loadedVersion(fix.uri, timeoutMs);
   await deps.reveal(fix);
   return loaded;
 };
@@ -70,19 +73,23 @@ export const openForFix = async (
   deps: OpenForFixDeps,
   fix: EditorFix,
 ): Promise<EditorFix | null> => {
+  const now = deps.now ?? Date.now;
+  const deadline = now() + FIX_OPEN_WAIT_MS;
   const version = await openScript(deps, fix);
   if (version === null) {
     return null;
   }
   const wait = deps.wait ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-  for (let waited = 0; waited <= EDITOR_SYNC_WAIT_MS; waited += SYNC_POLL_MS) {
+  for (;;) {
     const pulled = await deps.pull(fix.uri);
     if (pulled && pulled.version === version) {
       deps.record({ uri: fix.uri, ...pulled });
       const same = findSameFix(pulled.diagnostics, fix);
       return same ? { ...fix, version, range: same.range } : null;
     }
+    if (now() >= deadline) {
+      return null;
+    }
     await wait(SYNC_POLL_MS);
   }
-  return null;
 };

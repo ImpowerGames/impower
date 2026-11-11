@@ -59,6 +59,19 @@ describe("FixMenu", () => {
     expect(onChoose).toHaveBeenCalledWith(USE);
   });
 
+  it("shows the busy state while a choice is in flight, keeps its focus and ignores another press", async () => {
+    const onChoose = vi.fn();
+    const root = await mount(<FixMenu busy actions={[USE]} onChoose={onChoose} />);
+    const button = root.querySelector("button")!;
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.disabled).toBe(false);
+    button.focus();
+    await act(async () => button.click());
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(button);
+  });
+
   it("is a Fix menu of the action labels when there are several, choosing one", async () => {
     const onChoose = vi.fn();
     const onOpenChange = vi.fn();

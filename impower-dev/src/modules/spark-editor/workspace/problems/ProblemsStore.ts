@@ -14,7 +14,7 @@ import { WorkspaceConstants } from "../WorkspaceConstants";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/PlayerConsole";
 import { showSnackbar } from "../../utils/snackbar";
-import { applyFix, type FixChoice } from "./applyFix";
+import { applyFix, fixKey, type FixChoice } from "./applyFix";
 import { openForFix, openScript, type OpenForFixDeps } from "./openForFix";
 import {
   CONSOLE_SEVERITIES,
@@ -65,6 +65,12 @@ export class ProblemsStore {
   >({});
 
   readonly versions = signal<Readonly<Record<string, number>>>({});
+
+  readonly fixing = signal<ReadonlySet<string>>(new Set());
+
+  protected readonly _fixes = new Map<string, Promise<boolean>>();
+
+  protected readonly _fixingScripts = new Map<string, Promise<boolean>>();
 
   readonly played = signal<readonly PlayedEntry[]>([]);
 
@@ -354,7 +360,34 @@ export class ProblemsStore {
     await Workspace.window.revealDocument(uri, { start: at, end: at });
   }
 
-  async applyFix(choice: FixChoice) {
+  applyFix(choice: FixChoice): Promise<boolean> {
+    const key = fixKey(choice.fix);
+    const joined = this._fixes.get(key);
+    if (joined) {
+      return joined;
+    }
+    const before = this._fixingScripts.get(choice.fix.uri);
+    const run = (async () => {
+      await before?.catch(() => false);
+      return this.runFix(choice);
+    })();
+    this._fixes.set(key, run);
+    this._fixingScripts.set(choice.fix.uri, run);
+    this.fixing.value = new Set([...this.fixing.value, key]);
+    const settle = () => {
+      this._fixes.delete(key);
+      if (this._fixingScripts.get(choice.fix.uri) === run) {
+        this._fixingScripts.delete(choice.fix.uri);
+      }
+      const next = new Set(this.fixing.value);
+      next.delete(key);
+      this.fixing.value = next;
+    };
+    void run.then(settle, settle);
+    return run;
+  }
+
+  protected async runFix(choice: FixChoice) {
     const { Workspace } = await import("../Workspace");
     const opening: OpenForFixDeps = {
       reveal: (fix) =>
