@@ -69,6 +69,7 @@ export class ScopedRule implements Rule {
 
     const contentRuleItem: SwitchRuleDefinition = {
       id: contentId,
+      name: def.contentName,
       patterns: def.patterns ?? [],
       tag: def.contentTag,
     };
