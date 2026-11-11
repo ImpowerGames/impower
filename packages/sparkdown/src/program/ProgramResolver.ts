@@ -135,7 +135,6 @@ interface UnitShape {
 interface UnitRecord {
   members: ParsedObject[];
   context: string;
-  index: number;
   anchor: DebugMetadata | null;
   anchorLine: number;
   shape: UnitShape;
@@ -283,6 +282,10 @@ interface MemoTally {
   declares: string[];
 }
 
+const UNIT_PLACE = "@unit";
+
+const placed = (how: string, unit: Unit) => how.replaceAll(UNIT_PLACE, `@${unit.index}`);
+
 const sameMembers = (a: readonly ParsedObject[], b: readonly ParsedObject[]) =>
   a.length === b.length && a.every((obj, i) => obj === b[i]);
 
@@ -382,7 +385,6 @@ export class ProgramResolver {
     unit.next = {
       members: unit.members,
       context: unit.context,
-      index: unit.index,
       anchor,
       anchorLine: anchor?.startLineNumber ?? 0,
       shape,
@@ -507,7 +509,7 @@ export class ProgramResolver {
 
     const shapes = new Map<Unit, UnitShape>();
     const declared = new Map<string, string[]>();
-    const declare = (defs: Map<string, string[]>, sign: "+" | "-") => {
+    const declare = (unit: Unit, defs: Map<string, string[]>, sign: "+" | "-") => {
       for (const [name, how] of defs) {
         let list = declared.get(name);
         if (!list) {
@@ -515,7 +517,7 @@ export class ProgramResolver {
           declared.set(name, list);
         }
         for (const h of how) {
-          list.push(`${sign}${h}`);
+          list.push(`${sign}${placed(h, unit)}`);
         }
       }
     };
@@ -525,14 +527,14 @@ export class ProgramResolver {
     this.decideWrites(fresh, shapes);
     for (const unit of fresh) {
       const shape = shapes.get(unit)!;
-      declare(shape.defs, "+");
+      declare(unit, shape.defs, "+");
       if (unit.record && !cold) {
-        declare(unit.record.shape.defs, "-");
+        declare(unit, unit.record.shape.defs, "-");
       }
     }
     for (const unit of dropped) {
       if (unit.record) {
-        declare(unit.record.shape.defs, "-");
+        declare(unit, unit.record.shape.defs, "-");
       }
     }
     const changed: string[] = [];
@@ -830,7 +832,7 @@ export class ProgramResolver {
     const declareWrite = (unit: Unit, name: string, bound: boolean) => {
       const shape = shapes?.get(unit);
       if (shape) {
-        const how = `write:${bound ? "local" : "global"}:${unit.context}@${unit.index}`;
+        const how = `write:${bound ? "local" : "global"}:${unit.context}${UNIT_PLACE}`;
         for (const key of [name, "*vars"]) {
           const list = shape.defs.get(key) ?? [];
           list.push(key === "*vars" ? `${name}|${how}` : how);
@@ -1241,10 +1243,10 @@ export class ProgramResolver {
           kinded(
             "vars",
             name,
-            `temp:${context}@${unit.index}:${openLocals.has(name) ? "open" : "closed"}`,
+            `temp:${context}${UNIT_PLACE}:${openLocals.has(name) ? "open" : "closed"}`,
           );
         } else if (!obj.isPropertyDeclaration) {
-          kinded("vars", name, `bare:${context}@${unit.index}`);
+          kinded("vars", name, `bare:${context}${UNIT_PLACE}`);
         }
         declared(obj, obj.identifier);
       } else if (obj instanceof ConstantDeclaration) {

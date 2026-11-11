@@ -802,7 +802,7 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is lowered again with the line that reads it by a rename whose compile made no program, and both are lowered again by the edit after the compile that restores it while a stale unit index lowers them again (#1974, #2088)", () => {
+  it("is lowered again with the line that reads it by a rename whose compile made no program, and both are served by the edit after the compile that restores it (#1974, #2088)", () => {
     const s = servedInBlock(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1\nexternal message(x)");
     expect(s.program.chunks ?? null).toBeNull();
@@ -811,7 +811,62 @@ describe("a local declaration", () => {
     expect(loweredOutside(s)).toEqual([]);
     sameAsCold(s);
     s.edit("Line last.", "Line last!");
-    expect(loweredOutside(s)).toEqual(READS_HERE);
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, in one attempt, by an edit in its block after a scene added above it by a compile that edited the block goes with no edit in the block (#2088)", () => {
+    const s = servedInBlock(localScript(["store other = 1", ""]));
+    s.editAll([
+      ["store other = 1", "store other = 1\nscene ABOVE\n  Above.\nend"],
+      ["Line one!", "Line one?"],
+    ]);
+    expect(s.program.chunks ?? null).not.toBeNull();
+    sameAsCold(s);
+    s.edit("scene ABOVE\n  Above.\nend\n", "");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
+    s.edit("Line last.", "Line last!");
+    expect(attempts.mock.calls.length).toBe(1);
+    attempts.mockRestore();
+    expect(loweredOutside(s)).toEqual([]);
+    expect(s.stats.served).toBeGreaterThan(3 * FILLER.length);
+    sameAsCold(s);
+  });
+
+  it("moved by one compile from a statement above the block that reads it to one below it is declared otherwise, so the block is resolved again, and its program is a cold compile's (#2088)", () => {
+    const s = warmed(
+      [
+        "scene MAIN",
+        "  Opening line.",
+        "  local here = 2",
+        ...FILLER.map((line) => `  Above, ${line}`),
+        "  choose",
+        "    + [Go on]",
+        "      You go on.",
+        "    + [Stay]",
+        "      You stay.",
+        "  then",
+        "    Warm line.",
+        ...FILLER.map((line) => `    ${line}`),
+        "    Here {here}.",
+        ...FILLER.map((line) => `    ${line}`),
+        "  end",
+        ...FILLER.map((line) => `  Below, ${line}`),
+        "  Closing line.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    s.editAll([
+      ["  local here = 2\n", ""],
+      ["  Closing line.", "  local here = 2"],
+    ]);
+    const resolver: InstanceType<typeof ProgramResolver> = (s.compiler as any).programResolver;
+    expect(resolver.changedNamesLastResolve).toContain("here");
+    expect(resolver.freshLastResolve().map((unit) => unit.reason)).toContain("name here");
     sameAsCold(s);
   });
 
