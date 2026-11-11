@@ -575,18 +575,26 @@ export default class WorkspaceFileSystem {
     const encode = (text: string) =>
       new TextEncoder().encode(text).buffer as ArrayBuffer;
     const entries = files
-      .filter(({ uri }) => this._unstoredUris.has(uri))
+      .filter(({ uri }) => !this.isStored(uri))
       .map(({ path, text }) => ({ path, data: encode(text ?? "") }));
     if (settingsJson !== undefined) {
       entries.push({ path: SETTINGS_JSON_PATH, data: encode(settingsJson) });
     }
     return this.zipFiles({
       files: files
-        .filter(({ uri }) => !this._unstoredUris.has(uri))
+        .filter(({ uri }) => this.isStored(uri))
         .map(({ uri, path }) => ({ uri, path })),
       directories: await this.foldersOutside(projectId, files),
       entries,
     });
+  }
+
+  protected isStored(uri: string) {
+    return !this._unstoredUris.has(uri);
+  }
+
+  protected storedFiles(files: Record<string, FileData>) {
+    return Object.entries(files).filter(([uri]) => this.isStored(uri));
   }
 
   protected async foldersOutside(
@@ -644,7 +652,7 @@ export default class WorkspaceFileSystem {
         data,
       }));
     const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
-    const zipFilesToDelete = Object.entries(existingFiles)
+    const zipFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           (!isProjectMetadata(this.getRelativePath(projectId, uri)) ||
@@ -704,7 +712,7 @@ export default class WorkspaceFileSystem {
         data: arrayBuffer,
       };
     });
-    const textFilesToDelete = Object.entries(existingFiles)
+    const textFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           !isProjectMetadata(this.getRelativePath(projectId, uri)) &&
@@ -731,7 +739,7 @@ export default class WorkspaceFileSystem {
         uri: this.getFileUri(projectId, filename),
         data,
       }));
-    const zipFilesToDelete = Object.entries(existingFiles)
+    const zipFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           !isProjectMetadata(this.getRelativePath(projectId, uri)) &&
