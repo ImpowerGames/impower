@@ -4513,12 +4513,10 @@ export class SparkdownCompiler {
         )
         .map(([k]) => getSparklePropertyName(k)),
     );
-    if (overridden.size === 0) {
-      return;
-    }
     for (const [k, bv] of Object.entries(base)) {
       const variant = result[k];
       if (
+        overridden.size === 0 ||
         !k.startsWith("@theme(") ||
         bv == null ||
         typeof bv !== "object" ||
@@ -4538,6 +4536,13 @@ export class SparkdownCompiler {
       }
       if (Object.keys(variant).length === 0) {
         delete result[k];
+      }
+    }
+    for (const k of Object.keys(result)) {
+      if (k.startsWith("@theme(")) {
+        const variant = result[k];
+        delete result[k];
+        result[k] = variant;
       }
     }
   }

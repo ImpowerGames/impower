@@ -114,8 +114,23 @@ describe("@theme(...) becomes a condition on the game's root (#2062)", () => {
     expect(anchorSelfTargeted(DARK_RULE)).toBe(DARK_RULE);
   });
 
-  test("it combines with a state variant", () => {
+  test("it combines with a state variant written on either side, keeping the state on the styled element", () => {
     expect(anchorSelfTargeted(getCSSSelector("@theme(dark) @hovered", {}))).toBe(`${DARK_RULE}:hover`);
+    expect(anchorSelfTargeted(getCSSSelector("@hovered @theme(dark)", {}))).toBe(`${DARK_RULE}:hover`);
+    expect(anchorSelfTargeted(getCSSSelector("@focused @theme(light)", {}))).toBe(':where([data-color-scheme="light"]) &:focus');
+  });
+
+  test("whitespace inside the parentheses is accepted", () => {
+    expect(getCSSSelector("@theme( dark )", {})).toBe(DARK_RULE);
+  });
+
+  test("a descendant selector under the variant stays below the styled element", () => {
+    expect(anchorSelfTargeted(getCSSSelector("@theme(dark) >> child", {}))).toBe(`${DARK_RULE} .child`);
+  });
+
+  test("an ampersand inside a quoted attribute value does not stop self anchoring", () => {
+    expect(anchorSelfTargeted('[title="A&B"]')).toBe('&[title="A&B"]');
+    expect(anchorSelfTargeted("[title='A&B'], :hover")).toBe("&[title='A&B'], &:hover");
   });
 });
 
@@ -206,6 +221,22 @@ describe("only the page roles change between schemes (#2062)", () => {
     };
     expect(await stream("dark")).toBe(await stream("light"));
   });
+
+  test.each(["color", "text-color", "text_color"])(
+    "an author's ink with its own dark variant, written with %s, puts the variant after its base colour",
+    async (spelling) => {
+      const h = await mount(
+        `${config("system")}${STORY}\nstyle ink {\n  ${spelling} = red_50\n  @theme(dark) {\n    ${spelling} = red_90\n  }\n}\n`,
+        1,
+      );
+      const body = block(stylesheet(h), "#game .ink {") ?? "";
+      const variantAt = body.indexOf(DARK_RULE);
+      expect(variantAt).toBeGreaterThan(-1);
+      expect(body.lastIndexOf("--theme-color-red_50")).toBeLessThan(variantAt);
+      expect(body.slice(variantAt)).toContain("--theme-color-red_90");
+      expect(body.slice(variantAt)).not.toContain("--theme-color-slate_90");
+    },
+  );
 
   test("an author's own ink applies in both schemes", async () => {
     const h = await mount(`${config("system")}${STORY}\nstyle ink {\n  text-color = red_50\n}\n`, 1);
