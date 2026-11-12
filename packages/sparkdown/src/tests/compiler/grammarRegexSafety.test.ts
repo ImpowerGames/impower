@@ -91,3 +91,33 @@ describe("grammar regex safety (#280)", () => {
     expect(slow, "patterns exceeding 100ms on adversarial lines").toEqual([]);
   });
 });
+
+const CHOICE_CLOSE_SEARCHES: [string, string, "begin" | "match", string][] = [
+  ["unclosed braces in a suppression", "ChoiceSuppression", "begin", "[" + "{".repeat(20000) + " -> next]"],
+  ["unclosed `{1` in a suppression", "ChoiceSuppression", "begin", "[a" + " {1".repeat(20000) + " -> next]"],
+  [
+    "interpolations in a suppression with no `]` and a comment that closes",
+    "ChoiceSuppression",
+    "begin",
+    "[a" + " {1}".repeat(30000) + " -> next /* c */",
+  ],
+  ["comment openers in a text command", "ChoiceStartTextContent", "match", "Go <wait" + " /*".repeat(8000) + " now"],
+  ["comment openers in an audio command", "ChoiceStartTextContent", "match", "Go ((a" + " /*".repeat(8000) + " now"],
+  ["unclosed braces in choice start text", "ChoiceStartTextContent", "match", "Go" + " {".repeat(40000) + " now"],
+  ["unclosed braces in a suppression's text", "ChoiceOnlyTextContent", "match", "Go" + " {".repeat(40000) + " now"],
+  ["unclosed braces in choice inner text", "ChoiceInnerTextContent", "match", "Go" + " {".repeat(40000) + " now"],
+  ["unclosed braces in a styled span", "ChoiceStartSpanText", "match", "Go" + " {".repeat(40000) + " now"],
+];
+
+describe("a choice line that never meets a close is read at once (#2083)", () => {
+  test.each(CHOICE_CLOSE_SEARCHES)("%s", (_what, rule, key, line) => {
+    const source = grammar.repository?.[rule]?.[key];
+    expect(source, `${rule}.${key} exists`).toBeTruthy();
+    const re = new RegExp(source, "muy");
+    re.lastIndex = 0;
+    const t0 = performance.now();
+    re.exec(line);
+    const ms = performance.now() - t0;
+    expect(ms, `${rule}.${key} took ${ms.toFixed(1)}ms`).toBeLessThan(100);
+  });
+});

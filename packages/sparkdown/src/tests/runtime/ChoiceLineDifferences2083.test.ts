@@ -164,6 +164,13 @@ const COMMENTED_COMMAND_LINES = [
   ["an audio command whose comment holds an arrow", "+ Go ((a /* -> x */ b)) now", "Go ((a /* -> x */ b)) now", "meta.audio.sd"],
 ] as const;
 
+const ESCAPED_COMMAND_LINES = [
+  ["choice start text, closed by its escaped `>`", "+ Go <b: *x*\\> now", "Go <b: *x*> now", "<b: *x*\\>"],
+  ["a suppression, closed by its escaped `>`", "+ Go [<b: *x*\\>] now", "Go <b: *x*>", "<b: *x*\\>"],
+  ["inner text, closed by its escaped `>`", "+ Go [there] <b: *x*\\> now", "Go there", "<b: *x*\\>"],
+  ["choice start text, closed by a later `>`", "+ Go <b: \\> *x*> now", "Go <b: > *x*> now", "<b: \\> *x*>"],
+] as const;
+
 const RAW_LINES = [
   ["an interpolation read as a unit elsewhere", "+ Go `far {#{{{{1}}}}} away` now", "Go `far {#{{{{1}}}}} away` now"],
   ["a plain interpolation", "+ Go `far {x} away` now", "Go `far {x} away` now"],
@@ -180,6 +187,7 @@ const HIGHLIGHTED_LINES = [
   ...BRACKET_LINES,
   ...COMMAND_LINES.map(([, line]) => line),
   ...COMMENTED_COMMAND_LINES.map(([, line]) => line),
+  ...ESCAPED_COMMAND_LINES.map(([, line]) => line),
   ...RAW_LINES.map(([, line]) => line),
   ...BOLD_ITALIC_LINES.map(([, line]) => line),
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"].map(glueLine),
@@ -305,6 +313,21 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
       for (const token of covered) {
         expect(token.scopes).toContain(scope);
         expect(token.scopes).not.toContain("comment.block.sd");
+      }
+    },
+  );
+
+  test.each(ESCAPED_COMMAND_LINES)(
+    "a text command in %s is highlighted as one command, as on main",
+    async (_where, line, label, command) => {
+      expect(outcome(line).choices).toEqual([label]);
+      const dump = (await tokenize(choose(line)))[CHOICE_LINE]!;
+      const from = dump.lineText.indexOf(command);
+      const covered = dump.tokens.filter((token) => token.startIndex >= from && token.endIndex <= from + command.length);
+      expect(covered.map((token) => token.text).join("")).toBe(command);
+      for (const token of covered) {
+        expect(token.scopes).toContain("meta.text.sd");
+        expect(token.scopes).not.toContain("markup.other.italic.sd");
       }
     },
   );
