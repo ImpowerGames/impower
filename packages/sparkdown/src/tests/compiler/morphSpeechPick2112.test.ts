@@ -193,6 +193,17 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
+  test("a speech morph named like a clause word is picked as the interpreter reads it, and `morph` alone still needs a name", () => {
+    const morphs = [TALK, speech("wait", "teeth", "", "morph wait as talk {"), speech("ease", "teeth", "", "morph ease as talk {")].join("\n");
+    const lines = ["  [[bunny morph wait]]", "  [[bunny morph ease over 1s]]", "  [[bunny morph]]"];
+    const text = story(morphs, lines.join("\n"));
+    const all = text.split("\n");
+    const scene = all.indexOf("scene start");
+    expect(diagnosticsOf(text).filter((d) => d.line > scene)).toEqual([
+      expect.objectContaining({ severity: 1, line: all.indexOf(lines[2]!), text: "morph", message: expect.stringContaining("`morph` needs the name of a speech morph") }),
+    ]);
+  });
+
   test("`morph = name` is an error on the `=` that shows the form, and only that", () => {
     const text = story(`${TALK}\n${GRITTED}`, "  [[bunny morph = talk_gritted]]");
     const scene = text.split("\n").indexOf("scene start");

@@ -76,13 +76,13 @@ export function readImageClauses(tree: Tree, read: (from: number, to: number) =>
       at = Math.max(at, span.to);
       if (!("keyword" in span)) continue;
       const token = span as ClauseSpan & { keyword: boolean };
-      if (token.keyword) {
+      if (open) {
+        if (open.text === "morph" && clauses.morph) clauses.morph.value = { from: token.from, to: token.to, text: token.text };
+        open = undefined;
+      } else if (token.keyword) {
         if (token.text === "morph") clauses.morph = { directive, keyword: { from: token.from, to: token.to } };
         open = TAKES_VALUE.has(token.text) ? token : undefined;
         last = token;
-      } else if (open) {
-        if (open.text === "morph" && clauses.morph) clauses.morph.value = token;
-        open = undefined;
       } else {
         clauses.stray.push({ ...token, word: true, ...(last ? { after: last } : {}) });
       }

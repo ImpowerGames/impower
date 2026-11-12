@@ -45,6 +45,16 @@ import {
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
 import { luauNameAtStart, LUAU_NAME_SOURCE } from "../../utils/luauName";
+import { ASSET_VALUE_CLAUSE_WORDS } from "../../utils/assetClauseWords";
+
+const CLAUSE_WORDS_TAKING_VALUE: ReadonlySet<string> = new Set(ASSET_VALUE_CLAUSE_WORDS);
+
+function clauseWordIsValue(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
+  const before = node.prevSibling?.prevSibling;
+  if (!before || before.name !== "AssetCommandClauseKeyword") return false;
+  if (!CLAUSE_WORDS_TAKING_VALUE.has(read(before.from, before.to))) return false;
+  return !clauseWordIsValue(before, read);
+}
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1698,6 +1708,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "AssetCommandClauseKeyword") {
+      if (clauseWordIsValue(nodeRef.node, (from, to) => this.read(from, to))) {
+        return annotations;
+      }
       const text = this.read(nodeRef.from, nodeRef.to);
       const nextNonWhitespacePos = this.getNextNonWhitespacePos(nodeRef.to);
       const nextValueNode = nodeRef.node.nextSibling?.node.nextSibling;
