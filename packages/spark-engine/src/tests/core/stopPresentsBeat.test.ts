@@ -322,7 +322,7 @@ describe("a debugger stop leaves a beat the settled drawing cannot finish to run
     game.pause();
     stepUntil(game, () => Boolean(shown(game)?.audio?.music?.length));
     expect(settling).not.toHaveBeenCalled();
-    expect(schedule).toHaveBeenCalledWith("music", expect.anything());
+    expect(schedule).toHaveBeenCalledWith("music", expect.anything(), false, undefined);
   });
 
   it("keeps a held roll on the beat it restored when a beat is still queued there", async () => {
