@@ -262,7 +262,7 @@ export default class WorkspaceAssets {
     const endings = assetEndings.peek();
     const scripts = scriptsHome(listing);
     return this.importAt(files, (file) => {
-      const folders = file.name.split(/[\\/]/).filter((part) => part && part !== "." && part !== "..");
+      const folders = file.name.split("/").filter((part) => part && part !== "." && part !== "..");
       const name = getValidFileName(folders.pop() ?? "");
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");

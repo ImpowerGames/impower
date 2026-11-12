@@ -161,7 +161,7 @@ describe("the Assets page's file intents", () => {
       "Assets/Audio/sfx/rain.wav",
       "scripts/story/intro.sd",
       "Assets/Images/Portraits/escape/bo.png",
-      "Assets/Audio/win/style/door_knock.wav",
+      "Assets/Audio/win_style_door_knock.wav",
       "Assets/Other/inner.zip",
     ]);
   });
