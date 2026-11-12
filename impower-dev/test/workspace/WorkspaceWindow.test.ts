@@ -132,8 +132,12 @@ vi.mock("@impower/impower-ui/components", async () => {
         },
         children,
       ),
-    DropdownRadioGroup: ({ value, onValueChange, children }: any) =>
-      h(Radio.Provider, { value: { value, onValueChange } }, h("div", { role: "group" }, children)),
+    DropdownRadioGroup: ({ value, onValueChange, label, children }: any) =>
+      h(
+        Radio.Provider,
+        { value: { value, onValueChange } },
+        h("div", { role: "group", "aria-label": label }, children),
+      ),
     DropdownRadioItem: function RadioItem({ value, children, ...props }: any) {
       const group = useContext(Radio);
       return h(
@@ -1274,7 +1278,7 @@ describe("Preview preferences", () => {
       const posted: unknown[] = [];
       const sync = createPlayerPreferenceSync((m) => posted.push(m));
       sync.received(connected("screenplay"));
-      sync.received({ jsonrpc: "2.0", method: "game/started", params: {} });
+      sync.received({ jsonrpc: "2.0", method: "game/exited", params: {} });
       expect(posted).toEqual([]);
     });
   });
@@ -2121,6 +2125,13 @@ describe("The preview's top bar", () => {
   const rows = (role: string) =>
     Array.from(container.querySelectorAll<HTMLElement>(`[role="${role}"]`));
 
+  const modeRows = () =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>(
+        '[role="group"][aria-label="Viewing mode"] [role="menuitemradio"]',
+      ),
+    );
+
   beforeEach(() => {
     resetPreviewPreferences();
     requests = [];
@@ -2471,7 +2482,7 @@ describe("The preview's top bar", () => {
   it("lists the viewing modes with the current one checked, and choosing one writes the preference", async () => {
     show();
     expect(
-      rows("menuitemradio").map((row) => [
+      modeRows().map((row) => [
         row.querySelector("strong")?.textContent,
         row.getAttribute("aria-checked"),
       ]),
@@ -2480,11 +2491,11 @@ describe("The preview's top bar", () => {
       ["Interactive Fiction", "false"],
       ["Screenplay", "false"],
     ]);
-    expect(rows("menuitemradio")[1]!.querySelector("small")?.textContent).toBe(
+    expect(modeRows()[1]!.querySelector("small")?.textContent).toBe(
       "Play your game as a stream of text and choices",
     );
-    expect(rows("menuitemradio")[1]!.querySelector("svg")).not.toBeNull();
-    rows("menuitemradio")[1]!.click();
+    expect(modeRows()[1]!.querySelector("svg")).not.toBeNull();
+    modeRows()[1]!.click();
     await vi.waitFor(() =>
       expect(workspaceSettings.preferences.value.previewMode).toBe(
         "textstream",
@@ -2493,9 +2504,9 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(control("Viewing mode")?.textContent).toBe("Interactive Fiction");
     expect(
-      rows("menuitemradio").map((row) => row.getAttribute("aria-checked")),
+      modeRows().map((row) => row.getAttribute("aria-checked")),
     ).toEqual(["false", "true", "false"]);
-    rows("menuitemradio")[2]!.click();
+    modeRows()[2]!.click();
     await vi.waitFor(() =>
       expect(workspaceSettings.preferences.value.previewMode).toBe(
         "screenplay",

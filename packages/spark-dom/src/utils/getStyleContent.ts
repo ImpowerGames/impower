@@ -59,7 +59,6 @@ const PSEUDO_ALIASES = {
   "@swatch_wrapper": "::-webkit-color-swatch-wrapper",
   "@swatch-wrapper": "::-webkit-color-swatch-wrapper",
   "@busy": '[aria-busy="true"]',
-  "@theme(": "@media(prefers-color-scheme:",
   "@container-size(": "@container(max-width:",
   "@container_size(": "@container(max-width:",
   "@screen-size(": "@container screen (max-width:",
@@ -110,6 +109,10 @@ function breakpointRegex(name: string) {
 
 const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
+const COLOR_SCHEME_VARIANT_REGEX = /@theme[(][ ]*(light|dark)[ ]*[)]/g;
+
+export const COLOR_SCHEME_ATTRIBUTE = "data-color-scheme";
+
 const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
 export function getCSSSelector(
@@ -151,6 +154,11 @@ export function getCSSSelector(
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);
     }
 
+    rewritten = rewritten.replace(
+      COLOR_SCHEME_VARIANT_REGEX,
+      (_m, scheme: string) => `:where([${COLOR_SCHEME_ATTRIBUTE}="${scheme}"]) &`,
+    );
+
     OUT.push(rewritten);
   }
 
@@ -188,7 +196,8 @@ export function anchorSelfTargeted(selector: string): string {
     .map((part) => {
       const trimmed = part.trim();
       if (!trimmed) return trimmed;
-      return trimmed.startsWith("[") || trimmed.startsWith(":")
+      return !trimmed.includes("&") &&
+        (trimmed.startsWith("[") || trimmed.startsWith(":"))
         ? "&" + trimmed
         : trimmed;
     })

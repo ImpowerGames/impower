@@ -26,6 +26,7 @@ import {
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
@@ -1056,6 +1057,10 @@ export default class UIManager extends Manager {
       this._breakpoints = params.breakpoints;
       this._theme = new Set(params.variables);
       this._themeKey = getThemeKey(params.variables);
+      const overlay = this.app.overlay;
+      if (overlay) {
+        ColorSchemeHost.for(overlay).configure(params.color_scheme ?? "system");
+      }
       const rootTextSize = params.root_text_size;
       if (rootTextSize) {
         const doc = this.app.overlay?.ownerDocument;

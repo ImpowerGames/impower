@@ -4494,7 +4494,52 @@ export class SparkdownCompiler {
         result[k] = v;
       }
     }
+    this.yieldSchemeVariants(base, override, result);
     return result;
+  }
+
+  protected yieldSchemeVariants(
+    base: Record<string, any>,
+    override: Record<string, any>,
+    result: Record<string, any>,
+  ) {
+    const propertyName = (key: string) => key.replace(/_/g, "-");
+    const overridden = new Set(
+      Object.entries(override)
+        .filter(
+          ([k, v]) =>
+            !k.startsWith("$") &&
+            (v == null || typeof v !== "object" || Array.isArray(v)),
+        )
+        .map(([k]) => propertyName(k)),
+    );
+    if (overridden.size === 0) {
+      return;
+    }
+    for (const [k, bv] of Object.entries(base)) {
+      const variant = result[k];
+      if (
+        !k.startsWith("@theme(") ||
+        bv == null ||
+        typeof bv !== "object" ||
+        variant == null ||
+        typeof variant !== "object"
+      ) {
+        continue;
+      }
+      const own = override[k];
+      for (const p of Object.keys(bv)) {
+        if (
+          overridden.has(propertyName(p)) &&
+          !(own != null && typeof own === "object" && p in own)
+        ) {
+          delete variant[p];
+        }
+      }
+      if (Object.keys(variant).length === 0) {
+        delete result[k];
+      }
+    }
   }
 
   getPropertyPath(

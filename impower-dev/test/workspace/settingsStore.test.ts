@@ -435,7 +435,7 @@ const zipEntries = (zip: ArrayBuffer) =>
 describe(".vscode/settings.json", () => {
   const defaults = extensionDefaults(extensionManifest);
 
-  it("writes every project setting but branch names and the preview's and Problems panel's layout, under a key the extension declares with the same default", () => {
+  it("writes every project setting but branch names, the preview's layout and simulated colour scheme, and the Problems panel's layout, under a key the extension declares with the same default", () => {
     expect(projectSettingsJson(defaultsOf(), defaults)).toBeUndefined();
     expect(
       Object.entries(PROJECT_SETTINGS_SCHEMA)
@@ -445,6 +445,7 @@ describe(".vscode/settings.json", () => {
       "screenplayBranchNames",
       "previewAspectRatio",
       "previewPanelHeight",
+      "previewColorScheme",
       "problemsScriptCardOpen",
       "problemsPlayedCardOpen",
       "problemsVariablesCardOpen",

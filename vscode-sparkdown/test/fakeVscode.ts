@@ -78,6 +78,8 @@ export const fakeVscode = () => {
   } = { inlineProviders: [] };
   const executed: { command: string; args: unknown[] }[] = [];
   const window = {
+    activeColorTheme: { kind: 2 },
+    onDidChangeActiveColorTheme: () => ({ dispose: () => {} }),
     activeTextEditor: undefined as any,
     visibleTextEditors: [] as any[],
     onDidChangeActiveTextEditor: emitters.changeActiveTextEditor.event,
@@ -99,6 +101,7 @@ export const fakeVscode = () => {
     Selection,
     SnippetString,
     TextEditorSelectionChangeKind: { Keyboard: 1, Mouse: 2, Command: 3 },
+    ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
     EndOfLine: { LF: 1, CRLF: 2 },
     languages: {
       registerInlineCompletionItemProvider: (
