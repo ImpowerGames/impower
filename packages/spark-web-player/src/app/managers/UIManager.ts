@@ -90,18 +90,6 @@ interface PendingBeat {
   lag: number;
   timer?: ReturnType<typeof setTimeout>;
   owner: UIManager;
-  next?: PendingBeat;
-  after: (() => void)[];
-}
-
-function* pendingBeats(overlay: HTMLElement | null | undefined) {
-  for (
-    let pending = (overlay as OverlayWithBeat | null | undefined)?.__sdBeat;
-    pending;
-    pending = pending.next
-  ) {
-    yield pending;
-  }
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
@@ -180,8 +168,11 @@ function createSignature(
 export function pendingBeatImageSrcs(
   overlay: HTMLElement | null | undefined,
 ): string[] {
-  return [...pendingBeats(overlay)].flatMap((pending) =>
-    beatOps(pending.params).flatMap((op) =>
+  const pending = (overlay as OverlayWithBeat | null | undefined)?.__sdBeat;
+  if (!pending) {
+    return [];
+  }
+  return beatOps(pending.params).flatMap((op) =>
     WriteImageMessage.type.isRequest(op as RequestMessage)
       ? (op as ReturnType<typeof WriteImageMessage.type.request>).params.instructions.flatMap(
           (i) =>
@@ -190,7 +181,6 @@ export function pendingBeatImageSrcs(
             ),
         )
       : [],
-    ),
   );
 }
 
@@ -247,10 +237,6 @@ export default class UIManager extends Manager {
   protected _heldLag = 0;
 
   protected _lag = 0;
-
-  protected _applyingBeat = false;
-
-  protected _releasingQueued = false;
 
   protected _themeKey = getThemeKey([]);
 
@@ -487,21 +473,16 @@ export default class UIManager extends Manager {
     morphs?.detachClock(this);
     morphs?.setPaused(false);
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
-    if (overlay && overlay.__sdBeat?.owner === this) {
-      const called = [...pendingBeats(overlay)];
+    const pending = overlay?.__sdBeat;
+    if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
-      for (const pending of called) {
-        clearTimeout(pending.timer);
-        for (const op of pending.ops) {
-          if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
-            this.app.answer(
-              op as RequestMessage,
-              Promise.reject(new Error("the beat was called off")),
-            );
-          }
-        }
-        for (const after of pending.after) {
-          after();
+      clearTimeout(pending.timer);
+      for (const op of pending.ops) {
+        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+          this.app.answer(
+            op as RequestMessage,
+            Promise.reject(new Error("the beat was called off")),
+          );
         }
       }
     }
@@ -581,9 +562,7 @@ export default class UIManager extends Manager {
   }
 
   protected receiveBeat(params: BeatParams) {
-    if (this._heldAt == null) {
-      this.flushPendingBeat();
-    }
+    this.flushPendingBeat();
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
@@ -591,41 +570,13 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._heldLag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
-    const behind = this.lastPendingBeat();
-    if (!overlay || (wait <= 0 && !behind)) {
+    if (!overlay || wait <= 0) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan);
       return;
     }
-    const pending: PendingBeat = {
-      params,
-      ops,
-      plan,
-      at: storyNow + wait,
-      lag,
-      owner: this,
-      after: [],
-    };
-    if (behind) {
-      behind.next = pending;
-    } else {
-      overlay.__sdBeat = pending;
-    }
+    overlay.__sdBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
     this.scheduleCommit();
-  }
-
-  protected lastPendingBeat(): PendingBeat | undefined {
-    let last: PendingBeat | undefined;
-    for (const pending of pendingBeats(this.app.overlay)) {
-      last = pending;
-    }
-    return last;
-  }
-
-  protected heldBehindBeat(): PendingBeat | undefined {
-    return this._heldAt != null && !this._applyingBeat
-      ? this.lastPendingBeat()
-      : undefined;
   }
 
   protected dueAt(pending: PendingBeat, now: number): number {
@@ -642,7 +593,7 @@ export default class UIManager extends Manager {
     pending.timer = undefined;
     const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
     if (wait <= 0) {
-      this.flushPendingBeat(true);
+      this.flushPendingBeat();
       return;
     }
     if (this._heldAt == null) {
@@ -661,36 +612,19 @@ export default class UIManager extends Manager {
       view.requestAnimationFrame(() => pending.owner.commitWhenDue(pending));
       return;
     }
-    this.flushPendingBeat(true, 1);
+    this.flushPendingBeat();
   }
 
-  protected flushPendingBeat(dueOnly = false, forced = 0) {
+  protected flushPendingBeat() {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
-    if (!overlay || this._applyingBeat) {
+    const pending = overlay?.__sdBeat;
+    if (!overlay || !pending) {
       return;
     }
-    const queued = new Set(pendingBeats(overlay));
-    for (
-      let pending = overlay.__sdBeat;
-      pending && queued.has(pending);
-      pending = overlay.__sdBeat
-    ) {
-      const now = this.documentNow();
-      if (dueOnly && forced <= 0 && this.dueAt(pending, now) > now) {
-        break;
-      }
-      forced -= 1;
-      overlay.__sdBeat = pending.next;
-      clearTimeout(pending.timer);
-      this.shiftBeat(pending.params, pending.ops, this.lag(now) - pending.lag);
-      this.applyBeat(pending.params, pending.ops, pending.plan);
-      for (const after of pending.after) {
-        after();
-      }
-    }
-    if (dueOnly) {
-      this.scheduleCommit();
-    }
+    overlay.__sdBeat = undefined;
+    clearTimeout(pending.timer);
+    this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
+    this.applyBeat(pending.params, pending.ops, pending.plan);
   }
 
   protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
@@ -749,17 +683,11 @@ export default class UIManager extends Manager {
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
   ) {
-    const applying = this._applyingBeat;
-    this._applyingBeat = true;
-    try {
-      for (const op of ops) {
-        const decision = plan.get(op);
-        if (decision !== "skip") {
-          this.applyBeatMessage(op, decision);
-        }
+    for (const op of ops) {
+      const decision = plan.get(op);
+      if (decision !== "skip") {
+        this.applyBeatMessage(op, decision);
       }
-    } finally {
-      this._applyingBeat = applying;
     }
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
@@ -1197,18 +1125,9 @@ export default class UIManager extends Manager {
 
   override async onReceiveRequest(msg: RequestMessage) {
     const decision = this._decision;
-    const behind =
-      msg.method.startsWith("ui/") && !retiredOnly(msg)
-        ? this.heldBehindBeat()
-        : undefined;
-    if (behind) {
-      await new Promise<void>((resolve) => behind.after.push(resolve));
-    }
     this.endPreviewCutscene(msg);
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      if (!behind || this._heldAt == null) {
-        this.flushPendingBeat();
-      }
+      this.flushPendingBeat();
       this.morphs?.requestRelayout();
     }
     this.touch(this.touchesOf(msg));
@@ -1483,22 +1402,7 @@ export default class UIManager extends Manager {
       this.morphs?.requestRelayout();
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      const behind = this._releasingQueued ? undefined : this.heldBehindBeat();
-      if (behind) {
-        behind.after.push(() => {
-          const releasing = this._releasingQueued;
-          this._releasingQueued = true;
-          try {
-            this.onReceiveNotification(msg);
-          } finally {
-            this._releasingQueued = releasing;
-          }
-        });
-        return;
-      }
-      if (!this._releasingQueued || this._heldAt == null) {
-        this.flushPendingBeat();
-      }
+      this.flushPendingBeat();
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass(msg.params?.content === true);
