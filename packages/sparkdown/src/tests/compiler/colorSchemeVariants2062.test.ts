@@ -69,6 +69,11 @@ describe("a game that sets its own role colours keeps them in both schemes (#206
     expect(prop(styles.ink[DARK], "text-color")).toBeUndefined();
   });
 
+  test.each(["color", "text_color"])("redefining ink with the %s spelling also drops the builtin's dark text colour", (spelling) => {
+    const { styles } = compile(`style ink {\n  ${spelling} = red_50\n}\n\n`);
+    expect(prop(styles.ink[DARK] ?? {}, "text-color")).toBeUndefined();
+  });
+
   test("the guide's restyled paper keeps its own ground in the dark scheme", () => {
     const { styles } = compile("style paper {\n  background-color = slate_10\n}\n\nstyle ink {\n  text-color = slate_95\n}\n\n");
     expect(prop(styles.paper, "background-color")).toBe("slate_10");

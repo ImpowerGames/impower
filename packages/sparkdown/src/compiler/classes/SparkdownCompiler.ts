@@ -37,6 +37,7 @@ import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
+import { getSparklePropertyName } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -4503,7 +4504,6 @@ export class SparkdownCompiler {
     override: Record<string, any>,
     result: Record<string, any>,
   ) {
-    const propertyName = (key: string) => key.replace(/_/g, "-");
     const overridden = new Set(
       Object.entries(override)
         .filter(
@@ -4511,7 +4511,7 @@ export class SparkdownCompiler {
             !k.startsWith("$") &&
             (v == null || typeof v !== "object" || Array.isArray(v)),
         )
-        .map(([k]) => propertyName(k)),
+        .map(([k]) => getSparklePropertyName(k)),
     );
     if (overridden.size === 0) {
       return;
@@ -4530,7 +4530,7 @@ export class SparkdownCompiler {
       const own = override[k];
       for (const p of Object.keys(bv)) {
         if (
-          overridden.has(propertyName(p)) &&
+          overridden.has(getSparklePropertyName(p)) &&
           !(own != null && typeof own === "object" && p in own)
         ) {
           delete variant[p];
