@@ -899,6 +899,35 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.src).toBe("");
   });
 
+  it("stops a sound started from another row when the inspector closes", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    await click(playButton("footsteps"));
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Pause footsteps");
+    await click(inspector()!.querySelector<HTMLElement>("[data-inspector-close]")!);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Play footsteps");
+    expect(speaker.audio.log).toEqual(["play /p/768", "stop /p/768"]);
+    expect(speaker.audio.src).toBe("");
+  });
+
+  it("shows a sound cued in the inspector before it ever plays at the same time in its row", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    const slider = inspector()!.querySelector<HTMLElement>('[data-audio-player] [role="slider"]')!;
+    await act(async () => {
+      slider.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("ready");
+    expect(inspector()!.querySelector("[data-audio-elapsed]")!.textContent).toBe("0:05");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:05 / 0:05");
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    expect(speaker.audio.log).toEqual([]);
+  });
+
   it("goes on playing when its own row opens the inspector, and stops when another file is opened", async () => {
     await openSounds();
     await click(playButton("door_chime"));

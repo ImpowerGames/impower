@@ -60,6 +60,17 @@ class FakeAudio extends EventTarget implements SessionAudio {
     this.duration = seconds;
     this.emit("loadedmetadata");
   }
+
+  reachEnd() {
+    if (this.loop) {
+      this.progress(0);
+      return;
+    }
+    this.progress(this.duration);
+    this.paused = true;
+    this.emit("pause");
+    this.emit("ended");
+  }
 }
 
 const setup = (maxBytes = 1000) => {
@@ -200,16 +211,25 @@ describe("the editor's audio session", () => {
     await flush();
     audio.meta(30);
     audio.progress(29.9);
-    audio.progress(0.1);
+    audio.reachEnd();
     expect(session.playback.value?.status).toBe("playing");
-    expect(session.time.value).toBe(0.1);
+    expect(audio.paused).toBe(false);
+    expect(session.time.value).toBe(0);
+    audio.progress(29.9);
     session.setLoop(theme, false);
-    audio.progress(30);
-    audio.paused = true;
-    audio.emit("pause");
-    audio.emit("ended");
+    audio.reachEnd();
     expect(session.playback.value).toBeNull();
     expect(session.time.value).toBe(0);
+    session.toggle(door);
+    await flush();
+    audio.meta(6);
+    audio.reachEnd();
+    expect(session.playback.value).toBeNull();
+    session.setLoop(door, true);
+    session.toggle(door);
+    await flush();
+    audio.reachEnd();
+    expect(session.playback.value?.status).toBe("playing");
   });
 
   it("seeks a playing sound, and cues a sound that is not playing at that place without playing it", async () => {

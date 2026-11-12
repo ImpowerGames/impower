@@ -321,12 +321,13 @@ function AssetsBrowser() {
     [listing],
   );
 
+  const inspected = useRef<string | null>(null);
   useEffect(() => {
-    if (!openPath) {
-      return;
+    const closed = !openPath && !!inspected.current;
+    inspected.current = openPath;
+    if (openPath || closed) {
+      audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
     }
-    audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
-    return () => audioSession.stopUnless((owner) => owner !== openPath);
   }, [openPath]);
 
   useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);

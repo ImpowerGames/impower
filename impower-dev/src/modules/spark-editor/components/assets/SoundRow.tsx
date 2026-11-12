@@ -32,7 +32,7 @@ export function SoundLine({ sound, line }: { sound: Sound; line: string }) {
   if (failed) {
     return <span data-asset-sound-failed>{PLAYBACK_FAILURES[failed]}</span>;
   }
-  if (!sounding(sound.owner) && statusOf(sound.owner) !== "paused") {
+  if (!statusOf(sound.owner)) {
     return <>{line}</>;
   }
   void soundPeaks.settled.value;
