@@ -7,7 +7,7 @@ import {
   VirtualList,
   type VirtualListGrid,
 } from "@impower/impower-ui/components";
-import type { ComponentChildren, JSX, Ref } from "preact";
+import type { ComponentChildren, JSX, Ref, RefObject } from "preact";
 import LibraryToolbar from "./LibraryToolbar";
 import SearchBox from "./SearchBox";
 
@@ -29,6 +29,7 @@ export type LibraryPageProps<T> = {
   onQueryChange: (query: string) => void;
   newMenu: ComponentChildren;
   newAttributes?: Record<string, string>;
+  newRef?: RefObject<HTMLButtonElement>;
   tabs?: ComponentChildren;
   bar: ComponentChildren;
   creating?: ComponentChildren;
@@ -44,6 +45,7 @@ export default function LibraryPage<T>({
   onQueryChange,
   newMenu,
   newAttributes,
+  newRef,
   tabs,
   bar,
   creating,
@@ -60,7 +62,7 @@ export default function LibraryPage<T>({
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />
             <DropdownRoot>
               <DropdownTrigger asChild>
-                <Button class="bg-transparent text-accent" {...newAttributes}>
+                <Button ref={newRef} class="bg-transparent text-accent" {...newAttributes}>
                   <PlusIcon />
                   New
                 </Button>
