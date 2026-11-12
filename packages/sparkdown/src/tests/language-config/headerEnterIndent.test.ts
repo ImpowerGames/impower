@@ -53,6 +53,8 @@ const TOP_LEVEL = [
   "define Hero",
   "function f()",
   "local function f(a, b)",
+  "local greet = function()",
+  "local greet = function(a, b)",
   "function f(callback: () -> ())",
   "define Hero as Actor as Character with",
 ];
@@ -67,7 +69,7 @@ const BRACE = [
   "morph blink {",
 ];
 
-const NARRATIVE = ["if x then", "for i = 1, 3 do", "while x do"];
+const NARRATIVE = ["if x then", "for i = 1, 3 do", "while x do", "local callback = ready and function(value)"];
 
 const closeOf = (header: string) => (header.endsWith("{") ? "}" : "end");
 const bodyOf = (header: string) =>

@@ -395,6 +395,44 @@ describe("the stated limits of the story function alternative (GRAMMAR.md 8.2)",
   });
 });
 
+describe("the Luau Enter rules on a line holding an anonymous function", () => {
+  const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
+  const enterIndents = (line: string) => {
+    const rule = LUAU.onEnterRules.find(
+      (r) =>
+        new RegExp(r.beforeText, "u").test(line) &&
+        (r.afterText === undefined || new RegExp(r.afterText, "u").test("")),
+    );
+    return rule?.action.indent === "indent" || rule?.action.indent === "indentOutdent";
+  };
+
+  it.each([
+    "local greet = function()",
+    "local greet = function(a, b)",
+    "  local callback = ready and function(value)",
+    "  local callback = if ready then f else function(value)",
+    "  call(a, function(x)",
+    "  return function(x)",
+    "local h = function(a: number, b: string): number",
+    "local f = function(x) -- note",
+    "local f = function(x) // note",
+    "  He walked in and function (x)",
+    "  She said = function (a, b)",
+    "  She had a function to attend",
+    "He asked what the function (the old one) did",
+    "The function (a, b) works fine",
+    "  She said = function (a, b) is neat",
+    "  call(function(x) print(x)",
+    "  local f = function(x) x += 1",
+    "local f = function() end",
+    "-- local f = function()",
+    "local s = 'x' -- f = function()",
+    '  "local f = function()"',
+  ])("indents after `%s` exactly when the story increaseIndentPattern does", (line) => {
+    expect(enterIndents(line)).toBe(storyIncrease.test(line));
+  });
+});
+
 describe("the story define onEnterRule", () => {
   const defineRule = STORY.onEnterRules.find(
     (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),

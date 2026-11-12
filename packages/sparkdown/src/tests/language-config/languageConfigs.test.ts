@@ -181,6 +181,7 @@ describe("the story and Luau configs divide their entries by the syntax each ser
     ["block comment before its close", "  --[[ note", "]]", "luau"],
     ["block comment", "  --[[ note", "", "luau"],
     ["function", "  function f()", "end", "luau"],
+    ["anonymous function header at its line's end", "greet = function()", "", "luau"],
     ["then", "  if a then", "end", "luau"],
     ["do", "  for i = 1, 3 do", "end", "luau"],
     ["else", "  else", "end", "luau"],
