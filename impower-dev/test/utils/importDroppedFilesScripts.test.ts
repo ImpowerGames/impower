@@ -83,7 +83,7 @@ beforeEach(() => {
   });
   mocks.readFile.mockImplementation(async ({ file }) => {
     const data = mocks.disk.get(file.uri);
-    if (!data) throw new Error("NotFoundError");
+    if (!data) throw new Error(`${file.uri} was not found`);
     return data;
   });
   workspace.uploads.value = [];
@@ -315,7 +315,7 @@ describe("importFiles outcomes per file", () => {
     );
   });
 
-  it("retries a file the read-back finds missing in the browser's own words", async () => {
+  it("retries a file the worker's read reports as not found", async () => {
     let calls = 0;
     mocks.createFiles.mockImplementation(async ({ files }) => {
       calls += 1;
@@ -324,7 +324,7 @@ describe("importFiles outcomes per file", () => {
     });
     mocks.readFile.mockImplementation(async ({ file }) => {
       const data = mocks.disk.get(file.uri);
-      if (!data) throw new Error("A requested file or directory could not be found at the time an operation was processed.");
+      if (!data) throw new Error(`${file.uri} was not found`);
       return data;
     });
     const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);

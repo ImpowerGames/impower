@@ -25,7 +25,7 @@ const WRITE_CHUNK_FILES = 8;
 const leafOf = (rel: string) => rel.slice(rel.lastIndexOf("/") + 1);
 
 const isMissing = (error: unknown) =>
-  (error as { name?: unknown })?.name === "NotFoundError" || /NotFoundError|could not be found/i.test(reasonOf(error));
+  (error as { name?: unknown })?.name === "NotFoundError" || /NotFoundError|was not found|could not be found/i.test(reasonOf(error));
 
 const isStorageError = (error: unknown) =>
   (error as { name?: unknown })?.name === "QuotaExceededError" ||
