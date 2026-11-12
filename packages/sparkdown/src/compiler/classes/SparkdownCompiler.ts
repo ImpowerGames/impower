@@ -84,7 +84,10 @@ import type {
   ScriptStructure,
 } from "../utils/routeDecisions";
 
-const IMAGE_CLAUSE_WORDS: ReadonlySet<string> = new Set(GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS);
+const CLAUSE_WORDS: ReadonlySet<string> = new Set([
+  ...GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS,
+  ...GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS,
+]);
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4811,15 +4814,24 @@ export class SparkdownCompiler {
       }
       for (const clause of clauses) {
         const directiveImages = shownImages.filter((image) => clause.directive.from <= image.from && image.to <= clause.directive.to);
-        const issue = this.morphClauseIssue(program, clause, directiveImages.map((image) => image.struct));
-        if (!issue) continue;
-        const at = issue.at ?? clause.keyword;
-        ((program.diagnostics ??= {})[uri] ??= []).push({
-          range: doc.range(at.from, at.to),
-          severity: issue.severity,
-          message: { kind: "markdown", value: issue.message },
-          source: LANGUAGE_NAME,
-        });
+        const issues = [this.morphClauseIssue(program, clause, directiveImages.map((image) => image.struct))];
+        if (clause.value && clause.next && clause.value.text !== "=" && !CLAUSE_WORDS.has(clause.value.text) && !CLAUSE_WORDS.has(clause.next.text)) {
+          issues.push({
+            at: clause.next,
+            severity: DiagnosticSeverity.Error,
+            message: `\`${clause.next.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`,
+          });
+        }
+        for (const issue of issues) {
+          if (!issue) continue;
+          const at = issue.at ?? clause.keyword;
+          ((program.diagnostics ??= {})[uri] ??= []).push({
+            range: doc.range(at.from, at.to),
+            severity: issue.severity,
+            message: { kind: "markdown", value: issue.message },
+            source: LANGUAGE_NAME,
+          });
+        }
       }
       const tree = this.documents.tree(uri);
       const declarations = annotations.declarations.iter();
@@ -4877,7 +4889,7 @@ export class SparkdownCompiler {
     clause: MorphClause,
     images: readonly any[],
   ): { at?: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
-    const value = clause.value && !IMAGE_CLAUSE_WORDS.has(clause.value.text) ? clause.value : undefined;
+    const value = clause.value && !CLAUSE_WORDS.has(clause.value.text) ? clause.value : undefined;
     if (!value) {
       return {
         severity: DiagnosticSeverity.Error,
@@ -4886,6 +4898,13 @@ export class SparkdownCompiler {
     }
     const name = value.text;
     if (name === MORPH_PICK_NONE) return undefined;
+    if (name === "=") {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: `Write the morph's name right after \`morph\`, with no \`=\`: \`morph ${clause.next?.text ?? "talk"}\`.`,
+      };
+    }
     const morph = name.startsWith("$") ? undefined : getContextEntry(program.context, "morph", name);
     if (!morph) {
       return {

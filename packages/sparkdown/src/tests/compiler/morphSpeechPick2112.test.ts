@@ -174,6 +174,22 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
+  test("a word after the clause's name that is not a clause is an error on that word", () => {
+    const text = story(`${TALK}\n${GRITTED}`, "  [[bunny morph talk gritted]]\n  [[bunny morph talk_gritted with fade]]\n  [[bunny morph none wait]]");
+    const scene = text.split("\n").indexOf("scene start");
+    expect(diagnosticsOf(text).filter((d) => d.line > scene)).toEqual([
+      expect.objectContaining({ severity: 1, text: "gritted", message: expect.stringContaining("`gritted` is not a clause: `morph` takes one morph name") }),
+    ]);
+  });
+
+  test("`morph = name` is an error on the `=` that shows the form, and only that", () => {
+    const text = story(`${TALK}\n${GRITTED}`, "  [[bunny morph = talk_gritted]]");
+    const scene = text.split("\n").indexOf("scene start");
+    expect(diagnosticsOf(text).filter((d) => d.line > scene)).toEqual([
+      expect.objectContaining({ severity: 1, text: "=", message: expect.stringContaining("with no `=`: `morph talk_gritted`") }),
+    ]);
+  });
+
   test("a clause naming a morph that is not a speech morph is an error on the clause", () => {
     const text = story(`${TALK}\n${BLINK}`, "  [[bunny morph blink]]");
     expect(about(text, /`blink` is not a speech morph/)).toEqual([
