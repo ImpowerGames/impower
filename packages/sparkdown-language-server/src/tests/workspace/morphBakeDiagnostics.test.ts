@@ -203,7 +203,7 @@ describe("morph previews through the providers", () => {
     expect(previewImage((plain?.contents as any)?.value)).not.toContain("<mask");
   });
 
-  it("a + composition previews its blinking layer as that layer's rest render", async () => {
+  it("a + composition previews each layer the blink plays on as that layer's rest render", async () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
@@ -212,10 +212,10 @@ describe("morph previews through the providers", () => {
     const layers = await resolvePreviewLayers(program.context, composed, createImageCompositeOptions(workspace));
     expect(layers).toHaveLength(2);
     expect(decodeURIComponent(layers[0]!.src)).toContain("<mask");
-    expect(layers[1]!.src).toContain("attributes=");
+    expect(decodeURIComponent(layers[1]!.src)).toContain("<mask");
   });
 
-  it("a completion candidate no script names yet previews as its rest render", async () => {
+  it("a completion candidate no script names yet previews as its rest render, whatever it chooses in the driven group", async () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
@@ -224,7 +224,34 @@ describe("morph previews through the providers", () => {
     const resolved = await resolveCompletion({ ...item }, program, createImageCompositeOptions(workspace));
     expect(previewImage((resolved.documentation as any)?.value)).toContain("<mask");
     const closed = { label: "closed", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.closed"] } } };
+    const rested = await resolveCompletion(closed, program, createImageCompositeOptions(workspace));
+    expect(previewImage((rested.documentation as any)?.value)).toContain("<mask");
+  });
+
+  it("a completion candidate `unless` keeps the morph off previews as its own still", async () => {
+    const { workspace } = setup();
+    const program = compileServed(SCRIPT.replace("  method = bend", "  method = bend\n  unless = eyes.closed"));
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    const closed = { label: "closed", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.closed"] } } };
     const still = await resolveCompletion(closed, program, createImageCompositeOptions(workspace));
     expect(previewImage((still.documentation as any)?.value)).not.toContain("<mask");
+  });
+
+  it("hovering a look shows the morph's rest in its driven groups before the rest render is ready", async () => {
+    const { workspace } = setup();
+    const script = `${SCRIPT}[[bunny~eyes.closed]]\n`;
+    const program = compileServed(script);
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    const documents = new SparkdownDocumentRegistry(["references"]);
+    documents.set({ textDocument: { uri: main, text: script, version: 1, languageId: "sparkdown" } });
+    const position = { line: lineOf(script, "[[bunny~eyes.closed]]"), character: 4 };
+    const shown = { shownLayers: (context: any, struct: any) => workspace.morphShownLayers(context, struct) };
+    const hover = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, shown);
+    const src = previewImage((hover?.contents as any)?.value);
+    expect(src).toContain("attributes=");
+    expect(src).toContain("open");
+    expect(src).not.toContain("closed");
+    const own = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, {});
+    expect(previewImage((own?.contents as any)?.value)).toContain("closed");
   });
 });

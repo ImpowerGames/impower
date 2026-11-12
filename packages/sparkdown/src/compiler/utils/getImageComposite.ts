@@ -18,6 +18,10 @@ export interface ImageCompositeOptions {
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
   ) => Promise<string | undefined>;
+  shownLayers?: (
+    context: { [type: string]: { [name: string]: any } } | undefined,
+    struct: any,
+  ) => (ImageLayer & { shown?: true })[];
 }
 
 // workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
@@ -116,8 +120,8 @@ export const resolvePreviewLayers = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
-): Promise<(ImageLayer & { rest?: true })[]> => {
-  const layers = resolveImageLayers(context, struct);
+): Promise<(ImageLayer & { rest?: true; shown?: true })[]> => {
+  const layers = options?.shownLayers ? options.shownLayers(context, struct) : resolveImageLayers(context, struct);
   const morphRest = options?.morphRest;
   if (!morphRest) return layers;
   return Promise.all(
@@ -138,7 +142,7 @@ export const getImageCompositeSrc = async (
     return undefined;
   }
   if (layers.length === 1 && isDirectlyLoadable(layers[0]!.src)) {
-    return layers[0]!.rest ? layers[0]!.src : undefined;
+    return layers[0]!.rest || layers[0]!.shown ? layers[0]!.src : undefined;
   }
   const bridge = options?.readFileBytes;
   let cache = sharedCache;

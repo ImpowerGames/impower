@@ -9,7 +9,7 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -34,7 +34,7 @@ import { STDLIB } from "../../runtime/StdLib";
 import { executionWatch } from "../../runtime/ExecutionWatch";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
-import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
+import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import { getSparklePropertyName } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
@@ -397,6 +397,18 @@ function indexOfWord(text: string, word: string): number {
     from = at + 1;
   }
   return -1;
+}
+
+function tokenOffset(text: string, token: string): number {
+  const isTokenChar = (c: string | undefined): boolean =>
+    c !== undefined && /[A-Za-z0-9_.-]/.test(c);
+  let found = -1;
+  for (let at = text.indexOf(token); at >= 0; at = text.indexOf(token, at + 1)) {
+    if (!isTokenChar(text[at - 1]) && !isTokenChar(text[at + token.length])) {
+      found = at;
+    }
+  }
+  return found;
 }
 
 function annotationAt(
@@ -4717,8 +4729,33 @@ export class SparkdownCompiler {
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
-      const emit = (struct: any, from: number, to: number) => {
-        const resolved = resolveImageAttributes(program.context!, struct);
+      const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
+        const look = shownLook(program.context, program.morphs, struct);
+        const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
+        if (look && written.length > 0) {
+          const chosen = resolveAttributes(look.vocabulary, written).selection;
+          const text = doc.read(from, to);
+          for (const { name, pose } of look.morphs) {
+            for (const [group, rest] of Object.entries(pose)) {
+              const choice = Object.hasOwn(chosen, group) ? chosen[group]! : undefined;
+              if (choice === undefined || look.shown[group] !== rest || choice === rest) continue;
+              const token = written.find((attribute) => resolveAttributes(look.vocabulary, [attribute]).selection[group] === choice);
+              const at = token === undefined ? -1 : tokenOffset(text, token);
+              const start = at >= 0 ? from + at : from;
+              const end = at >= 0 ? start + token!.length : to;
+              (program.diagnostics ??= {})[uri] ??= [];
+              program.diagnostics[uri]!.push({
+                range: doc.range(start, end),
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  kind: "markdown",
+                  value: `\`${name}\` plays on this look and rests its \`${group}\` on \`${rest}\`, so \`${group}.${choice}\` does not show. Add \`${group}.${choice}\` to \`${name}\`'s \`unless\` to keep \`${name}\` off looks that choose it, or route those looks to a morph that rests on it with that morph's \`when\`.`,
+                },
+                source: LANGUAGE_NAME,
+              });
+            }
+          }
+        }
         for (const diagnostic of resolved.diagnostics) {
           if (resolved.vocabulary?.diagnostics.includes(diagnostic)) continue;
           const key = JSON.stringify([from, diagnostic.code, diagnostic.path, diagnostic.message]);
@@ -4753,7 +4790,7 @@ export class SparkdownCompiler {
       let coveredTo = -1;
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
         if (image.from >= coveredTo) {
-          emit(image.struct, image.from, image.to);
+          emit(image.struct, image.from, image.to, doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean));
           coveredTo = image.to;
         }
       }
@@ -4771,7 +4808,7 @@ export class SparkdownCompiler {
             if (struct && type === "filtered_image") {
               lookDeclarations.set(struct, { uri, order, from: declarations.from, to: declarations.to });
             }
-            if (struct) emit(struct, declarations.from, declarations.to);
+            if (struct) emit(struct, declarations.from, declarations.to, Array.isArray(struct.attributes) ? struct.attributes.filter((a: unknown): a is string => typeof a === "string") : []);
           }
         }
         declarations.next();

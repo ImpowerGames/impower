@@ -24,7 +24,7 @@ import {
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
-import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphBakeDiagnostic, MorphRef } from "@impower/sparkdown/src/morph/types";
@@ -534,11 +534,20 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  async morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined> {
+  protected programOfContext(context: SparkProgram["context"]): SparkProgram | undefined {
     if (!context) return undefined;
-    const program = [...this._entryPrograms.values()].find(
+    return [...this._entryPrograms.values()].find(
       (p) => p.context === context || (!!p.context?.["image"] && p.context["image"] === context["image"]),
     );
+  }
+
+  morphShownLayers(context: SparkProgram["context"], struct: any) {
+    return shownImageLayers(context, this.programOfContext(context)?.morphs, struct);
+  }
+
+  async morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined> {
+    if (!context) return undefined;
+    const program = this.programOfContext(context);
     const refs = program ? morphRefsForStruct(context, program.morphs, struct) : [];
     const ref = refs.length === 1 ? refs[0] : undefined;
     if (!program || !ref) return undefined;

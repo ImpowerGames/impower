@@ -51,7 +51,8 @@ describe("morph channel", () => {
     expect(refs).toHaveLength(1);
     expect(refs[0]).toMatchObject({ morphs: ["blink"], image: "bunny", selection: "{}", groups: ["eyes"] });
     expect(refs[0]!.src).toBeUndefined();
-    expect(channel.variants["bunny~eyes.closed"]).toBeUndefined();
+    expect(channel.variants["bunny~eyes.closed"]).toEqual([expect.objectContaining({ morphs: ["blink"], image: "bunny", groups: ["eyes"] })]);
+    expect(channel.variants["bunny~eyes.closed"]![0]!.key).not.toBe(refs[0]!.key);
   });
 
   test("the channel carries references, never frames or artwork", () => {

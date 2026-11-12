@@ -6,6 +6,7 @@ import {
   type AttributeVocabulary,
 } from "../../attributes";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { parseMorphConditions } from "./morphSchema";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
 
 type ImageContext = { [type: string]: { [name: string]: any } };
@@ -13,14 +14,28 @@ type ImageContext = { [type: string]: { [name: string]: any } };
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 
+export interface MorphCondition {
+  group: string;
+  state: string;
+}
+
 export interface MorphRequirements {
   groups: Map<string, Set<string>>;
+  start: Map<string, string>;
   rest: Map<string, string>;
   labels: Set<string>;
+  when: MorphCondition[];
+  unless: MorphCondition[];
 }
+
+const plainState = (container: unknown): string | undefined => {
+  const state = isRecord(container) ? container["state"] : undefined;
+  return typeof state === "string" && state && !state.includes(".") ? state : undefined;
+};
 
 export function morphRequirements(morph: Record<string, unknown>): MorphRequirements {
   const groups = new Map<string, Set<string>>();
+  const start = new Map<string, string>();
   const rest = new Map<string, string>();
   const labels = new Set<string>();
   const keyframes = Array.isArray(morph["keyframes"])
@@ -32,15 +47,24 @@ export function morphRequirements(morph: Record<string, unknown>): MorphRequirem
   keyframes.forEach((keyframe, index) => {
     for (const [key, container] of Object.entries(keyframe)) {
       if (key === "offset" || !isRecord(container)) continue;
-      const state = container["state"];
-      if (typeof state === "string" && state && !state.includes(".")) {
+      const state = plainState(container);
+      if (state) {
         if (!groups.has(key)) groups.set(key, new Set());
         groups.get(key)!.add(state);
-        if (index === 0) rest.set(key, state);
+        if (index === 0) start.set(key, state);
+        rest.set(key, state);
       }
       if (Object.keys(container).some((k) => k !== "state")) labels.add(key);
     }
   });
+  if (isRecord(morph["rest"])) {
+    for (const [group, container] of Object.entries(morph["rest"])) {
+      const state = plainState(container);
+      if (!state || !groups.has(group)) continue;
+      groups.get(group)!.add(state);
+      rest.set(group, state);
+    }
+  }
   if (isRecord(morph["layers"])) {
     for (const label of Object.keys(morph["layers"])) labels.add(label);
   }
@@ -55,7 +79,14 @@ export function morphRequirements(morph: Record<string, unknown>): MorphRequirem
       }
     }
   }
-  return { groups, rest, labels };
+  return {
+    groups,
+    start,
+    rest,
+    labels,
+    when: parseMorphConditions(morph["when"]) ?? [],
+    unless: parseMorphConditions(morph["unless"]) ?? [],
+  };
 }
 
 export interface MorphVariantProblem {
@@ -66,8 +97,8 @@ export interface MorphVariantProblem {
 export interface MorphVariantBinding {
   name: string;
   selection: AttributeSelection;
-  status: "active" | "dormant" | "skipped";
-  rest: Record<string, Record<string, string>>;
+  status: "active" | "excluded" | "skipped";
+  rest: Record<string, string>;
   problems: MorphVariantProblem[];
 }
 
@@ -79,6 +110,7 @@ export interface MorphCandidate {
   missingGroups: string[];
   missingStates: { group: string; state: string }[];
   compatible: boolean;
+  excluded: boolean;
   variants: MorphVariantBinding[];
 }
 
@@ -113,7 +145,7 @@ export function morphImages(context: ImageContext): {
   return images;
 }
 
-function restChoices(
+function folderChoices(
   vocabulary: AttributeVocabulary,
   selection: AttributeSelection,
   group: string,
@@ -133,66 +165,117 @@ function restChoices(
   return vocabulary.groups[group]?.switch ? ["off"] : [];
 }
 
+const groupFolders = new WeakMap<AttributeVocabulary, Map<string, [string, AttributeFolder][]>>();
+
+function drawingFolders(
+  vocabulary: AttributeVocabulary,
+  visible: Record<string, boolean>,
+  group: string,
+): [string, AttributeFolder][] {
+  let byGroup = groupFolders.get(vocabulary);
+  if (!byGroup) {
+    byGroup = new Map();
+    for (const entry of Object.entries(vocabulary.folders)) {
+      for (const [drawn, options] of Object.entries(entry[1].options)) {
+        if (!options.length) continue;
+        const list = byGroup.get(drawn) ?? [];
+        list.push(entry);
+        byGroup.set(drawn, list);
+      }
+    }
+    groupFolders.set(vocabulary, byGroup);
+  }
+  return (byGroup.get(group) ?? []).filter(([key]) => key === ATTRIBUTE_ROOT || visible[key]);
+}
+
+export function lookChoices(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  group: string,
+  visible: Record<string, boolean> = visibleIn(vocabulary, selection),
+): string[] {
+  const choices = new Set<string>();
+  for (const [key] of drawingFolders(vocabulary, visible, group)) {
+    for (const choice of folderChoices(vocabulary, selection, group, key)) choices.add(choice);
+  }
+  return [...choices];
+}
+
+export function stateIsActive(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  condition: MorphCondition,
+  visible?: Record<string, boolean>,
+): boolean {
+  return lookChoices(vocabulary, selection, condition.group, visible).includes(condition.state);
+}
+
+const VISIBILITY_MEMO_LIMIT = 256;
+const visibilityMemo = new WeakMap<AttributeVocabulary, Map<string, Record<string, boolean>>>();
+
+function visibleIn(vocabulary: AttributeVocabulary, selection: AttributeSelection): Record<string, boolean> {
+  const key = JSON.stringify(Object.entries(selection).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  let memo = visibilityMemo.get(vocabulary);
+  if (!memo) visibilityMemo.set(vocabulary, (memo = new Map()));
+  let visible = memo.get(key);
+  if (!visible) {
+    if (memo.size >= VISIBILITY_MEMO_LIMIT) memo.clear();
+    visible = evaluateAttributeVisibility(vocabulary, selection).visible;
+    memo.set(key, visible);
+  }
+  return visible;
+}
+
+export function poseSelection(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  pose: Readonly<Record<string, string>>,
+): AttributeSelection {
+  const visible = visibleIn(vocabulary, selection);
+  const posed: AttributeSelection = { ...selection };
+  for (const [group, state] of Object.entries(pose)) {
+    const choices = lookChoices(vocabulary, selection, group, visible);
+    if (choices.length > 0 && choices.every((choice) => choice === state)) continue;
+    posed[group] = state;
+  }
+  return posed;
+}
+
+export function conditionsExclude(
+  vocabulary: AttributeVocabulary,
+  selection: AttributeSelection,
+  requirements: Pick<MorphRequirements, "when" | "unless">,
+): boolean {
+  const visible = visibleIn(vocabulary, selection);
+  const active = (condition: MorphCondition) => stateIsActive(vocabulary, selection, condition, visible);
+  return requirements.unless.some(active) || !requirements.when.every(active);
+}
+
 export function bindVariant(
   vocabulary: AttributeVocabulary,
   name: string,
   selection: AttributeSelection,
   requirements: MorphRequirements,
 ): MorphVariantBinding {
-  const { visible } = evaluateAttributeVisibility(vocabulary, selection);
-  const rest: Record<string, Record<string, string>> = {};
-  const problems: MorphVariantProblem[] = [];
-  let dormant = false;
-  for (const group of requirements.groups.keys()) {
-    const start = requirements.rest.get(group);
-    const byFolder: Record<string, string> = {};
-    let matching = 0;
-    let differing = 0;
-    for (const [key, folder] of Object.entries(vocabulary.folders)) {
-      if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
-      if (!folder.options[group]?.length) continue;
-      const choices = restChoices(vocabulary, selection, group, key);
-      if (choices.length === 0) {
-        problems.push({
-          group,
-          message: `folder "${folder.name}" has no resting \`${group}\` state; mark one \`${group}\` layer \`:default\``,
-        });
-        continue;
-      }
-      if (choices.length > 1) {
-        problems.push({
-          group,
-          message: `folder "${folder.name}" rests in more than one \`${group}\` state (${choices.join(", ")}); mark only one \`:default\``,
-        });
-        continue;
-      }
-      const choice = choices[0]!;
-      byFolder[folder.name] = choice;
-      if (start === undefined || choice === start) {
-        matching += 1;
-      } else {
-        differing += 1;
-      }
-    }
-    if (matching > 0 && differing > 0) {
-      problems.push({
-        group,
-        message: `its folders rest in different \`${group}\` states (${Object.entries(byFolder)
-          .map(([folder, state]) => `"${folder}": ${state}`)
-          .join(", ")}), and only some start where the morph starts (\`${start}\`)`,
-      });
-    } else if (differing > 0) {
-      dormant = true;
-    }
-    rest[group] = byFolder;
+  const visible = visibleIn(vocabulary, selection);
+  const rest = Object.fromEntries(requirements.rest);
+  if (conditionsExclude(vocabulary, selection, requirements)) {
+    return { name, selection, status: "excluded", rest, problems: [] };
   }
-  return {
-    name,
-    selection,
-    status: problems.length > 0 ? "skipped" : dormant ? "dormant" : "active",
-    rest,
-    problems,
-  };
+  const problems: MorphVariantProblem[] = [];
+  for (const [group, states] of requirements.groups) {
+    for (const [, folder] of drawingFolders(vocabulary, visible, group)) {
+      const options = folder.options[group]!;
+      const missing = [...states].filter((state) => !options.includes(state));
+      if (missing.length > 0) {
+        problems.push({
+          group,
+          message: `folder "${folder.name}" draws no ${missing.map((state) => `\`${group}.${state}\``).join(" or ")}`,
+        });
+      }
+    }
+  }
+  return { name, selection, status: problems.length > 0 ? "skipped" : "active", rest, problems };
 }
 
 export function bindMorph(
@@ -217,18 +300,17 @@ export function bindMorph(
     }
     const compatible =
       driven.length > 0 && missingGroups.length === 0 && missingStates.length === 0;
-    const variants: MorphVariantBinding[] = [];
-    if (compatible) {
-      variants.push(bindVariant(image.vocabulary, image.name, {}, requirements));
-      for (const [name, filtered] of Object.entries(context["filtered_image"] ?? {})) {
-        if (name.startsWith("$") || name === image.name) continue;
-        const resolved = resolveImageAttributes(context, filtered);
-        if (resolved.image !== image.struct) continue;
-        variants.push(
-          bindVariant(image.vocabulary, name, resolved.selection, requirements),
-        );
-      }
+    const looks: { name: string; selection: AttributeSelection }[] = [{ name: image.name, selection: {} }];
+    for (const [name, filtered] of Object.entries(context["filtered_image"] ?? {})) {
+      if (name.startsWith("$") || name === image.name) continue;
+      const resolved = resolveImageAttributes(context, filtered);
+      if (resolved.image !== image.struct) continue;
+      looks.push({ name, selection: resolved.selection });
     }
+    const variants: MorphVariantBinding[] = compatible
+      ? looks.map((look) => bindVariant(image.vocabulary, look.name, look.selection, requirements))
+      : [];
+    const excluded = looks.every((look) => conditionsExclude(image.vocabulary, look.selection, requirements));
     candidates.push({
       image: image.name,
       type: image.type,
@@ -237,6 +319,7 @@ export function bindMorph(
       missingGroups,
       missingStates,
       compatible,
+      excluded,
       variants,
     });
   }

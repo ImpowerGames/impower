@@ -36,7 +36,12 @@ export const MORPH_ROOT_FIELDS = [
   "timing",
   "clips",
   "paints",
+  "when",
+  "unless",
+  "rest",
 ] as const;
+
+export const MORPH_CONDITION_FIELDS = ["when", "unless"] as const;
 
 export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback", "depth", "spread"] as const;
 
@@ -115,11 +120,19 @@ export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke",
 
 export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
-export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke", "partner"]);
+export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "unless", "rest", "fill", "stroke", "partner"]);
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set([
   ...MORPH_CLIP_LIST_FIELDS,
   ...MORPH_LAYER_FIELDS,
+  ...MORPH_CONDITION_FIELDS,
 ]);
+
+export function parseMorphConditions(value: unknown): { group: string; state: string }[] | undefined {
+  const list = typeof value === "string" ? [value] : Array.isArray(value) ? value : undefined;
+  if (!list || list.length === 0) return undefined;
+  const states = list.map(parseMorphQualifiedState);
+  return states.every((state) => state !== undefined) ? (states as { group: string; state: string }[]) : undefined;
+}
 
 export const MORPH_TIMING_DEFAULTS = {
   duration: 0.25,
@@ -143,7 +156,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   partner:
     "The labels whose drawing this label's drawings take in a pose that draws none of them: one label, such as `eyelash-left`, or a list in priority order, such as `{ eyeball-shadow-left; eyelash-left }`. The first listed label the pose draws decides, and the label's own name in the list pairs by name at that rank. The drawing moves into the shape of that label's drawing nearest it, keeping its own paint and its place in paint order, and stays in that shape while the pose holds.",
   keyframes:
-    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose, the state an image has to rest in for the morph to play. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out uses the image's resting state, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1).",
+    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out holds the morph's rest there, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1). Each group rests in the state `rest` gives it, or else in the state of the last pose that names it.",
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
@@ -174,7 +187,10 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   "paints.targets": "The layer labels whose drawings this entry paints, such as `eyelash-left`.",
   "paints.state":
     "The pose the colour belongs to, written with its group, such as `eyes.closed`: a state the keyframes name, other than the one the morph starts from. The colour shows while the pose is held and moves in over the neighbouring segments.",
-  when: "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
+  "paints.when": "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
+  when: "Plays the morph only on a look where every listed state is active, each written with its group: one state, such as `when = mouth.teeth`, or a block of several, such as `when { mouth.teeth; eyes.open }`. A state is active when the directive or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A look it keeps out is not reported. A child morph's own `when` replaces its parent's.",
+  unless: "Keeps the morph off a look where any listed state is active, each written with its group: one state, such as `unless = eyes.closed`, or a block of several, such as `unless { eyes.closed; mask.on }`. A state is active when the directive or a named look chooses it, or failing that the art's `:default` does, in any visible folder that draws the group. A look it keeps out is not reported. A child morph's own `unless` replaces its parent's.",
+  rest: "The pose the morph holds its groups in wherever it plays and is not moving them: a block of group containers with a `state` each, written like a keyframe's, such as `rest { mouth { state = teeth } }`. A group `rest` leaves out rests in the state of the last keyframe that names it. Layer movement fields do not belong here: a moved layer rests where it is drawn.",
   fill: "The fill colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
   stroke: "The stroke colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
   "paints.opacity":
