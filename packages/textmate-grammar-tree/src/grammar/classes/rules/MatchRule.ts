@@ -7,6 +7,10 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { MatchRuleDefinition } from "../../types/GrammarDefinition";
 import type { Rule } from "../../types/Rule";
+import {
+  expandCaptureReferences,
+  hasCaptureReferences,
+} from "../../utils/captureReferences";
 import { createID } from "../../utils/createID";
 import { isSwitchRuleDefinition } from "../../utils/isSwitchRuleDefinition";
 import { GrammarNode } from "../GrammarNode";
@@ -28,6 +32,14 @@ export class MatchRule implements Rule {
 
   declare captures: (GrammarNode | SwitchRule)[];
 
+  nameTemplate: string | undefined;
+
+  captureTemplates: (string | undefined)[] | undefined;
+
+  captureContents: (GrammarNode | undefined)[] | undefined;
+
+  captureContentTemplates: (string | undefined)[] | undefined;
+
   readonly skipped = false;
 
   constructor(repo: GrammarRepository, def: MatchRuleDefinition) {
@@ -40,6 +52,10 @@ export class MatchRule implements Rule {
       def,
       repo.declarator,
     );
+    this.nameTemplate = hasCaptureReferences(def.name) ? def.name : undefined;
+    this.captureTemplates = undefined;
+    this.captureContents = undefined;
+    this.captureContentTemplates = undefined;
 
     this.matcher = new RegExpMatcher(def.match, def.flags);
 
@@ -52,12 +68,37 @@ export class MatchRule implements Rule {
           const captureId = this.id + `_c${index}`;
           if (isSwitchRuleDefinition(value)) {
             this.captures[index] = repo.add(value, captureId);
+            if (value.contentName) {
+              this.captureContents ??= [];
+              this.captureContents[index] = repo.add(
+                { name: value.contentName },
+                captureId + "_content",
+              );
+              if (hasCaptureReferences(value.contentName)) {
+                this.captureContentTemplates ??= [];
+                this.captureContentTemplates[index] = value.contentName;
+              }
+            }
           } else {
             this.captures[index] = repo.add(value, captureId);
+          }
+          if (hasCaptureReferences(value.name)) {
+            this.captureTemplates ??= [];
+            this.captureTemplates[index] = value.name;
           }
         }
       }
     }
+  }
+
+  private expanded(
+    base: GrammarNode,
+    template: string | undefined,
+    result: RegExpMatchResult,
+  ) {
+    return template === undefined
+      ? base
+      : this.repo.expand(base, expandCaptureReferences(template, result));
   }
 
   match(state: GrammarState, from: number) {
@@ -83,7 +124,11 @@ export class MatchRule implements Rule {
     if (!result || total == null) {
       return null;
     }
-    const matched = Matched.create(this.node, from, total.length);
+    const matched = Matched.create(
+      this.expanded(this.node, this.nameTemplate, result),
+      from,
+      total.length,
+    );
     if (this.captures) {
       if (result.indices) {
         this.placeFromIndices(
@@ -102,6 +147,8 @@ export class MatchRule implements Rule {
           if (capture) {
             const captured = this.capture(
               capture,
+              resultIndex,
+              result,
               resultStr,
               pos,
               lineStart,
@@ -172,6 +219,8 @@ export class MatchRule implements Rule {
       }
       const captureMatched = this.capture(
         capture,
+        i,
+        result,
         result[i],
         start,
         lineStart,
@@ -191,6 +240,8 @@ export class MatchRule implements Rule {
 
   private capture(
     capture: GrammarNode | SwitchRule,
+    index: number,
+    result: RegExpMatchResult,
     resultStr: string | undefined,
     pos: number,
     lineStart: number,
@@ -199,10 +250,19 @@ export class MatchRule implements Rule {
   ) {
     const resultStrLength = resultStr?.length ?? 0;
     if (!(capture instanceof SwitchRule)) {
-      return Matched.create(capture, pos, resultStrLength);
+      return Matched.create(
+        this.expanded(capture, this.captureTemplates?.[index], result),
+        pos,
+        resultStrLength,
+      );
     }
+    const node = this.expanded(
+      capture.node,
+      this.captureTemplates?.[index],
+      result,
+    );
     if (resultStr == null) {
-      return Matched.create(capture.node, pos, 0);
+      return Matched.create(node, pos, 0);
     }
     const start = pos - lineStart;
     const { tokens, to } = ResumableTokenizer.tokenizeCapture(
@@ -214,9 +274,18 @@ export class MatchRule implements Rule {
       state.enclosingAt(lineStart, capture.id, pos),
     );
     if (tokens.length === 0) {
-      return Matched.create(capture.node, pos, 0);
+      return Matched.create(node, pos, 0);
     }
-    return Matched.tokenized(capture.node, pos, to - start, tokens);
+    const content = this.captureContents?.[index];
+    if (content) {
+      return Matched.tokenized(
+        this.expanded(content, this.captureContentTemplates?.[index], result),
+        pos,
+        to - start,
+        tokens,
+      ).wrap(node);
+    }
+    return Matched.tokenized(node, pos, to - start, tokens);
   }
 }
 

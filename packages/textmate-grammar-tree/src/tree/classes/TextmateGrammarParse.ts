@@ -58,7 +58,7 @@ export class TextmateGrammarParse implements PartialParse {
         const cachedCompiler = Object.values(
           (f.tree as any).props as any[],
         ).find((v) => v instanceof Compiler);
-        if (cachedCompiler) {
+        if (cachedCompiler && cachedCompiler.grammar === grammar) {
           const stampedEpoch = (f.tree as any).__compilerEpoch;
           if (
             stampedEpoch !== undefined &&

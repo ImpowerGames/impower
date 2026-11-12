@@ -30,6 +30,12 @@ export class Grammar {
 
   declare nodeNames: string[];
 
+  declare loadedTypes: number;
+
+  typeLimit = 0x10000;
+
+  onDerive?: (node: GrammarNode) => void;
+
   private repositories = new Map<GrammarDefinition, GrammarRepository>();
 
   private curID = NodeID.safe;
@@ -91,6 +97,27 @@ export class Grammar {
       ...loaded.sort((a, b) => a.typeIndex - b.typeIndex),
     ];
     this.nodeNames = this.nodes.map((n) => n.typeId);
+    this.loadedTypes = this.nodes.length;
+  }
+
+  derive(
+    base: GrammarNode,
+    name: string,
+    declarator: GrammarRepository["declarator"],
+  ): GrammarNode {
+    const typeIndex = this.nodes.length;
+    if (typeIndex >= this.typeLimit) {
+      return base;
+    }
+    const node = new GrammarNode(
+      typeIndex,
+      { ...base.props, id: base.typeId, name },
+      declarator,
+    );
+    this.nodes.push(node);
+    this.nodeNames.push(node.typeId);
+    this.onDerive?.(node);
+    return node;
   }
 
   nextTypeIndex() {

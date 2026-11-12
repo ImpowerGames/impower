@@ -201,7 +201,7 @@ function lintSyntaxNodes(tree: Tree, text: string): SyntaxNode[] {
     if (part instanceof TreeBuffer) {
       const buffer = part.buffer;
       let types = lintNodeTypes.get(part.set);
-      if (!types) {
+      if (!types || types.length !== part.set.types.length) {
         types = Uint8Array.from(part.set.types, (type) => flags(type.name));
         lintNodeTypes.set(part.set, types);
       }

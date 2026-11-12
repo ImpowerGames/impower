@@ -371,7 +371,11 @@ export class ResumableTokenizer {
       rule: result.rule,
       openedAt: dispatchPos,
       enteredAt: dispatchPos,
-      contentNodeIndex: result.rule.contentRule.node.typeIndex,
+      contentNodeIndex:
+        result.rule.contentNameTemplate === undefined
+          ? result.rule.contentRule.node.typeIndex
+          : result.rule.contentNodeFor(this.state.stack.at(-1)!.beginCaptures)
+              .typeIndex,
       contentOpened: false,
       contentDropped: false,
       wrapperNodes: result.chain.length > 0 ? result.chain : undefined,
@@ -426,7 +430,12 @@ export class ResumableTokenizer {
     this.closeContentWrapper(frame);
     if (this.pending) {
       this.pending[4] ??= [];
-      this.pending[4].push(frame.rule.node.typeIndex);
+      this.pending[4].push(
+        frame.rule.nameTemplate === undefined
+          ? frame.rule.node.typeIndex
+          : frame.rule.nodeFor(this.state.stack.at(-1)!.beginCaptures)
+              .typeIndex,
+      );
       if (frame.wrapperNodes) {
         for (let i = frame.wrapperNodes.length - 1; i >= 0; i--) {
           this.pending[4].push(frame.wrapperNodes[i]!);
@@ -829,6 +838,9 @@ export class ResumableTokenizer {
       const a = this.frames[i]!;
       const b = frames[i]!;
       if (a.rule !== b.rule) {
+        return false;
+      }
+      if (a.contentNodeIndex !== b.contentNodeIndex) {
         return false;
       }
       if (a.contentOpened !== b.contentOpened) {
