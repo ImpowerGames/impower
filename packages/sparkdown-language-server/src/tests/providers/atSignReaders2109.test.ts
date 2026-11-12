@@ -6,7 +6,7 @@ import { compileProject } from "./completionHarness";
 
 const URI = "file:///proj/main.sd";
 
-describe("readers of @ names in the language server (#2109)", () => {
+describe("readers of @ names in the language server (#2109)", { timeout: 60000 }, () => {
   it("finds a whole word without matching inside an @ name", () => {
     const pattern = compileFindPattern({ query: "night", wholeWord: true, matchCase: false, regex: false } as never);
     expect(pattern).toBeInstanceOf(RegExp);

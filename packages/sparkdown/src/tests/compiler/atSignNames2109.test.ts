@@ -158,6 +158,22 @@ end
     expect(explained, messages(program).join("\n")).toHaveLength(1);
   });
 
+  it.each([
+    ["store mia@@night = 1", "'mia@@night' is not a name: a name may hold an '@' only between two letters, digits or '_'"],
+    ["store mia@ = 1", "'mia@' is not a name: a name may hold an '@' only between two letters, digits or '_'"],
+    ["store @night = 1", "got '@night': a name may hold an '@' only between two letters, digits or '_'"],
+  ])("explains the @ rule for the malformed name in `%s`, not an attribute", (line, expected) => {
+    const found = messages(compile(`${line}\n\nscene start\nend\n`));
+    expect(found.some((message) => message.includes(expected)), found.join("\n")).toBe(true);
+    expect(found.filter((message) => /attribute/i.test(message))).toEqual([]);
+  });
+
+  it("keeps a function attribute and Luau's wording for a known attribute where a name belongs", () => {
+    expect(messages(compile("@native function _f()\nend\n\nscene start\nend\n"))).toEqual([]);
+    const found = messages(compile("store @native = 1\n\nscene start\nend\n"));
+    expect(found.some((message) => message.includes("got 'native'")), found.join("\n")).toBe(true);
+  });
+
   it("reads a reserved word after an @ as part of the name", () => {
     const program = compile(`---
 title: At names

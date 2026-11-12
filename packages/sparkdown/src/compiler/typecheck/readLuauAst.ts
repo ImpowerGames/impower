@@ -311,6 +311,7 @@ interface Token {
   unread?: true;
   lexemesOf?: { token: Token; count: number };
   broken?: true;
+  malformedName?: true;
   section?: true;
   openInterpolations?: number[];
   written?: true;
@@ -535,6 +536,11 @@ class Tokenizer {
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     if (kind === "symbol" && this.text.slice(from, to) === "@") kind = "attribute";
     const last = this.tokens[this.tokens.length - 1];
+    const gluedToName = last?.to === from && to > from && (last.malformedName ? NAME_RUN_KINDS.has(kind) : kind === "attribute" && (last.kind === "name" || last.kind === "keyword"));
+    if (gluedToName) {
+      this.tokens[this.tokens.length - 1] = { ...last, kind: "name", malformedName: true, text: last.text + this.text.slice(from, to), to, location: this.location(last.from, to) };
+      return;
+    }
     if (last?.kind === "attribute" && last.text === "@" && last.to === from && to > from) {
       const text = this.text.slice(from, to);
       const glued: TokenKind | undefined = kind === "name" || kind === "keyword" ? "attribute" : kind === "symbol" && text === "[" ? "attributeOpen" : undefined;
@@ -1273,6 +1279,10 @@ class FatalReadError extends Error {
   }
 }
 
+const AT_NAME_RULE = "a name may hold an '@' only between two letters, digits or '_'";
+
+const NAME_RUN_KINDS = new Set<TokenKind>(["attribute", "name", "keyword", "number"]);
+
 const ATTRIBUTES = new Map<string, AstAttrType>([
   ["checked", AstAttrType.Checked],
   ["native", AstAttrType.Native],
@@ -1361,6 +1371,7 @@ class Parser {
   private endMismatchSuspect: Token | undefined;
   private readonly statementSpans: StatementSpan[][] = [];
   private readonly errorsAtUnread = new Set<number>();
+  private readonly malformedNamesRead = new Set<number>();
   readonly unreadStatements: { from: number; to: number }[] = [];
 
   recordDepth = -1;
@@ -1399,6 +1410,10 @@ class Parser {
   private next(): void {
     const token = this.tokens[this.pos];
     if (token) {
+      if (token.malformedName && !this.malformedNamesRead.has(token.from)) {
+        this.malformedNamesRead.add(token.from);
+        this.report(token.location, `'${token.text}' is not a name: ${AT_NAME_RULE}`);
+      }
       this.previous = token.location;
       this.pos++;
     }
@@ -3417,10 +3432,12 @@ class Parser {
 
   private parseNameOpt(context?: string, malformed?: MalformedConstruct): Name | undefined {
     if (!this.isName()) {
-      const got = describe(this.rejected());
+      const rejected = this.rejected();
+      const atName = rejected.kind === "attribute" && rejected.text.length > 1 && !ATTRIBUTES.has(rejected.text.slice(1));
+      const got = atName ? `'${rejected.text}': ${AT_NAME_RULE}` : describe(rejected);
       const message = context !== undefined ? `Expected identifier when parsing ${context}, got ${got}` : `Expected identifier, got ${got}`;
       this.report(this.current().location, message, this.nameMalformed(malformed));
-      return undefined;
+      if (!atName) return undefined;
     }
     const result = { name: this.current().text, location: this.current().location };
     this.next();
