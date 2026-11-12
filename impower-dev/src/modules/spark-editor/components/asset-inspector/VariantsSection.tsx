@@ -12,7 +12,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useCoarsePointer } from "@impower/impower-ui/layout";
 import type { RefObject } from "preact";
-import { useId, useState } from "preact/hooks";
+import { useId, useRef, useState } from "preact/hooks";
 import type { ImageStack } from "../../utils/imageStacks";
 import {
   chosenIn,
@@ -60,8 +60,10 @@ function GroupMenu({
   const coarse = useCoarsePointer();
   const [open, setOpen] = useState(false);
   const name = groupLabel(group);
+  const button = useRef<HTMLButtonElement | null>(null);
   const trigger = (
     <Button
+      ref={button}
       size="compact"
       class={value === group.default ? "min-w-0 justify-between" : "min-w-0 justify-between text-accent"}
       aria-label={`${name}: ${optionLabel(value)}`}
@@ -78,6 +80,7 @@ function GroupMenu({
         {trigger}
         <WheelSheet
           container={sheetContainer}
+          returnFocus={() => button.current}
           open={open}
           title={name}
           options={group.options.map((option) => ({

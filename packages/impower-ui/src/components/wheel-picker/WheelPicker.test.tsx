@@ -1,6 +1,8 @@
 import { render } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { WHEEL_ROW, WheelPicker, WheelSheet, wheelIndexAt, type WheelOption } from "./WheelPicker";
 
 const OPTIONS: WheelOption[] = [
@@ -187,6 +189,42 @@ describe("WheelSheet", () => {
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
     expect(cancelled).toHaveBeenCalledTimes(3);
+  });
+
+  it("takes Escape for itself inside a modal sheet, leaving the sheet open", async () => {
+    const sheetChanges: boolean[] = [];
+    const cancelled = vi.fn();
+    function Inside() {
+      const frame = useRef<HTMLDivElement>(null);
+      const [ready, setReady] = useState(false);
+      useEffect(() => setReady(true), []);
+      return (
+        <div ref={frame} class="relative">
+          {ready && (
+            <WheelSheet container={frame} open title="Face" options={OPTIONS} value="" onChoose={() => {}} onCancel={cancelled} />
+          )}
+        </div>
+      );
+    }
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Sheet open onOpenChange={(next) => sheetChanges.push(next)}>
+          <DialogTitle>Inspector</DialogTitle>
+          <Inside />
+        </Sheet>,
+        host!,
+      ),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const list = document.querySelector<HTMLElement>("[data-wheel-sheet] [role=listbox]")!;
+    expect(document.activeElement).toBe(list);
+    await key(list, "Escape");
+    expect(cancelled).toHaveBeenCalledTimes(1);
+    expect(sheetChanges).toEqual([]);
+    expect(document.querySelector("[role=dialog][aria-modal=true]")).not.toBeNull();
   });
 
   it("returns focus to what opened it when it closes", async () => {

@@ -193,6 +193,7 @@ export type WheelSheetProps = VariantProps<typeof wheelSheetVariants> & {
   onPreview?: (value: string) => void;
   onChoose: (value: string) => void;
   onCancel: () => void;
+  returnFocus?: () => HTMLElement | null;
 };
 
 export function WheelSheet({
@@ -204,6 +205,7 @@ export function WheelSheet({
   onPreview,
   onChoose,
   onCancel,
+  returnFocus,
   size,
 }: WheelSheetProps) {
   const titleId = useId();
@@ -212,16 +214,18 @@ export function WheelSheet({
   const list = useRef<HTMLDivElement>(null);
   const cancel = useRef(onCancel);
   cancel.current = onCancel;
+  const focusBack = useRef(returnFocus);
+  focusBack.current = returnFocus;
 
   useEffect(() => {
     centred.current = value;
   }, [open, value]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       return;
     }
-    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     list.current?.focus({ preventScroll: true });
     const outside = (event: PointerEvent) => {
       const target = event.target as Element | null;
@@ -229,9 +233,20 @@ export function WheelSheet({
         cancel.current();
       }
     };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !panel.current?.contains(event.target as Node | null)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      cancel.current();
+    };
     document.addEventListener("pointerdown", outside, true);
+    window.addEventListener("keydown", escape, true);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener("keydown", escape, true);
+      const returnTo = focusBack.current?.() ?? opener;
       if (returnTo?.isConnected && (!document.activeElement || panel.current?.contains(document.activeElement) || document.activeElement === document.body)) {
         returnTo.focus({ preventScroll: true });
       }
@@ -250,13 +265,6 @@ export function WheelSheet({
       aria-labelledby={titleId}
       class={wheelSheetVariants({ size })}
       data-wheel-sheet
-      onKeyDown={(event: KeyboardEvent) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          onCancel();
-        }
-      }}
     >
       <div class="flex items-center justify-between gap-2 border-b border-edge px-2 py-1.5">
         <Button variant="quiet" onClick={onCancel}>

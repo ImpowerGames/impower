@@ -1070,6 +1070,23 @@ describe("the Variants tester and the Files section", () => {
     );
   });
 
+  it.each(["phone", "desktop"] as const)(
+    "cancels the wheel with Escape and keeps the %s inspector open, with focus back on the group",
+    async (host) => {
+      layout.value = host;
+      layout.coarse = true;
+      await mount();
+      await open("imani");
+      await click(group("face"));
+      const wheel = document.querySelector<HTMLElement>("[data-wheel-sheet] [role=listbox]")!;
+      expect(document.activeElement).toBe(wheel);
+      await key(wheel, "Escape");
+      expect(document.querySelector("[data-wheel-sheet]")).toBeNull();
+      expect(region()).not.toBeNull();
+      expect(document.activeElement).toBe(group("face"));
+    },
+  );
+
   it("turns a wheel in a sheet on a coarse pointer, previewing as it turns and choosing with Done", async () => {
     layout.coarse = true;
     const tops = new WeakMap<Element, number>();
