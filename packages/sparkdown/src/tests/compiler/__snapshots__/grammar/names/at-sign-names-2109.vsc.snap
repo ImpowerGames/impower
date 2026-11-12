@@ -1,0 +1,226 @@
+text.source.sparkdown [0..456]
+ ├─ meta.function.luau [0..39]
+ │   ├─ keyword.control.define.luau [0..6]: "define"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..16]: "mia@party"
+ │   ├─ punctuation.whitespace.optional.sd [16..17]: " "
+ │   ├─ keyword.control.as.luau [17..19]: "as"
+ │   ├─ punctuation.whitespace.optional.sd [19..20]: " "
+ │   ├─ entity.name.type.define.parent.luau [20..34]: "filtered_image"
+ │   ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │   └─ keyword.control.as.luau [35..39]: "with"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.function.luau [40..65]
+ │   └─ meta.embedded.block.luau [40..65]
+ │       ├─ punctuation.whitespace.optional.sd [40..42]: "  "
+ │       ├─ variable.other.readwrite.luau [42..47]: "image"
+ │       ├─ punctuation.whitespace.optional.sd [47..48]: " "
+ │       ├─ keyword.operator.assignment.luau [48..49]: "="
+ │       ├─ punctuation.whitespace.optional.sd [49..50]: " "
+ │       ├─ variable.other.readwrite.luau [50..55]: "image"
+ │       ├─ meta.template.expression.accessor.sd [55..56]: "."
+ │       └─ variable.other.property.luau [56..65]: "mia@night"
+ ├─ Newline [65..66]: "\n"
+ ├─ meta.function.luau [66..99]
+ │   └─ meta.embedded.block.luau [66..99]
+ │       ├─ punctuation.whitespace.optional.sd [66..68]: "  "
+ │       ├─ variable.other.readwrite.luau [68..78]: "attributes"
+ │       ├─ punctuation.whitespace.optional.sd [78..79]: " "
+ │       ├─ keyword.operator.assignment.luau [79..80]: "="
+ │       ├─ punctuation.whitespace.optional.sd [80..81]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [81..82]: "{"
+ │       ├─ punctuation.whitespace.extra.sd [82..83]: " "
+ │       ├─ string.quoted.double.luau [83..90]
+ │       │   ├─ punctuation.definition.string.double.begin.sd [83..84]: "\""
+ │       │   ├─ markup.raw.text.sd [84..89]: "happy"
+ │       │   └─ punctuation.definition.string.double.end.sd [89..90]: "\""
+ │       ├─ keyword.operator.comma.luau [90..91]: ","
+ │       ├─ punctuation.whitespace.optional.sd [91..92]: " "
+ │       ├─ string.quoted.double.luau [92..97]
+ │       │   ├─ punctuation.definition.string.double.begin.sd [92..93]: "\""
+ │       │   ├─ markup.raw.text.sd [93..96]: "hat"
+ │       │   └─ punctuation.definition.string.double.end.sd [96..97]: "\""
+ │       ├─ punctuation.whitespace.extra.sd [97..98]: " "
+ │       └─ punctuation.definition.template-expression.end.sd [98..99]: "}"
+ ├─ Newline [99..100]: "\n"
+ ├─ meta.function.luau [100..103]
+ │   └─ meta.embedded.block.luau [100..103]
+ │       └─ keyword.control.end.luau [100..103]: "end"
+ ├─ Newline [103..104]: "\n"
+ ├─ Newline [104..105]: "\n"
+ ├─ meta.style.luau [105..119]
+ │   ├─ keyword.control.style.luau [105..110]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [110..111]: " "
+ │   └─ meta.embedded.block.luau [111..119]
+ │       ├─ entity.name.type.define.luau [111..117]: "toggle"
+ │       ├─ punctuation.whitespace.sd [117..118]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [118..119]: "{"
+ ├─ Newline [119..120]: "\n"
+ ├─ meta.style.luau [120..159]
+ │   └─ meta.embedded.block.luau [120..159]
+ │       ├─ punctuation.whitespace.sd [120..122]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [122..123]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [123..130]: "checked"
+ │       ├─ punctuation.whitespace.sd [130..131]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [131..132]: "{"
+ │       ├─ punctuation.whitespace.sd [132..133]: " "
+ │       ├─ variable.other.property.define.sd [133..149]: "background-color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [149..150]: " "
+ │       ├─ keyword.operator.assignment.sd [150..151]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [151..152]: " "
+ │       ├─ string.unquoted.identifier.sd [152..157]: "black"
+ │       ├─ punctuation.whitespace.sd [157..158]: " "
+ │       └─ punctuation.definition.template-expression.end.sd [158..159]: "}"
+ ├─ Newline [159..160]: "\n"
+ ├─ meta.style.luau [160..182]
+ │   ├─ meta.embedded.block.luau [160..170]
+ │   │   ├─ punctuation.whitespace.sd [160..162]: "  "
+ │   │   ├─ entity.name.function.attribute.name.view.sd [162..163]: "@"
+ │   │   └─ entity.name.function.attribute.name.view.sd [163..170]: "hovered"
+ │   ├─ meta.embedded.block.luau [170..171]: ","
+ │   └─ meta.embedded.block.luau [171..182]
+ │       ├─ punctuation.whitespace.required.sd [171..172]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [172..173]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [173..180]: "focused"
+ │       ├─ punctuation.whitespace.sd [180..181]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [181..182]: "{"
+ ├─ Newline [182..183]: "\n"
+ ├─ meta.style.luau [183..200]
+ │   └─ meta.embedded.block.luau [183..200]
+ │       ├─ punctuation.whitespace.sd [183..187]: "    "
+ │       ├─ variable.other.property.define.sd [187..194]: "opacity"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [194..195]: " "
+ │       ├─ keyword.operator.assignment.sd [195..196]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [196..197]: " "
+ │       └─ constant.numeric.sd [197..200]
+ │           └─ constant.numeric.sd [197..200]: "0.5"
+ ├─ Newline [200..201]: "\n"
+ ├─ meta.style.luau [201..204]
+ │   └─ meta.embedded.block.luau [201..204]
+ │       ├─ punctuation.whitespace.sd [201..203]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [203..204]: "}"
+ ├─ Newline [204..205]: "\n"
+ ├─ meta.style.luau [205..206]
+ │   └─ meta.embedded.block.luau [205..206]
+ │       └─ punctuation.definition.template-expression.end.sd [205..206]: "}"
+ ├─ Newline [206..207]: "\n"
+ ├─ Newline [207..208]: "\n"
+ ├─ keyword.operator.attribute.luau [208..209]: "@"
+ ├─ storage.type.attribute.luau [209..215]: "native"
+ ├─ Newline [215..216]: "\n"
+ ├─ meta.function.luau [216..240]
+ │   ├─ keyword.control.luau [216..224]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [224..225]: " "
+ │   ├─ entity.name.function.luau [225..234]: "count@all"
+ │   └─ meta.parameter.luau [234..240]
+ │       ├─ punctuation.definition.template-expression.begin.sd [234..235]: "("
+ │       ├─ meta.embedded.block.luau [235..239]
+ │       │   └─ variable.parameter.function.luau [235..239]: "text"
+ │       └─ punctuation.definition.template-expression.end.sd [239..240]: ")"
+ ├─ Newline [240..241]: "\n"
+ ├─ meta.function.luau [241..263]
+ │   └─ meta.function.body.luau [241..263]
+ │       └─ meta.embedded.block.luau [241..263]
+ │           ├─ punctuation.whitespace.optional.sd [241..243]: "  "
+ │           ├─ storage.modifier.scope.luau [243..248]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [248..249]: " "
+ │           └─ meta.embedded.line.luau [249..263]
+ │               ├─ variable.other.readwrite.luau [249..259]: "word@count"
+ │               ├─ punctuation.whitespace.optional.sd [259..260]: " "
+ │               ├─ keyword.operator.assignment.luau [260..261]: "="
+ │               ├─ punctuation.whitespace.optional.sd [261..262]: " "
+ │               └─ constant.numeric.decimal.luau [262..263]: "0"
+ ├─ Newline [263..264]: "\n"
+ ├─ meta.function.luau [264..287]
+ │   └─ meta.function.body.luau [264..287]
+ │       └─ meta.embedded.block.luau [264..287]
+ │           ├─ punctuation.whitespace.optional.sd [264..266]: "  "
+ │           ├─ storage.modifier.scope.luau [266..271]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [271..272]: " "
+ │           └─ meta.embedded.line.luau [272..287]
+ │               ├─ variable.other.readwrite.luau [272..279]: "pattern"
+ │               ├─ punctuation.whitespace.optional.sd [279..280]: " "
+ │               ├─ keyword.operator.assignment.luau [280..281]: "="
+ │               ├─ punctuation.whitespace.optional.sd [281..282]: " "
+ │               └─ string.regexp.sd [282..287]
+ │                   ├─ punctuation.definition.string.begin.sd [282..283]: "@"
+ │                   ├─ punctuation.definition.string.begin.sd [283..284]: "/"
+ │                   ├─ string.regexp.sd [284..286]
+ │                   │   ├─ string.regexp.sd [284..285]: "a"
+ │                   │   └─ keyword.operator.quantifier.regexp.sd [285..286]: "+"
+ │                   └─ punctuation.definition.string.end.sd [286..287]: "/"
+ ├─ Newline [287..288]: "\n"
+ ├─ meta.function.luau [288..313]
+ │   └─ meta.function.body.luau [288..313]
+ │       └─ meta.embedded.block.luau [288..313]
+ │           ├─ punctuation.whitespace.optional.sd [288..290]: "  "
+ │           ├─ storage.modifier.scope.luau [290..295]: "local"
+ │           ├─ punctuation.whitespace.optional.sd [295..296]: " "
+ │           └─ meta.embedded.line.luau [296..313]
+ │               ├─ variable.other.readwrite.luau [296..304]: "flag@end"
+ │               ├─ punctuation.whitespace.optional.sd [304..305]: " "
+ │               ├─ keyword.operator.assignment.luau [305..306]: "="
+ │               ├─ punctuation.whitespace.optional.sd [306..307]: " "
+ │               └─ variable.other.readwrite.luau [307..313]: "true@x"
+ ├─ Newline [313..314]: "\n"
+ ├─ meta.function.luau [314..344]
+ │   └─ meta.function.body.luau [314..344]
+ │       └─ meta.embedded.block.luau [314..344]
+ │           └─ meta.function.luau [314..344]
+ │               ├─ punctuation.whitespace.optional.sd [314..316]: "  "
+ │               ├─ keyword.control.luau [316..322]: "return"
+ │               ├─ punctuation.whitespace.optional.sd [322..323]: " "
+ │               ├─ variable.other.readwrite.luau [323..333]: "word@count"
+ │               ├─ punctuation.whitespace.optional.sd [333..334]: " "
+ │               ├─ keyword.operator.arithmetic.luau [334..335]: "+"
+ │               ├─ punctuation.whitespace.optional.sd [335..336]: " "
+ │               ├─ keyword.operator.length.luau [336..337]: "#"
+ │               └─ variable.other.readwrite.luau [337..344]: "pattern"
+ ├─ Newline [344..345]: "\n"
+ ├─ meta.function.luau [345..348]
+ │   └─ meta.embedded.block.luau [345..348]
+ │       └─ keyword.control.end.luau [345..348]: "end"
+ ├─ Newline [348..349]: "\n"
+ ├─ Newline [349..350]: "\n"
+ ├─ keyword.control.scene.sd [350..355]: "scene"
+ ├─ punctuation.whitespace.required.sd [355..356]: " "
+ ├─ keyword.control.section.sd [356..361]: "start"
+ ├─ Newline [361..362]: "\n"
+ ├─ punctuation.whitespace.optional.sd [362..364]: "  "
+ ├─ meta.image.sd [364..383]
+ │   ├─ keyword.operator.expression.begin.image.sd [364..366]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [366..381]
+ │   │   ├─ variable.other.constant.asset.file.sd [366..375]: "mia@night"
+ │   │   ├─ variable.other.property.filter.sd [375..376]: ":"
+ │   │   └─ variable.other.constant.asset.filter.sd [376..381]: "happy"
+ │   └─ keyword.operator.expression.end.image.sd [381..383]: "]]"
+ ├─ Newline [383..384]: "\n"
+ ├─ punctuation.whitespace.optional.sd [384..386]: "  "
+ ├─ meta.image.sd [386..403]
+ │   ├─ keyword.operator.expression.begin.image.sd [386..388]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [388..401]
+ │   │   ├─ variable.other.constant.asset.file.sd [388..397]: "mia@night"
+ │   │   ├─ variable.other.property.filter.sd [397..398]: "~"
+ │   │   └─ variable.other.constant.asset.filter.sd [398..401]: "hat"
+ │   └─ keyword.operator.expression.end.image.sd [401..403]: "]]"
+ ├─ Newline [403..404]: "\n"
+ ├─ punctuation.whitespace.optional.sd [404..406]: "  "
+ ├─ meta.image.sd [406..419]
+ │   ├─ keyword.operator.expression.begin.image.sd [406..408]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [408..417]: "mia@party"
+ │   └─ keyword.operator.expression.end.image.sd [417..419]: "]]"
+ ├─ Newline [419..420]: "\n"
+ ├─ punctuation.whitespace.optional.sd [420..422]: "  "
+ ├─ meta.image.sd [422..451]
+ │   ├─ keyword.operator.expression.begin.image.sd [422..424]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [424..433]: "mia@night"
+ │   ├─ punctuation.whitespace.required.sd [433..434]: " "
+ │   ├─ variable.other.property.add.sd [434..436]: "+ "
+ │   ├─ variable.other.constant.asset.file.sd [436..449]
+ │   │   ├─ variable.other.constant.asset.file.sd [436..445]: "mia@party"
+ │   │   ├─ variable.other.property.filter.sd [445..446]: ":"
+ │   │   └─ variable.other.constant.asset.filter.sd [446..449]: "hat"
+ │   └─ keyword.operator.expression.end.image.sd [449..451]: "]]"
+ ├─ Newline [451..452]: "\n"
+ ├─ keyword.control.end.luau [452..455]: "end"
+ └─ Newline [455..456]: "\n"

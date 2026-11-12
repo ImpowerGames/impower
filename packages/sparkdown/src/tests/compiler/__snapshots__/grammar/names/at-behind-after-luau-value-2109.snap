@@ -1,0 +1,129 @@
+sparkdown [0..54]
+ ├─ LuauFunctionDefinition [0..53]
+ │   ├─ LuauFunctionDefinition_begin [0..9]
+ │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauFunctionDefinition_begin_c2 0
+ │   │   ├─ LuauFunctionDefinition_begin_c3 0
+ │   │   ├─ LuauFunctionDefinition_begin_c5 [0..8]
+ │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
+ │   │   └─ LuauFunctionDefinition_begin_c6 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c6 [8..9]
+ │   │           └─ OptionalWhitespace [8..9]: " "
+ │   ├─ LuauFunctionDefinition_content [9..50]
+ │   │   ├─ LuauFunctionDeclarationName [9..10]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..10]
+ │   │   │   │   └─ LuauFunctionName [9..10]: "f"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 10
+ │   │   ├─ LuauFunctionParameters [10..14]
+ │   │   │   ├─ LuauFunctionParameters_begin [10..11]
+ │   │   │   │   └─ LuauFunctionParameters_begin_c1 [10..11]
+ │   │   │   │       └─ PunctuationParenOpen [10..11]: "("
+ │   │   │   ├─ LuauFunctionParameters_content [11..13]
+ │   │   │   │   └─ LuauFunctionParameter [11..13]: "ok"
+ │   │   │   └─ LuauFunctionParameters_end [13..14]
+ │   │   │       └─ LuauFunctionParameters_end_c1 [13..14]
+ │   │   │           └─ PunctuationParenClose [13..14]: ")"
+ │   │   └─ LuauFunctionBody [14..50]
+ │   │       ├─ LuauFunctionBody_begin 14
+ │   │       ├─ LuauFunctionBody_content [14..50]
+ │   │       │   ├─ Newline [14..15]: "\n"
+ │   │       │   ├─ LuauVariableDefinition [15..33]
+ │   │       │   │   ├─ LuauVariableDefinition_begin [15..23]
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [15..17]
+ │   │       │   │   │   │   └─ OptionalWhitespace [15..17]: "  "
+ │   │       │   │   │   ├─ LuauVariableDefinition_begin_c2 [17..22]
+ │   │       │   │   │   │   └─ LuauScopeModifier [17..22]: "local"
+ │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [22..23]
+ │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [22..23]
+ │   │       │   │   │           └─ OptionalWhitespace [22..23]: " "
+ │   │       │   │   ├─ LuauVariableDefinition_content [23..33]
+ │   │       │   │   │   └─ LuauVariableAssignment [23..33]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [23..25]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [23..24]
+ │   │       │   │   │       │   │   └─ LuauVariableName [23..24]: "v"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [24..25]
+ │   │       │   │   │       │       └─ OptionalWhitespace [24..25]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [25..33]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [25..33]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 25
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 25
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 25
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [25..33]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [25..27]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [25..27]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 25
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 25
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [25..26]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [26..27]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [26..27]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [26..27]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 27
+ │   │       │   │   │       │       │   └─ LuauAccessPath [27..33]
+ │   │       │   │   │       │       │       ├─ LuauAccessPath_begin 27
+ │   │       │   │   │       │       │       ├─ LuauAccessPath_content [27..32]
+ │   │       │   │   │       │       │       │   └─ LuauAccessPart [27..32]
+ │   │       │   │   │       │       │       │       └─ LuauVariable [27..32]
+ │   │       │   │   │       │       │       │           └─ LuauVariable_c1 [27..32]
+ │   │       │   │   │       │       │       │               └─ LuauVariableName [27..32]: "x@and"
+ │   │       │   │   │       │       │       └─ LuauAccessPath_end [32..33]
+ │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 [32..33]
+ │   │       │   │   │       │       │               └─ LuauAccessPath_end_c1 [32..33]
+ │   │       │   │   │       │       │                   └─ OptionalWhitespace [32..33]: " "
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 33
+ │   │       │   │   │       └─ LuauVariableAssignment_end 33
+ │   │       │   │   └─ LuauVariableDefinition_end 33
+ │   │       │   ├─ LuauBlockComment [33..41]
+ │   │       │   │   ├─ LuauBlockComment_begin [33..37]
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c1 33
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c2 [33..36]
+ │   │       │   │   │   │   └─ LuauCommentMark [33..36]: "--["
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c3 36
+ │   │       │   │   │   └─ LuauBlockComment_begin_c4 [36..37]
+ │   │       │   │   │       └─ LuauCommentMark [36..37]: "["
+ │   │       │   │   ├─ LuauBlockComment_content [37..38]
+ │   │       │   │   │   └─ LuauBlockCommentContent [37..38]: "c"
+ │   │       │   │   └─ LuauBlockComment_end [38..41]
+ │   │       │   │       ├─ LuauBlockComment_end_c1 [38..39]
+ │   │       │   │       │   └─ LuauCommentMark [38..39]: "]"
+ │   │       │   │       ├─ LuauBlockComment_end_c2 39
+ │   │       │   │       ├─ LuauBlockComment_end_c3 [39..40]
+ │   │       │   │       │   └─ LuauCommentMark [39..40]: "]"
+ │   │       │   │       └─ LuauBlockComment_end_c4 [40..41]
+ │   │       │   │           └─ LuauBlockComment_end_c4 [40..41]
+ │   │       │   │               └─ OptionalWhitespace [40..41]: " "
+ │   │       │   ├─ LuauAccessPath [41..49]
+ │   │       │   │   ├─ LuauAccessPath_begin 41
+ │   │       │   │   ├─ LuauAccessPath_content [41..49]
+ │   │       │   │   │   └─ LuauAccessPart [41..49]
+ │   │       │   │   │       └─ LuauFunctionCall [41..49]
+ │   │       │   │   │           ├─ LuauFunctionCall_begin [41..46]
+ │   │       │   │   │           │   ├─ LuauFunctionCall_begin_c1 [41..46]
+ │   │       │   │   │           │   │   └─ LuauStdLibFunctions [41..46]: "print"
+ │   │       │   │   │           │   └─ LuauFunctionCall_begin_c2 46
+ │   │       │   │   │           ├─ LuauFunctionCall_content [46..49]
+ │   │       │   │   │           │   └─ LuauFunctionCallParameters [46..49]
+ │   │       │   │   │           │       ├─ LuauFunctionCallParameters_begin [46..47]
+ │   │       │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [46..47]
+ │   │       │   │   │           │       │       └─ PunctuationParenOpen [46..47]: "("
+ │   │       │   │   │           │       ├─ LuauFunctionCallParameters_content [47..48]
+ │   │       │   │   │           │       │   └─ LuauNumericDecimal [47..48]
+ │   │       │   │   │           │       │       ├─ LuauNumericDecimal_c1 [47..48]: "1"
+ │   │       │   │   │           │       │       └─ LuauNumericDecimal_c2 48
+ │   │       │   │   │           │       └─ LuauFunctionCallParameters_end [48..49]
+ │   │       │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [48..49]
+ │   │       │   │   │           │               └─ PunctuationParenClose [48..49]: ")"
+ │   │       │   │   │           └─ LuauFunctionCall_end 49
+ │   │       │   │   └─ LuauAccessPath_end 49
+ │   │       │   │       └─ LuauAccessPath_end_c1 49
+ │   │       │   └─ Newline [49..50]: "\n"
+ │   │       └─ LuauFunctionBody_end 50
+ │   └─ LuauFunctionDefinition_end [50..53]
+ │       ├─ LuauFunctionDefinition_end_c1 50
+ │       │   └─ LuauFunctionDefinition_end_c1 50
+ │       │       └─ OptionalWhitespace 50
+ │       ├─ LuauFunctionDefinition_end_c2 [50..53]
+ │       │   └─ LuauEndKeyword [50..53]: "end"
+ │       ├─ LuauFunctionDefinition_end_c3 53
+ │       └─ LuauFunctionDefinition_end_c5 53
+ └─ Newline [53..54]: "\n"

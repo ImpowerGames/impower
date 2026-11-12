@@ -52,7 +52,7 @@ export function validateBlockStructure(
   if (readable && !keywordWithBody(node)) {
     return [
       {
-        message: `This ${keyword} header cannot be read past \`${readable.text}\`. A ${keyword} header is ${form}, with names that use only A–Z, a–z, 0–9 and \`_\` and start with a letter or \`_\`; its body goes inside the braces.`,
+        message: `This ${keyword} header cannot be read past \`${readable.text}\`. A ${keyword} header is ${form}, with names that use only A–Z, a–z, 0–9 and \`_\`, start with a letter or \`_\` and may hold an \`@\` between two of those characters; its body goes inside the braces.`,
         severity: ErrorType.Error,
         source: makeSource(readable.from, readable.to, ctx),
       },

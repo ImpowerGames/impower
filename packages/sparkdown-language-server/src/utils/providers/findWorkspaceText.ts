@@ -21,7 +21,7 @@ export const compileFindPattern = (
   }
   const body = regex ? query : escapeRegExp(query);
   const source = wholeWord
-    ? `(?<!${WORD_CHAR})(?:${body})(?!${WORD_CHAR})`
+    ? `(?<!${WORD_CHAR}|${WORD_CHAR}@)(?:${body})(?!${WORD_CHAR}|@${WORD_CHAR})`
     : body;
   try {
     return new RegExp(source, `gmu${matchCase ? "" : "i"}`);

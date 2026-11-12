@@ -1,0 +1,14 @@
+function f(c)
+  while c) x@while
+  local after = 1
+end
+
+function f(c)
+  for i = 1) x@for
+  local after = 1
+end
+
+function f(c)
+  while c] x@while
+  do end
+end
