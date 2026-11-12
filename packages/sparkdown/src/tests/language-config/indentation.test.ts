@@ -241,6 +241,8 @@ describe("the story increaseIndentPattern", () => {
       "  Cats or function (any kind) of dogs",
       "  Not function (really) at all",
       "  And then function (the meeting) began",
+      "  He walked in and function (x) began",
+      "  She said = function (a, b) is neat",
     ]) {
       expect(increase.test(line), line).toBe(false);
     }
@@ -273,6 +275,10 @@ describe("the story increaseIndentPattern", () => {
       "local h = function(a: number, b: string): number",
       "local v = function(a, ...: any)",
       "  call(function(a,",
+      "local callback = function(fn: () -> ())",
+      "local callback = function(fn: (number) -> (string, number), b)",
+      "local f = function(x): (number, string)",
+      "local f = function(x) -- note",
       "  if x then -- note",
       "  if x then // note",
     ]) {

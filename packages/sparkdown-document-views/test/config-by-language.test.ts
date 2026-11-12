@@ -123,6 +123,7 @@ describe("Enter in the web editor follows the language at the cursor", () => {
     "The function (a, b) works fine",
     "Every function f(x) did",
     "Function (the new one) and function (the old one) work differently",
+    "He walked in and function (x) began",
   ])(
     "keeps the indentation after the prose line `%s`",
     (line) => {
