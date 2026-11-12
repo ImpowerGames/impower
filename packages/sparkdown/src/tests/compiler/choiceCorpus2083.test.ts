@@ -20,7 +20,7 @@ interface Reading {
 interface CorpusCase extends Reading {
   id: string;
   source: string;
-  class?: "A" | "B" | "C" | "D" | "E" | "F";
+  class?: "A" | "B" | "C" | "D";
 }
 
 const CASES = (CORPUS as { cases: CorpusCase[] }).cases;
@@ -117,7 +117,14 @@ const recorded = ({ first, choices, runs, rt, diags, scopes }: Reading): Reading
 describe("choice, divert and chain lines without a comment read as recorded", () => {
   test("the corpus holds every stated difference from main", () => {
     const classes = new Set(CASES.flatMap((c) => (c.class ? [c.class] : [])));
-    expect([...classes].sort()).toEqual(["A", "B", "C", "D", "E", "F"]);
+    expect([...classes].sort()).toEqual(["A", "B", "C", "D"]);
+  });
+
+  test("styled spans and glue around an interpolation read as a unit are recorded with main's colours", () => {
+    const line = (c: CorpusCase) => c.source.split("\n")[4]!;
+    const unclassed = CASES.filter((c) => !c.class).map(line);
+    expect(unclassed.filter((l) => /\*far \{#\{\{\{\{1\}\}\}\}\} away\*/.test(l)).length).toBeGreaterThan(5);
+    expect(unclassed.filter((l) => /\.\. \{#\{\{\{\{1\}\}\}\}\}/.test(l)).length).toBeGreaterThan(5);
   });
 
   const CHUNK = 25;
@@ -130,6 +137,7 @@ describe("choice, divert and chain lines without a comment read as recorded", ()
     async (_name, chunk) => {
       const mismatches: { id: string; class?: string; expected: unknown; received: unknown }[] = [];
       for (const entry of chunk) {
+        await new Promise((resolve) => setImmediate(resolve));
         const received = await readingOf(entry.source);
         const divergences = await compareEngines(entry.source);
         if (JSON.stringify(received) !== JSON.stringify(recorded(entry)) || divergences.length > 0) {

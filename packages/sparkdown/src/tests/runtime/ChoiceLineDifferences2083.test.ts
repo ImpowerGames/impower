@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { parseSource } from "../compiler/grammarSnapshot";
 import { tokenize } from "../compiler/vscodeGrammarSnapshot";
+import { compareEngines } from "../compiler/scopeEquality";
 
 const compile = (text: string) => {
   const compiler = testCompiler();
@@ -111,44 +112,147 @@ describe("choice lines without a comment that read differently from main, as the
   test("B: an interpolation whose only `}` sits in a Luau comment inside it reads on past its line", () => {
     expect(choiceNodeLines("+ Go {x -- c}").to).toBeGreaterThan(CHOICE_LINE);
   });
+});
 
-  test("E: glue right before an interpolation read as a unit is highlighted as glue", async () => {
-    const lines = await tokenize(choose("+ Go .. {#{{{{1}}}}}"));
-    const glue = lines[CHOICE_LINE]!.tokens.find((token) => token.text === "..");
-    expect(glue?.scopes).toContain("meta.glue.sd");
-    expect(outcome("+ Go .. {#{{{{1}}}}}").choices).toEqual(["Go .. 1"]);
+const SUPPRESSION_BRACKET = "punctuation.definition.template-expression.begin.choice.suppression.sd";
+
+const tokensOf = async (line: string) => (await tokenize(choose(line)))[CHOICE_LINE]!.tokens;
+
+const scopesOf = async (line: string, text: string) =>
+  (await tokensOf(line)).find((token) => token.text.includes(text))?.scopes ?? [];
+
+const READ_AS_UNIT = ["{#{{{{1}}}}}", "{[[a]]}", "{[=[a]=]}", "{1 --[[c]] + 1}", "{1 /* c */}"];
+const KEPT_IN_TEXT = ["{x}", "{`a`}", "{t[1]}", '{"/*"}', '{"->"}', '{"\\n"}', "{#{{{1}}}}"];
+
+const SPAN_MARKS = [
+  ["**", "markup.other.bold.sd"],
+  ["***", "markup.other.italic.sd"],
+  ["_", "markup.other.underline.sd"],
+  ["^", "constant.character.escape.centered.sd"],
+  ["~~", "markup.emphasis.tilde.sd"],
+  ["::", "markup.emphasis.colon.sd"],
+] as const;
+
+const ACROSS_UNITS = [
+  ["inside a suppression", "+ Go [*far {#{{{{1}}}}} away* now]"],
+  ["after a suppression", "+ Go [x] *far {#{{{{1}}}}} away* now"],
+  ["across a block comment", "+ Go *far /* c */ away* now"],
+] as const;
+
+const BRACKET_LINES = ["+ Go [arrow -> next] x", "+ Go [x {t[1]} -> next", "+ Go [a] b", "+ Go [a {#{{{{1}}}}} -> next] x"];
+
+const glueLine = (after: string) => `+ Go .. ${after} x`;
+const spanLines = (interpolation: string) => [
+  `+ Go *far ${interpolation} away`,
+  `+ Go *far ${interpolation} away* now`,
+  `+ Go *far* ${interpolation} away`,
+];
+const markLine = (mark: string) => `+ Go ${mark}far {#{{{{1}}}}} away${mark} now`;
+const RAW_LINE = "+ Go `far {#{{{{1}}}}} away` now";
+const REGION_END_LINE = "+ Go *a [b] c";
+
+const HIGHLIGHTED_LINES = [
+  ...BRACKET_LINES,
+  ...[...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"].map(glueLine),
+  ...[...READ_AS_UNIT, ...KEPT_IN_TEXT].flatMap(spanLines),
+  ...SPAN_MARKS.map(([mark]) => markLine(mark)),
+  RAW_LINE,
+  ...ACROSS_UNITS.map(([, line]) => line),
+  REGION_END_LINE,
+];
+
+describe("choice text is highlighted as the choice reads it (#2083)", () => {
+  test("D: a `[` that only an arrow follows is highlighted as the literal text the choice reads", async () => {
+    const line = BRACKET_LINES[0]!;
+    const bracket = (await tokensOf(line)).find((token) => token.text === "[");
+    expect(bracket?.scopes).not.toContain(SUPPRESSION_BRACKET);
+    expect(bracket?.scopes).toContain("string.choice.sd");
+    expect(outcome(line).choices).toEqual(["Go [arrow"]);
   });
 
-  test.each(["{x}", "{`a`}", "{t[1]}", '{"/*"}', "{x // 2}"])(
-    "glue right before %s is highlighted as on main",
-    async (interpolation) => {
-      const lines = await tokenize(choose(`+ Go .. ${interpolation}`));
-      const dots = lines[CHOICE_LINE]!.tokens.filter((token) => token.text.includes("."));
+  test("D: a `[` whose only `]` sits inside an interpolation is highlighted as literal text", async () => {
+    const line = BRACKET_LINES[1]!;
+    const bracket = (await tokensOf(line)).find((token) => token.text === "[");
+    expect(bracket?.scopes).not.toContain(SUPPRESSION_BRACKET);
+    expect(outcome(line).choices).toEqual(["Go [x a"]);
+  });
+
+  test("a `[` that a `]` closes is highlighted as a suppression bracket", async () => {
+    const line = BRACKET_LINES[2]!;
+    const bracket = (await tokensOf(line)).find((token) => token.text === "[");
+    expect(bracket?.scopes).toContain(SUPPRESSION_BRACKET);
+    expect(outcome(line).choices).toEqual(["Go a"]);
+  });
+
+  test("D's limit: an interpolation read as a unit between the `[` and the arrow, with a `]` after it, keeps the `[` highlighted as a suppression bracket", async () => {
+    const line = BRACKET_LINES[3]!;
+    const bracket = (await tokensOf(line)).find((token) => token.text === "[");
+    expect(bracket?.scopes).toContain(SUPPRESSION_BRACKET);
+    expect(outcome(line).choices).toEqual(["Go [a 1"]);
+  });
+
+  test.each([...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"])(
+    "E: `..` right before %s is highlighted as the text the choice keeps",
+    async (after) => {
+      const dots = (await tokensOf(glueLine(after))).filter((token) => token.text.includes("."));
       expect(dots.length).toBeGreaterThan(0);
       expect(dots.filter((token) => token.scopes.includes("meta.glue.sd"))).toEqual([]);
     },
   );
 
-  test("F: a styled span stops at an interpolation read as a unit", async () => {
-    const lines = await tokenize(choose("+ Go *far {#{{{{1}}}}} away"));
-    const away = lines[CHOICE_LINE]!.tokens.find((token) => token.text.includes("away"));
-    expect(away?.scopes).not.toContain("markup.other.italic.sd");
-    expect(outcome("+ Go *far {#{{{{1}}}}} away").choices).toEqual(["Go *far 1 away"]);
+  test("E: the dots stay in the choice's text", () => {
+    expect(outcome("+ Go .. {#{{{{1}}}}} x").choices).toEqual(["Go .. 1 x"]);
   });
 
-  const italic = async (line: string, word: string) => {
-    const lines = await tokenize(choose(line));
-    const token = lines[CHOICE_LINE]!.tokens.find((t) => t.text.includes(word));
-    return token?.scopes.includes("markup.other.italic.sd");
-  };
-
-  test.each(["{x}", "{`a`}", "{t[1]}", '{"/*"}', '{"->"}', '{"\\n"}', "{#{{{1}}}}"])(
-    "a styled span around %s is highlighted as on main",
+  test.each([...READ_AS_UNIT, ...KEPT_IN_TEXT])(
+    "F: a styled span around %s is highlighted as the player renders it",
     async (interpolation) => {
-      expect(await italic(`+ Go *far ${interpolation} away`, "away")).toBe(true);
-      expect(await italic(`+ Go *far ${interpolation} away* now`, "away")).toBe(true);
-      expect(await italic(`+ Go *far ${interpolation} away* now`, "now")).toBe(false);
-      expect(await italic(`+ Go *far* ${interpolation} away`, "away")).toBe(false);
+      const [unclosed, closedAfter, closedBefore] = spanLines(interpolation);
+      const italic = async (line: string, word: string) =>
+        (await scopesOf(line, word)).includes("markup.other.italic.sd");
+      expect(await italic(unclosed!, "away")).toBe(true);
+      expect(await italic(closedAfter!, "away")).toBe(true);
+      expect(await italic(closedAfter!, "now")).toBe(false);
+      expect(await italic(closedBefore!, "away")).toBe(false);
     },
   );
+
+  test("F: the player renders the span across the interpolation", () => {
+    expect(outcome("+ Go *far {#{{{{1}}}}} away* now").choices).toEqual(["Go *far 1 away* now"]);
+    expect(outcome("+ Go *far {[[a]]} away* now").choices).toEqual(["Go *far a away* now"]);
+  });
+
+  test.each(SPAN_MARKS)("F: a `%s` span reads across an interpolation read as a unit", async (mark, scope) => {
+    const line = markLine(mark);
+    expect(await scopesOf(line, "away")).toContain(scope);
+    expect(await scopesOf(line, "now")).not.toContain(scope);
+  });
+
+  test("F: a raw span reads across an interpolation read as a unit", () => {
+    const source = choose(RAW_LINE);
+    const cursor = parseSource(source).cursor();
+    let raw: { from: number; to: number } | undefined;
+    do {
+      if (cursor.name === "ChoiceStartRaw") raw = { from: cursor.from, to: cursor.to };
+    } while (cursor.next());
+    expect(source.slice(raw!.from, raw!.to)).toBe("`far {#{{{{1}}}}} away`");
+  });
+
+  test.each(ACROSS_UNITS)("F: a styled span %s reads across what is read as a unit", async (_where, line) => {
+    expect(await scopesOf(line, "away")).toContain("markup.other.italic.sd");
+    expect(await scopesOf(line, "now")).not.toContain("markup.other.italic.sd");
+  });
+
+  test("a styled span ends before the whitespace that ends its region, as on main", async () => {
+    const tokens = await tokensOf(REGION_END_LINE);
+    const bracket = tokens.findIndex((token) => token.text === "[");
+    expect(tokens[bracket - 1]!.text).toBe(" ");
+    expect(tokens[bracket - 1]!.scopes).not.toContain("markup.other.italic.sd");
+  });
+
+  test("both highlighting engines give every line above the same scopes", async () => {
+    for (const line of HIGHLIGHTED_LINES) {
+      expect({ line, divergences: await compareEngines(choose(line)) }).toEqual({ line, divergences: [] });
+    }
+  });
 });

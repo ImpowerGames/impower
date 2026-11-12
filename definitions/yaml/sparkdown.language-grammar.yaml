@@ -172,13 +172,35 @@ variables:
   # display text. No consumed character marks the spot, so only
   # the anchor with nothing after it does.
   CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
+  # lookaround: LuauInterpolatedStringExpression reads an unclosed `{` to its
+  # capture's end; CHOICE_INTERPOLATION_UNIT refuses it, so it stays text.
+  CHOICE_OPEN_BRACE: (?:[{](?![^\r\n]*[}]))
+  # lookaround: ChoiceOnlyText reads a suppression's text up to a `]`, an arrow
+  # or the line's end, and readChoiceText reads a `[` that meets no `]` as
+  # literal text (ChoiceStartText's). The scan follows ChoiceOnlyText's reading:
+  # it reads a tag to ChoiceOnlyText's end as CHOICE_ONLY_TEXT_TAG does, skips an
+  # interpolation CHOICE_PLAIN_INTERPOLATION keeps and a block comment closed
+  # on the line, and it stops at an arrow, a line comment
+  # (SparkdownInlineComment) or the line's end, where the `[` stays text.
+  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_ONLY_TEXT_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_OPEN_BRACE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}})[^\r\n])
+  # lookaround: SparkdownBlockComment reads a comment left open on the line to a
+  # later line, and LuauInterpolatedStringExpression reads an interpolation the
+  # scan cannot keep (CHOICE_READ_INTERPOLATION) as a unit; either may hide the
+  # `]` or an arrow, so the suppression opens there when a `]` follows on
+  # the line or the comment runs on, as before.
+  CHOICE_SUPPRESSION_CLOSE: (?:\]|{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}(?!{{BLOCK_COMMENT_CHARACTER}}*[*][/])|{{CHOICE_READ_INTERPOLATION}}(?=[^\r\n]*\]))
+  # lookaround: ChoiceSuppression's begin colours a `[` that ChoiceOnlyText will
+  # close (CHOICE_SUPPRESSION_SCAN, CHOICE_SUPPRESSION_CLOSE) as a suppression
+  # bracket and any other as the literal text readChoiceText reads it as. Only
+  # the text after the `[` tells them apart, and the suppression must still open
+  # at either, as CHOICE_SUPPRESSION_OPEN decides, to keep its reading.
+  CHOICE_SUPPRESSION_CLOSES: (?={{CHOICE_SUPPRESSION_SCAN}}*{{CHOICE_SUPPRESSION_CLOSE}})
   # lookaround: ChoiceSuppression opens at the first `[` that a `]` or a `/*`
   # follows on its line. One it does not open is literal text and keeps the
   # choice text's scope, as on main. A suppression that never meets its `]` is
-  # read as literal text too (`readChoiceText` in lowerChoice.ts), so this
-  # decides only how a `[` that cannot close is highlighted, never what the
-  # choice reads. The `]` may stand on a later line past a comment, which no
-  # rule sees from the `[`.
+  # read as literal text too (`readChoiceText` in lowerChoice.ts), and
+  # CHOICE_SUPPRESSION_CLOSES colours its `[` as text. The `]` may stand on a
+  # later line past a comment, which no rule sees from the `[`.
   CHOICE_SUPPRESSION_OPEN: (?:\[(?=[^\r\n]*(?:\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))
   # lookaround: SparkdownInlineComment opens only at a `//` that whitespace or
   # the line's end follows; a `//` glued to a word is the TextChunk's text.
@@ -213,38 +235,143 @@ variables:
   CHOICE_PLAIN_TABLE_3: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_2}})*[}])
   CHOICE_PLAIN_INTERPOLATION: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_3}})+[}])
   CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
-  # lookaround: ChoiceStartText's end and ChoiceTextUnit's rules
+  SPAN_END: (?:{{EOL}}|{{DISPLAY_CHAIN_END}})
+  CHOICE_SPAN_MARK: (?:[*_`^]|[~][~]|[:][:])
+  # lookaround: LuauInterpolatedStringExpression reads a `{` as a unit
+  # (ChoiceTextUnit) only where CHOICE_PLAIN_INTERPOLATION cannot keep it in the
+  # text segment.
+  CHOICE_READ_INTERPOLATION: (?:(?!{{CHOICE_PLAIN_INTERPOLATION}}){{CHOICE_INTERPOLATION_UNIT}})
+  CHOICE_READ_UNIT: (?:{{STORY_COMMENT_START}}|{{CHOICE_READ_INTERPOLATION}})
+  # lookaround: Glue reads a `..` at its capture's end as glue (GLUE_END), and
+  # a text segment now also ends before a span mark, an interpolation read as a
+  # unit and a chain mark, where main's one capture went on and the `..` was
+  # text. ChoiceTextDots takes those dots as text. `(?<![.])` is GLUE's own.
+  CHOICE_TEXT_DOTS: (?:(?<![.])[.][.](?={{WS}}*(?:{{CHOICE_SPAN_MARK}}|{{CHOICE_READ_INTERPOLATION}}|{{DISPLAY_CHAIN_END}})))
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
-  # LuauInterpolatedStringExpression); a segment is the run of text before the
-  # next of them. Its capture keeps styled spans and image commands inside the
-  # segment, as main's choice capture did, so a bracket or an arrow splits them
-  # as on main; read by scopes, a span would read past the bracket. The units are
-  # tried after the segment, which never begins at one (`CHOICE_START_TEXT_END`).
-  CHOICE_START_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own.
+  CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_FREE}})
+  CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_TEXT_FREE}})
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceStartTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_RUN}})*?(?<![-])[>])
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceStartTextContent takes the command whole.
+  CHOICE_START_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_START_TEXT_RUN}})*)
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceStartTextContent takes the command whole.
+  CHOICE_START_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_START_TEXT_RUN}})*)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceStartTextContent takes the block whole.
+  CHOICE_START_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_START_TEXT_RUN}})*)
+  CHOICE_START_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_START_TEXT_RUN}}*)
+  CHOICE_START_TEXT_PIECE: (?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_COMMAND}}|{{CHOICE_START_AUDIO_COMMAND}}|{{CHOICE_START_IMAGE_COMMAND}}|{{CHOICE_START_GLUED_ALTERNATOR}}|{{CHOICE_START_OPEN_INTERPOLATION}}|{{CHOICE_START_TEXT_FREE}})
+  # lookaround: ChoiceStartSpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_START_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_TEXT_END}}){{CHOICE_START_TEXT_PIECE}})
+  # lookaround: ChoiceStartSpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_START_SPAN_END), which ChoiceStartSpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_START_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_SPAN_END}}){{CHOICE_START_TEXT_PIECE}})
+  # lookaround: ChoiceStartRaw's end and ChoiceTextUnit's rules; Raw reads
+  # everything else as PlainText.
+  CHOICE_START_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceStartItalic, ChoiceStartBoldItalic's end and ChoiceTextUnit's
+  # rules; BoldItalic reads nothing else.
+  CHOICE_START_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_START_SPAN_END}})[^\r\n])
+  CHOICE_START_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_START_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
   # text, as on a display line; the tag stops at the same end as the segment.
   CHOICE_START_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_START_TEXT_END}})[^\r\n])*)
-  # lookaround: ChoiceOnlyText's end and ChoiceTextUnit's rules
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
-  # LuauInterpolatedStringExpression); a segment is the run of text before the
-  # next of them. Its capture keeps styled spans and image commands inside the
-  # segment, as main's choice capture did, so a bracket or an arrow splits them
-  # as on main; read by scopes, a span would read past the bracket. The units are
-  # tried after the segment, which never begins at one (`CHOICE_ONLY_TEXT_END`).
-  CHOICE_ONLY_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own.
+  CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_FREE}})
+  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_TEXT_FREE}})
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceOnlyTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_RUN}})*?(?<![-])[>])
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
+  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_TEXT_RUN}})*)
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceOnlyTextContent takes the command whole.
+  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_ONLY_TEXT_RUN}})*)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceOnlyTextContent takes the block whole.
+  CHOICE_ONLY_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_ONLY_TEXT_RUN}})*)
+  CHOICE_ONLY_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_ONLY_TEXT_RUN}}*)
+  CHOICE_ONLY_TEXT_PIECE: (?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_COMMAND}}|{{CHOICE_ONLY_AUDIO_COMMAND}}|{{CHOICE_ONLY_IMAGE_COMMAND}}|{{CHOICE_ONLY_GLUED_ALTERNATOR}}|{{CHOICE_ONLY_OPEN_INTERPOLATION}}|{{CHOICE_ONLY_TEXT_FREE}})
+  # lookaround: ChoiceOnlySpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_ONLY_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_TEXT_END}}){{CHOICE_ONLY_TEXT_PIECE}})
+  # lookaround: ChoiceOnlySpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_ONLY_SPAN_END), which ChoiceOnlySpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_ONLY_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_TEXT_PIECE}})
+  # lookaround: ChoiceOnlyRaw's end and ChoiceTextUnit's rules; Raw reads
+  # everything else as PlainText.
+  CHOICE_ONLY_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceOnlyItalic, ChoiceOnlyBoldItalic's end and ChoiceTextUnit's
+  # rules; BoldItalic reads nothing else.
+  CHOICE_ONLY_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  CHOICE_ONLY_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_ONLY_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
   # text, as on a display line; the tag stops at the same end as the segment.
   CHOICE_ONLY_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_ONLY_TEXT_END}})[^\r\n])*)
-  # lookaround: ChoiceInnerText's end and ChoiceTextUnit's rules
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
-  # LuauInterpolatedStringExpression); a segment is the run of text before the
-  # next of them. Its capture keeps styled spans and image commands inside the
-  # segment, as main's choice capture did, so a bracket or an arrow splits them
-  # as on main; read by scopes, a span would read past the bracket. The units are
-  # tried after the segment, which never begins at one (`CHOICE_INNER_TEXT_END`).
-  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own.
+  CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_FREE}})
+  CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_TEXT_FREE}})
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceInnerTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_RUN}})*?(?<![-])[>])
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceInnerTextContent takes the command whole.
+  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_INNER_TEXT_RUN}})*)
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceInnerTextContent takes the command whole.
+  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_INNER_TEXT_RUN}})*)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceInnerTextContent takes the block whole.
+  CHOICE_INNER_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_INNER_TEXT_RUN}})*)
+  CHOICE_INNER_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_INNER_TEXT_RUN}}*)
+  CHOICE_INNER_TEXT_PIECE: (?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_COMMAND}}|{{CHOICE_INNER_AUDIO_COMMAND}}|{{CHOICE_INNER_IMAGE_COMMAND}}|{{CHOICE_INNER_GLUED_ALTERNATOR}}|{{CHOICE_INNER_OPEN_INTERPOLATION}}|{{CHOICE_INNER_TEXT_FREE}})
+  # lookaround: ChoiceInnerSpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_TEXT_END}}){{CHOICE_INNER_TEXT_PIECE}})
+  # lookaround: ChoiceInnerSpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_INNER_SPAN_END), which ChoiceInnerSpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_INNER_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_TEXT_PIECE}})
+  # lookaround: ChoiceInnerRaw's end and ChoiceTextUnit's rules; Raw reads
+  # everything else as PlainText.
+  CHOICE_INNER_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceInnerItalic, ChoiceInnerBoldItalic's end and ChoiceTextUnit's
+  # rules; BoldItalic reads nothing else.
+  CHOICE_INNER_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  CHOICE_INNER_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_INNER_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
   # text, as on a display line; the tag stops at the same end as the segment.
@@ -883,14 +1010,19 @@ repository:
     patterns:
       - { include: "#ChoiceStartTextContent" }
       - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceStartSpans" }
     end: (?={{CHOICE_START_TEXT_END}})
 
   ChoiceSuppression:
-    begin: ({{CHOICE_SUPPRESSION_OPEN}})
+    begin: (?:({{CHOICE_SUPPRESSION_OPEN}}){{CHOICE_SUPPRESSION_CLOSES}}|({{CHOICE_SUPPRESSION_OPEN}}))
     beginCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.begin.choice.suppression.sd
+      2:
+        tag: string
+        name: string.choice.sd markup.raw.punctuation.sd
     patterns:
       - { include: "#ChoiceOnlyText" }
       - { include: "#ChoiceInnerText" }
@@ -908,6 +1040,8 @@ repository:
     patterns:
       - { include: "#ChoiceOnlyTextContent" }
       - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceOnlySpans" }
     end: (?={{CHOICE_ONLY_TEXT_END}})
 
   ChoiceInnerText:
@@ -919,6 +1053,8 @@ repository:
     patterns:
       - { include: "#ChoiceInnerTextContent" }
       - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceInnerSpans" }
     end: (?={{CHOICE_INNER_TEXT_END}})
 
   ChoiceTextUnit:
@@ -950,6 +1086,544 @@ repository:
       1:
         patterns:
           - { include: "#DisplayText" }
+
+  ChoiceTextDots:
+    match: ({{CHOICE_TEXT_DOTS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceStartSpans:
+    patterns:
+      - { include: "#ChoiceStartRaw" }
+      - { include: "#ChoiceStartUnderline" }
+      - { include: "#ChoiceStartBoldItalic" }
+      - { include: "#ChoiceStartBold" }
+      - { include: "#ChoiceStartItalic" }
+      - { include: "#ChoiceStartCentered" }
+      - { include: "#ChoiceStartEmphasisTilde" }
+      - { include: "#ChoiceStartEmphasisColon" }
+
+  ChoiceStartSpanContent:
+    patterns:
+      - { include: "#ChoiceStartSpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceStartSpans" }
+
+  ChoiceStartSpanText:
+    match: ({{CHOICE_START_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceStartRawContent:
+    patterns:
+      - { include: "#ChoiceStartRawText" }
+      - { include: "#ChoiceTextUnit" }
+
+  ChoiceStartRawText:
+    match: ({{CHOICE_START_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceStartBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceStartBoldItalicText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceStartItalic" }
+
+  ChoiceStartBoldItalicText:
+    match: ({{CHOICE_START_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceStartRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartRawContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceStartText: `(?=[*])` leaves a `**` with no third `*` to ChoiceStartBold.
+  ChoiceStartBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Bold's begin, which this copies for ChoiceStartText: `(?![*])` leaves `***` to ChoiceStartBoldItalic.
+  ChoiceStartBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceStartText: `(?![*])` leaves `**` to ChoiceStartBold and ChoiceStartBoldItalic.
+  ChoiceStartItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlySpans:
+    patterns:
+      - { include: "#ChoiceOnlyRaw" }
+      - { include: "#ChoiceOnlyUnderline" }
+      - { include: "#ChoiceOnlyBoldItalic" }
+      - { include: "#ChoiceOnlyBold" }
+      - { include: "#ChoiceOnlyItalic" }
+      - { include: "#ChoiceOnlyCentered" }
+      - { include: "#ChoiceOnlyEmphasisTilde" }
+      - { include: "#ChoiceOnlyEmphasisColon" }
+
+  ChoiceOnlySpanContent:
+    patterns:
+      - { include: "#ChoiceOnlySpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceOnlySpans" }
+
+  ChoiceOnlySpanText:
+    match: ({{CHOICE_ONLY_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceOnlyRawContent:
+    patterns:
+      - { include: "#ChoiceOnlyRawText" }
+      - { include: "#ChoiceTextUnit" }
+
+  ChoiceOnlyRawText:
+    match: ({{CHOICE_ONLY_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceOnlyBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceOnlyBoldItalicText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceOnlyItalic" }
+
+  ChoiceOnlyBoldItalicText:
+    match: ({{CHOICE_ONLY_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceOnlyRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlyRawContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceOnlyText: `(?=[*])` leaves a `**` with no third `*` to ChoiceOnlyBold.
+  ChoiceOnlyBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlyBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Bold's begin, which this copies for ChoiceOnlyText: `(?![*])` leaves `***` to ChoiceOnlyBoldItalic.
+  ChoiceOnlyBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceOnlyText: `(?![*])` leaves `**` to ChoiceOnlyBold and ChoiceOnlyBoldItalic.
+  ChoiceOnlyItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerSpans:
+    patterns:
+      - { include: "#ChoiceInnerRaw" }
+      - { include: "#ChoiceInnerUnderline" }
+      - { include: "#ChoiceInnerBoldItalic" }
+      - { include: "#ChoiceInnerBold" }
+      - { include: "#ChoiceInnerItalic" }
+      - { include: "#ChoiceInnerCentered" }
+      - { include: "#ChoiceInnerEmphasisTilde" }
+      - { include: "#ChoiceInnerEmphasisColon" }
+
+  ChoiceInnerSpanContent:
+    patterns:
+      - { include: "#ChoiceInnerSpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceInnerSpans" }
+
+  ChoiceInnerSpanText:
+    match: ({{CHOICE_INNER_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceInnerRawContent:
+    patterns:
+      - { include: "#ChoiceInnerRawText" }
+      - { include: "#ChoiceTextUnit" }
+
+  ChoiceInnerRawText:
+    match: ({{CHOICE_INNER_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceInnerBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceInnerBoldItalicText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceInnerItalic" }
+
+  ChoiceInnerBoldItalicText:
+    match: ({{CHOICE_INNER_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceInnerRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerRawContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceInnerText: `(?=[*])` leaves a `**` with no third `*` to ChoiceInnerBold.
+  ChoiceInnerBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Bold's begin, which this copies for ChoiceInnerText: `(?![*])` leaves `***` to ChoiceInnerBoldItalic.
+  ChoiceInnerBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceInnerText: `(?![*])` leaves `**` to ChoiceInnerBold and ChoiceInnerBoldItalic.
+  ChoiceInnerItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
 
   # lookaround: Divert's begin would take the whitespace before a choice's arrow
   # as OptionalWhitespace; RequiredWhitespace keeps main's scope for it, and the
@@ -2770,8 +3444,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#PlainText" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#RawContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2786,8 +3460,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#Italic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#BoldItalicContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2802,9 +3476,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2819,9 +3492,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2836,9 +3508,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2853,9 +3524,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2875,9 +3545,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2892,13 +3561,25 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
+
+  SpanContent:
+    patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#InlineTextAndLogic" }
+
+  RawContent:
+    patterns:
+      - { include: "#PlainText" }
+
+  BoldItalicContent:
+    patterns:
+      - { include: "#Italic" }
 
   PlainText:
     patterns:

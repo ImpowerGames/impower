@@ -8782,7 +8782,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "bbe49522"
+   "scopes": "9813e57e"
   },
   {
    "id": "plain-choice-543",
@@ -9655,7 +9655,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2b9fe389"
+   "scopes": "3122428d"
   },
   {
    "id": "plain-choice-597",
@@ -9983,7 +9983,7 @@
    "diags": [
     "1@4:13-4:20 {\"kind\":\"markdown\",\"value\":\"Expected a function name — `{{...}}` is the function-call shorthand (`{{fn}}` or `{{fn(args)}}`). For a literal brace, write `\\\\{`\"}"
    ],
-   "scopes": "04d20c23"
+   "scopes": "d56bbe69"
   },
   {
    "id": "plain-choice-678",
@@ -10030,7 +10030,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "03689bab"
+   "scopes": "37bec047"
   },
   {
    "id": "plain-choice-702",
@@ -10430,7 +10430,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "34986cf5"
+   "scopes": "8008cf21"
   },
   {
    "id": "plain-choice-863",
@@ -10965,7 +10965,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "5c181f09"
+   "scopes": "97fa3f65"
   },
   {
    "id": "plain-choice-1031",
@@ -11498,7 +11498,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b8ff66a2"
+   "scopes": "e4ce5b8e"
   },
   {
    "id": "plain-choice-1172",
@@ -11591,7 +11591,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "401f3afb"
+   "scopes": "559aa39f"
   },
   {
    "id": "plain-choice-1223",
@@ -11943,7 +11943,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "db7c1e47"
+   "scopes": "04064e53"
   },
   {
    "id": "plain-choice-1324",
@@ -12208,7 +12208,6 @@
   {
    "id": "plain-choice-1410",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  ' .. {{\"[\"}..(  \n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "' .. ..("
@@ -12223,7 +12222,7 @@
    "diags": [
     "1@4:12-4:18 {\"kind\":\"markdown\",\"value\":\"Expected a function name — `{{...}}` is the function-call shorthand (`{{fn}}` or `{{fn(args)}}`). For a literal brace, write `\\\\{`\"}"
    ],
-   "scopes": "1aa54f1c"
+   "scopes": "7a494396"
   },
   {
    "id": "plain-choice-1412",
@@ -12336,7 +12335,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "00ee4bdb"
+   "scopes": "3dd40bdf"
   },
   {
    "id": "plain-choice-1439",
@@ -12464,7 +12463,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "8c31c764"
+   "scopes": "75838058"
   },
   {
    "id": "plain-choice-1470",
@@ -12580,7 +12579,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "2b1df3e1"
+   "scopes": "59f76277"
   },
   {
    "id": "plain-choice-1536",
@@ -12653,7 +12652,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "8726df47"
+   "scopes": "92654e1d"
   },
   {
    "id": "plain-choice-1547",
@@ -12869,7 +12868,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ad4164dd"
+   "scopes": "2e30bf89"
   },
   {
    "id": "plain-choice-1596",
@@ -16781,7 +16780,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a71feea6"
+   "scopes": "36ee2df4"
   },
   {
    "id": "plain-styled-11",
@@ -16879,7 +16878,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "7fbdfacb"
+   "scopes": "2638d4b4"
   },
   {
    "id": "plain-styled-17",
@@ -16901,7 +16900,6 @@
   {
    "id": "plain-styled-18",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) {x + 1} .. {#{{{{1}}}}}] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [],
    "runs": [],
@@ -16909,7 +16907,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "10fa9e2a"
+   "scopes": "1f368bdc"
   },
   {
    "id": "plain-styled-19",
@@ -16944,7 +16942,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "24d06126"
+   "scopes": "549beaf4"
   },
   {
    "id": "plain-styled-21",
@@ -17061,7 +17059,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e59d6e7c"
+   "scopes": "5e1187ea"
   },
   {
    "id": "plain-styled-28",
@@ -17091,7 +17089,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "526632a6"
+   "scopes": "c696ac62"
   },
   {
    "id": "plain-styled-30",
@@ -17109,7 +17107,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "fb99aee1"
+   "scopes": "cfd77835"
   },
   {
    "id": "plain-styled-31",
@@ -17179,12 +17177,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c8544b4a"
+   "scopes": "054f32ec"
   },
   {
    "id": "plain-styled-35",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x *a [a] .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "*a a"
@@ -17197,7 +17194,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3fc334c4"
+   "scopes": "e3bd653e"
   },
   {
    "id": "plain-styled-36",
@@ -17336,7 +17333,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (idiv) on boolean and number"
    ],
    "diags": [],
-   "scopes": "29116c5c"
+   "scopes": "61642da7"
   },
   {
    "id": "plain-styled-45",
@@ -17428,7 +17425,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "210d15c3"
+   "scopes": "ca230e5b"
   },
   {
    "id": "plain-styled-51",
@@ -17451,7 +17448,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "1521a328"
+   "scopes": "95788d20"
   },
   {
    "id": "plain-styled-52",
@@ -17678,7 +17675,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "7f8df21e"
+   "scopes": "cdb7811e"
   },
   {
    "id": "plain-styled-67",
@@ -17733,7 +17730,6 @@
   {
    "id": "plain-styled-70",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x .. {#{{{{1}}}}}]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1]"
@@ -17746,7 +17742,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "f2b14375"
+   "scopes": "7a2ad8bb"
   },
   {
    "id": "plain-styled-71",
@@ -17980,7 +17976,6 @@
   {
    "id": "plain-styled-85",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x *far {#{{{{1}}}}} away* now {#{{{1}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*far 1 away* now 1"
@@ -17993,7 +17988,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "99fb109a"
+   "scopes": "8869d89f"
   },
   {
    "id": "plain-styled-86",
@@ -18018,7 +18013,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "fd922b65"
+   "scopes": "6fa2a6d2"
   },
   {
    "id": "plain-styled-88",
@@ -18048,7 +18043,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a2ddf072"
+   "scopes": "4222dcd0"
   },
   {
    "id": "plain-styled-90",
@@ -18239,7 +18234,7 @@
    "diags": [
     "2@4:33-4:34 {\"kind\":\"markdown\",\"value\":\"Cannot find variable named `b`\"}"
    ],
-   "scopes": "d1f3b764"
+   "scopes": "87e4142e"
   },
   {
    "id": "plain-styled-102",
@@ -18307,7 +18302,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "bf658082"
+   "scopes": "fb1a4757"
   },
   {
    "id": "plain-styled-106",
@@ -18325,7 +18320,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e646e510"
+   "scopes": "d8d307d3"
   },
   {
    "id": "plain-styled-107",
@@ -18355,7 +18350,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ae18d81a"
+   "scopes": "5daf9583"
   },
   {
    "id": "plain-styled-109",
@@ -18440,7 +18435,6 @@
   {
    "id": "plain-styled-114",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1"
@@ -18453,7 +18447,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "cf16f3fd"
+   "scopes": "aee36eb3"
   },
   {
    "id": "plain-styled-115",
@@ -18481,7 +18475,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "40c9745b"
+   "scopes": "e0c376c2"
   },
   {
    "id": "plain-styled-117",
@@ -18656,7 +18650,6 @@
   {
    "id": "plain-styled-128",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x ~~{x}~~ {'q'} *far {#{{{{1}}}}} away* now {\"a-b\"}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "~~true~~ q *far 1 away* now a-b"
@@ -18669,7 +18662,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "799d140a"
+   "scopes": "11573920"
   },
   {
    "id": "plain-styled-129",
@@ -18687,12 +18680,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ab79fe6b"
+   "scopes": "3311ced5"
   },
   {
    "id": "plain-styled-130",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  *far {#{{{{1}}}}} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*far 1 away* now"
@@ -18705,7 +18697,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "5ff1fee8"
+   "scopes": "046d9950"
   },
   {
    "id": "plain-styled-131",
@@ -18740,7 +18732,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "78523944"
+   "scopes": "fcb16aba"
   },
   {
    "id": "plain-styled-133",
@@ -18809,7 +18801,6 @@
   {
    "id": "plain-styled-137",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +::{x}:: .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "::true:: .. 1"
@@ -18822,7 +18813,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b5931ca6"
+   "scopes": "a6927a62"
   },
   {
    "id": "plain-styled-138",
@@ -19327,7 +19318,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "db676535"
+   "scopes": "48fe065f"
   },
   {
    "id": "plain-styled-170",
@@ -19426,7 +19417,6 @@
   {
    "id": "plain-styled-176",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  **{x}** *far {#{{{{1}}}}} away* now {x and 1}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "**true** *far 1 away* now 1"
@@ -19439,7 +19429,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "0850f7ed"
+   "scopes": "c1e9314d"
   },
   {
    "id": "plain-styled-177",
@@ -19462,7 +19452,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "e2a7f2c9"
+   "scopes": "09ee28a6"
   },
   {
    "id": "plain-styled-178",
@@ -19495,7 +19485,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "44908a3f"
+   "scopes": "6fba081e"
   },
   {
    "id": "plain-styled-181",
@@ -19546,7 +19536,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "5d9f9459"
+   "scopes": "64837109"
   },
   {
    "id": "plain-styled-184",
@@ -19581,7 +19571,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2fa03976"
+   "scopes": "b6793d7f"
   },
   {
    "id": "plain-styled-186",
@@ -19662,12 +19652,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "9fc93ee3"
+   "scopes": "f2fdd5fb"
   },
   {
    "id": "plain-styled-191",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1"
@@ -19680,7 +19669,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "cf16f3fd"
+   "scopes": "aee36eb3"
   },
   {
    "id": "plain-styled-192",
@@ -19813,7 +19802,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "15f631d4"
+   "scopes": "7da0648f"
   },
   {
    "id": "plain-styled-200",
@@ -19931,12 +19920,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "141e565b"
+   "scopes": "504ace7a"
   },
   {
    "id": "plain-styled-207",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + *far {#{{{{1}}}}} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*far 1 away* now"
@@ -19949,7 +19937,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a7b27e46"
+   "scopes": "af98a196"
   },
   {
    "id": "plain-styled-208",
@@ -19998,7 +19986,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "869ed38a"
+   "scopes": "d0b9f073"
   },
   {
    "id": "plain-styled-211",
@@ -20016,7 +20004,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "7bd3da04"
+   "scopes": "d4b50b74"
   },
   {
    "id": "plain-styled-212",
@@ -20067,7 +20055,6 @@
   {
    "id": "plain-styled-215",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x ::{x}:: `{x}` *{#{{1}}} b*.. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "::true:: `{x}` *1 b*.. 1"
@@ -20080,7 +20067,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2fc3bf79"
+   "scopes": "ee5993bf"
   },
   {
    "id": "plain-styled-216",
@@ -20102,7 +20089,6 @@
   {
    "id": "plain-styled-217",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  ~~{x}~~ {`a`} ::{x}::.. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "~~true~~ a ::true::.. 1"
@@ -20115,7 +20101,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "aa589eee"
+   "scopes": "d8a55320"
   },
   {
    "id": "plain-styled-218",
@@ -20267,7 +20253,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "3756c65b"
+   "scopes": "23c98d74"
   },
   {
    "id": "plain-styled-228",
@@ -20376,7 +20362,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "cab091ab"
+   "scopes": "a67e6467"
   },
   {
    "id": "plain-styled-235",
@@ -20438,7 +20424,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "4ab050d1"
+   "scopes": "c871c17e"
   },
   {
    "id": "plain-styled-240",
@@ -20521,7 +20507,6 @@
   {
    "id": "plain-styled-245",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * #tag *far {#{{{{1}}}}} away* now  \n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "#tag *far 1 away* now"
@@ -20534,7 +20519,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "b7aa35f1"
+   "scopes": "4612afc5"
   },
   {
    "id": "plain-styled-246",
@@ -20598,7 +20583,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "f91b4707"
+   "scopes": "943fcc85"
   },
   {
    "id": "plain-styled-257",
@@ -20644,7 +20629,6 @@
   {
    "id": "plain-styled-263",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + *a {#{1}} b* .. {#{{{{1}}}}} {x}**a {`b`} c*\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "*a 1 b* .. 1 true**a b c*"
@@ -20657,7 +20641,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "09bc846b"
+   "scopes": "46fe2b6b"
   },
   {
    "id": "plain-styled-268",
@@ -20670,7 +20654,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "17716242"
+   "scopes": "1713cb04"
   },
   {
    "id": "plain-styled-269",
@@ -20683,7 +20667,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (idiv) on boolean and number"
    ],
    "diags": [],
-   "scopes": "0cc93e72"
+   "scopes": "3f9f14b5"
   },
   {
    "id": "plain-styled-271",
@@ -20696,7 +20680,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "f4e7003f"
+   "scopes": "32eb3bcc"
   },
   {
    "id": "plain-styled-274",
@@ -20709,7 +20693,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "06e3a3a0"
+   "scopes": "cca5a42b"
   },
   {
    "id": "plain-styled-279",
@@ -20735,7 +20719,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (idiv) on boolean and number"
    ],
    "diags": [],
-   "scopes": "35fe8208"
+   "scopes": "1382c520"
   },
   {
    "id": "plain-styled-288",
@@ -20794,7 +20778,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "26593095"
+   "scopes": "8b489e17"
   },
   {
    "id": "plain-styled-295",
@@ -20812,7 +20796,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "df758543"
+   "scopes": "7c88ec6d"
   },
   {
    "id": "plain-styled-301",
@@ -20866,7 +20850,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "6030382d"
+   "scopes": "241622e4"
   },
   {
    "id": "plain-styled-308",
@@ -20884,12 +20868,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "442df6f4"
+   "scopes": "972eca7b"
   },
   {
    "id": "plain-styled-315",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * `{x}` {`a`} .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "`{x}` a .. 1"
@@ -20902,7 +20885,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "3e91a510"
+   "scopes": "3ee12ec8"
   },
   {
    "id": "plain-styled-316",
@@ -20920,7 +20903,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "66b43b34"
+   "scopes": "7adf56bd"
   },
   {
    "id": "plain-styled-317",
@@ -20946,7 +20929,6 @@
   {
    "id": "plain-styled-318",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * .. {#{{{{1}}}}} {`b{x}`} {x and 1}{`b{x}`}  \n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1 btrue 1btrue"
@@ -20959,12 +20941,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "6fdbb635"
+   "scopes": "a84373bf"
   },
   {
    "id": "plain-styled-319",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * .. {#{{{{1}}}}} *a {x} b*\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1 *a true b*"
@@ -20977,12 +20958,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "1da4ddb5"
+   "scopes": "52ef8c23"
   },
   {
    "id": "plain-styled-331",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * * .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1"
@@ -20995,12 +20975,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e449946d"
+   "scopes": "c0ce5be3"
   },
   {
    "id": "plain-styled-332",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x .. {#{{{{1}}}}}  \n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1"
@@ -21013,7 +20992,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "31d342f5"
+   "scopes": "f36be21b"
   },
   {
    "id": "plain-styled-333",
@@ -21031,7 +21010,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "94caaf85"
+   "scopes": "a02d376d"
   },
   {
    "id": "plain-styled-334",
@@ -21049,7 +21028,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "442df6f4"
+   "scopes": "972eca7b"
   },
   {
    "id": "plain-styled-338",
@@ -21062,12 +21041,11 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (idiv) on boolean and number"
    ],
    "diags": [],
-   "scopes": "27d7b479"
+   "scopes": "f0db6d1e"
   },
   {
    "id": "plain-styled-344",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1"
@@ -21080,7 +21058,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "9f8c3111"
+   "scopes": "8b550167"
   },
   {
    "id": "plain-styled-347",
@@ -21098,7 +21076,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "06782496"
+   "scopes": "55f9a366"
   },
   {
    "id": "plain-styled-348",
@@ -21121,7 +21099,6 @@
   {
    "id": "plain-styled-349",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) *a {x} b* {\"hi\"} *a {#{1}} b**far {#{{{{1}}}}} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*a true b* hi *a 1 b**far 1 away* now"
@@ -21134,7 +21111,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "f5451f9b"
+   "scopes": "b5df3e9f"
   },
   {
    "id": "plain-styled-350",
@@ -21165,12 +21142,11 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "512bdb1e"
+   "scopes": "2de80aa1"
   },
   {
    "id": "plain-styled-356",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + {#{1}} .. {#{{{{1}}}}} ::{x}:: {\"a{b}\"}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "1 .. 1 ::true:: anil"
@@ -21185,7 +21161,7 @@
    "diags": [
     "2@4:41-4:42 {\"kind\":\"markdown\",\"value\":\"Cannot find variable named `b`\"}"
    ],
-   "scopes": "78f47519"
+   "scopes": "02e0c65d"
   },
   {
    "id": "plain-styled-358",
@@ -21226,7 +21202,7 @@
     "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
-   "scopes": "9a48cc57"
+   "scopes": "3cae2885"
   },
   {
    "id": "plain-styled-362",
@@ -21267,7 +21243,6 @@
   {
    "id": "plain-styled-368",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + if x {x}*{`a`} `{x}` .. {#{{{{1}}}}}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "true*a `{x}` .. 1"
@@ -21280,7 +21255,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a3b3baf1"
+   "scopes": "4f8c8ac4"
   },
   {
    "id": "plain-styled-374",
@@ -21316,7 +21291,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "e0ea3cc1"
+   "scopes": "dce04a97"
   },
   {
    "id": "plain-styled-383",
@@ -21347,12 +21322,11 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "f47fc011"
+   "scopes": "4a37f6e8"
   },
   {
    "id": "plain-styled-391",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * {x // 2} *far {#{{{{1}}}}} away* now{x // 2}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [],
    "runs": [],
@@ -21360,7 +21334,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (idiv) on boolean and number"
    ],
    "diags": [],
-   "scopes": "3cf3ca98"
+   "scopes": "875f5962"
   },
   {
    "id": "plain-styled-395",
@@ -21383,7 +21357,6 @@
   {
    "id": "plain-styled-398",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x .. {#{{{{1}}}}}#tag ~~{x}~~ ..\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     ".. 1#tag ~~true~~ .."
@@ -21396,7 +21369,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ea0b3ea6"
+   "scopes": "d69cda6c"
   },
   {
    "id": "plain-styled-399",
@@ -21455,12 +21428,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "a248982b"
+   "scopes": "d1143433"
   },
   {
    "id": "plain-styled-402",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    * ^{x}^ *far {#{{{{1}}}}} away* now *a {x} b*\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "^true^ *far 1 away* now *a true b*"
@@ -21473,7 +21445,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "9dbe36f8"
+   "scopes": "585fd214"
   },
   {
    "id": "plain-styled-405",
@@ -21486,12 +21458,11 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "9dc03e71"
+   "scopes": "649b8b02"
   },
   {
    "id": "plain-styled-407",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + {\"a-b\"} .. {#{{{{1}}}}} ~~{x}~~ *a {#{1}} b*\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "E",
    "first": "",
    "choices": [
     "a-b .. 1 ~~true~~ *a 1 b*"
@@ -21504,7 +21475,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "89dee5af"
+   "scopes": "2ff3ddbb"
   },
   {
    "id": "plain-styled-408",
@@ -21522,7 +21493,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c1e8bc6c"
+   "scopes": "b7abd38c"
   },
   {
    "id": "plain-styled-413",
@@ -21540,7 +21511,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "7138640a"
+   "scopes": "dfc19e84"
   },
   {
    "id": "plain-styled-419",
@@ -21576,12 +21547,11 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c6948e12"
+   "scopes": "b1e3b8c4"
   },
   {
    "id": "plain-styled-424",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    +  *far {#{{{{1}}}}} away* now [a]\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*far 1 away* now a"
@@ -21594,7 +21564,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "46fd92c3"
+   "scopes": "c3fb70fb"
   },
   {
    "id": "plain-styled-427",
@@ -21622,7 +21592,6 @@
   {
    "id": "plain-styled-431",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + (lbl) if x *far {#{{{{1}}}}} away* now-> next~~{x}~~ {x -- c}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "class": "F",
    "first": "",
    "choices": [
     "*far 1 away* now"
@@ -21635,7 +21604,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "516b71f6"
+   "scopes": "933af886"
   },
   {
    "id": "plain-styled-434",
@@ -21666,7 +21635,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ae18d81a"
+   "scopes": "5daf9583"
   },
   {
    "id": "plain-styled-436",
@@ -21707,7 +21676,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "caea934e"
+   "scopes": "16de5c80"
   },
   {
    "id": "plain-styled-445",
@@ -21738,7 +21707,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "017d9f13"
+   "scopes": "ff558688"
   },
   {
    "id": "plain-styled-447",
@@ -21797,7 +21766,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "2af5d8e0"
+   "scopes": "c02118a6"
   },
   {
    "id": "plain-styled-457",
@@ -21810,7 +21779,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "668eb037"
+   "scopes": "71b071c6"
   },
   {
    "id": "plain-styled-458",
@@ -21828,7 +21797,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "c078b49e"
+   "scopes": "260458f8"
   },
   {
    "id": "plain-styled-460",
@@ -21882,7 +21851,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "ae18d81a"
+   "scopes": "5daf9583"
   },
   {
    "id": "plain-styled-465",
@@ -21900,7 +21869,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "8a45d0e2"
+   "scopes": "5b855f04"
   },
   {
    "id": "plain-styled-474",
@@ -21918,7 +21887,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "91ab1253"
+   "scopes": "e102777e"
   },
   {
    "id": "plain-styled-476",
@@ -21949,7 +21918,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "bfc7b7b5"
+   "scopes": "6a43511c"
   },
   {
    "id": "plain-styled-481",
@@ -22026,7 +21995,7 @@
     "RUNTIME ERROR: 'main' line 5: attempt to perform arithmetic (add) on boolean and number"
    ],
    "diags": [],
-   "scopes": "bfc7b7b5"
+   "scopes": "6a43511c"
   },
   {
    "id": "plain-styled-489",
@@ -22062,7 +22031,7 @@
    ],
    "rt": [],
    "diags": [],
-   "scopes": "11b6f3dc"
+   "scopes": "a5b3723e"
   },
   {
    "id": "plain-styled-499",
@@ -22077,7 +22046,7 @@
    "diags": [
     "2@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Cannot find variable named `b`\"}"
    ],
-   "scopes": "e8ba77fd"
+   "scopes": "13517a34"
   },
   {
    "id": "plain-styled-chain-0",

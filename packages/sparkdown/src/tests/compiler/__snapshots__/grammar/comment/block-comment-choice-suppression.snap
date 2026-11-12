@@ -39,7 +39,8 @@ sparkdown [0..250]
  │   │   │   ├─ Choice_content [27..67]
  │   │   │   │   └─ ChoiceSuppression [27..67]
  │   │   │   │       ├─ ChoiceSuppression_begin [27..28]
- │   │   │   │       │   └─ ChoiceSuppression_begin_c1 [27..28]: "["
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [27..28]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 28
  │   │   │   │       ├─ ChoiceSuppression_content [28..67]
  │   │   │   │       │   ├─ ChoiceOnlyText [28..62]
  │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 28
@@ -105,7 +106,8 @@ sparkdown [0..250]
  │   │   │   │   │   └─ ChoiceStartText_end 88
  │   │   │   │   └─ ChoiceSuppression [88..146]
  │   │   │   │       ├─ ChoiceSuppression_begin [88..89]
- │   │   │   │       │   └─ ChoiceSuppression_begin_c1 [88..89]: "["
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [88..89]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 89
  │   │   │   │       ├─ ChoiceSuppression_content [89..146]
  │   │   │   │       │   ├─ ChoiceOnlyText [89..141]
  │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 89
@@ -233,7 +235,8 @@ sparkdown [0..250]
  │   │   │   │   │   └─ ChoiceStartText_end 199
  │   │   │   │   └─ ChoiceSuppression [199..228]
  │   │   │   │       ├─ ChoiceSuppression_begin [199..200]
- │   │   │   │       │   └─ ChoiceSuppression_begin_c1 [199..200]: "["
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [199..200]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 200
  │   │   │   │       ├─ ChoiceSuppression_content [200..228]
  │   │   │   │       │   └─ ChoiceOnlyText [200..228]
  │   │   │   │       │       ├─ ChoiceOnlyText_begin 200
