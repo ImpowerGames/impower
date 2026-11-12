@@ -3633,6 +3633,15 @@ export class Game<T extends M = {}> {
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         if (traversal !== "continue" && this.presentsAtStop()) {
+          if (
+            this._story.canContinue &&
+            this.insideSteppedFrame(traversal, initialCallstackDepth)
+          ) {
+            const beat = this.module.interpreter.flush()!;
+            this.showBeat(beat, drawsSettled(beat));
+            this.pause();
+            continue;
+          }
           this.notifyStepped();
           return true;
         }
@@ -3763,29 +3772,10 @@ export class Game<T extends M = {}> {
             continue;
           }
 
-          const currentCallstackDepth = this._story.state.callstackDepth;
-
-          if (traversal === "in") {
+          if (!this.insideSteppedFrame(traversal, initialCallstackDepth)) {
             this.notifyStepped();
             return true;
           }
-
-          if (
-            traversal === "over" &&
-            currentCallstackDepth <= initialCallstackDepth
-          ) {
-            this.notifyStepped();
-            return true;
-          }
-
-          if (
-            traversal === "out" &&
-            currentCallstackDepth < initialCallstackDepth
-          ) {
-            this.notifyStepped();
-            return true;
-          }
-
         }
 
         return false;
@@ -3793,6 +3783,20 @@ export class Game<T extends M = {}> {
         return true;
       }
     }
+  }
+
+  protected insideSteppedFrame(
+    traversal: "in" | "out" | "over",
+    initialCallstackDepth: number,
+  ): boolean {
+    const depth = this._story.state.callstackDepth;
+    if (traversal === "out") {
+      return depth >= initialCallstackDepth;
+    }
+    if (traversal === "over") {
+      return depth > initialCallstackDepth;
+    }
+    return false;
   }
 
   protected showBeat(instructions: Instructions | null, settled: boolean) {
