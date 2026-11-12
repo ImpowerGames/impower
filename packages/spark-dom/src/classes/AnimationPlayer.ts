@@ -124,9 +124,26 @@ export default class AnimationPlayer {
     return created;
   }
 
-  get startTime(): number | undefined {
-    const start = this._instances[0]?.animation.startTime;
-    return start == null ? undefined : Number(start);
+  get finishTime(): number | undefined {
+    let finish: number | undefined;
+    for (const { animation } of this._instances) {
+      const rate = animation.playbackRate;
+      const time = animation.currentTime;
+      const now = animation.timeline?.currentTime;
+      const start =
+        animation.startTime ??
+        (time == null || now == null || !rate
+          ? null
+          : Number(now) - Number(time) / rate);
+      if (start == null || !rate) {
+        continue;
+      }
+      const end =
+        Number(start) +
+        Number(animation.effect?.getComputedTiming?.().endTime ?? 0) / rate;
+      finish = finish == null ? end : Math.max(finish, end);
+    }
+    return finish;
   }
 
   get endTime(): number {
@@ -147,8 +164,9 @@ export default class AnimationPlayer {
           instance.animation.startTime = document.timeline.currentTime;
           instance.animation.play();
         }
-        this._hold?.add(instance.animation);
-        await instance.animation.finished;
+        await (this._hold
+          ? this._hold.add(instance.animation)
+          : instance.animation.finished);
       }),
     );
   }

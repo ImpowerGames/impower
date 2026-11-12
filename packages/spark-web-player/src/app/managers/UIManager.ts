@@ -425,6 +425,7 @@ export default class UIManager extends Manager {
   }
 
   override onDispose() {
+    this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
     }
@@ -537,7 +538,7 @@ export default class UIManager extends Manager {
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
     const wait = this.waitToCommit(params, ops, plan);
-    if (!overlay || wait <= 0) {
+    if (!overlay || wait <= 0 || this._hold.held) {
       this.applyBeat(params, ops, plan);
       return;
     }
@@ -1923,7 +1924,7 @@ export default class UIManager extends Manager {
       }
       await player.play(startTime);
       if (startTime != null) {
-        startTime = (player.startTime ?? startTime) + player.endTime;
+        startTime = player.finishTime ?? startTime + player.endTime;
       }
     }
     for (const video of newMovies) {

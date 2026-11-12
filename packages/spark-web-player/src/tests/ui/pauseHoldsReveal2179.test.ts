@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { BeatMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { WriteImageMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
+import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { AudioClock } from "../../app/AudioClock";
 import UIManager from "../../app/managers/UIManager";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
@@ -29,9 +30,11 @@ const animations: TimedAnimation[] = [];
 class TimedAnimation {
   timeline = timeline;
   playbackRate = 1;
+  replaceState = "active";
   finished!: Promise<TimedAnimation>;
   protected _start: number | null = null;
   protected _hold: number | null = null;
+  protected _isFinished = false;
   protected _settle!: () => void;
   protected _fail!: (reason: unknown) => void;
   constructor(public effect: TimedEffect) {
@@ -56,7 +59,7 @@ class TimedAnimation {
     if (value != null) {
       this._hold = null;
     }
-    this.update();
+    this.update(true);
   }
   get currentTime(): number | null {
     if (this._hold != null) {
@@ -68,12 +71,12 @@ class TimedAnimation {
     return (timeline.currentTime - this._start) * this.playbackRate;
   }
   set currentTime(value: number) {
-    if (this._start != null && this._hold == null) {
-      this._start = timeline.currentTime - value / this.playbackRate;
-    } else {
+    if (this._hold != null || this._start == null) {
       this._hold = value;
+    } else {
+      this._start = timeline.currentTime - value / this.playbackRate;
     }
-    this.update();
+    this.update(true);
   }
   get playState() {
     const time = this.currentTime;
@@ -90,28 +93,47 @@ class TimedAnimation {
     const seek = time == null || time < 0 || time >= this.end ? 0 : time;
     this._start = timeline.currentTime - seek / this.playbackRate;
     this._hold = null;
-    this.update();
+    this.update(true);
   }
   pause() {
     const time = this.currentTime ?? 0;
     this._start = null;
     this._hold = time;
+    this.update();
   }
   finish() {
     this._start = timeline.currentTime - this.end / this.playbackRate;
     this._hold = null;
-    this.update();
+    this.update(true);
   }
   cancel() {
     this._start = null;
     this._hold = null;
+    this._isFinished = false;
     this._fail(new Error("cancelled"));
     this.renew();
   }
-  update() {
-    if (this.playState === "finished") {
-      this._settle();
+  update(didSeek = false) {
+    if (this._start != null) {
+      const unconstrained = didSeek
+        ? this.currentTime!
+        : (timeline.currentTime - this._start) * this.playbackRate;
+      if (unconstrained >= this.end) {
+        this._hold = didSeek ? unconstrained : this.end;
+      } else {
+        if (didSeek && this._hold != null) {
+          this._start = timeline.currentTime - this._hold / this.playbackRate;
+        }
+        this._hold = null;
+      }
     }
+    const finished = this.playState === "finished";
+    if (finished && !this._isFinished) {
+      this._settle();
+    } else if (!finished && this._isFinished) {
+      this.renew();
+    }
+    this._isFinished = finished;
   }
 }
 
@@ -385,5 +407,119 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(page.revealed()).toBe(1);
     page.frame(100);
     expect(page.revealed()).toBe(2);
+  });
+
+  const fade = (duration: number) => ({
+    keyframes: [{ opacity: 0 }, { opacity: 1 }],
+    timing: { duration },
+  });
+
+  const portrait = (wrapper: number[], enter: number) =>
+    WriteImageMessage.type.request({
+      target: "portrait",
+      instructions: [
+        {
+          control: "show",
+          targetAnimations: wrapper.map((d) => fade(d) as any),
+          content: {
+            background: 'url("a.png")',
+            imageNames: "a",
+            src: "a.png",
+            srcs: ["a.png"],
+            enterAnimation: fade(enter) as any,
+          },
+        },
+      ],
+      instant: false,
+      time: 0,
+    });
+
+  test("a fade that follows wrapper effects of different lengths starts when the longest one actually ends after a pause", async () => {
+    const page = makePage();
+    void page.ui.onReceiveRequest(portrait([0.1, 0.5], 0.1));
+    await flushMicrotasks(10);
+    expect(animations).toHaveLength(2);
+    page.frame(180);
+    page.pause();
+    page.frame(300);
+    page.unpause();
+    for (let i = 0; i < 7; i += 1) {
+      page.frame(50);
+      await flushMicrotasks(20);
+    }
+    expect(animations).toHaveLength(3);
+    expect(animations[2]!.startTime).toBeCloseTo(800, 6);
+  });
+
+  test("stepping the clock past a wrapper's end while paused puts the fade after it at the stepped moment", async () => {
+    const page = makePage();
+    void page.ui.onReceiveRequest(portrait([0.2], 0.5));
+    await flushMicrotasks(10);
+    page.pause();
+    page.ui.onSkip(0.4);
+    await flushMicrotasks(20);
+    expect(animations).toHaveLength(2);
+    expect(animations[1]!.playState).toBe("paused");
+    expect(animations[1]!.currentTime).toBeCloseTo(200, 6);
+    page.frame(1_000);
+    expect(animations[1]!.currentTime).toBeCloseTo(200, 6);
+  });
+
+  test("stepping the clock back hides the letters revealed after the moment it steps back to", async () => {
+    const page = makePage();
+    await page.write();
+    page.frame(250);
+    expect(page.revealed()).toBe(3);
+    page.pause();
+    page.frame(2_000);
+    page.ui.onSkip(-0.1);
+    expect(page.revealed()).toBe(2);
+    page.ui.onSkip(-0.1);
+    expect(page.revealed()).toBe(1);
+    page.ui.onSkip(0.1);
+    expect(page.revealed()).toBe(2);
+    page.unpause();
+    page.frame(60);
+    expect(page.revealed()).toBe(3);
+  });
+
+  test("letting go of a paused page lets its animations finish rather than leaving them held", async () => {
+    const page = makePage();
+    const el = page.overlay.querySelector(".portrait") as HTMLElement;
+    (el as any).__sdId = "portrait-el";
+    (page.ui as any)._elements.set("portrait-el", el);
+    void page.ui.onReceiveRequest(
+      AnimateElementsMessage.type.request({
+        effects: [{ element: "portrait-el", animations: [fade(1) as any] }],
+      }),
+    );
+    await flushMicrotasks(10);
+    expect(animations).toHaveLength(1);
+    page.frame(300);
+    page.pause();
+    expect(animations[0]!.playState).toBe("paused");
+    page.ui.onDispose();
+    expect(animations[0]!.playState).toBe("running");
+    page.frame(800);
+    expect(animations[0]!.playState).toBe("finished");
+  });
+
+  test("a line that arrives after the game paused goes up held, its wait intact", async () => {
+    const page = makePage();
+    page.frame(1_000);
+    page.pause();
+    page.frame(50);
+    page.ui.onReceiveNotification(
+      BeatMessage.type.notification({ messages: [line(false, 1_100)], time: 1_100 } as any),
+    );
+    await flushMicrotasks(10);
+    expect(page.letters()).toHaveLength(TEXT.length);
+    page.frame(2_000);
+    expect(page.revealed()).toBe(0);
+    page.unpause();
+    page.frame(40);
+    expect(page.revealed()).toBe(0);
+    page.frame(20);
+    expect(page.revealed()).toBe(1);
   });
 });
