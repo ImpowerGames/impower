@@ -173,6 +173,28 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     expect(summary(usage.uses[FACE])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
   });
 
+  test("counts a definition made of a file where it is shown and where it names the file, not where it is named", () => {
+    const { workspace, program } = setup(
+      {
+        [MAIN]: lines(
+          "define collage as layered_image with",
+          "  assets = { image.harbor, image.harbor }",
+          "end",
+          "scene start",
+          "  [[show backdrop collage]]",
+          "end",
+        ),
+      },
+      [HARBOR],
+    );
+    const uses = provider.getAssetUsage(workspace, program, MAIN)!.uses[HARBOR]!;
+    expect(uses.map((use) => [use.range.start.line, use.role])).toEqual([
+      [1, "other"],
+      [1, "other"],
+      [4, "backdrop"],
+    ]);
+  });
+
   test("counts a style's font family as a use of the font file, in the Style font role", () => {
     const FONT = `${ROOT}Assets/Fonts/review_font.ttf`;
     const { workspace, program } = setup(

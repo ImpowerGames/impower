@@ -43,7 +43,7 @@ export const usageOf = (
 ): AssetUsage => {
   const uses: Record<string, AssetUse[]> = {};
   for (const [uri, list] of Object.entries(answer.uses)) {
-    uses[pathOf(uri)] = list.map((use) => ({ ...use, path: pathOf(use.uri) }));
+    uses[pathOf(uri)] = onePerLine(list.map((use) => ({ ...use, path: pathOf(use.uri) })));
   }
   const references: Reference[] = answer.scripts.map((r) => ({
     from: pathOf(r.from),
@@ -53,25 +53,25 @@ export const usageOf = (
   return { projectId, version: answer.version, uses, order: storyOrder(main, references) };
 };
 
-const useKey = (use: AssetUse) => `${use.uri}\n${use.range.start.line}\n${use.range.start.character}`;
+const onePerLine = (uses: Iterable<AssetUse>): AssetUse[] => {
+  const seen = new Set<string>();
+  const result: AssetUse[] = [];
+  for (const use of uses) {
+    const key = `${use.uri}:${use.range.start.line}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(use);
+    }
+  }
+  return result;
+};
 
 export const usesOf = (usage: AssetUsage, paths: readonly string[]): AssetUse[] => {
   const [only] = paths;
   if (paths.length === 1 && only !== undefined) {
     return [...(usage.uses[only] ?? [])];
   }
-  const seen = new Set<string>();
-  const result: AssetUse[] = [];
-  for (const path of paths) {
-    for (const use of usage.uses[path] ?? []) {
-      const key = useKey(use);
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(use);
-      }
-    }
-  }
-  return result;
+  return onePerLine(paths.flatMap((path) => usage.uses[path] ?? []));
 };
 
 const LINE_SPAN = 1_000_000;

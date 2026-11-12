@@ -142,6 +142,17 @@ describe("asset usage, asked once for the whole project (#1033)", () => {
     expect(lines("uses-desc")).toEqual(["harbor: 3 uses", "imani: 2 uses", "market: 1 use", "unused: unused"]);
   });
 
+  it("counts a line that names a thing twice as one use, on the row and in the delete check", async () => {
+    const { assets, ls } = fakeWorkspace();
+    const twice = (line: number, character: number) => ({ ...use("main.sd", line), range: { start: { line, character }, end: { line, character: character + 6 } } });
+    ls.getAssetUsage.mockResolvedValue(answer({ [`${IMAGES}/market.png`]: [twice(2, 4), twice(2, 20), twice(5, 4)] }));
+    await assets.load();
+    await assets.loadUsage();
+    expect(rows("uses-desc").find((row) => row.name === "market")!.uses).toBe(2);
+    const groups = (await assets.usedBy([`${IMAGES}/market.png`]))!;
+    expect(groups.flatMap((group) => group.uses.map((u) => u.range.start.line))).toEqual([2, 5]);
+  });
+
   it("lists every unused thing first under Uses ascending", async () => {
     const { assets } = fakeWorkspace();
     await assets.load();

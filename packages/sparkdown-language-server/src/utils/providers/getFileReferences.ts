@@ -161,11 +161,11 @@ export const getAssetUses = (
   program: SparkProgram | undefined,
   assetUris: Iterable<string>,
 ): Record<string, AssetUse[]> => {
-  const direct = new Map<string, Map<string, Target>>();
-  const linked = new Map<string, Map<string, Target>>();
+  const own = { direct: new Map<string, Map<string, Target>>(), linked: new Map<string, Map<string, Target>>() };
+  const composed = { direct: new Map<string, Map<string, Target>>(), linked: new Map<string, Map<string, Target>>() };
   const links = new Map<string, string[]>();
   const result: Record<string, AssetUse[]> = {};
-  const add = (map: typeof direct, id: string, target: Target) => {
+  const add = (map: Map<string, Map<string, Target>>, id: string, target: Target) => {
     const targets = map.get(id) ?? new Map<string, Target>();
     targets.set(target.uri, target);
     map.set(id, targets);
@@ -178,26 +178,26 @@ export const getAssetUses = (
     }
     return types;
   };
-  const index = (type: string, name: string, target: Target) => {
+  const index = (maps: typeof own, type: string, name: string, target: Target) => {
     result[target.uri] ??= [];
-    add(direct, `${type}.${name}`, target);
+    add(maps.direct, `${type}.${name}`, target);
     for (const linkedType of linkedTo(type)) {
-      add(linked, `${linkedType}.${name}`, target);
+      add(maps.linked, `${linkedType}.${name}`, target);
     }
   };
   const assets = new Set(assetUris);
   for (const uri of assets) {
     const symbol = getFileSymbol(workspace, uri);
     if (symbol) {
-      index(symbol.type, symbol.name, { uri, type: symbol.type });
+      index(own, symbol.type, symbol.name, { uri, type: symbol.type });
     }
   }
   for (const { type, name, uris } of backingFiles(program, assets)) {
     for (const uri of uris) {
-      index(type, name, { uri, type: getFileSymbol(workspace, uri)?.type ?? assetKindOf(type) });
+      index(composed, type, name, { uri, type: getFileSymbol(workspace, uri)?.type ?? assetKindOf(type) });
     }
   }
-  if (!direct.size) {
+  if (!own.direct.size && !composed.direct.size) {
     return result;
   }
   const bindingAt = referenceBindings(workspace);
@@ -244,13 +244,15 @@ export const getAssetUses = (
         if (!id) {
           continue;
         }
-        if (reference.linkable) {
-          for (const target of linked.get(id)?.values() ?? []) {
+        for (const maps of reference.declaration ? [own] : [own, composed]) {
+          if (reference.linkable) {
+            for (const target of maps.linked.get(id)?.values() ?? []) {
+              hit(target);
+            }
+          }
+          for (const target of maps.direct.get(id)?.values() ?? []) {
             hit(target);
           }
-        }
-        for (const target of direct.get(id)?.values() ?? []) {
-          hit(target);
         }
       }
     });
