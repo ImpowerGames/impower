@@ -87,29 +87,42 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
                   }
                   chunk.forEach(settle);
                 } catch {
-                  const holds = async (pending: Pending) => {
+                  const holding = async (pending: Pending): Promise<"ours" | "other" | "none"> => {
+                    let now: ArrayBuffer;
                     try {
-                      return sameBytes(await fs.readFile({ file: { uri: pending.uri } }), pending.data);
+                      now = await fs.readFile({ file: { uri: pending.uri } });
                     } catch {
-                      return false;
+                      return "none";
                     }
+                    return sameBytes(now, pending.data) ? "ours" : "other";
+                  };
+                  const leave = (pending: Pending) => {
+                    fail(pending.index, { kind: "left_as_is" });
+                    advance();
                   };
                   for (const pending of chunk) {
-                    if (await holds(pending)) {
+                    const before = await holding(pending);
+                    if (before === "ours") {
                       settle(pending);
+                      continue;
+                    }
+                    if (before === "other") {
+                      leave(pending);
                       continue;
                     }
                     try {
                       await fs.createFiles({ files: [{ uri: pending.uri, data: pending.data.slice(0) }] });
                       settle(pending);
                     } catch (error) {
-                      if (await holds(pending)) {
+                      const after = await holding(pending);
+                      if (after === "ours") {
                         settle(pending);
-                        continue;
+                      } else if (after === "other") {
+                        leave(pending);
+                      } else {
+                        fail(pending.index, failedWrite(pending, error));
+                        advance();
                       }
-                      await fs.deleteFiles({ files: [{ uri: pending.uri }] }).catch(() => undefined);
-                      fail(pending.index, failedWrite(pending, error));
-                      advance();
                     }
                   }
                 }

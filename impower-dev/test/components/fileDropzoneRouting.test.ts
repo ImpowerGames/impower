@@ -56,6 +56,14 @@ const fire = async (type: "dragover" | "drop", dataTransfer: ReturnType<typeof f
   await settle();
 };
 
+const dropThen = async (dataTransfer: ReturnType<typeof files>, then: () => void) => {
+  await act(async () => {
+    document.body.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }));
+    then();
+  });
+  await settle();
+};
+
 const overlay = () => {
   const zone = document.querySelector<HTMLElement>('[data-drop-zone="window"]');
   return zone ? [zone.querySelector("strong")!.textContent, zone.querySelector("strong + span")!.textContent] : null;
@@ -138,6 +146,24 @@ describe("files dropped anywhere in the app", () => {
     expect(mocks.navigateTo).not.toHaveBeenCalled();
   });
 
+  it("keeps the drop's destination when the route changes while the drop is being delivered", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images/Cast" } } };
+    await dropThen(files(["hero.png"]), () => {
+      workspace.current = { ...workspace.current, pane: "assets" };
+    });
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "hero.png" })], ""));
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    mocks.upload.mockClear();
+    mocks.navigateTo.mockClear();
+    await dropThen(files(["ada.png"]), () => {
+      workspace.current = { ...workspace.current, pane: "logic" };
+    });
+    await vi.waitFor(() =>
+      expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada.png" })], "Assets/Images/Cast"),
+    );
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
+  });
+
   it("files dropped scripts in the project's own Scripts folder and the rest through the Assets upload", async () => {
     setScriptFiles("*.{sd,luau,story}");
     try {
@@ -180,6 +206,16 @@ describe("a single zip dropped anywhere", () => {
     expect(mocks.importFiles).not.toHaveBeenCalled();
     expect(mocks.navigateTo).not.toHaveBeenCalled();
     expect(workspace.uploads.value).toEqual([]);
+  });
+
+  it("stays on the route for a backup zip even when another upload's progress changes meanwhile", async () => {
+    mocks.unzipFiles.mockImplementationOnce(async () => {
+      workspace.uploads.value = [{ id: 999, name: "slow.wav", state: "working" }];
+      return [{ filename: "Story/main.sd" }];
+    });
+    await fire("drop", files(["backup.zip"]));
+    await vi.waitFor(() => expect(mocks.requestProjectReplace).toHaveBeenCalledTimes(1));
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
   });
 
   it("lists a dropped zip that cannot be read as not added, and opens Assets to say so", async () => {

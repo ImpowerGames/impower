@@ -14,12 +14,12 @@ export type AddedFile = DroppedFile & { size: number };
 export const isProjectZipDrop = (files: readonly { name: string }[]): boolean =>
   files.length === 1 && /\.zip$/i.test(files[0]!.name);
 
-const openDroppedZip = async (file: AddedFile): Promise<void> => {
+export const openDroppedZip = async (file: AddedFile): Promise<"replace" | "refused"> => {
   const { Workspace } = await import("./Workspace");
   const data = await file.getBuffer().catch(() => null);
   if (!data) {
     refuseUploads([file.name], { kind: "unreadable" });
-    return;
+    return "refused";
   }
   const entries = await Workspace.fs.unzipFiles({ data: data.slice(0) }).catch(() => null);
   const found = entries
@@ -27,13 +27,14 @@ const openDroppedZip = async (file: AddedFile): Promise<void> => {
     : ({ kind: "refused", reason: "unreadable_zip" } as const);
   if (found.kind === "root") {
     await Workspace.window.requestProjectReplace(new File([data], file.name, { type: "application/zip" }));
-    return;
+    return "replace";
   }
   refuseUploads([file.name], {
     kind: "zip",
     reason: found.reason,
     folders: "folders" in found ? found.folders : undefined,
   });
+  return "refused";
 };
 
 export const addAssetFiles = async (

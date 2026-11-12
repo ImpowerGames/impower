@@ -115,7 +115,7 @@ describe("importFiles outcomes per file", () => {
     expect(mocks.recordResolvedUpload).toHaveBeenCalledWith("p", names.map((path) => `file://p/${path}`), [], 0, "20 files");
   });
 
-  it("keeps the files added before storage ran out, lists the rest as not added, and removes what a failed write left", async () => {
+  it("keeps the files added before storage ran out, lists the rest as not added, and deletes nothing", async () => {
     const names = Array.from({ length: 12 }, (_, i) => `Assets/Audio/t${i}.ogg`);
     let room = 10;
     mocks.createFiles.mockImplementation(async ({ files }) => {
@@ -130,9 +130,8 @@ describe("importFiles outcomes per file", () => {
     expect(returned).toEqual(names.slice(0, 9));
     expect(rows().filter((row) => row.endsWith("storage"))).toEqual(["t9.ogg: storage", "t10.ogg: storage", "t11.ogg: storage"]);
     expect(rows().filter((row) => row.includes(": added "))).toHaveLength(9);
-    expect(mocks.deleteFiles.mock.calls.map(([params]) => params.files[0]!.uri)).toEqual(
-      names.slice(9).map((path) => `file://p/${path}`),
-    );
+    expect(names.filter((path) => mocks.disk.has(`file://p/${path}`))).toEqual(names.slice(0, 9));
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
     expect(mocks.recordResolvedUpload.mock.calls[0]![1]).toEqual(names.slice(0, 9).map((path) => `file://p/${path}`));
   });
 
@@ -174,7 +173,7 @@ describe("importFiles outcomes per file", () => {
     );
   });
 
-  it("keeps a file the failed chunk already saved whole, without writing or deleting it again", async () => {
+  it("keeps a file the failed chunk already saved whole, without writing it again or deleting anything", async () => {
     let calls = 0;
     mocks.createFiles.mockImplementation(async ({ files }) => {
       calls += 1;
@@ -189,18 +188,59 @@ describe("importFiles outcomes per file", () => {
     expect(new TextDecoder().decode(mocks.disk.get("file://p/Assets/Audio/one.wav"))).toBe("Assets/Audio/one.wav");
     expect(mocks.disk.has("file://p/Assets/Audio/two.wav")).toBe(false);
     expect(writtenUris().filter((uri) => uri.endsWith("one.wav"))).toHaveLength(1);
-    expect(mocks.deleteFiles.mock.calls.map(([params]) => params.files[0]!.uri)).toEqual(["file://p/Assets/Audio/two.wav"]);
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
   });
 
   it("counts a file whose retry failed after its bytes landed as added", async () => {
+    let calls = 0;
     mocks.createFiles.mockImplementation(async ({ files }) => {
-      save(files);
+      calls += 1;
+      if (calls === 2) {
+        save(files);
+      }
       throw new Error("the write could not be confirmed");
     });
     const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
+    expect(calls).toBe(2);
     expect(returned).toEqual(["Assets/Audio/one.wav"]);
     expect(rows()).toEqual(["one.wav: added Assets/Audio/one.wav"]);
     expect(mocks.deleteFiles).not.toHaveBeenCalled();
+  });
+
+  it("leaves a file another save put at the name while the chunk failed, without retrying over it", async () => {
+    const author = bytesOf("the author's own file");
+    mocks.createFiles.mockImplementation(async () => {
+      mocks.disk.set("file://p/Assets/Audio/one.wav", author);
+      throw new Error("QuotaExceededError: the quota has been exceeded.");
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
+    expect(returned).toEqual([]);
+    expect(rows()).toEqual(["one.wav: left_as_is"]);
+    expect(mocks.createFiles).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
+    expect(mocks.disk.get("file://p/Assets/Audio/one.wav")).toBe(author);
+    const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe(
+      "Not added: one.wav now holds a different file, from another save or from a write the browser could not undo, so it was left as it is.",
+    );
+  });
+
+  it("leaves what a failed retry could not undo in place and says so, instead of deleting it", async () => {
+    let calls = 0;
+    mocks.createFiles.mockImplementation(async () => {
+      calls += 1;
+      if (calls === 2) {
+        mocks.disk.set("file://p/Assets/Audio/one.wav", bytesOf("par"));
+        throw new Error("QuotaExceededError; cleanup failed: InvalidStateError");
+      }
+      throw new Error("QuotaExceededError: the quota has been exceeded.");
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
+    expect(calls).toBe(2);
+    expect(returned).toEqual([]);
+    expect(rows()).toEqual(["one.wav: left_as_is"]);
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
+    expect(mocks.disk.has("file://p/Assets/Audio/one.wav")).toBe(true);
   });
 
   it("lists a file that could not be read as not added and still adds the rest", async () => {
