@@ -469,6 +469,14 @@ export function shortcutCombosFor(
   return entry ? entryCombos(entry, shortcuts) : [];
 }
 
+export function shortcutCommandFor(
+  state: EditorState,
+  id: EditorShortcutId,
+): Command | undefined {
+  const command = state.facet(editorShortcutsState).commands[id];
+  return typeof command === "function" ? command : command?.run;
+}
+
 export function shortcutLabelFor(
   state: EditorState,
   id: EditorShortcutId,

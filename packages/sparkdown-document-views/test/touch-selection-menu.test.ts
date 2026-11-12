@@ -218,7 +218,7 @@ function flushMeasure() {
 }
 
 const TEXT_ITEMS = ["Cut", "Copy", "Paste", "Select all"];
-const NAME_ITEMS = ["Rename", "Find references", "Go to definition"];
+const NAME_ITEMS = ["Rename", "Format script", "Find references", "Go to definition"];
 const CARET_ITEMS = ["Paste", "Select all"];
 
 function handleShown(kind: "start" | "end" | "cursor") {
@@ -308,7 +308,7 @@ describe("menu items", () => {
     expect(v.dom.querySelector(".cm-context-menu")).toBeNull();
     expect(document.querySelector(".cm-context-menu")).toBeNull();
     expect(menuLabels()).toEqual([...TEXT_ITEMS, ...NAME_ITEMS]);
-    expect(presented!.items.filter((item) => "type" in item)).toHaveLength(1);
+    expect(presented!.items.filter((item) => "type" in item)).toHaveLength(2);
     presented!.dismiss();
     expect(isContextMenuOpen(v)).toBe(false);
     expect(presented).toBeNull();
@@ -318,8 +318,8 @@ describe("menu items", () => {
     const v = mount(DOC);
     const line = v.state.doc.line(4);
     showContextMenu(v, { pos: line.from, end: line.from });
-    expect(menuLabels()).toEqual(CARET_ITEMS);
-    expect(presented!.items.some((item) => "type" in item)).toBe(false);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, "Format script"]);
+    expect(presented!.items.filter((item) => "type" in item)).toHaveLength(1);
   });
 });
 
@@ -510,7 +510,7 @@ describe("touch gestures", () => {
     const start = v.coordsAtPos(line.from)!;
     longPress(v, { x: start.left + 40, y: (start.top + start.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
-    expect(menuLabels()).toEqual(CARET_ITEMS);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, "Format script"]);
     expect(handleShown("cursor")).toBe(true);
   });
 

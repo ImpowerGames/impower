@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import {
   coarsePointer,
   contextMenu,
+  editorShortcuts,
   editorToolCommands,
   isContextMenuOpen,
   presentContextMenu,
@@ -99,15 +100,40 @@ describe("the context menu on a fine pointer", () => {
       "Select all",
       "---",
       "Rename",
+      "Format script",
+      "---",
       "Find references",
       "Go to definition",
     ]);
   });
 
-  it("offers only the text commands, with no trailing rule, where the pointer is not on a name", () => {
+  it("offers the text commands and Format script where the pointer is not on a name", () => {
     const v = mount(EditorSelection.single(12));
     openAt(v, 12);
+    expect(rows()).toEqual(["Cut", "Copy", "Paste", "Select all", "---", "Format script"]);
+  });
+
+  it("leaves Format script out of a read-only script's menu, with no trailing rule", () => {
+    const v = mount(EditorSelection.single(12), [EditorState.readOnly.of(true)]);
+    openAt(v, 12);
     expect(rows()).toEqual(["Cut", "Copy", "Paste", "Select all"]);
+  });
+
+  it("runs the editor's own format command, keeps the selection and shows its shortcut", () => {
+    const format = vi.fn(() => true);
+    const v = mount(EditorSelection.single(1, 4), [
+      editorShortcuts({ commands: { format } }),
+    ]);
+    openAt(v, 8);
+    expect(item("Format script").querySelector(".cm-menu-shortcut")?.textContent).toMatch(
+      /^(Ctrl|Cmd)\+S$/,
+    );
+    item("Format script").click();
+    expect(format).toHaveBeenCalledTimes(1);
+    expect(format).toHaveBeenCalledWith(v);
+    expect(v.state.selection.main.from).toBe(1);
+    expect(v.state.selection.main.to).toBe(4);
+    expect(isContextMenuOpen(v)).toBe(false);
   });
 
   it("disables Cut and Copy with nothing selected and enables them over a selection", () => {
@@ -259,6 +285,8 @@ describe("the context menu on a coarse pointer", () => {
       "Select all",
       "---",
       "Rename",
+      "Format script",
+      "---",
       "Find references",
       "Go to definition",
     ]);
