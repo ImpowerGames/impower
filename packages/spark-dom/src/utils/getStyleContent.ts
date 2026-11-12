@@ -5,6 +5,7 @@ import {
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils/getCssPropertyName";
+import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
 const DESCENDANT_REGEX = /[ ]*[>][>][ ]*/g;
@@ -289,7 +290,7 @@ export const getStyleContent = (
           ) {
             const cssEntries = getCssEquivalent(k, value, options.theme);
             for (const [k, v] of cssEntries) {
-              styleContent += `\n${indent}${k}: ${v};`;
+              styleContent += `\n${indent}${escapeCssIdentifier(k)}: ${v};`;
             }
           }
         }

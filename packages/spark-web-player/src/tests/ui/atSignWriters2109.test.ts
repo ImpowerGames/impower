@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createImageElement } from "@impower/spark-dom/src/utils/createImageElement";
 import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationContent";
 import { getFontContent } from "@impower/spark-dom/src/utils/getFontContent";
-import { getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
+import { getCssTokenValue } from "@impower/spark-dom/src/utils/getCssTokenValue";
+import { getCSSSelector, getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
 import { getResourcePathFromUrl, getResourceSrcFromPath } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
@@ -69,7 +70,7 @@ const declarationsOf = (block: string): Map<string, string> => {
   const flush = (end: number) => {
     const text = block.slice(start, end);
     const colon = text.indexOf(":");
-    if (!text.includes("{") && colon > 0) found.set(text.slice(0, colon).trim(), text.slice(colon + 1).trim());
+    if (!text.includes("{") && colon > 0) found.set(identValues(text.slice(0, colon))[0] ?? text.slice(0, colon).trim(), text.slice(colon + 1).trim());
   };
   for (const token of tokens(block)) {
     if (isTokenOpenCurly(token)) depth += 1;
@@ -150,7 +151,7 @@ describe("an @ name reaches every stylesheet writer whole (#2109)", () => {
     expect(atKeywordValues(css).filter((value) => fragments.includes(value))).toEqual([]);
     const idents = new Set(identValues(css));
     const variables = ["color", "ease", "font", "image"].flatMap((type) => NAMES.map((name) => getVarName(type, name)));
-    expect(NAMES.filter((name) => !idents.has(name) && !variables.some((variable) => variable.endsWith(`-${name.replace("@", "--")}`) && idents.has(variable)))).toEqual([]);
+    expect(NAMES.filter((name) => !idents.has(name) && !variables.some((variable) => variable.endsWith(`-${name}`) && idents.has(variable)))).toEqual([]);
   });
 
   it.each([
@@ -252,6 +253,8 @@ describe("an @ name gets output distinct from the same name with _ or - (#2109)"
   const writers: [string, (name: string) => string][] = [
     ["getVarName", (name) => getVarName("image", name)],
     ["getThemeVar", (name) => (getThemeVar(new Set([getVarName("color", name)]), "color", name) ?? "")],
+    ["getCssTokenValue", (name) => String(getCssTokenValue({ $type: "image", $name: name }))],
+    ["theme variable declaration", (name) => getStyleContent({ "": { [getVarName("image", name)]: "none" } }, { breakpoints: {}, theme })],
     ["getCSSSelector", (name) => getCSSSelector(name, {})],
     ["@keyframes", (name) => getAnimationContent({ [name]: { keyframes: [{ opacity: 1 }] } as never }, theme)],
     ["@font-face", (name) => getFontContent({ [name]: { font_family: name, src: "a.woff2" } })],
@@ -264,6 +267,7 @@ describe("an @ name gets output distinct from the same name with _ or - (#2109)"
   it("writes a name without an @ as before", () => {
     expect(getFontContent({ mia_night: { font_family: "mia_night" } })).toContain("font-family: mia_night;");
     expect(getVarName("image", "mia_night")).toBe("--theme-image-mia_night");
+    expect(getCssTokenValue({ $type: "image", $name: "mia_night" })).toBe("var(--theme-image-mia_night)");
     expect(getThemeVar(new Set(["--theme-color-red"]), "color", "red")).toBe("var(--theme-color-red)");
     expect(getAnimationContent({ fade: { keyframes: [{ opacity: 1 }] } as never }, theme)).toContain("@keyframes fade {");
   });

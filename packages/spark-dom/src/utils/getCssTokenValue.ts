@@ -1,4 +1,7 @@
-import { getVarName } from "../../../spark-engine/src/game/modules/ui/utils/getVarName";
+import {
+  escapeCssIdentifier,
+  getThemeVariableName,
+} from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 
 export const getCssTokenValue = (value: unknown): unknown => {
   if (
@@ -9,7 +12,7 @@ export const getCssTokenValue = (value: unknown): unknown => {
     value.$name
   ) {
     if ("$type" in value && typeof value.$type === "string" && value.$type) {
-      return `var(${getVarName(value.$type, value.$name)})`;
+      return `var(${escapeCssIdentifier(getThemeVariableName(value.$type, value.$name))})`;
     }
     return value.$name;
   }

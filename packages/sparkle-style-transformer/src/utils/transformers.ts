@@ -15,6 +15,10 @@ import {
   type SourceEdit,
   type TokenNode,
 } from "./cssSyntax.js";
+import {
+  escapeCssIdentifier,
+  getThemeVariableName,
+} from "./themeVariableName.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
@@ -24,9 +28,9 @@ export const getThemeVar = (
   category: string,
   name: string,
 ): string | undefined => {
-  const variable = `--theme-${category}-${name.replaceAll("@", "--")}`;
+  const variable = getThemeVariableName(category, name);
   return !name.includes("\\") && theme.has(variable)
-    ? `var(${variable})`
+    ? `var(${escapeCssIdentifier(variable)})`
     : undefined;
 };
 
