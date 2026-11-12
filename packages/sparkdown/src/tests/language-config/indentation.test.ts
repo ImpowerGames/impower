@@ -237,6 +237,10 @@ describe("the story increaseIndentPattern", () => {
       "I wonder about the function (and then",
       "Is a function  (x)",
       "Every function f(x) did",
+      "  Function (the new one) and function (the old one) work differently",
+      "  Cats or function (any kind) of dogs",
+      "  Not function (really) at all",
+      "  And then function (the meeting) began",
     ]) {
       expect(increase.test(line), line).toBe(false);
     }
@@ -266,6 +270,9 @@ describe("the story increaseIndentPattern", () => {
       "  local callback = if ready then function(value)",
       "  local callback = if ready then f else function(value)",
       "t[function(x)",
+      "local h = function(a: number, b: string): number",
+      "local v = function(a, ...: any)",
+      "  call(function(a,",
       "  if x then -- note",
       "  if x then // note",
     ]) {
