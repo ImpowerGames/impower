@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import type { Instructions } from "../../game/core/types/Instructions";
+import { pageKey } from "../../game/core/utils/pageKey";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const tick = (deltaMS = 0) => ({ deltaMS }) as Clock;
@@ -135,6 +136,13 @@ end
     ];
     expectSpans(plain, spans);
     expectSpans(withParenthetical, spans);
+  });
+
+  test("a speaking beat keeps the page key it had before beats carried speech, so earlier saves still resume on it", async () => {
+    const beat = await beatOf("Hi yo");
+    expect(beat.speech).toBeDefined();
+    const { speech, ...without } = beat;
+    expect(pageKey(beat)).toBe(pageKey(without));
   });
 
   test.each([
