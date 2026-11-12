@@ -140,10 +140,10 @@ class TimedAnimation {
 const LETTER_STEP = 0.1;
 const TEXT = "abcdefghij";
 
-const line = (instant = false, time = 0) =>
+const line = (instant = false, time = 0, text = TEXT) =>
   WriteTextMessage.type.request({
     target: "dialogue",
-    instructions: [...TEXT].map((text, i) => ({
+    instructions: [...text].map((text, i) => ({
       text,
       after: i * LETTER_STEP,
       over: 0,
@@ -386,29 +386,6 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(freeze).toHaveBeenCalledWith(outgoing);
   });
 
-  test("a line still waiting to go up when the game pauses keeps the rest of its wait for after the pause", async () => {
-    const page = makePage();
-    page.frame(1_000);
-    page.ui.onReceiveNotification(
-      BeatMessage.type.notification({ messages: [line(false, 1_100)], time: 1_100 } as any),
-    );
-    page.frame(50);
-    page.pause();
-    page.frame(1_000);
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    page.frame(0);
-    await flushMicrotasks(10);
-    expect(page.letters()).toHaveLength(TEXT.length);
-    expect(page.revealed()).toBe(0);
-    page.unpause();
-    page.frame(40);
-    expect(page.revealed()).toBe(0);
-    page.frame(20);
-    expect(page.revealed()).toBe(1);
-    page.frame(100);
-    expect(page.revealed()).toBe(2);
-  });
-
   const fade = (duration: number) => ({
     keyframes: [{ opacity: 0 }, { opacity: 1 }],
     timing: { duration },
@@ -504,25 +481,6 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     expect(animations[0]!.playState).toBe("finished");
   });
 
-  test("a line that arrives after the game paused goes up held, its wait intact", async () => {
-    const page = makePage();
-    page.frame(1_000);
-    page.pause();
-    page.frame(50);
-    page.ui.onReceiveNotification(
-      BeatMessage.type.notification({ messages: [line(false, 1_100)], time: 1_100 } as any),
-    );
-    await flushMicrotasks(10);
-    expect(page.letters()).toHaveLength(TEXT.length);
-    page.frame(2_000);
-    expect(page.revealed()).toBe(0);
-    page.unpause();
-    page.frame(40);
-    expect(page.revealed()).toBe(0);
-    page.frame(20);
-    expect(page.revealed()).toBe(1);
-  });
-
   test("a line written whole while paused goes up and answers without waiting for resume", async () => {
     const page = makePage();
     page.pause();
@@ -533,5 +491,87 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     await flushMicrotasks(20);
     expect(page.revealed()).toBe(TEXT.length);
     expect(answered).toBe(true);
+  });
+
+  const NEXT = "klmnopqrst";
+  const dialogue = (page: ReturnType<typeof makePage>) =>
+    page.overlay.querySelector(".dialogue .text")?.textContent ?? "";
+  const beat = (time: number) =>
+    BeatMessage.type.notification({
+      messages: [
+        WriteTextMessage.type.request({ target: "dialogue", instructions: [], instant: true }),
+        line(false, time, NEXT),
+      ],
+      time,
+    } as any);
+  const realWait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  test("a line still waiting to go up when the game pauses leaves the paused frame alone and keeps the rest of its wait", async () => {
+    const page = makePage();
+    await page.write(true);
+    page.frame(1_000);
+    page.ui.onReceiveNotification(beat(1_100));
+    page.frame(50);
+    page.pause();
+    page.frame(1_000);
+    await realWait(150);
+    page.frame(0);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(TEXT);
+    page.unpause();
+    await realWait(80);
+    page.frame(40);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(TEXT);
+    page.frame(20);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(NEXT);
+    expect(page.revealed()).toBe(1);
+    page.frame(100);
+    expect(page.revealed()).toBe(2);
+  });
+
+  test("a line that arrives after the game paused keeps its whole wait on the story's clock", async () => {
+    const page = makePage();
+    await page.write(true);
+    page.frame(1_000);
+    page.pause();
+    page.frame(50);
+    page.ui.onReceiveNotification(beat(1_100));
+    page.frame(2_000);
+    await realWait(150);
+    page.frame(0);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(TEXT);
+    page.unpause();
+    await realWait(130);
+    page.frame(90);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(TEXT);
+    page.frame(20);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(NEXT);
+    expect(page.revealed()).toBe(1);
+  });
+
+  test("stepping the clock while paused past a waiting line's moment puts it up, held where the step left it", async () => {
+    const page = makePage();
+    await page.write(true);
+    page.frame(1_000);
+    page.ui.onReceiveNotification(beat(1_100));
+    page.pause();
+    page.frame(500);
+    page.ui.onSkip(0.05);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(TEXT);
+    page.ui.onSkip(0.1);
+    await flushMicrotasks(10);
+    expect(dialogue(page)).toBe(NEXT);
+    expect(page.revealed()).toBe(1);
+    page.frame(1_000);
+    expect(page.revealed()).toBe(1);
+    page.unpause();
+    page.frame(60);
+    expect(page.revealed()).toBe(2);
   });
 });
