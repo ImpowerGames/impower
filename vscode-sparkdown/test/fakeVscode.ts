@@ -43,6 +43,9 @@ export class Selection extends Range {
       (anchor.line === active.line && anchor.character <= active.character);
     super(forward ? anchor : active, forward ? active : anchor);
   }
+  get isEmpty() {
+    return this.anchor.isEqual(this.active);
+  }
 }
 
 export class SnippetString {
