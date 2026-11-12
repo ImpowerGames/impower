@@ -321,8 +321,11 @@ function AssetsBrowser() {
     [listing],
   );
 
+  const inspected = useRef<string | null>(null);
   useEffect(() => {
-    if (openPath) {
+    const closed = !openPath && !!inspected.current;
+    inspected.current = openPath;
+    if (openPath || closed) {
       audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
     }
   }, [openPath]);

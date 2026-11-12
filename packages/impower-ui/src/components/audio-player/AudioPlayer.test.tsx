@@ -25,8 +25,11 @@ const props = (overrides: Partial<AudioPlayerProps> = {}): AudioPlayerProps => (
   peaks: [10, 50, 100, 25],
   time: 0,
   duration: 80,
+  loop: false,
   onToggle: vi.fn(),
   onSeek: vi.fn(),
+  onRestart: vi.fn(),
+  onLoopChange: vi.fn(),
   ...overrides,
 });
 
@@ -63,12 +66,47 @@ describe("AudioPlayer", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("names its toggle Stop while playing and shows the elapsed and total time", async () => {
+  it("names its toggle Pause while playing and shows the elapsed and total time", async () => {
     const root = await mount(<AudioPlayer {...props({ state: "playing", time: 65, duration: 79.6 })} />);
-    expect(root.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Stop door");
+    expect(root.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Pause door");
     expect(root.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
     expect(root.querySelector("[data-audio-elapsed]")!.textContent).toBe("1:05");
     expect(root.querySelector("[data-audio-total]")!.textContent).toBe("1:20");
+  });
+
+  it("names its toggle Play while paused and holds the place on the scrubber and in the time", async () => {
+    const root = await mount(<AudioPlayer {...props({ state: "paused", time: 30, duration: 80 })} />);
+    expect(root.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Play door");
+    expect(root.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("paused");
+    expect(scrubber(root).getAttribute("aria-valuenow")).toBe("30");
+    expect(root.querySelector("[data-audio-elapsed]")!.textContent).toBe("0:30");
+    expect(root.querySelector<HTMLElement>("[data-audio-wave]")!.style.getPropertyValue("--played")).toBe("37.50%");
+  });
+
+  it("lays out Play, Restart, the waveform and Loop in one row, and asks for a restart or a loop change when pressed", async () => {
+    const onRestart = vi.fn();
+    const onLoopChange = vi.fn();
+    const root = await mount(<AudioPlayer {...props({ state: "playing", onRestart, onLoopChange })} />);
+    const row = root.querySelector("[data-audio-toggle]")!.parentElement!;
+    expect(Array.from(row.children).map((child) => child.getAttribute("aria-label") ?? child.querySelector("[role=slider]")?.getAttribute("aria-label"))).toEqual([
+      "Pause door",
+      "Restart",
+      "Position",
+      "Loop",
+    ]);
+    const restart = root.querySelector<HTMLButtonElement>("[data-audio-restart]")!;
+    const loop = root.querySelector<HTMLButtonElement>("[data-audio-loop]")!;
+    expect([restart.type, loop.type]).toEqual(["button", "button"]);
+    expect(restart.hasAttribute("aria-pressed")).toBe(false);
+    expect(loop.getAttribute("aria-pressed")).toBe("false");
+    await act(async () => restart.click());
+    await act(async () => loop.click());
+    expect(onRestart).toHaveBeenCalledTimes(1);
+    expect(onLoopChange).toHaveBeenCalledWith(true);
+    await mount(<AudioPlayer {...props({ loop: true, onLoopChange })} />);
+    expect(loop.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => loop.click());
+    expect(onLoopChange).toHaveBeenLastCalledWith(false);
   });
 
   it("is a slider over the waveform with its bounds and spoken position", async () => {
@@ -138,6 +176,8 @@ describe("AudioPlayer", () => {
     const root = await mount(<AudioPlayer {...props({ state: "failed", failure: "Can't play this file here.", peaks: null })} />);
     expect(root.querySelector('[role="status"]')!.textContent).toBe("Can't play this file here.");
     expect(root.querySelector("[data-audio-toggle]")).toBeNull();
+    expect(root.querySelector("[data-audio-restart]")).toBeNull();
+    expect(root.querySelector("[data-audio-loop]")).toBeNull();
     expect(root.querySelector('[role="slider"]')).toBeNull();
   });
 

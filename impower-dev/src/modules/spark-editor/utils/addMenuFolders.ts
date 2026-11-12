@@ -61,6 +61,9 @@ export const addMenuKindsOf = (
   folders: AddMenuFolders,
 ): AddMenuKind[] => nearestFolder(candidate, folders)?.kinds ?? [];
 
+export const loopsByDefault = (path: string, folders: AddMenuFolders): boolean =>
+  addMenuKindsOf({ path, type: "audio" }, folders).includes("music");
+
 export const addMenuSubfolder = (
   candidate: AddMenuCandidate,
   folders: AddMenuFolders,

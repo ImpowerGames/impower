@@ -9,6 +9,7 @@ const setup = () => {
     currentTime: 0,
     duration: Number.NaN,
     paused: true,
+    loop: false,
     play: async () => {
       log.push(`play ${audio.src}`);
     },
