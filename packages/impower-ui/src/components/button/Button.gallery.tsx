@@ -64,7 +64,7 @@ function ButtonDemo() {
   return (
     <div class="space-y-6">
       <GalleryRow label="Every variant (columns) in every kind (rows), then disabled">
-        <div class="overflow-x-auto">
+        <div class="scroller-x">
           <table class="border-separate border-spacing-3">
             <thead>
               <tr>
