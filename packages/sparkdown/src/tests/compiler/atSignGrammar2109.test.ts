@@ -64,6 +64,15 @@ describe("an @ joins a name in both grammar engines (#2109)", () => {
     },
   );
 
+  it.each(["  & while x@end end", "  & for i = 1, x@end end", "  & for k in x@end end"])(
+    "reads the unfinished line `%s` in a scene as it reads the same line with the @ an _",
+    async (line) => {
+      const source = `scene s\n${line}\nend\n`;
+      const read = async (text: string) => shape(formatTokens(await tokenize(text)));
+      expect(await read(source)).toBe(await read(withUnderscores(source)));
+    },
+  );
+
   const fixtures = readdirSync(NAMES_DIR).filter((file) => file.endsWith(".sd"));
 
   it.each(fixtures)("reads %s as it reads the same script with each @ an _", async (file) => {

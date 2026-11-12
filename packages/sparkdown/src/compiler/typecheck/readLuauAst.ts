@@ -311,7 +311,7 @@ interface Token {
   unread?: true;
   lexemesOf?: { token: Token; count: number };
   broken?: true;
-  malformedName?: true;
+  malformedName?: { to: number; text: string; location: Location };
   section?: true;
   openInterpolations?: number[];
   written?: true;
@@ -536,9 +536,12 @@ class Tokenizer {
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     if (kind === "symbol" && this.text.slice(from, to) === "@") kind = "attribute";
     const last = this.tokens[this.tokens.length - 1];
-    const gluedToName = last?.to === from && to > from && (last.malformedName ? NAME_RUN_KINDS.has(kind) : kind === "attribute" && (last.kind === "name" || last.kind === "keyword"));
-    if (gluedToName) {
-      this.tokens[this.tokens.length - 1] = { ...last, kind: "name", malformedName: true, text: last.text + this.text.slice(from, to), to, location: this.location(last.from, to) };
+    const strayAfterName = last !== undefined && to > from && (last.malformedName
+      ? last.malformedName.to === from && NAME_RUN_KINDS.has(kind)
+      : last.to === from && kind === "attribute" && (last.kind === "name" || last.kind === "keyword"));
+    if (strayAfterName) {
+      const malformedName = { to, text: this.text.slice(last.from, to), location: this.location(last.from, to) };
+      this.tokens[this.tokens.length - 1] = { ...last, malformedName };
       return;
     }
     if (last?.kind === "attribute" && last.text === "@" && last.to === from && to > from) {
@@ -1412,7 +1415,7 @@ class Parser {
     if (token) {
       if (token.malformedName && !this.malformedNamesRead.has(token.from)) {
         this.malformedNamesRead.add(token.from);
-        this.report(token.location, `'${token.text}' is not a name: ${AT_NAME_RULE}`);
+        this.report(token.malformedName.location, `'${token.malformedName.text}' is not a name: ${AT_NAME_RULE}`);
       }
       this.previous = token.location;
       this.pos++;
