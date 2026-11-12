@@ -2683,7 +2683,10 @@ describe("the announcement of a rollback's restoring write (I-2100)", () => {
 describe("the schedule matrix of a refused edit and the author's typing (I-2100)", () => {
   type Ownership = "held" | "opened" | "two editors";
   type Sequence = "stamped" | "unsequenced";
-  type Tab = "this tab" | "a second tab";
+  type Tab =
+    | "this tab"
+    | "a second tab"
+    | "a second tab, with a third tab's superseded write before the follow-up";
 
   const OWNERSHIPS: Ownership[] = ["held", "opened", "two editors"];
   const SEQUENCES: Sequence[] = ["stamped", "unsequenced"];
@@ -2711,32 +2714,55 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
   const storageSteps = () => {
     const state = { armed: false, count: 0, pauseAt: 0, paused: false, release: () => {} };
     const patched: [any, string, any][] = [];
-    const wrap = (proto: any, name: string) => {
-      const original = proto[name];
-      patched.push([proto, name, original]);
-      proto[name] = async function (this: unknown, ...args: unknown[]) {
-        if (state.armed) {
-          state.count += 1;
-          if (state.count === state.pauseAt) {
-            state.paused = true;
-            await new Promise<void>((resolve) => {
-              state.release = resolve;
-            });
-          }
+    const step = async () => {
+      if (state.armed) {
+        state.count += 1;
+        if (state.count === state.pauseAt) {
+          state.paused = true;
+          await new Promise<void>((resolve) => {
+            state.release = resolve;
+          });
         }
-        return original.apply(this, args);
+      }
+    };
+    const wrap = (target: any, name: string, wrapResult?: (result: any) => any) => {
+      const original = target[name];
+      patched.push([target, name, original]);
+      target[name] = async function (this: unknown, ...args: unknown[]) {
+        await step();
+        const result = await original.apply(this, args);
+        return wrapResult ? wrapResult(result) : result;
       };
     };
-    wrap(MemoryFile.prototype, "getFile");
+    const wrapRead = (file: any) => ({
+      ...file,
+      arrayBuffer: async () => {
+        await step();
+        return file.arrayBuffer();
+      },
+      text: async () => {
+        await step();
+        return file.text();
+      },
+    });
+    wrap(MemoryFile.prototype, "getFile", wrapRead);
     wrap(MemoryFile.prototype, "createSyncAccessHandle");
     wrap(MemoryDirectory.prototype, "getFileHandle");
     wrap(MemoryDirectory.prototype, "getDirectoryHandle");
     wrap(MemoryDirectory.prototype, "removeEntry");
+    const wrapLocks = () => {
+      const locks = (globalThis as any).navigator.locks;
+      const request = locks.request.bind(locks);
+      locks.request = async (...args: unknown[]) => {
+        await step();
+        return request(...args);
+      };
+    };
     const restore = () =>
-      patched.forEach(([proto, name, original]) => {
-        proto[name] = original;
+      patched.forEach(([target, name, original]) => {
+        target[name] = original;
       });
-    return { state, restore };
+    return { state, restore, wrapLocks };
   };
 
   const seedFor = (sequence: Sequence) => {
@@ -2781,6 +2807,7 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
     const steps = storageSteps();
     try {
       const h = await worker(root);
+      steps.wrapLocks();
       vi.spyOn(console, "warn").mockImplementation(() => {});
       await h.enumerate();
       const from = h.messages.length;
@@ -2875,6 +2902,11 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
       sequence,
       tab: "a second tab" as Tab,
     })),
+    {
+      ownership: "held",
+      sequence: "unsequenced",
+      tab: "a second tab, with a third tab's superseded write before the follow-up",
+    },
   ];
 
   it.each(ROWS)(
@@ -2910,13 +2942,35 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
             }
           }
         }
-        if (tab === "a second tab") {
+        if (tab !== "this tab") {
           const posts = run.h.channelPosts.slice(run.fromChannel);
           const second = await worker(run.root);
           await second.enumerate();
+          const interleaved = tab !== "a second tab";
+          if (interleaved) {
+            await second.remote("workspace/didWriteFiles", {
+              files: [fileData("chapter.sd", PRE["chapter.sd"]!)],
+              origin: editorOrigin("chapter.sd"),
+              commits: { [uriOf("chapter.sd")]: { sequence: 5, writer: "second-tab" } },
+            });
+          }
           const fromSecond = second.messages.length;
+          let superseded = false;
           for (const post of posts) {
             await second.remote(post.method, post.params);
+            const restoresChapter =
+              post.method === "workspace/didWriteFiles" &&
+              post.params.restored?.includes(uriOf("chapter.sd"));
+            if (interleaved && restoresChapter && !superseded) {
+              superseded = true;
+              await second.remote("workspace/didWriteFiles", {
+                files: [fileData("chapter.sd", "a third tab's superseded text")],
+                commits: { [uriOf("chapter.sd")]: { sequence: 1, writer: "third-tab" } },
+              });
+            }
+          }
+          if (interleaved && !superseded) {
+            problems.push("no restore of chapter.sd reached the second tab to interleave with");
           }
           await vi.advanceTimersByTimeAsync(500);
           const reloads = reloadsOver(second.messages.slice(fromSecond), "chapter.sd", {
