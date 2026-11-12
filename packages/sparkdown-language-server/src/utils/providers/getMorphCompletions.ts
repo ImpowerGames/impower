@@ -21,6 +21,7 @@ import {
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
   MORPH_TIMING_FIELDS,
+  MORPH_TRIGGERS,
 } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { entryInsideQuote } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
@@ -43,6 +44,7 @@ const VALUE_CHOICES: Record<string, readonly string[]> = {
   direction: MORPH_DIRECTIONS,
   easing: MORPH_EASING_KEYWORDS,
   iterations: ["infinite"],
+  trigger: MORPH_TRIGGERS,
 };
 
 const EASING_FUNCTIONS = [

@@ -172,6 +172,7 @@ export function collectMorphIssues(
   scripts: readonly (MorphScript & { uri: string })[],
   context: Context,
   inherit: (base: any, override: any) => any,
+  declared: Context,
 ): Map<string, LocatedMorphIssue[]> {
   const result = new Map<string, LocatedMorphIssue[]>();
   const morphs = readWrittenMorphs(scripts);
@@ -212,6 +213,7 @@ export function collectMorphIssues(
           own: morph.own,
           effective,
           parentEffective,
+          timingWritten: writtenTimingFields(ancestors, morph.own.struct, declared),
         },
         ancestors,
         parentSpan ?? nameSpan,
@@ -237,6 +239,19 @@ export function collectMorphIssues(
     }
   }
   return result;
+}
+
+function writtenTimingFields(
+  ancestors: readonly MorphLayer[],
+  own: Record<string, unknown>,
+  declared: Context,
+): Set<string> {
+  const fields = new Set<string>();
+  for (const layer of [{ name: "", struct: own, written: true }, ...ancestors]) {
+    const timing = (layer.written ? layer.struct : compiledAncestor(declared, layer.name)?.struct)?.["timing"];
+    if (isRecord(timing)) for (const field of Object.keys(timing)) fields.add(field);
+  }
+  return fields;
 }
 
 function validateWithUnwrittenParents(

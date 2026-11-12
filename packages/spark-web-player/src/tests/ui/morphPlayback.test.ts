@@ -1169,6 +1169,64 @@ end
   });
 });
 
+describe("a speech morph beside a blink", () => {
+  const SPEECH_TIMING = `  timing {
+    trigger = speech
+    duration = 0.4
+    easing = linear
+  }
+`;
+  const scene = `
+
+scene start
+  HERO:
+    [[show portrait bunny]]
+    First line.
+end
+`;
+  const rows: [string, string][] = [
+    ["a speech morph", `${blinkScript(TIMING)}\n${talkScript(SPEECH_TIMING)}${scene}`],
+    [
+      "a child of a speech morph",
+      `${blinkScript(TIMING)}\n${talkScript(`  when = eyes.closed\n${SPEECH_TIMING}`, "speaking")}\nmorph talk as speaking {\n  when = eyes.open\n}\n${scene}`,
+    ],
+  ];
+  const files = [{ uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: talkingPortrait({ dx: 0, dy: 0 }) }];
+
+  test.each(rows)("%s stays at rest as time advances while the blink keeps playing", async (_label, source) => {
+    const h = createDOMHarness(source, 0, { files });
+    const frames = manualFrames();
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...frames });
+    await h.ready;
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the shared artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.images[0].slot.artifact as MorphArtifact;
+    expect(artifact.morphs).toEqual(["blink", "talk"]);
+    expect(playback.occurrenceKeys.map((key) => key.split("|")[3])).toEqual(["blink", "talk"]);
+    const rest = leafStates(shadow);
+    expect(rest).toEqual(referenceStates(artifact, {}));
+    for (const [step, blinkAt] of [
+      [0.1, 0.4],
+      [0.1, 0.8],
+      [0.15, 0.4],
+      [1.05, 0.6],
+    ] as const) {
+      playback.advance(step);
+      const heads = new Map(
+        [...(playback as any).occurrences.values()].map((occurrence: any) => [occurrence.key.split("|")[3], playback.playhead(occurrence)]),
+      );
+      expect(heads.get("talk")).toEqual({ phase: "off" });
+      const blinkHead = heads.get("blink") as { offset: number };
+      expect(blinkHead.offset).toBeCloseTo(blinkAt, 9);
+      expect(leafStates(shadow)).toEqual(referenceStates(artifact, { blink: blinkHead.offset }));
+      expect(leafStates(shadow)).not.toEqual(rest);
+    }
+  });
+});
+
 describe("morph claims", () => {
   test("two morphs claiming one image's group are reported, and the image stays still", async () => {
     const second = blinkScript(TIMING).replace("morph blink", "morph wink");

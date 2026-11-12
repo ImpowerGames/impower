@@ -4904,10 +4904,15 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "validateMorphs", uri);
     const scripts = this.morphScripts(program);
+    const declared: Record<string, Record<string, any>> = {};
+    for (const source of [this._config.definitions?.builtins, program.chunks?.tables?.structDefinitions]) {
+      for (const [type, table] of Object.entries(source ?? {})) declared[type] = { ...declared[type], ...table };
+    }
     const issuesByUri = collectMorphIssues(
       scripts,
       program.context,
       (base, override) => this.inheritDefaults(base, override),
+      declared,
     );
     for (const [scriptUri, issues] of issuesByUri) {
       const doc = this.documents.get(scriptUri)!;
