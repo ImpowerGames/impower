@@ -46,6 +46,15 @@ describe("@ inside names (#2109)", () => {
     expect(compile("").context?.["image"]?.["mia@night"]).toMatchObject({ $type: "image", $name: "mia@night" });
   });
 
+  it.each([
+    ["file:///proj/images/mia%40night.svg", "mia@day", "file:///proj/images/mia@day.svg"],
+    ["file:///proj/images/a%40b%40c.svg", "day", "file:///proj/images/day.svg"],
+    ["file:///proj/images/mia@night.svg", "mia@day", "file:///proj/images/mia@day.svg"],
+    ["file:///proj/images/mia.layer.svg", "mia@day", "file:///proj/images/mia@day.layer.svg"],
+  ])("renames %s to %s keeping only its extension", (uri, name, renamed) => {
+    expect(SparkdownWorkspace.prototype.getRenamedUri.call(SparkdownWorkspace.prototype, uri, name)).toBe(renamed);
+  });
+
   it("shows the image from a directive with and without options", () => {
     const program = compile(`scene start
   [[mia@night]]

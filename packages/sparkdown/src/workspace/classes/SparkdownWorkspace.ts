@@ -625,7 +625,7 @@ export abstract class SparkdownWorkspace {
 
   getRenamedUri(uri: string, newName: string): string {
     const filename = this.getFilenameWithExtension(uri);
-    const tail = filename.slice(this.getFileName(uri).length);
+    const tail = filename.slice(filename.split(".")[0]!.length);
     return this.getDirectoryUri(uri) + "/" + newName + tail;
   }
 
