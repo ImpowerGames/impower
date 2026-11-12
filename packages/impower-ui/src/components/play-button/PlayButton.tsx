@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { JSX } from "preact";
 import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
-import { PlayIcon, StopIcon } from "../icon/icons.generated";
+import { PauseFillIcon, PlayIcon } from "../icon/icons.generated";
 
 export const playButtonVariants = cva(
   [
@@ -44,7 +44,7 @@ const PlayButton = forwardRef<HTMLButtonElement, PlayButtonProps>(function PlayB
   { name, playing = false, size, class: className, ...rest },
   ref,
 ) {
-  const label = `${playing ? "Stop" : "Play"} ${name}`;
+  const label = `${playing ? "Pause" : "Play"} ${name}`;
   return (
     <button
       ref={ref}
@@ -55,7 +55,7 @@ const PlayButton = forwardRef<HTMLButtonElement, PlayButtonProps>(function PlayB
       class={cn(playButtonVariants({ size, playing }), className)}
       {...rest}
     >
-      {playing ? <StopIcon /> : <PlayIcon />}
+      {playing ? <PauseFillIcon /> : <PlayIcon />}
     </button>
   );
 });

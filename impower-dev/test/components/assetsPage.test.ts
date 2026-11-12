@@ -36,7 +36,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 }));
 
 const speaker = vi.hoisted(() => ({
-  audio: undefined as unknown as EventTarget & { src: string; currentTime: number; duration: number; paused: boolean; log: string[] },
+  audio: undefined as unknown as EventTarget & { src: string; currentTime: number; duration: number; paused: boolean; loop: boolean; log: string[] },
   reads: [] as string[],
 }));
 vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
@@ -47,6 +47,7 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
     currentTime = 0;
     duration = Number.NaN;
     paused = true;
+    loop = false;
     log: string[] = [];
     async play() {
       this.log.push(`play ${this.src}`);
@@ -796,17 +797,17 @@ describe("playing sounds from their rows", () => {
     }
   });
 
-  it("plays one sound at a time, turning Play to Stop, with the elapsed time in the row's line, and never opens the inspector", async () => {
+  it("plays one sound at a time, turning Play to Pause, with the elapsed time in the row's line, and never opens the inspector", async () => {
     await openSounds();
     await click(playButton("door_chime"));
     expect(inspector()).toBeNull();
-    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Stop door_chime");
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Pause door_chime");
     await tell("loadedmetadata", () => (speaker.audio.duration = 5));
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
     expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
     await click(playButton("footsteps"));
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
-    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Pause footsteps");
     expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
     expect(rowOf("door_chime").textContent).toContain("Modified 2d");
     await click(playButton("footsteps"));
@@ -814,12 +815,96 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
   });
 
+  it("pauses a row's sound in place, holding its time in the row and in the inspector, and resumes it there", async () => {
+    await openSounds();
+    await click(playButton("door_chime"));
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5));
+    await tell("timeupdate", () => (speaker.audio.currentTime = 3.2));
+    await click(playButton("door_chime"));
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:03 / 0:05");
+    expect(speaker.audio.src).toBe("/p/512");
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    const player = () => inspector()!.querySelector<HTMLElement>("[data-audio-player]")!;
+    expect(player().getAttribute("data-state")).toBe("paused");
+    expect(player().querySelector("[data-audio-elapsed]")!.textContent).toBe("0:03");
+    expect(player().querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Play door_chime");
+    await click(player().querySelector<HTMLElement>("[data-audio-toggle]")!);
+    expect(player().getAttribute("data-state")).toBe("playing");
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Pause door_chime");
+    expect(speaker.audio.currentTime).toBe(3.2);
+    await click(playButton("door_chime"));
+    expect(player().getAttribute("data-state")).toBe("paused");
+    expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/512", "stop /p/512"]);
+  });
+
+  it("restarts the inspected sound at 0:00 whether it is playing or paused, keeping it so", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    const player = () => inspector()!.querySelector<HTMLElement>("[data-audio-player]")!;
+    const restart = () => player().querySelector<HTMLElement>("[data-audio-restart]")!;
+    expect(restart().getAttribute("aria-label")).toBe("Restart");
+    await click(player().querySelector<HTMLElement>("[data-audio-toggle]")!);
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5));
+    await tell("timeupdate", () => (speaker.audio.currentTime = 2.6));
+    await click(restart());
+    expect(speaker.audio.currentTime).toBe(0);
+    expect(player().getAttribute("data-state")).toBe("playing");
+    expect(player().querySelector("[data-audio-elapsed]")!.textContent).toBe("0:00");
+    await tell("timeupdate", () => (speaker.audio.currentTime = 4.1));
+    await click(player().querySelector<HTMLElement>("[data-audio-toggle]")!);
+    await click(restart());
+    expect(player().getAttribute("data-state")).toBe("paused");
+    expect(player().querySelector("[data-audio-elapsed]")!.textContent).toBe("0:00");
+    expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512"]);
+  });
+
+  it("starts Loop on for a sound in the Music folder, and the toggle sets the element's loop for that sound only", async () => {
+    await mount();
+    await showTab("Audio");
+    await click(all<HTMLElement>('button[aria-label^="Open folder Music"]')[0]);
+    await click(all<HTMLElement>('button[aria-label^="Open audio harbor_theme"]')[0]);
+    const loop = () => inspector()!.querySelector<HTMLElement>("[data-audio-loop]")!;
+    expect(loop().getAttribute("aria-label")).toBe("Loop");
+    expect(loop().getAttribute("aria-pressed")).toBe("true");
+    await click(inspector()!.querySelector<HTMLElement>("[data-audio-toggle]")!);
+    expect(speaker.audio.loop).toBe(true);
+    await click(loop());
+    expect(loop().getAttribute("aria-pressed")).toBe("false");
+    expect(speaker.audio.loop).toBe(false);
+    await click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!);
+    expect(loop().getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("starts Loop off for a sound in the Sounds folder", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    const loop = () => inspector()!.querySelector<HTMLElement>("[data-audio-loop]")!;
+    expect(loop().getAttribute("aria-pressed")).toBe("false");
+    await click(inspector()!.querySelector<HTMLElement>("[data-audio-toggle]")!);
+    expect(speaker.audio.loop).toBe(false);
+  });
+
+  it("stops the inspected sound when the inspector closes", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    await click(inspector()!.querySelector<HTMLElement>("[data-audio-toggle]")!);
+    await click(inspector()!.querySelector<HTMLElement>("[data-inspector-close]")!);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
+    expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512"]);
+    expect(speaker.audio.src).toBe("");
+  });
+
   it("goes on playing when its own row opens the inspector, and stops when another file is opened", async () => {
     await openSounds();
     await click(playButton("door_chime"));
     await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
     expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
-    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Stop door_chime");
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Pause door_chime");
     await click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!);
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
     expect(speaker.audio.log.at(-1)).toBe("stop /p/512");
@@ -871,10 +956,10 @@ describe("playing sounds from their rows", () => {
     await click(toggle()!);
     await tell("timeupdate", () => (speaker.audio.currentTime = 1.2));
     expect(player().getAttribute("data-state")).toBe("playing");
-    expect(toggle()!.getAttribute("aria-label")).toBe("Stop door_chime");
+    expect(toggle()!.getAttribute("aria-label")).toBe("Pause door_chime");
     expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:01");
     await click(toggle()!);
-    expect(player().getAttribute("data-state")).toBe("ready");
+    expect(player().getAttribute("data-state")).toBe("paused");
     expect(toggle()!.getAttribute("aria-label")).toBe("Play door_chime");
     expect(player().querySelector('[role="slider"]')).not.toBeNull();
     expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")).toBeNull();
@@ -886,10 +971,10 @@ describe("playing sounds from their rows", () => {
     await openSounds();
     await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
     await click(playButton("footsteps"));
-    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Pause footsteps");
     await act(async () => setListing({ ...workspace.assetListing.value!.files, "Assets/Other/new.csv": facts(7) }));
     await settle();
-    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Pause footsteps");
     expect(speaker.audio.log).toEqual(["play /p/768"]);
   });
 

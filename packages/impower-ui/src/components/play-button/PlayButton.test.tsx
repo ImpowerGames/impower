@@ -20,16 +20,19 @@ afterEach(async () => {
 });
 
 describe("PlayButton", () => {
-  it("is a round button named Play, then Stop while playing, with the playing state on it", async () => {
+  it("is a round button named Play, then Pause while playing, with the playing state on it", async () => {
     const onClick = vi.fn();
     const button = await mount(<PlayButton name="door" onClick={onClick} />);
     expect(button.type).toBe("button");
     expect(button.getAttribute("aria-label")).toBe("Play door");
     expect(button.hasAttribute("data-playing")).toBe(false);
+    expect(button.querySelectorAll("svg path").length).toBe(1);
     await act(async () => button.click());
     expect(onClick).toHaveBeenCalledTimes(1);
     const playing = await mount(<PlayButton name="door" playing onClick={onClick} />);
-    expect(playing.getAttribute("aria-label")).toBe("Stop door");
+    expect(playing.getAttribute("aria-label")).toBe("Pause door");
+    expect(playing.title).toBe("Pause door");
+    expect(playing.querySelectorAll("svg rect").length).toBe(2);
     expect(playing.hasAttribute("data-playing")).toBe(true);
     expect(playing.className).toContain("bg-tint");
   });

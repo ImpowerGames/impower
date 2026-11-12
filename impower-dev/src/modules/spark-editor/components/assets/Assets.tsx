@@ -322,9 +322,11 @@ function AssetsBrowser() {
   );
 
   useEffect(() => {
-    if (openPath) {
-      audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
+    if (!openPath) {
+      return;
     }
+    audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
+    return () => audioSession.stopUnless((owner) => owner !== openPath);
   }, [openPath]);
 
   useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);
