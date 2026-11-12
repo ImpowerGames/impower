@@ -78,7 +78,7 @@ const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
 const { ROUTE_LIST_STYLESHEET_ID } = await import(
-  "@impower/spark-web-player/src/route/RouteViews"
+  "@impower/spark-web-player/src/route/routeListStylesheet"
 );
 const { RouteSheet } = await import(
   "../../src/modules/spark-editor/components/preview-route"
