@@ -51,3 +51,54 @@ describe("audio", () => {
     expect(harness.snapshotFiltered("audio/")).toMatchSnapshot();
   });
 });
+
+const SOUNDS = `define door as audio with
+  src = "https://example.com/door.wav"
+end
+
+define rain as audio with
+  src = "https://example.com/rain.wav"
+  loop = true
+end
+
+define theme as audio with
+  src = "https://example.com/theme.wav"
+end
+`;
+
+async function schedulesOf(
+  channel: string,
+  events: { control: string; assets?: string[]; loop?: boolean }[],
+  redelivered: boolean,
+) {
+  const harness = createHarness(`${SOUNDS}\n-> start\n\nscene start\n  Hi.\nend\n`);
+  await harness.ready;
+  harness.reset();
+  const audio = harness.game.module.audio;
+  const id = audio.schedule(channel, events as any, false, redelivered);
+  await flushMicrotasks(10);
+  audio.triggerAll([id]);
+  await flushMicrotasks(10);
+  return harness
+    .snapshotFiltered("audio/update")
+    .flatMap((m: any) => m.params.updates.map((u: any) => `${u.control} ${u.key ?? "*"}`));
+}
+
+describe("audio scheduled for a redelivered, unchanged beat (#2118)", () => {
+  test.each([
+    { channel: "sound", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
+    { channel: "voice", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
+    { channel: "sound", events: [{ control: "play", assets: ["rain"] }], landing: ["start audio.rain"], redelivered: ["start audio.rain"] },
+    { channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }], landing: ["start audio.door"], redelivered: ["start audio.door"] },
+    { channel: "music", events: [{ control: "play", assets: ["theme"] }], landing: ["start audio.theme"], redelivered: ["start audio.theme"] },
+  ])("$channel $events.0.assets.0 (loop $events.0.loop)", async ({ channel, events, landing, redelivered }) => {
+    expect(await schedulesOf(channel, events, false)).toEqual(landing);
+    expect(await schedulesOf(channel, events, true)).toEqual(redelivered);
+  });
+
+  test("keeps a redelivered beat's stop of a sound it started as a loop", async () => {
+    expect(
+      await schedulesOf("sound", [{ control: "play", assets: ["rain"] }, { control: "stop", assets: ["rain"] }], true),
+    ).toEqual(["start audio.rain", "stop audio.rain"]);
+  });
+});
