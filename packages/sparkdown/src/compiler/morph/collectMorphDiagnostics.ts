@@ -252,7 +252,7 @@ function validateWithUnwrittenParents(
   const inherited = inheritedFields(merged, own);
   if (Object.keys(inherited).length === 0) return validateMorphDeclaration(decl);
   const supplier = (field: string) => defines.find((layer) => field in layer.struct)?.name ?? defines[0]!.name;
-  const aliases = new WeakMap<object, object>();
+  const aliases = new WeakMap<object, { written: object; unwritten: Set<string> }>();
   const fromParent = new WeakSet<object>();
   const mark = (value: unknown) => {
     if (!value || typeof value !== "object" || fromParent.has(value)) return;
@@ -261,6 +261,7 @@ function validateWithUnwrittenParents(
   };
   const combine = (written: Record<string, unknown>, from: Record<string, unknown>): Record<string, unknown> => {
     const combined: Record<string, unknown> = { ...written };
+    const unwritten = new Set<string>();
     for (const [key, value] of Object.entries(from)) {
       const mine = written[key];
       if (isRecord(mine) && isRecord(value)) {
@@ -268,9 +269,10 @@ function validateWithUnwrittenParents(
       } else if (!(key in written)) {
         mark(value);
         combined[key] = value;
+        unwritten.add(key);
       }
     }
-    aliases.set(combined, written);
+    aliases.set(combined, { written, unwritten });
     return combined;
   };
   const struct = combine(own, inherited);
@@ -280,8 +282,30 @@ function validateWithUnwrittenParents(
   });
   const atParent: StructSource = { line: span, keys: everywhere, values: everywhere, lines: everywhere, items: everyItem, itemValues: everyItem };
   const base = decl.own.sources;
+  const combinedSources = new WeakMap<object, StructSource>();
+  const combinedSource = (obj: object, alias: { written: object; unwritten: Set<string> }): StructSource => {
+    const known = combinedSources.get(obj);
+    if (known) return known;
+    const own = base.get(alias.written);
+    const lookup = (map: Map<string, SourceSpan> | undefined) =>
+      ({ get: (key: string) => map?.get(key) ?? (alias.unwritten.has(key) ? span : undefined) }) as Map<string, SourceSpan>;
+    const source: StructSource = {
+      ...(own?.line ? { line: own.line } : {}),
+      keys: lookup(own?.keys),
+      values: lookup(own?.values),
+      lines: lookup(own?.lines),
+      items: own?.items ?? [],
+      itemValues: own?.itemValues ?? [],
+    };
+    combinedSources.set(obj, source);
+    return source;
+  };
   const sources = {
-    get: (obj: object) => (fromParent.has(obj) ? atParent : base.get(aliases.get(obj) ?? obj)),
+    get: (obj: object) => {
+      if (fromParent.has(obj)) return atParent;
+      const alias = aliases.get(obj);
+      return alias ? combinedSource(obj, alias) : base.get(obj);
+    },
   } as WeakMap<object, StructSource>;
   const issues: LocatedMorphIssue[] = validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
   for (const { group, keyframe, message } of poseStateProblems(inherited)) {

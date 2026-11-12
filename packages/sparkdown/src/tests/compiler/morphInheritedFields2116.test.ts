@@ -52,20 +52,19 @@ const split = (fields: Field[], written: string[], inherited: string[], parent: 
   at: "as",
 });
 
-const onName = (r: Row): Row => ({ ...r, at: "name" });
 
 const ROWS: Row[] = [
   row("blend", "blend = cut"),
-  onName(row("blend", "blend = jump")),
+  row("blend", "blend = jump"),
   row("method", "method = bend"),
-  onName(row("method", "method = warp")),
+  row("method", "method = warp"),
   row("fallback", "fallback = fade"),
-  onName(row("fallback", "fallback = boom")),
-  onName(row("depth", "depth = mouth.teeth")),
+  row("fallback", "fallback = boom"),
+  row("depth", "depth = mouth.teeth"),
   row("depth", "depth = rest"),
-  onName(row("depth", "depth = mouth")),
+  row("depth", "depth = mouth"),
   row("spread", "spread = 1px"),
-  onName(row("spread", "spread = big")),
+  row("spread", "spread = big"),
   row("layers", "layers {", "  lips { spread = 1px }", "}"),
   row("layers", "layers {", "  lips { blend = jump }", "}"),
   row("layers", "layers {", "  nose { method = bend }", "}"),
@@ -77,7 +76,7 @@ const ROWS: Row[] = [
   row("keyframes", "keyframes {", "  0% { mouth { state = closed } }", "  200% { mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", "  { offset = 0; mouth { state = closed } }", "  { offset = 2; mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", '  from { mouth { state = "mouth." } }', "  to { mouth { state = open } }", "}"),
-  onName(row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "}")),
+  row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "}"),
   row("timing", "timing {", "  duration = 0.5", "}"),
   row("timing", "timing {", "  duration = -1", "}"),
   row("timing", "timing {", "  easing = wobble", "}"),
@@ -86,7 +85,7 @@ const ROWS: Row[] = [
   row("paints", "paints {", "  { targets { lips }; state = mouth.grin; fill = red }", "}"),
   row("when", "when = mouth.teeth"),
   row("when", "when = eyes.shut"),
-  onName(row("when", "when = closed")),
+  row("when", "when = closed"),
   row("when", "when {", "  mouth.teeth", "  eyes.open", "}"),
   row("unless", "unless = eyes.closed"),
   row("unless", "unless = hat.on"),
@@ -98,7 +97,7 @@ const ROWS: Row[] = [
   row("rest", "rest {", "  mouth { state = teeth; translate = 0 2px }", "}"),
   row("rest", "rest {", "  mouth { state = grin }", "}"),
   row("rest", "rest {", "  eyes { state = closed }", "}"),
-  onName(row("rest", "rest = mouth.teeth")),
+  row("rest", "rest = mouth.teeth"),
   row("rest", "rest {", "  mouth { state = mouth.mouth.closed }", "}"),
   row("keyframes", "keyframes {", "  from { mouth { state = mouth.mouth.closed } }", "  to { mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", "  from { mouth { state = closed; rotate = bad } }", "  to { mouth { state = open } }", "}"),
@@ -109,10 +108,10 @@ const ROWS: Row[] = [
   row("timing", "timing {", "  iteration_delay_min = 2", "  iteration_delay_max = 1", "}"),
   row("timing", "timing {", "  duration = 1", "  nope = 2", "}"),
   row("layers", "layers {", "  lips { partner = lips }", "}"),
-  onName(row("depth", "depth = closed")),
+  row("depth", "depth = closed"),
   row("paints", "paints {", "  { targets { lips }; state = closed; fill = red }", "}"),
-  onName(split(["layers"], ["layers {", "  lips { spread = 1px; blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  lips { blend = jump }", "}"])),
-  onName(split(["rest"], ["rest {", "  mouth { state = closed; translate = 0 2px }", "}"], ["rest {", "  mouth { state = closed }", "}"], ["rest {", "  mouth { translate = 0 2px }", "}"])),
+  split(["layers"], ["layers {", "  lips { spread = 1px; blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  lips { blend = jump }", "}"]),
+  split(["rest"], ["rest {", "  mouth { state = closed; translate = 0 2px }", "}"], ["rest {", "  mouth { state = closed }", "}"], ["rest {", "  mouth { translate = 0 2px }", "}"]),
   split(["rest"], ["rest {", "  mouth { state = teeth }", "}"], ["rest {", "  mouth { }", "}"], ["rest {", "  mouth { state = teeth }", "}"]),
   split(["timing"], ["blend = jump", "timing {", "  duration = 0.5", "}"], ["blend = jump"], ["timing {", "  duration = 0.5", "}"]),
   split(["timing"], ["when = closed", "timing {", "  duration = 0.5", "}"], ["when = closed"], ["timing {", "  duration = 0.5", "}"]),
@@ -121,9 +120,7 @@ const ROWS: Row[] = [
   split(["keyframes", "rest"], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"], [], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"]),
 ];
 
-const PLACEMENTS: Record<string, Placement[]> = {
-  "method + layers: method = warp layers { lips { method = warp } }": ["as", "name"],
-};
+const PLACEMENTS: Record<string, Placement[]> = {};
 
 const preamble = (row: Row) => (row.fields.includes("keyframes") ? [] : KEYFRAMES);
 

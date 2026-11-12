@@ -187,10 +187,10 @@ ${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}`;
     expect(found.filter((d) => d.message.includes("$type") || d.message.includes("$name"))).toEqual([]);
   });
 
-  test("a malformed condition inherited from a parent the scripts do not write is reported like a written one, on the child's name", () => {
+  test("a malformed condition inherited from a parent the scripts do not write is reported like a written one, on the `as`", () => {
     const text = `define base as morph with\n  unless = "closed"\nend\n\n${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     const found = diagnosticsOf(text).find((d) => d.message === "`unless` names a state with its group. Write `unless = mouth.closed`.");
-    expect(found).toMatchObject({ line: 4, text: "talk_smile", severity: 1 });
+    expect(found).toMatchObject({ line: 4, text: "base", severity: 1 });
   });
 
   test("a condition that is not a state with its group is an error", () => {
@@ -347,7 +347,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     ]);
   });
 
-  test("an inherited `rest` naming another group's state is an error on the `as`, and one written as a value is an error on the child's name", () => {
+  test("an inherited `rest` naming another group's state, or written as a value, is an error on the `as`", () => {
     const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
     const errorsOnAs = (rest: unknown) =>
       diagnosticsOf(child, undefined, { rest })
@@ -357,7 +357,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       expect.stringMatching(/^`rest\.mouth\.state`, inherited from `base`: `eyes\.closed` names a state of the `eyes` group, but this container poses `mouth`/),
     ]);
     expect(diagnosticsOf(child, undefined, { rest: { $type: "mouth", $name: "teeth" } }).filter((d) => d.severity === 1).map((d) => [d.text, d.message])).toEqual([
-      ["talk_smile", "`rest` is a block, not a value: write `rest { mouth { state = teeth } }`."],
+      ["base", "`rest` is a block, not a value: write `rest { mouth { state = teeth } }`."],
     ]);
   });
 
