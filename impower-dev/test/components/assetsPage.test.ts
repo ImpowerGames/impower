@@ -828,8 +828,39 @@ describe("playing sounds from their rows", () => {
     await settle();
     expect(speaker.audio.log.at(-1)).toBe("stop /p/768");
     await click(playButton("footsteps"));
-    await act(async () => render(null, host!));
+    const { "Assets/Audio/Sounds/footsteps.wav": deleted, ...kept } = workspace.assetListing.value!.files;
+    expect(deleted).toBeDefined();
+    await act(async () => setListing(kept));
+    await settle();
     expect(speaker.audio.log.at(-1)).toBe("stop /p/replaced");
+    await click(playButton("bell"));
+    await act(async () => render(null, host!));
+    expect(speaker.audio.log).toEqual([
+      "play /p/512",
+      "stop /p/512",
+      "play /p/768",
+      "stop /p/768",
+      "play /p/replaced",
+      "stop /p/replaced",
+      "play /p/512",
+      "stop /p/512",
+    ]);
+  });
+
+  it("keeps Stop and the time for a sound that plays when only its waveform cannot be read", async () => {
+    setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": { ...facts(512), src: "/p/bad" } });
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("failed");
+    await click(playButton("door_chime"));
+    await tell("timeupdate", () => (speaker.audio.currentTime = 1.2));
+    const player = inspector()!.querySelector("[data-audio-player]")!;
+    expect(player.getAttribute("data-state")).toBe("playing");
+    expect(player.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Stop door_chime");
+    expect(player.querySelector('[data-audio-wave]')!.getAttribute("data-wave")).toBe("plain");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:01");
+    await click(player.querySelector<HTMLElement>("[data-audio-toggle]")!);
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
   });
 
   it("says a file it cannot play can't be played here, in the row and in the inspector, which still downloads it", async () => {

@@ -21,20 +21,15 @@ export default function SoundFrame({ asset }: { asset: InspectedAsset }) {
     }
   }, [file?.src, file?.size]);
 
+  const sounding = mine?.status === "playing" || mine?.status === "loading";
   const failure = !sound
     ? PLAYBACK_FAILURES.unreadable
     : mine?.status === "failed"
       ? PLAYBACK_FAILURES[mine.failure ?? "unreadable"]
-      : shape && !shape.ok
+      : shape && !shape.ok && !sounding
         ? PLAYBACK_FAILURES[shape.failure]
         : undefined;
-  const state: AudioPlayerState = failure
-    ? "failed"
-    : mine?.status === "playing" || mine?.status === "loading"
-      ? "playing"
-      : !shape
-        ? "loading"
-        : "ready";
+  const state: AudioPlayerState = failure ? "failed" : sounding ? "playing" : !shape ? "loading" : "ready";
 
   return (
     <section aria-label={`${asset.name} player`} data-sound-frame>
