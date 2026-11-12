@@ -109,12 +109,33 @@ export const hoverValues = Facet.define<
   combine: (values) => values.at(-1) ?? null,
 });
 
+export type HoverExpressionSource = (
+  line: string,
+  character: number,
+) => { start: number; end: number } | undefined;
+
+export const hoverExpressions = Facet.define<
+  HoverExpressionSource,
+  HoverExpressionSource | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
 const NAME_CHARACTER = /[\p{L}\p{N}_]/u;
 
 export function hoverExpressionAt(
   state: EditorState,
   pos: number,
 ): { from: number; to: number; text: string } | null {
+  const expressionAt = state.facet(hoverExpressions);
+  if (expressionAt) {
+    const line = state.doc.lineAt(pos);
+    const range = expressionAt(line.text, pos - line.from);
+    if (!range) return null;
+    const from = line.from + range.start;
+    const to = line.from + range.end;
+    return { from, to, text: state.sliceDoc(from, to) };
+  }
   const word = state.wordAt(pos);
   if (!word) return null;
   const text = state.sliceDoc(word.from, word.to);

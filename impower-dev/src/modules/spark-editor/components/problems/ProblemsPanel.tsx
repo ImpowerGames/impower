@@ -53,7 +53,7 @@ export const PROBLEMS_PANEL_ID = "problems-panel";
 
 const SCRIPT_CARD_HEAD = `button[aria-expanded][aria-label^="${CARD_TITLE.script}"]`;
 
-const PANEL_LABEL = "Problems and playback messages";
+export const PANEL_LABEL = "Problems and playback messages";
 
 const GLYPHS: Record<ConsoleSeverity, typeof ErrorIcon> = {
   error: ErrorIcon,

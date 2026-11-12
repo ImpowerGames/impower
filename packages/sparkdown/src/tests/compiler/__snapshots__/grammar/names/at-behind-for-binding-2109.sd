@@ -1,0 +1,7 @@
+function f(t)
+  local z = x@for k: number
+end
+
+function f(t)
+  local q = y x@for k: number, j: string
+end

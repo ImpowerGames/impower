@@ -1,0 +1,17 @@
+function f(c)
+  x@until c
+end
+
+function f(c)
+  print(1) x@until c
+end
+
+scene s
+  & x@until c
+end
+
+function f(c)
+  repeat
+    x@until c
+  until c
+end

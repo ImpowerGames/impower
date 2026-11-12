@@ -4,7 +4,10 @@ import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { RESOURCE_PROTOCOL } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import {
+  ApplyWorkspaceEditMessage,
+  WorkspaceEditAction,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { ConfirmWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfirmWorkspaceEditMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
@@ -25,7 +28,7 @@ import {
   TrashFilesMessage,
   TrashFilesResult,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
-import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
+import { TrashBatch, TrashReason } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -1114,10 +1117,11 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts, confirm } = message.params;
+    const { edit, expectedTexts, metadata, confirm } = message.params;
     const log = new CommitLog();
     const { effects, failure } = await applyWorkspaceEdit(edit, log, {
       expectedTexts,
+      action: metadata?.action,
       confirm: confirm ? () => confirmEdit(message.id) : undefined,
     });
 
@@ -1227,6 +1231,8 @@ class UndoLog {
   copies: TrashCopy[] = [];
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
+
+  constructor(readonly action?: WorkspaceEditAction) {}
 
   watch = (uris: string[], local: number) => {
     for (const uri of uris) {
@@ -1340,6 +1346,7 @@ class UndoLog {
       return { trashed: [], unlisted: [] };
     }
     const { projectId, deletedAt, id } = this.trashBatch!;
+    const reason: TrashReason = { kind: "failed-edit", action: this.action };
     const manifest = JSON.stringify({
       deletedAt,
       entries: this.copies.map(({ relPath, originalUri, type }) => ({
@@ -1347,6 +1354,7 @@ class UndoLog {
         originalUri,
         type,
       })),
+      reason,
     });
     try {
       await createFiles([
@@ -1587,9 +1595,11 @@ const applyWorkspaceEdit = async (
   log: CommitLog,
   {
     expectedTexts,
+    action,
     confirm,
   }: {
     expectedTexts?: Record<string, string>;
+    action?: WorkspaceEditAction;
     confirm?: () => Promise<string | undefined>;
   } = {},
 ) => {
@@ -1612,7 +1622,7 @@ const applyWorkspaceEdit = async (
       },
     };
   }
-  const undo = new UndoLog();
+  const undo = new UndoLog(action);
   const effects = noEffects();
   const rollBack = async (change: number | undefined, reason: string) => {
     const { effects, unknown, kept, trashed, unlisted } = await undo
@@ -2365,6 +2375,7 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
         deletedAt: m.deletedAt,
         entries: m.entries,
         ...(m.folders?.length ? { folders: m.folders } : {}),
+        ...(m.reason?.kind === "failed-edit" ? { reason: m.reason } : {}),
       });
     } catch {
     }

@@ -1,0 +1,61 @@
+text.source.sparkdown [0..105]
+ ├─ meta.function.luau [0..13]
+ │   ├─ keyword.control.define.luau [0..6]: "define"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..8]: "d"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   └─ keyword.control.as.luau [9..13]: "with"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.function.luau [14..39]
+ │   └─ meta.embedded.block.luau [14..39]
+ │       ├─ punctuation.whitespace.extra.sd [14..16]: "  "
+ │       ├─ variable.other.readwrite.luau [16..24]: "x@define"
+ │       ├─ punctuation.whitespace.extra.sd [24..25]: " "
+ │       ├─ variable.other.readwrite.luau [25..26]: "e"
+ │       ├─ punctuation.whitespace.extra.sd [26..27]: " "
+ │       ├─ variable.other.readwrite.luau [27..31]: "with"
+ │       ├─ punctuation.whitespace.extra.sd [31..32]: " "
+ │       ├─ entity.name.function.luau [32..37]: "greet"
+ │       └─ meta.parameter.luau [37..39]
+ │           ├─ punctuation.definition.template-expression.begin.sd [37..38]: "("
+ │           └─ punctuation.definition.template-expression.end.sd [38..39]: ")"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.function.luau [40..43]
+ │   └─ meta.embedded.block.luau [40..43]
+ │       └─ keyword.control.end.luau [40..43]: "end"
+ ├─ Newline [43..44]: "\n"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.function.luau [45..58]
+ │   ├─ keyword.control.define.luau [45..51]: "define"
+ │   ├─ punctuation.whitespace.optional.sd [51..52]: " "
+ │   ├─ entity.name.type.define.luau [52..53]: "d"
+ │   ├─ punctuation.whitespace.optional.sd [53..54]: " "
+ │   └─ keyword.control.as.luau [54..58]: "with"
+ ├─ Newline [58..59]: "\n"
+ ├─ meta.function.luau [59..70]
+ │   └─ meta.embedded.block.luau [59..70]
+ │       ├─ punctuation.whitespace.optional.sd [59..61]: "  "
+ │       ├─ variable.other.readwrite.luau [61..66]: "value"
+ │       ├─ punctuation.whitespace.optional.sd [66..67]: " "
+ │       ├─ keyword.operator.assignment.luau [67..68]: "="
+ │       ├─ punctuation.whitespace.optional.sd [68..69]: " "
+ │       └─ constant.numeric.decimal.luau [69..70]: "1"
+ ├─ Newline [70..71]: "\n"
+ ├─ meta.function.luau [71..100]
+ │   └─ meta.embedded.block.luau [71..100]
+ │       ├─ punctuation.whitespace.extra.sd [71..73]: "  "
+ │       ├─ variable.other.readwrite.luau [73..81]: "x@define"
+ │       ├─ punctuation.whitespace.extra.sd [81..82]: " "
+ │       ├─ variable.other.readwrite.luau [82..83]: "e"
+ │       ├─ punctuation.whitespace.extra.sd [83..84]: " "
+ │       ├─ variable.other.readwrite.luau [84..88]: "with"
+ │       ├─ punctuation.whitespace.extra.sd [88..89]: " "
+ │       ├─ entity.name.function.luau [89..94]: "greet"
+ │       ├─ meta.parameter.luau [94..96]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [94..95]: "("
+ │       │   └─ punctuation.definition.template-expression.end.sd [95..96]: ")"
+ │       ├─ punctuation.whitespace.optional.sd [96..97]: " "
+ │       └─ keyword.control.end.luau [97..100]: "end"
+ ├─ Newline [100..101]: "\n"
+ ├─ keyword.control.end.luau [101..104]: "end"
+ └─ Newline [104..105]: "\n"

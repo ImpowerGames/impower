@@ -1,0 +1,4 @@
+function f(y)
+  local a,
+    x@local , b :: number = 1, 2
+end

@@ -1,0 +1,7 @@
+function f()
+  mia@function foo(a) end
+end
+
+function f()
+  mia@function foo(a)
+end

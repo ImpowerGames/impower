@@ -35,7 +35,8 @@ function tableKeys(pattern: RegExp): string[] {
 }
 
 function grammarBuiltins(): string[] {
-  const m = /\\\\b\(([a-z0-9_|]+)\)\(\?!/.exec(GRAMMAR);
+  const match: string = JSON.parse(GRAMMAR).repository.BuiltinComponentName.match;
+  const m = /\(([a-z0-9_|]+)\)/.exec(match);
   if (!m) throw new Error("builtin-name alternation not found in grammar");
   return m[1]!.split("|");
 }

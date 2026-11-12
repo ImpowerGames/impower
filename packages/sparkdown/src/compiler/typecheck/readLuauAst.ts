@@ -95,6 +95,7 @@ import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { scopeOf } from "../utils/declarationOnly";
 import { RootLocals } from "../utils/rootLocals";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
+import { luauNameAtStart } from "../utils/luauName";
 
 export interface LuauSyntaxError {
   location: Location;
@@ -310,6 +311,7 @@ interface Token {
   unread?: true;
   lexemesOf?: { token: Token; count: number };
   broken?: true;
+  malformedName?: { to: number; text: string; location: Location };
   section?: true;
   openInterpolations?: number[];
   written?: true;
@@ -534,6 +536,14 @@ class Tokenizer {
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     if (kind === "symbol" && this.text.slice(from, to) === "@") kind = "attribute";
     const last = this.tokens[this.tokens.length - 1];
+    const strayAfterName = last !== undefined && to > from && (last.malformedName
+      ? last.malformedName.to === from && NAME_RUN_KINDS.has(kind)
+      : last.to === from && kind === "attribute" && (last.kind === "name" || last.kind === "keyword"));
+    if (strayAfterName) {
+      const malformedName = { to, text: this.text.slice(last.from, to), location: this.location(last.from, to) };
+      this.tokens[this.tokens.length - 1] = { ...last, malformedName };
+      return;
+    }
     if (last?.kind === "attribute" && last.text === "@" && last.to === from && to > from) {
       const text = this.text.slice(from, to);
       const glued: TokenKind | undefined = kind === "name" || kind === "keyword" ? "attribute" : kind === "symbol" && text === "[" ? "attributeOpen" : undefined;
@@ -815,7 +825,7 @@ class Tokenizer {
     const begin = at === this.tokens.length ? from : this.tokens[at]!.from;
     if (!breaksAcrossLine(this.text.slice(before.to, begin))) return;
     if (at === this.tokens.length) {
-      this.push("break", from, from + /^[A-Za-z_][A-Za-z0-9_]*/.exec(text)![0].length);
+      this.push("break", from, from + luauNameAtStart(text)!.length);
       return;
     }
     this.tokens.splice(at, 0, { kind: "break", text: "", from: begin, to: begin, location: this.location(begin, begin), source: this.source });
@@ -945,10 +955,10 @@ class Tokenizer {
       this.push("string", i, end);
       return end;
     }
-    const name = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i, to));
+    const name = luauNameAtStart(text.slice(i, to));
     if (name) {
-      this.push(KEYWORDS.has(name[0]) ? "keyword" : "name", i, i + name[0].length);
-      return i + name[0].length;
+      this.push(KEYWORDS.has(name) ? "keyword" : "name", i, i + name.length);
+      return i + name.length;
     }
     const number = /^(?:0[xXbB][0-9A-Za-z_]*|(?:[0-9][0-9_]*\.?[0-9_]*|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]*)?[0-9A-Za-z_]*)/.exec(text.slice(i, to));
     if (number && /^\.?[0-9]/.test(text.slice(i, i + 2))) {
@@ -1272,6 +1282,10 @@ class FatalReadError extends Error {
   }
 }
 
+const AT_NAME_RULE = "a name may hold an '@' only between two letters, digits or '_'";
+
+const NAME_RUN_KINDS = new Set<TokenKind>(["attribute", "name", "keyword", "number"]);
+
 const ATTRIBUTES = new Map<string, AstAttrType>([
   ["checked", AstAttrType.Checked],
   ["native", AstAttrType.Native],
@@ -1360,6 +1374,7 @@ class Parser {
   private endMismatchSuspect: Token | undefined;
   private readonly statementSpans: StatementSpan[][] = [];
   private readonly errorsAtUnread = new Set<number>();
+  private readonly malformedNamesRead = new Set<number>();
   readonly unreadStatements: { from: number; to: number }[] = [];
 
   recordDepth = -1;
@@ -1398,6 +1413,10 @@ class Parser {
   private next(): void {
     const token = this.tokens[this.pos];
     if (token) {
+      if (token.malformedName && !this.malformedNamesRead.has(token.from)) {
+        this.malformedNamesRead.add(token.from);
+        this.report(token.malformedName.location, `'${token.malformedName.text}' is not a name: ${AT_NAME_RULE}`);
+      }
       this.previous = token.location;
       this.pos++;
     }
@@ -3416,10 +3435,12 @@ class Parser {
 
   private parseNameOpt(context?: string, malformed?: MalformedConstruct): Name | undefined {
     if (!this.isName()) {
-      const got = describe(this.rejected());
+      const rejected = this.rejected();
+      const atName = rejected.kind === "attribute" && rejected.text.length > 1 && !ATTRIBUTES.has(rejected.text.slice(1));
+      const got = atName ? `'${rejected.text}': ${AT_NAME_RULE}` : describe(rejected);
       const message = context !== undefined ? `Expected identifier when parsing ${context}, got ${got}` : `Expected identifier, got ${got}`;
       this.report(this.current().location, message, this.nameMalformed(malformed));
-      return undefined;
+      if (!atName) return undefined;
     }
     const result = { name: this.current().text, location: this.current().location };
     this.next();
@@ -3945,6 +3966,7 @@ function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefine
       continue;
     }
     parts.push(`${token.kind}${token.unread ? " unread" : ""} ${token.location.begin}-${token.location.end} ${token.text}`);
+    if (token.malformedName) parts.push(`malformed ${token.malformedName.location.begin}-${token.malformedName.location.end} ${token.malformedName.text}`);
     if (token.node) parts.push(nodeShape(token.node));
   }
   for (const comment of tokenizer.hotcomments) parts.push(`--! ${comment.header} ${comment.location.begin}-${comment.location.end} ${comment.content}`);
@@ -4095,7 +4117,7 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
     if (previous && previous.to > previous.from && previous.to < token.from && (previous.source >= 0 || token.source >= 0)) {
       const at = storyBetween(tree, tokenizer.text, previous.to, token.from);
       if (at !== undefined) {
-        const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(tokenizer.text.slice(at, token.from))?.[0] ?? tokenizer.text[at]!;
+        const word = luauNameAtStart(tokenizer.text.slice(at, token.from)) ?? tokenizer.text[at]!;
         tokens.push({ kind: "break", text: word, from: at, to: at + word.length, location: tokenizer.location(previous.to, previous.to), source: -1, story: true });
       }
     }

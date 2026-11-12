@@ -112,6 +112,13 @@ const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
 const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
+const NAME_AT = "";
+
+const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
+
+const markNameAts = (piece: string) =>
+  piece.replace(NAME_RUN_REGEX, (_, before: string, run: string) => before + run.replace(/@(?=[\p{L}\p{N}_])/gu, NAME_AT));
+
 export function getCSSSelector(
   selector: string,
   breakpoints: Record<string, number>,
@@ -138,14 +145,15 @@ export function getCSSSelector(
       continue;
     }
 
-    let rewritten = piece
-      .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
+    let rewritten = markNameAts(piece)
+      .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
       .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
       .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
       .replace(DESCENDANT_REGEX, " ")
       .replace(PSEUDO_ALIAS_REGEX, (m) =>
         m in PSEUDO_ALIASES ? (PSEUDO_ALIASES as any)[m] : ":" + m.slice(1),
-      );
+      )
+      .replaceAll(NAME_AT, "\\@");
 
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);

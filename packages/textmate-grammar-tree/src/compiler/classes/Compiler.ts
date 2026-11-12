@@ -7,7 +7,10 @@ import { Grammar } from "../../grammar";
 import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { SpecialRecord } from "../enums/SpecialRecord";
+import type { IReusedRecords } from "../types/IReusedRecords";
 import type { ITreeBuffer } from "../types/ITreeBuffer";
+
+export type ReusedNode = ITreeBuffer | IReusedRecords;
 import { Chunk } from "./Chunk";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
@@ -18,6 +21,10 @@ export const FINISH_INCOMPLETE_NODES = true;
 export const COMPILER_ARRAY_INTERVAL = 32768;
 
 export const DEFAULT_MAX_TREE_BUFFER_LENGTH = 1024;
+
+const RUN_PENDING = -1;
+
+const IN_RUN = -1;
 
 type ChunkRecord = {
   from: number;
@@ -52,6 +59,74 @@ function sameChunk(chunk: Chunk, record: ChunkRecord): boolean {
   return true;
 }
 
+function settledChunk(chunks: Chunk[]): { index: number; chunk?: Chunk } {
+  let index = chunks.length;
+  while (index > 0 && chunks[index - 1]!.compilerNodeCount === IN_RUN) {
+    index--;
+  }
+  return { index, chunk: chunks[index - 1] };
+}
+
+function cachedRunEnd(chunks: Chunk[], start: number): number {
+  const first = chunks[start]!;
+  const cached = first.run;
+  if (!cached || start + cached.members.length > chunks.length) {
+    return -1;
+  }
+  for (let k = 0; k < cached.members.length; k++) {
+    const chunk = chunks[start + k]!;
+    if (
+      cached.members[k] !== chunk ||
+      cached.stamps[k * 2] !== chunk.version ||
+      cached.stamps[k * 2 + 1] !== chunk.from - first.from
+    ) {
+      return -1;
+    }
+  }
+  return start + cached.members.length - 1;
+}
+
+function runRecords(members: readonly Chunk[]): Int32Array {
+  const first = members[0]!;
+  let length = 0;
+  for (const chunk of members) {
+    length += chunk.nodeCount * 4;
+  }
+  const records = new Int32Array(length);
+  let at = 0;
+  for (const chunk of members) {
+    const base = chunk.from - first.from;
+    const compiled = chunk.compiled;
+    for (let j = 0; j < chunk.nodeCount * 4; j += 4) {
+      records[at] = compiled[j]!;
+      records[at + 1] = compiled[j + 1]! + base;
+      records[at + 2] = compiled[j + 2]! + base;
+      records[at + 3] = compiled[j + 3]!;
+      at += 4;
+    }
+  }
+  return records;
+}
+
+function runReused(chunks: Chunk[], start: number, end: number): IReusedRecords {
+  const first = chunks[start]!;
+  if (cachedRunEnd(chunks, start) === end) {
+    return first.run!.reused;
+  }
+  const members = chunks.slice(start, end + 1);
+  const stamps = new Int32Array(members.length * 2);
+  for (let k = 0; k < members.length; k++) {
+    stamps[k * 2] = members[k]!.version;
+    stamps[k * 2 + 1] = members[k]!.from - first.from;
+  }
+  const reused: IReusedRecords = {
+    records: () => runRecords(members),
+    length: chunks[end]!.to - first.from,
+  };
+  first.run = { members, stamps, reused };
+  return reused;
+}
+
 let lastReuseEpoch = 0;
 
 type JournalKind = "snapshot" | "parse";
@@ -71,7 +146,7 @@ export class CompilerJournal {
     readonly pendingSplits: ReturnType<Packet["scheduledSplits"]>,
     readonly compiled: Int32Array,
     readonly nodeCount: number,
-    readonly reused: ITreeBuffer[],
+    readonly reused: ReusedNode[],
     readonly index: number,
     readonly reparsedFrom: number | undefined,
     readonly reparsedTo: number | undefined,
@@ -88,7 +163,7 @@ export class Compiler {
   declare packet: Packet;
   declare compiled: Int32Array;
   declare nodeCount: number;
-  declare reused: ITreeBuffer[];
+  declare reused: ReusedNode[];
   declare index: number;
   declare reparsedFrom?: number;
   declare reparsedTo?: number;
@@ -108,19 +183,19 @@ export class Compiler {
     grammar: Grammar,
     packet?: Packet,
     compiled?: Int32Array,
-    reused?: ITreeBuffer[],
+    reused?: ReusedNode[],
   ) {
     this.grammar = grammar;
     this.packet = packet || new Packet([]);
     this.compiled = compiled || new Int32Array(COMPILER_ARRAY_INTERVAL);
+    const settled = packet ? settledChunk(packet.chunks) : null;
     this.reused =
-      packet && reused ? reused.slice(0, packet.compilerReusedCount) : [];
-    this.nodeCount = packet && compiled ? (packet.compilerNodeCount ?? 0) : 0;
-    this.maxTreeBufferLength =
-      packet && compiled
-        ? (packet.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH)
-        : DEFAULT_MAX_TREE_BUFFER_LENGTH;
-    this.index = packet && compiled ? packet.chunks.length : 0;
+      packet && reused ? reused.slice(0, settled?.chunk?.compilerReusedCount) : [];
+    this.nodeCount = compiled ? (settled?.chunk?.compilerNodeCount ?? 0) : 0;
+    this.maxTreeBufferLength = compiled
+      ? (settled?.chunk?.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH)
+      : DEFAULT_MAX_TREE_BUFFER_LENGTH;
+    this.index = compiled ? (settled?.index ?? 0) : 0;
   }
 
   get done() {
@@ -128,6 +203,7 @@ export class Compiler {
   }
 
   reset() {
+    this.runScan = undefined;
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.packet = new Packet([]);
     this.index = 0;
@@ -136,17 +212,19 @@ export class Compiler {
   }
 
   rewind(index: number) {
+    this.runScan = undefined;
     const { left, right } = this.packet.split(index);
     this.packet = left;
-    this.index = left.chunks.length;
-    this.nodeCount = left.compilerNodeCount ?? 0;
+    const settled = settledChunk(left.chunks);
+    this.index = settled.index;
+    this.nodeCount = settled.chunk?.compilerNodeCount ?? 0;
     if (this._journal) {
-      this.reused = this.reused.slice(0, left.compilerReusedCount ?? 0);
+      this.reused = this.reused.slice(0, settled.chunk?.compilerReusedCount ?? 0);
     } else {
-      this.reused.length = left.compilerReusedCount ?? 0;
+      this.reused.length = settled.chunk?.compilerReusedCount ?? 0;
     }
     this.maxTreeBufferLength =
-      left.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH;
+      settled.chunk?.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH;
     this.reparsedFrom = left.last?.to ?? 0;
     return right;
   }
@@ -207,6 +285,7 @@ export class Compiler {
       return;
     }
     this._journal = undefined;
+    this.runScan = undefined;
     for (let i = journal.undo.length - 1; i >= 0; i--) {
       journal.undo[i]!();
     }
@@ -254,17 +333,33 @@ export class Compiler {
     journal.savedFrom = idx;
   }
 
-  protected journalStep(chunk: Chunk) {
-    const nodeCount = chunk.compilerNodeCount;
-    const reusedCount = chunk.compilerReusedCount;
-    const maxTreeBufferLength = chunk.compilerMaxTreeBufferLength;
-    const treeBuffer = chunk.treeBuffer;
-    this._journal!.undo.push(() => {
-      chunk.compilerNodeCount = nodeCount;
-      chunk.compilerReusedCount = reusedCount;
-      chunk.compilerMaxTreeBufferLength = maxTreeBufferLength;
-      chunk.treeBuffer = treeBuffer;
-    });
+  protected settleStep(
+    chunk: Chunk,
+    nodeCount: number,
+    reusedCount: number,
+    maxTreeBufferLength: number,
+    treeBufferBefore: Chunk["treeBuffer"],
+  ) {
+    const nodeCountBefore = chunk.compilerNodeCount;
+    const reusedCountBefore = chunk.compilerReusedCount;
+    const maxTreeBufferLengthBefore = chunk.compilerMaxTreeBufferLength;
+    if (
+      this._journal &&
+      (nodeCountBefore !== nodeCount ||
+        reusedCountBefore !== reusedCount ||
+        maxTreeBufferLengthBefore !== maxTreeBufferLength ||
+        treeBufferBefore !== chunk.treeBuffer)
+    ) {
+      this._journal.undo.push(() => {
+        chunk.compilerNodeCount = nodeCountBefore;
+        chunk.compilerReusedCount = reusedCountBefore;
+        chunk.compilerMaxTreeBufferLength = maxTreeBufferLengthBefore;
+        chunk.treeBuffer = treeBufferBefore;
+      });
+    }
+    chunk.compilerNodeCount = nodeCount;
+    chunk.compilerReusedCount = reusedCount;
+    chunk.compilerMaxTreeBufferLength = maxTreeBufferLength;
   }
 
   protected journalContent(chunk: Chunk) {
@@ -282,6 +377,7 @@ export class Compiler {
     const stackLength = stack.length;
     const entriesCopy = entries.slice(0, stackLength * 3);
     journal.undo.push(() => {
+      chunk.version++;
       chunk.to = to;
       chunk.length = length;
       chunk.nodeCount = nodeCount;
@@ -306,8 +402,8 @@ export class Compiler {
   protected journalFixup(chunk: Chunk) {
     const seeds = chunk.entrySeeds;
     const seedChildren = seeds?.children.slice();
-    const openedAtAbs = chunk.resume?.openedAtAbs;
-    const frameOpenings = openedAtAbs?.slice();
+    const openedAt = chunk.resume?.openedAt;
+    const frameOpenings = openedAt?.slice();
     const compiled = chunk.compiled;
     const closes = chunk.inheritedCloseRecords?.map((rec) => [
       rec.offset,
@@ -317,10 +413,11 @@ export class Compiler {
     const stack = chunk.stack;
     const entriesCopy = stack.entries.slice(0, stack.length * 3);
     this._journal!.undo.push(() => {
+      chunk.version++;
       if (seeds) {
         seedChildren!.forEach((n, i) => (seeds.children[i] = n));
       }
-      frameOpenings?.forEach((n, i) => (openedAtAbs![i] = n));
+      frameOpenings?.forEach((n, i) => (openedAt![i] = n));
       for (const [offset, position, size] of closes ?? []) {
         compiled[offset! + 1] = position!;
         compiled[offset! + 3] = size!;
@@ -371,7 +468,7 @@ export class Compiler {
     if (splitBehind.index != null) {
       const right = this.rewind(splitBehind.index);
       const from = splitBehind.chunk?.from ?? 0;
-      this.resumeState = splitBehind.chunk?.resume;
+      this.resumeState = splitBehind.chunk?.absoluteResume();
       if (splitBehind.chunk) {
         const chunk = splitBehind.chunk;
         const resume = chunk.resume;
@@ -484,6 +581,7 @@ export class Compiler {
       if (this._journal) {
         this.journalFixup(chunk);
       }
+      chunk.version++;
       const prefix = Math.min(m, seeds.ids.length);
       for (let i = 0; i < prefix; i++) {
         seeds.children[i]! += deltas[i]!;
@@ -499,9 +597,9 @@ export class Compiler {
             break;
           }
         }
-        const openedAtAbs = chunk.resume.openedAtAbs;
-        for (let i = 0; i < groups && i < openedAtAbs.length; i++) {
-          openedAtAbs[i] = frameOpenPositions[i]!;
+        const openedAt = chunk.resume.openedAt;
+        for (let i = 0; i < groups && i < openedAt.length; i++) {
+          openedAt[i] = frameOpenPositions[i]! - chunk.from;
         }
       }
       let mNext = m;
@@ -546,11 +644,17 @@ export class Compiler {
       ? this.packet.chunks.length
       : this.packet.chunks.length - 1;
     if (this.index < limit) {
-      const chunk = this.packet.chunks[this.index]!;
-      if (this._journal) {
-        this.journalStep(chunk);
+      const runEnd = this.runEnd(this.index, limit, force);
+      if (runEnd === RUN_PENDING) {
+        return false;
+      }
+      if (runEnd > this.index) {
+        this.stepRun(this.index, runEnd);
+        return true;
       }
 
+      const chunk = this.packet.chunks[this.index]!;
+      const treeBufferBefore = chunk.treeBuffer;
       const treeBuffer = chunk.tryForTreeBuffer();
       if (treeBuffer) {
         this.emitTreeBuffer(chunk, treeBuffer);
@@ -565,14 +669,110 @@ export class Compiler {
         }
       }
 
-      chunk.compilerNodeCount = this.nodeCount;
-      chunk.compilerReusedCount = this.reused.length;
-      chunk.compilerMaxTreeBufferLength = this.maxTreeBufferLength;
+      this.settleStep(
+        chunk,
+        this.nodeCount,
+        this.reused.length,
+        this.maxTreeBufferLength,
+        treeBufferBefore,
+      );
 
       this.index++;
       return true;
     }
     return false;
+  }
+
+  protected runScan?: {
+    chunks: Chunk[];
+    start: Chunk;
+    next: number;
+    counted: Chunk;
+    length: number;
+  };
+
+  protected cachedRun?: Chunk;
+
+  private runEnd(start: number, limit: number, force: boolean): number {
+    this.cachedRun = undefined;
+    const chunks = this.packet.chunks;
+    const first = chunks[start]!;
+    if (!first.startsPure || first.endsPure) {
+      return start;
+    }
+    const cachedEnd = cachedRunEnd(chunks, start);
+    if (cachedEnd >= 0 && cachedEnd < limit) {
+      this.cachedRun = first;
+      return cachedEnd;
+    }
+    const scan = this.runScan;
+    let next = start + 1;
+    let length = first.nodeCount * 4;
+    if (
+      scan &&
+      scan.chunks === chunks &&
+      scan.start === first &&
+      scan.next <= chunks.length &&
+      chunks[scan.next - 1] === scan.counted
+    ) {
+      next = scan.next;
+      length = scan.length;
+    }
+    this.runScan = undefined;
+    for (let i = next; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
+      if (chunk.startsPure) {
+        return start;
+      }
+      if (i >= limit) {
+        this.runScan = { chunks, start: first, next: i, counted: chunks[i - 1]!, length };
+        return RUN_PENDING;
+      }
+      length += chunk.nodeCount * 4;
+      if (chunk.endsPure) {
+        return chunk.stack.length === 0 && length > 0 ? i : start;
+      }
+    }
+    if (force) {
+      return start;
+    }
+    this.runScan = {
+      chunks,
+      start: first,
+      next: chunks.length,
+      counted: chunks[chunks.length - 1]!,
+      length,
+    };
+    return RUN_PENDING;
+  }
+
+  private stepRun(start: number, end: number) {
+    const chunks = this.packet.chunks;
+    const first = chunks[start]!;
+    const last = chunks[end]!;
+    const reused =
+      this.cachedRun === first ? first.run!.reused : runReused(chunks, start, end);
+    this.cachedRun = undefined;
+    this.emitNode(this.reused.length, first.from, last.to, SpecialRecord.Reuse);
+    this.reused.push(reused);
+    for (let i = start; i < end; i++) {
+      const chunk = chunks[i]!;
+      if (
+        chunk.compilerNodeCount !== IN_RUN ||
+        chunk.compilerReusedCount !== IN_RUN ||
+        chunk.compilerMaxTreeBufferLength !== IN_RUN
+      ) {
+        this.settleStep(chunk, IN_RUN, IN_RUN, IN_RUN, chunk.treeBuffer);
+      }
+    }
+    this.settleStep(
+      last,
+      this.nodeCount,
+      this.reused.length,
+      this.maxTreeBufferLength,
+      last.treeBuffer,
+    );
+    this.index = end + 1;
   }
 
   private emitTreeBuffer(chunk: Chunk, treeBuffer: ITreeBuffer) {
@@ -609,7 +809,7 @@ export class Compiler {
 
   finish(length: number): {
     cursor: FlatBufferCursor;
-    reused: ITreeBuffer[];
+    reused: ReusedNode[];
     maxBufferLength: number;
   } | null {
     if (!this.packet.chunks.length) {

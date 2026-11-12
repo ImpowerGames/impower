@@ -2,7 +2,7 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { linkedTypes } from "./getReferences";
 
-export const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*$/u;
+export const NAME_REGEX = /^[_\p{L}][_\p{L}\p{N}]*(?:@[_\p{L}\p{N}]+)*$/u;
 
 const IGNORED_DECLARATIONS = new Set(["end", "param"]);
 
@@ -19,7 +19,7 @@ export const getRenameRefusal = (
   resolvedSymbolIds: readonly string[] | undefined,
 ): string | null => {
   if (!NAME_REGEX.test(newName)) {
-    return `${newName || "An empty name"} is not a valid name. A name starts with a letter or _ and has only letters, digits and _.`;
+    return `${newName || "An empty name"} is not a valid name. A name starts with a letter or _ and has only letters, digits and _, with an @ allowed between two of them.`;
   }
   if (newName === currentName) {
     return null;

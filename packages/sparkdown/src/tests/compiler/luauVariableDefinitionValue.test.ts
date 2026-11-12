@@ -37,9 +37,11 @@ describe("the two declaration rules", () => {
     const luau = repository["LuauVariableDefinition"]!;
     const narrative = repository["LuauSparkdownVariableDefinition"]!;
     const ws = "((?:[^\\S\\n\\r])*)";
-    expect(luau.begin!.startsWith(`${ws}((?:local\\b|(?:(?:(?:store|const)\\b)(?:(?=`)).toBe(true);
+    const start = "(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)";
+    const end = "(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))";
+    expect(luau.begin!.startsWith(`${ws}((?:local${end}|(?:(?:(?:store|const)${end})(?:(?=`)).toBe(true);
     expect(luau.begin!.endsWith(`)${ws}`)).toBe(true);
-    expect(narrative.begin!.startsWith(`${ws}(\\b(?:store|local|const)\\b)\\b${ws.slice(0, -1)}`)).toBe(true);
+    expect(narrative.begin!.startsWith(`${ws}(${start}(?:store|local|const)${end})${end}${ws.slice(0, -1)}`)).toBe(true);
     expect(narrative.begin!.endsWith(")*)")).toBe(true);
     const captures = (rule: typeof luau) => rule.beginCaptures as Record<string, { patterns: Patterns }>;
     expect({ ...captures(narrative), 3: { ...captures(narrative)[3], patterns: captures(narrative)[3]!.patterns.slice(1) } }).toEqual(

@@ -4,8 +4,8 @@ Total cases: 95
 
 ## Summary by axis
 
-- pass: 18
-- mismatch: 4
+- pass: 19
+- mismatch: 3
 - incomplete: 0
 - capture-model: 0
 - while-rule: 16
@@ -15,7 +15,7 @@ Total cases: 95
 
 ## Per-case
 
-### pass (18)
+### pass (19)
 - first-mate#0 [fixtures/hello.json] TEST #3
 - first-mate#2 [fixtures/coffee-script.json] TEST #5
 - first-mate#3 [fixtures/text.json] TEST #6
@@ -34,12 +34,12 @@ Total cases: 95
 - first-mate#63 [fixtures/loops.json] TEST #74
 - suite1#9 [fixtures/testlang12.plist] Issue #12
 - suite1#16 [fixtures/105.grammarA.json] Issue #105
+- suite1#19 [fixtures/147.grammar.json] Issue #147
 
-### mismatch (4)
+### mismatch (3)
 - first-mate#14 [fixtures/content-name.json] TEST #17 — line 3 "#endif": token[1] missing (expected "" ["source.test","all"])
 - first-mate#21 [fixtures/apply-end-pattern-last.json] TEST #24 — line 2 "{ some }excentricSyntax }": token[0] value got "{ some " want "{"
 - first-mate#30 [fixtures/imaginary.json] TEST #33 — line 1 "// a singleLineComment": token[2] missing (expected "" ["source.imaginaryLanguage","comment-body"])
-- suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
 ### while-rule (16)
 - first-mate#1 [fixtures/coffee-script.json] TEST #4 — Invalid RegExp: (?x)

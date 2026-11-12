@@ -5,6 +5,8 @@ import {
   ApplyWorkspaceEditMessage,
   ApplyWorkspaceEditResult,
   WorkspaceEdit,
+  WorkspaceEditMetadata,
+  WorkspaceEditRollback,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { ConfirmWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfirmWorkspaceEditMessage";
@@ -1077,8 +1079,11 @@ export default class WorkspaceFileSystem {
     };
   }
 
-  protected async putBackScripts(collected: ReferenceEdits): Promise<string[]> {
+  protected async putBackScripts(
+    collected: ReferenceEdits,
+  ): Promise<{ notes: string[]; rollbacks: WorkspaceEditRollback[] }> {
     const notes: string[] = [];
+    const rollbacks: WorkspaceEditRollback[] = [];
     for (const change of collected.texts) {
       const uri = change.textDocument.uri;
       const before = collected.scripts.get(uri)!;
@@ -1111,9 +1116,12 @@ export default class WorkspaceFileSystem {
             ],
           },
           `Put back ${leafOf(uri)}`,
-          undefined,
+          { action: { kind: "put-back", targets: [uri] } },
           { [uri]: written },
         );
+        if (restored.rollback) {
+          rollbacks.push(restored.rollback);
+        }
         if (!restored.applied) {
           notes.push(`${leafOf(uri)} changed before its lines could be put back, so it was left as it is (${restored.failureReason ?? "not saved"}); check it.`);
         } else if (normalized(await this.getFileText(uri)) !== before) {
@@ -1123,7 +1131,7 @@ export default class WorkspaceFileSystem {
         notes.push(`The lines in ${leafOf(uri)} could not be put back (${reasonOf(error)}).`);
       }
     }
-    return notes;
+    return { notes, rollbacks };
   }
 
   async renameFilesWithReferences(
@@ -1203,13 +1211,19 @@ export default class WorkspaceFileSystem {
         ],
       },
       `Rename ${name}`,
-      { isRefactoring: true },
+      {
+        isRefactoring: true,
+        action: {
+          kind: "rename",
+          targets: renames.map(({ from }) => this.getFileUri(projectId, from)),
+        },
+      },
       Object.fromEntries(collected.scripts),
     );
     if (!result.applied) {
       const reason = result.failureReason ?? "the change was not saved";
       const kept = new Set(result.rollback?.kept ?? []);
-      const scripts = await this.putBackScripts({
+      const putBack = await this.putBackScripts({
         ...collected,
         texts: collected.texts.filter((change) => !kept.has(change.textDocument.uri)),
       });
@@ -1222,17 +1236,27 @@ export default class WorkspaceFileSystem {
         renames.filter((move) => !touchesKept(move.from) && !touchesKept(move.to)),
         before,
         `Couldn't rename ${name}: ${reason}.`,
+        result.rollback,
       );
-      const relative = (uris: string[]) =>
-        uris.map((uri) => this.getRelativePath(projectId, uri));
+      const rollbacks = [
+        ...(result.rollback ? [result.rollback] : []),
+        ...putBack.rollbacks,
+      ];
+      const relative = (pick: (rollback: WorkspaceEditRollback) => string[] | undefined) => [
+        ...new Set(
+          rollbacks.flatMap((rollback) =>
+            (pick(rollback) ?? []).map((uri) => this.getRelativePath(projectId, uri)),
+          ),
+        ),
+      ];
       throw Object.assign(
-        new Error([files.message, ...scripts].join(" ")),
-        result.rollback && {
+        new Error([files.message, ...putBack.notes].join(" ")),
+        rollbacks.length > 0 && {
           rollback: {
-            complete: result.rollback.complete,
-            failed: relative(result.rollback.failed),
-            kept: relative(result.rollback.kept),
-            trashed: relative(result.rollback.trashed ?? []),
+            complete: rollbacks.every((rollback) => rollback.complete),
+            failed: relative((rollback) => rollback.failed),
+            kept: relative((rollback) => rollback.kept),
+            trashed: relative((rollback) => rollback.trashed),
           },
         },
       );
@@ -1388,7 +1412,7 @@ export default class WorkspaceFileSystem {
   async applyWorkspaceEdit(
     edit: WorkspaceEdit,
     label?: string,
-    metadata?: { isRefactoring?: boolean },
+    metadata?: WorkspaceEditMetadata,
     expectedTexts?: Record<string, string>,
     confirm?: () => Promise<string | undefined>,
   ): Promise<ApplyWorkspaceEditResult> {
