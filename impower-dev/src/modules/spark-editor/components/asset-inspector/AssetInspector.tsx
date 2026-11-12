@@ -32,6 +32,8 @@ import { imageStacks, isStacked } from "../../utils/imageStacks";
 import { defaultForm, variantOf, type VariantForm, type VariantSelection } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
 import { assetsHome } from "../../workspace/assetsListing";
+import { usedAs, usesOf } from "../../workspace/assetUsage";
+import { usageGroups } from "../../workspace/WorkspaceSearch";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
@@ -344,8 +346,21 @@ export default function AssetInspector({
       );
   };
 
+  const projectId = workspace.signals.projectId.value;
+  const counted = workspace.assetUsage.value;
+  const countFailed = workspace.assetUsageFailed.value === projectId;
+  const assetUses = useMemo(
+    () => (counted?.projectId === projectId ? usesOf(counted, asset.files.map((file) => file.path)) : null),
+    [counted, projectId, filesKey],
+  );
+  const uses = useMemo(
+    () => (assetUses ? usageGroups(assetUses) : countFailed ? null : undefined),
+    [assetUses, countFailed],
+  );
+
   const rows = assetDetails({
     asset,
+    usedAs: assetUses ? usedAs(assetUses) : [],
     home: assetsHome(workspace.assetListing.value ?? EMPTY_LISTING),
     folders: addMenuFolders(projectSettings),
     measured: {
@@ -354,7 +369,6 @@ export default function AssetInspector({
     },
   });
 
-  const uses = facts?.uses;
   const form =
     chosenForm ??
     defaultForm({

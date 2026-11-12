@@ -24,6 +24,7 @@ import type { ReplaceProjectRequest } from "./replaceProject";
 import { takeImportOutcome } from "./projectImport";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
+import type { AssetUsage } from "./assetUsage";
 import type { ImageSize } from "../utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
 import type { UploadRow } from "./uploadSession";
@@ -219,6 +220,10 @@ class WorkspaceStore {
   readonly assetListing = signal<AssetListing | null>(null);
 
   readonly assetSizes = signal<Readonly<Record<string, ImageSize | null>>>({});
+
+  readonly assetUsage = signal<AssetUsage | null>(null);
+
+  readonly assetUsageFailed = signal<string | null>(null);
 
   readonly assetDurations = signal<Readonly<Record<string, number | null>>>({});
 

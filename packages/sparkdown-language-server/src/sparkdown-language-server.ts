@@ -39,7 +39,7 @@ import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { findWorkspaceText } from "./utils/providers/findWorkspaceText";
-import { getFileReferences } from "./utils/providers/getFileReferences";
+import { getAssetUsage, getFileReferences } from "./utils/providers/getFileReferences";
 import { getScriptReferences } from "./utils/providers/getScriptReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
@@ -397,6 +397,17 @@ try {
       const mainUri = workspace.getMainScriptUri(params.uri);
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  connection.onRequest(
+    "sparkdown/fileReferencesAll",
+    async (params: { uri: string }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      if (!mainUri) {
+        return null;
+      }
+      const program = workspace.program(mainUri) || (await workspace.compile(mainUri, false));
+      return getAssetUsage(workspace, program, mainUri);
     },
   );
   connection.onRequest(

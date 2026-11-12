@@ -65,7 +65,7 @@ function fakeWorkspace(paths: Record<string, string>, folders: string[] = []) {
     }),
     deleteFolder: vi.fn(async () => ({ files: [], folders: [] })),
   };
-  const ls = { getFileReferences: vi.fn(async (): Promise<unknown[]> => []) };
+  const ls = { getAssetUsage: vi.fn(async () => null) };
   const window = {
     recordScriptChange: vi.fn(async () => undefined),
     recordAssetChange: vi.fn(async () => undefined),

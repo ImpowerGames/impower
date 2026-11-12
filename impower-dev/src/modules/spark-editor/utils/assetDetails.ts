@@ -91,13 +91,18 @@ export const assetDetails = ({
   home,
   folders,
   measured = {},
+  usedAs = [],
 }: {
   asset: InspectedAsset;
+  usedAs?: readonly string[];
   home: string;
   folders: AddMenuFolders;
   measured?: MeasuredAsset;
 }): DetailRow[] => {
   const rows: DetailRow[] = [{ label: "Type", value: typeLine(asset) }];
+  if (usedAs.length) {
+    rows.push({ label: "Used as", value: usedAs.join(", ") });
+  }
   const addMenu = addMenuLine(asset.path, asset.type, folders);
   if (addMenu) {
     rows.push({ label: "Add menu", value: addMenu });
