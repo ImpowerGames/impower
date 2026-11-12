@@ -33,7 +33,7 @@ export default function SearchRail() {
             name="close"
             aria-label="Back to outline"
             title="Back to outline"
-            onClick={() => withSearch((search) => search.close())}
+            onClick={() => withSearch((search) => search.dismiss())}
           >
             <CloseIcon />
           </Button>

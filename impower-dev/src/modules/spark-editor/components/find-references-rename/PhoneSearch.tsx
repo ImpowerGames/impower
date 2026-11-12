@@ -11,6 +11,8 @@ import { withSearch } from "./withSearch";
 
 const close = () => withSearch((search) => search.close());
 
+const dismiss = () => withSearch((search) => search.dismiss());
+
 const openFromPanel = () => {};
 
 export default function PhoneSearch() {
@@ -34,21 +36,21 @@ export default function PhoneSearch() {
         presentation="bar"
         open
         onOpen={openFromPanel}
-        onClose={close}
+        onClose={dismiss}
       >
-        <ToolPanel open chrome="none" title={title} onClose={close}>
+        <ToolPanel open chrome="none" title={title} onClose={dismiss}>
           <PhoneFindBar />
         </ToolPanel>
       </ToolPanelRoot>
     ) : null;
   }
   return (
-    <ToolPanelRoot open onOpen={openFromPanel} onClose={close}>
+    <ToolPanelRoot open onOpen={openFromPanel} onClose={dismiss}>
       <ToolPanel
         open
         title={title}
         closeLabel={view === "references" ? "Close references" : "Close rename"}
-        onClose={close}
+        onClose={dismiss}
       >
         {view === "references" ? (
           <ReferencesView onOpened={close} />
