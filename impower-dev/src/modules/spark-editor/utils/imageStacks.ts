@@ -1,3 +1,4 @@
+import { imageFileNameOf, stackBaseOf, stackNameOf, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { byRasterOrder, rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { ATTRIBUTE_ROOT, buildAttributeVocabulary } from "@impower/sparkdown/src/attributes/vocabulary";
 
@@ -42,19 +43,6 @@ const folderOf = (path: string) => {
 };
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-
-export const stemOf = (path: string): string => {
-  const leaf = leafOf(path);
-  const dot = leaf.lastIndexOf(".");
-  return dot > 0 ? leaf.slice(0, dot) : leaf;
-};
-
-export const stackBaseOf = (path: string): string => stemOf(path).split(/[@~]/)[0]!;
-
-export const stackNameOf = (base: string): string => {
-  const dot = base.indexOf(".");
-  return dot > 0 ? base.slice(0, dot) : base;
-};
 
 export const AS_IS = "";
 
@@ -101,24 +89,15 @@ const pictureOf = (
 };
 
 const memberOf = (path: string): StackMember => {
-  const stem = stemOf(path);
-  const cut = stem.indexOf("~");
-  const name = cut < 0 ? stem : stem.slice(0, cut);
-  const at = name.indexOf("@");
-  return {
-    path,
-    alternate: at < 0 ? null : name.slice(at + 1),
-    ...(cut < 0 ? {} : { layer: stem.slice(cut + 1) }),
-  };
+  const { alternate, layer } = imageFileNameOf(path);
+  return { path, alternate, ...(layer === undefined ? {} : { layer }) };
 };
 
 const stackOf = (folder: string, base: string, paths: string[]): ImageStack => {
   const members = paths.map(memberOf);
   const pictures = new Map<string | null, { name: string; own?: string; layers: StackMember[] }>();
   for (const member of members) {
-    const stem = stemOf(member.path);
-    const cut = stem.indexOf("~");
-    const name = cut < 0 ? stem : stem.slice(0, cut);
+    const name = imageFileNameOf(member.path).picture;
     const picture = pictures.get(member.alternate) ?? { name, layers: [] };
     pictures.set(member.alternate, picture);
     if (member.layer === undefined) picture.own ??= member.path;

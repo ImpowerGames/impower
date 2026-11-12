@@ -174,6 +174,19 @@ describe("asset usage for the whole project in one request (#1033)", () => {
     expect(summary(usage.uses[FACE])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
   });
 
+  test("counts a use of a picture for each of its name~group.option layer files, and not for its alternate (#2186)", () => {
+    const HAPPY = `${ROOT}Assets/Images/imani~face.happy.png`;
+    const NIGHT = `${ROOT}Assets/Images/imani@night.png`;
+    const { workspace, program } = setup(
+      { [MAIN]: lines("scene start", "  [[imani:face.happy]]", "end") },
+      [IMANI, HAPPY, NIGHT],
+    );
+    const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+    expect(summary(usage.uses[IMANI])).toEqual([["main.sd", 1, "portrait", "[[imani:face.happy]]"]]);
+    expect(summary(usage.uses[HAPPY])).toEqual([["main.sd", 1, "portrait", "[[imani:face.happy]]"]]);
+    expect(usage.uses[NIGHT]).toEqual([]);
+  });
+
   test("counts a definition made of a file where it is shown and where it names the file, not where it is named", () => {
     const { workspace, program } = setup(
       {
