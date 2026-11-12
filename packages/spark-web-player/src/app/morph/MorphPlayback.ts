@@ -1,3 +1,4 @@
+import { getImageThing } from "../../../../sparkdown/src/compiler/utils/getImageThing";
 import { createMorphHost, MorphArtifactSlot, type MorphHost } from "../../../../sparkdown/src/morph/hosts";
 import {
   APERTURE_REACH_CLIP_STYLE,
@@ -619,8 +620,7 @@ export class MorphLayer {
         image = { layer: play.layer, slot: new MorphArtifactSlot(this.playback.resolver, () => this.changed()), plays: [] };
         this.images.push(image);
       }
-      const drawing = play.timing.trigger === "speech" && play.owner ? "" : play.ref.image;
-      const key = [this.base, play.layer, drawing, play.morph, play.definition, play.owner ?? "", this.content.epoch].join("|");
+      const key = [this.base, play.layer, play.owner ?? getImageThing(play.ref.image), play.morph, play.definition, this.content.epoch].join("|");
       image.plays.push({
         play,
         ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(key, play.timing, play.owner) } : {}),

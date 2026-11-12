@@ -729,6 +729,23 @@ describe("morph layers", () => {
     expect(playback.mount(span(), content(), BG, "background", "backdrop:0").occurrenceKeys[0]).not.toBe(base);
   });
 
+  test.each([
+    ["a character's at-sign drawings keep the morph's place", ["mia@night", "mia"], ["mia@day", "mia"], 0.4],
+    ["at-sign drawings of an image no character owns keep the morph's place", ["stranger@a", undefined], ["stranger@b", undefined], 0.4],
+    ["another character on the same target starts the morph again", ["mia@night", "mia"], ["mia@night", "bob"], 0],
+  ] as const)("%s", (_label, [fromImage, fromOwner], [toImage, toOwner], offset) => {
+    const { playback, span } = setup();
+    const look = (image: string, owner: string | undefined) => content({ ref: ref(`${image}|${owner}`, image), ...(owner ? { owner } : {}) });
+    const occurrenceOf = (layer: any) => (playback as any).occurrences.get(layer.occurrenceKeys[0]);
+    const first = span();
+    const outgoing = playback.mount(first, look(fromImage, fromOwner), BG, "background", "portrait:0");
+    playback.advance(0.1);
+    expect(playback.playhead(occurrenceOf(outgoing))).toEqual({ phase: "playing", play: 0, offset: expect.closeTo(0.4, 9) });
+    const incoming = playback.mount(span(), look(toImage, toOwner), BG, "background", "portrait:0");
+    playback.freezeWithin(first);
+    expect(playback.playhead(occurrenceOf(incoming))).toEqual({ phase: "playing", play: 0, offset: expect.closeTo(offset, 9) });
+  });
+
   test("a pending or failed artifact leaves the static image in place", async () => {
     const never: MorphHost = { resolve: () => new Promise(() => {}) };
     const pending = setup(never);
@@ -1479,6 +1496,90 @@ end
     playback.speak("mia", [[0, 2]]);
     playback.advance(0.2);
     expect(playback.playhead(shown()[0])).toEqual({ phase: "off" });
+  });
+
+  describe("an outgoing look", () => {
+    const source = `${CHARACTERS}\n${blinkScript(TIMING)}\n${talkScript(SPEECH_TIMING)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    First line.\nend\n`;
+
+    async function replacing(after: number) {
+      const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+      await h.ready;
+      await h.preview(lineOf(source, "First line."));
+      await flushMicrotasks(10);
+      await until(() => playback.stats.live === 1, "the first look");
+      const g = globalThis as any;
+      const installed = [g.Animation, g.KeyframeEffect];
+      const finishers: (() => void)[] = [];
+      g.KeyframeEffect = class {
+        constructor(
+          public target?: unknown,
+          public keyframes?: unknown,
+          public options?: EffectTiming,
+        ) {}
+        getTiming() {
+          return this.options ?? {};
+        }
+      };
+      g.Animation = class {
+        startTime: number | null = null;
+        finished: Promise<unknown>;
+        constructor(public effect?: { target?: Element }) {
+          this.finished = effect?.target?.classList.contains("instance")
+            ? new Promise((resolve) => finishers.push(() => resolve(this)))
+            : Promise.resolve(this);
+        }
+        play() {}
+        cancel() {}
+        finish() {}
+      };
+      restore = ((previous) => () => {
+        g.Animation = installed[0];
+        g.KeyframeEffect = installed[1];
+        previous?.();
+      })(restore);
+      const timeline = h.overlay.ownerDocument.timeline as unknown as { currentTime: number };
+      timeline.currentTime = 1_000;
+      const layers = () => [...(playback as any).layers] as any[];
+      const outgoing = layers()[0];
+      playback.speak("mia", [[0, 4]]);
+      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: "fade", after }], false);
+      await until(() => layers().some((layer) => layer.images[0].plays[0].play.ref.image === "mia@day"), "the incoming look");
+      await flushMicrotasks(10);
+      return { h, playback, outgoing, layers, timeline, finish: () => finishers.forEach((finish) => finish()) };
+    }
+
+    test("keeps its flap and blink until its delayed fade starts, then freezes, and is disposed when the fade ends", async () => {
+      const { playback, outgoing, layers, timeline, finish } = await replacing(0.5);
+      const shadow = shadowOf(outgoing.span)!;
+      expect(outgoing.active).toBe(true);
+      const frames = new Set<string>();
+      for (let step = 0; step < 8; step++) {
+        playback.advance(0.05);
+        frames.add(JSON.stringify(leafStates(shadow)));
+      }
+      expect(frames.size).toBeGreaterThan(1);
+      expect(outgoing.active).toBe(true);
+      timeline.currentTime = 1_501;
+      await until(() => !outgoing.active, "the outgoing look to freeze");
+      const frozen = JSON.stringify(leafStates(shadow));
+      for (let step = 0; step < 8; step++) {
+        playback.advance(0.05);
+        expect(JSON.stringify(leafStates(shadow))).toBe(frozen);
+      }
+      finish();
+      await until(() => layers().length === 1, "the outgoing look to be disposed");
+      expect(outgoing.span.isConnected).toBe(false);
+      expect(playback.stats.occurrences).toBe(2);
+    });
+
+    test("freezes at once when its fade starts at once", async () => {
+      const { outgoing, layers, finish } = await replacing(0);
+      expect(outgoing.active).toBe(false);
+      finish();
+      await until(() => layers().length === 1, "the outgoing look to be disposed");
+    });
   });
 });
 

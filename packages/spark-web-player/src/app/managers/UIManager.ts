@@ -1766,6 +1766,7 @@ export default class UIManager extends Manager {
     const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
     const toDestroy: HTMLElement[] = [];
+    const outgoing: HTMLElement[] = [];
     const newMovies: HTMLVideoElement[] = [];
     const hiddenMovies: HTMLVideoElement[] = [];
 
@@ -1870,7 +1871,9 @@ export default class UIManager extends Manager {
             if (instruction.control === "show") {
               if (content.previousHideAnimation) {
                 for (const prevSpanEl of prevSpanEls) {
-                  this.morphs?.freezeWithin(prevSpanEl);
+                  if (!outgoing.includes(prevSpanEl)) {
+                    outgoing.push(prevSpanEl);
+                  }
                   this.addAnimationEffects(exitEffects, prevSpanEl, [
                     content.previousHideAnimation,
                   ]);
@@ -1918,19 +1921,29 @@ export default class UIManager extends Manager {
     for (const video of newMovies) {
       this.startMovie(video);
     }
+    const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const playEffects = (
       effects: { element: HTMLElement; animations: Animation[] }[],
+      created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
     ) => {
       if (effects.length === 0) {
         return Promise.resolve();
       }
       const player = new AnimationPlayer(this._theme);
       for (const e of effects) {
-        player.add(e);
+        const animations = player.add(e);
+        created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
       return player.play(startTime);
     };
-    await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
+    const played = Promise.all([
+      playEffects(enterEffects),
+      playEffects(exitEffects, exiting),
+    ]);
+    for (const el of outgoing) {
+      this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
+    }
+    await played;
     for (const el of toDestroy) {
       this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
@@ -1941,6 +1954,39 @@ export default class UIManager extends Manager {
       this.releaseMovies(video);
       (span ?? video).remove();
     }
+  }
+
+  protected freezeWhenExitStarts(
+    el: HTMLElement,
+    exits: ReturnType<AnimationPlayer["add"]>,
+  ) {
+    const doc = el.ownerDocument;
+    const view = doc.defaultView;
+    const starts = exits
+      .map((exit) =>
+        exit.startTime == null
+          ? NaN
+          : Number(exit.startTime) +
+            Number(exit.effect?.getTiming?.().delay ?? 0),
+      )
+      .filter((at) => Number.isFinite(at));
+    const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
+    const check = () => {
+      if (!el.isConnected) {
+        return;
+      }
+      const now = Number(doc.timeline?.currentTime);
+      if (!(now < at)) {
+        this.morphs?.freezeWithin(el);
+        return;
+      }
+      if (view?.requestAnimationFrame) {
+        view.requestAnimationFrame(check);
+      } else {
+        setTimeout(check, Math.max(1, at - now));
+      }
+    };
+    check();
   }
 
   protected async playCutscene(
