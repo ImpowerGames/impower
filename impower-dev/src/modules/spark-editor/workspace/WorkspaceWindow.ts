@@ -161,6 +161,7 @@ import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
 import { countProjectFiles } from "./replaceProject";
+import { uploadsWriting } from "./uploadSession";
 import {
   loadExtensionDefaults,
   projectSettingsFromJson,
@@ -762,13 +763,27 @@ export default class WorkspaceWindow {
   protected _replacementFile?: File;
 
   async requestProjectReplace(file: File) {
+    this._replacementFile = file;
+    await this.countProjectReplace(file);
+  }
+
+  async refreshProjectReplace() {
+    const file = this._replacementFile;
+    if (file && workspace.replaceProject.peek()) {
+      await this.countProjectReplace(file);
+    }
+  }
+
+  protected async countProjectReplace(file: File) {
     const projectId = this.store.project.id;
     if (!projectId) {
       return;
     }
     const fs = this._workspace.fs;
     const files = await fs.getFiles(projectId);
-    this._replacementFile = file;
+    if (this._replacementFile !== file) {
+      return;
+    }
     workspace.replaceProject.value = {
       fileName: file.name,
       projectName: this.store.project.name || "this project",
@@ -784,10 +799,13 @@ export default class WorkspaceWindow {
   }
 
   async confirmProjectReplace() {
+    if (uploadsWriting() > 0) {
+      return;
+    }
     const file = this._replacementFile;
     this.cancelProjectReplace();
     if (file) {
-      await this.importLocalProject(file.name, await file.arrayBuffer());
+      await this.importLocalProject(file.name, file.arrayBuffer());
     }
   }
 
@@ -2745,7 +2763,7 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
-  async importLocalProject(fileName: string, fileBuffer: ArrayBuffer) {
+  async importLocalProject(fileName: string, fileBuffer: ArrayBuffer | Promise<ArrayBuffer>) {
     const statusBefore = this.store.sync.status;
     try {
       const projectId = this.store.project.id;
@@ -2761,7 +2779,7 @@ export default class WorkspaceWindow {
         const extIndex = fileName.indexOf(".");
         const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
         const { settingsJson, leftOut } =
-          await this._workspace.fs.writeProjectZip(projectId, fileBuffer);
+          await this._workspace.fs.writeProjectZip(projectId, await fileBuffer);
         await this._workspace.fs.writeProjectMetadata(projectId, "name", name);
         keepImportOutcome({ status: "imported", fileName, leftOut });
         workspaceSettings.replaceProjectSettings(

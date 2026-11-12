@@ -885,18 +885,64 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.replaceProject.value).toBeNull();
       expect(importing).toHaveBeenCalledTimes(1);
       expect(importing.mock.calls[0]![0]).toBe("backup.zip");
-      expect(new TextDecoder().decode(importing.mock.calls[0]![1])).toBe("zip");
+      expect(new TextDecoder().decode(await importing.mock.calls[0]![1])).toBe("zip");
     });
 
-    it("drops the chosen backup on cancel, so a later confirm imports nothing", async () => {
-      const importing = vi
-        .spyOn(win, "importLocalProject")
-        .mockResolvedValue(undefined);
+    it("does not replace the project while an upload batch is still writing, and does once it has finished", async () => {
+      const importing = vi.spyOn(win, "importLocalProject").mockResolvedValue(undefined);
+      const { startUploads, updateUpload } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      const ids = startUploads(["a.wav", "b.wav"]);
+      updateUpload(ids[0]!, { state: "working" });
+      try {
+        await win.requestProjectReplace(
+          Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }),
+        );
+        await win.confirmProjectReplace();
+        expect(importing).not.toHaveBeenCalled();
+        expect(workspace.replaceProject.value).not.toBeNull();
+        for (const id of ids) updateUpload(id, { state: "added", path: "Assets/Audio/x.wav" });
+        await win.confirmProjectReplace();
+        expect(importing).toHaveBeenCalledTimes(1);
+        expect(workspace.replaceProject.value).toBeNull();
+      } finally {
+        workspace.uploads.value = [];
+      }
+    });
+
+    it("counts again what the replace removes once a batch that was still writing has finished", async () => {
       await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      expect(workspace.replaceProject.value).toMatchObject({ scripts: 4, assets: 3 });
+      const id = workspace.current.project.id || "local";
+      const listed = await (fs.getFiles as () => Promise<Record<string, unknown>>)();
+      fs.getFiles = vi.fn(async () => ({ ...listed, [`file://${id}/Assets/Audio/new.wav`]: {} }));
+      await win.refreshProjectReplace();
+      expect(workspace.replaceProject.value).toMatchObject({ fileName: "backup.zip", scripts: 4, assets: 4 });
       win.cancelProjectReplace();
+      await win.refreshProjectReplace();
       expect(workspace.replaceProject.value).toBeNull();
-      await win.confirmProjectReplace();
-      expect(importing).not.toHaveBeenCalled();
+    });
+
+    it("marks the project as being replaced from the moment the writer confirms, before the backup's bytes are read", async () => {
+      workspace.current = { ...workspace.current, sync: { status: "cached" } };
+      let release: (data: ArrayBuffer) => void = () => {};
+      const bytes = new Promise<ArrayBuffer>((resolve) => {
+        release = resolve;
+      });
+      const file = Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: () => bytes });
+      fs.writeProjectZip = vi.fn(async () => {
+        throw new ProjectImportError({ reason: "no_main_script" });
+      });
+      try {
+        await win.requestProjectReplace(file);
+        const confirming = win.confirmProjectReplace();
+        await Promise.resolve();
+        expect(workspace.current.sync.status).toBe("importing");
+        release(new ArrayBuffer(0));
+        await confirming;
+        expect(workspace.current.sync.status).toBe("cached");
+      } finally {
+        delete fs.writeProjectZip;
+      }
     });
 
     it.each([

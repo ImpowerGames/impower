@@ -14,6 +14,7 @@ export type UploadReason =
   | { kind: "failed"; message: string }
   | { kind: "replace_failed"; cause: "storage" | "failed"; message?: string }
   | { kind: "left_as_is" }
+  | { kind: "replacing" }
   | { kind: "zip"; reason: ImportFailureReason; folders?: string[] };
 
 export type UploadRow =
@@ -72,6 +73,12 @@ export const failUnfinished = (ids: readonly number[], reason: UploadReason): vo
     .map((row) => (mine.has(row.id) && unfinished(row) ? { id: row.id, name: row.name, state: "failed", reason } : row));
 };
 
+export const writingCount = (rows: readonly UploadRow[]): number => rows.filter(unfinished).length;
+
+export const uploadsWriting = (): number => writingCount(workspace.uploads.peek());
+
+export const projectReplacing = (): boolean => workspace.signals.syncStatus.peek() === "importing";
+
 export const closeUploads = (): void => {
   workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
 };
@@ -100,6 +107,7 @@ const REASON_SENTENCES: {
   failed: ({ message }) => `Not added: it could not be saved (${message}).`,
   replace_failed: ({ cause, message }) =>
     `Not added: ${cause === "storage" ? "this browser ran out of room for it" : `it could not be saved (${message})`}. ${REPLACED_NOTE}`,
+  replacing: () => "Not added: the project was being replaced, so add it again once that has finished.",
   left_as_is: (_, name) =>
     `Not added: ${name} now holds a different file, from another save or from a write the browser could not undo, so it was left as it is.`,
   zip: ({ reason, folders }, name) =>

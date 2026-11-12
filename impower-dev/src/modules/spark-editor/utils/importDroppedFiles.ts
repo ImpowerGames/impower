@@ -1,4 +1,11 @@
-import { failUnfinished, startUploads, updateUpload, type UploadReason } from "../workspace/uploadSession";
+import {
+  failUnfinished,
+  projectReplacing,
+  refuseUploads,
+  startUploads,
+  updateUpload,
+  type UploadReason,
+} from "../workspace/uploadSession";
 import { reasonOf } from "./fileMoves";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
@@ -24,6 +31,10 @@ type Pending = { index: number; uri: string; replacing: boolean; data: ArrayBuff
 export async function importFiles(projectId: string, items: DroppedItem[]): Promise<string[]> {
   const written: string[] = [];
   if (items.length === 0) {
+    return written;
+  }
+  if (projectReplacing()) {
+    refuseUploads(items.map((item) => leafOf(item.rel)), { kind: "replacing" });
     return written;
   }
   const ids = startUploads(items.map((item) => leafOf(item.rel)));

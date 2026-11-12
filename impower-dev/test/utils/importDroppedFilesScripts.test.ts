@@ -243,6 +243,41 @@ describe("importFiles outcomes per file", () => {
     expect(mocks.disk.has("file://p/Assets/Audio/one.wav")).toBe(true);
   });
 
+  it("counts a batch held mid-chunk as still writing, then as finished", async () => {
+    const { uploadsWriting } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.createFiles.mockImplementation(async ({ files }) => {
+      await held;
+      save(files);
+    });
+    const running = importFiles("p", [dropped("Assets/Audio/a.wav"), dropped("Assets/Audio/b.wav")]);
+    await vi.waitFor(() => expect(mocks.createFiles).toHaveBeenCalledTimes(1));
+    expect(uploadsWriting()).toBe(2);
+    release();
+    await running;
+    expect(uploadsWriting()).toBe(0);
+  });
+
+  it("refuses a batch while the project is being replaced, writing nothing", async () => {
+    const before = workspace.current;
+    workspace.current = { ...workspace.current, sync: { ...workspace.current.sync, status: "importing" } };
+    try {
+      const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
+      expect(returned).toEqual([]);
+      expect(rows()).toEqual(["a.wav: replacing"]);
+      expect(mocks.createFiles).not.toHaveBeenCalled();
+      const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe(
+        "Not added: the project was being replaced, so add it again once that has finished.",
+      );
+    } finally {
+      workspace.current = before;
+    }
+  });
+
   it("lists a file that could not be read as not added and still adds the rest", async () => {
     await importFiles("p", [
       { rel: "Assets/Images/gone.png", getBuffer: async () => Promise.reject(new Error("NotReadableError")) },
