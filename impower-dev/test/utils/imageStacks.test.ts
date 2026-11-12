@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
+import { ALTERNATE, AS_IS, testerGroups } from "../../src/modules/spark-editor/utils/imageVariants";
 
 const TWELVE = [
   "Assets/Images/Portraits/imani.png",
@@ -57,10 +58,10 @@ describe("the image stack rule", () => {
     ]);
   });
 
-  it("counts the alternates and layer combinations a thing offers", () => {
-    expect(named("Assets/Images/Portraits", "imani").variantCount).toBe(2 + 2);
+  it("counts the looks the Variants tester offers, As is included where a group has no default", () => {
+    expect(named("Assets/Images/Portraits", "imani").variantCount).toBe(3 + 2 * 3);
     expect(named("Assets/Images/Portraits", "kai").variantCount).toBe(2);
-    expect(named("Assets/Images/Portraits/Extras", "imani").variantCount).toBe(1);
+    expect(named("Assets/Images/Portraits/Extras", "imani").variantCount).toBe(2);
     expect(named("Assets/Images/Portraits", "bunny").variantCount).toBe(1);
   });
 
@@ -87,6 +88,31 @@ describe("the image stack rule", () => {
     expect(only!.pictures).toEqual([
       { alternate: null, name: "bunny", path: "Assets/Images/bunny.png", layers: [], groups: [], variants: 1 },
     ]);
+  });
+
+  it("counts every combination the tester offers for each alternate", () => {
+    const [imani] = imageStacks(
+      [
+        "imani.png",
+        "imani~face.happy.png",
+        "imani~face.sad.png",
+        "imani~mouth.closed~default.png",
+        "imani~mouth.open.png",
+        "imani@night.png",
+        "imani@night~face.happy.png",
+      ].map((file) => `Assets/Images/Portraits/${file}`),
+    );
+    expect(imani!.pictures.map((picture) => [picture.alternate, picture.variants])).toEqual([
+      [null, 3 * 2],
+      ["night", 2],
+    ]);
+    expect(imani!.variantCount).toBe(8);
+    for (const picture of imani!.pictures) {
+      const tester = testerGroups(imani!, { [ALTERNATE]: picture.alternate ?? AS_IS }).filter(
+        (group) => group.key !== ALTERNATE,
+      );
+      expect(tester.reduce((count, group) => count * group.options.length, 1)).toBe(picture.variants);
+    }
   });
 
   it("keeps an alternate named plain apart from the untagged picture", () => {
