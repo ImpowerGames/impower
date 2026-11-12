@@ -194,3 +194,45 @@ test("every legacy form-control file still holds a bare control, so the list onl
     assert.match(source, /<(select|textarea)\b|<input\b(?![^>]*type="file")/, `${file} has no bare form control; remove it from LEGACY_FORM_CONTROL_FILES`);
   }
 });
+
+const SRC_PROBE = "impower-dev/src/modules/spark-editor/components/probe/Probe.tsx";
+const assertImpowerUiSrcRefused = async (code, ruleId) => {
+  const messages = await lint(SRC_PROBE, code);
+  assert.equal(messages.length, 1, `${code}: ${messages.join("; ")}`);
+  assert.ok(messages[0].startsWith(`${ruleId}: `), messages[0]);
+  assert.match(messages[0], /@impower\/impower-ui/);
+};
+
+test("a relative import into packages/impower-ui/src from impower-dev/src fails", async () => {
+  for (const code of [
+    'import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";\nexport const probe = cn;\n',
+    'export { cn } from "../../../../../../packages/impower-ui/src/utils/cn";\n',
+    'import type { ButtonProps } from "../../../../../../packages/impower-ui/src/components/button/Button";\nexport type P = ButtonProps;\n',
+    'import "../../../../../../packages/impower-ui/src/style.css";\n',
+  ]) {
+    await assertImpowerUiSrcRefused(code, "no-restricted-imports");
+  }
+  for (const code of [
+    'export const load = () => import("../../../../../../packages/impower-ui/src/utils/cn");\n',
+    'export type B = typeof import("../../../../../../packages/impower-ui/src/components/button/Button");\n',
+  ]) {
+    await assertImpowerUiSrcRefused(code, "no-restricted-syntax");
+  }
+});
+
+test("impower-dev/src imports impower-ui through its package entries", async () => {
+  assert.deepEqual(
+    await lint(SRC_PROBE, 'import { Button, cn } from "@impower/impower-ui/components";\nexport const probe = [Button, cn];\n'),
+    [],
+  );
+  await assertRefused(SRC_PROBE, PROBE, "no-restricted-imports");
+});
+
+test("no tracked impower-dev/src file reaches into packages/impower-ui/src", async () => {
+  const { readFileSync } = await import("node:fs");
+  const offenders = execFileSync("git", ["ls-files", "-z", "impower-dev/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true })
+    .split("\0")
+    .filter((file) => SCRIPT.test(file))
+    .filter((file) => /packages\/impower-ui\/src/.test(readFileSync(path.join(ROOT, file), "utf8")));
+  assert.deepEqual(offenders, []);
+});

@@ -24,7 +24,21 @@ const RADIX_SYNTAX = [
   { selector: `TSImportType[argument.literal.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
 ];
 
-const HOST_FREE_FILES = ["packages/spark-debug-adapter/**"];
+const IMPOWER_UI_SRC_SOURCE = "/(^|\\/)packages\\/impower-ui\\/src(\\/|$)/";
+const IMPOWER_UI_SRC_MESSAGE =
+  "Import impower-ui through its package entries (@impower/impower-ui/components, /layout and the rest of packages/impower-ui/package.json exports), never by relative path into packages/impower-ui/src.";
+
+const IMPOWER_UI_SRC_SYNTAX = [
+  { selector: `ImportExpression[source.value=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
+  { selector: `ImportExpression[source.quasis.0.value.raw=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.value=${IMPOWER_UI_SRC_SOURCE}]`,
+    message: IMPOWER_UI_SRC_MESSAGE,
+  },
+  { selector: `TSImportType[argument.literal.value=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
+];
+
+const HOST_FREE_FILES =["packages/spark-debug-adapter/**"];
 
 const NODE_BUILTINS = builtinModules.filter((name) => /^[a-z][a-z0-9_]*$/.test(name));
 
@@ -110,6 +124,28 @@ export default [
     ignores: LEGACY_FORM_CONTROL_FILES,
     rules: {
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...FORM_CONTROL_SYNTAX],
+    },
+  },
+  {
+    files: ["impower-dev/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { group: ["@radix-ui/*"], message: RADIX_MESSAGE },
+            { regex: "(^|/)packages/impower-ui/src(/|$)", message: IMPOWER_UI_SRC_MESSAGE },
+          ],
+        },
+      ],
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...IMPOWER_UI_SRC_SYNTAX],
+    },
+  },
+  {
+    files: ["impower-dev/src/**/*.{tsx,jsx}"],
+    ignores: LEGACY_FORM_CONTROL_FILES,
+    rules: {
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...IMPOWER_UI_SRC_SYNTAX, ...FORM_CONTROL_SYNTAX],
     },
   },
 ];

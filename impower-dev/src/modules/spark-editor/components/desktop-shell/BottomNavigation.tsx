@@ -8,7 +8,6 @@ import {
 import { useSheetOpen } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
-import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
 import { routeOfPane, routeOfState } from "../../workspace/routes";
 import { useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
@@ -36,10 +35,7 @@ export default function BottomNavigation() {
       aria-label="Project"
       data-bottom-navigation
       hidden={naming || sheetOpen || editing || panelOpen}
-      class={cn(
-        "min-h-[65px] flex-none border-t border-edge bg-panel pb-[env(safe-area-inset-bottom)]",
-        "[.keyboard-open_&]:hidden",
-      )}
+      class="min-h-[65px] flex-none border-t border-edge bg-panel pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
     >
       {typeof window !== "undefined" && (
         <Tabs
