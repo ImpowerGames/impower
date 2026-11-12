@@ -2,6 +2,7 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   applyEdits,
+  cssIdent,
   identName,
   isFunctionNode,
   isTokenType,
@@ -23,7 +24,7 @@ export const getThemeVar = (
   category: string,
   name: string,
 ): string | undefined => {
-  const variable = `--theme-${category}-${name}`;
+  const variable = `--theme-${category}-${name.replaceAll("@", "--")}`;
   return !name.includes("\\") && theme.has(variable)
     ? `var(${variable})`
     : undefined;
@@ -93,6 +94,28 @@ const isNumeric = (node: ComponentValue | undefined): boolean =>
   isTokenType(node, TokenType.Dimension) ||
   isTokenType(node, TokenType.Percentage);
 
+const atNamePart = (
+  nodes: ComponentValue[],
+  at: number,
+  end: number,
+): TokenNode[] | undefined => {
+  const part = nodes[at];
+  if (isTokenType(part, TokenType.AtKeyword) && part.value[2] === end + 1) {
+    return [part];
+  }
+  const rest = nodes[at + 1];
+  if (
+    isTokenType(part, TokenType.Delim) &&
+    part.value[1] === "@" &&
+    part.value[2] === end + 1 &&
+    (isTokenType(rest, TokenType.Ident) || isNumeric(rest)) &&
+    (rest as TokenNode).value[2] === part.value[3] + 1
+  ) {
+    return [part, rest as TokenNode];
+  }
+  return undefined;
+};
+
 const resolveColorWords = (
   css: string,
   nodes: ComponentValue[],
@@ -106,16 +129,25 @@ const resolveColorWords = (
       resolveFunction(css, node, theme, edits, true, keywords);
       continue;
     }
-    const name = identName(node);
+    const word = identName(node);
     if (
-      name === undefined ||
-      (node as TokenNode).value[1] !== name ||
-      name.startsWith("--") ||
-      keywords.has(name.toLowerCase())
+      word === undefined ||
+      (node as TokenNode).value[1] !== word ||
+      word.startsWith("--") ||
+      keywords.has(word.toLowerCase())
     ) {
       continue;
     }
-    const [, , start, end] = (node as TokenNode).value;
+    let name = word;
+    const [, , start] = (node as TokenNode).value;
+    let end = (node as TokenNode).value[3];
+    for (let parts = atNamePart(nodes, i + 1, end); parts; parts = atNamePart(nodes, i + 1, end)) {
+      for (const part of parts) {
+        name += part.value[1];
+        end = part.value[3];
+        i += 1;
+      }
+    }
     const slash = nodes[i + 1];
     const alpha = nodes[i + 2];
     if (
@@ -260,9 +292,9 @@ export const getCssAnimation = (
     getThemeVar(theme, "animation", `${v}${suffix}`),
   );
   if (variables.every((v) => v === undefined)) {
-    return value;
+    return names.map(cssIdent).join(" ");
   }
-  return names.map((v, i) => variables[i] ?? v).join(", ");
+  return names.map((v, i) => variables[i] ?? cssIdent(v)).join(", ");
 };
 
 export const getCssBgAlign = (value: string): string => {

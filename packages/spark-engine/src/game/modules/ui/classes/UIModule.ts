@@ -84,6 +84,7 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
+import { cssIdent } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -1968,7 +1969,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const [name] of Object.entries(fonts)) {
         if (!name.startsWith("$")) {
           const varName = getVarName("font", name);
-          const varValue = name;
+          const varValue = cssIdent(name);
           if (varValue) {
             variablesStyle[varName] = varValue;
           }

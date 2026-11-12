@@ -146,7 +146,7 @@ export function getCSSSelector(
     }
 
     let rewritten = markNameAts(piece)
-      .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
+      .replace(ATTRIBUTE_SELECTOR_REGEX, (_, inner: string) => `[${inner.replaceAll("@", NAME_AT)}]`)
       .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
       .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
       .replace(DESCENDANT_REGEX, " ")
