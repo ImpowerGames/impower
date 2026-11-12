@@ -151,6 +151,7 @@ describe("the Assets page's file intents", () => {
         dropped("story/intro.sd"),
         dropped("../escape/./bo.png"),
         dropped("win\\style\\door knock.wav"),
+        dropped("Old\\Cast/ada.png"),
         dropped("inner.zip"),
       ],
       "Assets/Images/Portraits",
@@ -162,6 +163,7 @@ describe("the Assets page's file intents", () => {
       "scripts/story/intro.sd",
       "Assets/Images/Portraits/escape/bo.png",
       "Assets/Audio/win_style_door_knock.wav",
+      "Assets/Images/Portraits/Old_Cast/ada.png",
       "Assets/Other/inner.zip",
     ]);
   });
