@@ -104,7 +104,7 @@ const editorHolding = (uri: string, text = `open text of ${uri}`) => {
           applied: [],
         });
       }
-      const expected = expectedTexts?.[uri];
+      const expected = expectedTexts ? expectedTexts[uri] : editor.text;
       if (expected === undefined) {
         return ApplyEditorEditMessage.type.response(message.id, {
           applied: [],
