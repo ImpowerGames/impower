@@ -40,8 +40,9 @@ export const beatDrawing = (
   ) {
     return beat;
   }
+  const { speech, ...drawn } = beat;
   return {
-    ...beat,
+    ...drawn,
     text: Object.fromEntries(
       Object.entries(beat.text).map(([target, events]) => [
         target,

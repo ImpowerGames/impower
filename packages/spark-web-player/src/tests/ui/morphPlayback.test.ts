@@ -1367,6 +1367,63 @@ end
     playback.advance(0.1);
     expect(head("mia")).toEqual(playing(0.5));
   });
+
+  test("stepping the clock back puts a speaking portrait at rest until the next line speaks", async () => {
+    const { playback, head } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.05);
+    expect(head("mia")).toEqual(playing(0.5));
+    playback.advance(-0.01);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(0.3);
+    expect(head("mia")).toEqual({ phase: "off" });
+  });
+
+  test("a portrait replaced by another character's look on the same drawing flaps for the new character", async () => {
+    const source = `${CHARACTERS}
+define bob as character with
+  name = "BOB"
+end
+
+define mia@look as filtered_image with
+  image = image.face
+end
+
+define bob@look as filtered_image with
+  image = image.face
+end
+
+${talkScript(SPEECH_TIMING)}
+
+scene start
+  MIA:
+    [[show portrait mia@look]]
+    First line.
+  BOB:
+    [[show portrait bob@look]]
+    Second line.
+end
+`;
+    const h = createDOMHarness(source, 0, { files: [art("face")] });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    const shown = () =>
+      [...(playback as any).layers].filter((layer: any) => layer.live).flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => p.occurrence)));
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => shown().length === 1, "Mia's look");
+    expect(shown()[0].owner).toBe("mia");
+    await h.preview(lineOf(source, "Second line."));
+    await flushMicrotasks(10);
+    await until(() => shown().length === 1 && shown()[0].owner === "bob", "Bob's look");
+    playback.speak("bob", [[0, 2]]);
+    playback.advance(0.05);
+    expect(playback.playhead(shown()[0])).toEqual(playing(0.5));
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.2);
+    expect(playback.playhead(shown()[0])).toEqual({ phase: "off" });
+  });
 });
 
 describe("morph claims", () => {

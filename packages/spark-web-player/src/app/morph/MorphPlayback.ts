@@ -244,6 +244,7 @@ export class MorphPlayback {
   advance(seconds: number) {
     if (!Number.isFinite(seconds) || seconds === 0) return;
     if (seconds < 0) {
+      this.speech = undefined;
       this.restartAll();
       this.render();
       return;
@@ -618,7 +619,7 @@ export class MorphLayer {
         image = { layer: play.layer, slot: new MorphArtifactSlot(this.playback.resolver, () => this.changed()), plays: [] };
         this.images.push(image);
       }
-      const key = [this.base, play.layer, play.ref.image, play.morph, play.definition, this.content.epoch].join("|");
+      const key = [this.base, play.layer, play.ref.image, play.morph, play.definition, play.owner ?? "", this.content.epoch].join("|");
       image.plays.push({
         play,
         ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(key, play.timing, play.owner) } : {}),
