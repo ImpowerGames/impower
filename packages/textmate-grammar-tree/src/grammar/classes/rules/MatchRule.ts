@@ -36,6 +36,10 @@ export class MatchRule implements Rule {
 
   captureTemplates: (string | undefined)[] | undefined;
 
+  captureContents: (GrammarNode | undefined)[] | undefined;
+
+  captureContentTemplates: (string | undefined)[] | undefined;
+
   readonly skipped = false;
 
   constructor(repo: GrammarRepository, def: MatchRuleDefinition) {
@@ -50,6 +54,8 @@ export class MatchRule implements Rule {
     );
     this.nameTemplate = hasCaptureReferences(def.name) ? def.name : undefined;
     this.captureTemplates = undefined;
+    this.captureContents = undefined;
+    this.captureContentTemplates = undefined;
 
     this.matcher = new RegExpMatcher(def.match, def.flags);
 
@@ -62,6 +68,17 @@ export class MatchRule implements Rule {
           const captureId = this.id + `_c${index}`;
           if (isSwitchRuleDefinition(value)) {
             this.captures[index] = repo.add(value, captureId);
+            if (value.contentName) {
+              this.captureContents ??= [];
+              this.captureContents[index] = repo.add(
+                { name: value.contentName },
+                captureId + "_content",
+              );
+              if (hasCaptureReferences(value.contentName)) {
+                this.captureContentTemplates ??= [];
+                this.captureContentTemplates[index] = value.contentName;
+              }
+            }
           } else {
             this.captures[index] = repo.add(value, captureId);
           }
@@ -130,7 +147,7 @@ export class MatchRule implements Rule {
           if (capture) {
             const captured = this.capture(
               capture,
-              this.captureTemplates?.[resultIndex],
+              resultIndex,
               result,
               resultStr,
               pos,
@@ -202,7 +219,7 @@ export class MatchRule implements Rule {
       }
       const captureMatched = this.capture(
         capture,
-        this.captureTemplates?.[i],
+        i,
         result,
         result[i],
         start,
@@ -223,7 +240,7 @@ export class MatchRule implements Rule {
 
   private capture(
     capture: GrammarNode | SwitchRule,
-    template: string | undefined,
+    index: number,
     result: RegExpMatchResult,
     resultStr: string | undefined,
     pos: number,
@@ -234,12 +251,16 @@ export class MatchRule implements Rule {
     const resultStrLength = resultStr?.length ?? 0;
     if (!(capture instanceof SwitchRule)) {
       return Matched.create(
-        this.expanded(capture, template, result),
+        this.expanded(capture, this.captureTemplates?.[index], result),
         pos,
         resultStrLength,
       );
     }
-    const node = this.expanded(capture.node, template, result);
+    const node = this.expanded(
+      capture.node,
+      this.captureTemplates?.[index],
+      result,
+    );
     if (resultStr == null) {
       return Matched.create(node, pos, 0);
     }
@@ -254,6 +275,15 @@ export class MatchRule implements Rule {
     );
     if (tokens.length === 0) {
       return Matched.create(node, pos, 0);
+    }
+    const content = this.captureContents?.[index];
+    if (content) {
+      return Matched.tokenized(
+        this.expanded(content, this.captureContentTemplates?.[index], result),
+        pos,
+        to - start,
+        tokens,
+      ).wrap(node);
     }
     return Matched.tokenized(node, pos, to - start, tokens);
   }

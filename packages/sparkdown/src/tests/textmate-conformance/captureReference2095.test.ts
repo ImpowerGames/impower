@@ -103,6 +103,24 @@ const GRAMMARS = {
     patterns: INNER,
   }),
   zeroLengthCaptureExpanded: grammarOf({ match: "<([a-z]*)>", captures: { "1": { name: "$1" } } }),
+  captureContentNameFromTheEnclosingMatch: grammarOf({
+    match: "<([a-z]*):([a-z ]+)>",
+    captures: { "2": { name: "capture.$1", contentName: "content.$1", patterns: INNER } },
+  }),
+  staticCaptureContentName: grammarOf({
+    match: "<([a-z]+):([a-z ]+)>",
+    captures: { "2": { name: "capture.mini", contentName: "content.mini", patterns: INNER } },
+  }),
+  captureContentNameWithoutPatterns: grammarOf({
+    match: "<([a-z]+):([a-z]+)>",
+    captures: { "2": { name: "capture.$1", contentName: "content.$1" } },
+  }),
+  beginCaptureContentName: grammarOf({
+    begin: "<([a-z]+):([a-z ]+)\\|",
+    end: ">",
+    beginCaptures: { "2": { name: "head.$1", contentName: "head-content.$1", patterns: INNER } },
+    patterns: INNER,
+  }),
   staticEmptyName: grammarOf({ match: "<([a-z]*)>", name: "" }),
   staticNameWithRepeatedSpaces: grammarOf({ match: "<([a-z]*)>", name: " a  b " }),
   expandedNameWithRepeatedSpaces: grammarOf({ match: "<([a-z ]*)>", name: "x$1y" }),
@@ -141,6 +159,10 @@ describe("capture references in scope names expand per occurrence, as vscode-tex
     ["nameExpandingToEmpty", "<> <ab>\n"],
     ["contentNameExpandingToEmpty", "<:x> <ab:y>\n"],
     ["zeroLengthCaptureExpanded", "<> <a>\n"],
+    ["captureContentNameFromTheEnclosingMatch", "<red:ab cd> <:ef>\n"],
+    ["staticCaptureContentName", "<red:ab cd>\n"],
+    ["captureContentNameWithoutPatterns", "<red:ab>\n"],
+    ["beginCaptureContentName", "<red:ab cd|ef> <blue:gh|ij>\n"],
     ["staticEmptyName", "<a>\n"],
     ["staticNameWithRepeatedSpaces", "<a>\n"],
     ["expandedNameWithRepeatedSpaces", "< a  b >\n"],
@@ -187,7 +209,7 @@ describe("a derived node type means the same occurrence wherever a tree is read 
     const first = new TextmateGrammarParser(structuredClone(grammar) as never);
     const second = new TextmateGrammarParser(structuredClone(grammar) as never);
     second.parse("<gold:x>\n<blue:y>\n");
-    const before = "<red:ab>\n<blue:cd\nef>\n";
+    const before = `${"<red:ab>\n".repeat(40)}<blue:cd\nef>\n`;
     const tree = first.parse(before);
     const at = before.indexOf("cd");
     const text = `${before.slice(0, at)}z${before.slice(at)}`;
@@ -250,6 +272,21 @@ describe("past the node type limit an occurrence keeps its base type, a known di
     expect(scopes[6]).toBe("source.mini m.$0.$1.mini");
     expect(scopes[11]).toBe("source.mini m.<ab>.ab.mini");
     expect((await vscodeScopes(structuredClone(grammar), text))[6]).toBe("source.mini m.<cd>.cd.mini");
+  });
+
+  test("a language reader made after expansions reads a base-typed occurrence by the base's own scope", () => {
+    const parser = new TextmateGrammarParser(structuredClone(EMBEDDED) as never);
+    parser.grammar.typeLimit = parser.nodeSet.types.length + 1;
+    parser.parse("<lua>\n");
+    const reader = createLanguageReader(parser.grammar, {
+      "meta.embedded.lua": "lua",
+      "meta.embedded.css": "css",
+    });
+    const text = "<css>\n";
+    const tree = parser.parse(text);
+    expect(scopesOf(parser, tree, text)[1]).toBe("source.mini meta.embedded.$1 x.$1");
+    expect(reader.character(tree, 1, "mini")).toBe("mini");
+    expect(reader.character(parser.parse("<lua>\n"), 1, "mini")).toBe("lua");
   });
 
   test("the default limit is Lezer's largest node type id plus one", () => {

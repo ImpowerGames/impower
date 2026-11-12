@@ -77,12 +77,13 @@ export const createLanguageReader = (
   embeddedLanguages: EmbeddedLanguages,
 ): LanguageReader => {
   const keys = Object.keys(embeddedLanguages).sort().reverse();
+  const loadedTypes = grammar.loadedTypes;
   const nameByNode = new Map<string, string>();
-  for (const node of grammar.nodes) {
+  for (let i = 0; i < loadedTypes; i++) {
+    const node = grammar.nodes[i]!;
     const { name } = node.props;
     if (typeof name === "string") nameByNode.set(node.typeId, name);
   }
-  const loadedTypes = grammar.loadedTypes;
   const languageByNode = new Map<string, string | null>();
   const languageByExpandedType = new WeakMap<NodeType, string | null>();
   const languageOf = (scopeName: string | undefined): string | null =>
