@@ -98,7 +98,7 @@ export default function PhoneFindBar() {
       <FormButton
         name="close"
         label="Close search"
-        onClick={() => withSearch((search) => search.close())}
+        onClick={() => withSearch((search) => search.dismiss())}
       >
         <CloseIcon />
       </FormButton>

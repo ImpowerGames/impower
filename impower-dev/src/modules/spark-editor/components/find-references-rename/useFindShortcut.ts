@@ -25,7 +25,7 @@ export default function useFindShortcut() {
         leftTheField(event)
       ) {
         event.preventDefault();
-        withSearch((search) => search.close());
+        withSearch((search) => search.dismiss());
         return;
       }
       if (event.defaultPrevented || editorShortcutDispatch(event)?.handled) {

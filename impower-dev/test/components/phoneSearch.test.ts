@@ -159,7 +159,7 @@ describe("the phone's find bar", () => {
       await act(async () => named(name).click());
       await flush();
     }
-    await vi.waitFor(() => expect(search.close).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(search.dismiss).toHaveBeenCalledTimes(1));
     expect(search.step.mock.calls).toEqual([[], [true]]);
     expect(search.replaceOne).toHaveBeenCalledTimes(1);
     expect(search.replaceAll).toHaveBeenCalledTimes(1);
@@ -238,6 +238,15 @@ describe("the phone's References and Rename", () => {
     await act(async () => dialog()!.querySelector<HTMLButtonElement>("li button")!.click());
     await vi.waitFor(() => expect(search.close).toHaveBeenCalledTimes(1));
     expect(search.openUse).toHaveBeenCalledWith(references[0]!.uses[0]);
+  });
+
+  it("gives the focus back to the script when the sheet is closed", async () => {
+    await mount({ ...INITIAL_SEARCH, open: true, view: "references", subject, references });
+    await act(async () =>
+      dialog()!.querySelector<HTMLButtonElement>('[aria-label="Close references"]')!.click(),
+    );
+    await vi.waitFor(() => expect(search.dismiss).toHaveBeenCalledTimes(1));
+    expect(search.close).not.toHaveBeenCalled();
   });
 
   it("opens Rename as a sheet", async () => {

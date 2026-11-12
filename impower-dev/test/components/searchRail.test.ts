@@ -119,7 +119,8 @@ describe("the rail's heading", () => {
     expect(close.title).toBe("Back to outline");
     await act(async () => close.click());
     await flush();
-    expect(search.close).toHaveBeenCalledTimes(1);
+    expect(search.dismiss).toHaveBeenCalledTimes(1);
+    expect(search.close).not.toHaveBeenCalled();
   });
 });
 
@@ -257,17 +258,17 @@ describe("the rail's Find view", () => {
 
     it("closes Search from the script", async () => {
       await escapeFrom(script());
-      expect(search.close).toHaveBeenCalledTimes(1);
+      expect(search.dismiss).toHaveBeenCalledTimes(1);
     });
 
     it("closes Search with nothing focused", async () => {
       await escapeFrom(document.body);
-      expect(search.close).toHaveBeenCalledTimes(1);
+      expect(search.dismiss).toHaveBeenCalledTimes(1);
     });
 
     it("leaves Search open when the editor used Escape for itself", async () => {
       await escapeFrom(script(), true);
-      expect(search.close).not.toHaveBeenCalled();
+      expect(search.dismiss).not.toHaveBeenCalled();
     });
 
     it("leaves Search open for Escape inside another surface", async () => {
@@ -275,13 +276,13 @@ describe("the rail's Find view", () => {
       dialog.setAttribute("data-other-layer", "");
       dialog.setAttribute("role", "dialog");
       await escapeFrom(dialog.appendChild(document.createElement("input")));
-      expect(search.close).not.toHaveBeenCalled();
+      expect(search.dismiss).not.toHaveBeenCalled();
     });
 
     it("does nothing while Search is closed", async () => {
       workspace.search.value = INITIAL_SEARCH;
       await escapeFrom(script());
-      expect(search.close).not.toHaveBeenCalled();
+      expect(search.dismiss).not.toHaveBeenCalled();
     });
   });
 

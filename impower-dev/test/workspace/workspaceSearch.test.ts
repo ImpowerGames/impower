@@ -373,6 +373,8 @@ describe("reading mode", () => {
     expect(sources.applyEdit).not.toHaveBeenCalled();
     workspace.scriptMode.value = "editing";
     expect(await search.rename()).toBe(true);
+    expect(workspace.search.value.open).toBe(false);
+    expect(sources.focusScript).toHaveBeenCalledTimes(1);
     expect(sources.applyEdit).toHaveBeenCalledTimes(1);
   });
 
