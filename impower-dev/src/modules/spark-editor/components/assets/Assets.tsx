@@ -119,6 +119,8 @@ const SHOWN_USES = 3;
 const USES_HINT = "Lines in the scripts that show or play it.";
 
 const COUNTING_NOTE = "Counting uses…";
+
+const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 const ROW_HEIGHT = 63;
 
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
@@ -231,6 +233,7 @@ function AssetsBrowser() {
   const endings = assetEndings.value;
   const counted = workspace.assetUsage.value;
   const usage = counted?.projectId === projectId ? counted : null;
+  const uncounted = workspace.assetUsageFailed.value === projectId;
   const lists = useComputed(() => workspace.state.value.lists).value;
   const busy = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -785,7 +788,7 @@ function AssetsBrowser() {
             value={sort}
             fields={ASSET_SORT_FIELDS}
             usesHint={USES_HINT}
-            note={!usage && countsUses(sort) ? COUNTING_NOTE : undefined}
+            note={!usage && countsUses(sort) ? (uncounted ? UNCOUNTED_NOTE : COUNTING_NOTE) : undefined}
             onChange={(key) => setLists({ assetsSort: key })}
           />
         </>

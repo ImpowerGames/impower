@@ -39,7 +39,7 @@ import {
 } from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
 import type { SearchGroup } from "./searchState";
-import { usageOf, usesOf } from "./assetUsage";
+import { usageOf, usesOf, type AssetUsage } from "./assetUsage";
 import { usageGroups } from "./WorkspaceSearch";
 import { commonFolder, isInside, joinPath, MAIN_SCRIPT, nameOf, parentOf, scriptsHome } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
@@ -174,6 +174,8 @@ export default class WorkspaceAssets {
 
   protected _usageRequest = 0;
 
+  protected _latestUsage: Promise<AssetUsage | null> = Promise.resolve(null);
+
   constructor(deps: Deps) {
     this._workspace = deps;
   }
@@ -228,36 +230,54 @@ export default class WorkspaceAssets {
     return listing;
   }
 
-  async loadUsage(): Promise<void> {
+  loadUsage(): Promise<AssetUsage | null> {
+    const request = this.requestUsage();
+    this._latestUsage = request;
+    return request;
+  }
+
+  protected async requestUsage(): Promise<AssetUsage | null> {
     const projectId = this.projectId;
     const mine = ++this._usageRequest;
     if (!projectId) {
-      return;
+      return null;
     }
     const { fs, ls } = this._workspace;
     if (workspace.assetUsage.peek()?.projectId !== projectId) {
       workspace.assetUsage.value = null;
     }
+    const current = () => mine === this._usageRequest && projectId === this.projectId;
     try {
       const answer = await ls.getAssetUsage(fs.getFileUri(projectId, MAIN_SCRIPT));
-      if (!answer || mine !== this._usageRequest || projectId !== this.projectId) {
-        return;
+      if (!answer || !current()) {
+        return null;
       }
+      const usage = usageOf(projectId, answer, (uri) => fs.getRelativePath(projectId, uri), MAIN_SCRIPT);
       batch(() => {
-        workspace.assetUsage.value = usageOf(
-          projectId,
-          answer,
-          (uri) => fs.getRelativePath(projectId, uri),
-          MAIN_SCRIPT,
-        );
+        workspace.assetUsage.value = usage;
         workspace.assetUsageFailed.value = null;
       });
+      return usage;
     } catch (error) {
-      if (mine === this._usageRequest && projectId === this.projectId) {
-        workspace.assetUsageFailed.value = projectId;
+      if (current()) {
+        batch(() => {
+          workspace.assetUsage.value = null;
+          workspace.assetUsageFailed.value = projectId;
+        });
       }
-      console.error("[WorkspaceAssets] sparkdown/fileReferencesAll failed; uses keep the last answer read:", error);
+      console.error("[WorkspaceAssets] sparkdown/fileReferencesAll failed; uses are unknown until the next compile:", error);
+      return null;
     }
+  }
+
+  protected async latestUsage(): Promise<AssetUsage | null> {
+    let request = this._latestUsage;
+    let usage = await request;
+    while (request !== this._latestUsage) {
+      request = this._latestUsage;
+      usage = await request;
+    }
+    return usage;
   }
 
   watch(): () => void {
@@ -615,15 +635,9 @@ export default class WorkspaceAssets {
   }
 
   async usedBy(paths: readonly string[]): Promise<SearchGroup[] | null> {
-    const current = () => {
-      const usage = workspace.assetUsage.peek();
-      return usage?.projectId === this.projectId ? usage : null;
-    };
-    if (!current()) {
-      await this.loadUsage();
-    }
-    const usage = current();
-    if (!usage) {
+    void this.loadUsage();
+    const usage = await this.latestUsage();
+    if (!usage || usage.projectId !== this.projectId) {
       return null;
     }
     return usageGroups(usesOf(usage, coveredFiles(this.listing, this.covered(paths))));

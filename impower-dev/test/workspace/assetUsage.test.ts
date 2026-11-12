@@ -220,6 +220,48 @@ describe("asset usage, asked once for the whole project (#1033)", () => {
     expect(await assets.usedBy([`${IMAGES}/unused.png`])).toEqual([]);
   });
 
+  it("counts again before a delete, so an old unused answer never deletes a thing a script now uses", async () => {
+    const { assets, ls } = fakeWorkspace();
+    await assets.load();
+    await assets.loadUsage();
+    expect(rows("uses-asc")[0]!.name).toBe("unused");
+    ls.getAssetUsage.mockResolvedValue(answer({ [`${IMAGES}/unused.png`]: [use("main.sd", 7)] }, 2));
+    const groups = await assets.usedBy([`${IMAGES}/unused.png`]);
+    expect(groups!.flatMap((group) => group.uses.map((u) => u.lineText))).toEqual(["  line 7 of main.sd"]);
+    expect(ls.getAssetUsage).toHaveBeenCalledTimes(2);
+  });
+
+  it("answers a delete from its own count while an older recount is still under way, and keeps the newer answer", async () => {
+    const { assets, ls } = fakeWorkspace();
+    await assets.load();
+    await assets.loadUsage();
+    let finish!: (value: ReturnType<typeof answer>) => void;
+    ls.getAssetUsage.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    void assets.loadUsage();
+    ls.getAssetUsage.mockResolvedValue(answer({ [`${IMAGES}/unused.png`]: [use("main.sd", 7)] }, 3));
+    const groups = await assets.usedBy([`${IMAGES}/unused.png`]);
+    expect(groups!.flatMap((group) => group.uses)).toHaveLength(1);
+    finish(FULL);
+    await settle();
+    expect(workspace.assetUsage.value!.version).toBe(3);
+    expect(rows("uses-asc")[0]!.name).not.toBe("unused");
+  });
+
+  it("forgets the last answer when a recount fails, so no reader trusts an old unused", async () => {
+    const { assets, ls } = fakeWorkspace();
+    await assets.load();
+    await assets.loadUsage();
+    expect(workspace.assetUsage.value).not.toBeNull();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    ls.getAssetUsage.mockRejectedValue(new Error("The language server is not running"));
+    await assets.loadUsage();
+    expect(workspace.assetUsage.value).toBeNull();
+    expect(workspace.assetUsageFailed.value).toBe(PROJECT);
+    expect(await assets.usedBy([`${IMAGES}/unused.png`])).toBeNull();
+    expect(rows("uses-asc").map((row) => row.uses)).toEqual([0, 0, 0, 0]);
+    error.mockRestore();
+  });
+
   it("reports a failed count as unknown to the delete check and keeps the rows sorted by name", async () => {
     const { assets, ls } = fakeWorkspace();
     ls.getAssetUsage.mockRejectedValue(new Error("The language server is not running"));

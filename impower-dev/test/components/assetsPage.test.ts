@@ -1099,6 +1099,17 @@ describe("sorting by Uses and Story order", () => {
     await vi.waitFor(() => expect(sortMenuNote()).toBe("Counting uses…"));
   });
 
+  it("says the uses could not be counted, and sorts by name with the modified line, when the count failed", async () => {
+    workspace.assetUsage.value = null;
+    workspace.assetUsageFailed.value = PROJECT;
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    expect(rowLabels()[0]).toBe("Open image harbor, 2 variants, modified 2d · 2 kb");
+    await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
+    await vi.waitFor(() => expect(sortMenuNote()).toBe("Uses could not be counted. Edit a script to try again."));
+    workspace.assetUsageFailed.value = null;
+  });
+
   it("lists every unused thing first under Uses ascending, and moves one out without a reload", async () => {
     counted();
     await mount();
