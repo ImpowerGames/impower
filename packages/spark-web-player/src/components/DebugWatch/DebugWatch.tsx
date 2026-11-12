@@ -164,6 +164,7 @@ function AddField({ onAdd }: { onAdd: (expression: string) => void }) {
   return (
     <ListRow
       size="compact"
+      overflow="self"
       label={
         <TextField
           width="full"
@@ -208,6 +209,7 @@ export function DebugWatchRowView({
           {row.editing ? (
             <ListRow
               size="compact"
+              overflow="self"
               label={
                 <DebugValueField
                   label={DEBUG_WATCH_TEXT.field(row.entry.expression)}
@@ -224,6 +226,7 @@ export function DebugWatchRowView({
           ) : (
             <ListRow
               size="compact"
+              overflow="self"
               label={
                 <DebugNameValue
                   name={row.entry.expression}

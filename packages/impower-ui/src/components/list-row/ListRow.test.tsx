@@ -187,6 +187,39 @@ describe("ListRow", () => {
     expect(onRow).toHaveBeenCalledTimes(1);
   });
 
+  it("fades a node label the same way as a string label", async () => {
+    const root = await mount(
+      <div>
+        <ListRow label="plain_name" onClick={() => {}} />
+        <ListRow label={<strong data-node>node_name</strong>} onClick={() => {}} />
+      </div>,
+    );
+    const stringLabel = Array.from(root.querySelectorAll("span")).find(
+      (s) => s.textContent === "plain_name" && s.children.length === 0,
+    )!;
+    const nodeLabel = root.querySelector("[data-node]")!.parentElement!;
+    expect(stringLabel.className).toContain("fade-edge");
+    expect(nodeLabel.className).toBe(stringLabel.className);
+  });
+
+  it("leaves a self-clipping node label without the row's fade", async () => {
+    const root = await mount(
+      <ListRow overflow="self" label={<span data-node>field</span>} onClick={() => {}} />,
+    );
+    const label = root.querySelector("[data-node]")!.parentElement!;
+    expect(label.className).toContain("min-w-0");
+    expect(label.className).not.toContain("fade-edge");
+  });
+
+  it("wraps a label given overflow wrap instead of fading it", async () => {
+    const root = await mount(
+      <ListRow overflow="wrap" label={<span data-node>A long message</span>} />,
+    );
+    const label = root.querySelector("[data-node]")!.parentElement!;
+    expect(label.className).toContain("whitespace-normal");
+    expect(label.className).not.toContain("fade-edge");
+  });
+
   it("clamps a long label to two lines instead of fading it", async () => {
     const root = await mount(
       <ListRow overflow="clamp" label="A long prompt" onClick={() => {}} />,

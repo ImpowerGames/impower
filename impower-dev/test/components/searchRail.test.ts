@@ -153,6 +153,9 @@ describe("the rail's Find view", () => {
     ]);
     expect(rows.map((b) => b.getAttribute("aria-current"))).toEqual([null, "true", null]);
     expect(rows[0]!.querySelector("mark")?.textContent).toBe("rumour");
+    const snippet = rows[0]!.querySelector("mark")!.parentElement!;
+    expect(snippet.className).toContain("fade-edge");
+    expect(snippet.parentElement!.className).not.toContain("fade-edge");
   });
 
   it("presses the switches the search holds and toggles one when clicked", async () => {
