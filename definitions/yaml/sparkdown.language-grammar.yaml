@@ -26,8 +26,9 @@ variables:
   # end, comment openers included, so the chain text before a tag stops at the
   # first tag marker and DISPLAY_CHAIN_TAG takes the rest once. Letting the text
   # run past a marker would let each tag start at many places, and a line of
-  # tags with no chain mark would take exponential time to refuse.
-  DISPLAY_CHAIN_TEXT_BEFORE_TAG: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?!{{STORY_COMMENT_START}}|{{TAG_START}})[^\r\n])
+  # tags with no chain mark would take exponential time to refuse. For the same
+  # reason a character never starts what CHOICE_PLAIN_INTERPOLATION takes whole.
+  DISPLAY_CHAIN_TEXT_BEFORE_TAG: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?!{{STORY_COMMENT_START}}|{{TAG_START}}|{{CHOICE_PLAIN_INTERPOLATION}})[^\r\n])
   DISPLAY_CHAIN_TAG: (?:{{TAG_START}}[^\r\n]*?)
   DISPLAY_CHAIN_TEXT: (?:{{DISPLAY_CHAIN_TEXT_BEFORE_TAG}}*?{{DISPLAY_CHAIN_TAG}}?)
   # lookaround: Annotation's Tag reads a tag to the line's end, comment openers
@@ -202,14 +203,20 @@ variables:
   # lookaround: LuauInterpolatedStringExpression reads an unclosed `{` to its
   # capture's end; CHOICE_INTERPOLATION_UNIT refuses it, so it stays text.
   CHOICE_OPEN_BRACE: (?:[{](?![^\r\n]*[}]))
+  # lookaround: ChoiceOnlyText reads a tag to its end (CHOICE_ONLY_TEXT_TAG), so the
+  # scan takes a tag only where it runs to that end and the scan splits a line
+  # in one way.
+  CHOICE_SUPPRESSION_TAG: (?:{{CHOICE_ONLY_TEXT_TAG}}(?={{CHOICE_ONLY_TEXT_END}}))
   # lookaround: ChoiceOnlyText reads a suppression's text up to a `]`, an arrow
   # or the line's end, and readChoiceText reads a `[` that meets no `]` as
   # literal text (ChoiceStartText's). The scan follows ChoiceOnlyText's reading:
   # it reads a tag to ChoiceOnlyText's end as CHOICE_ONLY_TEXT_TAG does, skips an
   # interpolation CHOICE_PLAIN_INTERPOLATION keeps and a block comment closed
   # on the line, and it stops at an arrow, a line comment
-  # (SparkdownInlineComment) or the line's end, where the `[` stays text.
-  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_ONLY_TEXT_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_OPEN_BRACE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}})[^\r\n])
+  # (SparkdownInlineComment) or the line's end, where the `[` stays text. A tag
+  # runs to ChoiceOnlyText's end and a character never starts a tag, so the scan
+  # splits a line in one way and refuses an unclosed one in linear time.
+  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_OPEN_BRACE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}})[^\r\n])
   # lookaround: SparkdownBlockComment reads a comment left open on the line to a
   # later line, and LuauInterpolatedStringExpression reads an interpolation the
   # scan cannot keep (CHOICE_READ_INTERPOLATION) as a unit; either may hide the
@@ -289,11 +296,13 @@ variables:
   # comment there is a unit, and the command is one capture. A block comment
   # closed on the line is taken whole, so a bracket or an arrow inside it ends
   # nothing. The run is one capture, so no order can stop it at the region's end.
-  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_START_TEXT_END}})[^\r\n])
+  # A backslash always takes the next character and a closed comment is always
+  # taken whole, so a run that meets no close is refused in linear time.
+  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|[\\](?!{{CHOICE_START_TEXT_END}})[^\r\n]|(?!{{CHOICE_START_TEXT_END}}|{{BLOCK_COMMENT_ON_LINE}}|[\\])[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceStartTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_START_COMMAND_CHARACTER}}|{{CHOICE_START_COMMAND_CHARACTER}})*?(?<![-])[>])
+  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}}){{CHOICE_START_COMMAND_CHARACTER}}*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceStartTextContent takes the command whole.
   CHOICE_START_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_START_COMMAND_CHARACTER}})*)
@@ -346,11 +355,13 @@ variables:
   # comment there is a unit, and the command is one capture. A block comment
   # closed on the line is taken whole, so a bracket or an arrow inside it ends
   # nothing. The run is one capture, so no order can stop it at the region's end.
-  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_ONLY_TEXT_END}})[^\r\n])
+  # A backslash always takes the next character and a closed comment is always
+  # taken whole, so a run that meets no close is refused in linear time.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|[\\](?!{{CHOICE_ONLY_TEXT_END}})[^\r\n]|(?!{{CHOICE_ONLY_TEXT_END}}|{{BLOCK_COMMENT_ON_LINE}}|[\\])[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceOnlyTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_ONLY_COMMAND_CHARACTER}}|{{CHOICE_ONLY_COMMAND_CHARACTER}})*?(?<![-])[>])
+  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}}){{CHOICE_ONLY_COMMAND_CHARACTER}}*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
   CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_COMMAND_CHARACTER}})*)
@@ -403,11 +414,13 @@ variables:
   # comment there is a unit, and the command is one capture. A block comment
   # closed on the line is taken whole, so a bracket or an arrow inside it ends
   # nothing. The run is one capture, so no order can stop it at the region's end.
-  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_INNER_TEXT_END}})[^\r\n])
+  # A backslash always takes the next character and a closed comment is always
+  # taken whole, so a run that meets no close is refused in linear time.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|[\\](?!{{CHOICE_INNER_TEXT_END}})[^\r\n]|(?!{{CHOICE_INNER_TEXT_END}}|{{BLOCK_COMMENT_ON_LINE}}|[\\])[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceInnerTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_INNER_COMMAND_CHARACTER}}|{{CHOICE_INNER_COMMAND_CHARACTER}})*?(?<![-])[>])
+  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}}){{CHOICE_INNER_COMMAND_CHARACTER}}*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceInnerTextContent takes the command whole.
   CHOICE_INNER_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_INNER_COMMAND_CHARACTER}})*)
