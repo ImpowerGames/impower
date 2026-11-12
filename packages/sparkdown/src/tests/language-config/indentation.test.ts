@@ -231,6 +231,12 @@ describe("the story increaseIndentPattern", () => {
       "We reached a new branch",
       "  I had to repeat",
       "  She had a function to attend",
+      "He asked what the function (the old one) did",
+      "He asked what the function(the old one) did",
+      "The function (a, b) works fine",
+      "I wonder about the function (and then",
+      "Is a function  (x)",
+      "Every function f(x) did",
     ]) {
       expect(increase.test(line), line).toBe(false);
     }
@@ -249,6 +255,11 @@ describe("the story increaseIndentPattern", () => {
       "scene start(a, b)",
       "function f()",
       "local g = function(x)",
+      "local function f(a, b)",
+      "function a.b:c(x)",
+      "  call(a, function(x)",
+      "  return function(x)",
+      "t = { function(x)",
       "  if x then -- note",
       "  if x then // note",
     ]) {
