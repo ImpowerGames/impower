@@ -92,6 +92,7 @@ const { default: workspace } = await import("../../src/modules/spark-editor/work
 const { default: selection } = await import("../../src/modules/spark-editor/workspace/assetsSelection");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
+await import("../../src/modules/spark-editor/workspace/editorAudio");
 const { PROJECT_SETTINGS_SCHEMA } = await import(
   "../../src/modules/spark-editor/workspace/settings/settingsSchema"
 );
