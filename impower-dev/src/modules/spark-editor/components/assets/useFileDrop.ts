@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { carriesFiles, droppedFiles, FILE_DROP_HIDE_MS, FILE_DROP_TARGET } from "../../utils/fileDrops";
-import type { AddedFile } from "../../workspace/addAssetFiles";
+import { carriesFiles, droppedItems, FILE_DROP_HIDE_MS, FILE_DROP_TARGET, type DropItem } from "../../utils/fileDrops";
 import { DROP_FOLDER } from "../library-page";
 
 const folderAt = (target: EventTarget | null): string | null => {
@@ -10,7 +9,7 @@ const folderAt = (target: EventTarget | null): string | null => {
 
 export type FileDropOptions = {
   current: () => string;
-  onDrop: (files: AddedFile[], folder: string) => void;
+  onDrop: (items: DropItem[], folder: string) => void;
 };
 
 export function useFileDrop(options: FileDropOptions) {
@@ -52,9 +51,9 @@ export function useFileDrop(options: FileDropOptions) {
       event.preventDefault();
       const folder = folderAt(event.target) ?? latest.current.current();
       hide();
-      const files = droppedFiles(event);
-      if (files.length) {
-        latest.current.onDrop(files, folder);
+      const items = droppedItems(event);
+      if (items.length) {
+        latest.current.onDrop(items, folder);
       }
     },
   };

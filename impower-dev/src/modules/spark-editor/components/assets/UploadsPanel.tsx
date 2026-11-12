@@ -5,12 +5,13 @@ import workspace from "../../workspace/WorkspaceStore";
 
 export default function UploadsPanel({ listing }: { listing: AssetListing }) {
   const rows = workspace.uploads.value;
-  if (!rows.length) {
+  const found = workspace.uploadsFound.value;
+  if (!rows.length && found === null) {
     return null;
   }
   return (
     <UploadPanel
-      heading={uploadHeading(rows)}
+      heading={uploadHeading(rows, found)}
       onClose={closeUploads}
       rows={rows.map((row) => ({
         key: String(row.id),

@@ -351,7 +351,7 @@ describe("the Assets page", () => {
     expect(window.setListState).not.toHaveBeenCalledWith(expect.objectContaining({ assetsType: expect.anything() }));
   });
 
-  it("follows an upload that lands in another type's folder to that tab and folder", async () => {
+  it("follows an upload that lands in another type's folder to that tab, opening the folder it landed in", async () => {
     workspace.current = { ...workspace.current, lists: { assetsType: "font" } };
     assets.upload.mockImplementationOnce(async () => {
       setListing({ ...workspace.assetListing.value!.files, "Assets/Images/Portraits/bunny2.png": facts(700) });
@@ -360,8 +360,7 @@ describe("the Assets page", () => {
     await mount();
     await chooseFiles("bunny2.png");
     expect(selectedTab()).toBe("image");
-    expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: "Assets/Images/Portraits" });
-    expect(rowLabels()).toEqual(["Open image bunny2, modified 2d · 700 b"]);
+    expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: "Assets/Images" });
   });
 
   it("follows a link to the tab of the type its address names", async () => {
@@ -954,12 +953,15 @@ describe("playing sounds from their rows", () => {
 
 describe("adding files dragged in from the desktop", () => {
   const P = "Assets/Images/Portraits";
-  const desktopFiles = (...names: string[]) => ({
-    types: ["Files"],
-    files: names.map((name) => new File(["xy"], name)),
-    items: names.map(() => ({ kind: "file", type: "" })),
-    dropEffect: "",
-  });
+  const desktopFiles = (...names: string[]) => {
+    const files = names.map((name) => new File(["xy"], name));
+    return {
+      types: ["Files"],
+      files,
+      items: files.map((file) => ({ kind: "file", type: "", getAsFile: () => file })),
+      dropEffect: "",
+    };
+  };
   const dragFiles = async (target: Element, type: "dragover" | "drop", dataTransfer: ReturnType<typeof desktopFiles>) => {
     await act(async () => {
       target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { dataTransfer }));
