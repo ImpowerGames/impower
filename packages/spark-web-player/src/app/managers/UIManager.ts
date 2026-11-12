@@ -1,6 +1,7 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
+import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import {
@@ -228,6 +229,8 @@ export default class UIManager extends Manager {
 
   protected _theme: ThemeVariables = new Set();
 
+  protected _hold = new AnimationHold();
+
   protected _themeKey = getThemeKey([]);
 
   protected _listeners: Record<string, Record<string, (event: Event) => void>> =
@@ -403,16 +406,20 @@ export default class UIManager extends Manager {
   }
 
   override onSkip(seconds: number) {
+    this._hold.step(seconds * 1000);
     this.morphs?.step(seconds);
     this.skipMovies(seconds);
   }
 
   override onPause() {
+    this._hold.pause();
+    this.flushPendingBeat();
     this.morphs?.setPaused(true);
     this.pauseMovies();
   }
 
   override onUnpause() {
+    this._hold.resume();
     this.morphs?.setPaused(false);
     this.resumeMovies();
   }
@@ -1282,7 +1289,7 @@ export default class UIManager extends Manager {
     }
     if (AnimateElementsMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       const validEffects: number[] = [];
       for (let i = 0; i < params.effects.length; i += 1) {
         const effect = params.effects[i];
@@ -1676,7 +1683,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
-    const shownNow = new AnimationPlayer(this._theme);
+    const shownNow = new AnimationPlayer(this._theme, this._hold);
     for (const { element, animation } of enterNow) {
       (element as any).__sdReveal = shownNow.add({
         element,
@@ -1685,7 +1692,7 @@ export default class UIManager extends Manager {
     }
     const showing = enterNow.length > 0 ? shownNow.play() : undefined;
     if (enter.length > 0 || waiting.length > 0) {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const { element, animation } of enter) {
         (element as any).__sdReveal = player.add({
           element,
@@ -1910,13 +1917,13 @@ export default class UIManager extends Manager {
     }
 
     if (targetEffects.length > 0) {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const e of targetEffects) {
         player.add(e);
       }
       await player.play(startTime);
       if (startTime != null) {
-        startTime += player.endTime;
+        startTime = (player.startTime ?? startTime) + player.endTime;
       }
     }
     for (const video of newMovies) {
@@ -1930,7 +1937,7 @@ export default class UIManager extends Manager {
       if (effects.length === 0) {
         return Promise.resolve();
       }
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const e of effects) {
         const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
@@ -1963,20 +1970,24 @@ export default class UIManager extends Manager {
   ) {
     const doc = el.ownerDocument;
     const view = doc.defaultView;
-    const starts = exits
-      .map((exit) =>
-        exit.startTime == null
-          ? NaN
-          : Number(exit.startTime) +
-            Number(exit.effect?.getTiming?.().delay ?? 0),
-      )
-      .filter((at) => Number.isFinite(at));
-    const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
+    const startOf = (exit: globalThis.Animation, now: number) =>
+      exit.startTime != null
+        ? Number(exit.startTime)
+        : exit.currentTime != null
+          ? now - Number(exit.currentTime) / exit.playbackRate
+          : NaN;
     const check = () => {
       if (!el.isConnected) {
         return;
       }
       const now = Number(doc.timeline?.currentTime);
+      const starts = exits
+        .map(
+          (exit) =>
+            startOf(exit, now) + Number(exit.effect?.getTiming?.().delay ?? 0),
+        )
+        .filter((at) => Number.isFinite(at));
+      const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
       if (!(now < at)) {
         this.morphs?.freezeWithin(el);
         return;
@@ -2027,7 +2038,7 @@ export default class UIManager extends Manager {
     };
     let transition: ReturnType<AnimationPlayer["add"]> = [];
     const playTransition = (animation: Animation) => {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       transition = player.add({ element, animations: [animation] });
       return player.play().finally(() => {
         transition = [];

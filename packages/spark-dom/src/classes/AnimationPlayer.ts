@@ -2,6 +2,7 @@ import type { Animation as AnimationDefinition } from "../../../spark-engine/src
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssTokenValue } from "../utils/getCssTokenValue";
+import type AnimationHold from "./AnimationHold";
 import { getMilliseconds } from "../utils/getMilliseconds";
 
 export interface AnimationInstance {
@@ -19,11 +20,11 @@ export default class AnimationPlayer {
 
   protected _theme: ThemeVariables;
 
-  constructor(theme: ThemeVariables, effects: AnimationEffect[] = []) {
+  protected _hold?: AnimationHold;
+
+  constructor(theme: ThemeVariables, hold?: AnimationHold) {
     this._theme = theme;
-    for (const t of effects) {
-      this.add(t);
-    }
+    this._hold = hold;
   }
 
   add(effect: AnimationEffect): Animation[] {
@@ -123,6 +124,11 @@ export default class AnimationPlayer {
     return created;
   }
 
+  get startTime(): number | undefined {
+    const start = this._instances[0]?.animation.startTime;
+    return start == null ? undefined : Number(start);
+  }
+
   get endTime(): number {
     let end = 0;
     for (const instance of this._instances) {
@@ -141,6 +147,7 @@ export default class AnimationPlayer {
           instance.animation.startTime = document.timeline.currentTime;
           instance.animation.play();
         }
+        this._hold?.add(instance.animation);
         await instance.animation.finished;
       }),
     );
