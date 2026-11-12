@@ -79,26 +79,30 @@ async function schedulesOf(
   await flushMicrotasks(10);
   audio.triggerAll([id]);
   await flushMicrotasks(10);
-  return harness
-    .snapshotFiltered("audio/update")
-    .flatMap((m: any) => m.params.updates.map((u: any) => `${u.control} ${u.key ?? "*"}`));
+  return {
+    updates: harness
+      .snapshotFiltered("audio/update")
+      .flatMap((m: any) => m.params.updates.map((u: any) => `${u.control} ${u.key ?? "*"}`)),
+    held: [...(audio.loopsHeld().get(channel)?.keys() ?? [])],
+  };
 }
 
 describe("audio scheduled for a redelivered, unchanged beat (#2118)", () => {
   test.each([
-    { name: "skips a one-shot sound", channel: "sound", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
-    { name: "skips a voice line", channel: "voice", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
-    { name: "keeps a sound whose asset loops", channel: "sound", events: [{ control: "play", assets: ["rain"] }], landing: ["start audio.rain"], redelivered: ["start audio.rain"] },
-    { name: "keeps a sound played as a loop", channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }], landing: ["start audio.door"], redelivered: ["start audio.door"] },
-    { name: "keeps music", channel: "music", events: [{ control: "play", assets: ["theme"] }], landing: ["start audio.theme"], redelivered: ["start audio.theme"] },
-  ])("$name", async ({ channel, events, landing, redelivered }) => {
-    expect(await schedulesOf(channel, events, false)).toEqual(landing);
-    expect(await schedulesOf(channel, events, true)).toEqual(redelivered);
-  });
-
-  test("keeps a redelivered beat's stop of a sound it started as a loop", async () => {
-    expect(
-      await schedulesOf("sound", [{ control: "play", assets: ["rain"] }, { control: "stop", assets: ["rain"] }], true),
-    ).toEqual(["start audio.rain", "stop audio.rain"]);
+    { name: "does not start a one-shot sound again", channel: "sound", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: ["stop audio.door"], held: [] },
+    { name: "does not start a voice line again", channel: "voice", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: ["stop audio.door"], held: [] },
+    { name: "keeps a sound whose asset loops", channel: "sound", events: [{ control: "play", assets: ["rain"] }], landing: ["start audio.rain"], redelivered: ["start audio.rain"], held: ["audio.rain"] },
+    { name: "keeps a sound played as a loop", channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }], landing: ["start audio.door"], redelivered: ["start audio.door"], held: ["audio.door"] },
+    { name: "keeps music", channel: "music", events: [{ control: "play", assets: ["theme"] }], landing: ["start audio.theme"], redelivered: ["start audio.theme"], held: ["audio.theme"] },
+    { name: "keeps a stop of a sound it started as a loop", channel: "sound", events: [{ control: "play", assets: ["rain"] }, { control: "stop", assets: ["rain"] }], landing: ["start audio.rain", "stop audio.rain"], redelivered: ["start audio.rain", "stop audio.rain"], held: [] },
+    { name: "ends a loop the beat then plays once, leaving no loop held", channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }, { control: "play", assets: ["door"], loop: false }], landing: ["start audio.door", "start audio.door"], redelivered: ["start audio.door", "stop audio.door"], held: [] },
+    { name: "ends a loop the beat then plays once across the channel, leaving no loop held", channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }, { control: "play", loop: false }], landing: ["start audio.door", "start *"], redelivered: ["start audio.door", "stop *"], held: [] },
+  ])("$name", async ({ channel, events, landing, redelivered, held }) => {
+    const landed = await schedulesOf(channel, events, false);
+    expect(landed.updates).toEqual(landing);
+    expect(landed.held).toEqual(held);
+    const again = await schedulesOf(channel, events, true);
+    expect(again.updates).toEqual(redelivered);
+    expect(again.held).toEqual(held);
   });
 });

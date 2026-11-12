@@ -661,6 +661,15 @@ export class AudioModule extends Module<
     redelivered = false,
   ): number {
     const sounded = redelivered && BEAT_SCOPED_CHANNELS.has(channel);
+    const retired = (update: AudioPlayerUpdate): AudioPlayerUpdate | null =>
+      sounded && update.control === "start" && !update.loop
+        ? {
+            control: "stop",
+            after: update.after,
+            now: update.now,
+            ...(update.key != null ? { key: update.key } : {}),
+          }
+        : null;
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
     for (const e of sequence) {
@@ -702,17 +711,18 @@ export class AudioModule extends Module<
       }
       if (event.assets && event.assets.length > 0) {
         for (const d of this.getAllAudioData(channel, event.assets)) {
-          const update = this.process(channel, event, d);
-          if (sounded && update.control === "start" && !update.loop) {
-            continue;
+          const processed = this.process(channel, event, d);
+          const update = retired(processed) ?? processed;
+          if (update === processed) {
+            audioToLoad.add(d);
           }
-          audioToLoad.add(d);
           this.setCurrentlyPlaying(channel, update, d);
           this.saveChannelState(channel, update, d);
           updates.push(update);
         }
       } else {
-        const update = this.process(channel, event);
+        const processed = this.process(channel, event);
+        const update = retired(processed) ?? processed;
         const playing = this._channelsCurrentlyPlaying.get(channel);
         if (playing) {
           for (const d of playing.values()) {
