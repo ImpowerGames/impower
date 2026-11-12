@@ -15,6 +15,7 @@ import PreviewGame from "../preview-game/PreviewGame";
 import { RoutePanel } from "../preview-route";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
 import PreviewTopBar from "../preview-top-bar/PreviewTopBar";
+import PreviewStatuses from "./PreviewStatuses";
 
 export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
@@ -76,6 +77,7 @@ export default function Preview(_props: PreviewProps) {
         <PreviewGame />
       </div>
       {mode === "screenplay" ? <PreviewScreenplay /> : null}
+      <PreviewStatuses mode={mode} />
     </>
   );
 

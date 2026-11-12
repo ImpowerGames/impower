@@ -1,24 +1,16 @@
 import { Fragment, type Ref } from "preact";
-import { useEffect, useState } from "preact/hooks";
-import type { CompletionPreviewStatus } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import {
-  completionStatusText,
-  endingStatusHover,
-  endingStatusText,
   playerBarLocation,
   skipRefusal,
   type PlayerBarState,
 } from "./playerBarState";
 import { useHoldRepeat } from "./useHoldRepeat";
 
-const COMPLETION_PREPARING_STATUS_DELAY = 150;
-
 export interface PlayerBarControls {
   skip?: boolean;
   step?: boolean;
   fullscreen?: boolean;
   resize?: boolean;
-  location?: boolean;
 }
 
 export interface PlayerBarProps {
@@ -102,22 +94,6 @@ function TransportButton({
   );
 }
 
-const useShownCompletion = (status: CompletionPreviewStatus | null) => {
-  const [shown, setShown] = useState<CompletionPreviewStatus | null>(status);
-  useEffect(() => {
-    if (status === "preparing" && shown == null) {
-      const timer = window.setTimeout(
-        () => setShown(status),
-        COMPLETION_PREPARING_STATUS_DELAY,
-      );
-      return () => window.clearTimeout(timer);
-    }
-    setShown(status);
-    return undefined;
-  }, [status]);
-  return shown;
-};
-
 export default function PlayerBar({
   state,
   controls,
@@ -136,11 +112,7 @@ export default function PlayerBar({
   const executed = state.executed;
   const location = executed ? playerBarLocation(executed, workspace) : null;
   const connection = location?.connection ?? null;
-  const completion = completionStatusText(
-    useShownCompletion(state.completion),
-    executed != null,
-  );
-  const ending = state.ending;
+  const { completion, ending } = state.statuses;
   const size = state.size;
   const debugging =
     !!controls.step && state.playing && state.launchState !== "ended";
@@ -193,7 +165,7 @@ export default function PlayerBar({
           ) : null}
         </div>
       ) : null}
-      <div id="left-items" hidden={!location || controls.location === false}>
+      <div id="left-items" hidden={!location}>
         <div id="route-button" ref={routeButtonRef} hidden={!routeShown} />
         <div
           id="location-items"
@@ -229,18 +201,18 @@ export default function PlayerBar({
           id="completion-status"
           role="status"
           hidden={!completion}
-          data-state={completion ? (state.completion ?? undefined) : undefined}
+          data-state={completion?.status}
         >
-          {completion}
+          {completion?.text ?? ""}
         </span>
         <span
           id="ending-status"
           role="status"
           hidden={!ending}
-          title={ending ? endingStatusHover(ending) : ""}
+          title={ending?.hover ?? ""}
           data-kind={ending?.kind}
         >
-          {ending ? endingStatusText(ending) : ""}
+          {ending?.text ?? ""}
         </span>
       </div>
       <div id="right-items">

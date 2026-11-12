@@ -22,6 +22,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "railIndexRowVariants",
   "selectVariants",
   "settingsRowVariants",
+  "statusBadgeVariants",
   "switchVariants",
   "sliderVariants",
   "playButtonVariants",
