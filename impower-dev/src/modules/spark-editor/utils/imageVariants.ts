@@ -1,10 +1,10 @@
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
 import { bytesLabel, plural } from "./fileListModel";
-import type { ImageStack, StackMember, StackPicture } from "./imageStacks";
+import { AS_IS, choicesOf, type ImageStack, type StackMember, type StackPicture } from "./imageStacks";
+
+export { AS_IS };
 
 export const ALTERNATE = "@";
-
-export const AS_IS = "";
 
 export type VariantForm = "portrait" | "backdrop";
 
@@ -51,7 +51,7 @@ export const testerGroups = (stack: ImageStack, selection: VariantSelection): Te
   }
   for (const group of pictureFor(stack, selection).groups) {
     const resting = group.default ?? (group.switch ? "off" : AS_IS);
-    const options = group.switch || group.default !== undefined ? group.options : [AS_IS, ...group.options];
+    const options = choicesOf(group);
     if (options.length > 1) {
       groups.push({ key: group.name, label: group.name, options, default: resting, switch: group.switch });
     }

@@ -4692,7 +4692,7 @@ define morph with
   keyframes = {}
   clips = {}
   paints = {}
-  timing = { delay = 0, duration = 0.25, easing = "ease-out", iterations = 1, direction = "normal" }
+  timing = { trigger = "appear", delay = 0, duration = 0.25, easing = "ease-out", iterations = 1, direction = "normal" }
 end
 
 define transition with
