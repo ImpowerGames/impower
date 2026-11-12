@@ -217,6 +217,8 @@ export const renameNote = (
 export default class WorkspaceSearch {
   protected readonly _sources: SearchSources;
 
+  protected _termEdits = 0;
+
   protected readonly _disposers: (() => void)[];
 
   protected _request = 0;
@@ -318,7 +320,8 @@ export default class WorkspaceSearch {
     ) {
       return;
     }
-    const opened = this.snapshot;
+    const request = this.snapshot.focusRequest;
+    const edits = this._termEdits;
     const line = lineOf(await this._sources.fileText(uri), selection.start.line);
     const from = Math.min(selection.start.character, selection.end.character);
     const to = Math.max(selection.start.character, selection.end.character);
@@ -328,8 +331,8 @@ export default class WorkspaceSearch {
       term.trim() &&
       now.open &&
       now.view === "find" &&
-      now.term === opened.term &&
-      now.focusRequest === opened.focusRequest
+      this._termEdits === edits &&
+      now.focusRequest === request
     ) {
       this.update({ term, focusRequest: now.focusRequest + 1 });
       await this.refresh();
@@ -344,6 +347,7 @@ export default class WorkspaceSearch {
   }
 
   setTerm(term: string) {
+    this._termEdits += 1;
     this.update({ term, status: "" });
     return this.refresh();
   }

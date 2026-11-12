@@ -583,6 +583,16 @@ describe("a tool asked for from inside the editor", () => {
     expect(workspace.search.value).toMatchObject({ term: "Ali", focusRequest: 1 });
   });
 
+  it("keeps the earlier query when it is typed again before the selection's words arrive", async () => {
+    const { search, selection } = make(MAIN);
+    await search.setTerm("old");
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    void search.setTerm("old");
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "old", focusRequest: 1 });
+  });
+
   it("gives the focus back to the script when Find is dismissed", () => {
     const { search, sources } = make(MAIN);
     search.open("find");
