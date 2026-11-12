@@ -52,6 +52,28 @@ export const findProjectRoot = (paths: readonly string[]): ProjectZipRoot => {
   return { kind: "root", root, leftOut: { count: outside.length, folders } };
 };
 
+export const clashingPath = (paths: readonly string[]): string | null => {
+  const files = new Set<string>();
+  const folders = new Set<string>();
+  for (const path of paths) {
+    const isFolder = path.endsWith("/");
+    const segments = path.split("/").filter(Boolean);
+    const target = segments.join("/");
+    if (isFolder ? files.has(target) : files.has(target) || folders.has(target)) {
+      return target;
+    }
+    (isFolder ? folders : files).add(target);
+    for (let i = 1; i < segments.length; i++) {
+      const parent = segments.slice(0, i).join("/");
+      if (files.has(parent)) {
+        return parent;
+      }
+      folders.add(parent);
+    }
+  }
+  return null;
+};
+
 const IMPORT_OUTCOME_STORAGE_KEY = "workspace/importOutcome";
 
 export const keepImportOutcome = (outcome: ImportOutcome) => {
@@ -73,6 +95,8 @@ export const REFUSED_BEFORE_CHANGE: ReadonlySet<ImportFailureReason> = new Set([
   "unreadable_zip",
   "no_main_script",
   "several_main_scripts",
+  "no_room",
+  "name_clash",
 ]);
 
 export class ProjectImportError extends Error {
@@ -107,6 +131,10 @@ const FAILURE_SENTENCES: Record<
     `Nothing was changed because “${fileName}” has no ${MAIN_SCRIPT}, which every project backup needs.`,
   several_main_scripts: (fileName, folders) =>
     `Nothing was changed because “${fileName}” holds more than one project, in ${listed(quoted(folders))}, so zip one of them on its own.`,
+  no_room: (fileName) =>
+    `Nothing was changed because “${fileName}” needs more space than this device has left, so free some space and try again.`,
+  name_clash: (fileName, folders) =>
+    `Nothing was changed because “${fileName}” holds more than one entry that would be saved as “${folders[0] ?? ""}”, so rename one of them and zip the project again.`,
   storage: (fileName) =>
     `Could not save “${fileName}” on this device, so free some space and try again.`,
   unknown: (fileName) =>

@@ -5,14 +5,8 @@ import { findProjectRoot, isArchiveDropping } from "./projectImport";
 import { landingFolder } from "./assetsListing";
 import { isInside, joinPath, parentOf } from "./scriptsListing";
 import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
-import {
-  beginUploadBatch,
-  endUploadBatch,
-  findingUploads,
-  refuseUploads,
-  storageLeft,
-  withUploadGroup,
-} from "./uploadSession";
+import { storageLeft } from "../utils/storageLeft";
+import { beginUploadBatch, endUploadBatch, findingUploads, refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
 import workspace from "./WorkspaceStore";
 

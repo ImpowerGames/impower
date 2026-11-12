@@ -69,12 +69,15 @@ import {
   type RenameOutcome,
 } from "../utils/fileMoves";
 import { imageStacks } from "../utils/imageStacks";
+import { storageLeft } from "../utils/storageLeft";
+import { storagePath } from "../utils/storageName";
 import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
 import {
+  clashingPath,
   findProjectRoot,
   isArchiveDropping,
   ProjectImportError,
@@ -737,13 +740,26 @@ export default class WorkspaceFileSystem {
     if (found.kind === "refused") {
       throw new ProjectImportError(found);
     }
-    const archive = unzippedArchive.flatMap((entry) =>
-      entry.filename.startsWith(found.root) &&
-      entry.filename !== found.root &&
-      !isArchiveDropping(entry.filename)
-        ? [{ ...entry, filename: entry.filename.slice(found.root.length) }]
-        : [],
-    );
+    const archive = unzippedArchive.flatMap((entry) => {
+      if (
+        !entry.filename.startsWith(found.root) ||
+        entry.filename === found.root ||
+        isArchiveDropping(entry.filename)
+      ) {
+        return [];
+      }
+      const path = storagePath(entry.filename.slice(found.root.length));
+      if (!path) {
+        return [];
+      }
+      return [
+        { ...entry, filename: entry.filename.endsWith("/") ? `${path}/` : path },
+      ];
+    });
+    const clash = clashingPath(archive.map(({ filename }) => filename));
+    if (clash !== null) {
+      throw new ProjectImportError({ reason: "name_clash", folders: [clash] });
+    }
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
@@ -763,6 +779,14 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
+    const free = await storageLeft();
+    const needed = zipFilesToWrite.reduce(
+      (sum, { data }) => sum + data.byteLength,
+      0,
+    );
+    if (free !== null && needed > free) {
+      throw new ProjectImportError({ reason: "no_room" });
+    }
     try {
       if (zipFilesToDelete.length > 0) {
         await this.deleteFiles({ files: zipFilesToDelete });

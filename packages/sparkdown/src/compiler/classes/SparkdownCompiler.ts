@@ -4871,6 +4871,17 @@ export class SparkdownCompiler {
       program.context,
       (base, override) => this.inheritDefaults(base, override),
     );
+    const morphs = program.context["morph"];
+    for (const [name, fields] of effective) {
+      const compiled = morphs?.[name];
+      if (compiled?.["$extends"] === undefined) continue;
+      morphs![name] = {
+        ...fields,
+        $type: compiled["$type"],
+        $name: compiled["$name"],
+        $extends: compiled["$extends"],
+      };
+    }
     if (effective.size === 0) {
       delete program.morphs;
     } else {
