@@ -1,81 +1,86 @@
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { assetEndings, assetTypeOf } from "../utils/assetTypes";
-import getValidFileName from "../utils/getValidFileName";
-import { importFiles } from "../utils/importDroppedFiles";
-import { isScriptPath } from "../utils/scriptFiles";
-import { findProjectRoot } from "./projectImport";
-import { joinPath, parentOf, scriptsHome } from "./scriptsListing";
+import { inflateZipEntry, listZip } from "../utils/zipEntries";
+import { findProjectRoot, isArchiveDropping } from "./projectImport";
+import { joinPath, parentOf } from "./scriptsListing";
 import { refuseUploads, storageLeft, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
 import workspace from "./WorkspaceStore";
 
 export type AddedFile = DroppedFile & { size: number };
 
-export const isProjectZipDrop = (files: readonly { name: string }[]): boolean =>
+type OpenedFiles = { files: readonly AddedFile[]; from?: string };
+
+const isZip = (files: readonly { name: string }[]): boolean =>
   files.length === 1 && /\.zip$/i.test(files[0]!.name);
 
-export const openDroppedZip = async (file: AddedFile): Promise<"replace" | "refused"> => {
-  const { Workspace } = await import("./Workspace");
+const openZip = async (file: AddedFile): Promise<OpenedFiles | null> => {
+  const refused: OpenedFiles = { files: [] };
   const data = await file.getBuffer().catch(() => null);
   if (!data) {
     refuseUploads([file.name], { kind: "unreadable" });
-    return "refused";
+    return refused;
   }
-  const entries = await Workspace.fs.unzipFiles({ data: data.slice(0) }).catch(() => null);
-  const found = entries
-    ? findProjectRoot(entries.map((entry) => entry.filename))
+  const listed = listZip(data);
+  const found = listed
+    ? findProjectRoot(listed.map((entry) => entry.path))
     : ({ kind: "refused", reason: "unreadable_zip" } as const);
   if (found.kind === "root") {
+    const { Workspace } = await import("./Workspace");
     await Workspace.window.requestProjectReplace(new File([data], file.name, { type: "application/zip" }));
-    return "replace";
+    return null;
   }
-  refuseUploads([file.name], {
-    kind: "zip",
-    reason: found.reason,
-    folders: "folders" in found ? found.folders : undefined,
-  });
-  return "refused";
+  const files = (listed ?? [])
+    .filter((entry) => !entry.path.endsWith("/") && !isArchiveDropping(entry.path))
+    .map((entry) => ({
+      name: entry.path,
+      size: entry.size,
+      getBuffer: async () => inflateZipEntry(data, entry.path),
+    }));
+  if (found.reason !== "no_main_script" || !files.length) {
+    refuseUploads([file.name], {
+      kind: "zip",
+      reason: found.reason,
+      folders: "folders" in found ? found.folders : undefined,
+    });
+    return refused;
+  }
+  return { files, from: file.name };
 };
 
 export const addAssetFiles = async (
   files: readonly AddedFile[],
   folder: string,
-  { dropped }: { dropped: boolean },
+  { showUploads }: { showUploads?: () => void } = {},
 ): Promise<string[]> => {
-  if (!files.length) {
-    return [];
-  }
-  if (dropped && isProjectZipDrop(files)) {
-    await openDroppedZip(files[0]!);
-    return [];
-  }
-  const { Workspace } = await import("./Workspace");
   const projectId = workspace.signals.projectId.peek();
-  if (!projectId) {
+  if (!files.length || !projectId) {
+    return [];
+  }
+  const opened = isZip(files) ? await openZip(files[0]!) : { files };
+  if (!opened) {
+    return [];
+  }
+  showUploads?.();
+  if (!opened.files.length) {
     return [];
   }
   const free = await storageLeft();
-  const needed = files.reduce((sum, file) => sum + file.size, 0);
+  const needed = opened.files.reduce((sum, file) => sum + file.size, 0);
   if (free !== null && needed > free) {
-    await withUploadGroup(async () => refuseUploads(files.map((file) => file.name), { kind: "no_room", needed, free }));
+    const names = opened.from ? [opened.from] : opened.files.map((file) => file.name);
+    await withUploadGroup(async () => refuseUploads(names, { kind: "no_room", needed, free }));
     return [];
   }
+  const { Workspace } = await import("./Workspace");
   if (workspace.assetListing.peek()?.projectId !== projectId) {
     await Workspace.assets.load();
   }
-  const scripts = files.filter((file) => isScriptPath(getValidFileName(file.name)));
-  const assets = files.filter((file) => !scripts.includes(file));
-  return withUploadGroup(async () => {
-    const home = scriptsHome({ folders: workspace.assetListing.peek()?.folders ?? [] });
-    const written = scripts.length
-      ? await importFiles(
-          projectId,
-          scripts.map((file) => ({ rel: joinPath(home, getValidFileName(file.name)), getBuffer: file.getBuffer })),
-        )
-      : [];
-    return [...written, ...(assets.length ? await Workspace.assets.upload(assets, folder) : [])];
-  });
+  return withUploadGroup(() => Workspace.assets.upload(opened.files, folder));
 };
+
+const rowIn = (path: string, folder: string): string =>
+  joinPath(folder, path.slice(folder ? folder.length + 1 : 0).split("/")[0]!);
 
 export const landedView = (
   landed: readonly string[],
@@ -83,7 +88,7 @@ export const landedView = (
 ): { last: string; lists?: Partial<ListsState> } | null => {
   const files = workspace.assetListing.peek()?.files ?? {};
   const shown = landed.filter((path) => Object.hasOwn(files, path));
-  const here = shown.filter((path) => parentOf(path) === viewed);
+  const here = shown.filter((path) => path.startsWith(viewed ? `${viewed}/` : "")).map((path) => rowIn(path, viewed));
   const last = here[here.length - 1] ?? shown[shown.length - 1];
   if (!last) {
     return null;

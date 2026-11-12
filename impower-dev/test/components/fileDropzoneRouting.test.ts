@@ -1,14 +1,17 @@
+import { strToU8, zipSync } from "fflate";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   importFiles: vi.fn(async (_projectId: string, items: { rel: string }[]) => items.map((item) => item.rel)),
-  upload: vi.fn(async (files: readonly { name: string }[], _folder: string) => files.map((file) => `Assets/x/${file.name}`)),
+  upload: vi.fn(
+    async (files: readonly { name: string; getBuffer: () => Promise<ArrayBuffer> }[], _folder: string) =>
+      files.map((file) => `Assets/x/${file.name}`),
+  ),
   load: vi.fn(async () => null),
   navigateTo: vi.fn(),
   requestProjectReplace: vi.fn(async (_file: File) => undefined),
-  unzipFiles: vi.fn(async (_params: { data: ArrayBuffer }): Promise<{ filename: string }[]> => []),
 }));
 
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({
@@ -19,7 +22,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     assets: { upload: mocks.upload, load: mocks.load },
     window: { navigateTo: mocks.navigateTo, requestProjectReplace: mocks.requestProjectReplace },
-    fs: { unzipFiles: mocks.unzipFiles },
   },
 }));
 
@@ -41,6 +43,16 @@ const settle = () =>
 
 const desktopFile = (name: string) =>
   Object.assign(new File(["xy"], name), { arrayBuffer: async () => new TextEncoder().encode("xy").buffer });
+
+const zipOf = (entries: Record<string, string>) =>
+  zipSync(Object.fromEntries(Object.entries(entries).map(([path, text]) => [path, strToU8(text)])));
+
+const zipDrop = (name: string, bytes: Uint8Array, read = async () => bytes.slice().buffer) => ({
+  types: ["Files"],
+  files: [Object.assign(new File([bytes as BlobPart], name), { arrayBuffer: read })],
+  items: [{ kind: "file", type: "application/x-zip-compressed" }],
+  dropEffect: "",
+});
 
 const files = (names: string[], type = "") => ({
   types: ["Files"],
@@ -108,9 +120,12 @@ describe("files dropped anywhere in the app", () => {
     expect(overlay()).toBeNull();
   });
 
-  it("names the replace for a single zip being dragged", async () => {
+  it("promises no replace for a single zip being dragged, since its kind is unknown until it is read", async () => {
     await fire("dragover", files(["backup.zip"], "application/x-zip-compressed"));
-    expect(overlay()).toEqual(["Drop to replace this project", "A backup replaces every script and asset, after asking."]);
+    expect(overlay()).toEqual([
+      "Drop to open this zip",
+      "Backups ask before replacing. Other zips are unpacked.",
+    ]);
   });
 
   it("opens Assets and adds a PNG and a WAV dropped on the Story route, each to its type's folder", async () => {
@@ -164,17 +179,18 @@ describe("files dropped anywhere in the app", () => {
     expect(mocks.navigateTo).not.toHaveBeenCalled();
   });
 
-  it("files dropped scripts in the project's own Scripts folder and the rest through the Assets upload", async () => {
+  it("hands dropped scripts and assets to the one Assets upload, so one batch places them all", async () => {
     setScriptFiles("*.{sd,luau,story}");
     try {
       await fire("drop", files(["util.luau", "intro.sd", "chapter.story", "hero.png"]));
       await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
-      expect(mocks.importFiles.mock.calls[0]![1].map((item) => item.rel)).toEqual([
-        "scripts/util.luau",
-        "scripts/intro.sd",
-        "scripts/chapter.story",
+      expect(mocks.upload.mock.calls[0]![0].map((file) => file.name)).toEqual([
+        "util.luau",
+        "intro.sd",
+        "chapter.story",
+        "hero.png",
       ]);
-      expect(mocks.upload.mock.calls[0]![0].map((file) => file.name)).toEqual(["hero.png"]);
+      expect(mocks.importFiles).not.toHaveBeenCalled();
     } finally {
       setScriptFiles(SCRIPT_FILES_GLOB);
     }
@@ -195,13 +211,16 @@ describe("files dropped anywhere in the app", () => {
 });
 
 describe("a single zip dropped anywhere", () => {
-  it("asks to replace the project when the zip is a backup with a main script", async () => {
-    mocks.unzipFiles.mockResolvedValueOnce([{ filename: "My Story/main.sd" }, { filename: "My Story/Assets/a.png" }]);
-    await fire("drop", files(["backup.zip"]));
+  it.each([
+    ["at its top", { "My Story/main.sd": "x", "My Story/Assets/a.png": "png" }],
+    ["two folders deep beside loose files", { "Backups/My Story/main.sd": "x", "Backups/My Story/Assets/a.png": "png", "loose.png": "png" }],
+  ])("asks to replace the project when the zip holds a project %s", async (_case, entries) => {
+    const bytes = zipOf(entries);
+    await fire("drop", zipDrop("backup.zip", bytes));
     await vi.waitFor(() => expect(mocks.requestProjectReplace).toHaveBeenCalledTimes(1));
     const file = mocks.requestProjectReplace.mock.calls[0]![0];
     expect(file.name).toBe("backup.zip");
-    expect(file.size).toBe(2);
+    expect(file.size).toBe(bytes.byteLength);
     expect(mocks.upload).not.toHaveBeenCalled();
     expect(mocks.importFiles).not.toHaveBeenCalled();
     expect(mocks.navigateTo).not.toHaveBeenCalled();
@@ -209,13 +228,51 @@ describe("a single zip dropped anywhere", () => {
   });
 
   it("stays on the route for a backup zip even when another upload's progress changes meanwhile", async () => {
-    mocks.unzipFiles.mockImplementationOnce(async () => {
-      workspace.uploads.value = [{ id: 999, name: "slow.wav", state: "working" }];
-      return [{ filename: "Story/main.sd" }];
-    });
-    await fire("drop", files(["backup.zip"]));
+    const bytes = zipOf({ "Story/main.sd": "x" });
+    await fire(
+      "drop",
+      zipDrop("backup.zip", bytes, async () => {
+        workspace.uploads.value = [{ id: 999, name: "slow.wav", state: "working" }];
+        return bytes.slice().buffer;
+      }),
+    );
     await vi.waitFor(() => expect(mocks.requestProjectReplace).toHaveBeenCalledTimes(1));
     expect(mocks.navigateTo).not.toHaveBeenCalled();
+  });
+
+  it("unpacks a zip with no main script dropped on the Story route, each file keeping its folder from the zip", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images/Cast" } } };
+    mocks.navigateTo.mockImplementationOnce(() => {
+      workspace.current = { ...workspace.current, pane: "assets" };
+    });
+    const inner = zipOf({ "a.png": "a" });
+    const bytes = zipSync({
+      "Cast/": new Uint8Array(0),
+      "Cast/hero.png": strToU8("hero"),
+      "Cast/Extras/ada.png": strToU8("ada"),
+      "Cast/.DS_Store": strToU8("mac"),
+      "Cast/Thumbs.db": strToU8("win"),
+      "__MACOSX/Cast/._hero.png": strToU8("fork"),
+      "sfx/rain.wav": strToU8("rain"),
+      "story/intro.sd": strToU8("intro"),
+      "inner.zip": inner,
+    });
+    await fire("drop", zipDrop("art.zip", bytes));
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
+    const [unpacked, folder] = mocks.upload.mock.calls[0]!;
+    expect(folder).toBe("");
+    expect(unpacked.map((file) => file.name)).toEqual([
+      "Cast/hero.png",
+      "Cast/Extras/ada.png",
+      "sfx/rain.wav",
+      "story/intro.sd",
+      "inner.zip",
+    ]);
+    expect(new TextDecoder().decode(await unpacked[1]!.getBuffer())).toBe("ada");
+    expect(new Uint8Array(await unpacked[4]!.getBuffer())).toEqual(inner);
+    await vi.waitFor(() => expect(workspace.assetsReveal.value).toHaveLength(5));
   });
 
   it("lists a dropped zip that cannot be read as not added, and opens Assets to say so", async () => {
@@ -226,32 +283,28 @@ describe("a single zip dropped anywhere", () => {
     await fire("drop", dataTransfer);
     await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
     expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe("Not added: the file could not be read, so choose it again.");
-    expect(mocks.unzipFiles).not.toHaveBeenCalled();
     expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
     expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
   });
 
   it.each([
     [
-      "has no main script",
-      async () => [{ filename: "pictures/a.png" }],
-      "Nothing was changed because “art.zip” has no main.sd, which every project backup needs.",
-    ],
-    [
       "holds two projects",
-      async () => [{ filename: "one/main.sd" }, { filename: "two/main.sd" }],
+      zipOf({ "one/main.sd": "x", "two/main.sd": "x" }),
       "Nothing was changed because “art.zip” holds more than one project, in “one” and “two”, so zip one of them on its own.",
     ],
     [
       "cannot be opened",
-      async () => {
-        throw new Error("bad zip");
-      },
+      strToU8("not a zip"),
       "Nothing was changed because “art.zip” is not a .zip the editor can open.",
     ],
-  ])("changes nothing and lists the zip as not added when it %s", async (_case, unzip, sentence) => {
-    mocks.unzipFiles.mockImplementationOnce(unzip);
-    await fire("drop", files(["art.zip"]));
+    [
+      "holds no file but operating-system droppings",
+      zipSync({ "Cast/": new Uint8Array(0), ".DS_Store": strToU8("mac"), "__MACOSX/._a.png": strToU8("fork") }),
+      "Nothing was changed because “art.zip” has no main.sd, which every project backup needs.",
+    ],
+  ])("changes nothing and lists the zip as not added when it %s", async (_case, bytes, sentence) => {
+    await fire("drop", zipDrop("art.zip", bytes));
     await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
     const [row] = workspace.uploads.value;
     expect(row!.state).toBe("failed");
