@@ -90,7 +90,7 @@ export default function SparkWebPlayer({
           savesMenu: savesMenuRef.current,
           saveNote: saveNoteRef.current,
         },
-        { resizable: !flag(hostDisplay), hostsRoute: flag(hostDisplay) },
+        { resizable: !flag(hostDisplay), hosted: flag(hostDisplay) },
       );
       unsubscribe = controller.subscribeBar((state, view) =>
         setBar({ state, view }),
@@ -118,7 +118,13 @@ export default function SparkWebPlayer({
         <div id="game-background" ref={gameBackgroundRef} />
         <div id="game-view" ref={gameViewRef} />
         <div id="game-ui" ref={gameUIRef} />
-        {flag(toolbar) ? <div id="save-note" ref={saveNoteRef} /> : null}
+        {flag(toolbar) ? (
+          <div
+            id="save-note"
+            ref={saveNoteRef}
+            data-hosted={flag(hostDisplay) ? "" : undefined}
+          />
+        ) : null}
         {flag(toolbar) ? <div id="saves-menu" ref={savesMenuRef} /> : null}
         {flag(playButton) ? (
           <div id="play-button" ref={playButtonRef}>

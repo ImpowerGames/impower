@@ -29,6 +29,10 @@ export const BookIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M12 5v16M3 4c4-1 7 0 9 2 2-2 5-3 9-2v15c-4-1-7 0-9 2-2-2-5-3-9-2z\"/>" }} />
 );
 
+export const BookmarkIcon: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M6 3.5h12v17l-6-4.5-6 4.5z\"/>" }} />
+);
+
 export const BracketsIcon: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path d=\"M9 4H5v16h4M15 4h4v16h-4\"/>" }} />
 );

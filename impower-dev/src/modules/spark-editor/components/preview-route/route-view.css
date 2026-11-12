@@ -15,7 +15,17 @@
   --swp-route-field-border-color: var(--edge);
   --swp-route-popup-background-color: var(--panel);
   --swp-route-popup-border-color: var(--edge);
+  --swp-saves-menu-max-height: var(
+    --radix-popover-content-available-height,
+    calc(100cqh - 12px)
+  );
   display: block;
   color: var(--ink);
   font-size: var(--swp-toolbar-font-size);
+}
+
+:root[data-pointer="coarse"] swp-route-view {
+  --swp-route-row-height: 44px;
+  --swp-route-control-size: 44px;
+  --swp-saves-control-size: 44px;
 }

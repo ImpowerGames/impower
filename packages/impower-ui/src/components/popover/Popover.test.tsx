@@ -1,7 +1,12 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  popoverVariants,
+} from "./Popover";
 
 let host: HTMLDivElement | undefined;
 
@@ -92,6 +97,20 @@ describe("Popover under preact/compat", () => {
     await settle(250);
     expect(panel()).toBeNull();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("draws its own card frame unless frame is none, which leaves the frame to what it holds", async () => {
+    const { trigger } = await mount();
+    await open(trigger);
+    expect(panel()!.className).toContain("rounded-card");
+    expect(panel()!.className).toContain("bg-panel");
+    expect(panel()!.className).toContain("shadow-float");
+    const bare = popoverVariants({ frame: "none" });
+    expect(bare).not.toContain("rounded-card");
+    expect(bare).not.toContain("bg-panel");
+    expect(bare).not.toContain("border-edge");
+    expect(bare).not.toContain("shadow-float");
+    expect(bare).toContain("motion-safe:data-[state=open]:anim-menu-in");
   });
 
   it("closes from its trigger", async () => {

@@ -441,6 +441,37 @@ describe("the bar under the game", () => {
     expect(document.getElementById("route-panel")).toBeNull();
   });
 
+  it("keeps the readout's icon slot when the route has no icon, so the name does not move", async () => {
+    await mount();
+    const readout = () =>
+      bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]')!;
+    const lead = () => readout().firstElementChild as HTMLElement;
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    expect(lead().getAttribute("data-icon")).toBe("detour");
+    await act(() => {
+      route.view.value = {
+        ...forcedRoute,
+        route: {
+          ...forcedRoute.route,
+          decisions: [
+            { kind: "auto" as const, location: lineAt(8), text: "Tell the truth.", meeting: 1 },
+          ],
+        },
+      } as typeof forcedRoute;
+    });
+    expect(lead().hasAttribute("data-icon")).toBe(false);
+    expect(lead().hasAttribute("data-icon-slot")).toBe(true);
+    expect(lead().getAttribute("aria-hidden")).toBe("true");
+    expect(lead().nextElementSibling!.textContent).toBe("interrogation");
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    expect(lead().getAttribute("data-icon")).toBe("detour");
+    expect(lead().nextElementSibling!.textContent).toBe("interrogation");
+  });
+
   it("closes the route list when the route goes away, as it does while playing", async () => {
     await mount();
     await act(() => {
