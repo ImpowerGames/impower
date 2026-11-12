@@ -29,7 +29,7 @@ import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
 import { morphMotionProblem } from "../../morph/motion";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
-import { poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
+import { plainPoseStates, poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
 type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
@@ -817,7 +817,8 @@ export function morphValueProblems(
     if (!(field in struct)) continue;
     for (const { message } of conditionProblems(field, struct[field], new Map())) problems.push({ field, message });
   }
-  const rest = struct["rest"];
+  const plain = plainPoseStates(struct);
+  const rest = plain["rest"];
   if (rest !== undefined) {
     for (const problem of restValueProblems(rest)) {
       const field = ["rest", ...(problem.group === undefined ? [] : [problem.group]), ...(problem.key === undefined ? [] : [problem.key])].join(".");
@@ -831,13 +832,19 @@ export function morphValueProblems(
         : { field: "keyframes", message: `keyframe ${keyframe + 1}: ${message}` },
     );
   }
-  const keyframes = struct["keyframes"];
+  const keyframes = plain["keyframes"];
   if (Array.isArray(keyframes)) {
     let previous: number | undefined;
     keyframes.forEach((keyframe, index) => {
-      if (!isRecord(keyframe) || !("offset" in keyframe)) return;
-      const offset = keyframe["offset"];
+      if (!isRecord(keyframe)) return;
       const at = (message: string) => problems.push({ field: "keyframes", message: `keyframe ${index + 1}: ${message}` });
+      for (const [group, container] of Object.entries(keyframe)) {
+        if (group === "offset" || group.startsWith("$") || !isRecord(container) || !("state" in container)) continue;
+        const state = container["state"];
+        if (typeof state !== "string" || state.trim() === "") at(`\`${group}\`: \`state\` names an attribute state, such as \`closed\` or \`eyes.closed\`.`);
+      }
+      if (!("offset" in keyframe)) return;
+      const offset = keyframe["offset"];
       if (typeof offset !== "number" || !Number.isFinite(offset)) at("A keyframe `offset` is a number from 0 to 1.");
       else if (offset < 0 || offset > 1) at(`Keyframe offset ${offset} must be between 0 and 1.`);
       else {

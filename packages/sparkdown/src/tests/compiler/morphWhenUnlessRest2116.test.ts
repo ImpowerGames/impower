@@ -363,6 +363,25 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     ]);
   });
 
+  test("an inherited state that is only its group's prefix is empty, and is an error on the `as` like a written one", () => {
+    const empty = "`state` names an attribute state, such as `closed` or `eyes.closed`.";
+    const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
+    const errorsOnAs = (text: string, unwritten: Record<string, unknown>) =>
+      diagnosticsOf(text, undefined, unwritten)
+        .filter((d) => d.severity === 1 && d.text === "base")
+        .map((d) => d.message);
+    expect(errorsOnAs(child, { rest: { mouth: { state: "mouth." } } })).toEqual([`\`rest.mouth.state\`, inherited from \`base\`: ${empty}`]);
+    const keyframes = [
+      { offset: 0, mouth: { state: "mouth." } },
+      { offset: 1, mouth: { state: "open" } },
+    ];
+    expect(errorsOnAs("morph talk as base {\n  blend = cut\n}\n", { keyframes })).toContain(
+      `\`keyframes\`, inherited from \`base\`: keyframe 1: \`mouth\`: ${empty}`,
+    );
+    const written = diagnosticsOf(talkSmile('  rest {\n    mouth {\n      state = "mouth."\n    }\n  }\n')).filter((d) => d.severity === 1);
+    expect(written.map((d) => d.message)).toContain(empty);
+  });
+
   test("inherited keyframe offsets from a parent the scripts do not write are checked, on the `as`", () => {
     const text = "morph talk as base {\n  blend = cut\n}\n";
     const keyframes = [

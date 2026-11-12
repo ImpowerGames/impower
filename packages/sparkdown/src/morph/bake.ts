@@ -1612,11 +1612,15 @@ export function* bakeSteps(
       report("edge-missing", "error", `Clip ${clip.number}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) are not drawn in the rest pose, so the rest has no opening to cut.`, { layer: clip.between[0], morphs: clip.morphs });
       return disable();
     }
-    if (edges.length === 1) {
+    const lone = new Set(
+      buildApertures(edges).diagnostics.flatMap((d) => (d.code === "unpaired-edge" ? d.edgeIds : [])),
+    );
+    const facing = edges.filter((edge) => !lone.has(edge.id));
+    if (facing.length === 0) {
       restLoops[index] = [];
       continue;
     }
-    const built = buildApertures(edges);
+    const built = buildApertures(facing);
     for (const d of built.diagnostics) {
       const code = d.code === "ambiguous" ? "aperture-ambiguous" : d.code === "unpaired-edge" ? "aperture-unpaired" : "aperture-degenerate";
       report(code, "error", `Clip ${clip.number}, in the rest pose: ${d.message}`, { morphs: clip.morphs });

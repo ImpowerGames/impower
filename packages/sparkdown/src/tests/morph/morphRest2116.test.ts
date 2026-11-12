@@ -5,7 +5,7 @@ import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { morphFrameState, morphPosesAt } from "../../morph/render";
 import { MorphTimeline } from "../../morph/timeline";
-import { blink, CLOSED, EYEBALL, LOWER_OPEN, partnerPortrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, EYEBALL, LOWER_OPEN, partnerPortrait, portrait, shiftPath, UPPER_OPEN } from "./fixtures";
 
 const square = (name: string, id: string, y: number) => `<path data-name="${name}" id="${id}" d="M0,${y}H10V${y + 10}H0Z"/>`;
 
@@ -240,6 +240,27 @@ describe("a morph's rest beside other poses", () => {
     expect(area(open.rest)).toBeGreaterThan(100);
     expect(area(reached.rest)).toBeLessThan(area(open.rest) / 5);
     expect(area(outside.rest)).toBeLessThan(1);
+  });
+
+  test("one clip holding both eyes closes each eye a rest outside the keyframes draws with one lash, beside an eye it draws open", () => {
+    const left = (path: string) => `<path data-name="eyelash-left" d="${shiftPath(path, 20, 10)}" fill="#111"/>`;
+    const right = (path: string) => `<path data-name="eyelash-right" d="${shiftPath(path, 140, 10)}" fill="#111"/>`;
+    const rightWhite = `<path data-name="eyeball-white-right" d="${shiftPath(EYEBALL, 140, 10)}" fill="#fff"/>`;
+    const art = (drawings: string) => portrait({ right: true }).replace("</svg>", `<g data-name="eyes.asleep">${drawings}</g></svg>`);
+    const clips = [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "pupil-left", "eyeball-white-right", "pupil-right"] }];
+    const bake = (drawings: string) =>
+      bakeMorphArtifact({ source: art(drawings), selection: {}, recipes: [blink({ rest: { eyes: { state: "asleep" } }, clips }, true)], key: "asleep" });
+    const openLoops = (svg: string) => maskLoops(svg).filter((loop) => loopArea(loop) > 100);
+    const shut = bake(left(CLOSED) + right(CLOSED));
+    expect(shut.diagnostics).toEqual([]);
+    expect(shut.status).toBe("live");
+    expect(openLoops(shut.rest)).toEqual([]);
+    const wink = bake(left(CLOSED) + rightWhite + right(UPPER_OPEN) + right(LOWER_OPEN));
+    expect(wink.diagnostics).toEqual([]);
+    expect(wink.status).toBe("live");
+    const loops = openLoops(wink.rest);
+    expect(loops.length).toBeGreaterThan(0);
+    expect(Math.min(...loops.flatMap((loop) => loop.filter((_, i) => i % 2 === 0)))).toBeGreaterThanOrEqual(130);
   });
 
   test("a rest opening drawn away from the keyframes' openings lies inside its mask", () => {
