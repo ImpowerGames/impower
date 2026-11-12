@@ -135,6 +135,7 @@ export type ImportFailureReason =
   | "no_main_script"
   | "several_main_scripts"
   | "no_room"
+  | "name_clash"
   | "storage"
   | "unknown";
 

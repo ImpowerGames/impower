@@ -77,6 +77,7 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
 import {
+  clashingPath,
   findProjectRoot,
   isArchiveDropping,
   ProjectImportError,
@@ -755,6 +756,10 @@ export default class WorkspaceFileSystem {
         { ...entry, filename: entry.filename.endsWith("/") ? `${path}/` : path },
       ];
     });
+    const clash = clashingPath(archive.map(({ filename }) => filename));
+    if (clash !== null) {
+      throw new ProjectImportError({ reason: "name_clash", folders: [clash] });
+    }
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
