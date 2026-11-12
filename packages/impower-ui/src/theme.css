@@ -87,6 +87,7 @@
   --warning-strong: oklch(76.9% 0.188 70.08);
   --media-badge: rgb(0 0 0 / 0.67);
   --media-badge-ink: rgb(255 255 255);
+  --status-badge-error-edge: var(--error);
   --scrim: rgb(0 0 0 / 0.5);
 }
 
@@ -540,6 +541,7 @@
   --warning-strong: var(--warning);
   --media-badge: rgb(0 0 0 / 0.67);
   --media-badge-ink: rgb(255 255 255);
+  --status-badge-error-edge: #93625d;
 
   --editor-line-number: var(--muted);
   --editor-line-number-active: var(--ink);
@@ -586,6 +588,7 @@
 [data-theme="chalk"],
 [data-theme="paper"] {
   --editor-symbol-highlight: color-mix(in srgb, var(--syntax-section-name-definition) 16%, transparent);
+  --status-badge-error-edge: var(--error);
 }
 
 :root {

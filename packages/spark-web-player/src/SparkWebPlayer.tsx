@@ -47,6 +47,7 @@ export default function SparkWebPlayer({
   const saveNoteRef = useRef<HTMLDivElement>(null);
 
   const controllerRef = useRef<GamePlayerControllerType | null>(null);
+  const strip = flag(toolbar) && !flag(hostDisplay);
   const [bar, setBar] = useState<{
     state: PlayerBarState;
     view: PlayerBarView;
@@ -125,7 +126,7 @@ export default function SparkWebPlayer({
             data-hosted={flag(hostDisplay) ? "" : undefined}
           />
         ) : null}
-        {flag(toolbar) ? <div id="saves-menu" ref={savesMenuRef} /> : null}
+        {strip ? <div id="saves-menu" ref={savesMenuRef} /> : null}
         {flag(playButton) ? (
           <div id="play-button" ref={playButtonRef}>
             <svg
@@ -144,15 +145,14 @@ export default function SparkWebPlayer({
           </div>
         ) : null}
       </div>
-      {flag(toolbar) ? (
+      {strip ? (
         <PlayerBar
           state={bar.state}
           controls={{
             skip: flag(skipButtons),
             step: flag(stepButtons),
-            fullscreen: flag(fullscreenButton) && !flag(hostDisplay),
-            resize: !flag(hostDisplay),
-            location: !flag(hostDisplay),
+            fullscreen: flag(fullscreenButton),
+            resize: true,
           }}
           workspace={bar.view.workspace}
           routeShown={bar.view.routeShown}
@@ -167,9 +167,7 @@ export default function SparkWebPlayer({
           onToggleFullscreen={() => controllerRef.current?.toggleFullscreen()}
         />
       ) : null}
-      {flag(toolbar) ? (
-        <div id="route-list" ref={routeListRef} hidden />
-      ) : null}
+      {strip ? <div id="route-list" ref={routeListRef} hidden /> : null}
     </div>
   );
 }

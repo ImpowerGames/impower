@@ -73,8 +73,10 @@ import {
   COMMON_ASPECT_RATIOS,
   initialPlayerBarState,
   matchAspectRatio,
+  playerStatuses,
   reducePlayerBar,
   relativeScriptPath,
+  sameStatuses,
   type PlayerBarState,
 } from "./components/PlayerBar/playerBarState";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
@@ -213,6 +215,8 @@ export interface ShownCompletion {
   evaluation: CompletionEvaluation;
   program: SparkProgram;
 }
+
+const COMPLETION_PREPARING_STATUS_DELAY = 150;
 
 export const completionKey = (
   params: Pick<
@@ -432,6 +436,8 @@ export class GamePlayerController {
   _completionPending: CompletionEvaluation | null = null;
   _completionShown: ShownCompletion | null = null;
   _completionStatus: CompletionPreviewStatus | null = null;
+  _completionStatusShown: CompletionPreviewStatus | null = null;
+  _completionStatusTimer?: number;
   _completionPrograms = 0;
   _completionAccepted: { uri: string; version: number } | null = null;
   _completionProgramSet = new WeakSet<SparkProgram>();
@@ -546,6 +552,8 @@ export class GamePlayerController {
   dispose(): void {
     this._mounted = false;
     this._disposed = true;
+    window.clearTimeout(this._completionStatusTimer);
+    this._completionStatusTimer = undefined;
     this._stops += 1;
     window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.removeEventListener("keydown", this.handleSavesKeyDown, true);
@@ -605,6 +613,17 @@ export class GamePlayerController {
     for (const listener of this._barListeners) {
       listener(state, view);
     }
+    if (!sameStatuses(this.statuses(), state.statuses)) {
+      this.publishGameState();
+    }
+  }
+
+  protected statuses() {
+    return playerStatuses(
+      this._completionStatusShown,
+      this._bar.executed != null,
+      this._ending,
+    );
   }
 
   protected updateBarView(patch: Partial<PlayerBarView>) {
@@ -696,6 +715,7 @@ export class GamePlayerController {
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
       ending: this._ending,
+      statuses: this.statuses(),
     };
   }
 
@@ -1922,8 +1942,26 @@ export class GamePlayerController {
   setCompletionStatus(status: CompletionPreviewStatus | null) {
     if (status !== this._completionStatus) {
       this._completionStatus = status;
+      this.showCompletionStatus(status);
       this.publishGameState();
     }
+  }
+
+  protected showCompletionStatus(status: CompletionPreviewStatus | null) {
+    window.clearTimeout(this._completionStatusTimer);
+    this._completionStatusTimer = undefined;
+    if (status === "preparing" && this._completionStatusShown == null) {
+      this._completionStatusTimer = window.setTimeout(() => {
+        this._completionStatusTimer = undefined;
+        if (this._disposed) {
+          return;
+        }
+        this._completionStatusShown = status;
+        this.publishGameState();
+      }, COMPLETION_PREPARING_STATUS_DELAY);
+      return;
+    }
+    this._completionStatusShown = status;
   }
 
 

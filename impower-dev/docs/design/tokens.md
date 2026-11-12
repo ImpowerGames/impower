@@ -503,6 +503,7 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--warning-strong` | `var(--warning)` | Problem colour: warning |
 | `--media-badge` | `rgb(0 0 0 / 0.67)` | Badge laid over a picture: the variants count and the folder mark on a cover, `folio-assets.css:280` (`#000a`) |
 | `--media-badge-ink` | `rgb(255 255 255)` | Ink of a badge laid over a picture, `folio-assets.css:280` (`#fff`) |
+| `--status-badge-error-edge` | `#93625d`; `var(--error)` in Chalk, Paper, Midnight and Dusk | Edge of the game's error status badge, `folio-playback.css:732-735`, `folio-themes.css:257`, `folio-themes.css:507` |
 | `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
 | `--editor-line-number-active` | `var(--ink)` | Ink |
 | `--editor-indent-guide` | `color-mix(in srgb, var(--muted) 22%, transparent)` | `--guide`, `folio-themes.css:905` |

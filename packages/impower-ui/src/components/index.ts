@@ -213,6 +213,12 @@ export {
   type KeysChipState,
 } from "./keys-chip/KeysChip";
 export {
+  default as StatusBadge,
+  statusBadgeVariants,
+  type StatusBadgeProps,
+  type StatusBadgeTone,
+} from "./status-badge/StatusBadge";
+export {
   default as ThemeSwatch,
   themeSwatchVariants,
   type ThemeSwatchProps,

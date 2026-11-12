@@ -32,6 +32,7 @@ import { playButtonGallery } from "./components/play-button/PlayButton.gallery";
 import { audioPlayerGallery } from "./components/audio-player/AudioPlayer.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
+import { statusBadgeGallery } from "./components/status-badge/StatusBadge.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
 import { tabbedPageGallery } from "./components/tabbed-page/TabbedPage.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
@@ -89,6 +90,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   playButtonGallery,
   audioPlayerGallery,
   splitPaneGallery,
+  statusBadgeGallery,
   switchGallery,
   tabbedPageGallery,
   tabsGallery,
