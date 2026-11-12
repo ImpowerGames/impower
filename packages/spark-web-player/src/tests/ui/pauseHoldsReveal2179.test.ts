@@ -496,11 +496,11 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
   const NEXT = "klmnopqrst";
   const dialogue = (page: ReturnType<typeof makePage>) =>
     page.overlay.querySelector(".dialogue .text")?.textContent ?? "";
-  const beat = (time: number) =>
+  const beat = (time: number, text = NEXT) =>
     BeatMessage.type.notification({
       messages: [
         WriteTextMessage.type.request({ target: "dialogue", instructions: [], instant: true }),
-        line(false, time, NEXT),
+        line(false, time, text),
       ],
       time,
     } as any);
@@ -519,7 +519,7 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     await flushMicrotasks(10);
     expect(dialogue(page)).toBe(TEXT);
     page.unpause();
-    await realWait(80);
+    await realWait(200);
     page.frame(40);
     await flushMicrotasks(10);
     expect(dialogue(page)).toBe(TEXT);
@@ -544,7 +544,7 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     await flushMicrotasks(10);
     expect(dialogue(page)).toBe(TEXT);
     page.unpause();
-    await realWait(130);
+    await realWait(300);
     page.frame(90);
     await flushMicrotasks(10);
     expect(dialogue(page)).toBe(TEXT);
@@ -573,5 +573,48 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     page.unpause();
     page.frame(60);
     expect(page.revealed()).toBe(2);
+  });
+
+  test("other page traffic during the pause waits behind a waiting line instead of putting it up early", async () => {
+    const page = makePage();
+    await page.write(true);
+    page.frame(1_000);
+    page.ui.onReceiveNotification(beat(1_100));
+    page.frame(50);
+    page.pause();
+    page.frame(1_000);
+    void page.ui.onReceiveRequest(
+      WriteTextMessage.type.request({ target: "dialogue", instructions: [], instant: true }),
+    );
+    void page.ui.onReceiveRequest(line(true, undefined, "zz"));
+    await flushMicrotasks(20);
+    expect(dialogue(page)).toBe(TEXT);
+    page.unpause();
+    await realWait(200);
+    page.frame(60);
+    await flushMicrotasks(20);
+    expect(dialogue(page)).toBe("zz");
+  });
+
+  test("a second line arriving during the pause waits its turn behind the first", async () => {
+    const page = makePage();
+    await page.write(true);
+    page.frame(1_000);
+    page.ui.onReceiveNotification(beat(1_100));
+    page.frame(50);
+    page.pause();
+    page.frame(1_000);
+    page.ui.onReceiveNotification(beat(1_300, "uvwxy"));
+    await flushMicrotasks(20);
+    expect(dialogue(page)).toBe(TEXT);
+    page.unpause();
+    await realWait(200);
+    page.frame(60);
+    await flushMicrotasks(20);
+    expect(dialogue(page)).toBe(NEXT);
+    await realWait(400);
+    page.frame(200);
+    await flushMicrotasks(20);
+    expect(dialogue(page)).toBe("uvwxy");
   });
 });
