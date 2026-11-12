@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { MORPH_ROOT_FIELDS } from "../../compiler/morph/morphSchema";
+import { MORPH_OWN_FIELDS, MORPH_ROOT_FIELDS } from "../../compiler/morph/morphSchema";
 import { validateMorphDeclaration } from "../../compiler/morph/validateMorph";
 
 vi.mock("../../compiler/morph/validateMorph", async (importOriginal) => {
@@ -184,8 +184,8 @@ function binding(program: ReturnType<typeof compile>) {
 }
 
 describe("a field inherited from a parent the scripts do not write reads as the same field written on the child", () => {
-  test("the table covers every field a morph's root admits", () => {
-    expect([...new Set(ROWS.flatMap((r) => r.fields))].sort()).toEqual([...MORPH_ROOT_FIELDS].sort());
+  test("the table covers every field a morph's root admits and a child inherits", () => {
+    expect([...new Set(ROWS.flatMap((r) => r.fields))].sort()).toEqual(MORPH_ROOT_FIELDS.filter((field) => !MORPH_OWN_FIELDS.has(field)).sort());
   });
 
   const rowName = (r: Row) =>
