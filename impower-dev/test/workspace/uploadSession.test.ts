@@ -215,6 +215,55 @@ describe("adding files through the one upload path", () => {
     expect(landed).toHaveLength(1);
   });
 
+  it("adds nothing from a dropped folder to another project when the project changes while it is walked, and says so for each file", async () => {
+    estimate(1_000_000, 0);
+    const switchProject = () => {
+      workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "local" } };
+    };
+    const music = folder("Music", [[entry("theme.mp3", 3), entry("rain.wav", 2)]], switchProject);
+    const landed = await addAssetFiles([{ folder: music }], "Assets/Audio");
+    expect(landed).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.importFiles).not.toHaveBeenCalled();
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["theme.mp3", "Not added: another project was opened before it could be added, so open this one and add it again."],
+      ["rain.wav", "Not added: another project was opened before it could be added, so open this one and add it again."],
+    ]);
+  });
+
+  it("keeps counting a folder still being walked when another dropped folder finishes first", async () => {
+    estimate(1_000_000, 0);
+    let release = () => {};
+    const slow = {
+      name: "Slow",
+      isFile: false,
+      isDirectory: true,
+      createReader: () => {
+        let page = 0;
+        return {
+          readEntries: (ok: (entries: object[]) => void) => {
+            if (page++) {
+              ok([]);
+              return;
+            }
+            release = () => ok([entry("late.ogg")]);
+          },
+        };
+      },
+    } as unknown as FileSystemDirectoryEntry;
+    const first = addAssetFiles([{ folder: slow }], "");
+    await addAssetFiles([{ folder: folder("Empty", []) }], "");
+    expect(workspace.uploadsFound.value).toBe(0);
+    expect(session.uploadHeading(workspace.uploads.value, workspace.uploadsFound.value)).toBe("Finding files");
+    release();
+    await first;
+    expect(workspace.uploadsFound.value).toBeNull();
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "Slow/late.ogg" })], "");
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["Empty", "Not added: this folder holds no files."],
+    ]);
+  });
+
   it("counts the files found while a dropped folder is walked", () => {
     expect(session.uploadHeading([], 0)).toBe("Finding files");
     expect(session.uploadHeading([], 120)).toBe("Finding files: 120 found");
