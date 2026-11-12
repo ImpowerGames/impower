@@ -104,6 +104,10 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
     const lead = "A line above.\n\n";
     const text = lead + TEXT;
     const base = getParser().parse(text);
+    const clauseRun = chunksOf(base).find((chunk) => chunk.from >= lead.length && chunk.run)?.run;
+    expect(clauseRun?.members.length).toBeGreaterThan(CUES);
+    const built = clauseRun.reused;
+    const builtTree = built.tree;
     const { tree, next } = parseEdit(base, text, { from: 0, to: 0, insert: "x" });
     expectCold(tree, next);
     const compiler = tree.prop(cachedCompilerProp) as any;
@@ -112,7 +116,9 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
       .reduce((sum, chunk) => sum + chunk.nodeCount, 0);
     expect(clauseNodes).toBeGreaterThan(10000);
     expect(compiler.nodeCount).toBeLessThan(100);
-    expect(compiler.reused.length).toBeGreaterThan(0);
+    expect(compiler.reused.includes(built)).toBe(true);
+    expect(built.tree).toBeDefined();
+    expect(built.tree).toBe(builtTree);
   });
 
   test("a cold parse records a restart point at every line start inside the clause", () => {
