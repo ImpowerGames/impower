@@ -1,9 +1,10 @@
 import { isTokenCloseCurly, isTokenFunction, isTokenIdent, isTokenOpenCurly, isTokenSemicolon, isTokenWhitespace, tokenize } from "@csstools/css-tokenizer";
 import { beforeAll, describe, expect, it } from "vitest";
+import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationContent";
 import { getCssTokenValue } from "@impower/spark-dom/src/utils/getCssTokenValue";
 import { getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
-import { getThemeVar } from "../../../../sparkle-style-transformer/src/utils/transformers";
+import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -67,16 +68,33 @@ describe("a theme variable name keeps the declared name (#2137)", () => {
     expect(escapeCssIdentifier(getVarName("color", name))).toBe(`--theme-color-${name}`);
   });
 
-  it.each(DISTINCT)("refers to the variable of %s the same way from a script token and from a style", (name) => {
-    const variable = getVarName("image", name);
-    expect(varTarget(String(getCssTokenValue({ $type: "image", $name: name })))).toBe(variable);
-    expect(varTarget(getThemeVar(new Set([variable]), "image", name)!)).toBe(variable);
+  it.each(
+    [
+      ["image", "background-image", "background-image"],
+      ["color", "color", "color"],
+      ["color", "background-color", "background-color"],
+      ["ease", "animation-easing", "animation-timing-function"],
+      ["font", "text-font", "font-family"],
+    ].flatMap(([type, property, css]) => [...DISTINCT, "1a", "-", "étoile"].map((name) => [type!, property!, name, css!])),
+  )("refers a %s's %s of %s to its variable from a script token and from a style", (type, property, name, css) => {
+    const variable = getVarName(type, name);
+    const theme = new Set([variable]);
+    const named = getCssEquivalent(property, name, theme).find(([key]) => key === css)?.[1];
+    const referenced = getCssEquivalent(property, getCssTokenValue({ $type: type, $name: name }), theme).find(([key]) => key === css)?.[1];
+    expect(varTarget(named ?? "")).toBe(variable);
+    expect(varTarget(referenced ?? "")).toBe(variable);
   });
 
   it.each(DISTINCT)("declares the variable of %s in a stylesheet under that variable", (name) => {
     const variable = getVarName("image", name);
     const css = getStyleContent({ "": { [variable]: "url(x.svg)" } }, { breakpoints: {}, theme: new Set() });
     expect(declarationsOf(css).get(variable)).toBe("url(x.svg)");
+  });
+
+  it.each(DISTINCT)("declares the variable of %s in a keyframe under that variable", (name) => {
+    const variable = getVarName("color", name);
+    const css = getAnimationContent({ fade: { keyframes: [{ [variable]: "red" }] } as never }, new Set());
+    expect(declarationsOf(css).get(variable)).toBe("red");
   });
 });
 
@@ -114,11 +132,16 @@ style at_referenced {
   background_image = image.mia@night
 }
 
+define red@dim as color with
+  value = "rgb(4, 5, 6)"
+end
+
 layout main {
   box.hero_named
   box.hero_referenced
   box.at_named
   box.at_referenced
+  box.inline_override #--theme-color-red@dim="rgb(1, 2, 3)" #color=red@dim
 }
 
 
@@ -130,6 +153,7 @@ end
 
 let declared = new Map<string, string>();
 let css = "";
+let inlineStyle = "";
 
 const backgroundOf = (className: string): string | undefined => {
   const open = css.indexOf(`.${className} {`);
@@ -141,6 +165,7 @@ beforeAll(async () => {
   await h.ready;
   await flushMicrotasks(20);
   css = [...h.overlay.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
+  inlineStyle = h.overlay.querySelector(".inline_override")?.getAttribute("style") ?? "";
   declared = declarationsOf(css);
 }, 60000);
 
@@ -166,5 +191,12 @@ describe("a style and a script reach the image variable the engine publishes (#2
     expect(declared.get(variable), `${variable} is not declared`).toBeTruthy();
     expect(varTarget(backgroundOf(named) ?? "")).toBe(variable);
     expect(varTarget(backgroundOf(referenced) ?? "")).toBe(variable);
+  });
+
+  it("writes an element's own declaration of an @ color's variable under that variable", () => {
+    const variable = getVarName("color", "red@dim");
+    const written = declarationsOf(`{${inlineStyle}}`);
+    expect(written.get(variable)).toBe("rgb(1, 2, 3)");
+    expect(varTarget(written.get("color") ?? "")).toBe(variable);
   });
 });

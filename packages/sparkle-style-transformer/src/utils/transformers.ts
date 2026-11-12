@@ -353,7 +353,9 @@ export const getCssBorderStyle = (value: string): string => {
 };
 
 export const getCssColor = (value: string, theme: ThemeVariables): string =>
-  value ? transformColors(value, theme, true) : value;
+  value
+    ? (getThemeVar(theme, "color", value) ?? transformColors(value, theme, true))
+    : value;
 
 export const getCssChildColumns = (columns: string): string => {
   if (isValidNumber(columns)) {
