@@ -194,3 +194,21 @@ it("carries the rollback of a failed put-back, with its Trash copies, into the r
   const error = await failureOf(h.fs.renameFileWithReferences("local", "assets/a.png", "assets/b.png"));
   expect(error.rollback).toEqual({ complete: false, failed: ["main.sd"], kept: [], trashed: ["main.sd"] });
 }, 15_000);
+
+it("leaves every file alone after a rename the worker rolled back whole", async () => {
+  const h = await harness();
+  failWrites(h.fileAt("main.sd"), 1);
+  const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
+  vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: unknown[]) => {
+    const result = await apply(...args);
+    if (!result.applied) {
+      await h.write("assets/b.png", "AUTHOR-SAVED");
+    }
+    return result;
+  });
+  const error = await failureOf(h.fs.renameFileWithReferences("local", "assets/a.png", "assets/b.png"));
+  expect(error.rollback).toMatchObject({ complete: true });
+  expect([...h.assets.entries.keys()].sort()).toEqual(["a.png", "b.png"]);
+  expect(await h.read("assets/b.png")).toBe("AUTHOR-SAVED");
+  expect(error.message).toContain("Every file is back where it was.");
+}, 15_000);

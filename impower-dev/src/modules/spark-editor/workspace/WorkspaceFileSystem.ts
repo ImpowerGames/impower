@@ -1206,6 +1206,7 @@ export default class WorkspaceFileSystem {
         renames.filter((move) => !touchesKept(move.from) && !touchesKept(move.to)),
         before,
         `Couldn't rename ${name}: ${reason}.`,
+        result.rollback,
       );
       const rollbacks = [
         ...(result.rollback ? [result.rollback] : []),
