@@ -4,7 +4,7 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { colord } from "colord";
 import { Color, type ColorInformation } from "vscode-languageserver";
 
-const IDENTIFIER_REGEX = /^[_\p{L}][_\p{L}0-9-]*$/u;
+const IDENTIFIER_REGEX = /^[_\p{L}][_\p{L}0-9-]*(?:@[_\p{L}0-9][_\p{L}0-9-]*)*$/u;
 
 export const getDocumentColors = (
   document: SparkdownDocument | undefined,

@@ -8,6 +8,7 @@
 import type { GrammarToken,ParserAction } from "../../core";
 import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
+import { type IReusedRecords } from "../types/IReusedRecords";
 import { type ITreeBuffer } from "../types/ITreeBuffer";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
@@ -17,6 +18,18 @@ export const CHUNK_ARRAY_INITIAL_LENGTH = 32;
 const EMPTY_COMPILED = new Int32Array(0);
 
 export const TREE_BUFFER_LENGTH_LIMIT = 2 ** 16;
+
+export interface ChunkResume {
+  readonly stack: TokenizerResume["stack"];
+  readonly frames: TokenizerResume["frames"];
+  openedAt: number[];
+}
+
+export interface ChunkRun {
+  members: Chunk[];
+  stamps: Int32Array;
+  reused: IReusedRecords;
+}
 
 export class Chunk {
   declare from: number;
@@ -29,11 +42,11 @@ export class Chunk {
 
   stack: CompileStack = new CompileStack();
 
-  scopes?: ParserAction;
+  scopes?: ParserAction = undefined;
 
   nodeCount: number = 0;
 
-  treeBuffer?: ITreeBuffer | null;
+  treeBuffer?: ITreeBuffer | null = undefined;
 
   compilerNodeCount: number = 0;
 
@@ -45,13 +58,17 @@ export class Chunk {
 
   startsPure = true;
 
-  resume?: TokenizerResume;
+  resume?: ChunkResume = undefined;
 
-  entrySeeds?: { ids: readonly number[]; children: number[] };
+  entrySeeds?: { ids: readonly number[]; children: number[] } = undefined;
 
-  inheritedCloseRecords?: { seedIndex: number; offset: number }[];
+  inheritedCloseRecords?: { seedIndex: number; offset: number }[] = undefined;
 
   spliceSafe = false;
+
+  version = 0;
+
+  run?: ChunkRun = undefined;
 
   get endsPure() {
     return !this.scopes || this.scopes.length === 0;
@@ -70,12 +87,26 @@ export class Chunk {
   offset(offset: number) {
     this.from += offset;
     this.to = this.from + this.length;
-    if (this.resume) {
-      const openedAtAbs = this.resume.openedAtAbs;
-      for (let i = 0; i < openedAtAbs.length; i++) {
-        openedAtAbs[i]! += offset;
-      }
+  }
+
+  attachResume(resume: TokenizerResume) {
+    const openedAt = new Array<number>(resume.openedAtAbs.length);
+    for (let i = 0; i < openedAt.length; i++) {
+      openedAt[i] = resume.openedAtAbs[i]! - this.from;
     }
+    this.resume = { stack: resume.stack, frames: resume.frames, openedAt };
+  }
+
+  absoluteResume(): TokenizerResume | undefined {
+    const resume = this.resume;
+    if (!resume) {
+      return undefined;
+    }
+    const openedAtAbs = new Array<number>(resume.openedAt.length);
+    for (let i = 0; i < openedAtAbs.length; i++) {
+      openedAtAbs[i] = resume.openedAt[i]! + this.from;
+    }
+    return { stack: resume.stack, frames: resume.frames, openedAtAbs };
   }
 
   inheritFrom(prev: Chunk) {
@@ -98,6 +129,7 @@ export class Chunk {
     let [id, from, to, open, close] = token;
 
     this.treeBuffer = undefined;
+    this.version++;
 
     if (to > this.to) {
       this.to = to;
@@ -203,22 +235,36 @@ export class Chunk {
     buffer: Uint16Array,
     index: number,
   ): number {
-    let { id, start, end, size } = cursor;
-    cursor.next();
-    if (size >= 0) {
-      let startIndex = index;
+    const open: number[] = [];
+    for (;;) {
+      const { id, start, end, size } = cursor;
+      cursor.next();
       if (size > 4) {
-        let endPos = cursor.pos - (size - 4);
-        while (cursor.pos > endPos) {
-          index = this.copyToTreeBuffer(cursor, bufferStart, buffer, index);
-        }
+        open.push(id, start, end, index, cursor.pos - (size - 4));
+        continue;
       }
-      buffer[--index] = startIndex;
-      buffer[--index] = end - bufferStart;
-      buffer[--index] = start - bufferStart;
-      buffer[--index] = id;
+      if (size >= 0) {
+        const startIndex = index;
+        buffer[--index] = startIndex;
+        buffer[--index] = end - bufferStart;
+        buffer[--index] = start - bufferStart;
+        buffer[--index] = id;
+      }
+      while (open.length > 0 && cursor.pos <= open[open.length - 1]!) {
+        open.pop();
+        const startIndex = open.pop()!;
+        const openEnd = open.pop()!;
+        const openStart = open.pop()!;
+        const openId = open.pop()!;
+        buffer[--index] = startIndex;
+        buffer[--index] = openEnd - bufferStart;
+        buffer[--index] = openStart - bufferStart;
+        buffer[--index] = openId;
+      }
+      if (open.length === 0) {
+        return index;
+      }
     }
-    return index;
   }
 }
 

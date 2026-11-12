@@ -1,0 +1,3 @@
+function f(c)
+  local v = if c then 1 else x@elseif then 2
+end

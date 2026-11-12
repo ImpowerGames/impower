@@ -141,6 +141,41 @@ describe("Dropdown under preact/compat", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it.each([
+    ["menu", false],
+    ["phone layout's sheet", true],
+  ])("leaves focus where an item without focus return sent it, in the %s", async (_mode, sheet) => {
+    await setPhone(sheet);
+    const field = document.body.appendChild(document.createElement("input"));
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">New</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownItem returnFocus={false} onSelect={() => field.focus()}>
+              New folder
+            </DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    if (sheet) await act(async () => trigger.click());
+    else await key(trigger, "ArrowDown");
+    await settle(300);
+    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    await act(async () => item.click());
+    await settle(400);
+    expect(menu()).toBeNull();
+    expect(document.activeElement).toBe(field);
+  });
+
   it("shows the label in the phone layout's sheet", async () => {
     await setPhone(true);
     const { trigger } = await mount();

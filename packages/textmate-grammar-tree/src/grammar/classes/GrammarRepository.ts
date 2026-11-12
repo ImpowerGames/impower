@@ -178,6 +178,25 @@ export class GrammarRepository {
     return this.grammar.nextTypeIndex();
   }
 
+  private derived?: Map<GrammarNode, Map<string, GrammarNode>>;
+
+  expand(base: GrammarNode, name: string): GrammarNode {
+    this.derived ??= new Map();
+    let byName = this.derived.get(base);
+    if (!byName) {
+      byName = new Map();
+      this.derived.set(base, byName);
+    }
+    let node = byName.get(name);
+    if (!node) {
+      node = this.grammar.derive(base, name, this.declarator);
+      if (node !== base) {
+        byName.set(name, node);
+      }
+    }
+    return node;
+  }
+
   add(
     obj: ScopedRuleDefinition,
     id?: string,

@@ -75,6 +75,7 @@ export interface SparkProgram {
     [name: string]: string;
   };
   sceneAssets?: { [flowName: string]: SceneAssets };
+  imageThings?: { [imageName: string]: string };
   version?: number;
   filesEpoch?: number;
   summary?: true;

@@ -59,6 +59,8 @@ export const splitAt = (
 export const isCurlyBlock = (node: ComponentValue): node is SimpleBlockNode =>
   isSimpleBlockNode(node) && node.startToken[0] === TokenType.OpenCurly;
 
+export const cssIdent = (name: string): string => name.replaceAll("@", "\\@");
+
 export const applyEdits = (css: string, edits: SourceEdit[]): string => {
   let result = css;
   for (const edit of [...edits].sort((a, b) => b.start - a.start)) {

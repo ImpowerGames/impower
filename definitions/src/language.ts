@@ -105,18 +105,24 @@ declare interface TmTheme {
   settings: TmThemeSetting[];
 }
 
+const LUAU_LISTS = new WeakMap<object, Set<string>>();
+
+const wordList = (words: string[], boundary: "STORY_NAME" | "LUAU_NAME") =>
+  `{{${boundary}_START}}(?:${words.join("|")}){{${boundary}_END}}`;
+
 export const updateGrammarVariables = (
   grammar: TmGrammar,
   scopeReplacementRules?: VariableReplacer[],
 ) => {
   const variables = grammar.variables;
+  const luauLists = LUAU_LISTS.get(grammar);
 
   const rawPatterns: Record<string, string> = {};
   for (const variableName in variables) {
     const variable = variables[variableName];
     if (variable) {
       rawPatterns[variableName] = Array.isArray(variable)
-        ? `\\b(?:${variable.join("|")})\\b`
+        ? wordList(variable, luauLists?.has(variableName) ? "LUAU_NAME" : "STORY_NAME")
         : variable;
     }
   }
@@ -487,6 +493,10 @@ const readGrammarSource = async () => {
         `move ${foreign.join(", ")} to ${IN_GRAMMAR_PATH}`,
     );
   }
+  LUAU_LISTS.set(
+    story,
+    new Set(Object.keys(luau?.variables ?? {}).filter((name) => Array.isArray(luau.variables[name]))),
+  );
   for (const section of LUAU_GRAMMAR_SECTIONS) {
     const twice = Object.keys(luau?.[section] ?? {}).filter((name) =>
       Object.hasOwn(story[section] ?? {}, name),

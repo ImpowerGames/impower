@@ -1,0 +1,11 @@
+function f(n)
+  local v = match x@match n | a = 1 end
+end
+
+function f(n)
+  local v = match x@match n, 2 | a = 1 end
+end
+
+scene s
+  & local v = match x@match n | a = 1 end
+end

@@ -1,0 +1,3 @@
+function f(ok)
+  local v = x@and --[[c]] print(1)
+end

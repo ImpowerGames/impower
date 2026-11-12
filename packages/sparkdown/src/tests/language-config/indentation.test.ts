@@ -231,6 +231,18 @@ describe("the story increaseIndentPattern", () => {
       "We reached a new branch",
       "  I had to repeat",
       "  She had a function to attend",
+      "He asked what the function (the old one) did",
+      "He asked what the function(the old one) did",
+      "The function (a, b) works fine",
+      "I wonder about the function (and then",
+      "Is a function  (x)",
+      "Every function f(x) did",
+      "  Function (the new one) and function (the old one) work differently",
+      "  Cats or function (any kind) of dogs",
+      "  Not function (really) at all",
+      "  And then function (the meeting) began",
+      "  He walked in and function (x) began",
+      "  She said = function (a, b) is neat",
     ]) {
       expect(increase.test(line), line).toBe(false);
     }
@@ -249,6 +261,27 @@ describe("the story increaseIndentPattern", () => {
       "scene start(a, b)",
       "function f()",
       "local g = function(x)",
+      "local function f(a, b)",
+      "function a.b:c(x)",
+      "  call(a, function(x)",
+      "  return function(x)",
+      "t = { function(x)",
+      "  local callback = ready and function(value)",
+      "  local callback = cached or function(value)",
+      "  local callback = not function(value)",
+      "  local callback = if ready then function(value)",
+      "  local callback = if ready then f else function(value)",
+      "t[function(x)",
+      "local h = function(a: number, b: string): number",
+      "local v = function(a, ...: any)",
+      "  call(function(a,",
+      "local callback = function(fn: () -> ())",
+      "local callback = function(fn: (number) -> (string, number), b)",
+      "local f = function(x): (number, string)",
+      "local f = function(x) -- note",
+      "local f = function(x: ((((number)))))",
+      "local f = function(a, b: { [string]: (number) -> () })",
+      "  call(function(a, b",
       "  if x then -- note",
       "  if x then // note",
     ]) {
@@ -338,6 +371,26 @@ describe("the stated reach of the indent patterns' comment scanner (GRAMMAR.md 8
       "  while busy // do",
     ]) {
       expect(storyIncrease.test(line), line).toBe(true);
+    }
+  });
+});
+
+describe("the stated limits of the story function alternative (GRAMMAR.md 8.2)", () => {
+  const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
+
+  it("indents after prose that ends in a parameter list after an admitted word", () => {
+    for (const line of [
+      "  He walked in and function (x)",
+      "  She said = function (a, b)",
+      "  He read it and function (note: the old one) began",
+    ]) {
+      expect(storyIncrease.test(line), line).toBe(true);
+    }
+  });
+
+  it("does not indent after an anonymous header followed by a statement on its line", () => {
+    for (const line of ["  call(function(x) print(x)", "  local f = function(x) x += 1"]) {
+      expect(storyIncrease.test(line), line).toBe(false);
     }
   });
 });

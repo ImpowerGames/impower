@@ -1,0 +1,5 @@
+function f(): T@function print(1) end
+
+function f(): T@function --[[c]] end
+
+function f(): T@function ;print(1) end

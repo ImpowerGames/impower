@@ -1,4 +1,7 @@
+import type { WorkspaceEditRollback } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type WorkspaceFileSystem from "../workspace/WorkspaceFileSystem";
+
+const EVERY_FILE_BACK = "Every file is back where it was.";
 
 export interface FileMove {
   from: string;
@@ -95,7 +98,11 @@ export async function settleFailedMoves(
   moves: readonly FileMove[],
   before: PathSnapshot,
   failure: string,
+  rollback?: Pick<WorkspaceEditRollback, "complete">,
 ): Promise<Error> {
+  if (rollback?.complete) {
+    return new Error(`${failure} ${EVERY_FILE_BACK}`);
+  }
   const files = fileMovesOf(moves, before);
   const moved = (now: PathSnapshot) =>
     files.filter((move) => now.files.has(move.to) && !now.files.has(move.from));
@@ -161,7 +168,7 @@ export async function settleFailedMoves(
   ]
     .filter(Boolean)
     .join(" ");
-  return new Error(`${failure} ${state || "Every file is back where it was."}`);
+  return new Error(`${failure} ${state || EVERY_FILE_BACK}`);
 }
 
 export async function moveAll(

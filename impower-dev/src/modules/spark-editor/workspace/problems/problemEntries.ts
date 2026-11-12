@@ -305,12 +305,6 @@ export function panelRows({
   open: Readonly<Record<PanelCard, boolean>>;
 }): PanelRow[] {
   const rows: PanelRow[] = [];
-  const empty = (card: PanelCard, total: number) =>
-    rows.push({
-      kind: "empty",
-      card,
-      text: total ? ALL_HIDDEN_TEXT : EMPTY_TEXT[card],
-    });
   rows.push({ kind: "head", card: "script" });
   if (open.script) {
     const visible = problems.filter((problem) => shown[problem.severity]);
@@ -326,26 +320,46 @@ export function panelRows({
         }
       }
     } else {
-      empty("script", problems.length);
+      rows.push(emptyRow("script", problems.length));
     }
     rows.push({ kind: "end", card: "script" });
   }
-  rows.push({ kind: "head", card: "played" });
-  if (open.played) {
-    const visible = played.filter(
-      (entry) => isChoiceEntry(entry) || shown[entry.severity],
-    );
-    if (visible.length) {
-      for (const entry of visible) {
-        rows.push({ kind: "played", entry });
-      }
-    } else {
-      empty("played", played.length);
-    }
-    rows.push({ kind: "end", card: "played" });
-  }
+  rows.push(...playedRows({ played, shown, open: open.played }));
   return rows;
 }
+
+export function playedRows({
+  played,
+  shown,
+  open,
+}: {
+  played: readonly PlayedEntry[];
+  shown: Readonly<Record<ConsoleSeverity, boolean>>;
+  open: boolean;
+}): PanelRow[] {
+  const rows: PanelRow[] = [{ kind: "head", card: "played" }];
+  if (!open) {
+    return rows;
+  }
+  const visible = played.filter(
+    (entry) => isChoiceEntry(entry) || shown[entry.severity],
+  );
+  if (visible.length) {
+    for (const entry of visible) {
+      rows.push({ kind: "played", entry });
+    }
+  } else {
+    rows.push(emptyRow("played", played.length));
+  }
+  rows.push({ kind: "end", card: "played" });
+  return rows;
+}
+
+const emptyRow = (card: PanelCard, total: number): PanelRow => ({
+  kind: "empty",
+  card,
+  text: total ? ALL_HIDDEN_TEXT : EMPTY_TEXT[card],
+});
 
 export type ProblemsScope =
   | { kind: "story" }

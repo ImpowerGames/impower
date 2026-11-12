@@ -1,0 +1,255 @@
+sparkdown [0..132]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImageLine [12..24]
+ │   ├─ ImageLine_c1 [12..14]
+ │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImageLine_c2 [14..24]
+ │   │   └─ ImageCommand [14..24]
+ │   │       ├─ ImageCommand_begin [14..16]
+ │   │       │   ├─ ImageCommand_begin_c1 [14..16]
+ │   │       │   │   └─ ImageBeginMark [14..16]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 16
+ │   │       ├─ ImageCommand_content [16..22]
+ │   │       │   └─ ImageCommandContent [16..22]
+ │   │       │       └─ ImageCommandContent_c1 [16..22]
+ │   │       │           └─ AssetCommandContent [16..22]
+ │   │       │               ├─ AssetCommandContent_c1 [16..22]
+ │   │       │               │   └─ AssetCommandInstruction [16..22]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 16
+ │   │       │               │       ├─ AssetCommandInstruction_c2 16
+ │   │       │               │       ├─ AssetCommandInstruction_c3 16
+ │   │       │               │       ├─ AssetCommandInstruction_c4 16
+ │   │       │               │       └─ AssetCommandInstruction_c5 [16..22]
+ │   │       │               │           └─ AssetCommandName [16..22]
+ │   │       │               │               └─ AssetCommandName_c1 [16..22]
+ │   │       │               │                   └─ AssetCommandFileName [16..22]: "show@é"
+ │   │       │               └─ AssetCommandContent_c2 22
+ │   │       └─ ImageCommand_end [22..24]
+ │   │           ├─ ImageCommand_end_c1 22
+ │   │           ├─ ImageCommand_end_c2 [22..24]
+ │   │           │   └─ ImageEndMark [22..24]: "]]"
+ │   │           └─ ImageCommand_end_c3 24
+ │   │               └─ ImageCommand_end_c3 24
+ │   │                   └─ OptionalWhitespace 24
+ │   └─ ImageLine_c3 24
+ ├─ Newline [24..25]: "\n"
+ ├─ ImageLine [25..37]
+ │   ├─ ImageLine_c1 [25..27]
+ │   │   └─ OptionalWhitespace [25..27]: "  "
+ │   ├─ ImageLine_c2 [27..37]
+ │   │   └─ ImageCommand [27..37]
+ │   │       ├─ ImageCommand_begin [27..29]
+ │   │       │   ├─ ImageCommand_begin_c1 [27..29]
+ │   │       │   │   └─ ImageBeginMark [27..29]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 29
+ │   │       ├─ ImageCommand_content [29..35]
+ │   │       │   └─ ImageCommandContent [29..35]
+ │   │       │       └─ ImageCommandContent_c1 [29..35]
+ │   │       │           └─ AssetCommandContent [29..35]
+ │   │       │               ├─ AssetCommandContent_c1 [29..35]
+ │   │       │               │   └─ AssetCommandInstruction [29..35]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 29
+ │   │       │               │       ├─ AssetCommandInstruction_c2 29
+ │   │       │               │       ├─ AssetCommandInstruction_c3 29
+ │   │       │               │       ├─ AssetCommandInstruction_c4 29
+ │   │       │               │       └─ AssetCommandInstruction_c5 [29..35]
+ │   │       │               │           └─ AssetCommandName [29..35]
+ │   │       │               │               └─ AssetCommandName_c1 [29..35]
+ │   │       │               │                   └─ AssetCommandFileName [29..35]: "hide@ü"
+ │   │       │               └─ AssetCommandContent_c2 35
+ │   │       └─ ImageCommand_end [35..37]
+ │   │           ├─ ImageCommand_end_c1 35
+ │   │           ├─ ImageCommand_end_c2 [35..37]
+ │   │           │   └─ ImageEndMark [35..37]: "]]"
+ │   │           └─ ImageCommand_end_c3 37
+ │   │               └─ ImageCommand_end_c3 37
+ │   │                   └─ OptionalWhitespace 37
+ │   └─ ImageLine_c3 37
+ ├─ Newline [37..38]: "\n"
+ ├─ ImageLine [38..60]
+ │   ├─ ImageLine_c1 [38..40]
+ │   │   └─ OptionalWhitespace [38..40]: "  "
+ │   ├─ ImageLine_c2 [40..60]
+ │   │   └─ ImageCommand [40..60]
+ │   │       ├─ ImageCommand_begin [40..42]
+ │   │       │   ├─ ImageCommand_begin_c1 [40..42]
+ │   │       │   │   └─ ImageBeginMark [40..42]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 42
+ │   │       ├─ ImageCommand_content [42..58]
+ │   │       │   └─ ImageCommandContent [42..58]
+ │   │       │       └─ ImageCommandContent_c1 [42..58]
+ │   │       │           └─ AssetCommandContent [42..58]
+ │   │       │               ├─ AssetCommandContent_c1 [42..52]
+ │   │       │               │   └─ AssetCommandInstruction [42..52]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 42
+ │   │       │               │       ├─ AssetCommandInstruction_c2 42
+ │   │       │               │       ├─ AssetCommandInstruction_c3 42
+ │   │       │               │       ├─ AssetCommandInstruction_c4 42
+ │   │       │               │       └─ AssetCommandInstruction_c5 [42..52]
+ │   │       │               │           └─ AssetCommandName [42..52]
+ │   │       │               │               └─ AssetCommandName_c1 [42..52]
+ │   │       │               │                   ├─ AssetCommandFileName [42..51]: "animate@é"
+ │   │       │               │                   └─ RequiredWhitespace [51..52]: " "
+ │   │       │               └─ AssetCommandContent_c2 [52..58]
+ │   │       │                   ├─ AssetCommandClauseKeyword [52..56]: "over"
+ │   │       │                   ├─ RequiredWhitespace [56..57]: " "
+ │   │       │                   └─ NumberValue [57..58]: "1"
+ │   │       └─ ImageCommand_end [58..60]
+ │   │           ├─ ImageCommand_end_c1 58
+ │   │           ├─ ImageCommand_end_c2 [58..60]
+ │   │           │   └─ ImageEndMark [58..60]: "]]"
+ │   │           └─ ImageCommand_end_c3 60
+ │   │               └─ ImageCommand_end_c3 60
+ │   │                   └─ OptionalWhitespace 60
+ │   └─ ImageLine_c3 60
+ ├─ Newline [60..61]: "\n"
+ ├─ AudioLine [61..73]
+ │   ├─ AudioLine_c1 [61..63]
+ │   │   └─ OptionalWhitespace [61..63]: "  "
+ │   ├─ AudioLine_c2 [63..73]
+ │   │   └─ AudioCommand [63..73]
+ │   │       ├─ AudioCommand_begin [63..65]
+ │   │       │   ├─ AudioCommand_begin_c1 [63..65]
+ │   │       │   │   └─ AudioBeginMark [63..65]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 65
+ │   │       ├─ AudioCommand_content [65..71]
+ │   │       │   └─ AudioCommandContent [65..71]
+ │   │       │       └─ AudioCommandContent_c1 [65..71]
+ │   │       │           └─ AssetCommandContent [65..71]
+ │   │       │               ├─ AssetCommandContent_c1 [65..71]
+ │   │       │               │   └─ AssetCommandInstruction [65..71]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 65
+ │   │       │               │       ├─ AssetCommandInstruction_c2 65
+ │   │       │               │       ├─ AssetCommandInstruction_c3 65
+ │   │       │               │       ├─ AssetCommandInstruction_c4 65
+ │   │       │               │       └─ AssetCommandInstruction_c5 [65..71]
+ │   │       │               │           └─ AssetCommandName [65..71]
+ │   │       │               │               └─ AssetCommandName_c1 [65..71]
+ │   │       │               │                   └─ AssetCommandFileName [65..71]: "play@é"
+ │   │       │               └─ AssetCommandContent_c2 71
+ │   │       └─ AudioCommand_end [71..73]
+ │   │           ├─ AudioCommand_end_c1 71
+ │   │           ├─ AudioCommand_end_c2 [71..73]
+ │   │           │   └─ AudioEndMark [71..73]: "))"
+ │   │           └─ AudioCommand_end_c3 73
+ │   │               └─ AudioCommand_end_c3 73
+ │   │                   └─ OptionalWhitespace 73
+ │   └─ AudioLine_c3 73
+ ├─ Newline [73..74]: "\n"
+ ├─ AudioLine [74..86]
+ │   ├─ AudioLine_c1 [74..76]
+ │   │   └─ OptionalWhitespace [74..76]: "  "
+ │   ├─ AudioLine_c2 [76..86]
+ │   │   └─ AudioCommand [76..86]
+ │   │       ├─ AudioCommand_begin [76..78]
+ │   │       │   ├─ AudioCommand_begin_c1 [76..78]
+ │   │       │   │   └─ AudioBeginMark [76..78]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 78
+ │   │       ├─ AudioCommand_content [78..84]
+ │   │       │   └─ AudioCommandContent [78..84]
+ │   │       │       └─ AudioCommandContent_c1 [78..84]
+ │   │       │           └─ AssetCommandContent [78..84]
+ │   │       │               ├─ AssetCommandContent_c1 [78..84]
+ │   │       │               │   └─ AssetCommandInstruction [78..84]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 78
+ │   │       │               │       ├─ AssetCommandInstruction_c2 78
+ │   │       │               │       ├─ AssetCommandInstruction_c3 78
+ │   │       │               │       ├─ AssetCommandInstruction_c4 78
+ │   │       │               │       └─ AssetCommandInstruction_c5 [78..84]
+ │   │       │               │           └─ AssetCommandName [78..84]
+ │   │       │               │               └─ AssetCommandName_c1 [78..84]
+ │   │       │               │                   └─ AssetCommandFileName [78..84]: "stop@ñ"
+ │   │       │               └─ AssetCommandContent_c2 84
+ │   │       └─ AudioCommand_end [84..86]
+ │   │           ├─ AudioCommand_end_c1 84
+ │   │           ├─ AudioCommand_end_c2 [84..86]
+ │   │           │   └─ AudioEndMark [84..86]: "))"
+ │   │           └─ AudioCommand_end_c3 86
+ │   │               └─ AudioCommand_end_c3 86
+ │   │                   └─ OptionalWhitespace 86
+ │   └─ AudioLine_c3 86
+ ├─ Newline [86..87]: "\n"
+ ├─ ImageLine [87..103]
+ │   ├─ ImageLine_c1 [87..89]
+ │   │   └─ OptionalWhitespace [87..89]: "  "
+ │   ├─ ImageLine_c2 [89..103]
+ │   │   └─ ImageCommand [89..103]
+ │   │       ├─ ImageCommand_begin [89..91]
+ │   │       │   ├─ ImageCommand_begin_c1 [89..91]
+ │   │       │   │   └─ ImageBeginMark [89..91]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 91
+ │   │       ├─ ImageCommand_content [91..101]
+ │   │       │   └─ ImageCommandContent [91..101]
+ │   │       │       └─ ImageCommandContent_c1 [91..101]
+ │   │       │           └─ AssetCommandContent [91..101]
+ │   │       │               ├─ AssetCommandContent_c1 [91..101]
+ │   │       │               │   └─ AssetCommandInstruction [91..101]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 [91..95]
+ │   │       │               │       │   └─ AssetCommandControl [91..95]: "show"
+ │   │       │               │       ├─ AssetCommandInstruction_c2 [95..96]
+ │   │       │               │       │   └─ RequiredWhitespace [95..96]: " "
+ │   │       │               │       ├─ AssetCommandInstruction_c3 [96..101]
+ │   │       │               │       │   └─ AssetCommandTarget [96..101]: "mia@é"
+ │   │       │               │       ├─ AssetCommandInstruction_c4 101
+ │   │       │               │       └─ AssetCommandInstruction_c5 101
+ │   │       │               └─ AssetCommandContent_c2 101
+ │   │       └─ ImageCommand_end [101..103]
+ │   │           ├─ ImageCommand_end_c1 101
+ │   │           ├─ ImageCommand_end_c2 [101..103]
+ │   │           │   └─ ImageEndMark [101..103]: "]]"
+ │   │           └─ ImageCommand_end_c3 103
+ │   │               └─ ImageCommand_end_c3 103
+ │   │                   └─ OptionalWhitespace 103
+ │   └─ ImageLine_c3 103
+ ├─ Newline [103..104]: "\n"
+ ├─ AudioLine [104..127]
+ │   ├─ AudioLine_c1 [104..106]
+ │   │   └─ OptionalWhitespace [104..106]: "  "
+ │   ├─ AudioLine_c2 [106..127]
+ │   │   └─ AudioCommand [106..127]
+ │   │       ├─ AudioCommand_begin [106..108]
+ │   │       │   ├─ AudioCommand_begin_c1 [106..108]
+ │   │       │   │   └─ AudioBeginMark [106..108]: "(("
+ │   │       │   └─ AudioCommand_begin_c2 108
+ │   │       ├─ AudioCommand_content [108..125]
+ │   │       │   └─ AudioCommandContent [108..125]
+ │   │       │       └─ AudioCommandContent_c1 [108..125]
+ │   │       │           └─ AssetCommandContent [108..125]
+ │   │       │               ├─ AssetCommandContent_c1 [108..121]
+ │   │       │               │   └─ AssetCommandInstruction [108..121]
+ │   │       │               │       ├─ AssetCommandInstruction_c1 [108..112]
+ │   │       │               │       │   └─ AssetCommandControl [108..112]: "play"
+ │   │       │               │       ├─ AssetCommandInstruction_c2 [112..113]
+ │   │       │               │       │   └─ RequiredWhitespace [112..113]: " "
+ │   │       │               │       ├─ AssetCommandInstruction_c3 [113..120]
+ │   │       │               │       │   └─ AssetCommandTarget [113..120]: "music@é"
+ │   │       │               │       ├─ AssetCommandInstruction_c4 [120..121]
+ │   │       │               │       │   └─ RequiredWhitespace [120..121]: " "
+ │   │       │               │       └─ AssetCommandInstruction_c5 121
+ │   │       │               └─ AssetCommandContent_c2 [121..125]
+ │   │       │                   └─ AssetCommandClauseKeyword [121..125]: "loop"
+ │   │       └─ AudioCommand_end [125..127]
+ │   │           ├─ AudioCommand_end_c1 125
+ │   │           ├─ AudioCommand_end_c2 [125..127]
+ │   │           │   └─ AudioEndMark [125..127]: "))"
+ │   │           └─ AudioCommand_end_c3 127
+ │   │               └─ AudioCommand_end_c3 127
+ │   │                   └─ OptionalWhitespace 127
+ │   └─ AudioLine_c3 127
+ ├─ Newline [127..128]: "\n"
+ ├─ LuauEndKeyword [128..131]: "end"
+ └─ Newline [131..132]: "\n"

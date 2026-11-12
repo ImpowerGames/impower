@@ -3,7 +3,7 @@ variables:
   LUAU_SHARED_TYPE_DECLARATION_END: "(?:$|{{LUAU_SHARED_TYPE_DECLARATION_END_GUARD}})"
   # lookaround: LuauComment and LuauAssignmentOperation keep trailing comments and assignment values inside the declaration.
   LUAU_SHARED_TYPE_DECLARATION_END_GUARD: "(?!{{LUAU_COMMENT_START}}|{{LUAU_IDENTIFIER}}|[=])"
-  _LUAU_SHARED_EXPORTED_TYPE_PREFIX_: "(?:(export)\\b({{WS}}*))"
+  _LUAU_SHARED_EXPORTED_TYPE_PREFIX_: "(?:(export){{LUAU_NAME_END}}({{WS}}*))"
   # lookaround: LuauFunctionAccessor owns a colon followed by a method call; LuauAccessPath must leave that suffix to it.
   LUAU_SHARED_PATH_NO_METHOD_CALL: "(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_TRIVIA}}*{{LUAU_FUNCTION_CALL_START}})"
   # lookaround: LuauForLoop owns binding names before its condition; LuauAccessPath must finish each binding there.
@@ -15,9 +15,9 @@ variables:
   # lookbehind holds no lookaround, so the list is read as text with no `=`
   # and no `in` standing as a word (`LUAU_FOR_BINDING_LIST_BEHIND`); an `in`
   # inside a comment of that list ends it too.
-  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_NAME_BEHIND}}|\\bfor\\b{{LUAU_FOR_BINDING_LIST_BEHIND}}[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
+  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<={{LUAU_NAME_START_BEHIND}}for{{WS}}+{{LUAU_NAME_BEHIND}}|{{LUAU_NAME_START_BEHIND}}for{{LUAU_NAME_FOLLOW_BEHIND}}{{LUAU_FOR_BINDING_LIST_BEHIND}}i?[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
   # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
-  LUAU_FOR_BINDING_LIST_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_LEVEL_BLOCK_COMMENT_BEHIND}}|[^\n\r=i"'`-]|-[^\n\r-]|\Bi|i\b|i[^n\n\r=]|in\w)*
+  LUAU_FOR_BINDING_LIST_BEHIND: (?:{{LUAU_QUOTED_STRING_BEHIND}}|{{LUAU_LEVEL_BLOCK_COMMENT_BEHIND}}|[^\n\r=i"'`-]|-[^\n\r-]|[a-zA-Z0-9_]@?i|i[^n\n\r=]|in[a-zA-Z0-9_]|in@[a-zA-Z0-9_])*
   # lookaround: read only in lookbehinds, with no lookaround of its own.
   LUAU_QUOTED_STRING_BEHIND: (?:"[^"\n\r]*"|'[^'\n\r]*'|`[^`\n\r]*`)
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
@@ -31,16 +31,16 @@ variables:
   LUAU_SHARED_PATH_TRIVIA: "(?:{{LUAU_BLOCK_COMMENT_ON_LINE}}|{{WS}})"
   # lookaround: LuauEndKeyword and LuauUntilKeyword own terminators rather than identifier paths.
   LUAU_SHARED_PATH_KEYWORD_GUARD: "(?!{{LUAU_TERMINATOR_KEYWORDS}})"
-  LUAU_SHARED_SCOPE_MODIFIER_WORD: "(?:{{LUAU_SCOPE_MODIFIERS}})"
+  LUAU_SHARED_SCOPE_MODIFIER_WORD: "(?:store|local|const)"
   # lookaround: LuauVariableAssignment and LuauComment keep commas, assignments and comments inside a declaration.
   LUAU_SHARED_DECLARATION_END_GUARD: "(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=])"
-  LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD: "(?:{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})"
+  LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD: "(?:match|plural)"
   # lookaround: LuauThenExpression owns then; LuauOperatorMissingOperand must not report the clause delimiter as an operand.
-  LUAU_SHARED_MISSING_OPERAND_WORDS: "(?:and|or|not|if(?!{{WS}}*then\\b))"
+  LUAU_SHARED_MISSING_OPERAND_WORDS: "(?:and|or|not|if(?!{{WS}}*then{{LUAU_NAME_END}}))"
   # lookaround: LuauIfBlock owns statement clauses on the next line; LuauTernaryExpression must yield to them.
   LUAU_SHARED_TERNARY_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}})"
   # lookaround: LuauElseifBlock owns elseif; LuauTernaryExpression must not treat its suffix as a separate if.
-  LUAU_SHARED_NOT_ELSEIF: "(?<!\\belseif)"
+  LUAU_SHARED_NOT_ELSEIF: "(?<!{{LUAU_NAME_START_BEHIND}}elseif)"
   LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS: "(?:end|until)"
   LUAU_SHARED_CONDITION_CLOSER_KEYWORDS: "(?:then|do)"
   LUAU_SHARED_TERNARY_CONTEXT: "(?:{{AFTER_LUAU_TERNARY_PRECEDING_TOKEN}}|{{LUAU_TERNARY_WITH_ELSE_AHEAD}})"
@@ -55,15 +55,15 @@ variables:
   LUAU_SHARED_ALTERNATOR_NON_MEMBER: "(?!{{WS}}*[.])"
   # lookaround: LuauIfBlock and LuauLineContinuation own following clauses and expression continuations respectively.
   LUAU_SHARED_THEN_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
-  LUAU_SHARED_THEN_ARM_END: "(?:else\\b|elseif\\b|[)}\\],;])"
-  LUAU_SHARED_THEN_ARM_CLOSER: "(?:{{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})"
+  LUAU_SHARED_THEN_ARM_END: "(?:else{{LUAU_NAME_END}}|elseif{{LUAU_NAME_END}}|[)}\\],;])"
+  LUAU_SHARED_THEN_ARM_CLOSER: "(?:{{BEAT}}|{{WS}}*{{LUAU_SHARED_THEN_ARM_END}}|{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})"
   # lookaround: LuauExpression owns value keywords; LuauTypeLiteral accepts only names that can introduce a type.
   LUAU_SHARED_TYPE_KEYWORD_GUARD: "(?!{{LUAU_NON_TYPE_KEYWORDS}})"
   LUAU_SHARED_PATH_OR_CALL_CONTINUATION: "(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\\[|{{LUAU_LINE_CONTINUATION_OPERATOR}})"
   # lookaround: LuauThenExpression and LuauLineContinuation keep then and operator continuations inside the condition.
-  LUAU_SHARED_TERNARY_CONDITION_LINE_END: "(?!{{WS}}*then\\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
+  LUAU_SHARED_TERNARY_CONDITION_LINE_END: "(?!{{WS}}*then{{LUAU_NAME_END}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}})"
   # lookaround: LuauTypeofFunction owns typeof calls; LuauVariableAssignment must not mistake typeof for a binding name.
-  LUAU_SHARED_NOT_TYPEOF: "(?!typeof\\b)"
+  LUAU_SHARED_NOT_TYPEOF: "(?!typeof{{LUAU_NAME_END}})"
   # lookaround: LuauTypeAnnotationOperation and LuauAssignmentOperation own annotations and values; LuauVariableAssignment must yield before either.
   LUAU_SHARED_VARIABLE_HEAD_END: "(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*{{LUAU_SHARED_NOT_TYPEOF}}{{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\\n|\\r|$)"
   LUAU_SHARED_DIVERT_DOTTED_PART: "(?:[.]{{IDENTIFIER}})"
@@ -98,7 +98,8 @@ variables:
   # lookaround: read only in lookbehinds, with no lookaround of its own.
   LUAU_LEVEL_BLOCK_COMMENT_BEHIND: (?:--\[(?:\[[^\n\r]*?\]\]|=\[[^\n\r]*?\]=\]|==\[[^\n\r]*?\]==\]|===\[[^\n\r]*?\]===\]|={4}\[[^\n\r]*?\]={4}\]|={5}\[[^\n\r]*?\]={5}\]|={6}\[[^\n\r]*?\]={6}\]|={7}\[[^\n\r]*?\]={7}\]|={8}\[[^\n\r]*?\]={8}\]|={9}\[[^\n\r]*?\]={9}\]|={10}\[[^\n\r]*?\]={10}\]|={11}\[[^\n\r]*?\]={11}\]|={12}\[[^\n\r]*?\]={12}\]|={13}\[[^\n\r]*?\]={13}\]|={14}\[[^\n\r]*?\]={14}\]|={15}\[[^\n\r]*?\]={15}\]|={16}\[[^\n\r]*?\]={16}\]|={17,}\[[^\n\r]*?\]={17,}\]))
   # lookaround: read only in lookbehinds, with no lookaround of its own.
-  LUAU_DECLARATION_TARGETS_BEHIND: (?:\b(?:local|store|const)\b[^\n\r(){}\[\]:=]*)
+  LUAU_DECLARATION_TARGETS_BEHIND: (?:{{LUAU_NAME_START_BEHIND}}{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{LUAU_DECLARATION_TARGET_TEXT_BEHIND}}?)
+  LUAU_DECLARATION_TARGET_TEXT_BEHIND: (?:[^a-zA-Z0-9_@\n\r(){}\[\]:=][^\n\r(){}\[\]:=]*)
   # lookaround: `LuauLoopHeaderMethodColon`, `LuauIfHeaderMethodColon` and `LuauExpressionKeywordMethodAccessor` read a `:` before `do` or `then`; `LuauKeywordMethodAccessor`, which a type tries before its stray-colon token, steps aside for them.
   LUAU_KEYWORD_NOT_HEADER_END: (?:(?!{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}){{LUAU_KEYWORD}})
   # lookaround: read only in lookbehinds, with no lookaround of its own (VS Code's regex engine refuses one inside a lookbehind).
@@ -143,13 +144,23 @@ variables:
   # lookaround: `LUAU_TYPE_BINARY_OPERATORS` reads a function type's `->` whole, so a `>` right after a `-` is the arrow's, never a generic's closer.
   LUAU_TYPE_GENERIC_CLOSER: (?:(?<![-])[>])
   LUAU_GLUED_KEYWORD: (?:(?:then|do|end|else|elseif|until){{LUAU_NAME_END}})
-  # lookaround: a name character after a word makes it a longer name,
-  # which `LuauAccessPath` and `LuauUnreadName` read whole (`ending`,
-  # `end_x`), so a keyword ends here only where no name goes on. It is
-  # spelled as a class rather than `\b`, which VS Code's Oniguruma reads as
-  # Unicode-aware and JavaScript as ASCII-only, so both engines end the
-  # word at the same character.
-  LUAU_NAME_END: (?![a-zA-Z0-9_])
+  # lookaround: a name character after a word, or an `@` before one, makes
+  # it a longer name, which `LuauAccessPath` and `LuauUnreadName` read whole
+  # (`ending`, `end_x`, `end@x`), so a keyword ends here only where no name
+  # goes on. It is spelled as a class rather than `\b`, which VS Code's
+  # Oniguruma reads as Unicode-aware and JavaScript as ASCII-only and which
+  # ends a word at an `@`, so both engines end the word at the same
+  # character. Every keyword rule ends its word here.
+  LUAU_NAME_END: (?![a-zA-Z0-9_]|{{LUAU_NAME_AT_PART_START}})
+  # lookaround: as `LUAU_NAME_END`, before a word: a name character, or one
+  # and an `@`, before a keyword makes it the end of a longer name
+  # (`mia@end`), which `LuauAccessPath` reads whole. Every keyword rule
+  # starts its word here.
+  LUAU_NAME_START: (?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)
+  LUAU_NAME_AT_PART_START: (?:@[a-zA-Z0-9_])
+  LUAU_NAME_AT_PART: (?:@[a-zA-Z0-9_]+)
+  LUAU_NAME_START_BEHIND: (?:^|[^a-zA-Z0-9_@]|(?:^|[^a-zA-Z0-9_])@)
+  LUAU_NAME_FOLLOW_BEHIND: (?:[^a-zA-Z0-9_@]|@[^a-zA-Z0-9_])
   LUAU_UNREAD_SYMBOL: (?:\.\.\.|\.\.=|//=|\.\.|::|==|~=|<=|>=|\+=|-=|\*=|/=|%=|\^=|->|//|&&|\|\||!=)
   # lookaround: LuauAttribute and LuauAttributeList own an `@` before an identifier or `[`; LuauUnreadableCharacter, last in its rules' patterns, must leave that `@` to them, and no order of patterns can, since it is the catch-all for what they decline. An `@` before a keyword opens neither.
   LUAU_UNREADABLE_CHARACTER: (?:[$!?%^|~\[\\]|@(?![\[]|{{LUAU_IDENTIFIER}})|[^\x00-\x7F])
@@ -174,7 +185,7 @@ variables:
   LUAU_MODULE_KEYWORDS: ["export"]
   LUAU_FILE_SPARKDOWN_WORDS: ["define", "store", "layout", "style", "screen", "component", "animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
-  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else", "if", "elseif", "while", "until", "in"]
+  LUAU_TERNARY_PRECEDING_KEYWORDS: (?:return|and|or|not|then|else|if|elseif|while|until|in)
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
     - "until"
     - "if"
@@ -359,10 +370,10 @@ variables:
     ]
 
   LUAU_GLUEABLE_OPERAND_END: (?:[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
-  LUAU_THEN_BEHIND: (?:\bthen|/[dgimsuvy]{1,8}then)
+  LUAU_THEN_BEHIND: (?:{{LUAU_NAME_START_BEHIND}}then|/[dgimsuvy]{1,8}then)
   LUAU_GLUED_THEN_BEHIND: (?:{{LUAU_GLUEABLE_OPERAND_END}}then)
-  LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
-  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
+  LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for){{LUAU_NAME_END}}|;|function{{WS}}+{{LUAU_IDENTIFIER}})
+  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then{{LUAU_NAME_END}}|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph){{LUAU_NAME_END}}{{WS}}+{{LUAU_IDENTIFIER}})
   # lookaround: the `(?!…)` leaves the line to the rules that read on to
   # it: `LuauThenExpression` and `LuauTernaryExpression` read a line that
   # begins with `then`, `else` or `elseif`, `LuauLineContinuation` a
@@ -377,7 +388,7 @@ variables:
   # open; and the excluded starts cannot be folded into a tighter positive
   # variable, since a positive alternative cannot name "any other line".
   LUAU_COLUMN_0_LINE_START: ^(?=\S)(?!{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;])
-  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[)\\]}])|(?={{WS}}+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
+  LUAU_REASSIGNMENT_END: "(?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\\]=*\\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[)\\]}])|(?={{WS}}+{{LUAU_NAME_START}}(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until){{LUAU_NAME_END}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|{{LUAU_COLUMN_0_LINE_START}}"
   # lookaround: LuauAssignmentLineBreak begins here, before the line end or
   # a comment, and LuauAssignmentOperation ends at them anywhere else.
   LUAU_AFTER_ASSIGNMENT_OPERATOR: (?<=[^=~<>]={{WS}}*)
@@ -395,7 +406,7 @@ variables:
   LUAU_REASSIGNMENT_INDEX: \[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}}|\[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}})*\])*\]
   LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"'`]|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\\n]|\\.)*`)
 
-  LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_BREAK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}{{LUAU_DECLARATION_NAME_AHEAD}}|(?:local|function)\b|const\b{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_MODULE_KEYWORDS}})
+  LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_BREAK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}{{LUAU_DECLARATION_NAME_AHEAD}}|(?:local|function){{LUAU_NAME_END}}|const{{LUAU_NAME_END}}{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
   LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
   # lookaround: LuauForCondition and LuauWhileCondition own the line break
@@ -403,7 +414,7 @@ variables:
   # condition begin on the next line. The loop's line-end end would win at
   # that position, where the condition's empty begin also matches, so it
   # steps aside there; the condition then reads on to its `do`.
-  LUAU_NOT_AFTER_LOOP_KEYWORD: (?<!\b{{LUAU_CONDITION_LOOP_KEYWORDS}}{{WS}}*)
+  LUAU_NOT_AFTER_LOOP_KEYWORD: (?<!{{LUAU_NAME_START_BEHIND}}{{LUAU_CONDITION_LOOP_KEYWORDS}}{{WS}}*)
   LUAU_CONDITION_LOOP_KEYWORDS: (?:for|while)
   # lookaround: LuauBlockComment reads a `--[[`.
   LUAU_LINE_COMMENT_START: (?:{{LUAU_COMMENT_START}}(?!\[=*\[))
@@ -427,7 +438,7 @@ variables:
   LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}
   # lookaround: LuauCompareOperator reads `==`.
   LUAU_SINGLE_EQUALS: =(?!=)
-  LUAU_WORD: (?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_END}})
+  LUAU_WORD: (?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_AT_PART}}*{{LUAU_NAME_END}})
   LUAU_NAME_OR_CONSTANT: (?:(?:nil|true|false){{LUAU_NAME_END}}|{{LUAU_IDENTIFIER}})
   # lookaround: `LuauEscapeLine` refuses its `$` end at the spot where its
   # begin took the line break and the line's input ends. Both engines try the
@@ -453,12 +464,13 @@ variables:
   # only goes on from a name (`match + 1`, `match = 1`) leaves it a name.
   LUAU_CONDITIONAL_LINE_START_AHEAD: (?:{{LUAU_ALTERNATOR_LINE_START_AHEAD}}|(?={{WS}}*{{LUAU_EXPRESSION_START}}))
   # lookaround: `LuauAlternatorArms` consumes the `end` this follows.
-  LUAU_AFTER_ALTERNATOR_ARMS: (?<=\bend)
+  LUAU_AFTER_ALTERNATOR_ARMS: (?<={{LUAU_NAME_START_BEHIND}}end)
   # lookaround: `LuauAlternatorArms` reads the `|` the head leaves.
-  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!\bend)(?=[|])|({{WS}}+(?=[|])|(?<=\bend){{LUAU_HEAD_SEPARATOR}}))
+  _LUAU_ALTERNATOR_HEAD_BEFORE_ARMS_: (?:(?<!{{LUAU_NAME_START_BEHIND}}end)(?=[|])|({{WS}}+(?=[|])|(?<={{LUAU_NAME_START_BEHIND}}end){{LUAU_HEAD_SEPARATOR}}))
   LUAU_HEAD_SEPARATOR: (?:[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
   # lookaround: `LuauAlternatorHead`'s end consumed the separator.
-  LUAU_AFTER_HEAD_SEPARATOR: (?<=\bend[|]{{WS}}*(?:[a-zA-Z_][a-zA-Z0-9_]*{{WS}}*[=]{{WS}}*)?)
+  LUAU_AFTER_HEAD_SEPARATOR: (?<={{LUAU_NAME_START_BEHIND}}end[|]{{WS}}*{{LUAU_ARM_KEY_BEHIND}}?)
+  LUAU_ARM_KEY_BEHIND: (?:{{LUAU_NAME_BEHIND}}{{WS}}*[=]{{WS}}*)
   # lookaround: `LuauAlternatorArms` opens there and takes the `end`.
   LUAU_EMPTY_ARM_AFTER_HEAD_SEPARATOR: (?:{{LUAU_AFTER_HEAD_SEPARATOR}}(?={{WS}}*(?:end{{LUAU_NAME_END}}|$)))
   # lookaround: `LuauSparkdownExplicitAlternatorArms` opens there and takes
@@ -508,17 +520,17 @@ variables:
   LUAU_DEFINE_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|{{LUAU_DEFINE_WITHOUT_NAME_AHEAD}})
   # lookaround: without a name after it `LuauAccessPath` reads the word as a
   # name.
-  LUAU_DECLARATION_WORD_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|(?={{WS}}*function\b))
-  LUAU_STORE_OR_CONST: (?:(?:store|const)\b)
+  LUAU_DECLARATION_WORD_AHEAD: (?:{{LUAU_DECLARATION_NAME_AHEAD}}|(?={{WS}}*function{{LUAU_NAME_END}}))
+  LUAU_STORE_OR_CONST: (?:(?:store|const){{LUAU_NAME_END}})
   LUAU_NAMED_DECLARATION_WORD: (?:{{LUAU_STORE_OR_CONST}}{{LUAU_DECLARATION_WORD_AHEAD}})
-  LUAU_CODE_SCOPE_MODIFIER: (?:local\b|{{LUAU_NAMED_DECLARATION_WORD}}|{{LUAU_STORE_OR_CONST}}{{LUAU_DECLARATION_NAME_HIDDEN_AHEAD}})
-  LUAU_NAME_BEHIND: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  LUAU_CODE_SCOPE_MODIFIER: (?:local{{LUAU_NAME_END}}|{{LUAU_NAMED_DECLARATION_WORD}}|{{LUAU_STORE_OR_CONST}}{{LUAU_DECLARATION_NAME_HIDDEN_AHEAD}})
+  LUAU_NAME_BEHIND: (?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_AT_PART}}*\b)
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[=*\[)
   # lookaround: LuauFunctionDefinition and the next LuauAttribute or
   # LuauAttributeList own what follows an attribute; the attribute takes
   # the space before them only when they are there, since a value that ends
   # at a space (LuauAssignmentOperation) cannot otherwise reach them.
-  LUAU_ATTRIBUTE_FOLLOWER: (?=@|{{LUAU_LOCAL_PREFIX}}?function\b)
+  LUAU_ATTRIBUTE_FOLLOWER: (?=@|{{LUAU_LOCAL_PREFIX}}?function{{LUAU_NAME_END}})
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_NAME_BEHIND}})
@@ -573,7 +585,7 @@ variables:
   # attribute, but not for an unspaced write (`@hud: text`); the last ends
   # before any other token, which the enclosing rule reads and where Luau
   # reports the missing function.
-  LUAU_ATTRIBUTED_FUNCTION_END: (?={{BEAT}})|(?<=\bend)|^(?!{{WS}}*(?:$|--|{{LUAU_LOCAL_PREFIX}}?function\b|{{LUAU_ATTRIBUTE_NOT_WRITE}}))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\b)
+  LUAU_ATTRIBUTED_FUNCTION_END: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|^(?!{{WS}}*(?:$|--|{{LUAU_LOCAL_PREFIX}}?function{{LUAU_NAME_END}}|{{LUAU_ATTRIBUTE_NOT_WRITE}}))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function{{LUAU_NAME_END}})
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
@@ -584,7 +596,7 @@ variables:
   LUAU_ALTERNATOR_OPERATOR: (?:[|])
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
-  LUAU_LINE_CONTINUATION_OPERATOR: "(?:[+*/%^]|[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\\b)"
+  LUAU_LINE_CONTINUATION_OPERATOR: "(?:[+*/%^]|[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or){{LUAU_NAME_END}})"
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|[.](?![.\d])|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   LUAU_MINUS_LINE_START: -(?![->])
   LUAU_DANGLING_ACCESSOR_START: "[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}"
@@ -599,17 +611,18 @@ variables:
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
   LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
   LUAU_TYPE_END: (?:[\w)}\]"'`?]|[^-]>|^>)
-  LUAU_FUNCTION_HEADER: (?:(?:\b{{LUAU_HEADER_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_HEADER_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})(?:{{LUAU_NAME_BEHIND}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_NAME_BEHIND}})*)?(?:{{WS}}*<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER: (?:(?:{{LUAU_NAME_START_BEHIND}}{{LUAU_HEADER_KEYWORDS}}(?:{{WS}}+{{LUAU_FUNCTION_HEADER_NAME}}?)?|{{LUAU_HEADER_LINE_START}}{{LUAU_HEADER_KEYWORDS}}{{LUAU_HEADER_COMMENTS}}{{LUAU_FUNCTION_HEADER_NAME}}?)(?:{{WS}}*<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER_NAME: (?:{{LUAU_NAME_BEHIND}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_NAME_BEHIND}})*)
   LUAU_NAME_OR_LINE_END: (?:$|{{LUAU_IDENTIFIER}})
-  LUAU_INHERITANCE_AHEAD: (?:as\b{{WS}}*{{LUAU_NAME_OR_LINE_END}})
-  LUAU_SCREEN_OPERATION_AHEAD: (?:in\b{{WS}}*{{LUAU_NAME_OR_LINE_END}})
+  LUAU_INHERITANCE_AHEAD: (?:as{{LUAU_NAME_END}}{{WS}}*{{LUAU_NAME_OR_LINE_END}})
+  LUAU_SCREEN_OPERATION_AHEAD: (?:in{{LUAU_NAME_END}}{{WS}}*{{LUAU_NAME_OR_LINE_END}})
   # lookaround: LuauInheritanceOperation reads an `as` clause after a define's or struct's name; the name header ends at any other text, which `LuauDefine` and the struct rules then read, since a header that cannot read a character would otherwise pass over it.
   LUAU_NAME_HEADER_STOP: (?=\S)(?!{{LUAU_INHERITANCE_AHEAD}})
   # lookaround: LuauInheritanceOperation and LuauLayoutScreenOperation read a layout's `as` and `in` clauses; the header ends at any other text, which `LuauLayout` then reads.
   LUAU_LAYOUT_HEADER_STOP: (?=\S)(?!{{LUAU_INHERITANCE_AHEAD}}|{{LUAU_SCREEN_OPERATION_AHEAD}})
   # lookaround: LuauInheritanceOperation and LuauFunctionParameters read a component's `as` clause and parameters; the header ends at any other text, which `LuauComponent` then reads.
   LUAU_COMPONENT_HEADER_STOP: (?=\S)(?!{{LUAU_INHERITANCE_AHEAD}}|[(])
-  LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|goto|local|do|while|repeat|for)\b|{{LUAU_NAMED_DECLARATION_WORD}}|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})
+  LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|goto|local|do|while|repeat|for){{LUAU_NAME_END}}|{{LUAU_NAMED_DECLARATION_WORD}}|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})
   # lookaround: before those, `continue` is a name that `LuauReassignment`
   # or `LuauAccessPath` reads, after `LuauContinueStatement` in
   # `LuauDeclarations`. A begin cannot read the name first and decide after,
@@ -663,7 +676,7 @@ variables:
   # same comment.
   _LUAU_OPERATOR_COMMENTS_BEFORE_CODE_: (?:{{_LUAU_BLOCK_COMMENTS_ON_LINE_}}(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|$)))
   LUAU_TYPE_CODE_AHEAD: (?![|&?.<>=,;)\]}]|[-][>]|{{WS}}|$|{{LUAU_COMMENT_START}}|{{LUAU_COLON_BEFORE_RESERVED_WORD}})
-  LUAU_STATEMENT_CODE_AHEAD: (?=(?!(?:and|or)\b)[A-Za-z_])
+  LUAU_STATEMENT_CODE_AHEAD: (?=(?!(?:and|or){{LUAU_NAME_END}})[A-Za-z_])
   LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:{{AFTER_LUAU_VALUE}}{{LUAU_BLOCK_COMMENT_THEN_STATEMENT_AHEAD}}|{{AFTER_LUAU_UNCALLABLE_VALUE}}{{LUAU_BLOCK_COMMENT_THEN_PAREN_AHEAD}})
   LUAU_BLOCK_COMMENT_THEN_STATEMENT_AHEAD: (?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
   LUAU_BLOCK_COMMENT_THEN_PAREN_AHEAD: (?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(])
@@ -672,17 +685,17 @@ variables:
   LUAU_FUNCTION_BODY_AFTER_PARAMETERS: (?<=[)])(?={{LUAU_NOT_END_OR_COMMENT_AHEAD}}(?:[\w"'`(\[{&\-@#;]|::))
   LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))
   LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*(?=\n)
-  LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+  LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*{{LUAU_NAME_START}}end{{LUAU_NAME_END}})(?={{WS}}*[\w"'`(\[{&\-@#:;.])
   # lookaround: a deeper line is the method's body (LuauBlockBody), and the
   # method's own `end` at that indentation is the end's last alternative;
   # neither can be told from this line by order, since all three begin at
   # the line start.
-  LUAU_METHOD_SAME_INDENT_CODE: \1(?!end\b)(?:[^\s-]|[-][^-])
+  LUAU_METHOD_SAME_INDENT_CODE: \1(?!end{{LUAU_NAME_END}})(?:[^\s-]|[-][^-])
   # lookaround: as for `LUAU_METHOD_SAME_INDENT_CODE`; an `end` at the
   # header's indentation or deeper starts with `\1`, and is the method's.
-  LUAU_METHOD_LINE_AFTER_BODY: ^(?={{LUAU_METHOD_SAME_INDENT_CODE}})|^(?!\1)(?={{WS}}*end\b)
-  LUAU_NOT_END_OR_COMMENT_AHEAD: (?!end\b|{{LUAU_COMMENT_START}})
-  LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD: (?!end\b|{{LUAU_COMMENT_START}}|{{LUAU_SINGLE_COLON}}|[<])
+  LUAU_METHOD_LINE_AFTER_BODY: ^(?={{LUAU_METHOD_SAME_INDENT_CODE}})|^(?!\1)(?={{WS}}*end{{LUAU_NAME_END}})
+  LUAU_NOT_END_OR_COMMENT_AHEAD: (?!end{{LUAU_NAME_END}}|{{LUAU_COMMENT_START}})
+  LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD: (?!end{{LUAU_NAME_END}}|{{LUAU_COMMENT_START}}|{{LUAU_SINGLE_COLON}}|[<])
   LUAU_SINGLE_COLON: '[:](?![:])'
   LUAU_PLAIN_BLOCK_COMMENT: (?:--{{LUAU_PLAIN_LONG_BRACKET}})
   LUAU_PLAIN_LONG_BRACKET: (?:\[(?:{{LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3}}|{{LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL}}))
@@ -700,13 +713,13 @@ variables:
   # lookaround: as _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_, for LuauFunctionTypeDeclaration, whose comments' level is its tenth group, so LuauTypeFunctionName opens after them.
   _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_: (?:--\[(=*)\[(?:(?!\]\10\])[^\r\n])*\]\10\]{{WS}}*)+
   LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
-  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
+  LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}{{LUAU_NAME_START_BEHIND}}define{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
   LUAU_DEFINE_HEADER_NAME_TO_WITH: (?:{{LUAU_IDENTIFIER}}{{LUAU_DEFINE_HEADER_TAIL_PART}}*{{LUAU_DEFINE_HEADER_WITH}}?)
   LUAU_DEFINE_HEADER_TAIL_PART: (?:{{LUAU_DEFINE_HEADER_AS_PARENT}}|{{WS}}+)
-  LUAU_DEFINE_HEADER_AS_PARENT: (?:{{WS}}*as\b{{WS}}*{{LUAU_INHERITANCE_PARENT_NAME}}{{LUAU_INHERITANCE_PARENT_GAP}})
+  LUAU_DEFINE_HEADER_AS_PARENT: (?:{{WS}}*as{{LUAU_NAME_END}}{{WS}}*{{LUAU_INHERITANCE_PARENT_NAME}}{{LUAU_INHERITANCE_PARENT_GAP}})
   LUAU_INHERITANCE_PARENT_NAME: (?:$|{{LUAU_IDENTIFIER}})
   LUAU_INHERITANCE_PARENT_GAP: (?:$|{{WS}}*)
-  LUAU_DEFINE_HEADER_WITH: (?:{{WS}}*with\b)
+  LUAU_DEFINE_HEADER_WITH: (?:{{WS}}*with{{LUAU_NAME_END}})
   LUAU_CODE_BEFORE_DEFINE_HEADER: (?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)
   LUAU_CODE_CHAR_OR_CLOSED_COMMENT: (?:[^\-\r\n]|-[^\-\r\n]|{{LUAU_PLAIN_BLOCK_COMMENT}})
   LUAU_DEFINE_HEADER_PARENT: (?:{{LUAU_DEFINE_HEADER_GAP}}as{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}})
@@ -714,14 +727,14 @@ variables:
   LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE: --\[====+\[[^\r\n]*\]====+\]
   LUAU_HEADER_LINE_START: (?:^{{WS}}*{{LUAU_HEADER_ATTRIBUTE}}*{{LUAU_DECLARATION_MODIFIER}}*)
   LUAU_HEADER_ATTRIBUTE: (?:(?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{LUAU_PLAIN_ATTRIBUTE_LIST_TEXT}}*\]){{LUAU_ATTRIBUTE_TRIVIA}}*)
-  LUAU_DECLARATION_MODIFIER: (?:{{LUAU_DECLARATION_MODIFIER_WORDS}}\b{{WS}}*)
+  LUAU_DECLARATION_MODIFIER: (?:{{LUAU_DECLARATION_MODIFIER_WORDS}}{{WS}}+)
   LUAU_DECLARATION_MODIFIER_WORDS: (?:local|export|type)
   LUAU_DECLARATION_KEYWORDS: (?:function|external)
   LUAU_HEADER_KEYWORDS: (?:function|scene|branch|external|component)
-  LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
-  LUAU_TERNARY_WITH_ELSE_AHEAD: (?={{WS}}*if\b{{LUAU_TERNARY_CONDITION_CHAR}}*{{LUAU_TERNARY_ELSE_OR_CLOSE}})
+  LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_NAME_START_BEHIND}}{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
+  LUAU_TERNARY_WITH_ELSE_AHEAD: (?={{WS}}*if{{LUAU_NAME_END}}{{LUAU_TERNARY_CONDITION_CHAR}}*{{LUAU_TERNARY_ELSE_OR_CLOSE}})
   LUAU_TERNARY_CONDITION_CHAR: (?:[^\n=]|==|~=|<=|>=)
-  LUAU_TERNARY_ELSE_OR_CLOSE: (?:\belse(?:if)?\b|\})
+  LUAU_TERNARY_ELSE_OR_CLOSE: (?:{{LUAU_NAME_START}}else(?:if)?{{LUAU_NAME_END}}|\})
   _LUAU_DANGLING_ACCESSOR_COMMENT_: (?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)
   LUAU_UNRESERVED_IDENTIFIER: (?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
@@ -888,7 +901,7 @@ repository:
   LuauLabelKeyword:
     tag: controlKeyword
     name: keyword.control.label.luau
-    match: (label)\b
+    match: (label){{LUAU_NAME_END}}
 
   LuauDivertTargetLiteral:
     match: "(?!{{AFTER_ALTERNATOR_ARM_SEPARATOR}}{{END_DIVERT_CLOSING_ALTERNATOR}})({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}{{LUAU_SHARED_DIVERT_DOTTED_PART}}*)({{WS}}*)"
@@ -1058,7 +1071,7 @@ repository:
   # narrative body and a Luau one, so the Switch cannot be split by context
   # there.
   LuauDefineAsName:
-    match: ({{WS}}*)(define)\b(?!{{LUAU_DECLARATION_NAME_AHEAD}}){{LUAU_DEFINE_WITHOUT_NAME_AHEAD}}
+    match: ({{WS}}*)(define){{LUAU_NAME_END}}(?!{{LUAU_DECLARATION_NAME_AHEAD}}){{LUAU_DEFINE_WITHOUT_NAME_AHEAD}}
     captures:
       1:
         patterns:
@@ -1073,7 +1086,7 @@ repository:
   # rest from the declarations, which a statement shares through
   # `LuauDeclarations`, so ordering alone cannot decide it.
   LuauDeclarationWordAsName:
-    match: ({{WS}}*)(define\b(?!{{LUAU_DECLARATION_NAME_AHEAD}}){{LUAU_DEFINE_WITHOUT_NAME_AHEAD}}|{{LUAU_STORE_OR_CONST}}{{LUAU_DECLARATION_NAME_HIDDEN_AHEAD}})
+    match: ({{WS}}*)(define{{LUAU_NAME_END}}(?!{{LUAU_DECLARATION_NAME_AHEAD}}){{LUAU_DEFINE_WITHOUT_NAME_AHEAD}}|{{LUAU_STORE_OR_CONST}}{{LUAU_DECLARATION_NAME_HIDDEN_AHEAD}})
     captures:
       1:
         patterns:
@@ -1087,7 +1100,7 @@ repository:
     tag: meta
     name: meta.function.luau
     contentName: meta.embedded.block.luau
-    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)({{LUAU_DEFINE_HEADER_NAME_TO_WITH}})?
+    begin: ({{WS}}*)(define){{LUAU_NAME_END}}{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)({{LUAU_DEFINE_HEADER_NAME_TO_WITH}})?
     beginCaptures:
       1:
         patterns:
@@ -1113,7 +1126,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -1174,7 +1187,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|{{LUAU_METHOD_LINE_AFTER_BODY}}|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|{{LUAU_METHOD_LINE_AFTER_BODY}}|({{WS}}*)(end){{LUAU_NAME_END}}
     endCaptures:
       1:
         emit: true
@@ -1193,7 +1206,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b|$|{{LUAU_NAME_HEADER_STOP}}
+    end: (?={{BEAT}})|({{WS}}*)(with){{LUAU_NAME_END}}|$|{{LUAU_NAME_HEADER_STOP}}
     endCaptures:
       1:
         emit: true
@@ -1204,7 +1217,7 @@ repository:
           - { include: "#LuauWithKeyword" }
 
   LuauInheritanceOperation:
-    match: ({{WS}}*)(as)\b({{WS}}*)({{LUAU_INHERITANCE_PARENT_NAME}})({{LUAU_INHERITANCE_PARENT_GAP}})
+    match: ({{WS}}*)(as){{LUAU_NAME_END}}({{WS}}*)({{LUAU_INHERITANCE_PARENT_NAME}})({{LUAU_INHERITANCE_PARENT_GAP}})
     captures:
       1:
         patterns:
@@ -1317,7 +1330,7 @@ repository:
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -1359,7 +1372,7 @@ repository:
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -1401,7 +1414,7 @@ repository:
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -1443,7 +1456,7 @@ repository:
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -1461,7 +1474,7 @@ repository:
 
 
   LuauStructWithBody:
-    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    begin: ({{WS}}*)(with){{LUAU_NAME_END}}|{{STRUCT_WITHOUT_WITH_LINE}}
     beginCaptures:
       1:
         emit: true
@@ -1501,7 +1514,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$|{{LUAU_NAME_HEADER_STOP}}
+    end: (?={{BEAT}})|(?={{WS}}*with{{LUAU_NAME_END}})|({{WS}}*)(?=[{])|$|{{LUAU_NAME_HEADER_STOP}}
     endCaptures:
       1:
         patterns:
@@ -1516,7 +1529,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$|{{LUAU_NAME_HEADER_STOP}}
+    end: (?={{BEAT}})|(?={{WS}}*with{{LUAU_NAME_END}})|({{WS}}*)(?=[{])|$|{{LUAU_NAME_HEADER_STOP}}
     endCaptures:
       1:
         patterns:
@@ -1525,27 +1538,27 @@ repository:
   LuauStyleKeyword:
     tag: controlKeyword
     name: keyword.control.style.luau
-    match: (style)\b
+    match: (style){{LUAU_NAME_END}}
 
   LuauAnimationKeyword:
     tag: controlKeyword
     name: keyword.control.animation.luau
-    match: (animation)\b
+    match: (animation){{LUAU_NAME_END}}
 
   LuauThemeKeyword:
     tag: controlKeyword
     name: keyword.control.theme.luau
-    match: (theme)\b
+    match: (theme){{LUAU_NAME_END}}
 
   LuauMorphKeyword:
     tag: controlKeyword
     name: keyword.control.morph.luau
-    match: (morph)\b
+    match: (morph){{LUAU_NAME_END}}
 
   LuauKeyframeSelector:
     tag: constant(variableName)
     name: constant.other.keyframe-selector.sd
-    match: (?<![\w.%-])(?:from|to|[-+]?(?:\d*[.])?\d+%)(?![\w.%-])
+    match: (?<![\w.%@-])(?:from|to|[-+]?(?:\d*[.])?\d+%)(?![\w.%@-])
 
 
 
@@ -1560,7 +1573,7 @@ repository:
   LuauSparkleEventHandlerName:
     tag: heading
     name: keyword.control.divert.path.sd
-    match: ((?:[_\p{L}][0-9_\p{L}]*\b))(?=(?:[^\S\n\r])*(?:[@#"']|--|//(?=$|[^\S\n\r])|$))
+    match: ((?:[_\p{L}][0-9_\p{L}]*(?:[@][0-9_\p{L}]+)*{{LUAU_NAME_END}}))(?=(?:[^\S\n\r])*(?:[@#"']|--|//(?=$|[^\S\n\r])|$))
 
   LuauEventAttribute:
     begin: ([@])({{LUAU_WORD}})({{WS}}*)([=])({{WS}}*)
@@ -2531,7 +2544,7 @@ repository:
       - { include: "#LuauSparkleMatchBlock" }
 
   LuauSparkleIfBlock:
-    begin: ({{WS}}*)(if)\b({{WS}}*)
+    begin: ({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2553,7 +2566,7 @@ repository:
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}
     endCaptures:
       1:
         emit: true
@@ -2564,7 +2577,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkleElseifBlock:
-    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    begin: ({{WS}}*)(elseif){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2587,7 +2600,7 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauSparkleElseBlock:
-    begin: ({{WS}}*)(else)\b({{WS}}*)
+    begin: ({{WS}}*)(else){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2606,10 +2619,10 @@ repository:
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+    end: (?={{BEAT}})|(?={{WS}}*(?:end){{LUAU_NAME_END}})
 
   LuauSparkleForLoop:
-    begin: ({{WS}}*)(for)\b({{WS}}*)
+    begin: ({{WS}}*)(for){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2631,7 +2644,7 @@ repository:
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}
     endCaptures:
       1:
         emit: true
@@ -2642,7 +2655,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkleDoMark:
-    match: ({{WS}}*)(do)\b({{WS}}*)
+    match: ({{WS}}*)(do){{LUAU_NAME_END}}({{WS}}*)
     captures:
       1:
         patterns:
@@ -2656,7 +2669,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauSparkleMatchBlock:
-    begin: ({{WS}}*)(match)\b({{WS}}*)
+    begin: ({{WS}}*)(match){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2677,7 +2690,7 @@ repository:
       - { include: "#LuauSparkleElseBlock" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}
     endCaptures:
       1:
         emit: true
@@ -2687,17 +2700,17 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # lookaround: `(?!do\b)` leaves a `do` right after `match` to LuauSparkleDoMark.
+  # lookaround: `(?!do{{LUAU_NAME_END}})` leaves a `do` right after `match` to LuauSparkleDoMark.
   LuauSparkleMatchCondition:
-    begin: \G(?!do\b)
+    begin: \G(?!do{{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}}|{{END}}|[}])|(?={{WS}}*do\b)
+    end: (?={{BEAT}}|{{END}}|[}])|(?={{WS}}*do{{LUAU_NAME_END}})
 
   LuauSparkleCaseClause:
-    begin: ({{WS}}*)(case)\b({{WS}}*)
+    begin: ({{WS}}*)(case){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2753,7 +2766,7 @@ repository:
       - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -2795,7 +2808,7 @@ repository:
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -2819,7 +2832,7 @@ repository:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$|(?=\S)
+    end: (?={{BEAT}})|(?={{WS}}*with{{LUAU_NAME_END}})|({{WS}}*)(?=[{])|$|(?=\S)
     endCaptures:
       1:
         patterns:
@@ -2851,7 +2864,7 @@ repository:
       - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -2877,7 +2890,7 @@ repository:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$|{{LUAU_LAYOUT_HEADER_STOP}}
+    end: (?={{BEAT}})|(?={{WS}}*with{{LUAU_NAME_END}})|({{WS}}*)(?=[{])|$|{{LUAU_LAYOUT_HEADER_STOP}}
     endCaptures:
       1:
         patterns:
@@ -2893,14 +2906,14 @@ repository:
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$|{{LUAU_COMPONENT_HEADER_STOP}}
+    end: (?={{BEAT}})|(?={{WS}}*with{{LUAU_NAME_END}})|({{WS}}*)(?=[{])|$|{{LUAU_COMPONENT_HEADER_STOP}}
     endCaptures:
       1:
         patterns:
           - { include: "#Whitespace" }
 
   LuauSparkleWithBody:
-    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    begin: ({{WS}}*)(with){{LUAU_NAME_END}}|{{STRUCT_WITHOUT_WITH_LINE}}
     beginCaptures:
       1:
         emit: true
@@ -2933,7 +2946,7 @@ repository:
           - { include: "#LuauStructBlockClose" }
 
   LuauLayoutScreenOperation:
-    match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
+    match: ({{WS}}*)(in){{LUAU_NAME_END}}({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
     captures:
       1:
         patterns:
@@ -2956,22 +2969,22 @@ repository:
   LuauLayoutKeyword:
     tag: controlKeyword
     name: keyword.control.layout.luau
-    match: (layout)\b
+    match: (layout){{LUAU_NAME_END}}
 
   LuauScreenKeyword:
     tag: controlKeyword
     name: keyword.control.screen.luau
-    match: (screen)\b
+    match: (screen){{LUAU_NAME_END}}
 
   LuauComponentKeyword:
     tag: controlKeyword
     name: keyword.control.component.luau
-    match: (component)\b
+    match: (component){{LUAU_NAME_END}}
 
   LuauNewExpression:
     tag: meta
     name: meta.new.luau
-    match: (new)\b({{WS}}*)({{LUAU_IDENTIFIER}})
+    match: (new){{LUAU_NAME_END}}({{WS}}*)({{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:
@@ -2987,7 +3000,7 @@ repository:
   LuauNewKeyword:
     tag: controlKeyword
     name: keyword.control.new.luau
-    match: (new)\b
+    match: (new){{LUAU_NAME_END}}
 
   LuauNewClassName:
     tag: typeName
@@ -2997,22 +3010,22 @@ repository:
   LuauDefineKeyword:
     tag: controlKeyword
     name: keyword.control.define.luau
-    match: (define)\b
+    match: (define){{LUAU_NAME_END}}
 
   LuauAsKeyword:
     tag: controlKeyword
     name: keyword.control.as.luau
-    match: (as)\b
+    match: (as){{LUAU_NAME_END}}
 
   LuauWithKeyword:
     tag: controlKeyword
     name: keyword.control.as.luau
-    match: (with)\b
+    match: (with){{LUAU_NAME_END}}
 
   LuauStructWithKeyword:
     tag: invalid
     name: invalid.illegal.with.luau
-    match: (with)\b
+    match: (with){{LUAU_NAME_END}}
 
   LuauDefineName:
     tag: definition(typeName)
@@ -3032,7 +3045,7 @@ repository:
   LuauFunctionDefinition:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*{{_LUAU_LEVEL_BLOCK_COMMENT_}}*))?(function)\b({{WS}}*)
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}){{LUAU_NAME_END}}({{WS}}*{{_LUAU_LEVEL_BLOCK_COMMENT_}}*))?(function){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3063,7 +3076,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b(?:({{_LUAU_END_TRAILING_COMMENTS_}})|({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}}))?
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}(?:({{_LUAU_END_TRAILING_COMMENTS_}})|({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}}))?
     endCaptures:
       1:
         name: meta.embedded.block.luau
@@ -3093,7 +3106,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}}|{{WS}}*\bend\b)
+    end: (?={{BEAT}}|{{WS}}*{{LUAU_NAME_START}}end{{LUAU_NAME_END}})
 
   LuauFunctionParameters:
     tag: meta
@@ -3194,7 +3207,7 @@ repository:
 
   LuauSparkdownVariableDefinition:
     contentName: meta.embedded.line.luau
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*(?:{{LUAU_BLOCK_COMMENT_ON_LINE}})*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}){{LUAU_NAME_END}}({{WS}}*(?:{{LUAU_BLOCK_COMMENT_ON_LINE}})*)
     beginCaptures:
       1:
         patterns:
@@ -3407,12 +3420,12 @@ repository:
   LuauInvalidStatementLogicalKeyword:
     tag: logicOperator
     name: keyword.operator.logical.luau keyword.operator.wordlike.luau
-    match: \b(?:{{LUAU_LOGICAL_KEYWORDS}})\b
+    match: "{{LUAU_NAME_START}}(?:{{LUAU_LOGICAL_KEYWORDS}}){{LUAU_NAME_END}}"
 
   LuauInvalidStatementKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: "{{LUAU_UNREAD_NOT_CLOSER}}\\b(?:{{LUAU_RESERVED_WORDS}})\\b"
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}{{LUAU_NAME_START}}(?:{{LUAU_RESERVED_WORDS}}){{LUAU_NAME_END}}"
 
   LuauInvalidStatementName:
     tag: variableName
@@ -3440,7 +3453,7 @@ repository:
     match: "{{LUAU_UNREAD_NOT_CLOSER}}[^\\s]"
 
   LuauSparkdownForLoop:
-    begin: ({{WS}}*)(for)\b({{WS}}*)
+    begin: ({{WS}}*)(for){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3455,10 +3468,10 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|(?<=\bend)|$|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauForLoop:
-    begin: ({{WS}}*)(for)\b({{WS}}*)
+    begin: ({{WS}}*)(for){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3474,11 +3487,11 @@ repository:
       - { include: "#LuauForCondition" }
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauForCondition:
-    # lookaround: `(?!do\b)` leaves a `do` right after `for` to LuauDoBlock or LuauSparkleDoMark.
-    begin: \G(?!do\b)
+    # lookaround: `(?!do{{LUAU_NAME_END}})` leaves a `do` right after `for` to LuauDoBlock or LuauSparkleDoMark.
+    begin: \G(?!do{{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -3489,10 +3502,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do\b)
+    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do{{LUAU_NAME_END}})
 
   LuauSparkdownWhileLoop:
-    begin: ({{WS}}*)(while)\b({{WS}}*)
+    begin: ({{WS}}*)(while){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3507,10 +3520,10 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|(?<=\bend)|$|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauWhileLoop:
-    begin: ({{WS}}*)(while)\b({{WS}}*)
+    begin: ({{WS}}*)(while){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3526,11 +3539,11 @@ repository:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
+    end: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauWhileCondition:
-    # lookaround: `(?!do\b)` leaves a `do` right after `while` to LuauDoBlock.
-    begin: \G(?!do\b)
+    # lookaround: `(?!do{{LUAU_NAME_END}})` leaves a `do` right after `while` to LuauDoBlock.
+    begin: \G(?!do{{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -3540,10 +3553,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do\b)
+    end: (?={{BEAT}}|{{WS}}*{{LUAU_CLOSER}}|[)\]}])|(?={{WS}}*do{{LUAU_NAME_END}})
 
   LuauSparkdownRepeatLoop:
-    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    begin: ({{WS}}*)(repeat){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3557,7 +3570,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(until)\b|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
+    end: (?={{BEAT}})|({{WS}}*)(until){{LUAU_NAME_END}}|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
     endCaptures:
       1:
         emit: true
@@ -3568,7 +3581,7 @@ repository:
           - { include: "#LuauUntilKeyword" }
 
   LuauRepeatLoop:
-    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    begin: ({{WS}}*)(repeat){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3583,7 +3596,7 @@ repository:
     patterns:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(until)\b|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
+    end: (?={{BEAT}})|({{WS}}*)(until){{LUAU_NAME_END}}|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
     endCaptures:
       1:
         emit: true
@@ -3598,7 +3611,7 @@ repository:
   # expression of the body around the loop, which `LuauExpression` reads.
   LuauUntilCondition:
     contentName: meta.embedded.line.luau
-    begin: (?<=\buntil)({{WS}}*){{LUAU_EXPRESSION_START}}
+    begin: (?<={{LUAU_NAME_START_BEHIND}}until)({{WS}}*){{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
         emit: true
@@ -3612,7 +3625,7 @@ repository:
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$|(?={{LUAU_GLUED_KEYWORD}})|(?={{WS}}*[;])|(?={{WS}}*[)\\]}])"
 
   LuauSparkdownDoBlock:
-    begin: ({{WS}}*)(do)\b({{WS}}*)
+    begin: ({{WS}}*)(do){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3626,7 +3639,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -3640,7 +3653,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSparkdownExplicitDoBlock:
-    begin: ({{WS}}*)(do)\b({{WS}}*)
+    begin: ({{WS}}*)(do){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3654,7 +3667,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|$
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|$
     endCaptures:
       1:
         emit: true
@@ -3668,7 +3681,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSparkdownExplicitIfBlock:
-    begin: ({{WS}}*)(if)\b({{WS}}*)
+    begin: ({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3685,7 +3698,7 @@ repository:
       - { include: "#LuauSparkdownExplicitElseifBlock" }
       - { include: "#LuauSparkdownExplicitElseBlock" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|$
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|$
     endCaptures:
       1:
         emit: true
@@ -3699,7 +3712,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSparkdownExplicitElseifBlock:
-    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    begin: ({{WS}}*)(elseif){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1: { patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauElseifKeyword" }] }
@@ -3710,14 +3723,14 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})|$
 
   LuauSparkdownExplicitElseBlock:
-    begin: ({{WS}}*)(else)\b({{WS}}*)
+    begin: ({{WS}}*)(else){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1: { patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauElseKeyword" }] }
       3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
     patterns:
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*end\b)|$
+    end: (?={{BEAT}})|(?={{WS}}*end{{LUAU_NAME_END}})|$
 
   LuauSparkdownExplicitIfCondition:
     # lookaround: `(?!$)` leaves a header with no condition on its line to LuauSparkdownBlockBody.
@@ -3731,13 +3744,13 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
       - { include: "#LuauUnreadStatementMark" }
-    end: ({{WS}}*)(then)\b|(?={{BEAT}}|{{END}}|[)\]}])|$
+    end: ({{WS}}*)(then){{LUAU_NAME_END}}|(?={{BEAT}}|{{END}}|[)\]}])|$
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauThenKeyword" }] }
 
   LuauSparkdownExplicitLoop:
-    begin: ({{WS}}*)(for|while)\b({{WS}}*)
+    begin: ({{WS}}*)(for|while){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1: { patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauForKeyword" }, { include: "#LuauWhileKeyword" }] }
@@ -3750,12 +3763,12 @@ repository:
     # Close after that child rather than before end, which would leave the loop
     # body unclosed; ordering cannot make the parent consume its child's closer
     # (StoryReturnText931 numeric/generic-for and while effects controls).
-    end: (?={{BEAT}})|(?<=\bend)|$
+    end: (?={{BEAT}})|(?<={{LUAU_NAME_START_BEHIND}}end)|$
 
   LuauSparkdownExplicitLoopCondition:
-    # lookaround: `(?!$|do\b)` leaves a header with no condition on its line, and its `do`, to LuauSparkdownExplicitDoBlock.
+    # lookaround: `(?!$|do{{LUAU_NAME_END}})` leaves a header with no condition on its line, and its `do`, to LuauSparkdownExplicitDoBlock.
     contentName: meta.embedded.line.luau
-    begin: \G(?!$|do\b)
+    begin: \G(?!$|do{{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauInKeyword" }
       - { include: "#LuauParenthetical" }
@@ -3765,17 +3778,17 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauUnreadableCharacter" }
       - { include: "#LuauUnreadStatementMark" }
-    end: (?={{BEAT}}|{{END}}|[)\]}]|{{WS}}*do\b)|$
+    end: (?={{BEAT}}|{{END}}|[)\]}]|{{WS}}*do{{LUAU_NAME_END}})|$
 
   LuauSparkdownExplicitRepeatLoop:
-    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    begin: ({{WS}}*)(repeat){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1: { patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauRepeatKeyword" }] }
       3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
     patterns:
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(until)\b|$|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
+    end: (?={{BEAT}})|({{WS}}*)(until){{LUAU_NAME_END}}|$|(?={{WS}}*{{LUAU_END_OR_BRANCH}})
     endCaptures:
       1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
       2: { patterns: [{ include: "#LuauUntilKeyword" }] }
@@ -3808,10 +3821,10 @@ repository:
     # lookaround: branch/end/until belong to the enclosing bounded block;
     # consuming them here steals its closer. A sibling reorder cannot close
     # an already-open marker scope (BoundedExplicitBlock931 ownership cases).
-    end: (?={{BEAT}})|(?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|until\b))|$|(?=^)
+    end: (?={{BEAT}})|(?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|until{{LUAU_NAME_END}}))|$|(?=^)
 
   LuauSparkdownExplicitTernaryElseifClause:
-    begin: (elseif)\b
+    begin: (elseif){{LUAU_NAME_END}}
     beginCaptures:
       1:
         patterns:
@@ -3823,7 +3836,7 @@ repository:
 
   LuauSparkdownExplicitTernaryExpressionCondition:
     # lookaround: LuauSparkdownExplicitThenExpression owns `then`; the condition opens where the `if` or a clause `elseif` ended, never at a line end or before `then`.
-    begin: "\\G({{WS}}*)(?!$|{{WS}}|then\\b)"
+    begin: "\\G({{WS}}*)(?!$|{{WS}}|then{{LUAU_NAME_END}})"
     beginCaptures:
       1:
         emit: true
@@ -3835,7 +3848,7 @@ repository:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
-    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\\b|$"
+    end: "({{WS}}+)(?=then{{LUAU_NAME_END}})|(?=^then{{LUAU_NAME_END}})|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then){{LUAU_NAME_END}}|$"
     endCaptures:
       1:
         emit: true
@@ -4055,7 +4068,7 @@ repository:
   LuauSparkdownExplicitThenExpression:
     # lookaround: LuauElseExpression owns the next clause; the then arm opens at then and yields before else or a following statement clause.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})
+    begin: (?=(?:then){{LUAU_NAME_END}})|(?<={{LUAU_THEN_BEHIND}})
     patterns:
       - { include: "#LuauSparkdownExplicitThenOperator" }
       - { include: "#LuauComment" }
@@ -4106,7 +4119,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownExplicitBlockBody" }
     # lookaround: the block around reads the branch keyword or `until`.
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})|$
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})|$
     endCaptures:
       1:
         emit: true
@@ -4120,7 +4133,7 @@ repository:
     # lookaround: LuauAccessPath owns dotted keyword members; this alternator opens only at a standalone sequential keyword.
     # See bounded-consuming-entry rationale above; the modifier/keyword
     # prefix also occurs in ordinary member expressions such as queue.field.
-    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
+    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}{{LUAU_NAME_END}}{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -4193,7 +4206,7 @@ repository:
       - { include: "#LuauSparkdownExplicitTernaryExpression" }
     # lookaround: LuauCommaSeparator owns ordinary commas; this gap opens only after a comma and yields before a closing delimiter or following condition.
     # See bounded-exit rationale above for the structural alternatives.
-    end: (?={{BEAT}})|(?<!,{{WS}}*)(?!^if\b)|$
+    end: (?={{BEAT}})|(?<!,{{WS}}*)(?!^if{{LUAU_NAME_END}})|$
 
   LuauSparkdownExplicitGenericsInstantiation:
     begin: ([<][<])
@@ -4315,7 +4328,7 @@ repository:
   LuauSparkdownExplicitReturnStatement:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(return)\b({{WS}}*)
+    begin: ({{WS}}*)(return){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -4336,7 +4349,7 @@ repository:
     end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;|[$@!?\\]|[^\x00-\x7F])|(?={{LUAU_RETURN_END_KEYWORDS}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
   LuauSparkdownExplicitTernaryExpression:
-    begin: "{{LUAU_SHARED_TERNARY_CONTEXT}}({{WS}}*)(if)\\b({{WS}}*)"
+    begin: "{{LUAU_SHARED_TERNARY_CONTEXT}}({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -4359,7 +4372,7 @@ repository:
       - { include: "#RequiredWhitespace" }
     # lookaround: LuauIfBlock owns statement if and LuauElseifBlock owns elseif; this expression opens only in value context and yields to written block or clause closers.
     # See bounded-exit rationale above for the structural alternatives.
-    end: "(?={{BEAT}}|$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;&]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;&]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   LuauSparkdownExplicitLogicalOperation:
     # lookaround: LuauLogicalOperator owns the operator token; this expression wrapper opens only at that token so ordinary values remain with LuauExpression.
@@ -4501,7 +4514,7 @@ repository:
     # lookaround: LuauAccessPath owns ordinary names; this type expression opens only at the typeof keyword.
     # See bounded-consuming-entry rationale above; the parenthesized suffix
     # distinguishes this type expression from a type/name declaration.
-    begin: (typeof|type)\b({{WS}}*)(?=[(])
+    begin: (typeof|type){{LUAU_NAME_END}}({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -4547,14 +4560,14 @@ repository:
   LuauSparkdownExplicitElseExpression:
     # lookaround: LuauThenExpression owns the preceding clause; this else arm opens only at else and yields before a following statement clause.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: (?=(?:else)\b)
+    begin: (?=(?:else){{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauSparkdownExplicitElseOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauSparkdownExplicitExpression" }
     # lookaround: LuauThenExpression owns the preceding clause; this else arm opens only at else and yields before a following statement clause.
     # See bounded-exit rationale above for the structural alternatives.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;&]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|elseif{{LUAU_NAME_END}}|$|{{WS}}|[)}\\],;&]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   LuauSparkdownExplicitAlternatorBlocks:
     patterns:
@@ -4745,7 +4758,7 @@ repository:
     name: invalid.illegal.luau
     # lookaround: LuauExpression and LuauTypeLiteral own valid operands; this diagnostic matches only a bounded end or a terminator, excluding member words and divert arrows.
     # See bounded-invalid-token rationale above for the structural alternatives.
-    match: "({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\\w.]){{LUAU_SHARED_MISSING_OPERAND_WORDS}}(?!\\w))({{WS}}*)(?=$|{{_LUAU_EXPRESSION_END_AHEAD_}})"
+    match: "({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\\w.]|[\\w]@){{LUAU_SHARED_MISSING_OPERAND_WORDS}}(?!\\w|@[\\w]))({{WS}}*)(?=$|{{_LUAU_EXPRESSION_END_AHEAD_}})"
 
   LuauSparkdownExplicitTypeAnnotationMissingType:
     tag: invalid
@@ -4766,7 +4779,7 @@ repository:
   # from opening empty, as in `LuauThenOperator`; at the line end the arm
   # itself ends first.
   LuauSparkdownExplicitThenOperator:
-    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?={{WS}})({{WS}}*)
+    begin: ((?:then){{LUAU_NAME_END}})({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?={{WS}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -4786,7 +4799,7 @@ repository:
     end: (?=$)|(?!{{WS}})
 
   LuauSparkdownExplicitElseOperator:
-    begin: ((?:else)\b)({{WS}}*)
+    begin: ((?:else){{LUAU_NAME_END}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -4803,7 +4816,7 @@ repository:
 
   LuauSparkdownExplicitConditionalAlternatorCondition:
     # lookaround: the lookbehind opens the condition only after `match` or `plural`, since LuauSparkdownExplicitAlternatorHead also opens after a sequential keyword, whose head LuauComment reads; `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
-    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
+    begin: "(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
@@ -4811,7 +4824,7 @@ repository:
 
   LuauSparkdownExplicitVariableDefinition:
     contentName: meta.embedded.line.luau
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -4839,7 +4852,7 @@ repository:
   LuauSparkdownExplicitTargetTypeCast:
     # lookaround: LuauVariableDefinition owns bindings; this target cast opens only after a scope modifier and binding name.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
+    begin: "(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -4956,7 +4969,7 @@ repository:
     # lookaround: LuauTypeLiteral owns type values; this declaration opens only at type followed by a declared name.
     # See bounded-consuming-entry rationale above; a declared name separates
     # this type prefix from the parenthesized LuauTypeofFunction spelling.
-    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)"
+    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type){{LUAU_NAME_END}}(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -4998,7 +5011,7 @@ repository:
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauStrayUntilStatement:
-    begin: ({{WS}}*)(until)\b({{WS}}*)
+    begin: ({{WS}}*)(until){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5019,7 +5032,7 @@ repository:
   # `until`, and `LuauSparkdownExplicitExpression` reads anything else.
   LuauSparkdownExplicitUntilCondition:
     contentName: meta.embedded.line.luau
-    begin: (?<=\buntil)({{WS}}*){{LUAU_EXPRESSION_START}}
+    begin: (?<={{LUAU_NAME_START_BEHIND}}until)({{WS}}*){{LUAU_EXPRESSION_START}}
     beginCaptures:
       1:
         emit: true
@@ -5082,7 +5095,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   LuauDoBlock:
-    begin: ({{WS}}*)(do)\b({{WS}}*)
+    begin: ({{WS}}*)(do){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5097,7 +5110,7 @@ repository:
     patterns:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5108,7 +5121,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkdownIfBlock:
-    begin: ({{WS}}*)(if)\b({{WS}}*)
+    begin: ({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5123,7 +5136,7 @@ repository:
     patterns:
       - { include: "#LuauSparkdownExplicitIfCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5137,7 +5150,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauIfBlock:
-    begin: ({{WS}}*)(if)\b({{WS}}*)
+    begin: ({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5155,7 +5168,7 @@ repository:
       - { include: "#LuauElseBlock" }
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5178,7 +5191,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     # lookaround: the end's `^(?!…)` leaves the line that begins the branch's first statement to LuauBlockBody.
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
+    end: ({{WS}}*)((?:then){{LUAU_NAME_END}})|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then{{LUAU_NAME_END}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -5189,7 +5202,7 @@ repository:
           - { include: "#LuauThenKeyword" }
 
   LuauTernaryElseifClause:
-    begin: (elseif)\b
+    begin: (elseif){{LUAU_NAME_END}}
     beginCaptures:
       1:
         patterns:
@@ -5201,7 +5214,7 @@ repository:
 
   # lookaround: LuauThenExpression owns `then`; the condition opens where the `if` or a clause `elseif` ended, never at a line end or before `then`.
   LuauTernaryExpressionCondition:
-    begin: "\\G({{WS}}*)(?!$|{{WS}}|then\\b)"
+    begin: "\\G({{WS}}*)(?!$|{{WS}}|then{{LUAU_NAME_END}})"
     beginCaptures:
       1:
         emit: true
@@ -5217,7 +5230,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     # lookaround: the `(?<=[:])` beside `AFTER_LUAU_GLUEABLE_OPERAND` is that one case; the variable's other users read a glued keyword after an operand, which a `:` is not.
-    end: "({{WS}}+)(?=then\\b)|(?=^then\\b)|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|(?:{{AFTER_LUAU_GLUEABLE_OPERAND}}|(?<=[:]))(then)\\b"
+    end: "({{WS}}+)(?=then{{LUAU_NAME_END}})|(?=^then{{LUAU_NAME_END}})|(?={{BEAT}}|[)}\\],;]|^{{LUAU_SHARED_TERNARY_CONDITION_LINE_END}})|(?:{{AFTER_LUAU_GLUEABLE_OPERAND}}|(?<=[:]))(then){{LUAU_NAME_END}}"
     endCaptures:
       1:
         emit: true
@@ -5228,7 +5241,7 @@ repository:
           - { include: "#LuauThenKeyword" }
 
   LuauSparkdownElseifBlock:
-    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    begin: ({{WS}}*)(elseif){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5246,7 +5259,7 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})|(?={{WS}}*{{LUAU_UNTIL}})
 
   LuauElseifBlock:
-    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    begin: ({{WS}}*)(elseif){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5277,7 +5290,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     # lookaround: the end's `^(?!…)` leaves the line that begins the branch's first statement to LuauBlockBody.
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
+    end: ({{WS}}*)((?:then){{LUAU_NAME_END}})|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then{{LUAU_NAME_END}}|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -5297,7 +5310,7 @@ repository:
     end: (?=\S)(?!{{LUAU_COMMENT_START}})
 
   LuauSparkdownElseBlock:
-    begin: ({{WS}}*)(else)\b({{WS}}*)
+    begin: ({{WS}}*)(else){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5311,10 +5324,10 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|(?={{WS}}*(?:end){{LUAU_NAME_END}})|(?={{WS}}*{{LUAU_UNTIL}})
 
   LuauElseBlock:
-    begin: ({{WS}}*)(else)\b({{WS}}*)
+    begin: ({{WS}}*)(else){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5329,10 +5342,10 @@ repository:
     patterns:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
+    end: (?={{BEAT}})|(?={{WS}}*(?:end){{LUAU_NAME_END}})|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
 
   LuauSparkdownChooseBlock:
-    begin: ({{WS}}*)(choose)\b({{WS}}*)
+    begin: ({{WS}}*)(choose){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5359,7 +5372,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5373,7 +5386,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSparkdownChooseThenClause:
-    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()\r\n]*[)]{{WS}}*)?
+    begin: ({{WS}}*)(then){{LUAU_NAME_END}}({{WS}}*)([(][^()\r\n]*[)]{{WS}}*)?
     beginCaptures:
       1:
         patterns:
@@ -5401,15 +5414,15 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?={{WS}}*end\b)
+    end: (?={{BEAT}})|(?={{WS}}*end{{LUAU_NAME_END}})
 
   LuauChooseKeyword:
     tag: controlKeyword
     name: keyword.control.choose.luau
-    match: (choose)\b
+    match: (choose){{LUAU_NAME_END}}
 
   LuauTernaryExpression:
-    begin: "{{LUAU_SHARED_TERNARY_CONTEXT}}({{WS}}*)(if)\\b({{WS}}*)"
+    begin: "{{LUAU_SHARED_TERNARY_CONTEXT}}({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -5444,7 +5457,7 @@ repository:
     # It also ends before an `end` or `until` after its last arm, which
     # closes the block around it (`return if a then 2 else 3 end`), as its
     # `LuauSparkdownExplicitTernaryExpression` twin does.
-    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # lookaround: `(?<={{LUAU_THEN_BEHIND}})` finds that `then`, which a
   # sibling's end took, not a parent's begin. Without it the empty alternative opens the arm at
@@ -5461,7 +5474,7 @@ repository:
   # `(?<=^{{WS}}*)(?=…)` are the line rules described below: a line that
   # begins a statement (`LUAU_STATEMENT_LINE_START`) ends the arm.
   LuauThenExpression:
-    begin: (?=(?:then)\b)|(?<={{LUAU_THEN_BEHIND}})
+    begin: (?=(?:then){{LUAU_NAME_END}})|(?<={{LUAU_THEN_BEHIND}})
     patterns:
       - { include: "#LuauThenNextLineArm" }
       - { include: "#LuauThenOperator" }
@@ -5489,7 +5502,7 @@ repository:
   # rule never reaches a later line's start, where the arm's end decides as
   # before.
   LuauThenNextLineArm:
-    begin: (?=then\b{{WS}}*(?:--.*)?$)|{{AFTER_LUAU_GLUED_THEN}}(?={{WS}}*(?:--.*)?$)
+    begin: (?=then{{LUAU_NAME_END}}{{WS}}*(?:--.*)?$)|{{AFTER_LUAU_GLUED_THEN}}(?={{WS}}*(?:--.*)?$)
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
@@ -5511,7 +5524,7 @@ repository:
   # ending at the comment instead leaves the arm empty at the line end.
   # Luau has no `--` operator, so `--` here always begins a comment.
   LuauThenOperator:
-    begin: ((?:then)\b)({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}}|--)({{WS}}*)
+    begin: ((?:then){{LUAU_NAME_END}})({{WS}}*)|(?<={{LUAU_THEN_BEHIND}})(?=$|{{WS}}|--)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5531,7 +5544,7 @@ repository:
     end: (?={{BEAT}})|(?!$|{{WS}}|--)
 
   LuauElseExpression:
-    begin: (?=(?:else)\b)
+    begin: (?=(?:else){{LUAU_NAME_END}})
     patterns:
       - { include: "#LuauElseOperator" }
       - { include: "#LuauComment" }
@@ -5546,10 +5559,10 @@ repository:
     # help, since the end is tried before them; the parent's end cannot carry
     # the boundary while this arm is open; and the begin cannot take the
     # keyword, which `LuauElseOperator` reads with the line break after it.
-    end: "(?={{BEAT}}|elseif\\b|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
+    end: "(?={{BEAT}}|elseif{{LUAU_NAME_END}}|$|{{WS}}|[)}\\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}{{LUAU_NAME_END}}|{{LUAU_COLON_BEFORE_HEADER_END}}|{{LUAU_COLON_BEFORE_LONG_COMMENT}})|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|^(?!{{LUAU_IF_BLOCK_KEYWORDS}})(?={{LUAU_REASSIGNMENT_START}})"
 
   LuauElseOperator:
-    begin: ((?:else)\b)({{WS}}*)
+    begin: ((?:else){{LUAU_NAME_END}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5615,7 +5628,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}|(?=[,;)\]}])|(?={{WS}}*{{LUAU_BRANCH_OR_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5683,7 +5696,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5734,7 +5747,7 @@ repository:
 
   # lookaround: the lookbehind opens the condition only after `match` or `plural`, since LuauAlternatorHead and LuauAlternatorLineStartHead also open after a sequential keyword, whose head LuauComment reads; `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
   LuauConditionalAlternatorCondition:
-    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
+    begin: "(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -5742,7 +5755,7 @@ repository:
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}|])
 
   LuauSparkdownSequentialAlternatorBlock:
-    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)"
+    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}{{LUAU_NAME_END}}{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -5764,7 +5777,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?|(?={{WS}}*{{LUAU_UNTIL}})
     endCaptures:
       1:
         emit: true
@@ -5801,7 +5814,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5832,7 +5845,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
-    end: $|(?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: $|(?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5846,7 +5859,7 @@ repository:
           - { include: "#LuauComment" }
 
   LuauSequentialAlternatorBlock:
-    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
+    begin: "({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}{{LUAU_NAME_END}}{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_CANDIDATE_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -5872,7 +5885,7 @@ repository:
 
   # lookaround: LuauAccessPath owns dotted keyword members; this candidate opens only at a standalone sequential keyword.
   LuauSequentialAlternatorLineStart:
-    begin: "^({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}\\b{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_LINE_START_AHEAD}}"
+    begin: "^({{WS}}*)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}{{LUAU_NAME_END}}{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{LUAU_AFTER_SEQUENTIAL_HEAD}}({{WS}}*){{LUAU_ALTERNATOR_LINE_START_AHEAD}}"
     beginCaptures:
       1:
         patterns:
@@ -5897,7 +5910,7 @@ repository:
     end: "{{LUAU_LINE_START_CANDIDATE_END}}"
 
   LuauBreakStatement:
-    match: ({{WS}}*)(break)\b
+    match: ({{WS}}*)(break){{LUAU_NAME_END}}
     captures:
       1:
         patterns:
@@ -5919,7 +5932,7 @@ repository:
   LuauGotoStatement:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(goto)\b({{WS}}*)
+    begin: ({{WS}}*)(goto){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5940,7 +5953,7 @@ repository:
   LuauReturnStatement:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(return)\b({{WS}}*)
+    begin: ({{WS}}*)(return){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5970,7 +5983,7 @@ repository:
   LuauExternalDeclaration:
     tag: meta
     name: meta.function.external.sd
-    begin: ({{WS}}*)(external)\b({{WS}}*)
+    begin: ({{WS}}*)(external){{LUAU_NAME_END}}({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -5992,7 +6005,7 @@ repository:
   LuauExternalKeyword:
     tag: modifier
     name: storage.modifier.external.sd
-    match: (external)\b
+    match: (external){{LUAU_NAME_END}}
 
   LuauAccessModifier:
     tag: modifier
@@ -6033,87 +6046,87 @@ repository:
   LuauEndKeyword:
     tag: controlKeyword
     name: keyword.control.end.luau
-    match: (end)\b
+    match: (end){{LUAU_NAME_END}}
 
   LuauDoKeyword:
     tag: controlKeyword
     name: keyword.control.do.luau
-    match: (do)\b
+    match: (do){{LUAU_NAME_END}}
 
   LuauThenKeyword:
     tag: controlKeyword
     name: keyword.control.then.luau
-    match: (then)\b
+    match: (then){{LUAU_NAME_END}}
 
   LuauIfKeyword:
     tag: controlKeyword
     name: keyword.control.if.luau
-    match: (if)\b
+    match: (if){{LUAU_NAME_END}}
 
   LuauElseifKeyword:
     tag: controlKeyword
     name: keyword.control.elseif.luau
-    match: (elseif)\b
+    match: (elseif){{LUAU_NAME_END}}
 
   LuauElseKeyword:
     tag: controlKeyword
     name: keyword.control.else.luau
-    match: (else)\b
+    match: (else){{LUAU_NAME_END}}
 
   LuauForKeyword:
     tag: controlKeyword
     name: keyword.control.for.luau
-    match: (for)\b
+    match: (for){{LUAU_NAME_END}}
 
   LuauMatchKeyword:
     tag: controlKeyword
     name: keyword.control.match.luau
-    match: (match)\b
+    match: (match){{LUAU_NAME_END}}
 
   LuauCaseKeyword:
     tag: controlKeyword
     name: keyword.control.case.luau
-    match: (case)\b
+    match: (case){{LUAU_NAME_END}}
 
   LuauWhileKeyword:
     tag: controlKeyword
     name: keyword.control.while.luau
-    match: (while)\b
+    match: (while){{LUAU_NAME_END}}
 
   LuauRepeatKeyword:
     tag: controlKeyword
     name: keyword.control.repeat.luau
-    match: (repeat)\b
+    match: (repeat){{LUAU_NAME_END}}
 
   LuauUntilKeyword:
     tag: controlKeyword
     name: keyword.control.until.luau
-    match: (until)\b
+    match: (until){{LUAU_NAME_END}}
 
   LuauBreakKeyword:
     tag: controlKeyword
     name: keyword.control.break.luau
-    match: (break)\b
+    match: (break){{LUAU_NAME_END}}
 
   LuauContinueKeyword:
     tag: controlKeyword
     name: keyword.control.continue.luau
-    match: (continue)\b
+    match: (continue){{LUAU_NAME_END}}
 
   LuauReturnKeyword:
     tag: controlKeyword
     name: keyword.control.return.luau
-    match: (return)\b
+    match: (return){{LUAU_NAME_END}}
 
   LuauInKeyword:
     tag: controlKeyword
     name: keyword.control.end.luau
-    match: (in)\b
+    match: (in){{LUAU_NAME_END}}
 
   LuauLocalKeyword:
     tag: modifier
     name: storage.modifier.local.luau
-    match: (local)\b
+    match: (local){{LUAU_NAME_END}}
 
   # lookaround: anywhere else `LuauAccessPath`, which `LuauExpression` tries
   # after `LuauKeyword`, reads it as a name (`a + const + 1`, `(const)`);
@@ -6121,17 +6134,17 @@ repository:
   LuauConstKeyword:
     tag: modifier
     name: storage.modifier.const.luau
-    match: (const)\b{{LUAU_DECLARATION_NAME_AHEAD}}
+    match: (const){{LUAU_NAME_END}}{{LUAU_DECLARATION_NAME_AHEAD}}
 
   LuauFunctionKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: (function)\b
+    match: (function){{LUAU_NAME_END}}
 
   LuauSelfKeyword:
     tag: self
     name: variable.language.self.luau
-    match: (self)\b
+    match: (self){{LUAU_NAME_END}}
 
   LuauUnitKeywords:
     tag: variableName
@@ -6356,7 +6369,7 @@ repository:
 
   # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either.
   LuauFunctionDeclarationName:
-    match: (?<={{LUAU_DECLARATION_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<={{LUAU_NAME_START_BEHIND}}{{LUAU_DECLARATION_KEYWORDS}}{{WS}}+|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -6622,7 +6635,7 @@ repository:
   LuauStdLibGlobals:
     tag: atom
     name: constant.language.luau
-    match: ({{LUAU_STANDARD_LIB_GLOBALS}})\b
+    match: ({{LUAU_STANDARD_LIB_GLOBALS}}){{LUAU_NAME_END}}
 
   LuauStdLibFunctions:
     tag: standard(function(name))
@@ -6756,7 +6769,7 @@ repository:
     match: '@\w+'
 
   LuauDocParamModifier:
-    match: ((?<=[\s*!/])[\\@]param)({{WS}}+)(\b\w+\b)
+    match: ((?<=[\s*!/])[\\@]param)({{WS}}+)({{LUAU_NAME_START}}\w+(?:@\w+)*{{LUAU_NAME_END}})
     captures:
       1:
         patterns:
@@ -7182,7 +7195,7 @@ repository:
     match: \\.
 
   LuauBoolean:
-    match: (true|false)\b{{_LUAU_SHARED_OPERATOR_AHEAD_}}
+    match: (true|false){{LUAU_NAME_END}}{{_LUAU_SHARED_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: bool
@@ -7193,7 +7206,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauNil:
-    match: (nil)\b{{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    match: (nil){{LUAU_NAME_END}}{{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: "null"
@@ -7343,7 +7356,7 @@ repository:
   LuauOperatorMissingOperand:
     tag: invalid
     name: invalid.illegal.luau
-    match: "({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\\w.]){{LUAU_SHARED_MISSING_OPERAND_WORDS}}(?!\\w))({{WS}}*)(?={{_LUAU_EXPRESSION_END_AHEAD_}})"
+    match: "({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\\w.]|[\\w]@){{LUAU_SHARED_MISSING_OPERAND_WORDS}}(?!\\w|@[\\w]))({{WS}}*)(?={{_LUAU_EXPRESSION_END_AHEAD_}})"
 
   # lookaround: `LuauExpressionKeywordMethodAccessor` reads the `:` after an annotation's complete type (`LUAU_METHOD_COLON_AFTER_TYPE_AHEAD`). The annotation's own `:` and this one both follow a name (`local x:end`, `local x: T:end`), and `LuauTypeAnnotationOperation`, whose begin reads nothing, holds no state that tells them apart, so no order of its patterns can; its end cannot either, since `LuauVariableAssignment` would begin another annotation at the `:`.
   LuauTypeAnnotationMissingType:
@@ -7373,7 +7386,7 @@ repository:
   # since the values are inside it. Whether the `::` comes before the `=`
   # is history that only this lookbehind sees.
   LuauTargetTypeCast:
-    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
+    begin: "(?<={{LUAU_NAME_START_BEHIND}}{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -7650,7 +7663,7 @@ repository:
     patterns:
       - { include: "#LuauCommaLineBreakGap" }
       - { include: "#LuauTernaryExpression" }
-    end: (?={{BEAT}})|(?<!,{{WS}}*)(?!^if\b)
+    end: (?={{BEAT}})|(?<!,{{WS}}*)(?!^if{{LUAU_NAME_END}})
 
   # lookaround: it begins only right after the operator
   # (`LUAU_AFTER_ASSIGNMENT_OPERATOR`), where its end does not end it, and
@@ -7722,7 +7735,7 @@ repository:
   LuauFunctionTypeDeclaration:
     tag: meta
     name: meta.function.luau
-    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b({{WS}}*)(function)\\b({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_}})?)"
+    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type){{LUAU_NAME_END}}({{WS}}*)(function){{LUAU_NAME_END}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_}})?)"
     beginCaptures:
       1:
         patterns:
@@ -7760,7 +7773,7 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}
     endCaptures:
       1:
         emit: true
@@ -7771,7 +7784,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauTypeFunctionName:
-    match: \G({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: \G({{LUAU_IDENTIFIER}}){{LUAU_NAME_END}}({{WS}}*)
     captures:
       1:
         tag: typeName
@@ -7781,7 +7794,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   LuauDataTypeDeclaration:
-    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)"
+    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type){{LUAU_NAME_END}}(?={{WS}}+{{LUAU_IDENTIFIER}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -8197,7 +8210,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   LuauTypeofFunction:
-    begin: (typeof|type)\b({{WS}}*)(?=[(])
+    begin: (typeof|type){{LUAU_NAME_END}}({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -8461,7 +8474,7 @@ repository:
           - { include: "#PunctuationBracketClose" }
 
   LuauTypeTableElementAccessModifier:
-    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIER_DOT}})
+    match: ({{LUAU_ACCESS_MODIFIERS}}){{LUAU_NAME_END}}({{WS}}+)(?={{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIER_DOT}})
     captures:
       1:
         patterns:
@@ -8478,7 +8491,7 @@ repository:
     # every property name as a type. Splitting LuauTypeLiteral leaves the
     # name rule as the rival, this rule is a match with no `end:` to carry
     # the `:`, and LUAU_IDENTIFIER cannot be tightened by what follows it.
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?={{WS}}*[:])
+    match: (?:({{LUAU_ACCESS_MODIFIERS}}){{LUAU_NAME_END}}({{WS}}*))?({{LUAU_IDENTIFIER}})(?={{WS}}*[:])
     captures:
       1:
         patterns:

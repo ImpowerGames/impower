@@ -111,6 +111,31 @@ describe("the Scripts page's inline name field", () => {
     expect(mounted.onCommit).not.toHaveBeenCalled();
   });
 
+  it("takes focus in the render that adds it, before the next keystroke can be dispatched", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    render(
+      h(NameRow, { icon: null, label: "New folder name", onCommit: vi.fn(async () => {}), onCancel: vi.fn() }),
+      host,
+    );
+    expect(document.activeElement).toBe(host.querySelector("input"));
+  });
+
+  it("returns focus to the element its caller names when Escape cancels", async () => {
+    const back = document.body.appendChild(document.createElement("button"));
+    host = document.body.appendChild(document.createElement("div"));
+    const onCancel = vi.fn(() => render(null, host!));
+    await act(async () =>
+      render(
+        h(NameRow, { icon: null, label: "New folder name", returnFocus: () => back, onCommit: vi.fn(async () => {}), onCancel }),
+        host!,
+      ),
+    );
+    await press(host.querySelector("input")!, "Escape");
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(back);
+    back.remove();
+  });
+
   it("commits a valid name", async () => {
     const { input, onCommit } = await mount({});
     await type(input, "chapter two");
