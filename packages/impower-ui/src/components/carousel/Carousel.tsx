@@ -16,8 +16,8 @@ export const carouselVariants = cva("flex min-h-0 min-w-0 flex-col", {
 });
 
 export const carouselTrackVariants = cva([
-  "flex min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden px-3 pt-1 pb-2",
-  "snap-x snap-proximity scroll-px-3 touch-pan-x [contain:inline-size] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+  "flex min-h-0 min-w-0 flex-1 gap-3 scroller-x overflow-y-hidden px-3 pt-1 pb-2",
+  "snap-x snap-proximity scroll-px-3 [contain:inline-size] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
 ]);
 
 export const carouselItemVariants = cva([

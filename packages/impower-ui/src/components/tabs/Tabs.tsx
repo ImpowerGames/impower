@@ -38,7 +38,7 @@ const tabsList = cva("flex w-full", {
     },
     scroll: {
       true: [
-        "overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "scroller-x overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         "pr-5 [mask-image:linear-gradient(to_right,#000_calc(100%_-_20px),transparent)]",
       ],
       false: "",

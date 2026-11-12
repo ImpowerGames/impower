@@ -138,6 +138,11 @@
   }
 }
 
+@utility scroller-x {
+  overflow-x: auto;
+  touch-action: pan-x pan-y;
+}
+
 @utility control-overlay {
   &::before,
   &::after {

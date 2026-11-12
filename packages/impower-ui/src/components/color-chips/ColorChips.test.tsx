@@ -33,6 +33,18 @@ describe("ColorChips", () => {
     expect(chips.map((chip) => chip.style.getPropertyValue("--swatch"))).toEqual(COLORS);
   });
 
+  it("becomes a sideways scroller-x row in the compact and phone layouts, so a swipe starting on a chip pans it", async () => {
+    const root = await mount(<ColorChips label="Colors" colors={COLORS} onSelect={() => {}} />);
+    const group = root.querySelector('[role="group"]')!;
+    expect(Array.from(group.classList).filter((name) => /scroller-x|overflow-x-/.test(name))).toEqual([
+      "compact:scroller-x",
+      "phone:scroller-x",
+    ]);
+    for (const el of [group, ...Array.from(group.querySelectorAll("*"))]) {
+      expect(Array.from(el.classList).filter((name) => /(^|:)touch-/.test(name))).toEqual([]);
+    }
+  });
+
   it("marks the current color pressed and the rest not", async () => {
     const root = await mount(
       <ColorChips label="Colors" colors={COLORS} current="#00ff00" onSelect={() => {}} />,

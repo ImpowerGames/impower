@@ -34,7 +34,7 @@ export default function JumpChips({ label, groups, onJump, size, class: classNam
     <nav aria-label={label} class={className}>
       <div
         class={cn(
-          "flex items-center gap-1.5 overflow-x-auto pt-0.5 pr-8 pb-1.5",
+          "flex items-center gap-1.5 scroller-x pt-0.5 pr-8 pb-1.5",
           "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,#000_calc(100%-32px),transparent)]",
         )}
       >

@@ -132,7 +132,7 @@ describe("Tabs inline variant", () => {
 
   it("does not scroll unless asked", async () => {
     await mount({ variant: "inline" });
-    expect(classes(host!.querySelector('[role="tablist"]')!)).not.toContain("overflow-x-auto");
+    expect(classes(host!.querySelector('[role="tablist"]')!)).not.toContain("scroller-x");
   });
 
   it("scrolls sideways without a scrollbar and fades its right edge when asked", async () => {
@@ -140,7 +140,7 @@ describe("Tabs inline variant", () => {
     const list = host!.querySelector('[role="tablist"]')!;
     expect(classes(list)).toEqual(
       expect.arrayContaining([
-        "overflow-x-auto",
+        "scroller-x",
         "[scrollbar-width:none]",
         "pr-5",
         "[mask-image:linear-gradient(to_right,#000_calc(100%_-_20px),transparent)]",
