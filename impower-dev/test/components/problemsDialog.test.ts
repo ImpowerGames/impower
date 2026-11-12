@@ -53,8 +53,11 @@ const transition = async () => {
 
 const dialog = () =>
   Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find(
-    (d) => d.textContent!.includes("Problems to fix"),
+    (d) => d.querySelector("h2") !== null,
   );
+const accessibleName = () =>
+  document.getElementById(dialog()!.getAttribute("aria-labelledby")!)!
+    .textContent;
 const context = () => dialog()!.querySelector("p")!.textContent;
 const headings = () =>
   Array.from(dialog()!.querySelectorAll("h3")).map((h3) => h3.textContent);
@@ -109,13 +112,26 @@ afterEach(async () => {
 describe("the Problems to fix dialog", () => {
   it("lists the whole story's problems under each script's heading, with the story's counts", async () => {
     await open({ kind: "story" });
-    expect(dialog()!.querySelector("h2")!.textContent).toBe("Problems to fix");
     expect(context()).toBe("Whole story · 1 error, 1 warning");
     expect(headings()).toEqual(["Mainmain.sd", "chapter_1scripts/chapter_1.sd"]);
     expect(entries()).toEqual([
       "Error · Unexpected two dots",
       "Warning · Sound not found",
     ]);
+  });
+
+  it("names the whole story's dialog as the desktop panel names the same contents, visibly and to assistive technology", async () => {
+    await open({ kind: "story" });
+    expect(dialog()!.querySelector("h2")!.textContent).toBe(
+      "Problems and playback messages",
+    );
+    expect(accessibleName()).toBe("Problems and playback messages");
+  });
+
+  it("names one script's dialog for the problems it lists, visibly and to assistive technology", async () => {
+    await open({ kind: "script", path: "scripts/chapter_1.sd" });
+    expect(dialog()!.querySelector("h2")!.textContent).toBe("Problems to fix");
+    expect(accessibleName()).toBe("Problems to fix");
   });
 
   it("lists one script's problems without a heading, named in the context line", async () => {

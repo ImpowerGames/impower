@@ -25,6 +25,7 @@ import problems from "../../workspace/problems/ProblemsStore";
 import { useDebugRows } from "./debugCards";
 import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
 import {
+  PANEL_LABEL,
   PanelItemView,
   panelItemHeight,
   panelItemKey,
@@ -34,6 +35,8 @@ import {
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
 
 const CLOSE_DIALOG = '[aria-label="Close dialog"]';
+
+const PROBLEMS_TITLE = "Problems to fix";
 
 const STORY_CARDS_LABEL = "While playing, variables, watches and call stack";
 
@@ -121,7 +124,7 @@ export default function ProblemsDialog() {
     >
       <div class="mb-2 flex items-center gap-2">
         <DialogTitle class="flex-1 text-[22px]/[1.25] font-semibold tracking-[-0.02em]">
-          Problems to fix
+          {state?.scope.kind === "story" ? PANEL_LABEL : PROBLEMS_TITLE}
         </DialogTitle>
         <Button
           variant="quiet"
