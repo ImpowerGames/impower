@@ -550,6 +550,7 @@ function collectBodySegments(
       const { code, beforeSpace } = codes[codeIdx++]!;
       if (textBuf.length === 0) textStart = at;
       textBuf = beforeSpace
+        // value-level: the buffered text, whose trailing spaces precede the glue
         ? textBuf.replace(/[ \t]*$/, (space) => code + space)
         : textBuf + code;
     }
@@ -767,7 +768,7 @@ function applyDisplayEscapes(raw: string): string {
   let i = 0;
   while (i < input.length) {
     const c = input[i]!;
-    if (spanOpenMark(c)?.startsWith("`")) {
+    if (spanOpenMark(c)?.[0] === "`") {
       let close = i + 1;
       while (
         close < input.length &&

@@ -136,6 +136,7 @@ export function trimEndBeforeSpanEnds(raw: string): string {
     const c = raw[end - 1]!;
     if (c === SPAN_END) {
       ends = c + ends;
+    // value-level: the text being trimmed, already read from its nodes
     } else if (!/\s/.test(c)) {
       break;
     }

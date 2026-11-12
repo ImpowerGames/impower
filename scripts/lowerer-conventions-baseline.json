@@ -1,7 +1,7 @@
 {
   "scans": {
     "packages/sparkdown/src/compiler/lower/expression/lowerExpression.ts": 20,
-    "packages/sparkdown/src/compiler/lower/lowerers/lowerDisplay.ts": 21,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerDisplay.ts": 20,
     "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauDefine.ts": 1,
     "packages/sparkdown/src/compiler/lower/lowerers/lowerLuauFunctionDefinition.ts": 2,
     "packages/sparkdown/src/compiler/lower/lowerers/lowerSparkleBody.ts": 4,
