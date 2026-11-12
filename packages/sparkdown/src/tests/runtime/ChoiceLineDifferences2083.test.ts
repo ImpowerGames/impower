@@ -113,29 +113,42 @@ describe("choice lines without a comment that read differently from main, as the
   });
 
   test("E: glue right before an interpolation read as a unit is highlighted as glue", async () => {
-    const lines = await tokenize(choose("+ Go .. {`a`}"));
+    const lines = await tokenize(choose("+ Go .. {#{{{{1}}}}}"));
     const glue = lines[CHOICE_LINE]!.tokens.find((token) => token.text === "..");
     expect(glue?.scopes).toContain("meta.glue.sd");
-    expect(outcome("+ Go .. {`a`}").choices).toEqual(["Go .. a"]);
+    expect(outcome("+ Go .. {#{{{{1}}}}}").choices).toEqual(["Go .. 1"]);
   });
 
-  test("glue right before a plain interpolation is highlighted as on main", async () => {
-    const lines = await tokenize(choose("+ Go .. {x}"));
-    const dots = lines[CHOICE_LINE]!.tokens.filter((token) => token.text.includes("."));
-    expect(dots.length).toBeGreaterThan(0);
-    expect(dots.filter((token) => token.scopes.includes("meta.glue.sd"))).toEqual([]);
-  });
+  test.each(["{x}", "{`a`}", "{t[1]}", '{"/*"}', "{x // 2}"])(
+    "glue right before %s is highlighted as on main",
+    async (interpolation) => {
+      const lines = await tokenize(choose(`+ Go .. ${interpolation}`));
+      const dots = lines[CHOICE_LINE]!.tokens.filter((token) => token.text.includes("."));
+      expect(dots.length).toBeGreaterThan(0);
+      expect(dots.filter((token) => token.scopes.includes("meta.glue.sd"))).toEqual([]);
+    },
+  );
 
   test("F: a styled span stops at an interpolation read as a unit", async () => {
-    const lines = await tokenize(choose("+ Go *far {`a`} away"));
+    const lines = await tokenize(choose("+ Go *far {#{{{{1}}}}} away"));
     const away = lines[CHOICE_LINE]!.tokens.find((token) => token.text.includes("away"));
     expect(away?.scopes).not.toContain("markup.other.italic.sd");
-    expect(outcome("+ Go *far {`a`} away").choices).toEqual(["Go *far a away"]);
+    expect(outcome("+ Go *far {#{{{{1}}}}} away").choices).toEqual(["Go *far 1 away"]);
   });
 
-  test("a styled span around a plain interpolation is highlighted across it, as on main", async () => {
-    const lines = await tokenize(choose("+ *Say {x} now*"));
-    const now = lines[CHOICE_LINE]!.tokens.find((token) => token.text.includes("now"));
-    expect(now?.scopes).toContain("markup.other.italic.sd");
-  });
+  const italic = async (line: string, word: string) => {
+    const lines = await tokenize(choose(line));
+    const token = lines[CHOICE_LINE]!.tokens.find((t) => t.text.includes(word));
+    return token?.scopes.includes("markup.other.italic.sd");
+  };
+
+  test.each(["{x}", "{`a`}", "{t[1]}", '{"/*"}', '{"->"}', '{"\\n"}', "{#{{{1}}}}"])(
+    "a styled span around %s is highlighted as on main",
+    async (interpolation) => {
+      expect(await italic(`+ Go *far ${interpolation} away`, "away")).toBe(true);
+      expect(await italic(`+ Go *far ${interpolation} away* now`, "away")).toBe(true);
+      expect(await italic(`+ Go *far ${interpolation} away* now`, "now")).toBe(false);
+      expect(await italic(`+ Go *far* ${interpolation} away`, "away")).toBe(false);
+    },
+  );
 });

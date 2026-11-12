@@ -29,8 +29,8 @@ text.source.sparkdown [0..208]
  ├─ comment.block.sd [49..55]
  │   ├─ comment.block.content.sd [49..53]: "  b "
  │   └─ punctuation.definition.comment.end.sd [53..55]: "*/"
- ├─ punctuation.whitespace.optional.sd [55..56]: " "
- ├─ string.display.text.chunk.sd [56..60]
+ ├─ string.display.text.chunk.sd [55..60]
+ │   ├─ markup.raw.space.sd [55..56]: " "
  │   └─ markup.raw.text.sd [56..60]: "four"
  ├─ string.display.text.chunk.sd [60..61]: " "
  ├─ meta.chain.sd [61..62]

@@ -76,27 +76,26 @@ sparkdown [0..208]
  │   │   │   │   │   └─ SparkdownBlockComment_end [53..55]
  │   │   │   │   │       └─ SparkdownBlockComment_end_c1 [53..55]: "*/"
  │   │   │   │   └─ ActionLineChainTail [55..63]
- │   │   │   │       ├─ ActionLineChainTail_c1 [55..56]
- │   │   │   │       │   └─ OptionalWhitespace [55..56]: " "
- │   │   │   │       ├─ ActionLineChainTail_c2 [56..61]
- │   │   │   │       │   ├─ TextChunk [56..60]
- │   │   │   │       │   │   ├─ TextChunk_begin 56
- │   │   │   │       │   │   ├─ TextChunk_content [56..60]
+ │   │   │   │       ├─ ActionLineChainTail_c1 [55..61]
+ │   │   │   │       │   ├─ TextChunk [55..60]
+ │   │   │   │       │   │   ├─ TextChunk_begin 55
+ │   │   │   │       │   │   ├─ TextChunk_content [55..60]
+ │   │   │   │       │   │   │   ├─ Space [55..56]: " "
  │   │   │   │       │   │   │   └─ Word [56..60]: "four"
  │   │   │   │       │   │   └─ TextChunk_end 60
  │   │   │   │       │   └─ TextChunk [60..61]
  │   │   │   │       │       ├─ TextChunk_begin 60
  │   │   │   │       │       ├─ TextChunk_content [60..61]: " "
  │   │   │   │       │       └─ TextChunk_end 61
- │   │   │   │       ├─ ActionLineChainTail_c3 [61..62]
+ │   │   │   │       ├─ ActionLineChainTail_c2 [61..62]
  │   │   │   │       │   └─ Chain [61..62]
  │   │   │   │       │       ├─ Chain_c1 61
  │   │   │   │       │       ├─ Chain_c2 [61..62]: "\\"
  │   │   │   │       │       ├─ Chain_c3 62
  │   │   │   │       │       └─ Chain_c4 62
+ │   │   │   │       ├─ ActionLineChainTail_c3 62
  │   │   │   │       ├─ ActionLineChainTail_c4 62
- │   │   │   │       ├─ ActionLineChainTail_c5 62
- │   │   │   │       └─ ActionLineChainTail_c6 [62..63]
+ │   │   │   │       └─ ActionLineChainTail_c5 [62..63]
  │   │   │   │           └─ Newline [62..63]: "\n"
  │   │   │   └─ ActionLineEnd_end 63
  │   │   └─ ActionLineEnd [63..69]
@@ -123,9 +122,7 @@ sparkdown [0..208]
  │   │   │   │       └─ OptionalWhitespace 72
  │   │   │   ├─ ActionLineEnd_content [72..86]
  │   │   │   │   └─ ActionLineChainTail [72..86]
- │   │   │   │       ├─ ActionLineChainTail_c1 72
- │   │   │   │       │   └─ OptionalWhitespace 72
- │   │   │   │       ├─ ActionLineChainTail_c2 [72..76]
+ │   │   │   │       ├─ ActionLineChainTail_c1 [72..76]
  │   │   │   │       │   ├─ TextChunk [72..75]
  │   │   │   │       │   │   ├─ TextChunk_begin 72
  │   │   │   │       │   │   ├─ TextChunk_content [72..75]
@@ -135,20 +132,20 @@ sparkdown [0..208]
  │   │   │   │       │       ├─ TextChunk_begin 75
  │   │   │   │       │       ├─ TextChunk_content [75..76]: " "
  │   │   │   │       │       └─ TextChunk_end 76
- │   │   │   │       ├─ ActionLineChainTail_c3 [76..77]
+ │   │   │   │       ├─ ActionLineChainTail_c2 [76..77]
  │   │   │   │       │   └─ Chain [76..77]
  │   │   │   │       │       ├─ Chain_c1 76
  │   │   │   │       │       ├─ Chain_c2 [76..77]: "\\"
  │   │   │   │       │       ├─ Chain_c3 77
  │   │   │   │       │       └─ Chain_c4 77
- │   │   │   │       ├─ ActionLineChainTail_c4 [77..85]
+ │   │   │   │       ├─ ActionLineChainTail_c3 [77..85]
  │   │   │   │       │   └─ SparkdownInlineComment [77..85]
  │   │   │   │       │       ├─ SparkdownInlineComment_c1 [77..78]
  │   │   │   │       │       │   └─ OptionalWhitespace [77..78]: " "
  │   │   │   │       │       ├─ SparkdownInlineComment_c2 [78..80]: "//"
  │   │   │   │       │       └─ SparkdownInlineComment_c3 [80..85]: " note"
- │   │   │   │       ├─ ActionLineChainTail_c5 85
- │   │   │   │       └─ ActionLineChainTail_c6 [85..86]
+ │   │   │   │       ├─ ActionLineChainTail_c4 85
+ │   │   │   │       └─ ActionLineChainTail_c5 [85..86]
  │   │   │   │           └─ Newline [85..86]: "\n"
  │   │   │   └─ ActionLineEnd_end 86
  │   │   └─ ActionLineEnd [86..93]
@@ -175,9 +172,7 @@ sparkdown [0..208]
  │   │   │   │       └─ OptionalWhitespace 96
  │   │   │   ├─ ActionLineEnd_content [96..115]
  │   │   │   │   └─ ActionLineChainTail [96..115]
- │   │   │   │       ├─ ActionLineChainTail_c1 96
- │   │   │   │       │   └─ OptionalWhitespace 96
- │   │   │   │       ├─ ActionLineChainTail_c2 [96..102]
+ │   │   │   │       ├─ ActionLineChainTail_c1 [96..102]
  │   │   │   │       │   ├─ TextChunk [96..101]
  │   │   │   │       │   │   ├─ TextChunk_begin 96
  │   │   │   │       │   │   ├─ TextChunk_content [96..101]
@@ -187,13 +182,13 @@ sparkdown [0..208]
  │   │   │   │       │       ├─ TextChunk_begin 101
  │   │   │   │       │       ├─ TextChunk_content [101..102]: " "
  │   │   │   │       │       └─ TextChunk_end 102
- │   │   │   │       ├─ ActionLineChainTail_c3 [102..103]
+ │   │   │   │       ├─ ActionLineChainTail_c2 [102..103]
  │   │   │   │       │   └─ Chain [102..103]
  │   │   │   │       │       ├─ Chain_c1 102
  │   │   │   │       │       ├─ Chain_c2 [102..103]: "\\"
  │   │   │   │       │       ├─ Chain_c3 103
  │   │   │   │       │       └─ Chain_c4 103
- │   │   │   │       ├─ ActionLineChainTail_c4 [103..114]
+ │   │   │   │       ├─ ActionLineChainTail_c3 [103..114]
  │   │   │   │       │   └─ SparkdownBlockComment [103..114]
  │   │   │   │       │       ├─ SparkdownBlockComment_begin [103..106]
  │   │   │   │       │       │   ├─ SparkdownBlockComment_begin_c1 [103..104]
@@ -203,8 +198,8 @@ sparkdown [0..208]
  │   │   │   │       │       │   └─ SparkdownBlockCommentContent [106..112]: " note "
  │   │   │   │       │       └─ SparkdownBlockComment_end [112..114]
  │   │   │   │       │           └─ SparkdownBlockComment_end_c1 [112..114]: "*/"
- │   │   │   │       ├─ ActionLineChainTail_c5 114
- │   │   │   │       └─ ActionLineChainTail_c6 [114..115]
+ │   │   │   │       ├─ ActionLineChainTail_c4 114
+ │   │   │   │       └─ ActionLineChainTail_c5 [114..115]
  │   │   │   │           └─ Newline [114..115]: "\n"
  │   │   │   └─ ActionLineEnd_end 115
  │   │   └─ ActionLineEnd [115..121]

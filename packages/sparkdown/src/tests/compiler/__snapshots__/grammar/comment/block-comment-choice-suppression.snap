@@ -175,31 +175,29 @@ sparkdown [0..250]
  │   │   │   │   └─ ChoiceStartText [164..178]
  │   │   │   │       ├─ ChoiceStartText_begin 164
  │   │   │   │       ├─ ChoiceStartText_content [164..178]
- │   │   │   │       │   ├─ ChoiceStartTextContent [164..167]
- │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [164..167]
- │   │   │   │       │   │       ├─ Word [164..166]: "Go"
- │   │   │   │       │   │       └─ Space [166..167]: " "
- │   │   │   │       │   ├─ LuauInterpolatedStringExpression [167..173]
- │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [167..168]
- │   │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [167..168]
- │   │   │   │       │   │   │       └─ PunctuationBraceOpen [167..168]: "{"
- │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_content [168..172]
- │   │   │   │       │   │   │   └─ LuauDoubleQuotedString [168..172]
- │   │   │   │       │   │   │       ├─ LuauDoubleQuotedString_begin [168..169]
- │   │   │   │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [168..169]
- │   │   │   │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [168..169]: "\""
- │   │   │   │       │   │   │       ├─ LuauDoubleQuotedString_content [169..171]
- │   │   │   │       │   │   │       │   ├─ Punctuation [169..170]: "/"
- │   │   │   │       │   │   │       │   └─ Punctuation [170..171]: "*"
- │   │   │   │       │   │   │       └─ LuauDoubleQuotedString_end [171..172]
- │   │   │   │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [171..172]
- │   │   │   │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [171..172]: "\""
- │   │   │   │       │   │   │           └─ LuauDoubleQuotedString_end_c2 172
- │   │   │   │       │   │   └─ LuauInterpolatedStringExpression_end [172..173]
- │   │   │   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [172..173]
- │   │   │   │       │   │           └─ PunctuationBraceClose [172..173]: "}"
- │   │   │   │       │   └─ ChoiceStartTextContent [173..178]
- │   │   │   │       │       └─ ChoiceStartTextContent_c1 [173..178]
+ │   │   │   │       │   └─ ChoiceStartTextContent [164..178]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [164..178]
+ │   │   │   │       │           ├─ Word [164..166]: "Go"
+ │   │   │   │       │           ├─ Space [166..167]: " "
+ │   │   │   │       │           ├─ LuauInterpolatedStringExpression [167..173]
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_begin [167..168]
+ │   │   │   │       │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [167..168]
+ │   │   │   │       │           │   │       └─ PunctuationBraceOpen [167..168]: "{"
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_content [168..172]
+ │   │   │   │       │           │   │   └─ LuauDoubleQuotedString [168..172]
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_begin [168..169]
+ │   │   │   │       │           │   │       │   └─ LuauDoubleQuotedString_begin_c1 [168..169]
+ │   │   │   │       │           │   │       │       └─ PunctuationStringDoubleQuoteOpen [168..169]: "\""
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_content [169..171]
+ │   │   │   │       │           │   │       │   ├─ Punctuation [169..170]: "/"
+ │   │   │   │       │           │   │       │   └─ Punctuation [170..171]: "*"
+ │   │   │   │       │           │   │       └─ LuauDoubleQuotedString_end [171..172]
+ │   │   │   │       │           │   │           ├─ LuauDoubleQuotedString_end_c1 [171..172]
+ │   │   │   │       │           │   │           │   └─ PunctuationStringDoubleQuoteClose [171..172]: "\""
+ │   │   │   │       │           │   │           └─ LuauDoubleQuotedString_end_c2 172
+ │   │   │   │       │           │   └─ LuauInterpolatedStringExpression_end [172..173]
+ │   │   │   │       │           │       └─ LuauInterpolatedStringExpression_end_c1 [172..173]
+ │   │   │   │       │           │           └─ PunctuationBraceClose [172..173]: "}"
  │   │   │   │       │           ├─ Space [173..174]: " "
  │   │   │   │       │           └─ Word [174..178]: "home"
  │   │   │   │       └─ ChoiceStartText_end 178

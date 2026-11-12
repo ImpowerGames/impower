@@ -26,8 +26,8 @@ text.source.sparkdown [0..175]
  │   ├─ punctuation.definition.comment.begin.sd [53..55]: "/*"
  │   ├─ comment.block.content.sd [55..63]: " a note "
  │   └─ punctuation.definition.comment.end.sd [63..65]: "*/"
- ├─ punctuation.whitespace.optional.sd [65..66]: " "
- ├─ string.display.text.chunk.sd [66..69]
+ ├─ string.display.text.chunk.sd [65..69]
+ │   ├─ markup.raw.space.sd [65..66]: " "
  │   └─ markup.raw.text.sd [66..69]: "two"
  ├─ meta.chain.sd [69..70]
  │   └─ keyword.other.chain.sd [69..70]: "\\"
@@ -47,8 +47,8 @@ text.source.sparkdown [0..175]
  │   ├─ punctuation.definition.comment.begin.sd [92..94]: "/*"
  │   ├─ comment.block.content.sd [94..97]: "two"
  │   └─ punctuation.definition.comment.end.sd [97..99]: "*/"
- ├─ punctuation.whitespace.optional.sd [99..100]: " "
- ├─ string.display.text.chunk.sd [100..105]
+ ├─ string.display.text.chunk.sd [99..105]
+ │   ├─ markup.raw.space.sd [99..100]: " "
  │   └─ markup.raw.text.sd [100..105]: "notes"
  ├─ meta.chain.sd [105..106]
  │   └─ keyword.other.chain.sd [105..106]: "\\"

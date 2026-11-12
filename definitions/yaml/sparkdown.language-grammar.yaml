@@ -21,7 +21,8 @@ variables:
   # chain at the line's end, where a capture cannot let a comment claim its span
   # first; DivertUnknown stops there for the same comments.
   STORY_TEXT_OUTSIDE_COMMENT: (?:(?!{{STORY_COMMENT_START}})[^\r\n])
-  DISPLAY_CHAIN_TEXT: (?:{{STORY_TEXT_OUTSIDE_COMMENT}}*?)
+  STORY_TEXT_UNIT: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{STORY_TEXT_OUTSIDE_COMMENT}})
+  DISPLAY_CHAIN_TEXT: (?:{{STORY_TEXT_UNIT}}*?)
   # lookaround: SparkdownBlockComment and SparkdownInlineComment take the
   # whitespace before them, as an inline comment drops it everywhere; `Chain`
   # would take it as the chain mark's separator, which leaves a blank line in
@@ -191,22 +192,26 @@ variables:
   # would read on into the lines after the choice.
   CHOICE_INTERPOLATION_UNIT: (?:[{](?![}])(?=[^\r\n]*[}]))
   CHOICE_TEXT_UNIT: (?:{{STORY_COMMENT_START}}|{{CHOICE_INTERPOLATION_UNIT}})
-  # lookaround: SparkdownBlockComment, SparkdownInlineComment and Divert, as
-  # for CHOICE_PLAIN_INTERPOLATION_CHARACTER: a string that holds `/*`, `//` or
-  # `->` is left to the interpolation read as a unit.
-  CHOICE_PLAIN_STRING_CHARACTER: (?:[^"'\\\r\n{}\[\]/-]|[/](?![*/])|[-](?![>]))
-  CHOICE_PLAIN_DOUBLE_QUOTED: (?:["](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|['])*["])
-  CHOICE_PLAIN_SINGLE_QUOTED: (?:['](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|["])*['])
+  CHOICE_PLAIN_DOUBLE_QUOTED: (?:["](?:[^"\\\r\n]|[\\][^\r\n])*["])
+  CHOICE_PLAIN_SINGLE_QUOTED: (?:['](?:[^'\\\r\n]|[\\][^\r\n])*['])
   CHOICE_PLAIN_STRING: (?:{{CHOICE_PLAIN_DOUBLE_QUOTED}}|{{CHOICE_PLAIN_SINGLE_QUOTED}})
-  # lookaround: SparkdownInlineComment and SparkdownBlockComment own `//` and
-  # `/*`, and Divert an `->`. An interpolation that holds none of them, no
-  # bracket, brace, backtick or escape, and only strings without them, reads the
-  # same as text or as a unit, so the text segment (ChoiceStartTextContent) keeps
-  # it, as main's choice capture did, and a styled span, a tag or glue around it
-  # reads as on main.
-  CHOICE_PLAIN_INTERPOLATION_CHARACTER: (?:[^{}"'`\\\[\]\r\n/-]|[/](?![*/])|[-](?![->])|{{CHOICE_PLAIN_STRING}})
-  CHOICE_PLAIN_INNER_TABLE: (?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])
-  CHOICE_PLAIN_INTERPOLATION: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_INNER_TABLE}})+[}])
+  # lookaround: LuauInterpolatedStringExpression's own reading decides where an
+  # interpolation ends. A Luau `--` comment, a long string or comment (`[[`,
+  # `[=[`) and a `/*` outside a string can hide or fake its `}` or open a story
+  # comment, so an interpolation holding one is left to that rule as a unit
+  # (CHOICE_INTERPOLATION_UNIT). Any other interpolation, its strings, brackets
+  # and arrows included, reads the same as text or as a unit, so the text segment
+  # (ChoiceStartTextContent) keeps it, as main's choice capture did, and a styled
+  # span, a tag or glue around it reads as on main.
+  CHOICE_PLAIN_CODE_CHARACTER: (?:[^{}"'`\\\[\r\n/-]|[/](?![*])|[-](?![-])|[\[](?![\[=])|{{CHOICE_PLAIN_STRING}})
+  CHOICE_PLAIN_BACKTICK_TEXT: (?:[^`{}\\\r\n]|[\\][^\r\n])
+  CHOICE_PLAIN_BACKTICK_PART: (?:{{CHOICE_PLAIN_BACKTICK_TEXT}}|[{]{{CHOICE_PLAIN_CODE_CHARACTER}}*[}])
+  CHOICE_PLAIN_BACKTICK_STRING: (?:[`]{{CHOICE_PLAIN_BACKTICK_PART}}*[`])
+  CHOICE_PLAIN_INTERPOLATION_CHARACTER: (?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{CHOICE_PLAIN_BACKTICK_STRING}})
+  CHOICE_PLAIN_TABLE_1: (?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])
+  CHOICE_PLAIN_TABLE_2: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_1}})*[}])
+  CHOICE_PLAIN_TABLE_3: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_2}})*[}])
+  CHOICE_PLAIN_INTERPOLATION: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_3}})+[}])
   CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
   # lookaround: ChoiceStartText's end and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
@@ -217,9 +222,9 @@ variables:
   # tried after the segment, which never begins at one (`CHOICE_START_TEXT_END`).
   CHOICE_START_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
-  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
-  # the same end and comment openers (STORY_COMMENT_START) as the segment.
-  CHOICE_START_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment.
+  CHOICE_START_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_START_TEXT_END}})[^\r\n])*)
   # lookaround: ChoiceOnlyText's end and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
   # LuauInterpolatedStringExpression); a segment is the run of text before the
@@ -229,9 +234,9 @@ variables:
   # tried after the segment, which never begins at one (`CHOICE_ONLY_TEXT_END`).
   CHOICE_ONLY_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
-  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
-  # the same end and comment openers (STORY_COMMENT_START) as the segment.
-  CHOICE_ONLY_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment.
+  CHOICE_ONLY_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_ONLY_TEXT_END}})[^\r\n])*)
   # lookaround: ChoiceInnerText's end and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
   # LuauInterpolatedStringExpression); a segment is the run of text before the
@@ -241,9 +246,9 @@ variables:
   # tried after the segment, which never begins at one (`CHOICE_INNER_TEXT_END`).
   CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
-  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
-  # the same end and comment openers (STORY_COMMENT_START) as the segment.
-  CHOICE_INNER_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment.
+  CHOICE_INNER_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_INNER_TEXT_END}})[^\r\n])*)
   CHOICE_START_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>]|{{CHOICE_SUPPRESSION_OPEN}})
   CHOICE_INNER_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>])
   CHOICE_ONLY_TEXT_END: (?:\]|$|{{WS}}*[-][>])
@@ -1152,7 +1157,7 @@ repository:
   DivertUnknown:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
-    match: ({{STORY_TEXT_OUTSIDE_COMMENT}}+)
+    match: ({{STORY_TEXT_UNIT}}+)
 
   DivertStrayTextSpace:
     match: ({{WS}}+)(?=\S)
@@ -2131,26 +2136,23 @@ repository:
           - { include: "#Newline" }
 
   ActionLineChainTail:
-    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
           - { include: "#ActionLoadKeyword" }
           - { include: "#DisplayLine" }
-      3:
+      2:
         patterns:
           - { include: "#Chain" }
-      4:
+      3:
         patterns:
           - { include: "#SparkdownBlockComment" }
           - { include: "#SparkdownInlineComment" }
-      5:
+      4:
         patterns:
           - { include: "#EndOfLine" }
-      6:
+      5:
         patterns:
           - { include: "#Newline" }
 
@@ -2286,25 +2288,22 @@ repository:
           - { include: "#Newline" }
 
   LineChainTail:
-    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
-          - { include: "#OptionalWhitespace" }
+          - { include: "#DisplayLine" }
       2:
         patterns:
-          - { include: "#DisplayLine" }
-      3:
-        patterns:
           - { include: "#Chain" }
-      4:
+      3:
         patterns:
           - { include: "#SparkdownBlockComment" }
           - { include: "#SparkdownInlineComment" }
-      5:
+      4:
         patterns:
           - { include: "#EndOfLine" }
-      6:
+      5:
         patterns:
           - { include: "#Newline" }
 

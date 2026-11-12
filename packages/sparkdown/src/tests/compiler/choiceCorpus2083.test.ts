@@ -120,11 +120,24 @@ describe("choice, divert and chain lines without a comment read as recorded", ()
     expect([...classes].sort()).toEqual(["A", "B", "C", "D", "E", "F"]);
   });
 
-  test.each(CASES.map((c) => [c.class ? `${c.id} (class ${c.class})` : c.id, c] as const))(
+  const CHUNK = 25;
+  const chunks = Array.from({ length: Math.ceil(CASES.length / CHUNK) }, (_, i) =>
+    CASES.slice(i * CHUNK, (i + 1) * CHUNK),
+  );
+
+  test.each(chunks.map((chunk) => [`${chunk[0]!.id} to ${chunk.at(-1)!.id}`, chunk] as const))(
     "%s",
-    async (_name, entry) => {
-      expect(await readingOf(entry.source)).toEqual(recorded(entry));
-      expect(await compareEngines(entry.source)).toEqual([]);
+    async (_name, chunk) => {
+      const mismatches: { id: string; class?: string; expected: unknown; received: unknown }[] = [];
+      for (const entry of chunk) {
+        const received = await readingOf(entry.source);
+        const divergences = await compareEngines(entry.source);
+        if (JSON.stringify(received) !== JSON.stringify(recorded(entry)) || divergences.length > 0) {
+          mismatches.push({ id: entry.id, class: entry.class, expected: recorded(entry), received: { ...received, divergences } });
+        }
+      }
+      expect(mismatches).toEqual([]);
     },
+    120000,
   );
 });

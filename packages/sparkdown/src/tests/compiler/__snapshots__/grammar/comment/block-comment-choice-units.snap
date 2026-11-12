@@ -369,38 +369,36 @@ sparkdown [0..402]
  │   │   │   │   └─ ChoiceStartText [332..358]
  │   │   │   │       ├─ ChoiceStartText_begin 332
  │   │   │   │       ├─ ChoiceStartText_content [332..358]
- │   │   │   │       │   ├─ ChoiceStartTextContent [332..335]
- │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [332..335]
- │   │   │   │       │   │       ├─ Word [332..334]: "Go"
- │   │   │   │       │   │       └─ Space [334..335]: " "
- │   │   │   │       │   ├─ LuauInterpolatedStringExpression [335..353]
- │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [335..336]
- │   │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [335..336]
- │   │   │   │       │   │   │       └─ PunctuationBraceOpen [335..336]: "{"
- │   │   │   │       │   │   ├─ LuauInterpolatedStringExpression_content [336..352]
- │   │   │   │       │   │   │   └─ LuauDoubleQuotedString [336..352]
- │   │   │   │       │   │   │       ├─ LuauDoubleQuotedString_begin [336..337]
- │   │   │   │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [336..337]
- │   │   │   │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [336..337]: "\""
- │   │   │   │       │   │   │       ├─ LuauDoubleQuotedString_content [337..351]
- │   │   │   │       │   │   │       │   ├─ Punctuation [337..338]: "["
- │   │   │   │       │   │   │       │   ├─ Word [338..341]: "foo"
- │   │   │   │       │   │   │       │   ├─ Punctuation [341..342]: "]"
- │   │   │   │       │   │   │       │   ├─ Space [342..343]: " "
- │   │   │   │       │   │   │       │   ├─ Punctuation [343..344]: "/"
- │   │   │   │       │   │   │       │   ├─ Punctuation [344..345]: "*"
- │   │   │   │       │   │   │       │   ├─ Word [345..349]: "note"
- │   │   │   │       │   │   │       │   ├─ Punctuation [349..350]: "*"
- │   │   │   │       │   │   │       │   └─ Punctuation [350..351]: "/"
- │   │   │   │       │   │   │       └─ LuauDoubleQuotedString_end [351..352]
- │   │   │   │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [351..352]
- │   │   │   │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [351..352]: "\""
- │   │   │   │       │   │   │           └─ LuauDoubleQuotedString_end_c2 352
- │   │   │   │       │   │   └─ LuauInterpolatedStringExpression_end [352..353]
- │   │   │   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [352..353]
- │   │   │   │       │   │           └─ PunctuationBraceClose [352..353]: "}"
- │   │   │   │       │   └─ ChoiceStartTextContent [353..358]
- │   │   │   │       │       └─ ChoiceStartTextContent_c1 [353..358]
+ │   │   │   │       │   └─ ChoiceStartTextContent [332..358]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [332..358]
+ │   │   │   │       │           ├─ Word [332..334]: "Go"
+ │   │   │   │       │           ├─ Space [334..335]: " "
+ │   │   │   │       │           ├─ LuauInterpolatedStringExpression [335..353]
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_begin [335..336]
+ │   │   │   │       │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [335..336]
+ │   │   │   │       │           │   │       └─ PunctuationBraceOpen [335..336]: "{"
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_content [336..352]
+ │   │   │   │       │           │   │   └─ LuauDoubleQuotedString [336..352]
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_begin [336..337]
+ │   │   │   │       │           │   │       │   └─ LuauDoubleQuotedString_begin_c1 [336..337]
+ │   │   │   │       │           │   │       │       └─ PunctuationStringDoubleQuoteOpen [336..337]: "\""
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_content [337..351]
+ │   │   │   │       │           │   │       │   ├─ Punctuation [337..338]: "["
+ │   │   │   │       │           │   │       │   ├─ Word [338..341]: "foo"
+ │   │   │   │       │           │   │       │   ├─ Punctuation [341..342]: "]"
+ │   │   │   │       │           │   │       │   ├─ Space [342..343]: " "
+ │   │   │   │       │           │   │       │   ├─ Punctuation [343..344]: "/"
+ │   │   │   │       │           │   │       │   ├─ Punctuation [344..345]: "*"
+ │   │   │   │       │           │   │       │   ├─ Word [345..349]: "note"
+ │   │   │   │       │           │   │       │   ├─ Punctuation [349..350]: "*"
+ │   │   │   │       │           │   │       │   └─ Punctuation [350..351]: "/"
+ │   │   │   │       │           │   │       └─ LuauDoubleQuotedString_end [351..352]
+ │   │   │   │       │           │   │           ├─ LuauDoubleQuotedString_end_c1 [351..352]
+ │   │   │   │       │           │   │           │   └─ PunctuationStringDoubleQuoteClose [351..352]: "\""
+ │   │   │   │       │           │   │           └─ LuauDoubleQuotedString_end_c2 352
+ │   │   │   │       │           │   └─ LuauInterpolatedStringExpression_end [352..353]
+ │   │   │   │       │           │       └─ LuauInterpolatedStringExpression_end_c1 [352..353]
+ │   │   │   │       │           │           └─ PunctuationBraceClose [352..353]: "}"
  │   │   │   │       │           ├─ Space [353..354]: " "
  │   │   │   │       │           └─ Word [354..358]: "home"
  │   │   │   │       └─ ChoiceStartText_end 358

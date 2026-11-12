@@ -8,9 +8,13 @@ scene start
       done
     + Go -> next [a] b
     + [Go -> next] x
+    + Go .. {#{{{{1}}}}}
+      done
+    + Go *far {#{{{{1}}}}} away
+      done
     + Go .. {`a`}
       done
-    + Go *far {`a`} away
+    + Go *far {`a`} away* now
       done
     + *Say {x} now*
       done
