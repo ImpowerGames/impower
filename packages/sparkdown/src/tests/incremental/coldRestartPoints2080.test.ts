@@ -172,4 +172,21 @@ describe("a block reused as one subtree is built as Lezer builds its records (I-
     });
     expect(counts).toEqual(expected);
   });
+
+  test.each([
+    [3000, { Block: 3000, Block_content: 2999, Block_begin: 3000 }],
+    [4000, { Block: 4000, Block_content: 3999, Block_begin: 4000 }],
+  ])("nested %i deep on one line", (depth, expected) => {
+    const text = `${"<".repeat(depth)}${">".repeat(depth)}`;
+    const tree = new TextmateGrammarParser(structuredClone(NESTED) as never).parse(text);
+    const counts = { Block: 0, Block_content: 0, Block_begin: 0 };
+    tree.iterate({
+      enter: (node) => {
+        if (node.name in counts) {
+          counts[node.name as keyof typeof counts]++;
+        }
+      },
+    });
+    expect(counts).toEqual(expected);
+  });
 });

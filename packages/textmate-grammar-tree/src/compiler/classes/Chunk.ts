@@ -235,22 +235,36 @@ export class Chunk {
     buffer: Uint16Array,
     index: number,
   ): number {
-    let { id, start, end, size } = cursor;
-    cursor.next();
-    if (size >= 0) {
-      let startIndex = index;
+    const open: number[] = [];
+    for (;;) {
+      const { id, start, end, size } = cursor;
+      cursor.next();
       if (size > 4) {
-        let endPos = cursor.pos - (size - 4);
-        while (cursor.pos > endPos) {
-          index = this.copyToTreeBuffer(cursor, bufferStart, buffer, index);
-        }
+        open.push(id, start, end, index, cursor.pos - (size - 4));
+        continue;
       }
-      buffer[--index] = startIndex;
-      buffer[--index] = end - bufferStart;
-      buffer[--index] = start - bufferStart;
-      buffer[--index] = id;
+      if (size >= 0) {
+        const startIndex = index;
+        buffer[--index] = startIndex;
+        buffer[--index] = end - bufferStart;
+        buffer[--index] = start - bufferStart;
+        buffer[--index] = id;
+      }
+      while (open.length > 0 && cursor.pos <= open[open.length - 1]!) {
+        open.pop();
+        const startIndex = open.pop()!;
+        const openEnd = open.pop()!;
+        const openStart = open.pop()!;
+        const openId = open.pop()!;
+        buffer[--index] = startIndex;
+        buffer[--index] = openEnd - bufferStart;
+        buffer[--index] = openStart - bufferStart;
+        buffer[--index] = openId;
+      }
+      if (open.length === 0) {
+        return index;
+      }
     }
-    return index;
   }
 }
 
