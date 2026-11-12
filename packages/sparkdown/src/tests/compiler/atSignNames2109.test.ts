@@ -168,6 +168,24 @@ end
     expect(found.filter((message) => /attribute/i.test(message))).toEqual([]);
   });
 
+  it.each([
+    ["deleting", "return x@", "return x"],
+    ["typing", "return x", "return x@"],
+  ])("updates the @ rule's diagnostic after %s a stray @ in an open document", (_, before, after) => {
+    const script = (line: string) => `store x = 1\nfunction mia@end()\n  ${line}\nend\nscene start\n  The value is {mia@end()}.\nend\n`;
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [{ uri: MAIN, type: "script", name: "main", ext: "sd", text: script(before), version: 1, languageId: "sparkdown" }] });
+    compiler.compile({ textDocument: { uri: MAIN } });
+    const start = { line: 2, character: 2 };
+    compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 2 },
+      contentChanges: [{ range: { start, end: { line: 2, character: 2 + before.length } }, text: after }],
+    } as never);
+    const incremental = messages(compiler.compile({ textDocument: { uri: MAIN } }).program);
+    expect(incremental).toEqual(messages(compile(script(after))));
+    expect(incremental.some((message) => message.includes("'x@' is not a name"))).toBe(after.endsWith("@"));
+  });
+
   it("keeps a function attribute and Luau's wording for a known attribute where a name belongs", () => {
     expect(messages(compile("@native function _f()\nend\n\nscene start\nend\n"))).toEqual([]);
     const found = messages(compile("store @native = 1\n\nscene start\nend\n"));

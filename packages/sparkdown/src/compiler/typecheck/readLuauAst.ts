@@ -3966,6 +3966,7 @@ function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefine
       continue;
     }
     parts.push(`${token.kind}${token.unread ? " unread" : ""} ${token.location.begin}-${token.location.end} ${token.text}`);
+    if (token.malformedName) parts.push(`malformed ${token.malformedName.location.begin}-${token.malformedName.location.end} ${token.malformedName.text}`);
     if (token.node) parts.push(nodeShape(token.node));
   }
   for (const comment of tokenizer.hotcomments) parts.push(`--! ${comment.header} ${comment.location.begin}-${comment.location.end} ${comment.content}`);
