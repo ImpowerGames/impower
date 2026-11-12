@@ -1,3 +1,4 @@
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
 import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
@@ -12,8 +13,6 @@ import {
   variantOf,
   type VariantSelection,
 } from "../../src/modules/spark-editor/utils/imageVariants";
-
-const AT_SIGN_REFERENCE_2109 = "[[mia@night:sad]]";
 
 const P = "Assets/Images/Portraits";
 const IMANI = [
@@ -97,9 +96,32 @@ describe("the reference the tester writes", () => {
     );
   });
 
-  it("writes an alternate as #2109 settled the form", () => {
+  it("writes an alternate in the form #2109 made the compiler accept", () => {
     const faced = ["Assets/Images/mia.png", "Assets/Images/mia@night.png", "Assets/Images/mia@night~face.sad.png"];
-    expect(ref(faced, { [ALTERNATE]: "night", face: "sad" })).toBe(AT_SIGN_REFERENCE_2109);
+    expect(ref(faced, { [ALTERNATE]: "night", face: "sad" })).toBe("[[mia@night:sad]]");
+  });
+
+  it("writes alternate references the compiler accepts and shows, as a portrait and as a backdrop", () => {
+    const paths = ["Assets/Images/mia.png", "Assets/Images/mia@night.png", "Assets/Images/harbor.png", "Assets/Images/harbor@dusk.png"];
+    const portrait = ref(paths.slice(0, 2), { [ALTERNATE]: "night" });
+    const backdrop = ref(paths.slice(2), { [ALTERNATE]: "dusk" }, "backdrop");
+    expect([portrait, backdrop]).toEqual(["[[mia@night]]", "[[show backdrop harbor@dusk]]"]);
+    const main = "file:///project/main.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri: main, name: "main", type: "script", ext: "sd", text: `scene start\n  ${backdrop}\n  ${portrait}\n  A beat.\nend\n`, languageId: "sparkdown", version: 1 },
+        ...paths.map((path) => {
+          const leaf = path.split("/").at(-1)!;
+          return { uri: `file:///project/${path}`, type: "image", name: leaf.split(".")[0]!, ext: "png", src: `/src/${path}`, version: 1 };
+        }),
+      ] as never,
+    });
+    const program = compiler.compile({ textDocument: { uri: main } }).program!;
+    expect(program.diagnostics?.[main] ?? []).toEqual([]);
+    const shown = (program.chunks?.table.strings ?? []).join("\n");
+    expect(shown).toContain("mia@night");
+    expect(shown).toContain("harbor@dusk");
   });
 
   it("writes the backdrop form when shown as a backdrop", () => {

@@ -17,7 +17,7 @@ import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
-import { renameOrReport } from "../utils/renameOrReport";
+import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
 import { showSnackbar } from "../utils/snackbar";
 import { undo } from "../utils/undoManager";
 import { replacementOf } from "../utils/replaceRule";
@@ -419,7 +419,12 @@ export default class WorkspaceAssets {
       return path;
     }
     const member = stack.members.find((candidate) => candidate.path === path);
-    await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+    try {
+      await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+    } catch (error) {
+      const rollback = (error as { rollback?: WorkspaceEditRollback }).rollback;
+      throw rollback ? Object.assign(new NameError(renameFailureMessage(path, to, error)), { rollback }) : error;
+    }
     return to;
   }
 

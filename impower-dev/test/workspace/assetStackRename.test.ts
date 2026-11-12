@@ -809,6 +809,31 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
+  it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
+    const other = lines("scene other", "  [[show portrait imani@night]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    const saved = (await h.read("main.sd")) + "The author's saved line." + NL;
+    h.failWriting("zz.sd", async () => h.write("main.sd", saved));
+    const failure = h.assets.renameMember(STACK[1]!, "imani@dark");
+    await expect(failure).rejects.toMatchObject({ rollback: { complete: false, kept: ["main.sd"] } });
+    await expect(failure).rejects.toThrow(/^Couldn't rename imani@night\.png, and these files may be left changed: .*main\.sd/);
+    expect(await h.read("main.sd")).toBe(saved);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("leaves a script the author saved during a failed Undo of an alternate rename as saved", async () => {
+    const other = lines("scene other", "  [[show portrait imani@night]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    expect(await h.assets.renameMember(STACK[1]!, "imani@dark")).toBe(`${P}/imani@dark.png`);
+    const saved = (await h.read("main.sd")) + "The author's saved line." + NL;
+    h.failWriting("zz.sd", async () => h.write("main.sd", saved));
+    expect(await h.history.undo()).toBe(false);
+    expect(await h.read("main.sd")).toBe(saved);
+    expect(await inPortraits(h)).toContain(`${P}/imani@dark.png`);
+    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani@dark\.png, and these files may be left changed: .*main\.sd/);
+  });
+
   it("deletes one file to the bin and keeps the rest of the picture", async () => {
     const h = await harness(project());
     await h.assets.removeMember(STACK[2]!);
@@ -827,6 +852,14 @@ describe("a stack's own files", { timeout: 120000 }, () => {
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(await h.read(STACK[2]!)).toBe("picture 2");
     expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("keeps the @ and ~ of a layer and an alternate file uploaded from the page", async () => {
+    const h = await harness(project());
+    const file = (name: string) => ({ name, getBuffer: async () => encode(name).buffer as ArrayBuffer });
+    await h.assets.upload([file("imani~hat.on.png"), file("imani@dusk.png")], P);
+    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani~hat.on.png`, `${P}/imani@dusk.png`]));
+    expect(await h.read(`${P}/imani@dusk.png`)).toBe("imani@dusk.png");
   });
 
   it("adds a layer or alternate beside the base, not in the Add menu's folder", async () => {
