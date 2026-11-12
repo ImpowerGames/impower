@@ -32,6 +32,7 @@ import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
 const { shotWaitsFor } = await import("./steps.mjs");
+const { surfacePainted } = await import("./driver.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
@@ -636,19 +637,35 @@ function addSheetPage({ animationPolls, hidden = false }) {
     }),
   });
   page.evaluate = (fn, arg) => (arg === panelSelector ? Promise.resolve([{ construct: "character", disabled: false }]) : evaluateDefault(fn, arg));
-  page.waitForFunction = async (fn, arg) => {
-    const saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
-    globalThis.document = fakeDocument;
-    globalThis.getComputedStyle = () => ({ visibility: hidden ? "hidden" : "visible" });
-    try {
-      for (; dom.polls < 20; dom.polls++) if (fn(arg)) return true;
-    } finally {
-      Object.assign(globalThis, saved);
-    }
-    throw new Error("Timeout exceeded");
-  };
+  page.frames = () => [fakeFrame(fakeDocument, { hidden, onCheck: () => dom.polls++ })];
+  page.waitForTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   return { page, dom, animating: running };
 }
+
+function fakeFrame(fakeDocument, { hidden = false, onCheck = () => {} } = {}) {
+  return {
+    evaluate: async (fn, arg) => {
+      if (typeof arg !== "string") return undefined;
+      const saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+      globalThis.document = fakeDocument;
+      globalThis.getComputedStyle = () => ({ visibility: hidden ? "hidden" : "visible" });
+      try {
+        return fn(arg);
+      } finally {
+        Object.assign(globalThis, saved);
+        onCheck();
+      }
+    },
+  };
+}
+
+await check("the paint wait looks in every frame, so Play's game inside the player frame counts as painted", async () => {
+  const shown = { getBoundingClientRect: () => ({ width: 430, height: 242 }), contains: (other) => other === shown };
+  const editorDocument = { querySelectorAll: () => [], getAnimations: () => [] };
+  const playerDocument = { querySelectorAll: (selector) => (selector === "#game" ? [shown] : []), getAnimations: () => [] };
+  const page = { frames: () => [fakeFrame(editorDocument), fakeFrame(playerDocument)], waitForTimeout: async () => {} };
+  assert.equal(await surfacePainted(page, NAMED_STEPS.play.waitsFor), true);
+});
 
 await check("on a device, --shot after a named step waits until that step's surface has finished animating, and fails when it never settles", async () => {
   for (const [label, options, settles] of [["settles", { animationPolls: 3 }, true], ["never settles", { animationPolls: Infinity }, false], ["stays hidden", { animationPolls: 0, hidden: true }, false]]) {

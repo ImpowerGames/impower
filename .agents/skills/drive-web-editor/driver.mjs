@@ -2753,13 +2753,20 @@ export function surfaceSettled(selector) {
   });
 }
 
-export async function surfacePainted(page, waitsFor, timeout = PAINT_BUDGET_MS) {
-  const shown = await page
-    .waitForFunction(surfaceSettled, waitsFor.selector, { timeout })
-    .then(() => true, () => false);
-  if (!shown) return false;
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  return true;
+const SURFACE_POLL_MS = 100;
+
+export async function surfacePainted(page, waitsFor) {
+  const deadline = Date.now() + PAINT_BUDGET_MS;
+  for (;;) {
+    for (const frame of page.frames()) {
+      if (await frame.evaluate(surfaceSettled, waitsFor.selector).catch(() => false)) {
+        await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        return true;
+      }
+    }
+    if (Date.now() >= deadline) return false;
+    await page.waitForTimeout(SURFACE_POLL_MS);
+  }
 }
 
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
