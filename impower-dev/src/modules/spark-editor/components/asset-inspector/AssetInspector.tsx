@@ -14,6 +14,7 @@ import {
   ReplaceSwapIcon,
   SaveIcon,
   TextField,
+  useEscapeWithin,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { Ref } from "preact";
@@ -34,6 +35,8 @@ import { assetsHome } from "../../workspace/assetsListing";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { audioSession } from "../../workspace/editorAudio";
+import { AUDITION_OWNER } from "../../workspace/WorkspaceAudition";
 import workspace from "../../workspace/WorkspaceStore";
 import { UsesList } from "../find-references-rename";
 import AssetFrame from "./AssetFrame";
@@ -185,6 +188,11 @@ export default function AssetInspector({
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
   const variant = stack ? variantOf(stack, previewing ?? selection) : null;
   const variantKey = variant ? JSON.stringify(variant) : "";
+
+  const playback = audioSession.playback.value;
+  const sounding =
+    !!playback && playback.owner !== AUDITION_OWNER && (playback.status === "playing" || playback.status === "loading");
+  useEscapeWithin(region, sounding, () => audioSession.stop());
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });

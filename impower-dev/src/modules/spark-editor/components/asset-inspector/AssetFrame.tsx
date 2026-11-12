@@ -1,6 +1,7 @@
 import { Thumbnail, ZoomFrame } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 import type { InspectedAsset } from "../../utils/assetDetails";
+import SoundFrame from "./SoundFrame";
 
 const SPECIMEN = "The quick brown fox jumps over the lazy dog";
 
@@ -187,6 +188,9 @@ export default function AssetFrame({ asset, pixels, picture, read, onSeconds }: 
   }
   if (asset.type === "video") {
     return <VideoFrame asset={asset} onSeconds={onSeconds} />;
+  }
+  if (asset.type === "audio") {
+    return <SoundFrame asset={asset} />;
   }
   if (asset.type === "font") {
     return <FontSpecimen asset={asset} />;

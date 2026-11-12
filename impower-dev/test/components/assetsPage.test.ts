@@ -35,6 +35,53 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { assets, window },
 }));
 
+const speaker = vi.hoisted(() => ({
+  audio: undefined as unknown as EventTarget & { src: string; currentTime: number; duration: number; paused: boolean; log: string[] },
+}));
+vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
+  const { default: AudioSession } = await import("../../src/modules/spark-editor/workspace/AudioSession");
+  const { default: SoundPeaks } = await import("../../src/modules/spark-editor/workspace/SoundPeaks");
+  class FakeAudio extends EventTarget {
+    src = "";
+    currentTime = 0;
+    duration = Number.NaN;
+    paused = true;
+    log: string[] = [];
+    async play() {
+      this.log.push(`play ${this.src}`);
+      await Promise.resolve();
+      this.paused = false;
+      this.dispatchEvent(new Event("playing"));
+    }
+    pause() {
+      if (!this.paused) {
+        this.log.push(`stop ${this.src}`);
+        this.paused = true;
+        this.dispatchEvent(new Event("pause"));
+      }
+    }
+    load() {}
+    removeAttribute(name: string) {
+      if (name === "src") this.src = "";
+    }
+  }
+  const audio = new FakeAudio();
+  speaker.audio = audio;
+  return {
+    audioSession: new AudioSession({ audio: () => audio, maxBytes: 1_000_000 }),
+    soundPeaks: new SoundPeaks(
+      {
+        read: async (src) => {
+          if (src.includes("bad")) throw new Error("unreadable");
+          return new Float32Array([0.5, 1]).buffer;
+        },
+        decode: async (bytes) => ({ channels: [new Float32Array(bytes)], duration: 5 }),
+      },
+      { limit: 8, maxBytes: 1_000_000, count: 2 },
+    ),
+  };
+});
+
 (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class {
   observe() {}
   unobserve() {}
@@ -120,6 +167,7 @@ beforeEach(() => {
     };
   });
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
+  speaker.audio.log = [];
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
   });
@@ -706,4 +754,119 @@ describe("selecting, moving and deleting", () => {
     await drag(host!.querySelector<HTMLElement>('button[aria-label^="Open image ada"]')!, extras);
     expect(assets.move).toHaveBeenLastCalledWith([`${P}/Cast/ada.png`], `${P}/Cast/Extras`);
   });
+});
+
+describe("playing sounds from their rows", () => {
+  const playButton = (name: string) => host!.querySelector<HTMLElement>(`[data-asset-play][aria-label$=" ${name}"]`)!;
+  const rowOf = (name: string) => playButton(name).closest<HTMLElement>('[role="listitem"]')!;
+  const inspector = () => document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+  const openSounds = async () => {
+    await mount();
+    await showTab("Audio");
+    await click(all<HTMLElement>('button[aria-label^="Open folder Sounds"]')[0]);
+  };
+  const tell = async (type: string, change?: () => void) => {
+    await act(async () => {
+      change?.();
+      speaker.audio.dispatchEvent(new Event(type));
+    });
+    await settle();
+  };
+
+  it("puts a Play button in place of each sound's glyph, outside the button that opens it", async () => {
+    await openSounds();
+    const buttons = all<HTMLElement>("[data-asset-play]");
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Play door_chime", "Play footsteps"]);
+    for (const button of buttons) {
+      expect(button.closest('button[aria-label^="Open"]')).toBeNull();
+      expect(button.closest('[role="listitem"]')!.querySelector('button[aria-label^="Open"] svg')).toBeNull();
+    }
+  });
+
+  it("plays one sound at a time, turning Play to Stop, with the elapsed time in the row's line, and never opens the inspector", async () => {
+    await openSounds();
+    await click(playButton("door_chime"));
+    expect(inspector()).toBeNull();
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Stop door_chime");
+    await tell("loadedmetadata", () => (speaker.audio.duration = 5));
+    await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    await click(playButton("footsteps"));
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
+    expect(rowOf("door_chime").textContent).toContain("Modified 2d");
+    await click(playButton("footsteps"));
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Play footsteps");
+    expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
+  });
+
+  it("goes on playing when its own row opens the inspector, and stops when another file is opened", async () => {
+    await openSounds();
+    await click(playButton("door_chime"));
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Stop door_chime");
+    await click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!);
+    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    expect(speaker.audio.log.at(-1)).toBe("stop /p/512");
+  });
+
+  it("stops when the playing file is renamed, deleted or replaced, and when the page is left", async () => {
+    await openSounds();
+    await click(playButton("door_chime"));
+    const { "Assets/Audio/Sounds/door_chime.wav": playing, ...rest } = workspace.assetListing.value!.files;
+    await act(async () => setListing({ ...rest, "Assets/Audio/Sounds/bell.wav": playing! }));
+    await settle();
+    expect(speaker.audio.log.at(-1)).toBe("stop /p/512");
+    await click(playButton("footsteps"));
+    const files = workspace.assetListing.value!.files;
+    await act(async () =>
+      setListing({ ...files, "Assets/Audio/Sounds/footsteps.wav": { ...files["Assets/Audio/Sounds/footsteps.wav"]!, src: "/p/replaced" } }),
+    );
+    await settle();
+    expect(speaker.audio.log.at(-1)).toBe("stop /p/768");
+    await click(playButton("footsteps"));
+    await act(async () => render(null, host!));
+    expect(speaker.audio.log.at(-1)).toBe("stop /p/replaced");
+  });
+
+  it("says a file it cannot play can't be played here, in the row and in the inspector, which still downloads it", async () => {
+    setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": { ...facts(512), src: "/p/bad" } });
+    await openSounds();
+    await click(playButton("door_chime"));
+    await tell("error");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("Can't play this file here.");
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("Can't play this file here.");
+    expect(inspector()!.querySelector('[data-audio-player] [role="slider"]')).toBeNull();
+    await click(inspector()!.querySelector<HTMLElement>("[data-inspector-download]")!);
+    expect(assets.downloadAll).toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
+  });
+
+  for (const width of ["desktop", "phone"] as const) {
+    it(`stops a playing sound on Escape and keeps the inspector open, then closes it on the next Escape, at ${width} width`, async () => {
+      layout.value = width;
+      await openSounds();
+      await click(all<HTMLElement>('button[aria-label^="Open audio door_chime"]')[0]);
+      const slider = () => inspector()!.querySelector<HTMLElement>('[role="slider"]')!;
+      await click(inspector()!.querySelector<HTMLElement>("[data-audio-toggle]")!);
+      expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("playing");
+      slider().focus();
+      await act(async () => {
+        slider().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      });
+      await settle();
+      expect(inspector()).not.toBeNull();
+      expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("ready");
+      expect(speaker.audio.log.at(-1)).toBe("stop /p/512");
+      await act(async () => {
+        slider().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+      expect(inspector()?.querySelector("[data-audio-player]") ?? null).toBeNull();
+    });
+  }
 });

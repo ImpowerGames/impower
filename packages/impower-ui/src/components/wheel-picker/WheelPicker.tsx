@@ -3,6 +3,7 @@ import type { RefObject } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
+import { useEscapeWithin } from "../../utils/escapeWithin";
 import Button from "../button/Button";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -217,6 +218,8 @@ export function WheelSheet({
   const focusBack = useRef(returnFocus);
   focusBack.current = returnFocus;
 
+  useEscapeWithin(panel, open, onCancel);
+
   useEffect(() => {
     centred.current = value;
   }, [open, value]);
@@ -233,19 +236,9 @@ export function WheelSheet({
         cancel.current();
       }
     };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || !panel.current?.contains(event.target as Node | null)) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      cancel.current();
-    };
     document.addEventListener("pointerdown", outside, true);
-    window.addEventListener("keydown", escape, true);
     return () => {
       document.removeEventListener("pointerdown", outside, true);
-      window.removeEventListener("keydown", escape, true);
       const returnTo = focusBack.current?.() ?? opener;
       if (returnTo?.isConnected && (!document.activeElement || panel.current?.contains(document.activeElement) || document.activeElement === document.body)) {
         returnTo.focus({ preventScroll: true });
