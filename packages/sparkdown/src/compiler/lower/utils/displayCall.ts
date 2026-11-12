@@ -8,8 +8,12 @@ import {
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
+import {
+  LegacyTag,
+  Tag,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { SCAN_CLOSE, SCAN_OPEN } from "../../../runtime/displayStyle";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
@@ -34,6 +38,7 @@ export function buildDisplayCall(
     group?: string;
     open?: boolean;
     continues?: boolean;
+    readsMarks?: boolean;
   } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
@@ -53,7 +58,12 @@ export function buildDisplayCall(
       ),
     );
   }
-  entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
+  entries.push(
+    new ObjectExpressionEntry(
+      "text",
+      new StringExpression(displayText(body, options.readsMarks)),
+    ),
+  );
   for (const flag of [
     "pause",
     "extend",
@@ -75,6 +85,21 @@ export function buildDisplayCall(
   return finishCall(entries, tags, range, ctx);
 }
 
+function displayText(
+  body: ParsedObject[],
+  readsMarks = false,
+): ParsedObject[] {
+  if (body.length === 0) return body;
+  if (readsMarks) {
+    return [new Text(SCAN_OPEN), ...body, new Text(SCAN_CLOSE)];
+  }
+  return body.flatMap((obj) =>
+    obj instanceof Text || obj instanceof Tag || obj instanceof LegacyTag
+      ? [obj]
+      : [new Text(SCAN_OPEN), obj, new Text(SCAN_CLOSE)],
+  );
+}
+
 export function buildOrderedDisplayCall(
   words: ParsedObject[],
   ctx: LowerContext,
@@ -83,7 +108,7 @@ export function buildOrderedDisplayCall(
   const parts: Expression[] = [];
   let run: ParsedObject[] = [];
   let tag: ParsedObject[] | null = null;
-  for (const obj of words) {
+  for (const obj of displayText(words, true)) {
     if (obj instanceof Tag) {
       if (obj.isStart) {
         if (run.length > 0) parts.push(new StringExpression(run));

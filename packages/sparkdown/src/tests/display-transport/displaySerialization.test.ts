@@ -6,6 +6,7 @@ import {
   SCAN_OPEN,
   writtenText,
 } from "../../runtime/displayStyle";
+import { styleRuns } from "./styleRuns";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 
 function compile(source: string): ProgramRoot {
@@ -71,7 +72,7 @@ end
   });
 
   test("a save written before style codes reads its tables' text as values, whose marks the player scans", () => {
-    const compiled = compile(`scene start\n  A *word* here.\n  done\nend\n`);
+    const compiled = compile(`scene start\n  A *word* here.\n  B *two* there.\n  done\nend\n`);
     const storyA = testStory(compiled);
     storyA.Continue();
     const current = JSON.parse(storyA.state.ToJson() as string);
@@ -100,5 +101,13 @@ end
     const storyC = testStory(compiled);
     storyC.state.LoadJson(storyA.state.ToJson() as string);
     expect(storyC.currentStyledText).toBe(storyA.currentStyledText);
+
+    storyB.Continue();
+    expect(storyB.currentText?.trim()).toBe("B *two* there.");
+    expect(styleRuns(storyB.currentStyledText?.trim() ?? "")).toEqual([
+      { text: "B " },
+      { text: "two", marks: ["*"] },
+      { text: " there." },
+    ]);
   });
 });

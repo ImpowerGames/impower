@@ -42,8 +42,6 @@ import {
 } from "../utils/displaySpans";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import {
-  SCAN_CLOSE,
-  SCAN_OPEN,
   SPAN_CLOSE,
   SPAN_END,
   readSpanOpen,
@@ -101,7 +99,7 @@ function buildDisplayCalls(
     const conditional =
       only &&
       tryLowerInlineConditional(only, ctx, (body) => [
-        buildDisplayCall(target, character, scannedValue(body), ranges[0]!, ctx),
+        buildDisplayCall(target, character, body, ranges[0]!, ctx),
       ]);
     if (conditional) {
       reportInlineIfReading(only!, ctx);
@@ -463,16 +461,16 @@ function processDisplayBody(
       const inlineCond = tryLowerInlineConditional(seg.node, ctx);
       if (inlineCond) {
         reportInlineIfReading(seg.node, ctx);
-        out.push(...scannedValue([inlineCond]));
+        out.push(inlineCond);
       } else {
         const inlineAlt = tryLowerInlineAlternator(seg.node, ctx);
         if (inlineAlt) {
-          out.push(...scannedValue(inlineAlt));
+          out.push(...inlineAlt);
         } else {
           const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
             expr.outputWhenComplete = true;
-            out.push(...scannedValue([expr]));
+            out.push(expr);
           }
         }
       }
@@ -675,10 +673,6 @@ function injectionFrom(node: SyntaxNode, kind: BodyInjection["kind"]): number {
 
 function isBodyInjection(node: SyntaxNode): boolean {
   return injectionKind(node) !== null;
-}
-
-function scannedValue(body: ParsedObject[]): ParsedObject[] {
-  return [new Text(SCAN_OPEN), ...body, new Text(SCAN_CLOSE)];
 }
 
 interface BodyInjection {

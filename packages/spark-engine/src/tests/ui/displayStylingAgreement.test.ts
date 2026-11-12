@@ -4,28 +4,13 @@ import {
   treeScopeStackAt,
   vscodeScopeStacksPerChar,
 } from "@impower/sparkdown/src/tests/compiler/scopeEquality";
-import type { Instructions } from "../../game/core/types/Instructions";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
-
-const SCREEN = `layout main {
-  action {
-    text
-  }
-  dialogue {
-    character_info {
-      character_name {
-        text
-      }
-      character_parenthetical {
-        text
-      }
-    }
-    text
-  }
-}
-`;
-
-const VALUES = `store x = "plain"\n`;
+import {
+  type Cell,
+  VALUES,
+  renderedBeat,
+  script,
+  show,
+} from "./harness/displayStyleHarness";
 
 interface Part {
   target: string;
@@ -155,14 +140,6 @@ const stylesOfScopes = (scopes: string[]): string => {
   return styles.sort().join(" ");
 };
 
-interface Cell {
-  char: string;
-  style: string;
-}
-
-const script = (body: string, values = VALUES) =>
-  `${SCREEN}\n${values}\n-> start\n\nscene start\n  ${body}\nend\n`;
-
 async function grammarCells(source: string, from: number, to: number) {
   const tree = parseSource(source);
   const vscode = await vscodeScopeStacksPerChar(source);
@@ -205,52 +182,6 @@ async function grammarCells(source: string, from: number, to: number) {
   }
   return { tree: tree_, vscode: vsc };
 }
-
-async function renderedBeat(source: string) {
-  const harness = createHarness(source);
-  await harness.ready;
-  harness.jumpToFlow("start");
-  harness.reset();
-  const beat = harness.nextBeat() as Instructions;
-  await harness.display(beat, true);
-  await flushMicrotasks();
-  const animation = (harness.game.context as any)?.animation ?? {};
-  const wavy = animation["wavy"]?.$name;
-  const shaky = animation["shaky"]?.$name;
-  const cellsOf = (target: string): Cell[] => {
-    const cells: Cell[] = [];
-    for (const event of beat.text?.[target] ?? []) {
-      const style = (event.style ?? {}) as Record<string, unknown>;
-      const styles = [
-        style["font_weight"] === "bold" ? "bold" : "",
-        style["font_style"] === "italic" ? "italic" : "",
-        style["text_decoration"] === "underline" ? "underline" : "",
-        style["text_align"] === "center" ? "centered" : "",
-        style["white_space"] === "pre" ? "raw" : "",
-        wavy && style["animation_name"] === wavy ? "wavy" : "",
-        shaky && style["animation_name"] === shaky ? "shaky" : "",
-      ].filter(Boolean);
-      for (const char of event.text ?? "") {
-        cells.push({ char, style: styles.sort().join(" ") });
-      }
-    }
-    return cells;
-  };
-  return Object.assign(cellsOf, { beat });
-}
-
-const show = (cells: Cell[]): string => {
-  let out = "";
-  let current = "";
-  for (const { char, style } of cells) {
-    if (style !== current) {
-      out += (current ? "]" : "") + (style ? `[${style}: ` : "");
-      current = style;
-    }
-    out += char;
-  }
-  return out + (current ? "]" : "");
-};
 
 const withoutCentering = (cells: Cell[]): Cell[] =>
   cells.map(({ char, style }) => ({

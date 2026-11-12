@@ -151,7 +151,7 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
-import { stripStyleCodes } from "../runtime/displayStyle";
+import { scanned, stripStyleCodes } from "../runtime/displayStyle";
 
 const OPERATOR_NATIVES = new Set([
   NativeFunctionCall.Add,
@@ -2138,7 +2138,15 @@ export class ProgramStory implements StoryEngine {
             const text =
               functionText(oneValue(output), (ref) => this.FunctionLabel(ref)) ??
               output.toString();
-            state.PushToOutputStream(new StringValue(stripStyleCodes(text)));
+            const plain = stripStyleCodes(text);
+            const core = plain.trim();
+            state.PushToOutputStream(
+              new StringValue(
+                state.inStringEvaluation || !core
+                  ? plain
+                  : plain.replace(core, () => scanned(core)),
+              ),
+            );
           }
         }
         break;

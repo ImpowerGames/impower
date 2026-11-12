@@ -965,13 +965,13 @@ export class ProgramStoryState {
         if (outputObj instanceof ControlCommand) {
           if (outputObj.commandType == ControlCommand.CommandType.BeginTag) {
             if (inTag && sb.Length > 0) {
-              this._currentTags.push(this._cleanWhitespace(sb.toString()));
+              this._currentTags.push(this._cleanWhitespace(writtenText(sb.toString())));
               sb.Clear();
             }
             inTag = true;
           } else if (outputObj.commandType == ControlCommand.CommandType.EndTag) {
             if (sb.Length > 0) {
-              this._currentTags.push(this._cleanWhitespace(sb.toString()));
+              this._currentTags.push(this._cleanWhitespace(writtenText(sb.toString())));
               sb.Clear();
             }
             inTag = false;
@@ -989,7 +989,7 @@ export class ProgramStoryState {
         }
       }
       if (sb.Length > 0) {
-        this._currentTags.push(this._cleanWhitespace(sb.toString()));
+        this._currentTags.push(this._cleanWhitespace(writtenText(sb.toString())));
         sb.Clear();
       }
       this._tagsDirty = false;

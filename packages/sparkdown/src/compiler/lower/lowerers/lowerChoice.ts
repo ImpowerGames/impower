@@ -37,7 +37,6 @@ import { lowerTagContent } from "../utils/lowerTagContent";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { SCAN_CLOSE, SCAN_OPEN } from "../../../runtime/displayStyle";
 
 const UNREADABLE_CHOICE_CONDITION_MESSAGE =
   "This condition cannot be read here, so the choice is never offered. Close any bracket left open, or compute the condition into a variable on an earlier line and test that, as in `* if ready Text`.";
@@ -261,33 +260,18 @@ function chosenTextAsDisplayCall(
   let startEcho: ChoiceStartEcho | null = null;
   if (tagged) {
     const startWords = hasStart ? relowerStart().content.slice() : [];
-    call = buildOrderedDisplayCall(
-      scannedChoiceText([...startWords, ...words]),
-      ctx,
-      { open },
-    );
+    call = buildOrderedDisplayCall([...startWords, ...words], ctx, { open });
   } else {
     startEcho = hasStart ? new ChoiceStartEcho() : null;
     const body = startEcho ? [startEcho, ...words] : words;
-    call = buildDisplayCall(
-      undefined,
-      undefined,
-      scannedChoiceText(body),
-      null,
-      ctx,
-      [],
-      { open },
-    );
+    call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
+      open,
+      readsMarks: true,
+    });
   }
   const out: ParsedObject[] = [call];
   if (arrow.length > 0) out.push(...tail);
   return { inner: out, startEcho, repeatsStartContent: !tagged };
-}
-
-function scannedChoiceText(words: ParsedObject[]): ParsedObject[] {
-  return words.length > 0
-    ? [new Text(SCAN_OPEN), ...words, new Text(SCAN_CLOSE)]
-    : words;
 }
 
 function collectChoiceCondition(
