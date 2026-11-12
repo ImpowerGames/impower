@@ -1582,10 +1582,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>): Image[] {
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: string): Image[] {
     const imageName = sortFilteredName(name);
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
-    return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf).map((layer) => ({
+    return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf, pick).map((layer) => ({
       $type: "image", $name: imageName, src: layer.src,
     }));
   }
@@ -1757,7 +1757,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  getMorphContent(assets: string[]): MorphImageContent | undefined {
+  getMorphContent(assets: string[], pick?: string): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
@@ -1780,7 +1780,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const owner = getImageOwner(this.context, imageName);
       for (const [offset, layer] of resolved.entries()) {
         const index = first + offset;
-        const refs = morphRefsForStruct(this.context, channel, layer.struct);
+        const refs = morphRefsForStruct(this.context, channel, layer.struct, pick);
         const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
@@ -1810,8 +1810,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose)).reverse().join(", ");
-    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset)).reverse().join(", ")) {
+    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pick)).reverse().join(", ");
+    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pick)).reverse().join(", ")) {
       content.still = still;
     }
     return content;
@@ -1909,12 +1909,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `linear-gradient(${value})`;
   }
 
-  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: string) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const posed = poseOf ? this.getImageAssets("", value, poseOf).map((asset) => asset.src) : undefined;
+    const posed = poseOf || pick !== undefined ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
     const srcs = posed?.length ? posed : this.getImageSrcsByName(value);
     if (srcs) {
       return srcs
@@ -4747,6 +4747,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 with: event.with,
                 assets: event.assets,
                 over: 0,
+                ...(event.morph ? { morph: event.morph } : {}),
                 ...(event.loop ? { loop: true } : {}),
                 ...(event.once ? { once: true } : {}),
                 ...(event.mute ? { mute: true } : {}),
@@ -4913,17 +4914,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const background =
               imageAssets.length > 0
                 ? imageAssets
-                    .map((a) => $.getBackgroundImageFromString(a))
+                    .map((a) => $.getBackgroundImageFromString(a, undefined, e.morph))
                     .reverse()
                     .join(", ")
                 : "none";
-            const src = imageAssets.flatMap((a) =>
-              $.getImageSrcsFromValue(a),
-            )[0];
+            const srcsOf = (a: string) =>
+              e.morph === undefined
+                ? $.getImageSrcsFromValue(a)
+                : $.getImageAssets("", a, undefined, e.morph).map((asset) => asset.src);
+            const src = imageAssets.flatMap((a) => srcsOf(a))[0];
             const srcs = [
               ...new Set([
                 ...imageAssets
-                  .flatMap((a) => $.getImageSrcsFromValue(a) ?? [])
+                  .flatMap((a) => srcsOf(a) ?? [])
                   .filter((s) => !s.startsWith("data:")),
                 ...videoSrcs.slice(0, 1),
               ]),
@@ -4949,7 +4952,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   : {}),
               };
             }
-            const morph = $.getMorphContent(imageAssets);
+            const morph = $.getMorphContent(imageAssets, e.morph);
             if (morph) {
               content.morph = morph;
             }

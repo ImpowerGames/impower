@@ -49,7 +49,7 @@ variables:
   DISPLAY_CHAIN_COMMENTS: (?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)
   DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
-  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
+  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease", "morph"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]

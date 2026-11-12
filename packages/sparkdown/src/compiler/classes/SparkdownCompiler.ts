@@ -9,7 +9,10 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
+import { MORPH_PICK_NONE } from "../../morph/types";
+import { findMorphClauses, morphClauseAt, type MorphClause } from "../morph/morphClause";
+import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -80,6 +83,8 @@ import type {
   ScriptLoop,
   ScriptStructure,
 } from "../utils/routeDecisions";
+
+const IMAGE_CLAUSE_WORDS: ReadonlySet<string> = new Set(GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS);
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4729,8 +4734,10 @@ export class SparkdownCompiler {
       if (!doc) continue;
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
-      const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
-        const look = shownLook(program.context, program.morphs, struct);
+      const scriptTree = this.documents.tree(uri);
+      const clauses = scriptTree ? findMorphClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
+        const look = shownLook(program.context, program.morphs, struct, undefined, pick);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
         if (look && written.length > 0) {
           const chosen = resolveAttributes(look.vocabulary, written).selection;
@@ -4788,11 +4795,31 @@ export class SparkdownCompiler {
         references.next();
       }
       let coveredTo = -1;
+      const shownImages: typeof images = [];
       for (const image of images.sort((a, b) => a.from - b.from || b.to - a.to)) {
         if (image.from >= coveredTo) {
-          emit(image.struct, image.from, image.to, doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean));
+          shownImages.push(image);
+          emit(
+            image.struct,
+            image.from,
+            image.to,
+            doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
+            morphClauseAt(clauses, image.from)?.value?.text,
+          );
           coveredTo = image.to;
         }
+      }
+      for (const clause of clauses) {
+        const directiveImages = shownImages.filter((image) => clause.directive.from <= image.from && image.to <= clause.directive.to);
+        const issue = this.morphClauseIssue(program, clause, directiveImages.map((image) => image.struct));
+        if (!issue) continue;
+        const at = issue.at ?? clause.keyword;
+        ((program.diagnostics ??= {})[uri] ??= []).push({
+          range: doc.range(at.from, at.to),
+          severity: issue.severity,
+          message: { kind: "markdown", value: issue.message },
+          source: LANGUAGE_NAME,
+        });
       }
       const tree = this.documents.tree(uri);
       const declarations = annotations.declarations.iter();
@@ -4843,6 +4870,49 @@ export class SparkdownCompiler {
         source: LANGUAGE_NAME,
       });
     }
+  }
+
+  protected morphClauseIssue(
+    program: SparkProgram,
+    clause: MorphClause,
+    images: readonly any[],
+  ): { at?: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
+    const value = clause.value && !IMAGE_CLAUSE_WORDS.has(clause.value.text) ? clause.value : undefined;
+    if (!value) {
+      return {
+        severity: DiagnosticSeverity.Error,
+        message: `\`morph\` needs the name of a speech morph, or \`${MORPH_PICK_NONE}\` to play none: \`morph talk\`.`,
+      };
+    }
+    const name = value.text;
+    if (name === MORPH_PICK_NONE) return undefined;
+    const morph = name.startsWith("$") ? undefined : getContextEntry(program.context, "morph", name);
+    if (!morph) {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: `No morph named \`${name}\`. A \`morph\` clause names a speech morph, or \`${MORPH_PICK_NONE}\` to play none.`,
+      };
+    }
+    const speech = program.morphs?.speech;
+    if (!speech || !Object.hasOwn(speech, name)) {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: `\`${name}\` is not a speech morph: a \`morph\` clause picks only among morphs with \`trigger = speech\`.`,
+      };
+    }
+    const plays = images.some((image) =>
+      resolveImageLayers(program.context, image).some(
+        (layer) => layer.struct && speechMorphsForStruct(program.context, program.morphs, layer.struct).includes(name),
+      ),
+    );
+    if (plays) return undefined;
+    return {
+      at: value,
+      severity: DiagnosticSeverity.Warning,
+      message: `\`${name}\` plays on no image in this directive: it does not fit them, or its \`when\` or \`unless\` keeps it off their looks.`,
+    };
   }
 
   protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
@@ -4913,6 +4983,7 @@ export class SparkdownCompiler {
       program.context,
       (base, override) => this.inheritDefaults(base, override),
       declared,
+      program.morphs,
     );
     for (const [scriptUri, issues] of issuesByUri) {
       const doc = this.documents.get(scriptUri)!;

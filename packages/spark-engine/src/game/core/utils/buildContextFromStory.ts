@@ -1,5 +1,8 @@
 import type { ProgramStory as Story } from "@impower/sparkdown/src/program/ProgramStory";
+import { MORPH_OWN_FIELDS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { applyBuiltinDefaults } from "./applyBuiltinDefaults";
+
+const OWN_FIELDS: Partial<Record<string, ReadonlySet<string>>> = { morph: MORPH_OWN_FIELDS };
 
 const DEFINE_MARKER = "__define";
 const DEFINE_PARENT_MARKER = "__defineParent";
@@ -134,13 +137,18 @@ function collectLevelProps(
 export function convertDefine(
   defineTable: AnyVal,
   story: Story,
+  ownFields?: ReadonlySet<string>,
 ): Record<string, unknown> {
   const chain = defineChain(defineTable);
   let merged: Record<string, unknown> = {};
   for (let i = chain.length - 1; i >= 0; i -= 1) {
     const levelMap = asMap(chain[i].value);
     if (!levelMap) continue;
-    merged = deepMerge(merged, collectLevelProps(levelMap, story));
+    const props = collectLevelProps(levelMap, story);
+    if (i > 0) {
+      for (const field of ownFields ?? []) delete props[field];
+    }
+    merged = deepMerge(merged, props);
   }
   merged["$type"] = metaString(defineTable, DEFINE_PARENT_MARKER);
   merged["$name"] = metaString(defineTable, DEFINE_MARKER);
@@ -197,7 +205,7 @@ export function buildDefinesContext(
       const dedupeKey = `${typeName}\u0000${defName}`;
       if (emitted.has(dedupeKey)) continue;
       emitted.add(dedupeKey);
-      (context[typeName] ??= {})[defName] = convertDefine(member, story);
+      (context[typeName] ??= {})[defName] = convertDefine(member, story, OWN_FIELDS[typeName]);
     }
   }
   applyBuiltinDefaults(context);

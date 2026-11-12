@@ -26,6 +26,12 @@ import {
   relativeRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
+import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
+import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -461,6 +467,61 @@ const addKeywordCompletions = (
         completions.set(completion.label, completion);
       }
     }
+  }
+};
+
+const directiveAssets = (
+  directive: SyntaxNode,
+  read: (from: number, to: number) => string,
+): string[] => {
+  const assets: string[] = [];
+  const visit = (node: SyntaxNode) => {
+    if (node.name === "AssetCommandName") {
+      const text = read(node.from, node.to).trim();
+      if (text) assets.push(text);
+      return;
+    }
+    for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
+  };
+  visit(directive);
+  return assets;
+};
+
+const addMorphPickCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  assets: readonly string[],
+) => {
+  const none: CompletionItem = {
+    label: MORPH_PICK_NONE,
+    insertText: MORPH_PICK_NONE,
+    labelDetails: { description: "plays no speech morph" },
+    kind: CompletionItemKind.Keyword,
+    documentation: { kind: MarkupKind.Markdown, value: MORPH_CLAUSE_DOC },
+    sortText: "0",
+  };
+  completions.set(none.label, none);
+  const context = program?.context;
+  const channel = program?.morphs;
+  if (!context || !channel) return;
+  const names = new Set<string>();
+  for (const asset of assets) {
+    const image = resolveImageReference(context, { $type: "", $name: sortFilteredName(asset) });
+    for (const layer of resolveImageLayers(context, image)) {
+      for (const name of speechMorphsForStruct(context, channel, layer.struct)) names.add(name);
+    }
+  }
+  for (const name of [...names].sort()) {
+    const isDefault = Boolean(channel.speech?.[name]?.default);
+    completions.set(name, {
+      label: name,
+      insertText: name,
+      labelDetails: { description: isDefault ? "speech morph, default" : "speech morph" },
+      kind: CompletionItemKind.Reference,
+      documentation: { kind: MarkupKind.Markdown, value: MORPH_CLAUSE_DOC },
+      sortText: isDefault ? `1${name}` : `2${name}`,
+      ...(isDefault ? { preselect: true } : {}),
+    });
   }
 };
 
@@ -1811,6 +1872,19 @@ const completionsAt = (
       }
       return buildCompletions();
     }
+    if (
+      (isWhitespaceNode(leftStack[0]?.name) &&
+        prevNode?.name === "AssetCommandClauseKeyword" &&
+        prevText === "morph") ||
+      (leftStack[0]?.name === "NameValue" &&
+        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "morph")
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        const directive = leftStack.find((n) => n.type.name === "ImageCommand");
+        addMorphPickCompletions(completions, program, directive ? directiveAssets(directive.node, read) : []);
+      }
+      return buildCompletions();
+    }
     if (isClauseStart(leftStack[0]?.node)) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addImageClauseCompletions(imageControl());
@@ -1830,6 +1904,7 @@ const completionsAt = (
           (prevText === "after" ||
             prevText === "over" ||
             prevText === "with" ||
+            prevText === "morph" ||
             prevText === "to");
         if (!prevClauseTakesArgument) {
           addImageClauseCompletions(imageControl());

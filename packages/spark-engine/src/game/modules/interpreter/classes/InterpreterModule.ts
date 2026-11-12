@@ -102,7 +102,7 @@ export class InterpreterModule extends Module<
 
   MOVIE_CONTROL_KEYWORDS = ["play"];
 
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
+  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease", "morph"];
 
   ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
 
@@ -1032,6 +1032,9 @@ export class InterpreterModule extends Module<
           if (arg === "ease") {
             clauses[arg] = value;
           }
+          if (arg === "morph") {
+            clauses[arg] = value;
+          }
         } else {
           clauses[arg] = true;
         }
@@ -1757,6 +1760,10 @@ export class InterpreterModule extends Module<
               const easeValue = c.clauses?.ease;
               if (easeValue != null) {
                 event.ease = easeValue;
+              }
+              const morphValue = c.clauses?.morph;
+              if (typeof morphValue === "string" && morphValue) {
+                event.morph = morphValue;
               }
               if (c.clauses?.loop) {
                 event.loop = true;

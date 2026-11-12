@@ -46,7 +46,8 @@
       "after",
       "with",
       "wait",
-      "ease"
+      "ease",
+      "morph"
     ],
     "AUDIO_CONTROL_KEYWORDS": [
       "play",
@@ -5800,7 +5801,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "(.*?)($|(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r])).*)",
+      "match": "(.*?)($|(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r])).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -5918,7 +5919,7 @@
     "AssetCommandClauseKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.clause.keyword.sd",
-      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))"
+      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",

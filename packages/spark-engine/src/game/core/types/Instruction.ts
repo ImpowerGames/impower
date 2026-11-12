@@ -52,6 +52,7 @@ export interface ImageInstruction extends IInstruction {
   control: "show" | "hide" | "animate";
   assets?: string[];
   with?: string;
+  morph?: string;
   /** `loop`, `once` and `mute` as written: they apply to a video name, which
    *  loops unless `once` is written. */
   loop?: boolean;

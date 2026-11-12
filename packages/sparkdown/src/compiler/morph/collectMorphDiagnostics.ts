@@ -12,7 +12,9 @@ import {
   morphImageLabels,
   morphImages,
 } from "./bindMorph";
-import { parseMorphQualifiedState } from "./morphSchema";
+import { ambiguousSpeechMorphs } from "../../morph/channel";
+import type { MorphProgramChannel } from "../../morph/types";
+import { parseMorphQualifiedState, withoutMorphOwnFields } from "./morphSchema";
 import { plainPoseStates, poseStateProblems, readMorphBody, type MorphIssue } from "./readMorphBody";
 import { validateMorphDeclaration, type MorphDeclaration } from "./validateMorph";
 
@@ -118,7 +120,7 @@ export function effectiveMorph(
   for (let i = ancestors.length - 1; i >= 0; i -= 1) {
     result = inherit(result, ancestors[i]!.struct);
   }
-  return inherit(result, own);
+  return inherit(withoutMorphOwnFields(result), own);
 }
 
 export function readWrittenMorphs(scripts: readonly (MorphScript & { uri: string })[]): WrittenMorph[] {
@@ -173,6 +175,7 @@ export function collectMorphIssues(
   context: Context,
   inherit: (base: any, override: any) => any,
   declared: Context,
+  channel?: MorphProgramChannel,
 ): Map<string, LocatedMorphIssue[]> {
   const result = new Map<string, LocatedMorphIssue[]>();
   const morphs = readWrittenMorphs(scripts);
@@ -238,7 +241,42 @@ export function collectMorphIssues(
       result.set(morph.uri, [...(result.get(morph.uri) ?? []), ...issues]);
     }
   }
+  for (const issue of ambiguityIssues(morphs, context, channel)) {
+    result.set(issue.uri, [...(result.get(issue.uri) ?? []), issue.issue]);
+  }
   return result;
+}
+
+function ambiguityIssues(
+  morphs: readonly WrittenMorph[],
+  context: Context,
+  channel: MorphProgramChannel | undefined,
+): { uri: string; issue: LocatedMorphIssue }[] {
+  const clusters = new Map<string, { morphs: string[]; images: string[] }>();
+  for (const variant of Object.keys(channel?.picks ?? {})) {
+    for (const cluster of ambiguousSpeechMorphs(context, channel, { $name: variant })) {
+      const key = cluster.join("\n");
+      const entry = clusters.get(key) ?? { morphs: cluster, images: [] };
+      entry.images.push(variant);
+      clusters.set(key, entry);
+    }
+  }
+  const quote = (names: readonly string[]) =>
+    names.length > 1 ? `${names.slice(0, -1).map((n) => `\`${n}\``).join(", ")} and \`${names.at(-1)}\`` : `\`${names[0]}\``;
+  const found: { uri: string; issue: LocatedMorphIssue }[] = [];
+  for (const { morphs: names, images } of clusters.values()) {
+    const marked = names.filter((name) => channel?.speech?.[name]?.default);
+    const why = marked.length === 0 ? "none is marked `default = true`" : `${quote(marked)} are all marked \`default = true\``;
+    const more = images.length > 1 ? ` (and ${images.length - 1} more)` : "";
+    const message = `${quote(names)} play on \`${images[0]}\`${more} and drive the same group, and ${why}: nothing plays there unless a directive picks one with a \`morph\` clause. Mark exactly one of them \`default = true\`.`;
+    for (const name of names) {
+      const morph = morphs.find((m) => m.name === name);
+      if (!morph) continue;
+      const at = morph.nameNode ?? { from: morph.node.from, to: morph.node.from + "morph".length };
+      found.push({ uri: morph.uri, issue: { from: at.from, to: at.to, severity: "warning", message } });
+    }
+  }
+  return found;
 }
 
 function writtenTimingFields(
@@ -266,7 +304,7 @@ function validateWithUnwrittenParents(
   let merged: Record<string, unknown> = {};
   for (let i = defines.length - 1; i >= 0; i -= 1) merged = inherit(merged, defines[i]!.struct);
   const own = decl.own.struct;
-  const inherited = inheritedFields(merged, own);
+  const inherited = inheritedFields(withoutMorphOwnFields(merged), own);
   if (Object.keys(inherited).length === 0) return validateMorphDeclaration(decl);
   const supplier = (field: string) => defines.find((layer) => Object.hasOwn(layer.struct, field))?.name ?? defines[0]!.name;
   const aliases = new WeakMap<object, { written: object; unwritten: Set<string> }>();
