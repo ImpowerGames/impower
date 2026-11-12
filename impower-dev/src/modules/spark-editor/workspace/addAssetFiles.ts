@@ -3,7 +3,8 @@ import { assetEndings, assetTypeOf } from "../utils/assetTypes";
 import { inflateZipEntry, listZip, zipInflates } from "../utils/zipEntries";
 import { findProjectRoot, isArchiveDropping } from "./projectImport";
 import { joinPath, parentOf } from "./scriptsListing";
-import { refuseUploads, storageLeft, withUploadGroup } from "./uploadSession";
+import { storageLeft } from "../utils/storageLeft";
+import { refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
 import workspace from "./WorkspaceStore";
 

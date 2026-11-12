@@ -7,6 +7,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural, validName } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
+import { storageSegments } from "../utils/storageName";
 import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
@@ -262,10 +263,7 @@ export default class WorkspaceAssets {
     const endings = assetEndings.peek();
     const scripts = scriptsHome(listing);
     return this.importAt(files, (file) => {
-      const folders = file.name
-        .split("/")
-        .filter((part) => part && part !== "." && part !== "..")
-        .map((part) => part.replaceAll("\\", "_"));
+      const folders = storageSegments(file.name);
       const name = getValidFileName(folders.pop() ?? "");
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");
