@@ -1,6 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { MORPH_ROOT_FIELDS } from "../../compiler/morph/morphSchema";
+import { validateMorphDeclaration } from "../../compiler/morph/validateMorph";
+
+vi.mock("../../compiler/morph/validateMorph", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../compiler/morph/validateMorph")>();
+  return { ...actual, validateMorphDeclaration: vi.fn(actual.validateMorphDeclaration) };
+});
 
 const URI = "file:///main.sd";
 
@@ -24,36 +30,42 @@ const SCENE = ["scene start", "  [[bunny]]", "  [[bunny~eyes.closed]]", "  [[bun
 
 type Field = (typeof MORPH_ROOT_FIELDS)[number];
 
+type Placement = "as" | "name";
+
 interface Row {
   fields: Field[];
   written: string[];
   inherited: string[];
   parent: string[];
+  at: Placement;
 }
 
 const indent = (lines: string[]) => lines.map((line) => `  ${line}`);
 
-const row = (field: Field, ...lines: string[]): Row => ({ fields: [field], written: indent(lines), inherited: [], parent: indent(lines) });
+const row = (field: Field, ...lines: string[]): Row => ({ fields: [field], written: indent(lines), inherited: [], parent: indent(lines), at: "as" });
 
 const split = (fields: Field[], written: string[], inherited: string[], parent: string[]): Row => ({
   fields,
   written: indent(written),
   inherited: indent(inherited),
   parent: indent(parent),
+  at: "as",
 });
+
+const onName = (r: Row): Row => ({ ...r, at: "name" });
 
 const ROWS: Row[] = [
   row("blend", "blend = cut"),
-  row("blend", "blend = jump"),
+  onName(row("blend", "blend = jump")),
   row("method", "method = bend"),
-  row("method", "method = warp"),
+  onName(row("method", "method = warp")),
   row("fallback", "fallback = fade"),
-  row("fallback", "fallback = boom"),
-  row("depth", "depth = mouth.teeth"),
+  onName(row("fallback", "fallback = boom")),
+  onName(row("depth", "depth = mouth.teeth")),
   row("depth", "depth = rest"),
-  row("depth", "depth = mouth"),
+  onName(row("depth", "depth = mouth")),
   row("spread", "spread = 1px"),
-  row("spread", "spread = big"),
+  onName(row("spread", "spread = big")),
   row("layers", "layers {", "  lips { spread = 1px }", "}"),
   row("layers", "layers {", "  lips { blend = jump }", "}"),
   row("layers", "layers {", "  nose { method = bend }", "}"),
@@ -65,7 +77,7 @@ const ROWS: Row[] = [
   row("keyframes", "keyframes {", "  0% { mouth { state = closed } }", "  200% { mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", "  { offset = 0; mouth { state = closed } }", "  { offset = 2; mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", '  from { mouth { state = "mouth." } }', "  to { mouth { state = open } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "}"),
+  onName(row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "}")),
   row("timing", "timing {", "  duration = 0.5", "}"),
   row("timing", "timing {", "  duration = -1", "}"),
   row("timing", "timing {", "  easing = wobble", "}"),
@@ -74,7 +86,7 @@ const ROWS: Row[] = [
   row("paints", "paints {", "  { targets { lips }; state = mouth.grin; fill = red }", "}"),
   row("when", "when = mouth.teeth"),
   row("when", "when = eyes.shut"),
-  row("when", "when = closed"),
+  onName(row("when", "when = closed")),
   row("when", "when {", "  mouth.teeth", "  eyes.open", "}"),
   row("unless", "unless = eyes.closed"),
   row("unless", "unless = hat.on"),
@@ -86,7 +98,7 @@ const ROWS: Row[] = [
   row("rest", "rest {", "  mouth { state = teeth; translate = 0 2px }", "}"),
   row("rest", "rest {", "  mouth { state = grin }", "}"),
   row("rest", "rest {", "  eyes { state = closed }", "}"),
-  row("rest", "rest = mouth.teeth"),
+  onName(row("rest", "rest = mouth.teeth")),
   row("rest", "rest {", "  mouth { state = mouth.mouth.closed }", "}"),
   row("keyframes", "keyframes {", "  from { mouth { state = mouth.mouth.closed } }", "  to { mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", "  from { mouth { state = closed; rotate = bad } }", "  to { mouth { state = open } }", "}"),
@@ -97,15 +109,21 @@ const ROWS: Row[] = [
   row("timing", "timing {", "  iteration_delay_min = 2", "  iteration_delay_max = 1", "}"),
   row("timing", "timing {", "  duration = 1", "  nope = 2", "}"),
   row("layers", "layers {", "  lips { partner = lips }", "}"),
-  row("depth", "depth = closed"),
+  onName(row("depth", "depth = closed")),
   row("paints", "paints {", "  { targets { lips }; state = closed; fill = red }", "}"),
-  split(["layers"], ["layers {", "  lips { spread = 1px; blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  lips { blend = jump }", "}"]),
-  split(["rest"], ["rest {", "  mouth { state = closed; translate = 0 2px }", "}"], ["rest {", "  mouth { state = closed }", "}"], ["rest {", "  mouth { translate = 0 2px }", "}"]),
+  onName(split(["layers"], ["layers {", "  lips { spread = 1px; blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  lips { blend = jump }", "}"])),
+  onName(split(["rest"], ["rest {", "  mouth { state = closed; translate = 0 2px }", "}"], ["rest {", "  mouth { state = closed }", "}"], ["rest {", "  mouth { translate = 0 2px }", "}"])),
   split(["rest"], ["rest {", "  mouth { state = teeth }", "}"], ["rest {", "  mouth { }", "}"], ["rest {", "  mouth { state = teeth }", "}"]),
   split(["timing"], ["blend = jump", "timing {", "  duration = 0.5", "}"], ["blend = jump"], ["timing {", "  duration = 0.5", "}"]),
   split(["timing"], ["when = closed", "timing {", "  duration = 0.5", "}"], ["when = closed"], ["timing {", "  duration = 0.5", "}"]),
   split(["method", "layers"], ["method = warp", "layers {", "  lips { method = warp }", "}"], [], ["method = warp", "layers {", "  lips { method = warp }", "}"]),
+  split(["clips", "layers"], ["clips {", "  { between { lips }; targets { lids }; spread = big }", "}", "layers {", "  lips { spread = big }", "}"], [], ["clips {", "  { between { lips }; targets { lids }; spread = big }", "}", "layers {", "  lips { spread = big }", "}"]),
+  split(["keyframes", "rest"], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"], [], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"]),
 ];
+
+const PLACEMENTS: Record<string, Placement[]> = {
+  "method + layers: method = warp layers { lips { method = warp } }": ["as", "name"],
+};
 
 const preamble = (row: Row) => (row.fields.includes("keyframes") ? [] : KEYFRAMES);
 
@@ -137,7 +155,7 @@ function compile(text: string, base: Record<string, unknown>) {
 
 const INHERITED = /^`[^`]+`(?: \((?:keyframe|entry) [0-9]+\))?, inherited(?: from `base`)?: /;
 
-function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLines: Set<number> | null) {
+function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLines: Set<number>) {
   const lines = text.split("\n");
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1 || d.severity === 2)
@@ -145,11 +163,12 @@ function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLin
       const { start, end } = d.range;
       const message = typeof d.message === "string" ? d.message : d.message.value;
       const spanned = start.line === end.line ? lines[start.line]!.slice(start.character, end.character) : lines[start.line]!.slice(start.character);
-      const onField = fieldLines ? fieldLines.has(start.line) : start.line === 0 && spanned === "base";
-      return `${d.severity === 1 ? "error" : "warning"} @ ${onField ? "<field>" : spanned} : ${message.replace(INHERITED, "")}`;
-    })
-    .sort();
+      const where = fieldLines.has(start.line) ? "<field>" : start.line === 0 && spanned === "base" ? "as" : start.line === 0 && spanned === "child" ? "name" : spanned;
+      return { where, said: `${d.severity === 1 ? "error" : "warning"} : ${message.replace(INHERITED, "")}` };
+    });
 }
+
+const listed = (found: { where: string; said: string }[]) => found.map(({ where, said }) => `${where} | ${said}`).sort();
 
 function binding(program: ReturnType<typeof compile>) {
   const channel = program.morphs;
@@ -179,7 +198,25 @@ describe("a field inherited from a parent the scripts do not write reads as the 
     const written = compile(writtenText, {});
     const inheritedText = childText(r, r.inherited);
     const inherited = compile(inheritedText, base);
-    expect(diagnostics(inherited, inheritedText, null)).toEqual(diagnostics(written, writtenText, movedLines(r)));
+    const writtenFound = diagnostics(written, writtenText, movedLines(r));
+    const moved = writtenFound.filter((d) => d.where === "<field>").sort((a, b) => a.said.localeCompare(b.said));
+    const placements = PLACEMENTS[rowName(r)] ?? moved.map(() => r.at);
+    expect(placements).toHaveLength(moved.length);
+    const expected = [...writtenFound.filter((d) => d.where !== "<field>"), ...moved.map((d, i) => ({ where: placements[i]!, said: d.said }))];
+    expect(listed(diagnostics(inherited, inheritedText, new Set()))).toEqual(listed(expected));
     expect(binding(inherited)).toEqual(binding(written));
+  });
+
+  test("the written validator runs once for a child of a parent the scripts do not write, as for a written child", () => {
+    const r = ROWS.find((candidate) => rowName(candidate) === "method + layers: method = warp layers { lips { method = warp } }")!;
+    const lowered = compile(childText(r, r.parent), {}).context?.["morph"]?.["child"] as Record<string, unknown>;
+    const calls = vi.mocked(validateMorphDeclaration);
+    calls.mockClear();
+    compile(childText(r, r.written), {});
+    const writtenCalls = calls.mock.calls.length;
+    calls.mockClear();
+    compile(childText(r, r.inherited), { method: lowered["method"], layers: lowered["layers"] });
+    expect(writtenCalls).toBe(1);
+    expect(calls.mock.calls.length).toBe(1);
   });
 });

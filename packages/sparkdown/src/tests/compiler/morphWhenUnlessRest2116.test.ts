@@ -187,10 +187,10 @@ ${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}`;
     expect(found.filter((d) => d.message.includes("$type") || d.message.includes("$name"))).toEqual([]);
   });
 
-  test("a malformed condition inherited from a parent the scripts do not write is reported on the `as`", () => {
+  test("a malformed condition inherited from a parent the scripts do not write is reported like a written one, on the child's name", () => {
     const text = `define base as morph with\n  unless = "closed"\nend\n\n${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
-    const found = diagnosticsOf(text).find((d) => d.message.startsWith("`unless`, inherited from `base`"));
-    expect(found).toMatchObject({ line: 4, text: "base", severity: 1 });
+    const found = diagnosticsOf(text).find((d) => d.message === "`unless` names a state with its group. Write `unless = mouth.closed`.");
+    expect(found).toMatchObject({ line: 4, text: "talk_smile", severity: 1 });
   });
 
   test("a condition that is not a state with its group is an error", () => {
@@ -318,18 +318,16 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     expect(diagnosticsOf(text).filter((d) => d.code === "morph" && d.line < 10 && d.severity === 1)).toEqual([]);
   });
 
-  test("an inherited `rest` from a parent the scripts do not write is checked like a written one, on the `as`", () => {
+  test("an inherited `rest` from a parent the scripts do not write is checked like a written one, with the written message on the `as`", () => {
     const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
     const errorsOnAs = (rest: unknown) =>
       diagnosticsOf(child, undefined, { rest })
         .filter((d) => d.severity === 1 && d.text === "base")
         .map((d) => d.message);
     expect(errorsOnAs({ mouth: { state: "teeth", translate: "0 2px" } })).toEqual([
-      expect.stringMatching(/^`rest`, inherited from `base`: `translate` does not belong in `rest`/),
+      expect.stringMatching(/^`translate` does not belong in `rest`/),
     ]);
-    expect(errorsOnAs({ mouth: { state: "" } })).toEqual([
-      "`rest`, inherited from `base`: `state` names an attribute state, such as `closed` or `eyes.closed`.",
-    ]);
+    expect(errorsOnAs({ mouth: { state: "" } })).toEqual(["`state` names an attribute state, such as `closed` or `eyes.closed`."]);
     expect(errorsOnAs({ mouth: { state: "teeth" } })).toEqual([]);
   });
 
@@ -349,7 +347,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     ]);
   });
 
-  test("an inherited `rest` naming another group's state, or written as a value, is an error on the `as`", () => {
+  test("an inherited `rest` naming another group's state is an error on the `as`, and one written as a value is an error on the child's name", () => {
     const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
     const errorsOnAs = (rest: unknown) =>
       diagnosticsOf(child, undefined, { rest })
@@ -358,8 +356,8 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     expect(errorsOnAs({ mouth: { state: "eyes.closed" } })).toEqual([
       expect.stringMatching(/^`rest\.mouth\.state`, inherited from `base`: `eyes\.closed` names a state of the `eyes` group, but this container poses `mouth`/),
     ]);
-    expect(errorsOnAs({ $type: "mouth", $name: "teeth" })).toEqual([
-      "`rest`, inherited from `base`: `rest` is a block, not a value: write `rest { mouth { state = teeth } }`.",
+    expect(diagnosticsOf(child, undefined, { rest: { $type: "mouth", $name: "teeth" } }).filter((d) => d.severity === 1).map((d) => [d.text, d.message])).toEqual([
+      ["talk_smile", "`rest` is a block, not a value: write `rest { mouth { state = teeth } }`."],
     ]);
   });
 
@@ -370,14 +368,12 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       diagnosticsOf(text, undefined, unwritten)
         .filter((d) => d.severity === 1 && d.text === "base")
         .map((d) => d.message);
-    expect(errorsOnAs(child, { rest: { mouth: { state: "mouth." } } })).toEqual([`\`rest\`, inherited from \`base\`: ${empty}`]);
+    expect(errorsOnAs(child, { rest: { mouth: { state: "mouth." } } })).toEqual([empty]);
     const keyframes = [
       { offset: 0, mouth: { state: "mouth." } },
       { offset: 1, mouth: { state: "open" } },
     ];
-    expect(errorsOnAs("morph talk as base {\n  blend = cut\n}\n", { keyframes })).toContain(
-      `\`keyframes\`, inherited from \`base\`: ${empty}`,
-    );
+    expect(errorsOnAs("morph talk as base {\n  blend = cut\n}\n", { keyframes })).toContain(empty);
     const written = diagnosticsOf(talkSmile('  rest {\n    mouth {\n      state = "mouth."\n    }\n  }\n')).filter((d) => d.severity === 1);
     expect(written.map((d) => d.message)).toContain(empty);
   });
@@ -389,7 +385,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       { offset: 2, mouth: { state: "open" } },
     ];
     expect(diagnosticsOf(text, undefined, { keyframes }).filter((d) => d.severity === 1 && d.text === "base").map((d) => d.message)).toEqual([
-      "`keyframes`, inherited from `base`: Keyframe position `200%` must be between 0% and 100%.",
+      "Keyframe position `200%` must be between 0% and 100%.",
     ]);
   });
 

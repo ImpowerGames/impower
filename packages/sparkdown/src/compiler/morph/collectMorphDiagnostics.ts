@@ -250,46 +250,40 @@ function validateWithUnwrittenParents(
   for (let i = defines.length - 1; i >= 0; i -= 1) merged = mergeRecords(merged, defines[i]!.struct);
   const own = decl.own.struct;
   const inherited = inheritedFields(merged, own);
-  const fields = Object.keys(inherited);
-  if (fields.length === 0) return validateMorphDeclaration(decl);
+  if (Object.keys(inherited).length === 0) return validateMorphDeclaration(decl);
   const supplier = (field: string) => defines.find((layer) => field in layer.struct)?.name ?? defines[0]!.name;
-  const run = (omit?: string) => {
-    const aliases = new WeakMap<object, object>();
-    const combine = (written: Record<string, unknown>, from: Record<string, unknown>): Record<string, unknown> => {
-      const combined: Record<string, unknown> = { ...written };
-      for (const [key, value] of Object.entries(from)) {
-        const mine = written[key];
-        combined[key] = isRecord(mine) && isRecord(value) ? combine(mine, value) : key in written ? mine : value;
+  const aliases = new WeakMap<object, object>();
+  const fromParent = new WeakSet<object>();
+  const mark = (value: unknown) => {
+    if (!value || typeof value !== "object" || fromParent.has(value)) return;
+    fromParent.add(value);
+    for (const child of Object.values(value)) mark(child);
+  };
+  const combine = (written: Record<string, unknown>, from: Record<string, unknown>): Record<string, unknown> => {
+    const combined: Record<string, unknown> = { ...written };
+    for (const [key, value] of Object.entries(from)) {
+      const mine = written[key];
+      if (isRecord(mine) && isRecord(value)) {
+        combined[key] = combine(mine, value);
+      } else if (!(key in written)) {
+        mark(value);
+        combined[key] = value;
       }
-      aliases.set(combined, written);
-      return combined;
-    };
-    const struct = combine(own, Object.fromEntries(Object.entries(inherited).filter(([field]) => field !== omit)));
-    const base = decl.own.sources;
-    const sources = { get: (obj: object) => base.get(aliases.get(obj) ?? obj) } as WeakMap<object, StructSource>;
-    return validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
-  };
-  const key = (issue: MorphIssue) => `${issue.from}:${issue.to}:${issue.severity}:${issue.message}`;
-  const count = (issues: readonly MorphIssue[]) => {
-    const counts = new Map<string, number>();
-    for (const issue of issues) counts.set(key(issue), (counts.get(key(issue)) ?? 0) + 1);
-    return counts;
-  };
-  const full = run();
-  const totals = count(full);
-  const causes = new Map<string, string[]>();
-  for (const field of fields) {
-    const remaining = count(run(field));
-    for (const [issue, total] of totals) {
-      for (let i = remaining.get(issue) ?? 0; i < total; i += 1) causes.set(issue, [...(causes.get(issue) ?? []), field]);
     }
-  }
-  const atName = (issue: MorphIssue) => issue.from === decl.name.from && issue.to === decl.name.to;
-  const issues: LocatedMorphIssue[] = full.map((issue) => {
-    const cause = atName(issue) ? causes.get(key(issue))?.shift() : undefined;
-    if (!cause) return issue;
-    return { from: span.from, to: span.to, severity: issue.severity, message: `\`${cause}\`, inherited from \`${supplier(cause)}\`: ${issue.message}` };
+    aliases.set(combined, written);
+    return combined;
+  };
+  const struct = combine(own, inherited);
+  const everywhere = { get: () => span } as unknown as Map<string, SourceSpan>;
+  const everyItem = new Proxy([] as SourceSpan[], {
+    get: (target, prop) => (typeof prop === "string" && /^[0-9]+$/.test(prop) ? span : Reflect.get(target, prop)),
   });
+  const atParent: StructSource = { line: span, keys: everywhere, values: everywhere, lines: everywhere, items: everyItem, itemValues: everyItem };
+  const base = decl.own.sources;
+  const sources = {
+    get: (obj: object) => (fromParent.has(obj) ? atParent : base.get(aliases.get(obj) ?? obj)),
+  } as WeakMap<object, StructSource>;
+  const issues: LocatedMorphIssue[] = validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
   for (const { group, keyframe, message } of poseStateProblems(inherited)) {
     const label = keyframe === undefined ? `\`rest.${group}.state\`` : `\`keyframes\` (keyframe ${keyframe + 1})`;
     const field = keyframe === undefined ? "rest" : "keyframes";
