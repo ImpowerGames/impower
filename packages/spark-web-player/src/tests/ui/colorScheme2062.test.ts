@@ -122,6 +122,7 @@ describe("@theme(...) becomes a condition on the game's root (#2062)", () => {
 
   test("whitespace inside the parentheses is accepted", () => {
     expect(getCSSSelector("@theme( dark )", {})).toBe(DARK_RULE);
+    expect(getCSSSelector("@theme(\tdark\t)", {})).toBe(DARK_RULE);
   });
 
   test("a descendant selector under the variant stays below the styled element", () => {
@@ -162,8 +163,13 @@ describe("the four page roles resolve from the setting and the scheme (#2062)", 
     device.change(true);
     await flushMicrotasks(10);
     expect(attribute(h)).toBe("dark");
-    expect([...h.overlay.querySelectorAll("*")]).toEqual(nodes);
-    expect([...page.children].map((el) => el.textContent)).toEqual(entries);
+    const after = [...h.overlay.querySelectorAll("*")];
+    expect(after.length).toBe(nodes.length);
+    expect(after.filter((node, i) => node !== nodes[i]).length).toBe(0);
+    expect(nodes.every((node) => node.isConnected)).toBe(true);
+    const current = h.overlay.querySelector(".textstream_column")!;
+    expect(current === page).toBe(true);
+    expect([...current.children].map((el) => el.textContent)).toEqual(entries);
     expect(stylesheet(h)).toBe(cssBefore);
     expect(paletteName(resolveRole(cssBefore, "ink", "color", attribute(h)))).toBe("slate_90");
   });

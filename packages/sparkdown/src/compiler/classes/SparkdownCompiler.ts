@@ -4527,8 +4527,9 @@ export class SparkdownCompiler {
       }
       const own = override[k];
       for (const p of Object.keys(bv)) {
+        const name = getSparklePropertyName(p);
         if (
-          overridden.has(getSparklePropertyName(p)) &&
+          [...overridden].some((o) => name === o || name.startsWith(`${o}-`)) &&
           !(own != null && typeof own === "object" && p in own)
         ) {
           delete variant[p];

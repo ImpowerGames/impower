@@ -111,7 +111,7 @@ const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
 const QUOTED_REGEX = /(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/;
 
-const COLOR_SCHEME_SPACING_REGEX = /@theme[(][ ]*(light|dark)[ ]*[)]/g;
+const COLOR_SCHEME_SPACING_REGEX = /@theme[(][ \t]*(light|dark)[ \t]*[)]/g;
 
 const COLOR_SCHEME_VARIANT_REGEX = /@theme[(](light|dark)[)]/g;
 

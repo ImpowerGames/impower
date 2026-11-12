@@ -74,6 +74,12 @@ describe("a game that sets its own role colours keeps them in both schemes (#206
     expect(prop(styles.ink[DARK] ?? {}, "text-color")).toBeUndefined();
   });
 
+  test("redefining paper's ground with the background shorthand drops the builtin's dark ground", () => {
+    const { styles } = compile("style paper {\n  background = red_50\n}\n\n");
+    expect(prop(styles.paper[DARK] ?? {}, "background-color")).toBeUndefined();
+    expect(prop(styles.paper[DARK] ?? {}, "text-color")).toBe("slate_90");
+  });
+
   test("the guide's restyled paper keeps its own ground in the dark scheme", () => {
     const { styles } = compile("style paper {\n  background-color = slate_10\n}\n\nstyle ink {\n  text-color = slate_95\n}\n\n");
     expect(prop(styles.paper, "background-color")).toBe("slate_10");
