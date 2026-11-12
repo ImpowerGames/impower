@@ -38,9 +38,10 @@ ${timing}
 
 const withStart = (text: string) => `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
-function compile(text: string) {
+function compile(text: string, builtins?: Record<string, Record<string, unknown>>) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(builtins ? { useBuiltinsPrelude: false, definitions: { builtins } } : {}),
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
       { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: FACE },
@@ -49,8 +50,8 @@ function compile(text: string) {
   return compiler.compile({ textDocument: { uri: URI } }).program;
 }
 
-function diagnosticsOf(text: string) {
-  const program = compile(text);
+function diagnosticsOf(text: string, builtins?: Record<string, Record<string, unknown>>) {
+  const program = compile(text, builtins);
   const lines = withStart(text).split("\n");
   return (program.diagnostics?.[URI] ?? []).map((d) => {
     const { start, end } = d.range;
@@ -66,7 +67,17 @@ function diagnosticsOf(text: string) {
   });
 }
 
-const errorsOf = (text: string) => diagnosticsOf(text).filter((d) => d.severity === 1);
+const errorsOf = (text: string, builtins?: Record<string, Record<string, unknown>>) =>
+  diagnosticsOf(text, builtins).filter((d) => d.severity === 1);
+
+const DEFAULT_TIMING = { trigger: "appear", delay: 0, duration: 0.25, easing: "ease-out", iterations: 1, direction: "normal" };
+
+const withConfiguredBase = (timing: Record<string, unknown>) => ({
+  morph: {
+    $default: { $type: "morph", $name: "$default", blend: "morph", fallback: "fade", timing: DEFAULT_TIMING },
+    base: { $type: "morph", $name: "base", timing },
+  },
+});
 
 const lineOf = (text: string, needle: string, from = 0) =>
   text.split("\n").findIndex((line, i) => i >= from && line.includes(needle));
@@ -141,6 +152,24 @@ morph child as base {
     expect(errorsOf(text)).toEqual([
       expect.objectContaining({ line: lineOf(text, "delay", childLine), text: "delay", message: expect.stringContaining("speech") }),
     ]);
+  });
+
+  test.each([
+    ["delay", 0],
+    ["delay", 2],
+    ["iterations", 1],
+    ["iterations", 2],
+  ] as const)("a configured parent that supplies `%s = %s` to a speech child is reported on the `as`, even at the default value", (field, value) => {
+    const text = talk("    trigger = speech", "child", "morph child as base {");
+    const found = errorsOf(text, withConfiguredBase({ [field]: value }));
+    expect(found).toEqual([
+      expect.objectContaining({ line: lineOf(text, "morph child as base"), text: "base", message: expect.stringContaining(`\`${field}\`, inherited,`) }),
+    ]);
+  });
+
+  test("a configured parent that supplies neither `delay` nor `iterations` adds no speech error", () => {
+    const text = talk("    trigger = speech", "child", "morph child as base {");
+    expect(errorsOf(text, withConfiguredBase({ duration: 1 }))).toEqual([]);
   });
 
   test("the builtin morph's `delay` and `iterations` defaults are not an error on a speech morph or its child", () => {

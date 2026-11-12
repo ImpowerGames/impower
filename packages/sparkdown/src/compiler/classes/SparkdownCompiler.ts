@@ -4908,6 +4908,7 @@ export class SparkdownCompiler {
       scripts,
       program.context,
       (base, override) => this.inheritDefaults(base, override),
+      this._config.definitions?.builtins ?? {},
     );
     for (const [scriptUri, issues] of issuesByUri) {
       const doc = this.documents.get(scriptUri)!;

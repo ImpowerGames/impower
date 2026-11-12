@@ -172,6 +172,7 @@ export function collectMorphIssues(
   scripts: readonly (MorphScript & { uri: string })[],
   context: Context,
   inherit: (base: any, override: any) => any,
+  declared: Context,
 ): Map<string, LocatedMorphIssue[]> {
   const result = new Map<string, LocatedMorphIssue[]>();
   const morphs = readWrittenMorphs(scripts);
@@ -212,7 +213,7 @@ export function collectMorphIssues(
           own: morph.own,
           effective,
           parentEffective,
-          timingWritten: writtenTimingFields(base, ancestors, morph.own.struct),
+          timingWritten: writtenTimingFields(base, ancestors, morph.own.struct, declared),
         },
         ancestors,
         parentSpan ?? nameSpan,
@@ -244,14 +245,16 @@ function writtenTimingFields(
   base: Record<string, unknown> | undefined,
   ancestors: readonly MorphLayer[],
   own: Record<string, unknown>,
+  declared: Context,
 ): Set<string> {
   const builtin = isRecord(base?.["timing"]) ? base["timing"] : {};
   const fields = new Set<string>();
-  for (const layer of [{ struct: own, written: true }, ...ancestors]) {
-    const timing = layer.struct["timing"];
+  for (const layer of [{ name: "", struct: own, written: true }, ...ancestors]) {
+    const supplied = layer.written ? layer.struct : compiledAncestor(declared, layer.name)?.struct;
+    const timing = (supplied ?? layer.struct)["timing"];
     if (!isRecord(timing)) continue;
     for (const [field, value] of Object.entries(timing)) {
-      if (layer.written || !Object.hasOwn(builtin, field) || builtin[field] !== value) fields.add(field);
+      if (supplied || !Object.hasOwn(builtin, field) || builtin[field] !== value) fields.add(field);
     }
   }
   return fields;

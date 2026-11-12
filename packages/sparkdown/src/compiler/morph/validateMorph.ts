@@ -798,10 +798,10 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (effectiveTiming["trigger"] === "speech") {
       for (const [field, reason] of Object.entries(MORPH_SPEECH_EXCLUDED_TIMING)) {
         if (!decl.timingWritten.has(field)) continue;
-        const written = ownTiming !== undefined && Object.hasOwn(ownTiming, field);
+        const at = spanOf(field);
         push(
-          spanOf(field),
-          `${written ? `\`${field}\`` : `\`${field}\`, inherited,`} does not apply to a speech morph: ${reason}. Remove it, or use \`trigger = appear\`.`,
+          at,
+          `${at === decl.parent ? `\`${field}\`, inherited,` : `\`${field}\``} does not apply to a speech morph: ${reason}. Remove it, or use \`trigger = appear\`.`,
         );
       }
     }
