@@ -261,9 +261,10 @@ describe("importFiles outcomes per file", () => {
     expect(uploadsWriting()).toBe(0);
   });
 
-  it("refuses a batch while the project is being replaced, writing nothing", async () => {
+  it("refuses a batch for the whole replace, whatever the sync status reads meanwhile", async () => {
     const before = workspace.current;
-    workspace.current = { ...workspace.current, sync: { ...workspace.current.sync, status: "importing" } };
+    workspace.replacing.value = true;
+    workspace.current = { ...workspace.current, sync: { ...workspace.current.sync, status: "unsynced" } };
     try {
       const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
       expect(returned).toEqual([]);
@@ -274,8 +275,61 @@ describe("importFiles outcomes per file", () => {
         "Not added: the project was being replaced, so add it again once that has finished.",
       );
     } finally {
+      workspace.replacing.value = false;
       workspace.current = before;
     }
+  });
+
+  it("counts a batch as active until it has finished recording, after its rows read added", async () => {
+    const { uploadActive } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.recordResolvedUpload.mockImplementationOnce(async () => held);
+    const running = importFiles("p", [dropped("Assets/Audio/a.wav")]);
+    await vi.waitFor(() => expect(rows()).toEqual(["a.wav: added Assets/Audio/a.wav"]));
+    expect(uploadActive()).toBe(true);
+    release();
+    await running;
+    expect(uploadActive()).toBe(false);
+  });
+
+  it("leaves a file it cannot read back after a failed chunk, without retrying over it", async () => {
+    const other = bytesOf("another save");
+    mocks.createFiles.mockImplementation(async () => {
+      mocks.disk.set("file://p/Assets/Audio/a.wav", other);
+      throw new Error("QuotaExceededError: the quota has been exceeded.");
+    });
+    mocks.readFile.mockImplementation(async () => {
+      throw new Error("NotReadableError: The file could not be read.");
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
+    expect(returned).toEqual([]);
+    expect(rows()).toEqual(["a.wav: unchecked"]);
+    expect(mocks.createFiles).toHaveBeenCalledTimes(1);
+    expect(mocks.disk.get("file://p/Assets/Audio/a.wav")).toBe(other);
+    const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe(
+      "Not added: a.wav could not be checked after a failed write, so it was left as it is.",
+    );
+  });
+
+  it("retries a file the read-back finds missing in the browser's own words", async () => {
+    let calls = 0;
+    mocks.createFiles.mockImplementation(async ({ files }) => {
+      calls += 1;
+      if (calls === 1) throw new Error("QuotaExceededError: the quota has been exceeded.");
+      save(files);
+    });
+    mocks.readFile.mockImplementation(async ({ file }) => {
+      const data = mocks.disk.get(file.uri);
+      if (!data) throw new Error("A requested file or directory could not be found at the time an operation was processed.");
+      return data;
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
+    expect(calls).toBe(2);
+    expect(returned).toEqual(["Assets/Audio/a.wav"]);
   });
 
   it("lists a file that could not be read as not added and still adds the rest", async () => {

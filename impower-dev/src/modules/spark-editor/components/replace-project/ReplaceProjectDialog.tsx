@@ -23,7 +23,7 @@ const withWindow = async (
 export default function ReplaceProjectDialog() {
   const request = workspace.replaceProject.value;
   const adding = writingCount(workspace.uploads.value);
-  const writing = adding > 0;
+  const writing = adding > 0 || workspace.uploadBatches.value > 0;
 
   useEffect(() => {
     if (!writing && workspace.replaceProject.peek()) {
@@ -51,9 +51,11 @@ export default function ReplaceProjectDialog() {
       <p class="mt-3 mb-0 text-sm text-ink">
         To keep what you have, download a backup first.
       </p>
-      {adding > 0 && (
+      {writing && (
         <p class="mt-3 mb-0 text-sm text-muted" data-replace-waiting>
-          Wait for the {plural(adding, "file")} still being added, then replace the project.
+          {adding > 0
+            ? `Wait for the ${plural(adding, "file")} still being added, then replace the project.`
+            : "Wait for the upload to finish, then replace the project."}
         </p>
       )}
       <DialogActions class="mt-6 flex-wrap">
@@ -62,7 +64,7 @@ export default function ReplaceProjectDialog() {
         </Button>
         <Button
           variant="destructive"
-          disabled={adding > 0}
+          disabled={writing}
           onClick={() => void withWindow((win) => win.confirmProjectReplace())}
         >
           Replace project

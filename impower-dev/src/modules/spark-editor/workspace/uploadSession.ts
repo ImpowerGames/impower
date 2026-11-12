@@ -15,6 +15,7 @@ export type UploadReason =
   | { kind: "replace_failed"; cause: "storage" | "failed"; message?: string }
   | { kind: "left_as_is" }
   | { kind: "replacing" }
+  | { kind: "unchecked" }
   | { kind: "zip"; reason: ImportFailureReason; folders?: string[] };
 
 export type UploadRow =
@@ -77,7 +78,17 @@ export const writingCount = (rows: readonly UploadRow[]): number => rows.filter(
 
 export const uploadsWriting = (): number => writingCount(workspace.uploads.peek());
 
-export const projectReplacing = (): boolean => workspace.signals.syncStatus.peek() === "importing";
+export const uploadActive = (): boolean => workspace.uploadBatches.peek() > 0 || uploadsWriting() > 0;
+
+export const beginUploadBatch = (): void => {
+  workspace.uploadBatches.value = workspace.uploadBatches.peek() + 1;
+};
+
+export const endUploadBatch = (): void => {
+  workspace.uploadBatches.value = Math.max(0, workspace.uploadBatches.peek() - 1);
+};
+
+export const projectReplacing = (): boolean => workspace.replacing.peek();
 
 export const closeUploads = (): void => {
   workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
@@ -107,6 +118,7 @@ const REASON_SENTENCES: {
   failed: ({ message }) => `Not added: it could not be saved (${message}).`,
   replace_failed: ({ cause, message }) =>
     `Not added: ${cause === "storage" ? "this browser ran out of room for it" : `it could not be saved (${message})`}. ${REPLACED_NOTE}`,
+  unchecked: (_, name) => `Not added: ${name} could not be checked after a failed write, so it was left as it is.`,
   replacing: () => "Not added: the project was being replaced, so add it again once that has finished.",
   left_as_is: (_, name) =>
     `Not added: ${name} now holds a different file, from another save or from a write the browser could not undo, so it was left as it is.`,

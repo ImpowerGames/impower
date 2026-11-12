@@ -337,6 +337,27 @@ describe("the Replace dialog", () => {
     }
   });
 
+  it("keeps Replace project unavailable while a batch is still finishing after its rows read added", async () => {
+    workspace.uploadBatches.value = 1;
+    try {
+      await mountSection();
+      await act(async () => {
+        workspace.replaceProject.value = request;
+      });
+      await settle();
+      const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
+      expect(replace.disabled).toBe(true);
+      expect(dialog()!.textContent).toContain("Wait for the upload to finish, then replace the project.");
+      await act(async () => {
+        workspace.uploadBatches.value = 0;
+      });
+      await settle();
+      expect(replace.disabled).toBe(false);
+    } finally {
+      workspace.uploadBatches.value = 0;
+    }
+  });
+
   it("runs the import from Replace project", async () => {
     await mountSection();
     await act(async () => {

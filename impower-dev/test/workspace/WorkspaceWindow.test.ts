@@ -909,6 +909,40 @@ describe("WorkspaceWindow store transitions", () => {
       }
     });
 
+    it("does not replace while a batch is still finishing after its rows read added", async () => {
+      const importing = vi.spyOn(win, "importLocalProject").mockResolvedValue(undefined);
+      workspace.uploadBatches.value = 1;
+      try {
+        await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }));
+        await win.confirmProjectReplace();
+        expect(importing).not.toHaveBeenCalled();
+        workspace.uploadBatches.value = 0;
+        await win.confirmProjectReplace();
+        expect(importing).toHaveBeenCalledTimes(1);
+      } finally {
+        workspace.uploadBatches.value = 0;
+      }
+    });
+
+    it("keeps the project marked as being replaced for the whole import, whatever the sync status reads", async () => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const importing = vi.spyOn(win, "importLocalProject").mockImplementation(async () => {
+        await held;
+      });
+      await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }));
+      const confirming = win.confirmProjectReplace();
+      await vi.waitFor(() => expect(importing).toHaveBeenCalledTimes(1));
+      workspace.current = { ...workspace.current, sync: { ...workspace.current.sync, status: "unsynced" } };
+      expect(projectReplacing()).toBe(true);
+      release();
+      await confirming;
+      expect(projectReplacing()).toBe(false);
+    });
+
     it("counts again what the replace removes once a batch that was still writing has finished", async () => {
       await win.requestProjectReplace(new File(["zip"], "backup.zip"));
       expect(workspace.replaceProject.value).toMatchObject({ scripts: 4, assets: 3 });
