@@ -126,7 +126,9 @@ describe.each(LANGUAGES)("the web editor's language-server lookups read the word
   });
 
   it.each(ROWS.map((row, index) => [row[0], index] as const))("offers the name actions on %s where the wordPattern finds a word", (_, row) => {
-    const onName = lspContextMenuItems[0]!.when!;
+    const item = lspContextMenuItems[0]!;
+    if (!("when" in item) || !item.when) throw new Error("the Rename item has no condition");
+    const onName = item.when;
     expect(onName(stateOf(language), inside(row))).toBe(true);
     const before = lineStart(row);
     expect(onName(stateOf(language), before)).toBe(vscodePatternWordAt(pattern, DOC, before) !== null);
