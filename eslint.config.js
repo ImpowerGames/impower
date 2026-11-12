@@ -10,55 +10,37 @@ const GRAMMAR_SOURCES = {
   luau: "definitions/yaml/sparkdown-luau.language-grammar.yaml",
 };
 
-const RADIX_SOURCE = "/^@radix-ui[^a-z0-9-]/";
-const RADIX_MESSAGE =
-  "Import @radix-ui/* only inside packages/impower-ui; use the @impower/impower-ui component that wraps the primitive instead.";
+const importFormSyntax = (source, message) =>
+  [
+    `ImportDeclaration[source.value=${source}]`,
+    `ExportNamedDeclaration[source.value=${source}]`,
+    `ExportAllDeclaration[source.value=${source}]`,
+    `TSImportEqualsDeclaration[moduleReference.expression.value=${source}]`,
+    `ImportExpression[source.value=${source}]`,
+    `ImportExpression[source.quasis.0.value.raw=${source}]`,
+    `CallExpression[callee.name="require"][arguments.0.value=${source}]`,
+    `CallExpression[callee.name="require"][arguments.0.quasis.0.value.raw=${source}]`,
+    `TSImportType[argument.literal.value=${source}]`,
+  ].map((selector) => ({ selector, message }));
 
-const RADIX_SYNTAX = [
-  { selector: `ImportExpression[source.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-  { selector: `ImportExpression[source.quasis.0.value.raw=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-  {
-    selector: `CallExpression[callee.name="require"][arguments.0.value=${RADIX_SOURCE}]`,
-    message: RADIX_MESSAGE,
-  },
-  { selector: `TSImportType[argument.literal.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-];
+const RADIX_SYNTAX = importFormSyntax(
+  "/^@radix-ui[^a-z0-9-]/",
+  "Import @radix-ui/* only inside packages/impower-ui; use the @impower/impower-ui component that wraps the primitive instead.",
+);
 
-const IMPOWER_UI_SRC_SOURCE = "/(^|\\/)packages\\/impower-ui\\/src(\\/|$)/";
-const IMPOWER_UI_SRC_MESSAGE =
-  "Import impower-ui through its package entries (@impower/impower-ui/components, /layout and the rest of packages/impower-ui/package.json exports), never by relative path into packages/impower-ui/src.";
+const IMPOWER_UI_SRC_SYNTAX = importFormSyntax(
+  "/(^|\\/)packages\\/impower-ui\\/src(\\/|$)/",
+  "Import impower-ui through its package entries (@impower/impower-ui/components, /layout and the rest of packages/impower-ui/package.json exports), never by relative path into packages/impower-ui/src.",
+);
 
-const IMPOWER_UI_SRC_SYNTAX = [
-  { selector: `ImportExpression[source.value=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
-  { selector: `ImportExpression[source.quasis.0.value.raw=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
-  {
-    selector: `CallExpression[callee.name="require"][arguments.0.value=${IMPOWER_UI_SRC_SOURCE}]`,
-    message: IMPOWER_UI_SRC_MESSAGE,
-  },
-  {
-    selector: `CallExpression[callee.name="require"][arguments.0.quasis.0.value.raw=${IMPOWER_UI_SRC_SOURCE}]`,
-    message: IMPOWER_UI_SRC_MESSAGE,
-  },
-  { selector: `TSImportType[argument.literal.value=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
-];
-
-const HOST_FREE_FILES =["packages/spark-debug-adapter/**"];
+const HOST_FREE_FILES = ["packages/spark-debug-adapter/**"];
 
 const NODE_BUILTINS = builtinModules.filter((name) => /^[a-z][a-z0-9_]*$/.test(name));
 
-const HOST_FREE_SOURCE = `/^(vscode|node:.*|(${NODE_BUILTINS.join("|")})([^a-z0-9_-].*)?)$/`;
-const HOST_FREE_MESSAGE =
-  "packages/spark-debug-adapter runs in a browser page as well as the extension host: import neither vscode nor a Node built-in there; take host services through a constructor option.";
-
-const HOST_FREE_SYNTAX = [
-  { selector: `ImportExpression[source.value=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
-  { selector: `ImportExpression[source.quasis.0.value.raw=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
-  {
-    selector: `CallExpression[callee.name="require"][arguments.0.value=${HOST_FREE_SOURCE}]`,
-    message: HOST_FREE_MESSAGE,
-  },
-  { selector: `TSImportType[argument.literal.value=${HOST_FREE_SOURCE}]`, message: HOST_FREE_MESSAGE },
-];
+const HOST_FREE_SYNTAX = importFormSyntax(
+  `/^(vscode|node:.*|(${NODE_BUILTINS.join("|")})([^a-z0-9_-].*)?)$/`,
+  "packages/spark-debug-adapter runs in a browser page as well as the extension host: import neither vscode nor a Node built-in there; take host services through a constructor option.",
+);
 
 const FORM_CONTROL_MESSAGE =
   "Render form controls only inside packages/impower-ui; use its Switch, Select, TextField or ChoiceGroup instead of a bare <input>, <select> or <textarea>.";
@@ -98,28 +80,12 @@ export default [
     files: SCRIPT_FILES,
     ignores: ["packages/impower-ui/**"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [{ group: ["@radix-ui/*"], message: RADIX_MESSAGE }],
-        },
-      ],
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX],
     },
   },
   {
     files: HOST_FREE_FILES,
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: ["vscode", ...NODE_BUILTINS].map((name) => ({ name, message: HOST_FREE_MESSAGE })),
-          patterns: [
-            { group: ["@radix-ui/*"], message: RADIX_MESSAGE },
-            { group: ["node:*", ...NODE_BUILTINS.map((name) => `${name}/*`)], message: HOST_FREE_MESSAGE },
-          ],
-        },
-      ],
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...HOST_FREE_SYNTAX],
     },
   },
@@ -133,15 +99,6 @@ export default [
   {
     files: ["impower-dev/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            { group: ["@radix-ui/*"], message: RADIX_MESSAGE },
-            { regex: "(^|/)packages/impower-ui/src(/|$)", message: IMPOWER_UI_SRC_MESSAGE },
-          ],
-        },
-      ],
       "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...IMPOWER_UI_SRC_SYNTAX],
     },
   },

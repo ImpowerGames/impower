@@ -31,7 +31,7 @@ test("a @radix-ui import outside packages/impower-ui fails with a message naming
     "impower-dev/test/build/probe.test.ts",
     "packages/spark-web-player/src/probe.ts",
   ]) {
-    await assertRefused(file, PROBE, "no-restricted-imports");
+    await assertRefused(file, PROBE, "no-restricted-syntax");
   }
 });
 
@@ -42,7 +42,7 @@ test("a @radix-ui re-export, type import, import-equals and deep subpath outside
     'import type { DialogProps } from "@radix-ui/react-dialog";\nexport type P = DialogProps;\n',
     'import "@radix-ui/react-slot/dist/index.mjs";\n',
   ]) {
-    await assertRefused("impower-dev/src/probe.ts", code, "no-restricted-imports");
+    await assertRefused("impower-dev/src/probe.ts", code, "no-restricted-syntax");
   }
 });
 
@@ -74,7 +74,7 @@ test("an unrelated package whose name starts with @radix-ui passes", async () =>
 });
 
 test("an inline disable comment cannot lift the boundary", async () => {
-  await assertRefused("impower-dev/src/probe.ts", `// eslint-disable-next-line no-restricted-imports\n${PROBE}`, "no-restricted-imports");
+  await assertRefused("impower-dev/src/probe.ts", `// eslint-disable-next-line no-restricted-syntax\n${PROBE}`, "no-restricted-syntax");
 });
 
 test("no tracked script file is ignored by the lint", async () => {
@@ -112,7 +112,7 @@ test("a vscode or Node built-in import under packages/spark-debug-adapter fails"
     'export { spawn } from "child_process";\n',
     'import process from "process";\nexport const probe = process;\n',
   ]) {
-    await assertHostRefused(code, "no-restricted-imports");
+    await assertHostRefused(code, "no-restricted-syntax");
   }
 });
 
@@ -149,12 +149,12 @@ test("vscode and Node built-ins stay allowed outside packages/spark-debug-adapte
 });
 
 test("the Radix boundary still holds under packages/spark-debug-adapter", async () => {
-  await assertRefused(ADAPTER_PROBE, PROBE, "no-restricted-imports");
+  await assertRefused(ADAPTER_PROBE, PROBE, "no-restricted-syntax");
   await assertRefused(ADAPTER_PROBE, 'export const load = () => import("@radix-ui/react-dialog");\n', "no-restricted-syntax");
 });
 
 test("an inline disable comment cannot lift the debug adapter boundary", async () => {
-  await assertHostRefused('// eslint-disable-next-line no-restricted-imports\nimport fs from "fs";\nexport const probe = fs;\n', "no-restricted-imports");
+  await assertHostRefused('// eslint-disable-next-line no-restricted-syntax\nimport fs from "fs";\nexport const probe = fs;\n', "no-restricted-syntax");
 });
 
 const FORM_PROBE = (element) => `export const Probe = () => ${element};\n`;
@@ -210,7 +210,7 @@ test("a relative import into packages/impower-ui/src from impower-dev/src fails"
     'import type { ButtonProps } from "../../../../../../packages/impower-ui/src/components/button/Button";\nexport type P = ButtonProps;\n',
     'import "../../../../../../packages/impower-ui/src/style.css";\n',
   ]) {
-    await assertImpowerUiSrcRefused(code, "no-restricted-imports");
+    await assertImpowerUiSrcRefused(code, "no-restricted-syntax");
   }
   for (const code of [
     'export const load = () => import("../../../../../../packages/impower-ui/src/utils/cn");\n',
@@ -228,7 +228,7 @@ test("impower-dev/src imports impower-ui through its package entries", async () 
     await lint(SRC_PROBE, 'import { Button, cn } from "@impower/impower-ui/components";\nexport const probe = [Button, cn];\n'),
     [],
   );
-  await assertRefused(SRC_PROBE, PROBE, "no-restricted-imports");
+  await assertRefused(SRC_PROBE, PROBE, "no-restricted-syntax");
 });
 
 test("no tracked impower-dev/src file reaches into packages/impower-ui/src", async () => {
@@ -239,3 +239,34 @@ test("no tracked impower-dev/src file reaches into packages/impower-ui/src", asy
     .filter((file) => /packages\/impower-ui\/src/.test(readFileSync(path.join(ROOT, file), "utf8")));
   assert.deepEqual(offenders, []);
 });
+
+const IMPORT_FORMS = (spec) => [
+  `import probe from "${spec}";\nexport { probe };\n`,
+  `import type { P } from "${spec}";\nexport type Q = P;\n`,
+  `import "${spec}";\n`,
+  `export { probe } from "${spec}";\n`,
+  `export * from "${spec}";\n`,
+  `import probe = require("${spec}");\nexport const p = probe;\n`,
+  `export const load = () => import("${spec}");\n`,
+  `export const load = () => import(\`${spec}\`);\n`,
+  `const probe = require("${spec}");\nmodule.exports = probe;\n`,
+  `const probe = require(\`${spec}\`);\nmodule.exports = probe;\n`,
+  `export type T = typeof import("${spec}");\n`,
+];
+
+const BOUNDARIES = [
+  { name: "Radix", file: "impower-dev/src/probe.ts", spec: "@radix-ui/react-dialog", message: /use the @impower\/impower-ui component/ },
+  { name: "host-free", file: ADAPTER_PROBE, spec: "node:fs", message: /packages\/spark-debug-adapter runs in a browser page/ },
+  { name: "impower-ui source", file: SRC_PROBE, spec: "../../../../../../packages/impower-ui/src/utils/cn", message: /never by relative path into packages\/impower-ui\/src/ },
+];
+
+for (const boundary of BOUNDARIES) {
+  test(`the ${boundary.name} boundary refuses every import form`, async () => {
+    for (const code of IMPORT_FORMS(boundary.spec)) {
+      const messages = await lint(boundary.file, code);
+      assert.equal(messages.length, 1, `${code}: ${messages.join("; ")}`);
+      assert.ok(messages[0].startsWith("no-restricted-syntax: "), `${code}: ${messages[0]}`);
+      assert.match(messages[0], boundary.message, code);
+    }
+  });
+}
