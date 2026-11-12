@@ -26,9 +26,13 @@ describe("@ names in styles (#2109)", () => {
     expect(rule.style.getPropertyValue("opacity")).toBe("0.5");
   });
 
-  it("keeps a state written on its own as a state", () => {
+  it("keeps a state written on its own, after a state or after a name as a state", () => {
     expect(getCSSSelector("@hovered", {})).toBe(":hover");
     expect(getCSSSelector("@before", {})).toBe("::before");
+    expect(getCSSSelector("@hovered @before", {})).toBe(":hover::before");
+    expect(getCSSSelector("@hovered @before, @focused @before", {})).toBe(":hover::before,:focus::before");
+    expect(getCSSSelector("button @hovered", {})).toBe(getCSSSelector("button", {}) + ":hover");
+    expect(getCSSSelector("card@night @hovered", {})).toBe(getCSSSelector("card@night", {}) + ":hover");
   });
 
   it("gives an image named with an @ its own theme variable", () => {
