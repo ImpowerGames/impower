@@ -310,6 +310,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       () => managers,
       (message) => endpoint.receive(structuredClone(message)),
     );
+    stubApp.answer = (message: any, work: Promise<any>) => router.answer(message, work);
     let resolveInit!: () => void;
     const app = {
       initializing: new Promise<void>((resolve) => (resolveInit = resolve)),
