@@ -307,12 +307,19 @@ class CommitLog {
     }
   }
 
-  wrote(result: WriteResult) {
+  restored = new Set<string>();
+
+  wrote(result: WriteResult, restored = false) {
     const uri = result.file.uri;
     this.record(uri, result.local, result.commit);
     const held = this.writes.get(uri);
     if (!held || result.local > held.local) {
       this.writes.set(uri, result);
+      if (restored) {
+        this.restored.add(uri);
+      } else {
+        this.restored.delete(uri);
+      }
     }
   }
 
@@ -387,12 +394,16 @@ const broadcastWrites = (log: CommitLog) => {
     filesByOrigin.set(undefined, []);
   }
   filesByOrigin.forEach((files, origin) => {
+    const restored = files
+      .map((f) => f.uri)
+      .filter((uri) => log.restored.has(uri));
     broadcast(
       DidWriteFilesMessage.type.notification({
         files,
         remote: false,
         origin,
         commits: log.stamp(files.map((f) => f.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   });
@@ -1326,7 +1337,7 @@ class UndoLog {
         return false;
       }
       this.commit(result.local);
-      log.wrote(result);
+      log.wrote(result, true);
       effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Changed });
       return true;
     }

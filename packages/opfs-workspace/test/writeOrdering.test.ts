@@ -2508,3 +2508,68 @@ describe("an edit an open editor finishes after the worker has applied the rest 
     expect(textAt(root, "chapter.sd")).toBe("C");
   });
 });
+
+describe("the announcement of a rollback's restoring write (I-2100)", () => {
+  const restoredIn = (h: Awaited<ReturnType<typeof worker>>, from: number) =>
+    h.notifications("workspace/didWriteFiles", from).map((m) => ({
+      texts: m.params.files.map((f: any) => [f.uri, f.text]),
+      restored: m.params.restored,
+    }));
+
+  it("names the file a refused edit's rollback restored", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          insert("chapter.sd", 0, "x"),
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+        ],
+      },
+      confirm: true,
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    const ask = h.messages.find((m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m);
+    void (globalThis as any).onmessage({
+      data: { jsonrpc: "2.0", method: "workspace/confirmWorkspaceEdit", id: ask.id, result: { refusal: "no" } },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(restoredIn(h, from)).toContainEqual({
+      texts: [
+        [uriOf("chapter.sd"), "C"],
+        [uriOf("a.sd"), "A"],
+      ],
+      restored: [uriOf("chapter.sd"), uriOf("a.sd")],
+    });
+  });
+
+  it("names the file restored after a later change of the edit failed", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+    });
+    expect(restoredIn(h, from)).toContainEqual({
+      texts: [[uriOf("main.sd"), "M"]],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
+  it("names nothing when the edit applies, nor for an ordinary save", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x")] },
+    });
+    await h.request("save", "workspace/willWriteFiles", writeOf("main.sd", "saved"));
+    const announced = restoredIn(h, from);
+    expect(announced.length).toBeGreaterThan(0);
+    expect(announced.every((a) => a.restored === undefined)).toBe(true);
+  });
+});

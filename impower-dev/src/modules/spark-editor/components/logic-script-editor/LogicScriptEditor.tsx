@@ -12,6 +12,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
+import { reloadsForWrite } from "./reloadsForWrite";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -124,6 +125,7 @@ export default function LogicScriptEditor({
       let connection = 0;
       let sentOnConnection = -1;
       let pendingLoad: Promise<void> = Promise.resolve();
+      let stored: string | null = null;
 
       const sendLoadEditor = async () => {
         const { Workspace } = await import("../../workspace/Workspace");
@@ -155,6 +157,7 @@ export default function LogicScriptEditor({
         uriRef.current = uri;
         versionRef.current = version;
         textRef.current = text;
+        stored = text;
 
         const current =
           editorAtSend(uri, () => Workspace.window.getActiveEditorForFile(fn)) ??
@@ -183,14 +186,16 @@ export default function LogicScriptEditor({
         if (uriRef.current && versionRef.current && textRef.current != null) {
           const { Workspace } = await import("../../workspace/Workspace");
           if (disposed) return;
+          const text = textRef.current;
           await Workspace.fs.writeTextDocument({
             textDocument: {
               uri: uriRef.current,
               version: versionRef.current,
-              text: textRef.current,
+              text,
             },
             origin,
           });
+          stored = text;
           await Workspace.window.recordScriptChange();
         }
       }, AUTOSAVE_DELAY);
@@ -211,11 +216,16 @@ export default function LogicScriptEditor({
           if (!changed) {
             return;
           }
-          const diverged =
-            changed.text != null &&
-            textRef.current != null &&
-            changed.text !== textRef.current;
-          if (params.remote || (diverged && params.origin !== origin)) {
+          const reload = reloadsForWrite(
+            {
+              text: changed.text,
+              remote: params.remote,
+              origin: params.origin,
+              restored: params.restored?.includes(changed.uri) ?? false,
+            },
+            { text: textRef.current, stored, origin },
+          );
+          if (reload) {
             loadFile();
           }
         }),

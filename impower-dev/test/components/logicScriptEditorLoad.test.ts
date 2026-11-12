@@ -234,7 +234,7 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
     return mocks.writes[count]!;
   };
 
-  const didWrite = async (text: string, origin?: string) => {
+  const didWrite = async (text: string, origin?: string, restored = false) => {
     await act(async () => {
       sendProtocolMessage(
         DidWriteFilesMessage.type.notification({
@@ -251,6 +251,7 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
           ],
           remote: false,
           origin,
+          ...(restored ? { restored: [uri] } : {}),
         }),
       );
     });
@@ -270,6 +271,34 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
     await autosave("hello a\n");
     await type("hello ab\n");
     await didWrite("hello a\n");
+    expect(mocks.reads.length).toBe(1);
+  });
+
+  it("keeps the typing over a rollback that restores the text it loaded, and autosaves it", async () => {
+    await loaded();
+    const count = mocks.writes.length;
+    await type("hello typed\n");
+    await didWrite("hello\n", undefined, true);
+    expect(mocks.reads.length).toBe(0);
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(count + 1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    expect(mocks.writes[count]!.textDocument.text).toBe("hello typed\n");
+  });
+
+  it("keeps the typing over a rollback that restores what it last autosaved", async () => {
+    await loaded();
+    await autosave("hello a\n");
+    await type("hello ab\n");
+    await didWrite("hello a\n", undefined, true);
+    expect(mocks.reads.length).toBe(0);
+  });
+
+  it("reloads for a rollback that restores text it never loaded", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await didWrite("other\n", undefined, true);
     expect(mocks.reads.length).toBe(1);
   });
 });
