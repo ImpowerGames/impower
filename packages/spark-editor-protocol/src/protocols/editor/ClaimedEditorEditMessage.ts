@@ -6,6 +6,7 @@ export type ClaimedEditorEditMethod = typeof ClaimedEditorEditMessage.method;
 export interface ClaimedEditorEditParams {
   request: number | string;
   uri: string;
+  text: string;
 }
 
 export class ClaimedEditorEditMessage {

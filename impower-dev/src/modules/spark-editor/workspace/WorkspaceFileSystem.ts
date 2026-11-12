@@ -7,6 +7,7 @@ import {
   WorkspaceEdit,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { ConfirmWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfirmWorkspaceEditMessage";
 import { SETTINGS_JSON_PATH } from "./settings/settingsJson";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
@@ -430,9 +431,25 @@ export default class WorkspaceFileSystem {
     { resolve: (result: any) => void; reject: (err: any) => void }
   > = {};
 
+  protected _confirmations = new Map<
+    number | string,
+    () => Promise<string | undefined>
+  >();
+
   protected handleWorkerMessage = async (event: MessageEvent) => {
     const message = event.data;
-    if (ConfigurationMessage.type.isRequest(message)) {
+    if (ConfirmWorkspaceEditMessage.type.isRequest(message)) {
+      const confirm = this._confirmations.get(message.params.edit);
+      const refusal = await confirm?.().catch((error: unknown) =>
+        String((error as { message?: unknown } | null)?.message ?? error),
+      );
+      this._worker.postMessage(
+        ConfirmWorkspaceEditMessage.type.response(
+          message.id,
+          refusal === undefined ? {} : { refusal },
+        ),
+      );
+    } else if (ConfigurationMessage.type.isRequest(message)) {
       const params = message.params;
       const result = params.items.map((item) => {
         if (item.section === "sparkdown") {
@@ -544,8 +561,14 @@ export default class WorkspaceFileSystem {
     params: P,
     transfer: Transferable[] = [],
   ): Promise<R> {
+    return this.post(type.request(params), transfer);
+  }
+
+  protected post<R>(
+    request: { id: number | string },
+    transfer: Transferable[] = [],
+  ): Promise<R> {
     return new Promise((resolve, reject) => {
-      const request = type.request(params);
       this._messageQueue[request.id] = { resolve, reject };
       this._worker.postMessage(request, transfer);
     });
@@ -1367,19 +1390,27 @@ export default class WorkspaceFileSystem {
     label?: string,
     metadata?: { isRefactoring?: boolean },
     expectedTexts?: Record<string, string>,
+    confirm?: () => Promise<string | undefined>,
   ): Promise<ApplyWorkspaceEditResult> {
-    const result = await this.sendRequest(
-      ApplyWorkspaceEditMessage.type,
-      {
-        edit,
-        label,
-        metadata,
-        ...(expectedTexts ? { expectedTexts } : {}),
-      },
-      edit.documentChanges
-        ?.filter((c) => "kind" in c && c.kind === "create")
-        .map((c) => c.data) as Transferable[],
-    );
-    return result;
+    const request = ApplyWorkspaceEditMessage.type.request({
+      edit,
+      label,
+      metadata,
+      ...(expectedTexts ? { expectedTexts } : {}),
+      ...(confirm ? { confirm: true } : {}),
+    });
+    if (confirm) {
+      this._confirmations.set(request.id, confirm);
+    }
+    try {
+      return await this.post<ApplyWorkspaceEditResult>(
+        request,
+        edit.documentChanges
+          ?.filter((c) => "kind" in c && c.kind === "create")
+          .map((c) => c.data) as Transferable[],
+      );
+    } finally {
+      this._confirmations.delete(request.id);
+    }
   }
 }

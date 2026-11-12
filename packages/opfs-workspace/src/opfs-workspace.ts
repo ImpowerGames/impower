@@ -6,6 +6,7 @@ import { RESOURCE_PROTOCOL } from "@impower/sparkdown/src/workspace/utils/resour
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { ConfirmWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfirmWorkspaceEditMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
@@ -747,8 +748,22 @@ const initialConfigurationMessage = ConfigurationMessage.type.request({
 });
 postMessage(initialConfigurationMessage);
 
+const confirmations = new Map<number | string, (refusal: string | undefined) => void>();
+
+const confirmEdit = (edit: number | string) =>
+  new Promise<string | undefined>((resolve) => {
+    const request = ConfirmWorkspaceEditMessage.type.request({ edit });
+    confirmations.set(request.id, resolve);
+    postMessage(request);
+  });
+
 onmessage = async (e) => {
   const message = e.data;
+  if (ConfirmWorkspaceEditMessage.type.isResponse(message)) {
+    const settle = confirmations.get(message.id);
+    confirmations.delete(message.id);
+    settle?.(message.error ? message.error.message : message.result?.refusal);
+  }
   if (ConfigurationMessage.type.isResponse(message)) {
     if (message.id === initialConfigurationMessage.id) {
       const settings = message.result?.[0];
@@ -1047,12 +1062,13 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts } = message.params;
+    const { edit, expectedTexts, confirm } = message.params;
     const log = new CommitLog();
     const { effects, failure } = await applyWorkspaceEdit(
       edit,
       log,
       expectedTexts,
+      confirm ? () => confirmEdit(message.id) : undefined,
     );
 
     broadcastCreates(log, effects.created);
@@ -1069,7 +1085,9 @@ onmessage = async (e) => {
           ? {
               applied: false,
               failureReason: failure.reason,
-              failedChange: failure.change,
+              ...(failure.change !== undefined
+                ? { failedChange: failure.change }
+                : {}),
               rollback: failure.rollback,
             }
           : { applied: true },
@@ -1518,6 +1536,7 @@ const applyWorkspaceEdit = async (
   edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
   log: CommitLog,
   expectedTexts?: Record<string, string>,
+  confirm?: () => Promise<string | undefined>,
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??
@@ -1540,6 +1559,50 @@ const applyWorkspaceEdit = async (
   }
   const undo = new UndoLog();
   const effects = noEffects();
+  const rollBack = async (change: number | undefined, reason: string) => {
+    const { effects, unknown, kept, trashed, unlisted } = await undo
+      .restore(log)
+      .catch((restoreError) => {
+        console.error(restoreError);
+        return {
+          effects: noEffects(),
+          unknown: [...undo.prior.keys()],
+          kept: [] as string[],
+          trashed: [] as string[],
+          unlisted: undo.copies.map((c) => c.uri),
+        };
+      });
+    const partial = [
+      ...(unknown.length > 0
+        ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
+        : []),
+      ...(kept.length > 0
+        ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
+        : []),
+      ...(trashed.length > 0
+        ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
+        : []),
+      ...(unlisted.length > 0
+        ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
+        : []),
+    ];
+    return {
+      effects,
+      failure: {
+        change,
+        reason:
+          partial.length === 0
+            ? reason
+            : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
+        rollback: {
+          complete: partial.length === 0,
+          failed: [...unknown, ...unlisted],
+          kept,
+          ...(trashed.length > 0 ? { trashed } : {}),
+        },
+      },
+    };
+  };
   commitWatchers.add(undo.watch);
   try {
     for (const [index, change] of changes.entries()) {
@@ -1548,50 +1611,12 @@ const applyWorkspaceEdit = async (
         await applyChange(change, log, effects, undo, expectedTexts);
       } catch (err: any) {
         console.error(err, err?.stack);
-        const reason = err?.message ?? String(err);
-        const { effects, unknown, kept, trashed, unlisted } = await undo
-          .restore(log)
-          .catch((restoreError) => {
-            console.error(restoreError);
-            return {
-              effects: noEffects(),
-              unknown: [...undo.prior.keys()],
-              kept: [] as string[],
-              trashed: [] as string[],
-              unlisted: undo.copies.map((c) => c.uri),
-            };
-          });
-        const partial = [
-          ...(unknown.length > 0
-            ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
-            : []),
-          ...(kept.length > 0
-            ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
-            : []),
-          ...(trashed.length > 0
-            ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
-            : []),
-          ...(unlisted.length > 0
-            ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
-            : []),
-        ];
-        return {
-          effects,
-          failure: {
-            change: index,
-            reason:
-              partial.length === 0
-                ? reason
-                : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
-            rollback: {
-              complete: partial.length === 0,
-              failed: [...unknown, ...unlisted],
-              kept,
-              ...(trashed.length > 0 ? { trashed } : {}),
-            },
-          },
-        };
+        return await rollBack(index, err?.message ?? String(err));
       }
+    }
+    const refusal = await confirm?.();
+    if (refusal !== undefined) {
+      return await rollBack(undefined, refusal);
     }
     return { effects, failure: undefined };
   } finally {

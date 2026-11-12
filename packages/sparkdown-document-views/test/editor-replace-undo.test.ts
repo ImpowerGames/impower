@@ -71,6 +71,7 @@ const MAIN = "file:///project/main.sd";
 const CHAPTER = "file:///project/chapter.sd";
 const MAIN_TEXT = lines("scene start", "  The rumour spread.", "end");
 const CHAPTER_TEXT = lines("scene chapter", "  A rumour, another rumour.", "end");
+const REPLACED_CHAPTER = lines("scene chapter", "  A tale, another tale.", "end");
 
 const hosts: HTMLElement[] = [];
 const controllers: { dispose: () => void }[] = [];
@@ -126,6 +127,9 @@ const replaceRumour = (line: number, characters: number[]) => ({
 const applyEdit = (
   controller: InstanceType<typeof ScriptEditorController>,
   id = `edit-${nextId++}`,
+  params: Partial<ApplyEditorEditMessage.Request["params"]> = {
+    expectedTexts: { [MAIN]: MAIN_TEXT },
+  },
 ) =>
   controller["handleApplyEditorEdit"]({
     ...ApplyEditorEditMessage.type.request({
@@ -137,9 +141,26 @@ const applyEdit = (
         ],
       },
       closedTexts: { [CHAPTER]: CHAPTER_TEXT },
+      ...params,
     }),
     id,
   } as ApplyEditorEditMessage.Request);
+
+const claimsDuring = <T>(run: () => T) => {
+  const claims: unknown[] = [];
+  const listener = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    if (ClaimedEditorEditMessage.type.is(detail)) {
+      claims.push(detail.params);
+    }
+  };
+  window.addEventListener(MessageProtocol.event, listener);
+  try {
+    return { claims, result: run() };
+  } finally {
+    window.removeEventListener(MessageProtocol.event, listener);
+  }
+};
 
 const undoIn = (view: EditorView) => undo(view);
 
@@ -162,43 +183,49 @@ describe("Replace all through the editor's own history", () => {
     expect(view.state.doc.toString()).toBe(MAIN_TEXT);
   });
 
-  it("claims the open script while the request is dispatched, before it applies anything", () => {
+  it("claims the open script with its text while the claim is dispatched, and changes nothing", async () => {
     const controller = mount();
-    load(controller, MAIN, MAIN_TEXT);
-    const claims: unknown[] = [];
-    const listener = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (ClaimedEditorEditMessage.type.is(detail)) {
-        claims.push(detail.params);
-      }
-    };
-    window.addEventListener(MessageProtocol.event, listener);
-    try {
-      const pending = applyEdit(controller);
-      expect(claims).toEqual([{ request: expect.anything(), uri: MAIN }]);
-      return pending;
-    } finally {
-      window.removeEventListener(MessageProtocol.event, listener);
-    }
+    const view = load(controller, MAIN, MAIN_TEXT);
+    const { claims, result } = claimsDuring(() =>
+      applyEdit(controller, undefined, { claim: true }),
+    );
+    expect(claims).toEqual([
+      { request: expect.anything(), uri: MAIN, text: MAIN_TEXT },
+    ]);
+    expect((await result).result).toEqual({ applied: [] });
+    expect(view.state.doc.toString()).toBe(MAIN_TEXT);
+    expect(undoDepth(view.state)).toBe(0);
+    const chapter = load(controller, CHAPTER, REPLACED_CHAPTER);
+    expect(undoDepth(chapter.state)).toBe(0);
   });
 
   it("claims nothing when none of the edit is in the open script", async () => {
     const controller = mount();
     load(controller, "file:///project/epilogue.sd", "scene epilogue");
-    const claims: unknown[] = [];
-    const listener = (e: Event) => {
-      if (ClaimedEditorEditMessage.type.is((e as CustomEvent).detail)) {
-        claims.push(e);
-      }
-    };
-    window.addEventListener(MessageProtocol.event, listener);
-    try {
-      const response = await applyEdit(controller);
-      expect(claims).toEqual([]);
-      expect(response.result).toEqual({ applied: [] });
-    } finally {
-      window.removeEventListener(MessageProtocol.event, listener);
-    }
+    const { claims, result } = claimsDuring(() =>
+      applyEdit(controller, undefined, { claim: true }),
+    );
+    expect(claims).toEqual([]);
+    expect((await result).result).toEqual({ applied: [] });
+  });
+
+  it("refuses, changing nothing, when the open script no longer holds the text the edit expected", async () => {
+    const controller = mount();
+    const view = load(controller, MAIN, MAIN_TEXT);
+    view.dispatch({ changes: { from: 0, insert: "typed " } });
+    const response = await applyEdit(controller);
+    expect(response.result).toEqual({ applied: [], refused: [MAIN] });
+    expect(view.state.doc.toString()).toBe(`typed ${MAIN_TEXT}`);
+    const chapter = load(controller, CHAPTER, REPLACED_CHAPTER);
+    expect(undoDepth(chapter.state)).toBe(0);
+  });
+
+  it("leaves a script it opened after the claim to the file it was loaded from", async () => {
+    const controller = mount();
+    const view = load(controller, MAIN, MAIN_TEXT);
+    const response = await applyEdit(controller, undefined, {});
+    expect(response.result).toEqual({ applied: [] });
+    expect(view.state.doc.toString()).toBe(MAIN_TEXT);
   });
 
   it("gives a closed script one undo step that it keeps when it is opened", async () => {

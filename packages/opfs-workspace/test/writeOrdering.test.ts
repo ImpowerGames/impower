@@ -2436,3 +2436,75 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(textAt(root, "main.sd")).toBe("M");
   });
 });
+
+describe("an edit an open editor finishes after the worker has applied the rest (I-2100)", () => {
+  const rest = {
+    documentChanges: [
+      insert("chapter.sd", 0, "x"),
+      { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+    ],
+  };
+
+  const asks = (h: Awaited<ReturnType<typeof worker>>) =>
+    h.messages.filter((m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m);
+
+  const answer = (id: unknown, result: unknown) =>
+    void (globalThis as any).onmessage({
+      data: { jsonrpc: "2.0", method: "workspace/confirmWorkspaceEdit", id, result },
+    });
+
+  it("asks before it answers, and announces nothing until the editor has applied its part", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", { edit: rest, confirm: true });
+    await vi.advanceTimersByTimeAsync(250);
+    const [ask] = asks(h);
+    expect(ask?.params).toEqual({ edit: "edit" });
+    expect(h.response("edit")).toBeUndefined();
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect(h.writtenTexts("chapter.sd", from)).toEqual([]);
+    answer(ask.id, {});
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result).toEqual({ applied: true });
+    expect(listMemory(root, "local")).toEqual(["b.sd", "chapter.sd"]);
+    expect(textAt(root, "chapter.sd")).toBe("xC");
+  });
+
+  it("rolls the rest back and reports the editor's refusal when the editor refuses its part", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", { edit: rest, confirm: true });
+    await vi.advanceTimersByTimeAsync(250);
+    const [ask] = asks(h);
+    answer(ask.id, { refusal: "main.sd changed before the edit could be applied" });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result).toEqual({
+      applied: false,
+      failureReason: "main.sd changed before the edit could be applied",
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(listMemory(root, "local")).toEqual(["a.sd", "chapter.sd"]);
+    expect(textAt(root, "chapter.sd")).toBe("C");
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect((await h.cached("chapter.sd")).text).toBe("C");
+    expect(await h.cached("b.sd")).toBeUndefined();
+  });
+
+  it("does not ask when the rest fails on its own", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("chapter.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+      confirm: true,
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(asks(h)).toEqual([]);
+    expect(textAt(root, "chapter.sd")).toBe("C");
+  });
+});

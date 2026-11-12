@@ -1,5 +1,8 @@
 import type { EditorTool } from "@impower/spark-editor-protocol/src/protocols/editor/RequestedEditorToolMessage";
-import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import type {
+  ApplyWorkspaceEditResult,
+  WorkspaceEdit,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type {
   FindTextParams,
   FindTextResult,
@@ -46,7 +49,7 @@ export interface SearchSources {
   applyEdit: (
     edit: WorkspaceEdit,
     label: string,
-  ) => Promise<{ applied: boolean; failureReason?: string }>;
+  ) => Promise<ApplyWorkspaceEditResult>;
   showMatch: (uri: string, range: Range) => Promise<void>;
   openLocation: (uri: string, range: Range) => Promise<void>;
   openAsset: (uri: string) => Promise<void>;
@@ -61,6 +64,13 @@ export interface SearchSources {
 
 export const count = (n: number, one: string, many = `${one}s`) =>
   `${n} ${n === 1 ? one : many}`;
+
+const failureOf = (outcome: ApplyWorkspaceEditResult, nothing: string) =>
+  !outcome.failureReason
+    ? nothing
+    : outcome.rollback?.complete
+      ? `${outcome.failureReason.replace(/[.]$/, "")}. ${nothing}`
+      : outcome.failureReason;
 
 const isMain = (uri: string) => uri.endsWith("/main.sd") || uri === "main.sd";
 
@@ -577,7 +587,7 @@ export default class WorkspaceSearch {
       `Replace all "${term}"`,
     );
     if (!outcome.applied) {
-      this.say(outcome.failureReason ?? "Nothing was replaced.", "error");
+      this.say(failureOf(outcome, "Nothing was replaced."), "error");
       return;
     }
     this.say(
@@ -749,7 +759,7 @@ export default class WorkspaceSearch {
       `Rename ${subject.name} to ${newName}`,
     );
     if (!outcome.applied) {
-      this.say(outcome.failureReason ?? "Nothing was renamed.", "error");
+      this.say(failureOf(outcome, "Nothing was renamed."), "error");
       return false;
     }
     await this._sources.onRenamed?.();

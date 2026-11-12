@@ -35,6 +35,8 @@ export interface ApplyEditorEditParams {
   label?: string;
   edit: WorkspaceEdit;
   closedTexts?: Record<string, string>;
+  claim?: boolean;
+  expectedTexts?: Record<string, string>;
   fix?: EditorFix;
   undoFix?: EditorFixUndo;
 }

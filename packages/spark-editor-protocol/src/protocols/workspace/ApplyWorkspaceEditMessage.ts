@@ -18,6 +18,7 @@ export type ApplyWorkspaceEditParams = LSP.ApplyWorkspaceEditParams & {
   edit: WorkspaceEdit;
   metadata?: { isRefactoring?: boolean };
   expectedTexts?: Record<string, string>;
+  confirm?: boolean;
 };
 
 export interface WorkspaceEditRollback {
