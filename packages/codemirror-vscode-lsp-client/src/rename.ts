@@ -9,6 +9,7 @@ import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { editorToolCommands } from "./tools";
+import { wordAt } from "../../codemirror-vscode-language/src/utils/wordAt";
 
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
@@ -196,7 +197,7 @@ export const renameSymbol: Command = (view) => {
   }
 
   const pos = view.state.selection.main.head;
-  const defaultWordSelectionRange = view.state.wordAt(pos);
+  const defaultWordSelectionRange = wordAt(view.state, pos);
   const word = view.state.sliceDoc(
     defaultWordSelectionRange!.from,
     defaultWordSelectionRange!.to,
