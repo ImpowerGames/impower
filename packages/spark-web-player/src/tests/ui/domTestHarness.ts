@@ -342,7 +342,7 @@ export function createDOMHarness(
           interpreter.queue(
             story.currentDisplayInstructions,
             story.currentChoices.map((c: any) => c.text),
-            story.currentText || "",
+            story.currentStyledText || "",
           );
         }
         guard++;

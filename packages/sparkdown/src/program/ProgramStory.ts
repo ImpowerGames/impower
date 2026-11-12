@@ -885,6 +885,11 @@ export class ProgramStory implements StoryEngine {
     return this._state.currentText;
   }
 
+  get currentStyledText(): string | null {
+    this.IfAsyncWeCant("call currentStyledText since it's a work in progress");
+    return this._state.currentStyledText;
+  }
+
   get currentTags(): string[] {
     this.IfAsyncWeCant("call currentTags since it's a work in progress");
     return this._state.currentTags;

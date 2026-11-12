@@ -3878,6 +3878,7 @@ repository:
   BoldItalicContent:
     patterns:
       - { include: "#Italic" }
+      - { include: "#SpanContent" }
 
   PlainText:
     patterns:

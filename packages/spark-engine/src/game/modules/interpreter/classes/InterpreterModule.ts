@@ -1,6 +1,16 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { ObjectValue } from "@impower/sparkdown/src/runtime/Value";
 import {
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  SCANNED_MARKS,
+  isStyleCode,
+  scanned,
+  spanOpenMark,
+  stripStyleCodes,
+  trimStyled,
+} from "@impower/sparkdown/src/runtime/displayStyle";
+import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
@@ -55,7 +65,7 @@ export class InterpreterModule extends Module<
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
-  MARKERS = ["^", "*", "_", "~~", "::"];
+  MARKERS = SCANNED_MARKS;
 
   CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
 
@@ -289,7 +299,7 @@ export class InterpreterModule extends Module<
       characterMap?.[characterNameMatch] || characterMap?.[characterId];
     const characterName =
       typeof characterObj?.name === "string" && characterObj.name
-        ? characterObj.name
+        ? scanned(characterObj.name)
         : characterNameMatch;
     const position =
       characterPositionMatch === "<"
@@ -311,7 +321,7 @@ export class InterpreterModule extends Module<
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i]!;
-      if (!line.trim() || this.ASSET_LINE_REGEX.test(line)) {
+      if (!stripStyleCodes(line).trim() || this.ASSET_LINE_REGEX.test(line)) {
         continue;
       }
       const match = line.match(this.PARENTHETICAL_REGEX);
@@ -350,7 +360,10 @@ export class InterpreterModule extends Module<
       delete beat.kind;
     }
     if (cue?.name) {
-      beat.speaker = { name: cue.name, parenthetical: cue.parenthetical };
+      beat.speaker = {
+        name: stripStyleCodes(cue.name),
+        parenthetical: stripStyleCodes(cue.parenthetical),
+      };
       if (cue.character) beat.speaker.character = cue.character;
     } else {
       delete beat.speaker;
@@ -581,7 +594,7 @@ export class InterpreterModule extends Module<
         if (load === null) {
           if (before.length > 0) this.queue(before, [], text, source);
         } else {
-          const loadInstructions: LoadInstruction[] = `${load}${text}`
+          const loadInstructions: LoadInstruction[] = stripStyleCodes(`${load}${text}`)
             .split(this.WHITESPACE_REGEX)
             .filter(Boolean)
             .map((name) => ({ name }));
@@ -1058,6 +1071,13 @@ export class InterpreterModule extends Module<
     let currChunk: Chunk | undefined = undefined;
 
     const activeMarks: [string][] = [];
+    const spanMarks: [string][] = [];
+    const scansAll = Boolean(options?.choice);
+    let scanDepth = 0;
+    let spanRaw = false;
+    const lastMark = (test: (mark: string) => boolean) =>
+      activeMarks.findLast(([m]) => test(m)) ??
+      spanMarks.findLast(([m]) => test(m));
     let alignModifier = "";
     let speedModifier = 1;
     let pitchModifier: number | undefined = undefined;
@@ -1116,13 +1136,31 @@ export class InterpreterModule extends Module<
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
+          if (isStyleCode(char)) {
+            i += 1;
+            if (char === SCAN_OPEN || char === SCAN_CLOSE) {
+              scanDepth = Math.max(0, scanDepth + (char === SCAN_OPEN ? 1 : -1));
+              activeMarks.length = 0;
+              raw = false;
+            } else {
+              const opened = spanOpenMark(char);
+              if (opened) {
+                spanMarks.push([opened]);
+              } else {
+                spanMarks.pop();
+              }
+              spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
+            }
+            continue;
+          }
+          const scanning = scansAll || scanDepth > 0;
           if (!escaped) {
-            if (char === "`") {
+            if (scanning && char === "`") {
               i += 1;
               raw = !raw;
               continue;
             }
-            if (!raw) {
+            if (!raw && !spanRaw) {
               if (char === "\\") {
                 i += 1;
                 escaped = true;
@@ -1275,10 +1313,12 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              const styleMarker = this.MARKERS.find(
-                (marker) =>
-                  marker === chars.slice(i, i + marker.length).join(""),
-              );
+              const styleMarker = scanning
+                ? this.MARKERS.find(
+                    (marker) =>
+                      marker === chars.slice(i, i + marker.length).join(""),
+                  )
+                : undefined;
               if (styleMarker) {
                 let currentMarker = "";
                 const startIndex = i;
@@ -1319,23 +1359,13 @@ export class InterpreterModule extends Module<
             continue;
           }
 
-          const activeCenteredMark = activeMarks.findLast(([m]) =>
-            m.startsWith("^"),
-          );
-          const activeUnderlineMark = activeMarks.findLast(([m]) =>
-            m.startsWith("_"),
-          );
-          const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-            m.startsWith("***"),
-          );
-          const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
-          const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
-          const activeWavyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("~~"),
-          );
-          const activeShakyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("::"),
-          );
+          const activeCenteredMark = lastMark((m) => m.startsWith("^"));
+          const activeUnderlineMark = lastMark((m) => m.startsWith("_"));
+          const activeBoldItalicMark = lastMark((m) => m.startsWith("***"));
+          const activeBoldMark = lastMark((m) => m === "**");
+          const activeItalicMark = lastMark((m) => m === "*");
+          const activeWavyMark = lastMark((m) => m.startsWith("~~"));
+          const activeShakyMark = lastMark((m) => m.startsWith("::"));
           const isCentered = Boolean(activeCenteredMark);
           const isUnderlined = Boolean(activeUnderlineMark);
           const isItalicized =
@@ -1466,7 +1496,7 @@ export class InterpreterModule extends Module<
               voicedSyllable,
               voiced,
               yelled,
-              raw,
+              raw: raw || spanRaw,
               centered,
               bolded,
               italicized,
@@ -1509,7 +1539,7 @@ export class InterpreterModule extends Module<
                   voicedSyllable,
                   voiced,
                   yelled,
-                  raw,
+                  raw: raw || spanRaw,
                   centered,
                   bolded,
                   italicized,
@@ -1530,9 +1560,9 @@ export class InterpreterModule extends Module<
       return linePhrases;
     };
 
-    const lines = content?.trim().split("\n");
+    const lines = trimStyled(content ?? "").split("\n");
     for (let l = 0; l < lines.length; l += 1) {
-      const line = lines[l]!?.trimStart();
+      const line = trimStyled(lines[l]!, { end: false });
       if (line.match(this.PARENTHETICAL_REGEX)) {
         alignModifier = "center";
         speedModifier = 0;

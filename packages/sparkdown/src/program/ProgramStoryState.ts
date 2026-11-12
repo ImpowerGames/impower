@@ -6,6 +6,7 @@ import { PRNG } from "../runtime/PRNG";
 import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
+import { stripStyleCodes } from "../runtime/displayStyle";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -672,7 +673,11 @@ export class ProgramStoryState {
       }
     } else if (obj instanceof ObjectValue) {
       const tableText = obj.value?.get("text");
-      if (tableText instanceof StringValue && tableText.isNonWhitespace) {
+      if (
+        tableText instanceof StringValue &&
+        tableText.isNonWhitespace &&
+        new StringValue(stripStyleCodes(tableText.value ?? "")).isNonWhitespace
+      ) {
         this.MarkFunctionsShown();
       }
     }
@@ -884,39 +889,56 @@ export class ProgramStoryState {
   }
 
   protected _textDirty = true;
+  protected _styledTextDirty = true;
   protected _tagsDirty = true;
   protected _currentText: string | null = null;
+  protected _currentStyledText: string | null = null;
   protected _currentTags: string[] = [];
 
   OutputStreamDirty(): void {
     this._textDirty = true;
+    this._styledTextDirty = true;
     this._tagsDirty = true;
   }
 
   get currentText(): string | null {
     if (this._textDirty) {
-      const sb = new StringBuilder();
-      let inTag = false;
-      for (const outputObj of this.outputStream) {
-        if (!inTag && outputObj instanceof StringValue) {
-          sb.Append(outputObj.value);
-        } else if (!inTag && outputObj instanceof ObjectValue) {
-          const tableText = outputObj.value?.get("text");
-          if (tableText instanceof StringValue && tableText.value) {
-            sb.Append(tableText.value);
-          }
-        } else if (outputObj instanceof ControlCommand) {
-          if (outputObj.commandType == ControlCommand.CommandType.BeginTag) {
-            inTag = true;
-          } else if (outputObj.commandType == ControlCommand.CommandType.EndTag) {
-            inTag = false;
-          }
-        }
-      }
-      this._currentText = this._cleanWhitespace(sb.toString());
+      this._currentText = this._cleanWhitespace(
+        stripStyleCodes(this.outputText()),
+      );
       this._textDirty = false;
     }
     return this._currentText;
+  }
+
+  get currentStyledText(): string | null {
+    if (this._styledTextDirty) {
+      this._currentStyledText = this._cleanWhitespace(this.outputText());
+      this._styledTextDirty = false;
+    }
+    return this._currentStyledText;
+  }
+
+  protected outputText(): string {
+    const sb = new StringBuilder();
+    let inTag = false;
+    for (const outputObj of this.outputStream) {
+      if (!inTag && outputObj instanceof StringValue) {
+        sb.Append(outputObj.value);
+      } else if (!inTag && outputObj instanceof ObjectValue) {
+        const tableText = outputObj.value?.get("text");
+        if (tableText instanceof StringValue && tableText.value) {
+          sb.Append(tableText.value);
+        }
+      } else if (outputObj instanceof ControlCommand) {
+        if (outputObj.commandType == ControlCommand.CommandType.BeginTag) {
+          inTag = true;
+        } else if (outputObj.commandType == ControlCommand.CommandType.EndTag) {
+          inTag = false;
+        }
+      }
+    }
+    return sb.toString();
   }
 
   get currentTags(): string[] {

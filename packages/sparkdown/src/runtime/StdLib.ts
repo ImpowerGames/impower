@@ -5,6 +5,7 @@ import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
 import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
+import { scanned } from "./displayStyle";
 import { isStdLibMarker, stdLibMarkerMapName } from "./StdLibMarker";
 import {
   ObjectValue,
@@ -2501,7 +2502,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return;
       }
       const table = new ObjectValue(
-        new Map<string, AbstractValue>([["text", new StringValue(text)]]),
+        new Map<string, AbstractValue>([
+          ["text", new StringValue(text ? scanned(text) : text)],
+        ]),
       );
       story.state.PushToOutputStream(table);
       story.state.PushToOutputStream(new StringValue("\n"));

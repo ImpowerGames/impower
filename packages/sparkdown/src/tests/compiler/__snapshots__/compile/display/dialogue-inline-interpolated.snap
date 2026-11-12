@@ -45,19 +45,23 @@
                     "type": "StringExpression",
                     "content": [
                       "Hi ",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "name"
                         ]
                       },
+                      "",
                       ", you have ",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "count"
                         ]
                       },
+                      "",
                       " messages."
                     ]
                   }

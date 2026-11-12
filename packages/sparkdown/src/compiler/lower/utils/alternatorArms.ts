@@ -20,6 +20,11 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Tag as RuntimeTag } from "../../../runtime/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
+import {
+  insideChoice,
+  readStyledSource,
+  trimEndBeforeSpanEnds,
+} from "./displaySpans";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { asOneValue, containerValueNodes, lowerExpression, lowerExpressionFromNodes } from "../expression/lowerExpression";
@@ -534,10 +539,11 @@ function lowerArmContent(
   inString = false,
 ): void {
   let textBuf = "";
+  const styled = !insideChoice(armContent);
   const flushText = (trim: boolean): void => {
     let text = textBuf;
     // value-level: buffered display text, trimming its trailing whitespace
-    if (trim) text = text.replace(/\s+$/, "");
+    if (trim) text = trimEndBeforeSpanEnds(text);
     if (text.length > 0) out.push(new Text(text));
     textBuf = "";
   };
@@ -564,7 +570,9 @@ function lowerArmContent(
       forwardBlockDiagnostics(block, ctx);
       out.push(...unwrapBlockContent(block));
     } else {
-      textBuf += ctx.read(child.from, child.to);
+      textBuf += styled
+        ? readStyledSource(child, child.from, child.to, ctx)
+        : ctx.read(child.from, child.to);
     }
     child = child.nextSibling;
   }

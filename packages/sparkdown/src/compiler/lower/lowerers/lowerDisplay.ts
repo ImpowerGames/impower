@@ -35,7 +35,20 @@ import {
   buildUnjoinedWarning,
   separateTags,
 } from "../utils/displayCall";
+import {
+  collectDisplaySpans,
+  readStyledSource,
+  trimEndBeforeSpanEnds,
+} from "../utils/displaySpans";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import {
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  SPAN_CLOSE,
+  SPAN_END,
+  spanOpenMark,
+  stripStyleCodes,
+} from "../../../runtime/displayStyle";
 import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
@@ -88,7 +101,7 @@ function buildDisplayCalls(
     const conditional =
       only &&
       tryLowerInlineConditional(only, ctx, (body) => [
-        buildDisplayCall(target, character, body, ranges[0]!, ctx),
+        buildDisplayCall(target, character, scannedValue(body), ranges[0]!, ctx),
       ]);
     if (conditional) {
       reportInlineIfReading(only!, ctx);
@@ -132,7 +145,10 @@ function buildDisplayCalls(
       (part) => !(part instanceof Text) || part.text.trim().length > 0,
     );
     const loadArgs = lineType === "action" && body[firstContent] instanceof LoadMark
-      ? body.slice(firstContent + 1) : null;
+      ? body
+          .slice(firstContent + 1)
+          .map((obj) => (obj instanceof Text ? new Text(stripStyleCodes(obj.text)) : obj))
+      : null;
     if (loadArgs) {
       if (trailingGlue) {
         reportLoadGlue(parent, range, ctx);
@@ -402,7 +418,7 @@ function processDisplayBody(
     }
     const last = segments[segments.length - 1];
     if (last && last.kind === "text") {
-      last.raw = last.raw.replace(/\s+$/, "");
+      last.raw = trimEndBeforeSpanEnds(last.raw);
     } else if (last?.kind === "load") {
       segments[segments.length - 1] = {
         kind: "text",
@@ -447,7 +463,7 @@ function processDisplayBody(
       const inlineCond = tryLowerInlineConditional(seg.node, ctx);
       if (inlineCond) {
         reportInlineIfReading(seg.node, ctx);
-        out.push(inlineCond);
+        out.push(...scannedValue([inlineCond]));
       } else {
         const inlineAlt = tryLowerInlineAlternator(seg.node, ctx);
         if (inlineAlt) {
@@ -456,7 +472,7 @@ function processDisplayBody(
           const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
             expr.outputWhenComplete = true;
-            out.push(expr);
+            out.push(...scannedValue([expr]));
           }
         }
       }
@@ -494,11 +510,33 @@ function collectBodySegments(
   ctx: LowerContext,
 ): BodySegment[] {
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
+  const spans = collectDisplaySpans(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    isBodyInjection,
+  );
+  const codes = spans.codes.map((code) => {
+    const chain = code.closes
+      ? injections.find(
+          (injection) =>
+            CHAIN_MARKS.has(injection.kind) &&
+            injection.from < code.at &&
+            code.at <= injection.to,
+        )
+      : undefined;
+    return chain
+      ? { at: chain.from, code: code.code, beforeSpace: true }
+      : { at: code.at, code: code.code, beforeSpace: false };
+  });
   const out: BodySegment[] = [];
   let textBuf = "";
   let textStart = bodyStart;
   let i = bodyStart;
   let idx = 0;
+  let codeIdx = 0;
+  let markIdx = 0;
 
   const flush = () => {
     if (textBuf.length > 0) {
@@ -507,7 +545,18 @@ function collectBodySegments(
     }
   };
 
+  const addCodes = (at: number) => {
+    while (codeIdx < codes.length && codes[codeIdx]!.at <= at) {
+      const { code, beforeSpace } = codes[codeIdx++]!;
+      if (textBuf.length === 0) textStart = at;
+      textBuf = beforeSpace
+        ? textBuf.replace(/[ \t]*$/, (space) => code + space)
+        : textBuf + code;
+    }
+  };
+
   while (i < bodyEnd) {
+    addCodes(i);
     const next = injections[idx];
     if (next && next.from === i && next.kind === "break") {
       idx++;
@@ -560,12 +609,50 @@ function collectBodySegments(
       idx++;
       continue;
     }
+    while (markIdx < spans.marks.length && spans.marks[markIdx]!.to <= i) {
+      markIdx++;
+    }
+    const mark = spans.marks[markIdx];
+    if (mark && mark.from <= i) {
+      i = mark.to;
+      continue;
+    }
     if (textBuf.length === 0) textStart = i;
     textBuf += ctx.read(i, i + 1);
     i++;
   }
+  addCodes(bodyEnd);
   flush();
   return out;
+}
+
+const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
+  "glue",
+  "leadingGlue",
+  "break",
+  "tag",
+]);
+
+function isBodyInjection(node: SyntaxNode): boolean {
+  return (
+    node.name === "DisplayLoadKeyword" ||
+    node.name === "LuauInterpolatedString" ||
+    isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
+    isExplicitRuleName(node.name, "LuauFunctionCallShorthand") ||
+    node.name === "Divert" ||
+    INLINE_GLUED_ALTERNATOR_NAMES.has(node.name) ||
+    isExplicitRuleName(node.name, "Tags") ||
+    node.name === "SparkdownLineComment" ||
+    node.name === "SparkdownInlineComment" ||
+    node.name === "SparkdownBlockComment" ||
+    node.name === "Glue" ||
+    node.name === "LeadingGlue" ||
+    node.name === "Break"
+  );
+}
+
+function scannedValue(body: ParsedObject[]): ParsedObject[] {
+  return [new Text(SCAN_OPEN), ...body, new Text(SCAN_CLOSE)];
 }
 
 interface BodyInjection {
@@ -680,7 +767,18 @@ function applyDisplayEscapes(raw: string): string {
   let i = 0;
   while (i < input.length) {
     const c = input[i]!;
-    if (c === "\\") {
+    if (spanOpenMark(c)?.startsWith("`")) {
+      let close = i + 1;
+      while (
+        close < input.length &&
+        input[close] !== SPAN_CLOSE &&
+        input[close] !== SPAN_END
+      ) {
+        close++;
+      }
+      out += input.slice(i, close + 1);
+      i = close + 1;
+    } else if (c === "\\") {
       const next = input[i + 1];
       if (next === undefined) {
         out += "\\";
@@ -941,10 +1039,10 @@ function readIdentifier(
 function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
   const name = getDescendent("DialogueCharacterName", node);
   if (!name) return null;
-  const cue = ctx.read(name.from, name.to).trim();
+  const cue = readStyledSource(name, name.from, name.to, ctx).trim();
   const parenthetical = getDescendent("DialogueCharacterParenthetical", node);
   return parenthetical
-    ? `${cue} ${ctx.read(parenthetical.from, parenthetical.to).trim()}`
+    ? `${cue} ${readStyledSource(parenthetical, parenthetical.from, parenthetical.to, ctx).trim()}`
     : cue;
 }
 

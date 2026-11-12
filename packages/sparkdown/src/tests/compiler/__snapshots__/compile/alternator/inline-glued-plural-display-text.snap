@@ -67,12 +67,14 @@
                     "type": "StringExpression",
                     "content": [
                       "You have ",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "n"
                         ]
                       },
+                      "",
                       " ",
                       {
                         "type": "Weave"

@@ -45,6 +45,7 @@ export interface StoryEngine {
   stepLimit: number | null;
 
   readonly currentText: string | null;
+  readonly currentStyledText: string | null;
   readonly currentTags: string[];
   readonly currentDisplayInstructions: ObjectValue[];
   readonly currentChoices: ProgramChoice[];
