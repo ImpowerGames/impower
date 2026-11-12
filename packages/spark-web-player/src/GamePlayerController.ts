@@ -546,7 +546,7 @@ export class GamePlayerController {
     renderRouteViews(this.routeViewTargets(), null);
     renderSavesViews(this.savesTargets(), null);
     this._saves.dispose();
-    ColorSchemeHost.for(this.refs.gameUI).dispose();
+    ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
     this._selectionVersion++;
     this._launchState = null;

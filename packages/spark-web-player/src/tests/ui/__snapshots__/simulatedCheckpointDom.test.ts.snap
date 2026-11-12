@@ -2,6 +2,9 @@
 
 exports[`a checkpoint saved during a simulated route > displays the layout, portrait and dialogue in a fresh game 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -1379,16 +1382,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;

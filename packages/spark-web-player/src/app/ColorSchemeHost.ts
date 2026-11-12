@@ -13,6 +13,10 @@ export class ColorSchemeHost {
     return holder.__sdColorScheme;
   }
 
+  static release(root: HTMLElement | undefined): void {
+    (root as (HTMLElement & { __sdColorScheme?: ColorSchemeHost }) | undefined)?.__sdColorScheme?.dispose();
+  }
+
   protected root: HTMLElement;
   protected setting: ColorSchemeSetting = "system";
   protected simulated?: ColorScheme;

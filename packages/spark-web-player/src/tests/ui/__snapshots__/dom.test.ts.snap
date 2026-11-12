@@ -2,6 +2,9 @@
 
 exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -1379,16 +1382,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -2475,6 +2493,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render > image show renders background span + img 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -3852,16 +3873,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -4914,6 +4950,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styled span 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -6291,16 +6330,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -7471,6 +7525,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render > screen tree renders into overlay 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -8848,16 +8905,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -9892,6 +9964,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · choices + real click > a real DOM click on a choice clears the choices 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -11268,16 +11343,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -12296,6 +12386,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · choices + real click > choices render into overlay 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -13672,16 +13765,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -14740,6 +14848,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · image lifecycle > asset-bearing hide destroys its transient layer (no leak) 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -16120,16 +16231,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -17418,6 +17544,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only the new layer 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -18798,16 +18927,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -20096,6 +20240,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · image lifecycle > image animate keeps the shown layer 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -21476,16 +21623,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -22774,6 +22936,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -24154,16 +24319,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
@@ -25452,6 +25632,9 @@ spark-web-player #game .textstream_caption {
 
 exports[`dom render · image lifecycle > layered images stack background-image on one span 1`] = `
 {
+  "attrs": {
+    "data-color-scheme": "light",
+  },
   "children": [
     {
       "children": [
@@ -26832,16 +27015,31 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_70);
+  }
 }
 spark-web-player #game .paper {
   background-color: var(--theme-color-neutral_99);
   color: var(--theme-color-slate_20);
+  color-scheme: light;
+  :where([data-color-scheme="dark"]) & {
+    background-color: var(--theme-color-neutral_10);
+    color: var(--theme-color-slate_90);
+    color-scheme: dark;
+  }
 }
 spark-web-player #game .ink {
   color: var(--theme-color-slate_20);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-slate_90);
+  }
 }
 spark-web-player #game .accent {
   color: var(--theme-color-orange_30);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-orange_80);
+  }
 }
 spark-web-player #game .paragraph {
   display: block;
