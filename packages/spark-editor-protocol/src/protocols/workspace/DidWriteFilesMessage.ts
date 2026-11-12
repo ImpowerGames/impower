@@ -8,6 +8,7 @@ export interface DidWriteFilesParams {
   remote: boolean;
   origin?: string;
   commits?: FileCommits;
+  restored?: string[];
 }
 
 export class DidWriteFilesMessage {

@@ -52,6 +52,14 @@ it.each([
     action: { kind: "put-back", targets: [uri("Scripts/other.sd")] },
     row: "other.sd | Copy kept when putting back other.sd failed · Scripts · just now",
   },
+  {
+    action: { kind: "replace", targets: [uri("Scripts/other.sd"), uri("main.sd")] },
+    row: "other.sd | Copy kept when replacing text in other.sd and 1 more failed · Scripts · just now",
+  },
+  {
+    action: { kind: "rename-symbol", targets: [uri("Scripts/other.sd")] },
+    row: "other.sd | Copy kept when renaming references in other.sd failed · Scripts · just now",
+  },
   { action: undefined, row: "other.sd | Copy kept when an edit failed · Scripts · just now" },
   {
     action: { kind: "merge", targets: [uri("Scripts/other.sd")] },

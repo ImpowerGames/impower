@@ -9,6 +9,7 @@ import {
   WorkspaceEditAction,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { ConfirmWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfirmWorkspaceEditMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
@@ -309,12 +310,19 @@ class CommitLog {
     }
   }
 
-  wrote(result: WriteResult) {
+  restored = new Set<string>();
+
+  wrote(result: WriteResult, restored = false) {
     const uri = result.file.uri;
     this.record(uri, result.local, result.commit);
     const held = this.writes.get(uri);
     if (!held || result.local > held.local) {
       this.writes.set(uri, result);
+      if (restored) {
+        this.restored.add(uri);
+      } else {
+        this.restored.delete(uri);
+      }
     }
   }
 
@@ -354,15 +362,45 @@ class CommitLog {
 
 const channel = new BroadcastChannel("opfs-workspace");
 let remoteMessages = Promise.resolve();
+const remoteRestoredTexts = new Map<string, string>();
+const rememberRemoteRestores = (message: unknown, accepted: Set<string>) => {
+  if (!DidWriteFilesMessage.type.isNotification(message)) {
+    return;
+  }
+  const restored = restoredTextsOf(message.params.files, message.params.restored);
+  for (const file of message.params.files) {
+    if (!accepted.has(file.uri)) {
+      continue;
+    }
+    const text = restored.get(file.uri);
+    if (text === undefined) {
+      remoteRestoredTexts.delete(file.uri);
+    } else {
+      remoteRestoredTexts.set(file.uri, text);
+    }
+  }
+};
 channel.onmessage = (event) => {
   remoteMessages = remoteMessages
     .then(async () => {
       const { forward, unordered } = await reconcileRemoteMessage(event.data);
+      rememberRemoteRestores(
+        event.data,
+        new Set([
+          ...(DidWriteFilesMessage.type.isNotification(forward)
+            ? forward.params.files.map((file) => file.uri)
+            : []),
+          ...unordered.map((entry) => entry.uri),
+        ]),
+      );
       if (forward) {
         postMessage(forward);
       }
       if (unordered.length > 0) {
-        announceSettled(await settlePaths(unordered), { local: false });
+        announceSettled(await settlePaths(unordered), {
+          local: false,
+          restoredTexts: new Map(remoteRestoredTexts),
+        });
       }
     })
     .catch((err) => console.error(err));
@@ -389,12 +427,16 @@ const broadcastWrites = (log: CommitLog) => {
     filesByOrigin.set(undefined, []);
   }
   filesByOrigin.forEach((files, origin) => {
+    const restored = files
+      .map((f) => f.uri)
+      .filter((uri) => log.restored.has(uri));
     broadcast(
       DidWriteFilesMessage.type.notification({
         files,
         remote: false,
         origin,
         commits: log.stamp(files.map((f) => f.uri)),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   });
@@ -571,9 +613,21 @@ const settlePaths = async (paths: { uri: string; directory: boolean }[]) => {
   return settled;
 };
 
+const restoredTextsOf = (files: FileData[], restored: string[] = []) =>
+  new Map(
+    files.flatMap((file) =>
+      restored.includes(file.uri) && file.text != null
+        ? [[file.uri, file.text] as const]
+        : [],
+    ),
+  );
+
 const announceSettled = (
   observed: SettledPath[],
-  { local }: { local: boolean },
+  {
+    local,
+    restoredTexts = new Map(),
+  }: { local: boolean; restoredTexts?: Map<string, string> },
 ) => {
   const settled = observed.filter((e) => isLocalLatest(e.uri, e.local));
   const commitsOf = (entries: SettledPath[]): FileCommits =>
@@ -587,11 +641,15 @@ const announceSettled = (
   const watched = settled.filter((e) => !e.directory);
   const messages: NotificationMessage<string, any>[] = [];
   if (files.length > 0) {
+    const restored = files
+      .filter((e) => e.file!.text != null && restoredTexts.get(e.uri) === e.file!.text)
+      .map((e) => e.uri);
     messages.push(
       DidWriteFilesMessage.type.notification({
         files: files.map((e) => e.file!),
         remote: !local,
         commits: commitsOf(files),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -649,7 +707,13 @@ const announceUnordered = async (log: CommitLog) => {
     await settlePaths(
       [...log.unordered].map(([uri, directory]) => ({ uri, directory })),
     ),
-    { local: true },
+    {
+      local: true,
+      restoredTexts: restoredTextsOf(
+        [...log.writes.values()].map((write) => write.file),
+        [...log.restored],
+      ),
+    },
   );
 };
 
@@ -750,8 +814,22 @@ const initialConfigurationMessage = ConfigurationMessage.type.request({
 });
 postMessage(initialConfigurationMessage);
 
+const confirmations = new Map<number | string, (refusal: string | undefined) => void>();
+
+const confirmEdit = (edit: number | string) =>
+  new Promise<string | undefined>((resolve) => {
+    const request = ConfirmWorkspaceEditMessage.type.request({ edit });
+    confirmations.set(request.id, resolve);
+    postMessage(request);
+  });
+
 onmessage = async (e) => {
   const message = e.data;
+  if (ConfirmWorkspaceEditMessage.type.isResponse(message)) {
+    const settle = confirmations.get(message.id);
+    confirmations.delete(message.id);
+    settle?.(message.error ? message.error.message : message.result?.refusal);
+  }
   if (ConfigurationMessage.type.isResponse(message)) {
     if (message.id === initialConfigurationMessage.id) {
       const settings = message.result?.[0];
@@ -1050,11 +1128,12 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts, metadata } = message.params;
+    const { edit, expectedTexts, metadata, confirm } = message.params;
     const log = new CommitLog();
     const { effects, failure } = await applyWorkspaceEdit(edit, log, {
       expectedTexts,
       action: metadata?.action,
+      confirm: confirm ? () => confirmEdit(message.id) : undefined,
     });
 
     broadcastCreates(log, effects.created);
@@ -1071,7 +1150,9 @@ onmessage = async (e) => {
           ? {
               applied: false,
               failureReason: failure.reason,
-              failedChange: failure.change,
+              ...(failure.change !== undefined
+                ? { failedChange: failure.change }
+                : {}),
               rollback: failure.rollback,
             }
           : { applied: true },
@@ -1314,7 +1395,7 @@ class UndoLog {
         return false;
       }
       this.commit(result.local);
-      log.wrote(result);
+      log.wrote(result, true);
       effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Changed });
       return true;
     }
@@ -1526,7 +1607,12 @@ const applyWorkspaceEdit = async (
   {
     expectedTexts,
     action,
-  }: { expectedTexts?: Record<string, string>; action?: WorkspaceEditAction } = {},
+    confirm,
+  }: {
+    expectedTexts?: Record<string, string>;
+    action?: WorkspaceEditAction;
+    confirm?: () => Promise<string | undefined>;
+  } = {},
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??
@@ -1549,6 +1635,50 @@ const applyWorkspaceEdit = async (
   }
   const undo = new UndoLog(action);
   const effects = noEffects();
+  const rollBack = async (change: number | undefined, reason: string) => {
+    const { effects, unknown, kept, trashed, unlisted } = await undo
+      .restore(log)
+      .catch((restoreError) => {
+        console.error(restoreError);
+        return {
+          effects: noEffects(),
+          unknown: [...undo.prior.keys()],
+          kept: [] as string[],
+          trashed: [] as string[],
+          unlisted: undo.copies.map((c) => c.uri),
+        };
+      });
+    const partial = [
+      ...(unknown.length > 0
+        ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
+        : []),
+      ...(kept.length > 0
+        ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
+        : []),
+      ...(trashed.length > 0
+        ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
+        : []),
+      ...(unlisted.length > 0
+        ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
+        : []),
+    ];
+    return {
+      effects,
+      failure: {
+        change,
+        reason:
+          partial.length === 0
+            ? reason
+            : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
+        rollback: {
+          complete: partial.length === 0,
+          failed: [...unknown, ...unlisted],
+          kept,
+          ...(trashed.length > 0 ? { trashed } : {}),
+        },
+      },
+    };
+  };
   commitWatchers.add(undo.watch);
   try {
     for (const [index, change] of changes.entries()) {
@@ -1557,50 +1687,12 @@ const applyWorkspaceEdit = async (
         await applyChange(change, log, effects, undo, expectedTexts);
       } catch (err: any) {
         console.error(err, err?.stack);
-        const reason = err?.message ?? String(err);
-        const { effects, unknown, kept, trashed, unlisted } = await undo
-          .restore(log)
-          .catch((restoreError) => {
-            console.error(restoreError);
-            return {
-              effects: noEffects(),
-              unknown: [...undo.prior.keys()],
-              kept: [] as string[],
-              trashed: [] as string[],
-              unlisted: undo.copies.map((c) => c.uri),
-            };
-          });
-        const partial = [
-          ...(unknown.length > 0
-            ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
-            : []),
-          ...(kept.length > 0
-            ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
-            : []),
-          ...(trashed.length > 0
-            ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
-            : []),
-          ...(unlisted.length > 0
-            ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
-            : []),
-        ];
-        return {
-          effects,
-          failure: {
-            change: index,
-            reason:
-              partial.length === 0
-                ? reason
-                : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
-            rollback: {
-              complete: partial.length === 0,
-              failed: [...unknown, ...unlisted],
-              kept,
-              ...(trashed.length > 0 ? { trashed } : {}),
-            },
-          },
-        };
+        return await rollBack(index, err?.message ?? String(err));
       }
+    }
+    const refusal = await confirm?.();
+    if (refusal !== undefined) {
+      return await rollBack(undefined, refusal);
     }
     return { effects, failure: undefined };
   } finally {

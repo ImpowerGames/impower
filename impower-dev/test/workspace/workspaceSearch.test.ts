@@ -281,9 +281,12 @@ describe("Replace", () => {
     search.setReplacement("tale");
     await search.replaceAll();
     expect(sources.applyEdit).toHaveBeenCalledTimes(1);
-    const [edit] = sources.applyEdit.mock.calls[0]! as unknown as [
+    const [edit, , kind] = sources.applyEdit.mock.calls[0]! as unknown as [
       { documentChanges: { textDocument: { uri: string }; edits: { newText: string }[] }[] },
+      string,
+      string,
     ];
+    expect(kind).toBe("replace");
     expect(
       edit.documentChanges.map((c) => [c.textDocument.uri, c.edits.map((e) => e.newText)]),
     ).toEqual([
@@ -476,9 +479,56 @@ describe("Rename", () => {
         ],
       },
       "Rename imani to amara",
+      "rename-symbol",
     );
     expect(sources.onRenamed).toHaveBeenCalled();
     expect(workspace.search.value.open).toBe(false);
+  });
+
+  it("stays open and says nothing was renamed when the edit was refused and rolled back", async () => {
+    const { search, sources } = make(MAIN);
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason: "main.sd changed before the edit could be applied",
+      rollback: { complete: true, failed: [], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(sources.onRenamed).not.toHaveBeenCalled();
+    expect(workspace.search.value).toMatchObject({
+      status: "main.sd changed before the edit could be applied. Nothing was renamed.",
+      statusTone: "error",
+      open: true,
+    });
+  });
+
+  it("ends a refused rename's reason with one full stop", async () => {
+    const { search, sources } = make(MAIN);
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason: "imani.png is locked.",
+      rollback: { complete: true, failed: [], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    await search.rename();
+    expect(workspace.search.value.status).toBe("imani.png is locked. Nothing was renamed.");
+  });
+
+  it("shows the worker's account of what it could not put back when the rollback was partial", async () => {
+    const { search, sources } = make(MAIN);
+    const failureReason =
+      "a.png is locked; the edit was partly applied: restoring the earlier changes failed, so these may be left changed: file:///p/chapter.sd";
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason,
+      rollback: { complete: false, failed: ["file:///p/chapter.sd"], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(workspace.search.value.status).toBe(failureReason);
   });
 
   it("shows the server's reason and changes nothing when the name is taken", async () => {
