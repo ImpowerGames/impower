@@ -61,7 +61,7 @@ export const AS_IS = "";
 export const choicesOf = (group: StackGroup): string[] =>
   group.switch || group.default !== undefined ? group.options : [AS_IS, ...group.options];
 
-export const variantsOf = (groups: readonly StackGroup[]): number =>
+const variantsOf = (groups: readonly StackGroup[]): number =>
   groups.reduce((count, group) => count * choicesOf(group).length, 1);
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
