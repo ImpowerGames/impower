@@ -67,7 +67,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       timer = window.setTimeout(hide, FILE_DROP_HIDE_MS);
     };
     const onPage = (event: DragEvent) =>
-      event.target instanceof Element && !!event.target.closest(`[${FILE_DROP_TARGET}]`);
+      event.composedPath().some((node) => node instanceof Element && node.hasAttribute(FILE_DROP_TARGET));
 
     const onDragOver = (event: DragEvent) => {
       if (!carriesFiles(event)) return;
