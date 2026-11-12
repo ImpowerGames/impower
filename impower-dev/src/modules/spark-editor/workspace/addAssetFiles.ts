@@ -2,9 +2,11 @@ import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { assetEndings, assetTypeOf } from "../utils/assetTypes";
 import { inflateZipEntry, listZip, zipInflates } from "../utils/zipEntries";
 import { findProjectRoot, isArchiveDropping } from "./projectImport";
-import { joinPath, parentOf } from "./scriptsListing";
+import { landingFolder } from "./assetsListing";
+import { isInside, joinPath, parentOf } from "./scriptsListing";
+import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
 import { storageLeft } from "../utils/storageLeft";
-import { refuseUploads, withUploadGroup } from "./uploadSession";
+import { beginUploadBatch, endUploadBatch, findingUploads, refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
 import workspace from "./WorkspaceStore";
 
@@ -50,40 +52,76 @@ const openZip = async (file: AddedFile): Promise<OpenedFiles | null> => {
   return { files, zip: { name: file.name, inflates: () => zipInflates(data, entries) } };
 };
 
-export const addAssetFiles = async (
-  files: readonly AddedFile[],
+const leafOf = (name: string) => name.slice(name.lastIndexOf("/") + 1);
+
+const addWalked = async (
+  projectId: string,
+  { files, refused }: WalkedDrop,
   folder: string,
-  { showUploads }: { showUploads?: () => void } = {},
+  { showUploads, fromFolders }: { showUploads?: () => void; fromFolders: boolean },
 ): Promise<string[]> => {
-  const projectId = workspace.signals.projectId.peek();
-  if (!files.length || !projectId) {
-    return [];
-  }
-  const opened = isZip(files) ? await openZip(files[0]!) : { files };
+  const group = <T>(run: () => Promise<T>) => withUploadGroup(run, { keepFinished: fromFolders });
+  const opened = !fromFolders && isZip(files) ? await openZip(files[0]!) : { files };
   if (!opened) {
     return [];
   }
   showUploads?.();
+  const refuseUnread = () => refused.forEach(({ name, reason }) => refuseUploads([name], reason));
   if (!opened.files.length) {
+    if (refused.length) {
+      await group(async () => refuseUnread());
+    }
     return [];
   }
+  const names = opened.zip ? [opened.zip.name] : opened.files.map((file) => leafOf(file.name));
   const free = await storageLeft();
   const needed = opened.files.reduce((sum, file) => sum + file.size, 0);
   if (free !== null && needed > free) {
-    const names = opened.zip ? [opened.zip.name] : opened.files.map((file) => file.name);
-    await withUploadGroup(async () => refuseUploads(names, { kind: "no_room", needed, free }));
+    await group(async () => {
+      refuseUnread();
+      refuseUploads(names, { kind: "no_room", needed, free });
+    });
     return [];
   }
   const zip = opened.zip;
   if (zip && !zip.inflates()) {
-    await withUploadGroup(async () => refuseUploads([zip.name], { kind: "zip", reason: "unreadable_zip" }));
+    await group(async () => refuseUploads([zip.name], { kind: "zip", reason: "unreadable_zip" }));
     return [];
   }
   const { Workspace } = await import("./Workspace");
   if (workspace.assetListing.peek()?.projectId !== projectId) {
     await Workspace.assets.load();
   }
-  return withUploadGroup(() => Workspace.assets.upload(opened.files, folder));
+  return group(async () => {
+    refuseUnread();
+    if (workspace.signals.projectId.peek() !== projectId) {
+      refuseUploads(names, { kind: "project_changed" });
+      return [];
+    }
+    return Workspace.assets.upload(opened.files, folder);
+  });
+};
+
+export const addAssetFiles = async (
+  items: readonly DropItem[],
+  folder: string,
+  { showUploads }: { showUploads?: () => void } = {},
+): Promise<string[]> => {
+  const projectId = workspace.signals.projectId.peek();
+  if (!items.length || !projectId) {
+    return [];
+  }
+  if (!items.some(isDroppedFolder)) {
+    return addWalked(projectId, { files: items as AddedFile[], refused: [] }, folder, { showUploads, fromFolders: false });
+  }
+  showUploads?.();
+  beginUploadBatch();
+  try {
+    const walked = await findingUploads((found) => walkDrop(items, found));
+    return await addWalked(projectId, walked, folder, { fromFolders: true });
+  } finally {
+    endUploadBatch();
+  }
 };
 
 const rowIn = (path: string, folder: string): string =>
@@ -93,7 +131,8 @@ export const landedView = (
   landed: readonly string[],
   viewed: string,
 ): { last: string; lists?: Partial<ListsState> } | null => {
-  const files = workspace.assetListing.peek()?.files ?? {};
+  const listing = workspace.assetListing.peek() ?? { files: {}, folders: [] };
+  const files = listing.files;
   const shown = landed.filter((path) => Object.hasOwn(files, path));
   const here = shown.filter((path) => path.startsWith(viewed ? `${viewed}/` : "")).map((path) => rowIn(path, viewed));
   const last = here[here.length - 1] ?? shown[shown.length - 1];
@@ -104,6 +143,8 @@ export const landedView = (
     return { last };
   }
   const type = assetTypeOf(last, assetEndings.peek(), files[last]?.address);
+  const landing = landingFolder(listing, type, viewed);
+  const opened = isInside(last, landing) ? landing : parentOf(last);
   const folders = workspace.state.peek().lists?.assetsFolders ?? {};
-  return { last, lists: { assetsType: type, assetsFolders: { ...folders, [type]: parentOf(last) } } };
+  return { last: rowIn(last, opened), lists: { assetsType: type, assetsFolders: { ...folders, [type]: opened } } };
 };

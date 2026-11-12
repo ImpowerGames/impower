@@ -23,6 +23,19 @@
   },
   "variables": {
     "DISPLAY_CHAIN_SEPARATOR": "(?:$|{{WS}}+)",
+    "STORY_TEXT_OUTSIDE_COMMENT": "(?:(?!{{STORY_COMMENT_START}})[^\\r\\n])",
+    "STORY_TEXT_UNIT": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{STORY_TEXT_OUTSIDE_COMMENT}})",
+    "DISPLAY_CHAIN_TEXT_BEFORE_TAG": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|(?!{{STORY_COMMENT_START}}|{{TAG_START}}|{{CHOICE_PLAIN_INTERPOLATION}})[^\\r\\n])",
+    "DISPLAY_CHAIN_TAG": "(?:{{TAG_START}}[^\\r\\n]*?)",
+    "DISPLAY_CHAIN_TEXT": "(?:{{DISPLAY_CHAIN_TEXT_BEFORE_TAG}}*?{{DISPLAY_CHAIN_TAG}}?)",
+    "DISPLAY_CHAIN_TAG_TAIL": "(?:{{WS}}*{{DISPLAY_CHAIN_TAG}}{{DISPLAY_CHAIN_MARK}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})",
+    "DISPLAY_CHAIN_COMMENT_AHEAD": "(?={{WS}}+(?:{{SPARKDOWN_BLOCK_COMMENT_START}}|{{LINE_COMMENT_MARK}}))",
+    "DISPLAY_CHAIN_MARK": "(?:{{CHAIN}}(?:{{DISPLAY_CHAIN_COMMENT_AHEAD}}|{{DISPLAY_CHAIN_SEPARATOR}}))",
+    "BLOCK_COMMENT_CLOSED": "(?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/])",
+    "BLOCK_COMMENT_ON_LINE": "(?:{{WS}}*{{BLOCK_COMMENT_CLOSED}})",
+    "LINE_COMMENT_TO_END": "(?:{{WS}}*{{LINE_COMMENT_MARK}}[^\\r\\n]*)",
+    "DISPLAY_CHAIN_COMMENTS": "(?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)",
+    "DISPLAY_CHAIN_END": "(?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})",
     "IMAGE_CONTROL_KEYWORDS": [
       "show",
       "hide",
@@ -93,6 +106,7 @@
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
     "SPARKDOWN_BLOCK_COMMENT_START": "(?:[/][*])",
+    "BLOCK_COMMENT_CHARACTER": "(?:[^*\\r\\n]|[*](?![/]))",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
     "CHAIN": "(?:[\\\\])",
@@ -136,6 +150,138 @@
     "CHOICE_CLOSURE_PARENS": "(?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])",
     "CHOICE_UNREADABLE_CONDITION_OPEN": "(?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))",
     "CHOICE_HEADER_LINE_BREAK_TAKEN": "(?:\\G(?![\\s\\S]))",
+    "CHOICE_OPEN_BRACE": "(?:[{](?![^\\r\\n]*?[}]))",
+    "CHOICE_SUPPRESSION_TAG": "(?:{{CHOICE_ONLY_TEXT_TAG}}(?={{CHOICE_ONLY_TEXT_END}}))",
+    "CHOICE_SUPPRESSION_SCAN": "(?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?![{]|\\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\\\])[^\\r\\n])",
+    "CHOICE_SUPPRESSION_ESCAPE": "(?:[\\\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|(?={{CHOICE_ONLY_TEXT_END}})))",
+    "CHOICE_SUPPRESSION_SCAN_PAST_BRACE": "(?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?!\\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\\\])[^\\r\\n])",
+    "CHOICE_SUPPRESSION_PAST_BRACE": "(?:{{CHOICE_OPEN_BRACE}}{{CHOICE_SUPPRESSION_SCAN_PAST_BRACE}}*)",
+    "BLOCK_COMMENT_RUNS_ON": "(?:{{SPARKDOWN_BLOCK_COMMENT_START}}(?!{{BLOCK_COMMENT_CHARACTER}}*[*][/]))",
+    "CHOICE_SUPPRESSION_RUNS_ON": "(?:{{WS}}*{{BLOCK_COMMENT_RUNS_ON}})",
+    "CHOICE_SUPPRESSION_BRACKET_AHEAD": "(?=[^\\r\\n]*?\\])",
+    "CHOICE_SUPPRESSION_CLOSE": "(?:\\]|{{CHOICE_SUPPRESSION_RUNS_ON}}|{{CHOICE_READ_INTERPOLATION}}{{CHOICE_SUPPRESSION_BRACKET_AHEAD}})",
+    "CHOICE_SUPPRESSION_CLOSE_PAST_BRACE": "(?:{{CHOICE_SUPPRESSION_PAST_BRACE}}(?:\\]|{{CHOICE_SUPPRESSION_RUNS_ON}}))",
+    "CHOICE_SUPPRESSION_CLOSES_AT_BRACKET": "(?:{{CHOICE_SUPPRESSION_BRACKET_AHEAD}}{{CHOICE_SUPPRESSION_SCAN}}*(?:{{CHOICE_SUPPRESSION_CLOSE}}|{{CHOICE_SUPPRESSION_CLOSE_PAST_BRACE}}))",
+    "CHOICE_SUPPRESSION_CLOSES_RUNNING_ON": "(?:(?![^\\r\\n]*?\\]){{CHOICE_SUPPRESSION_SCAN}}*{{CHOICE_SUPPRESSION_PAST_BRACE}}?{{CHOICE_SUPPRESSION_RUNS_ON}})",
+    "CHOICE_SUPPRESSION_CLOSES": "(?={{CHOICE_SUPPRESSION_CLOSES_AT_BRACKET}}|{{CHOICE_SUPPRESSION_CLOSES_RUNNING_ON}})",
+    "CHOICE_SUPPRESSION_OPEN": "(?:\\[(?=[^\\r\\n]*?(?:\\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))",
+    "LINE_COMMENT_MARK": "(?:[/]{2}(?=$|{{WS}}))",
+    "STORY_COMMENT_START": "(?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|{{WS}}*{{LINE_COMMENT_MARK}})",
+    "CHOICE_INTERPOLATION_UNIT": "(?:[{](?![}])(?=[^\\r\\n]*?[}]))",
+    "CHOICE_TEXT_UNIT": "(?:{{STORY_COMMENT_START}}|{{CHOICE_INTERPOLATION_UNIT}})",
+    "CHOICE_PLAIN_DOUBLE_QUOTED": "(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])",
+    "CHOICE_PLAIN_SINGLE_QUOTED": "(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])",
+    "CHOICE_PLAIN_STRING": "(?:{{CHOICE_PLAIN_DOUBLE_QUOTED}}|{{CHOICE_PLAIN_SINGLE_QUOTED}})",
+    "CHOICE_PLAIN_CODE_CHARACTER": "(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|{{CHOICE_PLAIN_STRING}})",
+    "CHOICE_PLAIN_BACKTICK_TEXT": "(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])",
+    "CHOICE_PLAIN_BACKTICK_PART": "(?:{{CHOICE_PLAIN_BACKTICK_TEXT}}|[{]{{CHOICE_PLAIN_CODE_CHARACTER}}*[}])",
+    "CHOICE_PLAIN_BACKTICK_STRING": "(?:[`]{{CHOICE_PLAIN_BACKTICK_PART}}*[`])",
+    "CHOICE_PLAIN_INTERPOLATION_CHARACTER": "(?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{CHOICE_PLAIN_BACKTICK_STRING}})",
+    "CHOICE_PLAIN_TABLE_1": "(?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])",
+    "CHOICE_PLAIN_TABLE_2": "(?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_1}})*[}])",
+    "CHOICE_PLAIN_TABLE_3": "(?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_2}})*[}])",
+    "CHOICE_PLAIN_INTERPOLATION": "(?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_3}})+[}])",
+    "CHOICE_TEXT_ESCAPED_BRACE": "(?:[\\\\][{])",
+    "SPAN_END": "(?:{{EOL}}|{{DISPLAY_CHAIN_END}})",
+    "CHOICE_SPAN_MARK": "(?:[*_`^]|[~][~]|[:][:])",
+    "CHOICE_READ_INTERPOLATION": "(?:(?!{{CHOICE_PLAIN_INTERPOLATION}}){{CHOICE_INTERPOLATION_UNIT}})",
+    "CHOICE_TEXT_DOTS": "(?:(?<![.])[.][.](?={{WS}}*(?:{{CHOICE_SPAN_MARK}}|{{CHOICE_READ_INTERPOLATION}}|{{DISPLAY_CHAIN_END}})))",
+    "CHOICE_START_TEXT_FREE": "(?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_START_RUN_ESCAPE": "(?:[\\\\](?!{{WS}}){{CHOICE_START_REGION_CHARACTER}}|[\\\\](?={{WS}}|{{CHOICE_START_TEXT_END}}))",
+    "CHOICE_START_TEXT_RUN": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_START_RUN_ESCAPE}}|(?![\\\\]){{CHOICE_START_TEXT_FREE}})",
+    "CHOICE_START_TEXT_ESCAPE": "(?:[\\\\]{{CHOICE_START_REGION_CHARACTER}})",
+    "CHOICE_START_COMMAND_CHARACTER": "(?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\\r\\n])",
+    "CHOICE_START_COMMAND_ESCAPE": "(?:[\\\\]{{CHOICE_START_REGION_CHARACTER}})",
+    "CHOICE_START_TEXT_COMMAND_UNIT": "(?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_START_COMMAND_CHARACTER}})",
+    "CHOICE_START_TEXT_COMMAND_REST": "(?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_START_REGION_CHARACTER}})",
+    "CHOICE_START_TEXT_COMMAND_WALK": "(?:{{CHOICE_START_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_TEXT_COMMAND_REST}}*)?(?<![-])[>])",
+    "CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT": "(?:[\\\\](?![>]){{CHOICE_START_REGION_CHARACTER}}|[\\\\](?=[>]|{{CHOICE_START_TEXT_END}})|(?![\\\\]){{CHOICE_START_COMMAND_CHARACTER}})",
+    "CHOICE_START_TEXT_COMMAND_ESCAPED_END": "(?:{{CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_REGION_CHARACTER}}*)?(?<=[\\\\])[>])",
+    "CHOICE_START_TEXT_COMMAND": "(?:[<](?!{{WS}})(?:{{CHOICE_START_TEXT_COMMAND_WALK}}|{{CHOICE_START_TEXT_COMMAND_ESCAPED_END}}))",
+    "CHOICE_START_AUDIO_ESCAPE": "(?:[\\\\](?![)][)]){{CHOICE_START_REGION_CHARACTER}}|[\\\\](?=[)][)]|{{CHOICE_START_TEXT_END}}))",
+    "CHOICE_START_AUDIO_CHARACTER": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_START_COMMAND_CHARACTER}}))",
+    "CHOICE_START_AUDIO_REST": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_START_REGION_CHARACTER}}))",
+    "CHOICE_START_AUDIO_COMMAND": "(?:[(][(]{{CHOICE_START_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_AUDIO_REST}}*)?)",
+    "CHOICE_START_IMAGE_ESCAPE": "(?:[\\\\](?!\\]\\]){{CHOICE_START_REGION_CHARACTER}}|[\\\\](?=\\]\\]|{{CHOICE_START_TEXT_END}}))",
+    "CHOICE_START_IMAGE_CHARACTER": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_START_COMMAND_CHARACTER}}))",
+    "CHOICE_START_IMAGE_REST": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_START_REGION_CHARACTER}}))",
+    "CHOICE_START_IMAGE_COMMAND": "(?:\\[\\[{{CHOICE_START_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_IMAGE_REST}}*)?)",
+    "CHOICE_START_GLUED_ALTERNATOR": "(?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_START_TEXT_RUN}})*)",
+    "CHOICE_START_PAST_OPEN_BRACE": "(?:{{CHOICE_START_TEXT_ESCAPE}}|[\\\\](?={{CHOICE_START_TEXT_END}})|(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}}|[\\\\])[^\\r\\n])",
+    "CHOICE_START_OPEN_INTERPOLATION": "(?:{{CHOICE_OPEN_BRACE}}{{CHOICE_START_PAST_OPEN_BRACE}}*)",
+    "CHOICE_START_TEXT_PIECE": "(?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_COMMAND}}|{{CHOICE_START_AUDIO_COMMAND}}|{{CHOICE_START_IMAGE_COMMAND}}|{{CHOICE_START_GLUED_ALTERNATOR}}|{{CHOICE_START_OPEN_INTERPOLATION}}|{{CHOICE_START_TEXT_FREE}})",
+    "CHOICE_START_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_TEXT_END}}){{CHOICE_START_TEXT_PIECE}})",
+    "CHOICE_START_SPAN_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_SPAN_END}}){{CHOICE_START_TEXT_PIECE}})",
+    "CHOICE_START_RAW_CHARACTER": "(?:(?![`]|{{CHOICE_START_SPAN_END}})[^\\r\\n])",
+    "CHOICE_START_BOLD_ITALIC_CHARACTER": "(?:(?![*]|{{CHOICE_START_SPAN_END}})[^\\r\\n])",
+    "CHOICE_START_SPAN_END": "(?:{{SPAN_END}}|{{WS}}*{{CHOICE_START_TEXT_END}})",
+    "CHOICE_START_REGION_CHARACTER": "(?:(?!{{CHOICE_START_TEXT_END}})[^\\r\\n])",
+    "CHOICE_START_TEXT_TAG": "(?:{{TAG_START}}{{CHOICE_START_REGION_CHARACTER}}*)",
+    "CHOICE_ONLY_TEXT_FREE": "(?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_ONLY_RUN_ESCAPE": "(?:[\\\\](?!{{WS}}){{CHOICE_ONLY_REGION_CHARACTER}}|[\\\\](?={{WS}}|{{CHOICE_ONLY_TEXT_END}}))",
+    "CHOICE_ONLY_TEXT_RUN": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_ONLY_RUN_ESCAPE}}|(?![\\\\]){{CHOICE_ONLY_TEXT_FREE}})",
+    "CHOICE_ONLY_TEXT_ESCAPE": "(?:[\\\\]{{CHOICE_ONLY_REGION_CHARACTER}})",
+    "CHOICE_ONLY_COMMAND_CHARACTER": "(?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\\r\\n])",
+    "CHOICE_ONLY_COMMAND_ESCAPE": "(?:[\\\\]{{CHOICE_ONLY_REGION_CHARACTER}})",
+    "CHOICE_ONLY_TEXT_COMMAND_UNIT": "(?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_ONLY_COMMAND_CHARACTER}})",
+    "CHOICE_ONLY_TEXT_COMMAND_REST": "(?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_ONLY_REGION_CHARACTER}})",
+    "CHOICE_ONLY_TEXT_COMMAND_WALK": "(?:{{CHOICE_ONLY_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_TEXT_COMMAND_REST}}*)?(?<![-])[>])",
+    "CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT": "(?:[\\\\](?![>]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\\\](?=[>]|{{CHOICE_ONLY_TEXT_END}})|(?![\\\\]){{CHOICE_ONLY_COMMAND_CHARACTER}})",
+    "CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END": "(?:{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_REGION_CHARACTER}}*)?(?<=[\\\\])[>])",
+    "CHOICE_ONLY_TEXT_COMMAND": "(?:[<](?!{{WS}})(?:{{CHOICE_ONLY_TEXT_COMMAND_WALK}}|{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END}}))",
+    "CHOICE_ONLY_AUDIO_ESCAPE": "(?:[\\\\](?![)][)]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\\\](?=[)][)]|{{CHOICE_ONLY_TEXT_END}}))",
+    "CHOICE_ONLY_AUDIO_CHARACTER": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))",
+    "CHOICE_ONLY_AUDIO_REST": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_ONLY_REGION_CHARACTER}}))",
+    "CHOICE_ONLY_AUDIO_COMMAND": "(?:[(][(]{{CHOICE_ONLY_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_AUDIO_REST}}*)?)",
+    "CHOICE_ONLY_IMAGE_ESCAPE": "(?:[\\\\](?!\\]\\]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\\\](?=\\]\\]|{{CHOICE_ONLY_TEXT_END}}))",
+    "CHOICE_ONLY_IMAGE_CHARACTER": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))",
+    "CHOICE_ONLY_IMAGE_REST": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_ONLY_REGION_CHARACTER}}))",
+    "CHOICE_ONLY_IMAGE_COMMAND": "(?:\\[\\[{{CHOICE_ONLY_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_IMAGE_REST}}*)?)",
+    "CHOICE_ONLY_GLUED_ALTERNATOR": "(?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_ONLY_TEXT_RUN}})*)",
+    "CHOICE_ONLY_PAST_OPEN_BRACE": "(?:{{CHOICE_ONLY_TEXT_ESCAPE}}|[\\\\](?={{CHOICE_ONLY_TEXT_END}})|(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}}|[\\\\])[^\\r\\n])",
+    "CHOICE_ONLY_OPEN_INTERPOLATION": "(?:{{CHOICE_OPEN_BRACE}}{{CHOICE_ONLY_PAST_OPEN_BRACE}}*)",
+    "CHOICE_ONLY_TEXT_PIECE": "(?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_COMMAND}}|{{CHOICE_ONLY_AUDIO_COMMAND}}|{{CHOICE_ONLY_IMAGE_COMMAND}}|{{CHOICE_ONLY_GLUED_ALTERNATOR}}|{{CHOICE_ONLY_OPEN_INTERPOLATION}}|{{CHOICE_ONLY_TEXT_FREE}})",
+    "CHOICE_ONLY_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_TEXT_END}}){{CHOICE_ONLY_TEXT_PIECE}})",
+    "CHOICE_ONLY_SPAN_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_TEXT_PIECE}})",
+    "CHOICE_ONLY_RAW_CHARACTER": "(?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\\r\\n])",
+    "CHOICE_ONLY_BOLD_ITALIC_CHARACTER": "(?:(?![*]|{{CHOICE_ONLY_SPAN_END}})[^\\r\\n])",
+    "CHOICE_ONLY_SPAN_END": "(?:{{SPAN_END}}|{{WS}}*{{CHOICE_ONLY_TEXT_END}})",
+    "CHOICE_ONLY_REGION_CHARACTER": "(?:(?!{{CHOICE_ONLY_TEXT_END}})[^\\r\\n])",
+    "CHOICE_ONLY_TEXT_TAG": "(?:{{TAG_START}}{{CHOICE_ONLY_REGION_CHARACTER}}*)",
+    "CHOICE_INNER_TEXT_FREE": "(?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_INNER_RUN_ESCAPE": "(?:[\\\\](?!{{WS}}){{CHOICE_INNER_REGION_CHARACTER}}|[\\\\](?={{WS}}|{{CHOICE_INNER_TEXT_END}}))",
+    "CHOICE_INNER_TEXT_RUN": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_INNER_RUN_ESCAPE}}|(?![\\\\]){{CHOICE_INNER_TEXT_FREE}})",
+    "CHOICE_INNER_TEXT_ESCAPE": "(?:[\\\\]{{CHOICE_INNER_REGION_CHARACTER}})",
+    "CHOICE_INNER_COMMAND_CHARACTER": "(?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\\r\\n])",
+    "CHOICE_INNER_COMMAND_ESCAPE": "(?:[\\\\]{{CHOICE_INNER_REGION_CHARACTER}})",
+    "CHOICE_INNER_TEXT_COMMAND_UNIT": "(?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_INNER_COMMAND_CHARACTER}})",
+    "CHOICE_INNER_TEXT_COMMAND_REST": "(?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\\\>]){{CHOICE_INNER_REGION_CHARACTER}})",
+    "CHOICE_INNER_TEXT_COMMAND_WALK": "(?:{{CHOICE_INNER_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_TEXT_COMMAND_REST}}*)?(?<![-])[>])",
+    "CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT": "(?:[\\\\](?![>]){{CHOICE_INNER_REGION_CHARACTER}}|[\\\\](?=[>]|{{CHOICE_INNER_TEXT_END}})|(?![\\\\]){{CHOICE_INNER_COMMAND_CHARACTER}})",
+    "CHOICE_INNER_TEXT_COMMAND_ESCAPED_END": "(?:{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_REGION_CHARACTER}}*)?(?<=[\\\\])[>])",
+    "CHOICE_INNER_TEXT_COMMAND": "(?:[<](?!{{WS}})(?:{{CHOICE_INNER_TEXT_COMMAND_WALK}}|{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_END}}))",
+    "CHOICE_INNER_AUDIO_ESCAPE": "(?:[\\\\](?![)][)]){{CHOICE_INNER_REGION_CHARACTER}}|[\\\\](?=[)][)]|{{CHOICE_INNER_TEXT_END}}))",
+    "CHOICE_INNER_AUDIO_CHARACTER": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))",
+    "CHOICE_INNER_AUDIO_REST": "(?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\\\]){{CHOICE_INNER_REGION_CHARACTER}}))",
+    "CHOICE_INNER_AUDIO_COMMAND": "(?:[(][(]{{CHOICE_INNER_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_AUDIO_REST}}*)?)",
+    "CHOICE_INNER_IMAGE_ESCAPE": "(?:[\\\\](?!\\]\\]){{CHOICE_INNER_REGION_CHARACTER}}|[\\\\](?=\\]\\]|{{CHOICE_INNER_TEXT_END}}))",
+    "CHOICE_INNER_IMAGE_CHARACTER": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))",
+    "CHOICE_INNER_IMAGE_REST": "(?:(?!{{WS}}*\\]\\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\\\]){{CHOICE_INNER_REGION_CHARACTER}}))",
+    "CHOICE_INNER_IMAGE_COMMAND": "(?:\\[\\[{{CHOICE_INNER_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_IMAGE_REST}}*)?)",
+    "CHOICE_INNER_GLUED_ALTERNATOR": "(?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_INNER_TEXT_RUN}})*)",
+    "CHOICE_INNER_PAST_OPEN_BRACE": "(?:{{CHOICE_INNER_TEXT_ESCAPE}}|[\\\\](?={{CHOICE_INNER_TEXT_END}})|(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}}|[\\\\])[^\\r\\n])",
+    "CHOICE_INNER_OPEN_INTERPOLATION": "(?:{{CHOICE_OPEN_BRACE}}{{CHOICE_INNER_PAST_OPEN_BRACE}}*)",
+    "CHOICE_INNER_TEXT_PIECE": "(?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_COMMAND}}|{{CHOICE_INNER_AUDIO_COMMAND}}|{{CHOICE_INNER_IMAGE_COMMAND}}|{{CHOICE_INNER_GLUED_ALTERNATOR}}|{{CHOICE_INNER_OPEN_INTERPOLATION}}|{{CHOICE_INNER_TEXT_FREE}})",
+    "CHOICE_INNER_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_TEXT_END}}){{CHOICE_INNER_TEXT_PIECE}})",
+    "CHOICE_INNER_SPAN_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_TEXT_PIECE}})",
+    "CHOICE_INNER_RAW_CHARACTER": "(?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\\r\\n])",
+    "CHOICE_INNER_BOLD_ITALIC_CHARACTER": "(?:(?![*]|{{CHOICE_INNER_SPAN_END}})[^\\r\\n])",
+    "CHOICE_INNER_SPAN_END": "(?:{{SPAN_END}}|{{WS}}*{{CHOICE_INNER_TEXT_END}})",
+    "CHOICE_INNER_REGION_CHARACTER": "(?:(?!{{CHOICE_INNER_TEXT_END}})[^\\r\\n])",
+    "CHOICE_INNER_TEXT_TAG": "(?:{{TAG_START}}{{CHOICE_INNER_REGION_CHARACTER}}*)",
+    "CHOICE_START_TEXT_END": "(?:{{WS}}*$|{{WS}}*[-][>]|{{CHOICE_SUPPRESSION_OPEN}})",
+    "CHOICE_INNER_TEXT_END": "(?:{{WS}}*$|{{WS}}*[-][>])",
+    "CHOICE_ONLY_TEXT_END": "(?:\\]|$|{{WS}}*[-][>])",
     "STYLE_PROPERTY_NAME": "(?:[a-zA-Z_][a-zA-Z0-9_-]*)",
     "INTEGER": "[0-9]+",
     "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
@@ -1038,11 +1184,6 @@
         }
       }
     },
-    "SparkdownOpenCommentText": {
-      "tag": "special(string)",
-      "name": "string.display.text.chunk.sd",
-      "match": "((?:[^\\S\\n\\r])*(?:[/][*]))"
-    },
     "SparkleTrailingLineComment": {
       "tag": "lineComment",
       "name": "comment.line.double-slash.sd",
@@ -1549,10 +1690,19 @@
           "include": "#ChoiceConditional"
         },
         {
-          "include": "#ChoiceWithSuppressedText"
+          "include": "#ChoiceStartText"
         },
         {
-          "include": "#ChoiceWithNoSuppressedText"
+          "include": "#ChoiceSuppression"
+        },
+        {
+          "include": "#ChoiceDivertWhitespace"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ExtraWhitespace"
         }
       ],
       "end": "(?!(?:\\G(?![\\s\\S])))(?=$)"
@@ -1643,135 +1793,119 @@
       "name": "keyword.operator.expression.list.sd",
       "match": "(.+)"
     },
-    "ChoiceWithSuppressedText": {
-      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ChoiceStartText"
-            }
-          ]
+    "ChoiceStartText": {
+      "tag": "string",
+      "name": "string.choice.sd",
+      "begin": "(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))",
+      "patterns": [
+        {
+          "include": "#ChoiceStartTextContent"
         },
-        "2": {
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceStartSpans"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))"
+    },
+    "ChoiceSuppression": {
+      "begin": "(?:((?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))(?=(?:(?=[^\\r\\n]*?\\])(?:(?:(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))|(?:[\\\\](?:(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))))|(?![{]|\\]|(?:[^\\S\\n\\r])*[-][>]|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[\\\\])[^\\r\\n])*(?:(?:\\]|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/])))|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))(?=[^\\r\\n]*?\\]))|(?:(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))|(?:[\\\\](?:(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))))|(?!\\]|(?:[^\\S\\n\\r])*[-][>]|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[\\\\])[^\\r\\n])*)(?:\\]|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/])))))))|(?:(?![^\\r\\n]*?\\])(?:(?:(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))|(?:[\\\\](?:(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))))|(?![{]|\\]|(?:[^\\S\\n\\r])*[-][>]|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[\\\\])[^\\r\\n])*(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))|(?:[\\\\](?:(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))))|(?!\\]|(?:[^\\S\\n\\r])*[-][>]|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[\\\\])[^\\r\\n])*)?(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/])))))|((?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))",
+      "beginCaptures": {
+        "1": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
         },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ChoiceOnlyText"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#ChoiceInnerText"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Divert"
-            }
-          ]
-        }
-      }
-    },
-    "ChoiceWithNoSuppressedText": {
-      "match": "(?!(?:\\G(?![\\s\\S])))(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ChoicePlainText"
-            }
-          ]
-        },
         "2": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Divert"
-            }
-          ]
+          "tag": "string",
+          "name": "string.choice.sd markup.raw.punctuation.sd"
         }
-      }
-    },
-    "ChoiceStartText": {
-      "emit": true,
+      },
       "patterns": [
         {
-          "include": "#ChoiceTextContent"
+          "include": "#ChoiceOnlyText"
+        },
+        {
+          "include": "#ChoiceInnerText"
+        },
+        {
+          "include": "#ChoiceDivertWhitespace"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ExtraWhitespace"
         }
-      ]
+      ],
+      "end": "(?=$)"
     },
     "ChoiceOnlyText": {
-      "emit": true,
+      "tag": "string",
+      "name": "string.choice.sd",
+      "begin": "\\G(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))",
       "patterns": [
         {
-          "include": "#ChoiceTextContent"
+          "include": "#ChoiceOnlyTextContent"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceOnlySpans"
         }
-      ]
+      ],
+      "end": "(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))"
     },
     "ChoiceInnerText": {
-      "emit": true,
+      "begin": "(\\])",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
+        }
+      },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#ChoiceInnerTextContent"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceInnerSpans"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))"
+    },
+    "ChoiceTextUnit": {
+      "patterns": [
+        {
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
         },
         {
-          "include": "#DisplayText"
-        }
-      ]
-    },
-    "ChoicePlainText": {
-      "emit": true,
-      "patterns": [
+          "include": "#LuauFunctionCallShorthand"
+        },
         {
-          "include": "#ChoiceTextContent"
+          "include": "#LuauInterpolatedStringExpression"
         }
       ]
     },
-    "ChoiceTextContent": {
-      "tag": "string",
-      "name": "string.choice.sd",
+    "ChoiceStartTextContent": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])*)|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[>]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|[\\\\](?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
       "captures": {
         "1": {
           "patterns": [
@@ -1779,24 +1913,1022 @@
               "include": "#Annotation"
             },
             {
-              "include": "#LuauFunctionCallShorthand"
-            },
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyTextContent": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[>]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|[\\\\](?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
+      "captures": {
+        "1": {
+          "patterns": [
             {
-              "include": "#LuauInterpolatedStringExpression"
-            },
-            {
-              "include": "#SparkdownBlockCommentOnLine"
-            },
-            {
-              "include": "#SparkdownInlineComment"
+              "include": "#Annotation"
             },
             {
               "include": "#DisplayText"
             }
           ]
         }
+      }
+    },
+    "ChoiceInnerTextContent": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[>]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|[\\\\](?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceTextDots": {
+      "match": "((?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PlainText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartSpans": {
+      "patterns": [
+        {
+          "include": "#ChoiceStartRaw"
+        },
+        {
+          "include": "#ChoiceStartUnderline"
+        },
+        {
+          "include": "#ChoiceStartBoldItalic"
+        },
+        {
+          "include": "#ChoiceStartBold"
+        },
+        {
+          "include": "#ChoiceStartItalic"
+        },
+        {
+          "include": "#ChoiceStartCentered"
+        },
+        {
+          "include": "#ChoiceStartEmphasisTilde"
+        },
+        {
+          "include": "#ChoiceStartEmphasisColon"
+        }
+      ]
+    },
+    "ChoiceStartSpanContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanText"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceStartSpans"
+        }
+      ]
+    },
+    "ChoiceStartSpanText": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[>]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))[^\\r\\n]))|[\\\\](?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*]))))))|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartRawContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceStartRawText"
+        }
+      ]
+    },
+    "ChoiceStartRawText": {
+      "match": "((?:(?![`]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))[^\\r\\n])+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PlainText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartBoldItalicContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceStartBoldItalicText"
+        },
+        {
+          "include": "#ChoiceStartItalic"
+        }
+      ]
+    },
+    "ChoiceStartBoldItalicText": {
+      "match": "((?:(?![*]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))[^\\r\\n])+)"
+    },
+    "ChoiceStartRaw": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
+      "begin": "([`]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
       },
-      "match": "(.+)"
+      "patterns": [
+        {
+          "include": "#ChoiceStartRawContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartBoldItalic": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])(?=[*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartBoldItalicContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartBold": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartItalic": {
+      "tag": "emphasis",
+      "name": "markup.other.italic.sd",
+      "begin": "([*])(?![*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartUnderline": {
+      "tag": "link",
+      "name": "markup.other.underline.sd",
+      "begin": "([_]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartCentered": {
+      "tag": "monospace",
+      "name": "constant.character.escape.centered.sd",
+      "begin": "([\\^]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartEmphasisTilde": {
+      "tag": "quote",
+      "name": "markup.emphasis.tilde.sd",
+      "begin": "([~][~]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceStartEmphasisColon": {
+      "tag": "quote",
+      "name": "markup.emphasis.colon.sd",
+      "begin": "([:][:]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceStartSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*?(?:\\]|(?:[/][*])))))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlySpans": {
+      "patterns": [
+        {
+          "include": "#ChoiceOnlyRaw"
+        },
+        {
+          "include": "#ChoiceOnlyUnderline"
+        },
+        {
+          "include": "#ChoiceOnlyBoldItalic"
+        },
+        {
+          "include": "#ChoiceOnlyBold"
+        },
+        {
+          "include": "#ChoiceOnlyItalic"
+        },
+        {
+          "include": "#ChoiceOnlyCentered"
+        },
+        {
+          "include": "#ChoiceOnlyEmphasisTilde"
+        },
+        {
+          "include": "#ChoiceOnlyEmphasisColon"
+        }
+      ]
+    },
+    "ChoiceOnlySpanContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanText"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceOnlySpans"
+        }
+      ]
+    },
+    "ChoiceOnlySpanText": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[>]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|[\\\\](?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyRawContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceOnlyRawText"
+        }
+      ]
+    },
+    "ChoiceOnlyRawText": {
+      "match": "((?:(?![`]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))[^\\r\\n])+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PlainText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyBoldItalicContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceOnlyBoldItalicText"
+        },
+        {
+          "include": "#ChoiceOnlyItalic"
+        }
+      ]
+    },
+    "ChoiceOnlyBoldItalicText": {
+      "match": "((?:(?![*]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))[^\\r\\n])+)"
+    },
+    "ChoiceOnlyRaw": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
+      "begin": "([`]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlyRawContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyBoldItalic": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])(?=[*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlyBoldItalicContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyBold": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyItalic": {
+      "tag": "emphasis",
+      "name": "markup.other.italic.sd",
+      "begin": "([*])(?![*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyUnderline": {
+      "tag": "link",
+      "name": "markup.other.underline.sd",
+      "begin": "([_]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyCentered": {
+      "tag": "monospace",
+      "name": "constant.character.escape.centered.sd",
+      "begin": "([\\^]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyEmphasisTilde": {
+      "tag": "quote",
+      "name": "markup.emphasis.tilde.sd",
+      "begin": "([~][~]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyEmphasisColon": {
+      "tag": "quote",
+      "name": "markup.emphasis.colon.sd",
+      "begin": "([:][:]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceOnlySpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerSpans": {
+      "patterns": [
+        {
+          "include": "#ChoiceInnerRaw"
+        },
+        {
+          "include": "#ChoiceInnerUnderline"
+        },
+        {
+          "include": "#ChoiceInnerBoldItalic"
+        },
+        {
+          "include": "#ChoiceInnerBold"
+        },
+        {
+          "include": "#ChoiceInnerItalic"
+        },
+        {
+          "include": "#ChoiceInnerCentered"
+        },
+        {
+          "include": "#ChoiceInnerEmphasisTilde"
+        },
+        {
+          "include": "#ChoiceInnerEmphasisColon"
+        }
+      ]
+    },
+    "ChoiceInnerSpanContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanText"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        },
+        {
+          "include": "#ChoiceTextDots"
+        },
+        {
+          "include": "#ChoiceInnerSpans"
+        }
+      ]
+    },
+    "ChoiceInnerSpanText": {
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\][{])|(?!(?:[*_`^]|[~][~]|[:][:])|(?:(?<![.])[.][.](?=(?:[^\\S\\n\\r])*(?:(?:[*_`^]|[~][~]|[:][:])|(?:(?!(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))(?:[{](?![}])(?=[^\\r\\n]*?[}])))|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))))|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?:[<](?!(?:[^\\S\\n\\r]))(?:(?:(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|(?![\\\\>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))*)?(?<![-])[>])|(?:(?:[\\\\](?![>])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[>]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n]))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])*)?(?<=[\\\\])[>])))|(?:[(][(](?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*[)][)])(?:(?:[\\\\](?![)][)])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=[)][)]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:\\[\\[(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:[/][*]))[^\\r\\n])))*(?:(?:(?:[/][*])(?!(?:[^*\\r\\n]|[*](?![/]))*[*][/]))(?:(?!(?:[^\\S\\n\\r])*\\]\\])(?:(?:[\\\\](?!\\]\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=\\]\\]|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])))*)?)|(?:(?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))(?:[^\\S\\n\\r])+(?:(?=(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))(?:(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:shuffle)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[^\\S\\n\\r])*)?(?:(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:queue|cycle|chain)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))?(?:[^\\S\\n\\r])*(?=[|])|(?:match|plural)(?:[^\\S\\n\\r])*(?=[(])))(?:(?!(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:[\\\\](?!(?:[^\\S\\n\\r]))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n])|[\\\\](?=(?:[^\\S\\n\\r])|(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))|(?![\\\\])(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))*)|(?:(?:[{](?![^\\r\\n]*?[}]))(?:(?:[\\\\](?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))[^\\r\\n]))|[\\\\](?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|[\\\\])[^\\r\\n])*)|(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*?[}]))))[^\\r\\n])))+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerRawContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceInnerRawText"
+        }
+      ]
+    },
+    "ChoiceInnerRawText": {
+      "match": "((?:(?![`]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))[^\\r\\n])+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PlainText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerBoldItalicContent": {
+      "patterns": [
+        {
+          "include": "#ChoiceInnerBoldItalicText"
+        },
+        {
+          "include": "#ChoiceInnerItalic"
+        }
+      ]
+    },
+    "ChoiceInnerBoldItalicText": {
+      "match": "((?:(?![*]|(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))[^\\r\\n])+)"
+    },
+    "ChoiceInnerRaw": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
+      "begin": "([`]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerRawContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerBoldItalic": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])(?=[*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerBoldItalicContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerBold": {
+      "tag": "strong",
+      "name": "markup.other.bold.sd",
+      "begin": "([*][*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerItalic": {
+      "tag": "emphasis",
+      "name": "markup.other.italic.sd",
+      "begin": "([*])(?![*])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerUnderline": {
+      "tag": "link",
+      "name": "markup.other.underline.sd",
+      "begin": "([_]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerCentered": {
+      "tag": "monospace",
+      "name": "constant.character.escape.centered.sd",
+      "begin": "([\\^]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerEmphasisTilde": {
+      "tag": "quote",
+      "name": "markup.emphasis.tilde.sd",
+      "begin": "([~][~]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceInnerEmphasisColon": {
+      "tag": "quote",
+      "name": "markup.emphasis.colon.sd",
+      "begin": "([:][:]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ChoiceInnerSpanContent"
+        }
+      ],
+      "end": "(\\1)|(?=(?:(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))|(?:[^\\S\\n\\r])*(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceDivertWhitespace": {
+      "match": "((?:[^\\S\\n\\r])+)(?=[-][>])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        }
+      }
     },
     "LabelAnchor": {
       "match": "^((?:[^\\S\\n\\r])*)(label)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))((?:[^\\S\\n\\r])*)((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:[^\\S\\n\\r])*)",
@@ -2138,7 +3270,7 @@
           "include": "#DivertTarget"
         },
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
@@ -2150,10 +3282,15 @@
           "include": "#ExtraWhitespace"
         },
         {
-          "include": "#Unknown"
+          "include": "#DivertUnknown"
         }
       ],
       "end": "(?=$)"
+    },
+    "DivertUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "((?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n]))+)"
     },
     "DivertStrayTextSpace": {
       "match": "((?:[^\\S\\n\\r])+)(?=\\S)",
@@ -2231,7 +3368,7 @@
           "include": "#DivertTarget"
         },
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
@@ -2240,7 +3377,7 @@
           "include": "#ExtraWhitespace"
         },
         {
-          "include": "#Unknown"
+          "include": "#DivertUnknown"
         }
       ],
       "end": "(?=$)"
@@ -3915,7 +5052,7 @@
       }
     },
     "ActionLineChain": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))[^\\r\\n])*?(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)?))((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3930,7 +5067,7 @@
               "include": "#ActionLoadKeyword"
             },
             {
-              "include": "#ChainDisplayLine"
+              "include": "#DisplayLine"
             }
           ]
         },
@@ -3938,6 +5075,52 @@
           "patterns": [
             {
               "include": "#Chain"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "ActionLineChainTail": {
+      "match": "((?:(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))[^\\r\\n])*?(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)?))((?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+))))((?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ActionLoadKeyword"
+            },
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Chain"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#SparkdownBlockComment"
+            },
+            {
+              "include": "#SparkdownInlineComment"
             }
           ]
         },
@@ -3970,10 +5153,13 @@
       },
       "patterns": [
         {
+          "include": "#ActionLineChainTail"
+        },
+        {
           "include": "#ActionDisplayLine"
         }
       ],
-      "end": "(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
+      "end": "(?!(?:(?:[^\\S\\n\\r])*(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)(?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+)))(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
     },
     "ActionDisplayLine": {
       "patterns": [
@@ -4170,7 +5356,7 @@
       }
     },
     "LineChain": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))[^\\r\\n])*?(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)?))((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -4182,7 +5368,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ChainDisplayLine"
+              "include": "#DisplayLine"
             }
           ]
         },
@@ -4190,6 +5376,49 @@
           "patterns": [
             {
               "include": "#Chain"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "LineChainTail": {
+      "match": "((?:(?:(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}])|(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))|(?:[{](?:(?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))|(?:[`](?:(?:[^`{}\\\\\\r\\n]|[\\\\][^\\r\\n])|[{](?:[^{}\"'`\\\\\\[\\r\\n/-]|[/](?![*])|[-](?![-])|[\\[](?![\\[=])|(?:(?:[\"](?:[^\"\\\\\\r\\n]|[\\\\][^\\r\\n])*[\"])|(?:['](?:[^'\\\\\\r\\n]|[\\\\][^\\r\\n])*['])))*[}])*[`]))*[}]))*[}]))*[}]))+[}]))[^\\r\\n])*?(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)?))((?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+))))((?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Chain"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#SparkdownBlockComment"
+            },
+            {
+              "include": "#SparkdownInlineComment"
             }
           ]
         },
@@ -4222,10 +5451,13 @@
       },
       "patterns": [
         {
+          "include": "#LineChainTail"
+        },
+        {
           "include": "#DisplayLine"
         }
       ],
-      "end": "(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
+      "end": "(?!(?:(?:[^\\S\\n\\r])*(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*?)(?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+)))(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
     },
     "DisplayLine": {
       "patterns": [
@@ -4234,22 +5466,6 @@
         },
         {
           "include": "#SparkdownBlockComment"
-        },
-        {
-          "include": "#DisplayLineText"
-        }
-      ]
-    },
-    "ChainDisplayLine": {
-      "patterns": [
-        {
-          "include": "#DisplayLineCode"
-        },
-        {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#SparkdownOpenCommentText"
         },
         {
           "include": "#DisplayLineText"
@@ -5076,10 +6292,10 @@
       },
       "patterns": [
         {
-          "include": "#PlainText"
+          "include": "#RawContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5105,10 +6321,10 @@
       },
       "patterns": [
         {
-          "include": "#Italic"
+          "include": "#BoldItalicContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5122,7 +6338,7 @@
     "Bold": {
       "tag": "strong",
       "name": "markup.other.bold.sd",
-      "begin": "([*][*])(?![*])",
+      "begin": "([*][*])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5134,13 +6350,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5166,13 +6379,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5198,13 +6408,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5230,13 +6437,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5272,13 +6476,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5304,13 +6505,10 @@
       },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#InlineTextAndLogic"
+          "include": "#SpanContent"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/]))*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5320,6 +6518,30 @@
           ]
         }
       }
+    },
+    "SpanContent": {
+      "patterns": [
+        {
+          "include": "#SparkdownBlockCommentOnLine"
+        },
+        {
+          "include": "#InlineTextAndLogic"
+        }
+      ]
+    },
+    "RawContent": {
+      "patterns": [
+        {
+          "include": "#PlainText"
+        }
+      ]
+    },
+    "BoldItalicContent": {
+      "patterns": [
+        {
+          "include": "#Italic"
+        }
+      ]
     },
     "PlainText": {
       "patterns": [

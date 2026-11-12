@@ -50,6 +50,7 @@ import {
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { neighborsOf, type InspectedAsset } from "../../utils/assetDetails";
 import { plural, rowLine } from "../../utils/fileListModel";
+import type { DropItem } from "../../utils/fileDrops";
 import type { FileMove } from "../../utils/fileMoves";
 import { majorityShape } from "../../utils/imageSize";
 import { showSnackbar } from "../../utils/snackbar";
@@ -60,6 +61,7 @@ import {
   assetSort,
   assetMoveCheck,
   assetTrail,
+  countsUses,
   coveredPaths,
   folderStackReason,
   foldersUnder,
@@ -68,6 +70,7 @@ import {
   type AssetRow,
 } from "../../workspace/assetsListing";
 import selection from "../../workspace/assetsSelection";
+import { usesLabel } from "../../workspace/assetUsage";
 import { isInside, parentOf } from "../../workspace/scriptsListing";
 import type { SearchGroup } from "../../workspace/searchState";
 import type { Sound } from "../../workspace/AudioSession";
@@ -95,7 +98,7 @@ import {
   useTabQuery,
   type SelectionAction,
 } from "../library-page";
-import { addAssetFiles, landedView, type AddedFile } from "../../workspace/addAssetFiles";
+import { addAssetFiles, landedView } from "../../workspace/addAssetFiles";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
@@ -113,6 +116,12 @@ const PAGE_TAB = "all";
 const HEADING_HEIGHT = 48;
 
 const SHOWN_USES = 3;
+
+const USES_HINT = "Lines in the scripts that show or play it.";
+
+const COUNTING_NOTE = "Counting uses…";
+
+const UNCOUNTED_NOTE = "Uses could not be counted. Edit a script to try again.";
 const ROW_HEIGHT = 63;
 
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
@@ -223,6 +232,9 @@ function AssetsBrowser() {
   const loaded = current?.projectId === projectId ? current : null;
   const listing = loaded ?? EMPTY;
   const endings = assetEndings.value;
+  const counted = workspace.assetUsage.value;
+  const usage = counted?.projectId === projectId ? counted : null;
+  const uncounted = workspace.assetUsageFailed.value === projectId;
   const lists = useComputed(() => workspace.state.value.lists).value;
   const busy = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -264,8 +276,10 @@ function AssetsBrowser() {
   const folders = lists?.assetsFolders ?? {};
   const sort = assetSort(lists?.assetsSort);
   const searching = !!query.trim();
-  const level = assetLevel({ listing, type, folder: folders[type], sort, endings });
-  const groups = searching ? assetSearch({ listing, query, sort, endings }) : [];
+  const level = assetLevel({ listing, type, folder: folders[type], sort, endings, usage });
+  const groups = searching ? assetSearch({ listing, query, sort, endings, usage }) : [];
+  const lineOf = (row: AssetRow) =>
+    rowLine({ entry: row, sort, location: row.location, holdings: row.holdings, usesLabel: usage ? usesLabel : undefined });
   const items: Item[] = searching
     ? groups.flatMap((group) => [
         { kind: "heading", type: group.type, title: group.title } as Heading,
@@ -293,6 +307,7 @@ function AssetsBrowser() {
           folder: parentOf(path),
           sort,
           endings,
+          usage,
         }).rows.find((row) => row.kind === "file" && holds(row, path)) ?? null)
       : null);
   const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
@@ -343,7 +358,7 @@ function AssetsBrowser() {
       void intents().then((Workspace) => Workspace.assets.measureImages(pictures));
     }
   }, [measureKey]);
-  const scrollKey = searching ? "search" : `${type}:${level.folder}`;
+  const scrollKey = `${searching ? "search" : `${type}:${level.folder}`}:${sort}`;
   const scroller = useSavedScroll("assetsScrolls", scrollKey);
 
   const revealRow = (path: string) => setReveal((prev) => ({ path, request: (prev?.request ?? 0) + 1 }));
@@ -451,7 +466,7 @@ function AssetsBrowser() {
     }
   }, [revealing, loaded]);
 
-  const add = (files: AddedFile[], folder: string) => void run(async () => show(await addAssetFiles(files, folder)));
+  const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -544,7 +559,7 @@ function AssetsBrowser() {
   });
 
   const renderTile = (row: AssetRow) => {
-    const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
+    const line = lineOf(row);
     const folder = row.kind === "folder";
     return (
       <Tile
@@ -611,13 +626,14 @@ function AssetsBrowser() {
     if (tiles) {
       return renderTile(row);
     }
-    const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
+    const line = lineOf(row);
     const folder = row.kind === "folder";
     const sound = !folder && row.type === "audio" ? soundOf(listing, row.path) : null;
     return (
       <ListRow
         icon={sound ? undefined : <RowGlyph row={row} listing={listing} />}
         control={sound ? <SoundPlay name={row.name} sound={sound} /> : undefined}
+        overflow={row.variantCount ? "self" : undefined}
         label={
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
@@ -773,6 +789,8 @@ function AssetsBrowser() {
           <SortMenu
             value={sort}
             fields={ASSET_SORT_FIELDS}
+            usesHint={USES_HINT}
+            note={!usage && countsUses(sort) ? (uncounted ? UNCOUNTED_NOTE : COUNTING_NOTE) : undefined}
             onChange={(key) => setLists({ assetsSort: key })}
           />
         </>

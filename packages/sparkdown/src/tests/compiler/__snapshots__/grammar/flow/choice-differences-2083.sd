@@ -1,0 +1,27 @@
+store t = {"a", "b"}
+store x = true
+scene start
+  choose
+    + Go {t[1]} home
+      done
+    + Go {"[x]"} home
+      done
+    + Go -> next [a] b
+    + [Go -> next] x
+    + Go .. {#{{{{1}}}}}
+      done
+    + Go *far {#{{{{1}}}}} away
+      done
+    + Go .. {`a`}
+      done
+    + Go *far {`a`} away* now
+      done
+    + *Say {x} now*
+      done
+    + [choice # tag {x}{x}]
+      done
+  end
+end
+scene next
+  done
+end

@@ -16,6 +16,7 @@ import {
   type SortField,
 } from "../utils/fileListModel";
 import { imageStacks, isStacked } from "../utils/imageStacks";
+import { storyPlace, usesOf, type AssetUsage } from "./assetUsage";
 import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 
 export interface AssetFacts {
@@ -68,7 +69,31 @@ export interface AssetGroup {
 
 export const DEFAULT_ASSETS_HOME = "Assets";
 
-export const ASSET_SORT_FIELDS: readonly SortField[] = ["name", "modified", "size"];
+export const ASSET_SORT_FIELDS: readonly SortField[] = ["name", "modified", "size", "uses", "story"];
+
+const COUNTED_FIELDS: readonly SortField[] = ["uses", "story"];
+
+export const countsUses = (sort: unknown): boolean => COUNTED_FIELDS.includes(parseSort(sort).field);
+
+const sortOf = (sort: unknown, usage: AssetUsage | null | undefined): unknown =>
+  !usage && countsUses(sort) ? "name-asc" : sort;
+
+const withUsage = (
+  listing: AssetListing,
+  rows: AssetRow[],
+  usage: AssetUsage | null | undefined,
+): AssetRow[] => {
+  if (!usage) {
+    return rows;
+  }
+  const place = storyPlace(usage);
+  const files = Object.keys(listing.files);
+  return rows.map((row) => {
+    const paths = row.kind === "folder" ? files.filter((path) => isInside(path, row.path)) : (row.paths ?? [row.path]);
+    const uses = usesOf(usage, paths);
+    return { ...row, uses: uses.length, position: place(uses) };
+  });
+};
 
 export const assetSort = (value: unknown): string => {
   const parsed = parseSort(value);
@@ -209,12 +234,7 @@ const stackedRows = (
 
 export const FOLDER_COVERS = 4;
 
-export const placeOf = (
-  listing: AssetListing,
-  path: string,
-  type: AssetType,
-): string => {
-  const root = typeFolder(listing, type);
+const placeOf = (root: string, path: string, type: AssetType): string => {
   const folder = parentOf(path);
   if (folder === root) {
     return assetTypeSpec(type).title;
@@ -228,6 +248,7 @@ export interface AssetLevelOptions {
   folder?: string;
   sort: unknown;
   endings: AssetEndings;
+  usage?: AssetUsage | null;
 }
 
 export const assetLevel = ({
@@ -236,6 +257,7 @@ export const assetLevel = ({
   folder,
   sort,
   endings,
+  usage,
 }: AssetLevelOptions): AssetLevel => {
   const homes = assetHomes(listing);
   const root = typeFolder(listing, type);
@@ -312,7 +334,7 @@ export const assetLevel = ({
     type,
     root,
     folder: at,
-    rows: sortEntries(rows, sort),
+    rows: sortEntries(withUsage(listing, rows, usage), sortOf(sort, usage)),
     files: ofType.length,
     empty: rows.length === 0,
     none: files.length === 0,
@@ -324,6 +346,7 @@ export interface AssetSearchOptions {
   query: string;
   sort: unknown;
   endings: AssetEndings;
+  usage?: AssetUsage | null;
 }
 
 export const assetSearch = ({
@@ -331,6 +354,7 @@ export const assetSearch = ({
   query,
   sort,
   endings,
+  usage,
 }: AssetSearchOptions): AssetGroup[] => {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) {
@@ -347,6 +371,7 @@ export const assetSearch = ({
   );
   return ASSET_TYPES.map(({ type, title }) => {
     const ofType = files.filter((path) => typeOf(listing, path, endings) === type);
+    const root = typeFolder(listing, type);
     const shown =
       type === "image"
         ? imageStacks(ofType)
@@ -357,8 +382,8 @@ export const assetSearch = ({
       type,
       title,
       rows: sortEntries(
-        stackedRows(listing, shown, type, (path) => placeOf(listing, path, type)),
-        sort,
+        withUsage(listing, stackedRows(listing, shown, type, (path) => placeOf(root, path, type)), usage),
+        sortOf(sort, usage),
       ),
     };
   }).filter((group) => group.rows.length > 0);

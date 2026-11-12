@@ -1,4 +1,5 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { batch } from "@preact/signals";
 import type { WorkspaceEditRollback } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
@@ -39,8 +40,9 @@ import {
 } from "./assetsListing";
 import { moveToTrash } from "./moveToTrash";
 import type { SearchGroup } from "./searchState";
-import { groupLocations } from "./WorkspaceSearch";
-import { commonFolder, isInside, joinPath, nameOf, parentOf, scriptsHome } from "./scriptsListing";
+import { usageOf, usesOf, type AssetUsage } from "./assetUsage";
+import { usageGroups } from "./WorkspaceSearch";
+import { commonFolder, isInside, joinPath, MAIN_SCRIPT, nameOf, parentOf, scriptsHome } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
@@ -71,7 +73,7 @@ type Deps = {
   >;
   ls: Pick<
     WorkspaceLanguageServer,
-    "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics" | "getVariantPicture"
+    "getAssetUsage" | "getFileDiagnostics" | "onPublishedDiagnostics" | "getVariantPicture"
   >;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
@@ -118,7 +120,6 @@ const showRenamed = (name: string, lines: number, also: readonly FileMove[]) =>
   });
 
 export interface InspectorFacts {
-  uses: SearchGroup[] | null;
   problems: SparkDiagnostic[] | null;
 }
 
@@ -171,6 +172,10 @@ export default class WorkspaceAssets {
   protected _generation = 0;
 
   protected readonly _measuring = new Set<string>();
+
+  protected _usageRequest = 0;
+
+  protected _latestUsage: Promise<AssetUsage | null> = Promise.resolve(null);
 
   constructor(deps: Deps) {
     this._workspace = deps;
@@ -226,15 +231,70 @@ export default class WorkspaceAssets {
     return listing;
   }
 
+  loadUsage(): Promise<AssetUsage | null> {
+    const request = this.requestUsage();
+    this._latestUsage = request;
+    return request;
+  }
+
+  protected async requestUsage(): Promise<AssetUsage | null> {
+    const projectId = this.projectId;
+    const mine = ++this._usageRequest;
+    if (!projectId) {
+      return null;
+    }
+    const { fs, ls } = this._workspace;
+    if (workspace.assetUsage.peek()?.projectId !== projectId) {
+      workspace.assetUsage.value = null;
+    }
+    const current = () => mine === this._usageRequest && projectId === this.projectId;
+    try {
+      const answer = await ls.getAssetUsage(fs.getFileUri(projectId, MAIN_SCRIPT));
+      if (!answer || !current()) {
+        return null;
+      }
+      const usage = usageOf(projectId, answer, (uri) => fs.getRelativePath(projectId, uri), MAIN_SCRIPT);
+      batch(() => {
+        workspace.assetUsage.value = usage;
+        workspace.assetUsageFailed.value = null;
+      });
+      return usage;
+    } catch (error) {
+      if (current()) {
+        batch(() => {
+          workspace.assetUsage.value = null;
+          workspace.assetUsageFailed.value = projectId;
+        });
+      }
+      console.error("[WorkspaceAssets] sparkdown/fileReferencesAll failed; uses are unknown until the next compile:", error);
+      return null;
+    }
+  }
+
+  protected async latestUsage(): Promise<AssetUsage | null> {
+    let request = this._latestUsage;
+    let usage = await request;
+    while (request !== this._latestUsage) {
+      request = this._latestUsage;
+      usage = await request;
+    }
+    return usage;
+  }
+
   watch(): () => void {
     const reload = () => void this.load();
+    const recount = () => void this.loadUsage();
     const detachEndings = scriptFilesGlob.subscribe(reload);
     const detachFiles = onProtocolMessage(DidChangeWatchedFilesMessage.type, reload);
     const detachFolders = onProtocolMessage(DidChangeDirectoriesMessage.type, reload);
+    const detachCompiled = onProtocolMessage(CompiledProgramMessage.type, recount);
+    recount();
     return () => {
       detachEndings();
       detachFiles();
       detachFolders();
+      detachCompiled();
+      this._usageRequest += 1;
     };
   }
 
@@ -573,12 +633,12 @@ export default class WorkspaceAssets {
   }
 
   async usedBy(paths: readonly string[]): Promise<SearchGroup[] | null> {
-    const files = coveredFiles(this.listing, this.covered(paths));
-    try {
-      return files.length ? await this.uses(files) : [];
-    } catch {
+    void this.loadUsage();
+    const usage = await this.latestUsage();
+    if (!usage || usage.projectId !== this.projectId) {
       return null;
     }
+    return usageGroups(usesOf(usage, coveredFiles(this.listing, this.covered(paths))));
   }
 
   async downloadAll(paths: readonly string[]): Promise<void> {
@@ -604,18 +664,6 @@ export default class WorkspaceAssets {
     downloadFile(`${names.length === 1 ? names[0] : "Assets"}.zip`, "application/zip", zip);
   }
 
-  async uses(paths: readonly string[]): Promise<SearchGroup[]> {
-    const projectId = this.projectId;
-    if (!projectId) {
-      return [];
-    }
-    const { fs, ls } = this._workspace;
-    const found = await Promise.all(
-      paths.map((path) => ls.getFileReferences(fs.getFileUri(projectId, path))),
-    );
-    return groupLocations(found.flat(), (uri) => fs.getFileText(uri));
-  }
-
   async problems(paths: readonly string[]): Promise<SparkDiagnostic[]> {
     const projectId = this.projectId;
     if (!projectId) {
@@ -637,12 +685,9 @@ export default class WorkspaceAssets {
     let request = 0;
     const refresh = async () => {
       const mine = ++request;
-      const [uses, problems] = await Promise.all([
-        this.uses(paths).catch(() => null),
-        this.problems(paths).catch(() => null),
-      ]);
+      const problems = await this.problems(paths).catch(() => null);
       if (alive && mine === request) {
-        listener({ uses, problems });
+        listener({ problems });
       }
     };
     const projectId = this.projectId;

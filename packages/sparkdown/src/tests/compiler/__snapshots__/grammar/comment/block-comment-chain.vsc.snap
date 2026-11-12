@@ -6,22 +6,17 @@ text.source.sparkdown [0..175]
  ├─ punctuation.whitespace.optional.sd [12..14]: "  "
  ├─ string.display.text.chunk.sd [14..20]
  │   └─ markup.raw.text.sd [14..20]: "Before"
- ├─ string.display.text.chunk.sd [20..23]: " /*"
- ├─ string.display.text.chunk.sd [23..28]
- │   ├─ markup.raw.space.sd [23..24]: " "
- │   └─ markup.raw.text.sd [24..28]: "note"
- ├─ meta.chain.sd [28..29]
- │   └─ keyword.other.chain.sd [28..29]: "\\"
+ ├─ comment.block.sd [20..29]
+ │   ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ │   ├─ punctuation.definition.comment.begin.sd [21..23]: "/*"
+ │   └─ comment.block.content.sd [23..29]: " note\\"
  ├─ Newline [29..30]: "\n"
- ├─ punctuation.whitespace.optional.sd [30..32]: "  "
- ├─ string.display.text.chunk.sd [32..46]
- │   ├─ markup.raw.text.sd [32..37]: "still"
- │   ├─ markup.raw.space.sd [37..38]: " "
- │   └─ markup.other.italic.sd [38..46]
- │       ├─ markup.raw.text.sd [38..39]: "*"
- │       ├─ markup.raw.punctuation.sd [39..40]: "/"
- │       ├─ markup.raw.space.sd [40..41]: " "
- │       └─ markup.raw.text.sd [41..46]: "after"
+ ├─ comment.block.sd [30..40]
+ │   ├─ comment.block.content.sd [30..38]: "  still "
+ │   └─ punctuation.definition.comment.end.sd [38..40]: "*/"
+ ├─ string.display.text.chunk.sd [40..46]
+ │   ├─ markup.raw.space.sd [40..41]: " "
+ │   └─ markup.raw.text.sd [41..46]: "after"
  ├─ Newline [46..47]: "\n"
  ├─ punctuation.whitespace.optional.sd [47..49]: "  "
  ├─ string.display.text.chunk.sd [49..52]
@@ -65,12 +60,10 @@ text.source.sparkdown [0..175]
  ├─ punctuation.whitespace.optional.sd [114..116]: "  "
  ├─ string.display.text.chunk.sd [116..120]
  │   └─ markup.raw.text.sd [116..120]: "Five"
- ├─ comment.line.double-slash.sd [120..128]
+ ├─ comment.line.double-slash.sd [120..129]
  │   ├─ punctuation.whitespace.optional.sd [120..121]: " "
  │   ├─ punctuation.definition.comment.sd [121..123]: "//"
- │   └─ comment.line.double-slash.content.sd [123..128]: " note"
- ├─ meta.chain.sd [128..129]
- │   └─ keyword.other.chain.sd [128..129]: "\\"
+ │   └─ comment.line.double-slash.content.sd [123..129]: " note\\"
  ├─ Newline [129..130]: "\n"
  ├─ punctuation.whitespace.optional.sd [130..132]: "  "
  ├─ string.display.text.chunk.sd [132..135]

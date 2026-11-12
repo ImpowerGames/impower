@@ -113,6 +113,26 @@ function ListRowDemo() {
           onClick={() => {}}
         />
       </GalleryRow>
+      <GalleryRow label="Long labels in a narrow cell: a string and a plain node both end in the row's fade; a node passed with overflow self claims it clips its own content (here its own ellipsis), so a self node that does not clip is the caller's defect">
+        <div class="grid w-full grid-cols-3 gap-2">
+          <ListRow
+            icon={<FileIcon />}
+            label="backdrop_with_a_very_long_descriptive_name_01"
+            onClick={() => {}}
+          />
+          <ListRow
+            icon={<FileIcon />}
+            label={<strong class="block font-semibold">backdrop_with_a_very_long_descriptive_name_01</strong>}
+            onClick={() => {}}
+          />
+          <ListRow
+            icon={<FileIcon />}
+            overflow="self"
+            label={<span class="block truncate">backdrop_with_a_very_long_descriptive_name_01</span>}
+            onClick={() => {}}
+          />
+        </div>
+      </GalleryRow>
       <GalleryRow label="A long description wrapping instead of fading, in a narrow cell">
         <div class="w-44">
           <ListRow

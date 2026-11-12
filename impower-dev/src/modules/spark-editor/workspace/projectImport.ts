@@ -10,7 +10,7 @@ export type ProjectZipRoot =
   | { kind: "refused"; reason: "several_main_scripts"; folders: string[] };
 
 const DROPPED_FOLDERS = new Set(["__MACOSX"]);
-const DROPPED_FILES = new Set([".DS_Store", "Thumbs.db"]);
+const DROPPED_FILES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 
 export const isArchiveDropping = (path: string) => {
   const segments = path.split("/").filter(Boolean);

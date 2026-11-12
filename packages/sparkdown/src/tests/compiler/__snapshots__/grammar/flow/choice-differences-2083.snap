@@ -1,0 +1,852 @@
+sparkdown [0..417]
+ ├─ LuauSparkdownVariableDefinition [0..20]
+ │   ├─ LuauSparkdownVariableDefinition_begin [0..6]
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [0..5]
+ │   │   │   └─ LuauScopeModifier [0..5]: "store"
+ │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
+ │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauSparkdownVariableDefinition_content [6..20]
+ │   │   └─ LuauSparkdownVariableAssignment [6..20]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..8]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..7]
+ │   │       │   │   └─ LuauVariableName [6..7]: "t"
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [7..8]
+ │   │       │       └─ OptionalWhitespace [7..8]: " "
+ │   │       ├─ LuauSparkdownVariableAssignment_content [8..20]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [8..20]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 8
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 8
+ │   │       │       │       └─ OptionalWhitespace 8
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [8..20]
+ │   │       │       │   ├─ LuauAssignmentOperator [8..10]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [8..10]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 8
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 8
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [8..9]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [9..10]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [9..10]
+ │   │       │       │   │   │           └─ OptionalWhitespace [9..10]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 10
+ │   │       │       │   └─ LuauTable [10..20]
+ │   │       │       │       ├─ LuauTable_begin [10..11]
+ │   │       │       │       │   └─ LuauTable_begin_c1 [10..11]
+ │   │       │       │       │       └─ PunctuationBraceOpen [10..11]: "{"
+ │   │       │       │       ├─ LuauTable_content [11..19]
+ │   │       │       │       │   ├─ LuauDoubleQuotedString [11..14]
+ │   │       │       │       │   │   ├─ LuauDoubleQuotedString_begin [11..12]
+ │   │       │       │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [11..12]
+ │   │       │       │       │   │   │       └─ PunctuationStringDoubleQuoteOpen [11..12]: "\""
+ │   │       │       │       │   │   ├─ LuauDoubleQuotedString_content [12..13]
+ │   │       │       │       │   │   │   └─ Word [12..13]: "a"
+ │   │       │       │       │   │   └─ LuauDoubleQuotedString_end [13..14]
+ │   │       │       │       │   │       ├─ LuauDoubleQuotedString_end_c1 [13..14]
+ │   │       │       │       │   │       │   └─ PunctuationStringDoubleQuoteClose [13..14]: "\""
+ │   │       │       │       │   │       └─ LuauDoubleQuotedString_end_c2 14
+ │   │       │       │       │   ├─ LuauCommaSeparator [14..16]
+ │   │       │       │       │   │   ├─ LuauCommaSeparator_c1 14
+ │   │       │       │       │   │   ├─ LuauCommaSeparator_c2 [14..15]: ","
+ │   │       │       │       │   │   └─ LuauCommaSeparator_c3 [15..16]
+ │   │       │       │       │   │       └─ LuauCommaSeparator_c3 [15..16]
+ │   │       │       │       │   │           └─ OptionalWhitespace [15..16]: " "
+ │   │       │       │       │   └─ LuauDoubleQuotedString [16..19]
+ │   │       │       │       │       ├─ LuauDoubleQuotedString_begin [16..17]
+ │   │       │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [16..17]
+ │   │       │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [16..17]: "\""
+ │   │       │       │       │       ├─ LuauDoubleQuotedString_content [17..18]
+ │   │       │       │       │       │   └─ Word [17..18]: "b"
+ │   │       │       │       │       └─ LuauDoubleQuotedString_end [18..19]
+ │   │       │       │       │           ├─ LuauDoubleQuotedString_end_c1 [18..19]
+ │   │       │       │       │           │   └─ PunctuationStringDoubleQuoteClose [18..19]: "\""
+ │   │       │       │       │           └─ LuauDoubleQuotedString_end_c2 19
+ │   │       │       │       └─ LuauTable_end [19..20]
+ │   │       │       │           ├─ LuauTable_end_c1 [19..20]
+ │   │       │       │           │   └─ PunctuationBraceClose [19..20]: "}"
+ │   │       │       │           └─ LuauTable_end_c2 20
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 20
+ │   │       └─ LuauSparkdownVariableAssignment_end 20
+ │   └─ LuauSparkdownVariableDefinition_end 20
+ ├─ Newline [20..21]: "\n"
+ ├─ LuauSparkdownVariableDefinition [21..35]
+ │   ├─ LuauSparkdownVariableDefinition_begin [21..27]
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 21
+ │   │   │   └─ OptionalWhitespace 21
+ │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [21..26]
+ │   │   │   └─ LuauScopeModifier [21..26]: "store"
+ │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [26..27]
+ │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [26..27]
+ │   │           └─ OptionalWhitespace [26..27]: " "
+ │   ├─ LuauSparkdownVariableDefinition_content [27..35]
+ │   │   └─ LuauSparkdownVariableAssignment [27..35]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [27..29]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [27..28]
+ │   │       │   │   └─ LuauVariableName [27..28]: "x"
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [28..29]
+ │   │       │       └─ OptionalWhitespace [28..29]: " "
+ │   │       ├─ LuauSparkdownVariableAssignment_content [29..35]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [29..35]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 29
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 29
+ │   │       │       │       └─ OptionalWhitespace 29
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [29..35]
+ │   │       │       │   ├─ LuauAssignmentOperator [29..31]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [29..31]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 29
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 29
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [29..30]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [30..31]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [30..31]
+ │   │       │       │   │   │           └─ OptionalWhitespace [30..31]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 31
+ │   │       │       │   └─ LuauBoolean [31..35]
+ │   │       │       │       ├─ LuauBoolean_c1 [31..35]: "true"
+ │   │       │       │       └─ LuauBoolean_c2 35
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 35
+ │   │       └─ LuauSparkdownVariableAssignment_end 35
+ │   └─ LuauSparkdownVariableDefinition_end 35
+ ├─ Newline [35..36]: "\n"
+ ├─ Scene [36..47]
+ │   ├─ Scene_begin [36..42]
+ │   │   ├─ Scene_begin_c1 36
+ │   │   │   └─ OptionalWhitespace 36
+ │   │   ├─ Scene_begin_c2 [36..41]
+ │   │   │   └─ SceneKeyword [36..41]: "scene"
+ │   │   └─ Scene_begin_c3 [41..42]
+ │   │       └─ RequiredWhitespace [41..42]: " "
+ │   ├─ Scene_content [42..47]
+ │   │   └─ SceneWithoutParametersDeclaration [42..47]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [42..47]
+ │   │       │   └─ SceneDeclarationName [42..47]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 47
+ │   └─ Scene_end 47
+ ├─ Newline [47..48]: "\n"
+ ├─ LuauSparkdownChooseBlock [48..390]
+ │   ├─ LuauSparkdownChooseBlock_begin [48..56]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [48..50]
+ │   │   │   └─ OptionalWhitespace [48..50]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [50..56]
+ │   │   │   └─ LuauChooseKeyword [50..56]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 56
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 56
+ │   │           └─ OptionalWhitespace 56
+ │   ├─ LuauSparkdownChooseBlock_content [56..385]
+ │   │   ├─ Newline [56..57]: "\n"
+ │   │   ├─ Choice [57..77]
+ │   │   │   ├─ Choice_begin [57..63]
+ │   │   │   │   ├─ Choice_begin_c1 [57..61]
+ │   │   │   │   │   └─ OptionalWhitespace [57..61]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [61..63]
+ │   │   │   │   │   └─ ChoiceMark [61..63]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 63
+ │   │   │   │   ├─ Choice_begin_c4 63
+ │   │   │   │   ├─ Choice_begin_c5 63
+ │   │   │   │   ├─ Choice_begin_c6 63
+ │   │   │   │   └─ Choice_begin_c7 63
+ │   │   │   ├─ Choice_content [63..77]
+ │   │   │   │   └─ ChoiceStartText [63..77]
+ │   │   │   │       ├─ ChoiceStartText_begin 63
+ │   │   │   │       ├─ ChoiceStartText_content [63..77]
+ │   │   │   │       │   └─ ChoiceStartTextContent [63..77]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [63..77]
+ │   │   │   │       │           ├─ Word [63..65]: "Go"
+ │   │   │   │       │           ├─ Space [65..66]: " "
+ │   │   │   │       │           ├─ LuauInterpolatedStringExpression [66..72]
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_begin [66..67]
+ │   │   │   │       │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [66..67]
+ │   │   │   │       │           │   │       └─ PunctuationBraceOpen [66..67]: "{"
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_content [67..71]
+ │   │   │   │       │           │   │   └─ LuauAccessPath [67..71]
+ │   │   │   │       │           │   │       ├─ LuauAccessPath_begin 67
+ │   │   │   │       │           │   │       ├─ LuauAccessPath_content [67..71]
+ │   │   │   │       │           │   │       │   ├─ LuauAccessPart [67..68]
+ │   │   │   │       │           │   │       │   │   └─ LuauVariable [67..68]
+ │   │   │   │       │           │   │       │   │       └─ LuauVariable_c1 [67..68]
+ │   │   │   │       │           │   │       │   │           └─ LuauVariableName [67..68]: "t"
+ │   │   │   │       │           │   │       │   └─ LuauAccessPart [68..71]
+ │   │   │   │       │           │   │       │       └─ LuauPropertyIndexer [68..71]
+ │   │   │   │       │           │   │       │           ├─ LuauPropertyIndexer_begin [68..69]
+ │   │   │   │       │           │   │       │           │   ├─ LuauPropertyIndexer_begin_c1 68
+ │   │   │   │       │           │   │       │           │   └─ LuauPropertyIndexer_begin_c2 [68..69]
+ │   │   │   │       │           │   │       │           │       └─ PunctuationBracketOpen [68..69]: "["
+ │   │   │   │       │           │   │       │           ├─ LuauPropertyIndexer_content [69..70]
+ │   │   │   │       │           │   │       │           │   └─ LuauNumericDecimal [69..70]
+ │   │   │   │       │           │   │       │           │       ├─ LuauNumericDecimal_c1 [69..70]: "1"
+ │   │   │   │       │           │   │       │           │       └─ LuauNumericDecimal_c2 70
+ │   │   │   │       │           │   │       │           └─ LuauPropertyIndexer_end [70..71]
+ │   │   │   │       │           │   │       │               └─ LuauPropertyIndexer_end_c1 [70..71]
+ │   │   │   │       │           │   │       │                   └─ PunctuationBracketClose [70..71]: "]"
+ │   │   │   │       │           │   │       └─ LuauAccessPath_end 71
+ │   │   │   │       │           │   │           └─ LuauAccessPath_end_c1 71
+ │   │   │   │       │           │   └─ LuauInterpolatedStringExpression_end [71..72]
+ │   │   │   │       │           │       └─ LuauInterpolatedStringExpression_end_c1 [71..72]
+ │   │   │   │       │           │           └─ PunctuationBraceClose [71..72]: "}"
+ │   │   │   │       │           ├─ Space [72..73]: " "
+ │   │   │   │       │           └─ Word [73..77]: "home"
+ │   │   │   │       └─ ChoiceStartText_end 77
+ │   │   │   └─ Choice_end 77
+ │   │   ├─ Newline [77..78]: "\n"
+ │   │   ├─ DoneStatement [78..88]
+ │   │   │   ├─ DoneStatement_c1 [78..84]
+ │   │   │   │   └─ OptionalWhitespace [78..84]: "      "
+ │   │   │   ├─ DoneStatement_c2 [84..88]
+ │   │   │   │   └─ DoneKeyword [84..88]: "done"
+ │   │   │   └─ DoneStatement_c3 88
+ │   │   │       └─ OptionalWhitespace 88
+ │   │   ├─ Newline [88..89]: "\n"
+ │   │   ├─ Choice [89..110]
+ │   │   │   ├─ Choice_begin [89..95]
+ │   │   │   │   ├─ Choice_begin_c1 [89..93]
+ │   │   │   │   │   └─ OptionalWhitespace [89..93]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [93..95]
+ │   │   │   │   │   └─ ChoiceMark [93..95]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 95
+ │   │   │   │   ├─ Choice_begin_c4 95
+ │   │   │   │   ├─ Choice_begin_c5 95
+ │   │   │   │   ├─ Choice_begin_c6 95
+ │   │   │   │   └─ Choice_begin_c7 95
+ │   │   │   ├─ Choice_content [95..110]
+ │   │   │   │   └─ ChoiceStartText [95..110]
+ │   │   │   │       ├─ ChoiceStartText_begin 95
+ │   │   │   │       ├─ ChoiceStartText_content [95..110]
+ │   │   │   │       │   └─ ChoiceStartTextContent [95..110]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [95..110]
+ │   │   │   │       │           ├─ Word [95..97]: "Go"
+ │   │   │   │       │           ├─ Space [97..98]: " "
+ │   │   │   │       │           ├─ LuauInterpolatedStringExpression [98..105]
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_begin [98..99]
+ │   │   │   │       │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [98..99]
+ │   │   │   │       │           │   │       └─ PunctuationBraceOpen [98..99]: "{"
+ │   │   │   │       │           │   ├─ LuauInterpolatedStringExpression_content [99..104]
+ │   │   │   │       │           │   │   └─ LuauDoubleQuotedString [99..104]
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_begin [99..100]
+ │   │   │   │       │           │   │       │   └─ LuauDoubleQuotedString_begin_c1 [99..100]
+ │   │   │   │       │           │   │       │       └─ PunctuationStringDoubleQuoteOpen [99..100]: "\""
+ │   │   │   │       │           │   │       ├─ LuauDoubleQuotedString_content [100..103]
+ │   │   │   │       │           │   │       │   ├─ Punctuation [100..101]: "["
+ │   │   │   │       │           │   │       │   ├─ Word [101..102]: "x"
+ │   │   │   │       │           │   │       │   └─ Punctuation [102..103]: "]"
+ │   │   │   │       │           │   │       └─ LuauDoubleQuotedString_end [103..104]
+ │   │   │   │       │           │   │           ├─ LuauDoubleQuotedString_end_c1 [103..104]
+ │   │   │   │       │           │   │           │   └─ PunctuationStringDoubleQuoteClose [103..104]: "\""
+ │   │   │   │       │           │   │           └─ LuauDoubleQuotedString_end_c2 104
+ │   │   │   │       │           │   └─ LuauInterpolatedStringExpression_end [104..105]
+ │   │   │   │       │           │       └─ LuauInterpolatedStringExpression_end_c1 [104..105]
+ │   │   │   │       │           │           └─ PunctuationBraceClose [104..105]: "}"
+ │   │   │   │       │           ├─ Space [105..106]: " "
+ │   │   │   │       │           └─ Word [106..110]: "home"
+ │   │   │   │       └─ ChoiceStartText_end 110
+ │   │   │   └─ Choice_end 110
+ │   │   ├─ Newline [110..111]: "\n"
+ │   │   ├─ DoneStatement [111..121]
+ │   │   │   ├─ DoneStatement_c1 [111..117]
+ │   │   │   │   └─ OptionalWhitespace [111..117]: "      "
+ │   │   │   ├─ DoneStatement_c2 [117..121]
+ │   │   │   │   └─ DoneKeyword [117..121]: "done"
+ │   │   │   └─ DoneStatement_c3 121
+ │   │   │       └─ OptionalWhitespace 121
+ │   │   ├─ Newline [121..122]: "\n"
+ │   │   ├─ Choice [122..144]
+ │   │   │   ├─ Choice_begin [122..128]
+ │   │   │   │   ├─ Choice_begin_c1 [122..126]
+ │   │   │   │   │   └─ OptionalWhitespace [122..126]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [126..128]
+ │   │   │   │   │   └─ ChoiceMark [126..128]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 128
+ │   │   │   │   ├─ Choice_begin_c4 128
+ │   │   │   │   ├─ Choice_begin_c5 128
+ │   │   │   │   ├─ Choice_begin_c6 128
+ │   │   │   │   └─ Choice_begin_c7 128
+ │   │   │   ├─ Choice_content [128..144]
+ │   │   │   │   ├─ ChoiceStartText [128..130]
+ │   │   │   │   │   ├─ ChoiceStartText_begin 128
+ │   │   │   │   │   ├─ ChoiceStartText_content [128..130]
+ │   │   │   │   │   │   └─ ChoiceStartTextContent [128..130]
+ │   │   │   │   │   │       └─ ChoiceStartTextContent_c1 [128..130]
+ │   │   │   │   │   │           └─ Word [128..130]: "Go"
+ │   │   │   │   │   └─ ChoiceStartText_end 130
+ │   │   │   │   ├─ ChoiceDivertWhitespace [130..131]
+ │   │   │   │   │   └─ ChoiceDivertWhitespace_c1 [130..131]
+ │   │   │   │   │       └─ RequiredWhitespace [130..131]: " "
+ │   │   │   │   └─ Divert [131..144]
+ │   │   │   │       ├─ Divert_begin [131..133]
+ │   │   │   │       │   ├─ Divert_begin_c1 131
+ │   │   │   │       │   │   └─ OptionalWhitespace 131
+ │   │   │   │       │   └─ Divert_begin_c2 [131..133]
+ │   │   │   │       │       └─ DivertMark [131..133]: "->"
+ │   │   │   │       ├─ Divert_content [133..144]
+ │   │   │   │       │   ├─ DivertTarget [133..138]
+ │   │   │   │       │   │   ├─ DivertTarget_begin [133..134]
+ │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [133..134]
+ │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [133..134]
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [133..134]: " "
+ │   │   │   │       │   │   ├─ DivertTarget_content [134..138]
+ │   │   │   │       │   │   │   └─ DivertPath [134..138]
+ │   │   │   │       │   │   │       ├─ DivertPath_begin 134
+ │   │   │   │       │   │   │       ├─ DivertPath_content [134..138]
+ │   │   │   │       │   │   │       │   └─ DivertPart [134..138]
+ │   │   │   │       │   │   │       │       └─ DivertPartName [134..138]: "next"
+ │   │   │   │       │   │   │       └─ DivertPath_end 138
+ │   │   │   │       │   │   └─ DivertTarget_end 138
+ │   │   │   │       │   ├─ DivertStrayTextSpace [138..139]
+ │   │   │   │       │   │   └─ DivertStrayTextSpace_c1 [138..139]
+ │   │   │   │       │   │       └─ Whitespace [138..139]: " "
+ │   │   │   │       │   └─ DivertUnknown [139..144]: "[a] b"
+ │   │   │   │       └─ Divert_end 144
+ │   │   │   └─ Choice_end 144
+ │   │   ├─ Newline [144..145]: "\n"
+ │   │   ├─ Choice [145..165]
+ │   │   │   ├─ Choice_begin [145..151]
+ │   │   │   │   ├─ Choice_begin_c1 [145..149]
+ │   │   │   │   │   └─ OptionalWhitespace [145..149]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [149..151]
+ │   │   │   │   │   └─ ChoiceMark [149..151]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 151
+ │   │   │   │   ├─ Choice_begin_c4 151
+ │   │   │   │   ├─ Choice_begin_c5 151
+ │   │   │   │   ├─ Choice_begin_c6 151
+ │   │   │   │   └─ Choice_begin_c7 151
+ │   │   │   ├─ Choice_content [151..165]
+ │   │   │   │   └─ ChoiceSuppression [151..165]
+ │   │   │   │       ├─ ChoiceSuppression_begin [151..152]
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 151
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 [151..152]: "["
+ │   │   │   │       ├─ ChoiceSuppression_content [152..165]
+ │   │   │   │       │   ├─ ChoiceOnlyText [152..154]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 152
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [152..154]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [152..154]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [152..154]
+ │   │   │   │       │   │   │           └─ Word [152..154]: "Go"
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 154
+ │   │   │   │       │   ├─ ChoiceDivertWhitespace [154..155]
+ │   │   │   │       │   │   └─ ChoiceDivertWhitespace_c1 [154..155]
+ │   │   │   │       │   │       └─ RequiredWhitespace [154..155]: " "
+ │   │   │   │       │   └─ Divert [155..165]
+ │   │   │   │       │       ├─ Divert_begin [155..157]
+ │   │   │   │       │       │   ├─ Divert_begin_c1 155
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 155
+ │   │   │   │       │       │   └─ Divert_begin_c2 [155..157]
+ │   │   │   │       │       │       └─ DivertMark [155..157]: "->"
+ │   │   │   │       │       ├─ Divert_content [157..165]
+ │   │   │   │       │       │   ├─ DivertTarget [157..162]
+ │   │   │   │       │       │   │   ├─ DivertTarget_begin [157..158]
+ │   │   │   │       │       │   │   │   └─ DivertTarget_begin_c1 [157..158]
+ │   │   │   │       │       │   │   │       └─ DivertTarget_begin_c1 [157..158]
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [157..158]: " "
+ │   │   │   │       │       │   │   ├─ DivertTarget_content [158..162]
+ │   │   │   │       │       │   │   │   └─ DivertPath [158..162]
+ │   │   │   │       │       │   │   │       ├─ DivertPath_begin 158
+ │   │   │   │       │       │   │   │       ├─ DivertPath_content [158..162]
+ │   │   │   │       │       │   │   │       │   └─ DivertPart [158..162]
+ │   │   │   │       │       │   │   │       │       └─ DivertPartName [158..162]: "next"
+ │   │   │   │       │       │   │   │       └─ DivertPath_end 162
+ │   │   │   │       │       │   │   └─ DivertTarget_end 162
+ │   │   │   │       │       │   └─ DivertUnknown [162..165]: "] x"
+ │   │   │   │       │       └─ Divert_end 165
+ │   │   │   │       └─ ChoiceSuppression_end 165
+ │   │   │   └─ Choice_end 165
+ │   │   ├─ Newline [165..166]: "\n"
+ │   │   ├─ Choice [166..190]
+ │   │   │   ├─ Choice_begin [166..172]
+ │   │   │   │   ├─ Choice_begin_c1 [166..170]
+ │   │   │   │   │   └─ OptionalWhitespace [166..170]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [170..172]
+ │   │   │   │   │   └─ ChoiceMark [170..172]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 172
+ │   │   │   │   ├─ Choice_begin_c4 172
+ │   │   │   │   ├─ Choice_begin_c5 172
+ │   │   │   │   ├─ Choice_begin_c6 172
+ │   │   │   │   └─ Choice_begin_c7 172
+ │   │   │   ├─ Choice_content [172..190]
+ │   │   │   │   └─ ChoiceStartText [172..190]
+ │   │   │   │       ├─ ChoiceStartText_begin 172
+ │   │   │   │       ├─ ChoiceStartText_content [172..190]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [172..175]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [172..175]
+ │   │   │   │       │   │       ├─ Word [172..174]: "Go"
+ │   │   │   │       │   │       └─ Space [174..175]: " "
+ │   │   │   │       │   ├─ ChoiceTextDots [175..177]
+ │   │   │   │       │   │   └─ ChoiceTextDots_c1 [175..177]
+ │   │   │   │       │   │       ├─ Punctuation [175..176]: "."
+ │   │   │   │       │   │       └─ Punctuation [176..177]: "."
+ │   │   │   │       │   ├─ ChoiceStartTextContent [177..178]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [177..178]
+ │   │   │   │       │   │       └─ Space [177..178]: " "
+ │   │   │   │       │   └─ LuauInterpolatedStringExpression [178..190]
+ │   │   │   │       │       ├─ LuauInterpolatedStringExpression_begin [178..179]
+ │   │   │   │       │       │   └─ LuauInterpolatedStringExpression_begin_c1 [178..179]
+ │   │   │   │       │       │       └─ PunctuationBraceOpen [178..179]: "{"
+ │   │   │   │       │       ├─ LuauInterpolatedStringExpression_content [179..189]
+ │   │   │   │       │       │   └─ LuauLengthOperation [179..189]
+ │   │   │   │       │       │       ├─ LuauLengthOperation_begin 179
+ │   │   │   │       │       │       │   └─ LuauLengthOperation_begin_c1 179
+ │   │   │   │       │       │       ├─ LuauLengthOperation_content [179..189]
+ │   │   │   │       │       │       │   ├─ LuauLengthOperator [179..180]
+ │   │   │   │       │       │       │   │   ├─ LuauLengthOperator_begin [179..180]
+ │   │   │   │       │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 179
+ │   │   │   │       │       │       │   │   │   │   └─ OptionalWhitespace 179
+ │   │   │   │       │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [179..180]: "#"
+ │   │   │   │       │       │       │   │   │   └─ LuauLengthOperator_begin_c3 180
+ │   │   │   │       │       │       │   │   └─ LuauLengthOperator_end 180
+ │   │   │   │       │       │       │   └─ LuauTable [180..189]
+ │   │   │   │       │       │       │       ├─ LuauTable_begin [180..181]
+ │   │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [180..181]
+ │   │   │   │       │       │       │       │       └─ PunctuationBraceOpen [180..181]: "{"
+ │   │   │   │       │       │       │       ├─ LuauTable_content [181..188]
+ │   │   │   │       │       │       │       │   └─ LuauTable [181..188]
+ │   │   │   │       │       │       │       │       ├─ LuauTable_begin [181..182]
+ │   │   │   │       │       │       │       │       │   └─ LuauTable_begin_c1 [181..182]
+ │   │   │   │       │       │       │       │       │       └─ PunctuationBraceOpen [181..182]: "{"
+ │   │   │   │       │       │       │       │       ├─ LuauTable_content [182..187]
+ │   │   │   │       │       │       │       │       │   └─ LuauTable [182..187]
+ │   │   │   │       │       │       │       │       │       ├─ LuauTable_begin [182..183]
+ │   │   │   │       │       │       │       │       │       │   └─ LuauTable_begin_c1 [182..183]
+ │   │   │   │       │       │       │       │       │       │       └─ PunctuationBraceOpen [182..183]: "{"
+ │   │   │   │       │       │       │       │       │       ├─ LuauTable_content [183..186]
+ │   │   │   │       │       │       │       │       │       │   └─ LuauTable [183..186]
+ │   │   │   │       │       │       │       │       │       │       ├─ LuauTable_begin [183..184]
+ │   │   │   │       │       │       │       │       │       │       │   └─ LuauTable_begin_c1 [183..184]
+ │   │   │   │       │       │       │       │       │       │       │       └─ PunctuationBraceOpen [183..184]: "{"
+ │   │   │   │       │       │       │       │       │       │       ├─ LuauTable_content [184..185]
+ │   │   │   │       │       │       │       │       │       │       │   └─ LuauNumericDecimal [184..185]
+ │   │   │   │       │       │       │       │       │       │       │       ├─ LuauNumericDecimal_c1 [184..185]: "1"
+ │   │   │   │       │       │       │       │       │       │       │       └─ LuauNumericDecimal_c2 185
+ │   │   │   │       │       │       │       │       │       │       └─ LuauTable_end [185..186]
+ │   │   │   │       │       │       │       │       │       │           ├─ LuauTable_end_c1 [185..186]
+ │   │   │   │       │       │       │       │       │       │           │   └─ PunctuationBraceClose [185..186]: "}"
+ │   │   │   │       │       │       │       │       │       │           └─ LuauTable_end_c2 186
+ │   │   │   │       │       │       │       │       │       └─ LuauTable_end [186..187]
+ │   │   │   │       │       │       │       │       │           ├─ LuauTable_end_c1 [186..187]
+ │   │   │   │       │       │       │       │       │           │   └─ PunctuationBraceClose [186..187]: "}"
+ │   │   │   │       │       │       │       │       │           └─ LuauTable_end_c2 187
+ │   │   │   │       │       │       │       │       └─ LuauTable_end [187..188]
+ │   │   │   │       │       │       │       │           ├─ LuauTable_end_c1 [187..188]
+ │   │   │   │       │       │       │       │           │   └─ PunctuationBraceClose [187..188]: "}"
+ │   │   │   │       │       │       │       │           └─ LuauTable_end_c2 188
+ │   │   │   │       │       │       │       └─ LuauTable_end [188..189]
+ │   │   │   │       │       │       │           ├─ LuauTable_end_c1 [188..189]
+ │   │   │   │       │       │       │           │   └─ PunctuationBraceClose [188..189]: "}"
+ │   │   │   │       │       │       │           └─ LuauTable_end_c2 189
+ │   │   │   │       │       │       └─ LuauLengthOperation_end 189
+ │   │   │   │       │       └─ LuauInterpolatedStringExpression_end [189..190]
+ │   │   │   │       │           └─ LuauInterpolatedStringExpression_end_c1 [189..190]
+ │   │   │   │       │               └─ PunctuationBraceClose [189..190]: "}"
+ │   │   │   │       └─ ChoiceStartText_end 190
+ │   │   │   └─ Choice_end 190
+ │   │   ├─ Newline [190..191]: "\n"
+ │   │   ├─ DoneStatement [191..201]
+ │   │   │   ├─ DoneStatement_c1 [191..197]
+ │   │   │   │   └─ OptionalWhitespace [191..197]: "      "
+ │   │   │   ├─ DoneStatement_c2 [197..201]
+ │   │   │   │   └─ DoneKeyword [197..201]: "done"
+ │   │   │   └─ DoneStatement_c3 201
+ │   │   │       └─ OptionalWhitespace 201
+ │   │   ├─ Newline [201..202]: "\n"
+ │   │   ├─ Choice [202..233]
+ │   │   │   ├─ Choice_begin [202..208]
+ │   │   │   │   ├─ Choice_begin_c1 [202..206]
+ │   │   │   │   │   └─ OptionalWhitespace [202..206]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [206..208]
+ │   │   │   │   │   └─ ChoiceMark [206..208]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 208
+ │   │   │   │   ├─ Choice_begin_c4 208
+ │   │   │   │   ├─ Choice_begin_c5 208
+ │   │   │   │   ├─ Choice_begin_c6 208
+ │   │   │   │   └─ Choice_begin_c7 208
+ │   │   │   ├─ Choice_content [208..233]
+ │   │   │   │   └─ ChoiceStartText [208..233]
+ │   │   │   │       ├─ ChoiceStartText_begin 208
+ │   │   │   │       ├─ ChoiceStartText_content [208..233]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [208..211]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [208..211]
+ │   │   │   │       │   │       ├─ Word [208..210]: "Go"
+ │   │   │   │       │   │       └─ Space [210..211]: " "
+ │   │   │   │       │   └─ ChoiceStartItalic [211..233]
+ │   │   │   │       │       ├─ ChoiceStartItalic_begin [211..212]
+ │   │   │   │       │       │   └─ ChoiceStartItalic_begin_c1 [211..212]
+ │   │   │   │       │       │       └─ StylingMark [211..212]
+ │   │   │   │       │       │           └─ StylingMark_c1 [211..212]: "*"
+ │   │   │   │       │       ├─ ChoiceStartItalic_content [212..233]
+ │   │   │   │       │       │   ├─ ChoiceStartSpanText [212..216]
+ │   │   │   │       │       │   │   └─ ChoiceStartSpanText_c1 [212..216]
+ │   │   │   │       │       │   │       ├─ Word [212..215]: "far"
+ │   │   │   │       │       │   │       └─ Space [215..216]: " "
+ │   │   │   │       │       │   ├─ LuauInterpolatedStringExpression [216..228]
+ │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [216..217]
+ │   │   │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [216..217]
+ │   │   │   │       │       │   │   │       └─ PunctuationBraceOpen [216..217]: "{"
+ │   │   │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [217..227]
+ │   │   │   │       │       │   │   │   └─ LuauLengthOperation [217..227]
+ │   │   │   │       │       │   │   │       ├─ LuauLengthOperation_begin 217
+ │   │   │   │       │       │   │   │       │   └─ LuauLengthOperation_begin_c1 217
+ │   │   │   │       │       │   │   │       ├─ LuauLengthOperation_content [217..227]
+ │   │   │   │       │       │   │   │       │   ├─ LuauLengthOperator [217..218]
+ │   │   │   │       │       │   │   │       │   │   ├─ LuauLengthOperator_begin [217..218]
+ │   │   │   │       │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c1 217
+ │   │   │   │       │       │   │   │       │   │   │   │   └─ OptionalWhitespace 217
+ │   │   │   │       │       │   │   │       │   │   │   ├─ LuauLengthOperator_begin_c2 [217..218]: "#"
+ │   │   │   │       │       │   │   │       │   │   │   └─ LuauLengthOperator_begin_c3 218
+ │   │   │   │       │       │   │   │       │   │   └─ LuauLengthOperator_end 218
+ │   │   │   │       │       │   │   │       │   └─ LuauTable [218..227]
+ │   │   │   │       │       │   │   │       │       ├─ LuauTable_begin [218..219]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauTable_begin_c1 [218..219]
+ │   │   │   │       │       │   │   │       │       │       └─ PunctuationBraceOpen [218..219]: "{"
+ │   │   │   │       │       │   │   │       │       ├─ LuauTable_content [219..226]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauTable [219..226]
+ │   │   │   │       │       │   │   │       │       │       ├─ LuauTable_begin [219..220]
+ │   │   │   │       │       │   │   │       │       │       │   └─ LuauTable_begin_c1 [219..220]
+ │   │   │   │       │       │   │   │       │       │       │       └─ PunctuationBraceOpen [219..220]: "{"
+ │   │   │   │       │       │   │   │       │       │       ├─ LuauTable_content [220..225]
+ │   │   │   │       │       │   │   │       │       │       │   └─ LuauTable [220..225]
+ │   │   │   │       │       │   │   │       │       │       │       ├─ LuauTable_begin [220..221]
+ │   │   │   │       │       │   │   │       │       │       │       │   └─ LuauTable_begin_c1 [220..221]
+ │   │   │   │       │       │   │   │       │       │       │       │       └─ PunctuationBraceOpen [220..221]: "{"
+ │   │   │   │       │       │   │   │       │       │       │       ├─ LuauTable_content [221..224]
+ │   │   │   │       │       │   │   │       │       │       │       │   └─ LuauTable [221..224]
+ │   │   │   │       │       │   │   │       │       │       │       │       ├─ LuauTable_begin [221..222]
+ │   │   │   │       │       │   │   │       │       │       │       │       │   └─ LuauTable_begin_c1 [221..222]
+ │   │   │   │       │       │   │   │       │       │       │       │       │       └─ PunctuationBraceOpen [221..222]: "{"
+ │   │   │   │       │       │   │   │       │       │       │       │       ├─ LuauTable_content [222..223]
+ │   │   │   │       │       │   │   │       │       │       │       │       │   └─ LuauNumericDecimal [222..223]
+ │   │   │   │       │       │   │   │       │       │       │       │       │       ├─ LuauNumericDecimal_c1 [222..223]: "1"
+ │   │   │   │       │       │   │   │       │       │       │       │       │       └─ LuauNumericDecimal_c2 223
+ │   │   │   │       │       │   │   │       │       │       │       │       └─ LuauTable_end [223..224]
+ │   │   │   │       │       │   │   │       │       │       │       │           ├─ LuauTable_end_c1 [223..224]
+ │   │   │   │       │       │   │   │       │       │       │       │           │   └─ PunctuationBraceClose [223..224]: "}"
+ │   │   │   │       │       │   │   │       │       │       │       │           └─ LuauTable_end_c2 224
+ │   │   │   │       │       │   │   │       │       │       │       └─ LuauTable_end [224..225]
+ │   │   │   │       │       │   │   │       │       │       │           ├─ LuauTable_end_c1 [224..225]
+ │   │   │   │       │       │   │   │       │       │       │           │   └─ PunctuationBraceClose [224..225]: "}"
+ │   │   │   │       │       │   │   │       │       │       │           └─ LuauTable_end_c2 225
+ │   │   │   │       │       │   │   │       │       │       └─ LuauTable_end [225..226]
+ │   │   │   │       │       │   │   │       │       │           ├─ LuauTable_end_c1 [225..226]
+ │   │   │   │       │       │   │   │       │       │           │   └─ PunctuationBraceClose [225..226]: "}"
+ │   │   │   │       │       │   │   │       │       │           └─ LuauTable_end_c2 226
+ │   │   │   │       │       │   │   │       │       └─ LuauTable_end [226..227]
+ │   │   │   │       │       │   │   │       │           ├─ LuauTable_end_c1 [226..227]
+ │   │   │   │       │       │   │   │       │           │   └─ PunctuationBraceClose [226..227]: "}"
+ │   │   │   │       │       │   │   │       │           └─ LuauTable_end_c2 227
+ │   │   │   │       │       │   │   │       └─ LuauLengthOperation_end 227
+ │   │   │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [227..228]
+ │   │   │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [227..228]
+ │   │   │   │       │       │   │           └─ PunctuationBraceClose [227..228]: "}"
+ │   │   │   │       │       │   └─ ChoiceStartSpanText [228..233]
+ │   │   │   │       │       │       └─ ChoiceStartSpanText_c1 [228..233]
+ │   │   │   │       │       │           ├─ Space [228..229]: " "
+ │   │   │   │       │       │           └─ Word [229..233]: "away"
+ │   │   │   │       │       └─ ChoiceStartItalic_end 233
+ │   │   │   │       │           └─ ChoiceStartItalic_end_c1 233
+ │   │   │   │       └─ ChoiceStartText_end 233
+ │   │   │   └─ Choice_end 233
+ │   │   ├─ Newline [233..234]: "\n"
+ │   │   ├─ DoneStatement [234..244]
+ │   │   │   ├─ DoneStatement_c1 [234..240]
+ │   │   │   │   └─ OptionalWhitespace [234..240]: "      "
+ │   │   │   ├─ DoneStatement_c2 [240..244]
+ │   │   │   │   └─ DoneKeyword [240..244]: "done"
+ │   │   │   └─ DoneStatement_c3 244
+ │   │   │       └─ OptionalWhitespace 244
+ │   │   ├─ Newline [244..245]: "\n"
+ │   │   ├─ Choice [245..262]
+ │   │   │   ├─ Choice_begin [245..251]
+ │   │   │   │   ├─ Choice_begin_c1 [245..249]
+ │   │   │   │   │   └─ OptionalWhitespace [245..249]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [249..251]
+ │   │   │   │   │   └─ ChoiceMark [249..251]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 251
+ │   │   │   │   ├─ Choice_begin_c4 251
+ │   │   │   │   ├─ Choice_begin_c5 251
+ │   │   │   │   ├─ Choice_begin_c6 251
+ │   │   │   │   └─ Choice_begin_c7 251
+ │   │   │   ├─ Choice_content [251..262]
+ │   │   │   │   └─ ChoiceStartText [251..262]
+ │   │   │   │       ├─ ChoiceStartText_begin 251
+ │   │   │   │       ├─ ChoiceStartText_content [251..262]
+ │   │   │   │       │   └─ ChoiceStartTextContent [251..262]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [251..262]
+ │   │   │   │       │           ├─ Word [251..253]: "Go"
+ │   │   │   │       │           ├─ Space [253..254]: " "
+ │   │   │   │       │           ├─ Punctuation [254..255]: "."
+ │   │   │   │       │           ├─ Punctuation [255..256]: "."
+ │   │   │   │       │           ├─ Space [256..257]: " "
+ │   │   │   │       │           └─ LuauInterpolatedStringExpression [257..262]
+ │   │   │   │       │               ├─ LuauInterpolatedStringExpression_begin [257..258]
+ │   │   │   │       │               │   └─ LuauInterpolatedStringExpression_begin_c1 [257..258]
+ │   │   │   │       │               │       └─ PunctuationBraceOpen [257..258]: "{"
+ │   │   │   │       │               ├─ LuauInterpolatedStringExpression_content [258..261]
+ │   │   │   │       │               │   └─ LuauInterpolatedString [258..261]
+ │   │   │   │       │               │       ├─ LuauInterpolatedString_begin [258..259]
+ │   │   │   │       │               │       │   └─ LuauInterpolatedString_begin_c1 [258..259]
+ │   │   │   │       │               │       │       └─ PunctuationStringBacktickQuoteOpen [258..259]: "`"
+ │   │   │   │       │               │       ├─ LuauInterpolatedString_content [259..260]
+ │   │   │   │       │               │       │   └─ Word [259..260]: "a"
+ │   │   │   │       │               │       └─ LuauInterpolatedString_end [260..261]
+ │   │   │   │       │               │           ├─ LuauInterpolatedString_end_c1 [260..261]
+ │   │   │   │       │               │           │   └─ PunctuationStringBacktickQuoteClose [260..261]: "`"
+ │   │   │   │       │               │           └─ LuauInterpolatedString_end_c2 261
+ │   │   │   │       │               └─ LuauInterpolatedStringExpression_end [261..262]
+ │   │   │   │       │                   └─ LuauInterpolatedStringExpression_end_c1 [261..262]
+ │   │   │   │       │                       └─ PunctuationBraceClose [261..262]: "}"
+ │   │   │   │       └─ ChoiceStartText_end 262
+ │   │   │   └─ Choice_end 262
+ │   │   ├─ Newline [262..263]: "\n"
+ │   │   ├─ DoneStatement [263..273]
+ │   │   │   ├─ DoneStatement_c1 [263..269]
+ │   │   │   │   └─ OptionalWhitespace [263..269]: "      "
+ │   │   │   ├─ DoneStatement_c2 [269..273]
+ │   │   │   │   └─ DoneKeyword [269..273]: "done"
+ │   │   │   └─ DoneStatement_c3 273
+ │   │   │       └─ OptionalWhitespace 273
+ │   │   ├─ Newline [273..274]: "\n"
+ │   │   ├─ Choice [274..303]
+ │   │   │   ├─ Choice_begin [274..280]
+ │   │   │   │   ├─ Choice_begin_c1 [274..278]
+ │   │   │   │   │   └─ OptionalWhitespace [274..278]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [278..280]
+ │   │   │   │   │   └─ ChoiceMark [278..280]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 280
+ │   │   │   │   ├─ Choice_begin_c4 280
+ │   │   │   │   ├─ Choice_begin_c5 280
+ │   │   │   │   ├─ Choice_begin_c6 280
+ │   │   │   │   └─ Choice_begin_c7 280
+ │   │   │   ├─ Choice_content [280..303]
+ │   │   │   │   └─ ChoiceStartText [280..303]
+ │   │   │   │       ├─ ChoiceStartText_begin 280
+ │   │   │   │       ├─ ChoiceStartText_content [280..303]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [280..283]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [280..283]
+ │   │   │   │       │   │       ├─ Word [280..282]: "Go"
+ │   │   │   │       │   │       └─ Space [282..283]: " "
+ │   │   │   │       │   ├─ ChoiceStartItalic [283..299]
+ │   │   │   │       │   │   ├─ ChoiceStartItalic_begin [283..284]
+ │   │   │   │       │   │   │   └─ ChoiceStartItalic_begin_c1 [283..284]
+ │   │   │   │       │   │   │       └─ StylingMark [283..284]
+ │   │   │   │       │   │   │           └─ StylingMark_c1 [283..284]: "*"
+ │   │   │   │       │   │   ├─ ChoiceStartItalic_content [284..298]
+ │   │   │   │       │   │   │   └─ ChoiceStartSpanText [284..298]
+ │   │   │   │       │   │   │       └─ ChoiceStartSpanText_c1 [284..298]
+ │   │   │   │       │   │   │           ├─ Word [284..287]: "far"
+ │   │   │   │       │   │   │           ├─ Space [287..288]: " "
+ │   │   │   │       │   │   │           ├─ LuauInterpolatedStringExpression [288..293]
+ │   │   │   │       │   │   │           │   ├─ LuauInterpolatedStringExpression_begin [288..289]
+ │   │   │   │       │   │   │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [288..289]
+ │   │   │   │       │   │   │           │   │       └─ PunctuationBraceOpen [288..289]: "{"
+ │   │   │   │       │   │   │           │   ├─ LuauInterpolatedStringExpression_content [289..292]
+ │   │   │   │       │   │   │           │   │   └─ LuauInterpolatedString [289..292]
+ │   │   │   │       │   │   │           │   │       ├─ LuauInterpolatedString_begin [289..290]
+ │   │   │   │       │   │   │           │   │       │   └─ LuauInterpolatedString_begin_c1 [289..290]
+ │   │   │   │       │   │   │           │   │       │       └─ PunctuationStringBacktickQuoteOpen [289..290]: "`"
+ │   │   │   │       │   │   │           │   │       ├─ LuauInterpolatedString_content [290..291]
+ │   │   │   │       │   │   │           │   │       │   └─ Word [290..291]: "a"
+ │   │   │   │       │   │   │           │   │       └─ LuauInterpolatedString_end [291..292]
+ │   │   │   │       │   │   │           │   │           ├─ LuauInterpolatedString_end_c1 [291..292]
+ │   │   │   │       │   │   │           │   │           │   └─ PunctuationStringBacktickQuoteClose [291..292]: "`"
+ │   │   │   │       │   │   │           │   │           └─ LuauInterpolatedString_end_c2 292
+ │   │   │   │       │   │   │           │   └─ LuauInterpolatedStringExpression_end [292..293]
+ │   │   │   │       │   │   │           │       └─ LuauInterpolatedStringExpression_end_c1 [292..293]
+ │   │   │   │       │   │   │           │           └─ PunctuationBraceClose [292..293]: "}"
+ │   │   │   │       │   │   │           ├─ Space [293..294]: " "
+ │   │   │   │       │   │   │           └─ Word [294..298]: "away"
+ │   │   │   │       │   │   └─ ChoiceStartItalic_end [298..299]
+ │   │   │   │       │   │       └─ ChoiceStartItalic_end_c1 [298..299]
+ │   │   │   │       │   │           └─ StylingMark [298..299]
+ │   │   │   │       │   │               └─ StylingMark_c1 [298..299]: "*"
+ │   │   │   │       │   └─ ChoiceStartTextContent [299..303]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [299..303]
+ │   │   │   │       │           ├─ Space [299..300]: " "
+ │   │   │   │       │           └─ Word [300..303]: "now"
+ │   │   │   │       └─ ChoiceStartText_end 303
+ │   │   │   └─ Choice_end 303
+ │   │   ├─ Newline [303..304]: "\n"
+ │   │   ├─ DoneStatement [304..314]
+ │   │   │   ├─ DoneStatement_c1 [304..310]
+ │   │   │   │   └─ OptionalWhitespace [304..310]: "      "
+ │   │   │   ├─ DoneStatement_c2 [310..314]
+ │   │   │   │   └─ DoneKeyword [310..314]: "done"
+ │   │   │   └─ DoneStatement_c3 314
+ │   │   │       └─ OptionalWhitespace 314
+ │   │   ├─ Newline [314..315]: "\n"
+ │   │   ├─ Choice [315..334]
+ │   │   │   ├─ Choice_begin [315..321]
+ │   │   │   │   ├─ Choice_begin_c1 [315..319]
+ │   │   │   │   │   └─ OptionalWhitespace [315..319]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [319..321]
+ │   │   │   │   │   └─ ChoiceMark [319..321]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 321
+ │   │   │   │   ├─ Choice_begin_c4 321
+ │   │   │   │   ├─ Choice_begin_c5 321
+ │   │   │   │   ├─ Choice_begin_c6 321
+ │   │   │   │   └─ Choice_begin_c7 321
+ │   │   │   ├─ Choice_content [321..334]
+ │   │   │   │   └─ ChoiceStartText [321..334]
+ │   │   │   │       ├─ ChoiceStartText_begin 321
+ │   │   │   │       ├─ ChoiceStartText_content [321..334]
+ │   │   │   │       │   └─ ChoiceStartItalic [321..334]
+ │   │   │   │       │       ├─ ChoiceStartItalic_begin [321..322]
+ │   │   │   │       │       │   └─ ChoiceStartItalic_begin_c1 [321..322]
+ │   │   │   │       │       │       └─ StylingMark [321..322]
+ │   │   │   │       │       │           └─ StylingMark_c1 [321..322]: "*"
+ │   │   │   │       │       ├─ ChoiceStartItalic_content [322..333]
+ │   │   │   │       │       │   └─ ChoiceStartSpanText [322..333]
+ │   │   │   │       │       │       └─ ChoiceStartSpanText_c1 [322..333]
+ │   │   │   │       │       │           ├─ Word [322..325]: "Say"
+ │   │   │   │       │       │           ├─ Space [325..326]: " "
+ │   │   │   │       │       │           ├─ LuauInterpolatedStringExpression [326..329]
+ │   │   │   │       │       │           │   ├─ LuauInterpolatedStringExpression_begin [326..327]
+ │   │   │   │       │       │           │   │   └─ LuauInterpolatedStringExpression_begin_c1 [326..327]
+ │   │   │   │       │       │           │   │       └─ PunctuationBraceOpen [326..327]: "{"
+ │   │   │   │       │       │           │   ├─ LuauInterpolatedStringExpression_content [327..328]
+ │   │   │   │       │       │           │   │   └─ LuauAccessPath [327..328]
+ │   │   │   │       │       │           │   │       ├─ LuauAccessPath_begin 327
+ │   │   │   │       │       │           │   │       ├─ LuauAccessPath_content [327..328]
+ │   │   │   │       │       │           │   │       │   └─ LuauAccessPart [327..328]
+ │   │   │   │       │       │           │   │       │       └─ LuauVariable [327..328]
+ │   │   │   │       │       │           │   │       │           └─ LuauVariable_c1 [327..328]
+ │   │   │   │       │       │           │   │       │               └─ LuauVariableName [327..328]: "x"
+ │   │   │   │       │       │           │   │       └─ LuauAccessPath_end 328
+ │   │   │   │       │       │           │   │           └─ LuauAccessPath_end_c1 328
+ │   │   │   │       │       │           │   └─ LuauInterpolatedStringExpression_end [328..329]
+ │   │   │   │       │       │           │       └─ LuauInterpolatedStringExpression_end_c1 [328..329]
+ │   │   │   │       │       │           │           └─ PunctuationBraceClose [328..329]: "}"
+ │   │   │   │       │       │           ├─ Space [329..330]: " "
+ │   │   │   │       │       │           └─ Word [330..333]: "now"
+ │   │   │   │       │       └─ ChoiceStartItalic_end [333..334]
+ │   │   │   │       │           └─ ChoiceStartItalic_end_c1 [333..334]
+ │   │   │   │       │               └─ StylingMark [333..334]
+ │   │   │   │       │                   └─ StylingMark_c1 [333..334]: "*"
+ │   │   │   │       └─ ChoiceStartText_end 334
+ │   │   │   └─ Choice_end 334
+ │   │   ├─ Newline [334..335]: "\n"
+ │   │   ├─ DoneStatement [335..345]
+ │   │   │   ├─ DoneStatement_c1 [335..341]
+ │   │   │   │   └─ OptionalWhitespace [335..341]: "      "
+ │   │   │   ├─ DoneStatement_c2 [341..345]
+ │   │   │   │   └─ DoneKeyword [341..345]: "done"
+ │   │   │   └─ DoneStatement_c3 345
+ │   │   │       └─ OptionalWhitespace 345
+ │   │   ├─ Newline [345..346]: "\n"
+ │   │   ├─ Choice [346..373]
+ │   │   │   ├─ Choice_begin [346..352]
+ │   │   │   │   ├─ Choice_begin_c1 [346..350]
+ │   │   │   │   │   └─ OptionalWhitespace [346..350]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [350..352]
+ │   │   │   │   │   └─ ChoiceMark [350..352]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 352
+ │   │   │   │   ├─ Choice_begin_c4 352
+ │   │   │   │   ├─ Choice_begin_c5 352
+ │   │   │   │   ├─ Choice_begin_c6 352
+ │   │   │   │   └─ Choice_begin_c7 352
+ │   │   │   ├─ Choice_content [352..373]
+ │   │   │   │   └─ ChoiceSuppression [352..373]
+ │   │   │   │       ├─ ChoiceSuppression_begin [352..353]
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [352..353]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 353
+ │   │   │   │       ├─ ChoiceSuppression_content [353..373]
+ │   │   │   │       │   ├─ ChoiceOnlyText [353..372]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 353
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [353..372]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [353..372]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [353..372]
+ │   │   │   │       │   │   │           ├─ Word [353..359]: "choice"
+ │   │   │   │       │   │   │           └─ Tags [359..372]
+ │   │   │   │       │   │   │               ├─ Tags_begin [359..360]
+ │   │   │   │       │   │   │               │   └─ Tags_begin_c1 [359..360]
+ │   │   │   │       │   │   │               │       └─ RequiredWhitespace [359..360]: " "
+ │   │   │   │       │   │   │               ├─ Tags_content [360..372]
+ │   │   │   │       │   │   │               │   └─ Tag [360..372]
+ │   │   │   │       │   │   │               │       ├─ Tag_c1 360
+ │   │   │   │       │   │   │               │       ├─ Tag_c2 [360..361]: "#"
+ │   │   │   │       │   │   │               │       └─ Tag_c3 [361..372]
+ │   │   │   │       │   │   │               │           └─ TagContent [361..372]
+ │   │   │   │       │   │   │               │               ├─ TagContent_begin 361
+ │   │   │   │       │   │   │               │               ├─ TagContent_content [361..372]
+ │   │   │   │       │   │   │               │               │   ├─ TagText [361..366]: " tag "
+ │   │   │   │       │   │   │               │               │   ├─ LuauInterpolatedStringExpression [366..369]
+ │   │   │   │       │   │   │               │               │   │   ├─ LuauInterpolatedStringExpression_begin [366..367]
+ │   │   │   │       │   │   │               │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [366..367]
+ │   │   │   │       │   │   │               │               │   │   │       └─ PunctuationBraceOpen [366..367]: "{"
+ │   │   │   │       │   │   │               │               │   │   ├─ LuauInterpolatedStringExpression_content [367..368]
+ │   │   │   │       │   │   │               │               │   │   │   └─ LuauAccessPath [367..368]
+ │   │   │   │       │   │   │               │               │   │   │       ├─ LuauAccessPath_begin 367
+ │   │   │   │       │   │   │               │               │   │   │       ├─ LuauAccessPath_content [367..368]
+ │   │   │   │       │   │   │               │               │   │   │       │   └─ LuauAccessPart [367..368]
+ │   │   │   │       │   │   │               │               │   │   │       │       └─ LuauVariable [367..368]
+ │   │   │   │       │   │   │               │               │   │   │       │           └─ LuauVariable_c1 [367..368]
+ │   │   │   │       │   │   │               │               │   │   │       │               └─ LuauVariableName [367..368]: "x"
+ │   │   │   │       │   │   │               │               │   │   │       └─ LuauAccessPath_end 368
+ │   │   │   │       │   │   │               │               │   │   │           └─ LuauAccessPath_end_c1 368
+ │   │   │   │       │   │   │               │               │   │   └─ LuauInterpolatedStringExpression_end [368..369]
+ │   │   │   │       │   │   │               │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [368..369]
+ │   │   │   │       │   │   │               │               │   │           └─ PunctuationBraceClose [368..369]: "}"
+ │   │   │   │       │   │   │               │               │   └─ LuauInterpolatedStringExpression [369..372]
+ │   │   │   │       │   │   │               │               │       ├─ LuauInterpolatedStringExpression_begin [369..370]
+ │   │   │   │       │   │   │               │               │       │   └─ LuauInterpolatedStringExpression_begin_c1 [369..370]
+ │   │   │   │       │   │   │               │               │       │       └─ PunctuationBraceOpen [369..370]: "{"
+ │   │   │   │       │   │   │               │               │       ├─ LuauInterpolatedStringExpression_content [370..371]
+ │   │   │   │       │   │   │               │               │       │   └─ LuauAccessPath [370..371]
+ │   │   │   │       │   │   │               │               │       │       ├─ LuauAccessPath_begin 370
+ │   │   │   │       │   │   │               │               │       │       ├─ LuauAccessPath_content [370..371]
+ │   │   │   │       │   │   │               │               │       │       │   └─ LuauAccessPart [370..371]
+ │   │   │   │       │   │   │               │               │       │       │       └─ LuauVariable [370..371]
+ │   │   │   │       │   │   │               │               │       │       │           └─ LuauVariable_c1 [370..371]
+ │   │   │   │       │   │   │               │               │       │       │               └─ LuauVariableName [370..371]: "x"
+ │   │   │   │       │   │   │               │               │       │       └─ LuauAccessPath_end 371
+ │   │   │   │       │   │   │               │               │       │           └─ LuauAccessPath_end_c1 371
+ │   │   │   │       │   │   │               │               │       └─ LuauInterpolatedStringExpression_end [371..372]
+ │   │   │   │       │   │   │               │               │           └─ LuauInterpolatedStringExpression_end_c1 [371..372]
+ │   │   │   │       │   │   │               │               │               └─ PunctuationBraceClose [371..372]: "}"
+ │   │   │   │       │   │   │               │               └─ TagContent_end 372
+ │   │   │   │       │   │   │               └─ Tags_end 372
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 372
+ │   │   │   │       │   └─ ChoiceInnerText [372..373]
+ │   │   │   │       │       ├─ ChoiceInnerText_begin [372..373]
+ │   │   │   │       │       │   └─ ChoiceInnerText_begin_c1 [372..373]: "]"
+ │   │   │   │       │       └─ ChoiceInnerText_end 373
+ │   │   │   │       └─ ChoiceSuppression_end 373
+ │   │   │   └─ Choice_end 373
+ │   │   ├─ Newline [373..374]: "\n"
+ │   │   ├─ DoneStatement [374..384]
+ │   │   │   ├─ DoneStatement_c1 [374..380]
+ │   │   │   │   └─ OptionalWhitespace [374..380]: "      "
+ │   │   │   ├─ DoneStatement_c2 [380..384]
+ │   │   │   │   └─ DoneKeyword [380..384]: "done"
+ │   │   │   └─ DoneStatement_c3 384
+ │   │   │       └─ OptionalWhitespace 384
+ │   │   └─ Newline [384..385]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [385..390]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [385..387]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [385..387]
+ │       │       └─ OptionalWhitespace [385..387]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [387..390]
+ │       │   └─ LuauEndKeyword [387..390]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 390
+ ├─ Newline [390..391]: "\n"
+ ├─ LuauEndKeyword [391..394]: "end"
+ ├─ Newline [394..395]: "\n"
+ ├─ Scene [395..405]
+ │   ├─ Scene_begin [395..401]
+ │   │   ├─ Scene_begin_c1 395
+ │   │   │   └─ OptionalWhitespace 395
+ │   │   ├─ Scene_begin_c2 [395..400]
+ │   │   │   └─ SceneKeyword [395..400]: "scene"
+ │   │   └─ Scene_begin_c3 [400..401]
+ │   │       └─ RequiredWhitespace [400..401]: " "
+ │   ├─ Scene_content [401..405]
+ │   │   └─ SceneWithoutParametersDeclaration [401..405]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [401..405]
+ │   │       │   └─ SceneDeclarationName [401..405]: "next"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 405
+ │   └─ Scene_end 405
+ ├─ Newline [405..406]: "\n"
+ ├─ DoneStatement [406..412]
+ │   ├─ DoneStatement_c1 [406..408]
+ │   │   └─ OptionalWhitespace [406..408]: "  "
+ │   ├─ DoneStatement_c2 [408..412]
+ │   │   └─ DoneKeyword [408..412]: "done"
+ │   └─ DoneStatement_c3 412
+ │       └─ OptionalWhitespace 412
+ ├─ Newline [412..413]: "\n"
+ ├─ LuauEndKeyword [413..416]: "end"
+ └─ Newline [416..417]: "\n"

@@ -79,42 +79,48 @@ sparkdown [0..116]
  │   │   │   │   ├─ Choice_begin_c6 49
  │   │   │   │   └─ Choice_begin_c7 49
  │   │   │   ├─ Choice_content [49..74]
- │   │   │   │   └─ ChoiceWithSuppressedText [49..74]
- │   │   │   │       ├─ ChoiceWithSuppressedText_c1 49
- │   │   │   │       ├─ ChoiceWithSuppressedText_c2 [49..50]: "["
- │   │   │   │       ├─ ChoiceWithSuppressedText_c3 [50..58]
- │   │   │   │       │   └─ ChoiceOnlyText [50..58]
- │   │   │   │       │       └─ ChoiceTextContent [50..58]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [50..58]
- │   │   │   │       │               ├─ Word [50..57]: "Courage"
- │   │   │   │       │               └─ Punctuation [57..58]: "."
- │   │   │   │       ├─ ChoiceWithSuppressedText_c4 [58..59]: "]"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c5 59
- │   │   │   │       ├─ ChoiceWithSuppressedText_c6 59
- │   │   │   │       ├─ ChoiceWithSuppressedText_c7 [59..60]
- │   │   │   │       │   └─ RequiredWhitespace [59..60]: " "
- │   │   │   │       └─ ChoiceWithSuppressedText_c8 [60..74]
- │   │   │   │           └─ Divert [60..74]
- │   │   │   │               ├─ Divert_begin [60..62]
- │   │   │   │               │   ├─ Divert_begin_c1 60
- │   │   │   │               │   │   └─ OptionalWhitespace 60
- │   │   │   │               │   └─ Divert_begin_c2 [60..62]
- │   │   │   │               │       └─ DivertMark [60..62]: "->"
- │   │   │   │               ├─ Divert_content [62..74]
- │   │   │   │               │   └─ DivertTarget [62..74]
- │   │   │   │               │       ├─ DivertTarget_begin [62..63]
- │   │   │   │               │       │   └─ DivertTarget_begin_c1 [62..63]
- │   │   │   │               │       │       └─ DivertTarget_begin_c1 [62..63]
- │   │   │   │               │       │           └─ OptionalWhitespace [62..63]: " "
- │   │   │   │               │       ├─ DivertTarget_content [63..74]
- │   │   │   │               │       │   └─ DivertPath [63..74]
- │   │   │   │               │       │       ├─ DivertPath_begin 63
- │   │   │   │               │       │       ├─ DivertPath_content [63..74]
- │   │   │   │               │       │       │   └─ DivertPart [63..74]
- │   │   │   │               │       │       │       └─ DivertPartName [63..74]: "WishCourage"
- │   │   │   │               │       │       └─ DivertPath_end 74
- │   │   │   │               │       └─ DivertTarget_end 74
- │   │   │   │               └─ Divert_end 74
+ │   │   │   │   └─ ChoiceSuppression [49..74]
+ │   │   │   │       ├─ ChoiceSuppression_begin [49..50]
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [49..50]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 50
+ │   │   │   │       ├─ ChoiceSuppression_content [50..74]
+ │   │   │   │       │   ├─ ChoiceOnlyText [50..58]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 50
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [50..58]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [50..58]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [50..58]
+ │   │   │   │       │   │   │           ├─ Word [50..57]: "Courage"
+ │   │   │   │       │   │   │           └─ Punctuation [57..58]: "."
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 58
+ │   │   │   │       │   ├─ ChoiceInnerText [58..59]
+ │   │   │   │       │   │   ├─ ChoiceInnerText_begin [58..59]
+ │   │   │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [58..59]: "]"
+ │   │   │   │       │   │   └─ ChoiceInnerText_end 59
+ │   │   │   │       │   ├─ ChoiceDivertWhitespace [59..60]
+ │   │   │   │       │   │   └─ ChoiceDivertWhitespace_c1 [59..60]
+ │   │   │   │       │   │       └─ RequiredWhitespace [59..60]: " "
+ │   │   │   │       │   └─ Divert [60..74]
+ │   │   │   │       │       ├─ Divert_begin [60..62]
+ │   │   │   │       │       │   ├─ Divert_begin_c1 60
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 60
+ │   │   │   │       │       │   └─ Divert_begin_c2 [60..62]
+ │   │   │   │       │       │       └─ DivertMark [60..62]: "->"
+ │   │   │   │       │       ├─ Divert_content [62..74]
+ │   │   │   │       │       │   └─ DivertTarget [62..74]
+ │   │   │   │       │       │       ├─ DivertTarget_begin [62..63]
+ │   │   │   │       │       │       │   └─ DivertTarget_begin_c1 [62..63]
+ │   │   │   │       │       │       │       └─ DivertTarget_begin_c1 [62..63]
+ │   │   │   │       │       │       │           └─ OptionalWhitespace [62..63]: " "
+ │   │   │   │       │       │       ├─ DivertTarget_content [63..74]
+ │   │   │   │       │       │       │   └─ DivertPath [63..74]
+ │   │   │   │       │       │       │       ├─ DivertPath_begin 63
+ │   │   │   │       │       │       │       ├─ DivertPath_content [63..74]
+ │   │   │   │       │       │       │       │   └─ DivertPart [63..74]
+ │   │   │   │       │       │       │       │       └─ DivertPartName [63..74]: "WishCourage"
+ │   │   │   │       │       │       │       └─ DivertPath_end 74
+ │   │   │   │       │       │       └─ DivertTarget_end 74
+ │   │   │   │       │       └─ Divert_end 74
+ │   │   │   │       └─ ChoiceSuppression_end 74
  │   │   │   └─ Choice_end 74
  │   │   ├─ Newline [74..75]: "\n"
  │   │   ├─ Choice [75..106]
@@ -129,42 +135,48 @@ sparkdown [0..116]
  │   │   │   │   ├─ Choice_begin_c6 81
  │   │   │   │   └─ Choice_begin_c7 81
  │   │   │   ├─ Choice_content [81..106]
- │   │   │   │   └─ ChoiceWithSuppressedText [81..106]
- │   │   │   │       ├─ ChoiceWithSuppressedText_c1 81
- │   │   │   │       ├─ ChoiceWithSuppressedText_c2 [81..82]: "["
- │   │   │   │       ├─ ChoiceWithSuppressedText_c3 [82..90]
- │   │   │   │       │   └─ ChoiceOnlyText [82..90]
- │   │   │   │       │       └─ ChoiceTextContent [82..90]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [82..90]
- │   │   │   │       │               ├─ Word [82..89]: "Answers"
- │   │   │   │       │               └─ Punctuation [89..90]: "."
- │   │   │   │       ├─ ChoiceWithSuppressedText_c4 [90..91]: "]"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c5 91
- │   │   │   │       ├─ ChoiceWithSuppressedText_c6 91
- │   │   │   │       ├─ ChoiceWithSuppressedText_c7 [91..92]
- │   │   │   │       │   └─ RequiredWhitespace [91..92]: " "
- │   │   │   │       └─ ChoiceWithSuppressedText_c8 [92..106]
- │   │   │   │           └─ Divert [92..106]
- │   │   │   │               ├─ Divert_begin [92..94]
- │   │   │   │               │   ├─ Divert_begin_c1 92
- │   │   │   │               │   │   └─ OptionalWhitespace 92
- │   │   │   │               │   └─ Divert_begin_c2 [92..94]
- │   │   │   │               │       └─ DivertMark [92..94]: "->"
- │   │   │   │               ├─ Divert_content [94..106]
- │   │   │   │               │   └─ DivertTarget [94..106]
- │   │   │   │               │       ├─ DivertTarget_begin [94..95]
- │   │   │   │               │       │   └─ DivertTarget_begin_c1 [94..95]
- │   │   │   │               │       │       └─ DivertTarget_begin_c1 [94..95]
- │   │   │   │               │       │           └─ OptionalWhitespace [94..95]: " "
- │   │   │   │               │       ├─ DivertTarget_content [95..106]
- │   │   │   │               │       │   └─ DivertPath [95..106]
- │   │   │   │               │       │       ├─ DivertPath_begin 95
- │   │   │   │               │       │       ├─ DivertPath_content [95..106]
- │   │   │   │               │       │       │   └─ DivertPart [95..106]
- │   │   │   │               │       │       │       └─ DivertPartName [95..106]: "WishAnswers"
- │   │   │   │               │       │       └─ DivertPath_end 106
- │   │   │   │               │       └─ DivertTarget_end 106
- │   │   │   │               └─ Divert_end 106
+ │   │   │   │   └─ ChoiceSuppression [81..106]
+ │   │   │   │       ├─ ChoiceSuppression_begin [81..82]
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [81..82]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 82
+ │   │   │   │       ├─ ChoiceSuppression_content [82..106]
+ │   │   │   │       │   ├─ ChoiceOnlyText [82..90]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 82
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [82..90]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [82..90]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [82..90]
+ │   │   │   │       │   │   │           ├─ Word [82..89]: "Answers"
+ │   │   │   │       │   │   │           └─ Punctuation [89..90]: "."
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 90
+ │   │   │   │       │   ├─ ChoiceInnerText [90..91]
+ │   │   │   │       │   │   ├─ ChoiceInnerText_begin [90..91]
+ │   │   │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [90..91]: "]"
+ │   │   │   │       │   │   └─ ChoiceInnerText_end 91
+ │   │   │   │       │   ├─ ChoiceDivertWhitespace [91..92]
+ │   │   │   │       │   │   └─ ChoiceDivertWhitespace_c1 [91..92]
+ │   │   │   │       │   │       └─ RequiredWhitespace [91..92]: " "
+ │   │   │   │       │   └─ Divert [92..106]
+ │   │   │   │       │       ├─ Divert_begin [92..94]
+ │   │   │   │       │       │   ├─ Divert_begin_c1 92
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 92
+ │   │   │   │       │       │   └─ Divert_begin_c2 [92..94]
+ │   │   │   │       │       │       └─ DivertMark [92..94]: "->"
+ │   │   │   │       │       ├─ Divert_content [94..106]
+ │   │   │   │       │       │   └─ DivertTarget [94..106]
+ │   │   │   │       │       │       ├─ DivertTarget_begin [94..95]
+ │   │   │   │       │       │       │   └─ DivertTarget_begin_c1 [94..95]
+ │   │   │   │       │       │       │       └─ DivertTarget_begin_c1 [94..95]
+ │   │   │   │       │       │       │           └─ OptionalWhitespace [94..95]: " "
+ │   │   │   │       │       │       ├─ DivertTarget_content [95..106]
+ │   │   │   │       │       │       │   └─ DivertPath [95..106]
+ │   │   │   │       │       │       │       ├─ DivertPath_begin 95
+ │   │   │   │       │       │       │       ├─ DivertPath_content [95..106]
+ │   │   │   │       │       │       │       │   └─ DivertPart [95..106]
+ │   │   │   │       │       │       │       │       └─ DivertPartName [95..106]: "WishAnswers"
+ │   │   │   │       │       │       │       └─ DivertPath_end 106
+ │   │   │   │       │       │       └─ DivertTarget_end 106
+ │   │   │   │       │       └─ Divert_end 106
+ │   │   │   │       └─ ChoiceSuppression_end 106
  │   │   │   └─ Choice_end 106
  │   │   └─ Newline [106..107]: "\n"
  │   └─ LuauSparkdownChooseBlock_end [107..112]

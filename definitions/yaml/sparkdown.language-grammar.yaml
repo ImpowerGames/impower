@@ -14,6 +14,40 @@ luauFile:
 
 variables:
   DISPLAY_CHAIN_SEPARATOR: (?:$|{{WS}}+)
+  # lookaround: SparkdownBlockComment and SparkdownInlineComment read a comment
+  # as one unit, so the text that ActionLineChain, LineChain and the chain ends
+  # of ActionLineEnd and LineEnd read before a chain mark stops at a comment
+  # opener, and a `\` inside a comment never chains. These rules decide the
+  # chain at the line's end, where a capture cannot let a comment claim its span
+  # first; DivertUnknown stops there for the same comments.
+  STORY_TEXT_OUTSIDE_COMMENT: (?:(?!{{STORY_COMMENT_START}})[^\r\n])
+  STORY_TEXT_UNIT: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{STORY_TEXT_OUTSIDE_COMMENT}})
+  # lookaround: Annotation's Tag reads a tag from its first marker to the line's
+  # end, comment openers included, so the chain text before a tag stops at the
+  # first tag marker and DISPLAY_CHAIN_TAG takes the rest once. Letting the text
+  # run past a marker would let each tag start at many places, and a line of
+  # tags with no chain mark would take exponential time to refuse. For the same
+  # reason a character never starts what CHOICE_PLAIN_INTERPOLATION takes whole.
+  DISPLAY_CHAIN_TEXT_BEFORE_TAG: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?!{{STORY_COMMENT_START}}|{{TAG_START}}|{{CHOICE_PLAIN_INTERPOLATION}})[^\r\n])
+  DISPLAY_CHAIN_TAG: (?:{{TAG_START}}[^\r\n]*?)
+  DISPLAY_CHAIN_TEXT: (?:{{DISPLAY_CHAIN_TEXT_BEFORE_TAG}}*?{{DISPLAY_CHAIN_TAG}}?)
+  # lookaround: Annotation's Tag reads a tag to the line's end, comment openers
+  # and a chain mark included, so ActionLineEnd and LineEnd end before it
+  # (EOL); a tag that ends in a chain mark is the chain's text, which
+  # ActionLineChainTail and LineChainTail read. Only the rest of the line tells
+  # the two tags apart, and the end is tried before the tail at every position.
+  DISPLAY_CHAIN_TAG_TAIL: (?:{{WS}}*{{DISPLAY_CHAIN_TAG}}{{DISPLAY_CHAIN_MARK}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
+  # lookaround: SparkdownBlockComment and SparkdownInlineComment take the
+  # whitespace before them, as an inline comment drops it everywhere; `Chain`
+  # would take it as the chain mark's separator, which leaves a blank line in
+  # the chained text. Only the comment after the whitespace tells them apart.
+  DISPLAY_CHAIN_COMMENT_AHEAD: (?={{WS}}+(?:{{SPARKDOWN_BLOCK_COMMENT_START}}|{{LINE_COMMENT_MARK}}))
+  DISPLAY_CHAIN_MARK: (?:{{CHAIN}}(?:{{DISPLAY_CHAIN_COMMENT_AHEAD}}|{{DISPLAY_CHAIN_SEPARATOR}}))
+  BLOCK_COMMENT_CLOSED: (?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/])
+  BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{BLOCK_COMMENT_CLOSED}})
+  LINE_COMMENT_TO_END: (?:{{WS}}*{{LINE_COMMENT_MARK}}[^\r\n]*)
+  DISPLAY_CHAIN_COMMENTS: (?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)
+  DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
@@ -69,6 +103,8 @@ variables:
   NOT_TAG_HASH_AFTER_TEXT: (?<=[^\s.]|[^\s.][.]|[^\s.][.][.])(?={{NOT_TAG_HASH}})
   COMMENT_START: (?:[-][-])
   SPARKDOWN_BLOCK_COMMENT_START: (?:[/][*])
+  # lookaround: SparkdownBlockComment's end reads the `*/`. A content token that began before it would take its `*` first, and no ordering lets an end that starts later win.
+  BLOCK_COMMENT_CHARACTER: (?:[^*\r\n]|[*](?![/]))
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
@@ -142,7 +178,7 @@ variables:
   CHOICE_CLOSURE_PARENS_2: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_1}})*[)])
   CHOICE_CLOSURE_PARENS_3: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_2}})*[)])
   CHOICE_CLOSURE_PARENS: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])
-  # lookaround: `ChoiceWithNoSuppressedText` owns a choice line whose call
+  # lookaround: `ChoiceStartText` owns a choice line whose call
   # bracket closes, such as `* if friend(s), we go` or `* if you(don't mind),
   # jump`: the `Choice` begin declined it for the punctuation after the
   # bracket or an apostrophe inside it, and it is prose. Only whether the
@@ -153,18 +189,482 @@ variables:
   # string counts as a plain character, so a valid call the bounded reader
   # cannot read still counts as open while a contraction does not.
   CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))
-  # lookaround: `Choice` and `ChoiceWithNoSuppressedText` both refuse the spot
-  # where a header's begin took its line break and the line's input ends. The
-  # label on the next line owns the choice's remaining text, and both engines
-  # try the `end:` and the patterns once more at that spot, where `(?=$)` and
-  # the empty text match would close the choice before the label. Reordering cannot help,
-  # since the `end:` and the text rule are the only rules that match there.
-  # Splitting the text rule leaves the `end:`, the enclosing
+  # lookaround: `Choice` refuses the spot where a header's begin took its line
+  # break and the line's input ends. The label on the next line owns the
+  # choice's remaining text, `ChoiceStartText`, and both engines try the `end:`
+  # and the patterns once more at that spot, where `(?=$)` would close the
+  # choice before the label. Reordering cannot help, since the `end:` is the
+  # only rule that matches there (`ChoiceStartText` refuses a line's end).
+  # The enclosing
   # `LuauSparkdownChooseBlock` and `SparkdownStatement` have no terminator here
   # to carry, and a begin that left the line break would read the label line as
   # display text. No consumed character marks the spot, so only
   # the anchor with nothing after it does.
   CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
+  # lookaround: LuauInterpolatedStringExpression reads an unclosed `{` to its
+  # capture's end; CHOICE_INTERPOLATION_UNIT refuses it, so it stays text. No
+  # `}` follows it, so no later brace on the line is a unit either, and the
+  # rules after one never ask again.
+  CHOICE_OPEN_BRACE: (?:[{](?![^\r\n]*?[}]))
+  # lookaround: ChoiceOnlyText reads a tag to its end (CHOICE_ONLY_TEXT_TAG), so the
+  # scan takes a tag only where it runs to that end and the scan splits a line
+  # in one way.
+  CHOICE_SUPPRESSION_TAG: (?:{{CHOICE_ONLY_TEXT_TAG}}(?={{CHOICE_ONLY_TEXT_END}}))
+  # lookaround: ChoiceOnlyText reads a suppression's text up to a `]`, an arrow
+  # or the line's end, and readChoiceText reads a `[` that meets no `]` as
+  # literal text (ChoiceStartText's). The scan follows ChoiceOnlyText's reading:
+  # it reads a tag to ChoiceOnlyText's end as CHOICE_ONLY_TEXT_TAG does, skips an
+  # interpolation CHOICE_PLAIN_INTERPOLATION keeps and a block comment closed
+  # on the line, and it stops at an arrow, a line comment
+  # (SparkdownInlineComment) or the line's end, where the `[` stays text. A tag
+  # runs to ChoiceOnlyText's end and a character never starts a tag, so the scan
+  # splits a line in one way. It stops at an unclosed brace too, which
+  # CHOICE_SUPPRESSION_PAST_BRACE reads once.
+  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\])[^\r\n])
+  # lookaround: ChoiceOnlyText's end, which a backslash does not escape. The
+  # suppression's text reads a backslash with the character after it
+  # (CHOICE_ONLY_TEXT_ESCAPE), so an escaped comment opener, brace or tag
+  # marker is text there and the scan reads it the same way.
+  CHOICE_SUPPRESSION_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|(?={{CHOICE_ONLY_TEXT_END}})))
+  # lookaround: the same ends as CHOICE_SUPPRESSION_SCAN, past an unclosed brace
+  # (CHOICE_OPEN_BRACE), where no brace is a unit and none needs asking about.
+  CHOICE_SUPPRESSION_SCAN_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\])[^\r\n])
+  CHOICE_SUPPRESSION_PAST_BRACE: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_SUPPRESSION_SCAN_PAST_BRACE}}*)
+  # lookaround: SparkdownBlockComment reads a comment opener with no `*/` after
+  # it on its line to a later line, and one with a `*/` as BLOCK_COMMENT_ON_LINE.
+  # Only the rest of the line tells them apart, and no later opener on the
+  # line is closed either.
+  BLOCK_COMMENT_RUNS_ON: (?:{{SPARKDOWN_BLOCK_COMMENT_START}}(?!{{BLOCK_COMMENT_CHARACTER}}*[*][/]))
+  CHOICE_SUPPRESSION_RUNS_ON: (?:{{WS}}*{{BLOCK_COMMENT_RUNS_ON}})
+  # lookaround: ChoiceOnlyText reads the suppression to a `]`, which a comment
+  # running on (SparkdownBlockComment) or an interpolation the scan cannot keep
+  # (LuauInterpolatedStringExpression, CHOICE_READ_INTERPOLATION) may hide, so
+  # the suppression opens there when a `]` follows on the line.
+  CHOICE_SUPPRESSION_BRACKET_AHEAD: (?=[^\r\n]*?\])
+  CHOICE_SUPPRESSION_CLOSE: (?:\]|{{CHOICE_SUPPRESSION_RUNS_ON}}|{{CHOICE_READ_INTERPOLATION}}{{CHOICE_SUPPRESSION_BRACKET_AHEAD}})
+  CHOICE_SUPPRESSION_CLOSE_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_PAST_BRACE}}(?:\]|{{CHOICE_SUPPRESSION_RUNS_ON}}))
+  CHOICE_SUPPRESSION_CLOSES_AT_BRACKET: (?:{{CHOICE_SUPPRESSION_BRACKET_AHEAD}}{{CHOICE_SUPPRESSION_SCAN}}*(?:{{CHOICE_SUPPRESSION_CLOSE}}|{{CHOICE_SUPPRESSION_CLOSE_PAST_BRACE}}))
+  # lookaround: CHOICE_SUPPRESSION_BRACKET_AHEAD. With no `]` on the rest of the
+  # line only a comment that runs on can close the suppression, so the scan asks
+  # for nothing else.
+  CHOICE_SUPPRESSION_CLOSES_RUNNING_ON: (?:(?![^\r\n]*?\]){{CHOICE_SUPPRESSION_SCAN}}*{{CHOICE_SUPPRESSION_PAST_BRACE}}?{{CHOICE_SUPPRESSION_RUNS_ON}})
+  # lookaround: ChoiceSuppression's begin colours a `[` that ChoiceOnlyText will
+  # close (CHOICE_SUPPRESSION_SCAN, CHOICE_SUPPRESSION_CLOSE) as a suppression
+  # bracket and any other as the literal text readChoiceText reads it as. Only
+  # the text after the `[` tells them apart, and the suppression must still open
+  # at either, as CHOICE_SUPPRESSION_OPEN decides, to keep its reading.
+  CHOICE_SUPPRESSION_CLOSES: (?={{CHOICE_SUPPRESSION_CLOSES_AT_BRACKET}}|{{CHOICE_SUPPRESSION_CLOSES_RUNNING_ON}})
+  # lookaround: ChoiceSuppression opens at the first `[` that a `]` or a `/*`
+  # follows on its line. One it does not open is literal text and keeps the
+  # choice text's scope, as on main. A suppression that never meets its `]` is
+  # read as literal text too (`readChoiceText` in lowerChoice.ts), and
+  # CHOICE_SUPPRESSION_CLOSES colours its `[` as text. The `]` may stand on a
+  # later line past a comment, which no rule sees from the `[`.
+  CHOICE_SUPPRESSION_OPEN: (?:\[(?=[^\r\n]*?(?:\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))
+  # lookaround: SparkdownInlineComment opens only at a `//` that whitespace or
+  # the line's end follows; a `//` glued to a word is the TextChunk's text.
+  LINE_COMMENT_MARK: (?:[/]{2}(?=$|{{WS}}))
+  STORY_COMMENT_START: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|{{WS}}*{{LINE_COMMENT_MARK}})
+  # lookaround: LuauInterpolatedStringExpression reads a `{` with a `}` later on
+  # its line as one unit before the choice line is split at a bracket or an
+  # arrow, and it never opens at `{}`. A `{` with no `}` after it stays in the
+  # text segment (ChoiceStartTextContent), whose capture keeps an unclosed
+  # interpolation on its line as main's choice capture did; opened as a unit it
+  # would read on into the lines after the choice.
+  CHOICE_INTERPOLATION_UNIT: (?:[{](?![}])(?=[^\r\n]*?[}]))
+  CHOICE_TEXT_UNIT: (?:{{STORY_COMMENT_START}}|{{CHOICE_INTERPOLATION_UNIT}})
+  CHOICE_PLAIN_DOUBLE_QUOTED: (?:["](?:[^"\\\r\n]|[\\][^\r\n])*["])
+  CHOICE_PLAIN_SINGLE_QUOTED: (?:['](?:[^'\\\r\n]|[\\][^\r\n])*['])
+  CHOICE_PLAIN_STRING: (?:{{CHOICE_PLAIN_DOUBLE_QUOTED}}|{{CHOICE_PLAIN_SINGLE_QUOTED}})
+  # lookaround: LuauInterpolatedStringExpression's own reading decides where an
+  # interpolation ends. A Luau `--` comment, a long string or comment (`[[`,
+  # `[=[`) and a `/*` outside a string can hide or fake its `}` or open a story
+  # comment, so an interpolation holding one is left to that rule as a unit
+  # (CHOICE_INTERPOLATION_UNIT). Any other interpolation, its strings, brackets
+  # and arrows included, reads the same as text or as a unit, so the text segment
+  # (ChoiceStartTextContent) keeps it, as main's choice capture did, and a styled
+  # span, a tag or glue around it reads as on main.
+  CHOICE_PLAIN_CODE_CHARACTER: (?:[^{}"'`\\\[\r\n/-]|[/](?![*])|[-](?![-])|[\[](?![\[=])|{{CHOICE_PLAIN_STRING}})
+  CHOICE_PLAIN_BACKTICK_TEXT: (?:[^`{}\\\r\n]|[\\][^\r\n])
+  CHOICE_PLAIN_BACKTICK_PART: (?:{{CHOICE_PLAIN_BACKTICK_TEXT}}|[{]{{CHOICE_PLAIN_CODE_CHARACTER}}*[}])
+  CHOICE_PLAIN_BACKTICK_STRING: (?:[`]{{CHOICE_PLAIN_BACKTICK_PART}}*[`])
+  CHOICE_PLAIN_INTERPOLATION_CHARACTER: (?:{{CHOICE_PLAIN_CODE_CHARACTER}}|{{CHOICE_PLAIN_BACKTICK_STRING}})
+  CHOICE_PLAIN_TABLE_1: (?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])
+  CHOICE_PLAIN_TABLE_2: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_1}})*[}])
+  CHOICE_PLAIN_TABLE_3: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_2}})*[}])
+  CHOICE_PLAIN_INTERPOLATION: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_TABLE_3}})+[}])
+  CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
+  SPAN_END: (?:{{EOL}}|{{DISPLAY_CHAIN_END}})
+  CHOICE_SPAN_MARK: (?:[*_`^]|[~][~]|[:][:])
+  # lookaround: LuauInterpolatedStringExpression reads a `{` as a unit
+  # (ChoiceTextUnit) only where CHOICE_PLAIN_INTERPOLATION cannot keep it in the
+  # text segment.
+  CHOICE_READ_INTERPOLATION: (?:(?!{{CHOICE_PLAIN_INTERPOLATION}}){{CHOICE_INTERPOLATION_UNIT}})
+  # lookaround: Glue reads a `..` at its capture's end as glue (GLUE_END), and
+  # a text segment now also ends before a span mark, an interpolation read as a
+  # unit and a chain mark, where main's one capture went on and the `..` was
+  # text. ChoiceTextDots takes those dots as text. `(?<![.])` is GLUE's own.
+  CHOICE_TEXT_DOTS: (?:(?<![.])[.][.](?={{WS}}*(?:{{CHOICE_SPAN_MARK}}|{{CHOICE_READ_INTERPOLATION}}|{{DISPLAY_CHAIN_END}})))
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own. A segment is one capture, so ordering ChoiceStartText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
+  CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: ChoiceStartText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_START_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_START_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_START_TEXT_END}}))
+  # lookaround: CHOICE_START_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_START_RUN_ESCAPE}}|(?![\\]){{CHOICE_START_TEXT_FREE}})
+  CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  # A closed comment is always taken whole and a character never starts one. A
+  # comment opener left open on the line means none later closes, so the run
+  # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_START_REGION_CHARACTER,
+  # which never asks again.
+  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  CHOICE_START_COMMAND_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
+  # of the command's text must leave to it; a run started earlier cannot be
+  # interrupted by order.
+  CHOICE_START_TEXT_COMMAND_UNIT: (?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_START_COMMAND_CHARACTER}})
+  # lookaround: as for CHOICE_START_TEXT_COMMAND_UNIT, past a comment opener that no
+  # `*/` closes on the line.
+  CHOICE_START_TEXT_COMMAND_REST: (?:{{CHOICE_START_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_START_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, whose `(?<![-])` keeps an arrow's `>` from
+  # closing the command. TextCommand reads a backslash with the character after
+  # it first, so an escaped `>` closes nothing while a later `>` does.
+  CHOICE_START_TEXT_COMMAND_WALK: (?:{{CHOICE_START_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_START_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_START_TEXT_END}})|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}})
+  # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
+  # gives the last of them back as its end. The backslash before that `>` is
+  # the only sign of it.
+  CHOICE_START_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceStartTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_START_TEXT_COMMAND_WALK}}|{{CHOICE_START_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceStartText's end, CHOICE_START_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_START_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_START_TEXT_END}}))
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceStartTextContent takes the command whole.
+  CHOICE_START_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
+  # lookaround: AudioCommand's end, as for CHOICE_START_AUDIO_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_START_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
+  CHOICE_START_AUDIO_COMMAND: (?:[(][(]{{CHOICE_START_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceStartText's end, CHOICE_START_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_START_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_START_TEXT_END}}))
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceStartTextContent takes the command whole.
+  CHOICE_START_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
+  # lookaround: ImageCommand's end, as for CHOICE_START_IMAGE_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_START_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
+  CHOICE_START_IMAGE_COMMAND: (?:\[\[{{CHOICE_START_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_IMAGE_REST}}*)?)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceStartTextContent takes the block whole.
+  CHOICE_START_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_START_TEXT_RUN}})*)
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and the comment rules of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
+  # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_START_PAST_OPEN_BRACE: (?:{{CHOICE_START_TEXT_ESCAPE}}|[\\](?={{CHOICE_START_TEXT_END}})|(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
+  CHOICE_START_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_START_PAST_OPEN_BRACE}}*)
+  CHOICE_START_TEXT_PIECE: (?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_COMMAND}}|{{CHOICE_START_AUDIO_COMMAND}}|{{CHOICE_START_IMAGE_COMMAND}}|{{CHOICE_START_GLUED_ALTERNATOR}}|{{CHOICE_START_OPEN_INTERPOLATION}}|{{CHOICE_START_TEXT_FREE}})
+  # lookaround: ChoiceStartSpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_START_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_TEXT_END}}){{CHOICE_START_TEXT_PIECE}})
+  # lookaround: ChoiceStartSpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_START_SPAN_END), which ChoiceStartSpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_START_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_SPAN_END}}){{CHOICE_START_TEXT_PIECE}})
+  # lookaround: ChoiceStartRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceStartItalic and ChoiceStartBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_START_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_START_SPAN_END}})[^\r\n])
+  CHOICE_START_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_START_TEXT_END}})
+  # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment. A command past a comment
+  # opener that no `*/` closes reads the same way.
+  CHOICE_START_REGION_CHARACTER: (?:(?!{{CHOICE_START_TEXT_END}})[^\r\n])
+  CHOICE_START_TEXT_TAG: (?:{{TAG_START}}{{CHOICE_START_REGION_CHARACTER}}*)
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own. A segment is one capture, so ordering ChoiceOnlyText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
+  CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: ChoiceOnlyText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_ONLY_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_ONLY_TEXT_END}}))
+  # lookaround: CHOICE_ONLY_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_ONLY_RUN_ESCAPE}}|(?![\\]){{CHOICE_ONLY_TEXT_FREE}})
+  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  # A closed comment is always taken whole and a character never starts one. A
+  # comment opener left open on the line means none later closes, so the run
+  # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_ONLY_REGION_CHARACTER,
+  # which never asks again.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  CHOICE_ONLY_COMMAND_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
+  # of the command's text must leave to it; a run started earlier cannot be
+  # interrupted by order.
+  CHOICE_ONLY_TEXT_COMMAND_UNIT: (?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  # lookaround: as for CHOICE_ONLY_TEXT_COMMAND_UNIT, past a comment opener that no
+  # `*/` closes on the line.
+  CHOICE_ONLY_TEXT_COMMAND_REST: (?:{{CHOICE_ONLY_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_ONLY_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, whose `(?<![-])` keeps an arrow's `>` from
+  # closing the command. TextCommand reads a backslash with the character after
+  # it first, so an escaped `>` closes nothing while a later `>` does.
+  CHOICE_ONLY_TEXT_COMMAND_WALK: (?:{{CHOICE_ONLY_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_ONLY_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_ONLY_TEXT_END}})|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
+  # gives the last of them back as its end. The backslash before that `>` is
+  # the only sign of it.
+  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceOnlyTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_ONLY_TEXT_COMMAND_WALK}}|{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_ONLY_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_ONLY_TEXT_END}}))
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
+  CHOICE_ONLY_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
+  # lookaround: AudioCommand's end, as for CHOICE_ONLY_AUDIO_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_ONLY_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
+  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(]{{CHOICE_ONLY_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_ONLY_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_ONLY_TEXT_END}}))
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceOnlyTextContent takes the command whole.
+  CHOICE_ONLY_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
+  # lookaround: ImageCommand's end, as for CHOICE_ONLY_IMAGE_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_ONLY_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
+  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[{{CHOICE_ONLY_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_IMAGE_REST}}*)?)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceOnlyTextContent takes the block whole.
+  CHOICE_ONLY_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_ONLY_TEXT_RUN}})*)
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and the comment rules of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
+  # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_ONLY_PAST_OPEN_BRACE: (?:{{CHOICE_ONLY_TEXT_ESCAPE}}|[\\](?={{CHOICE_ONLY_TEXT_END}})|(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
+  CHOICE_ONLY_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_ONLY_PAST_OPEN_BRACE}}*)
+  CHOICE_ONLY_TEXT_PIECE: (?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_COMMAND}}|{{CHOICE_ONLY_AUDIO_COMMAND}}|{{CHOICE_ONLY_IMAGE_COMMAND}}|{{CHOICE_ONLY_GLUED_ALTERNATOR}}|{{CHOICE_ONLY_OPEN_INTERPOLATION}}|{{CHOICE_ONLY_TEXT_FREE}})
+  # lookaround: ChoiceOnlySpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_ONLY_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_TEXT_END}}){{CHOICE_ONLY_TEXT_PIECE}})
+  # lookaround: ChoiceOnlySpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_ONLY_SPAN_END), which ChoiceOnlySpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_ONLY_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_TEXT_PIECE}})
+  # lookaround: ChoiceOnlyRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceOnlyItalic and ChoiceOnlyBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_ONLY_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  CHOICE_ONLY_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_ONLY_TEXT_END}})
+  # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment. A command past a comment
+  # opener that no `*/` closes reads the same way.
+  CHOICE_ONLY_REGION_CHARACTER: (?:(?!{{CHOICE_ONLY_TEXT_END}})[^\r\n])
+  CHOICE_ONLY_TEXT_TAG: (?:{{TAG_START}}{{CHOICE_ONLY_REGION_CHARACTER}}*)
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a character before neither is the text
+  # segment's own. A segment is one capture, so ordering ChoiceInnerText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
+  CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: ChoiceInnerText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_INNER_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_INNER_TEXT_END}}))
+  # lookaround: CHOICE_INNER_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_INNER_RUN_ESCAPE}}|(?![\\]){{CHOICE_INNER_TEXT_FREE}})
+  CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  # A closed comment is always taken whole and a character never starts one. A
+  # comment opener left open on the line means none later closes, so the run
+  # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_INNER_REGION_CHARACTER,
+  # which never asks again.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
+  CHOICE_INNER_COMMAND_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
+  # of the command's text must leave to it; a run started earlier cannot be
+  # interrupted by order.
+  CHOICE_INNER_TEXT_COMMAND_UNIT: (?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  # lookaround: as for CHOICE_INNER_TEXT_COMMAND_UNIT, past a comment opener that no
+  # `*/` closes on the line.
+  CHOICE_INNER_TEXT_COMMAND_REST: (?:{{CHOICE_INNER_COMMAND_ESCAPE}}|(?![\\>]){{CHOICE_INNER_REGION_CHARACTER}})
+  # lookaround: TextCommand's end, whose `(?<![-])` keeps an arrow's `>` from
+  # closing the command. TextCommand reads a backslash with the character after
+  # it first, so an escaped `>` closes nothing while a later `>` does.
+  CHOICE_INNER_TEXT_COMMAND_WALK: (?:{{CHOICE_INNER_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_INNER_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_INNER_TEXT_END}})|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
+  # gives the last of them back as its end. The backslash before that `>` is
+  # the only sign of it.
+  CHOICE_INNER_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
+  # inside a text command as its text, so ChoiceInnerTextContent takes the command
+  # whole, up to where the segment ends anyway.
+  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_INNER_TEXT_COMMAND_WALK}}|{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceInnerText's end, CHOICE_INNER_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_INNER_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_INNER_TEXT_END}}))
+  # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
+  # audio command as its text, so ChoiceInnerTextContent takes the command whole.
+  CHOICE_INNER_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
+  # lookaround: AudioCommand's end, as for CHOICE_INNER_AUDIO_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_INNER_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
+  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(]{{CHOICE_INNER_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceInnerText's end, CHOICE_INNER_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_INNER_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_INNER_TEXT_END}}))
+  # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
+  # image command as its text, so ChoiceInnerTextContent takes the command whole.
+  CHOICE_INNER_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
+  # lookaround: ImageCommand's end, as for CHOICE_INNER_IMAGE_CHARACTER, past a
+  # comment opener that no `*/` closes on the line.
+  CHOICE_INNER_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
+  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[{{CHOICE_INNER_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_IMAGE_REST}}*)?)
+  # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
+  # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
+  # marks, so ChoiceInnerTextContent takes the block whole.
+  CHOICE_INNER_GLUED_ALTERNATOR: (?:{{INLINE_GLUED_ALTERNATOR_START}}(?:(?!{{WS}}+{{ALTERNATOR_GLUE}}){{CHOICE_INNER_TEXT_RUN}})*)
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and the comment rules of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
+  # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_INNER_PAST_OPEN_BRACE: (?:{{CHOICE_INNER_TEXT_ESCAPE}}|[\\](?={{CHOICE_INNER_TEXT_END}})|(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
+  CHOICE_INNER_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_INNER_PAST_OPEN_BRACE}}*)
+  CHOICE_INNER_TEXT_PIECE: (?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_COMMAND}}|{{CHOICE_INNER_AUDIO_COMMAND}}|{{CHOICE_INNER_IMAGE_COMMAND}}|{{CHOICE_INNER_GLUED_ALTERNATOR}}|{{CHOICE_INNER_OPEN_INTERPOLATION}}|{{CHOICE_INNER_TEXT_FREE}})
+  # lookaround: ChoiceInnerSpans and ChoiceTextDots begin where the segment stops:
+  # at a span mark outside a construct DisplayText reads whole, and at the
+  # `..` before one, which Glue would read at the capture's end. A span then
+  # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
+  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_TEXT_END}}){{CHOICE_INNER_TEXT_PIECE}})
+  # lookaround: ChoiceInnerSpans, ChoiceTextDots and the end of each span copy
+  # (CHOICE_INNER_SPAN_END), which ChoiceInnerSpanText must leave to them, as Italic's
+  # end and Glue see them in DisplayText.
+  CHOICE_INNER_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_TEXT_PIECE}})
+  # lookaround: ChoiceInnerRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceInnerItalic and ChoiceInnerBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_INNER_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  CHOICE_INNER_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_INNER_TEXT_END}})
+  # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
+  # capture, so an interpolation and a comment opener inside a tag are the tag's
+  # text, as on a display line; the tag stops at the same end as the segment. A command past a comment
+  # opener that no `*/` closes reads the same way.
+  CHOICE_INNER_REGION_CHARACTER: (?:(?!{{CHOICE_INNER_TEXT_END}})[^\r\n])
+  CHOICE_INNER_TEXT_TAG: (?:{{TAG_START}}{{CHOICE_INNER_REGION_CHARACTER}}*)
+  CHOICE_START_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>]|{{CHOICE_SUPPRESSION_OPEN}})
+  CHOICE_INNER_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>])
+  CHOICE_ONLY_TEXT_END: (?:\]|$|{{WS}}*[-][>])
   STYLE_PROPERTY_NAME: (?:[a-zA-Z_][a-zA-Z0-9_-]*)
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
@@ -410,8 +910,7 @@ repository:
   SparkdownBlockCommentContent:
     tag: blockComment
     name: comment.block.content.sd
-    # lookaround: SparkdownBlockComment's end reads the `*/`. A content token that began before it would take its `*` first, and no ordering lets an end that starts later win.
-    match: ((?:[^*\r\n]|[*](?![/]))+)
+    match: ({{BLOCK_COMMENT_CHARACTER}}+)
 
   SparkdownBlockCommentOnLine:
     match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}.*?[*][/])
@@ -419,11 +918,6 @@ repository:
       1:
         patterns:
           - { include: "#SparkdownBlockComment" }
-
-  SparkdownOpenCommentText:
-    tag: special(string)
-    name: string.display.text.chunk.sd
-    match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}})
 
   SparkleTrailingLineComment:
     tag: lineComment
@@ -721,14 +1215,17 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#ChoiceConditional" }
-      - { include: "#ChoiceWithSuppressedText" }
-      - { include: "#ChoiceWithNoSuppressedText" }
-    # lookaround: `ChoiceWithNoSuppressedText` owns the label line after a
+      - { include: "#ChoiceStartText" }
+      - { include: "#ChoiceSuppression" }
+      - { include: "#ChoiceDivertWhitespace" }
+      - { include: "#Divert" }
+      - { include: "#ExtraWhitespace" }
+    # lookaround: `ChoiceStartText` owns the label line after a
     # header whose begin took its line break; `CHOICE_HEADER_LINE_BREAK_TAKEN`
     # says why only the anchor at the input's end shows that spot.
     end: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(?=$)
 
-  # lookaround: `ChoiceWithNoSuppressedText` owns the label line that follows
+  # lookaround: `ChoiceStartText` owns the label line that follows
   # a header whose begin read its condition and its newline; `\G` holds at the
   # start of that line as well as at the end of the header, and only the
   # character before tells them apart. Reordering cannot, since this rule must
@@ -789,89 +1286,647 @@ repository:
     tag: keyword
     name: keyword.operator.expression.list.sd
 
-  ChoiceWithSuppressedText:
-    match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
-    captures:
-      1:
-        patterns:
-          - { include: "#ChoiceStartText" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.choice.suppression.sd
-      3:
-        patterns:
-          - { include: "#ChoiceOnlyText" }
-      4:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.choice.suppression.sd
-      5:
-        patterns:
-          - { include: "#ChoiceInnerText" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-      8:
-        patterns:
-          - { include: "#Divert" }
-
-  # lookaround: the `Choice` stays open for the label line after a header whose
-  # begin took its line break, and this rule's empty match there would close it
-  # in vscode-textmate; `CHOICE_HEADER_LINE_BREAK_TAKEN` says why only the
-  # anchor at the input's end shows that spot.
-  ChoiceWithNoSuppressedText:
-    match: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
-    captures:
-      1:
-        patterns:
-          - { include: "#ChoicePlainText" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-      4:
-        patterns:
-          - { include: "#Divert" }
-
+  # lookaround: ChoiceStartText's own end, CHOICE_START_TEXT_END. The begin reads nothing, so it
+  # refuses where the end would match at once: a scope that opens and closes at
+  # one position stays open in vscode-textmate (GRAMMAR.md §17.1) and would read
+  # the lines after the choice as its text. No consumed text marks the spot.
   ChoiceStartText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceOnlyText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceInnerText:
-    emit: true
-    patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#SparkdownInlineComment" }
-      - { include: "#DisplayText" }
-
-  ChoicePlainText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceTextContent:
     tag: string
     name: string.choice.sd
+    begin: (?!{{CHOICE_START_TEXT_END}})
+    patterns:
+      - { include: "#ChoiceStartTextContent" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceStartSpans" }
+    end: (?={{CHOICE_START_TEXT_END}})
 
+  ChoiceSuppression:
+    begin: (?:({{CHOICE_SUPPRESSION_OPEN}}){{CHOICE_SUPPRESSION_CLOSES}}|({{CHOICE_SUPPRESSION_OPEN}}))
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.choice.suppression.sd
+      2:
+        tag: string
+        name: string.choice.sd markup.raw.punctuation.sd
+    patterns:
+      - { include: "#ChoiceOnlyText" }
+      - { include: "#ChoiceInnerText" }
+      - { include: "#ChoiceDivertWhitespace" }
+      - { include: "#Divert" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
+
+  # lookaround: ChoiceOnlyText's own end, refused by its begin for the reason
+  # ChoiceStartText's is: `[]` and `[` before an arrow open no only-text.
+  ChoiceOnlyText:
+    tag: string
+    name: string.choice.sd
+    begin: \G(?!{{CHOICE_ONLY_TEXT_END}})
+    patterns:
+      - { include: "#ChoiceOnlyTextContent" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceOnlySpans" }
+    end: (?={{CHOICE_ONLY_TEXT_END}})
+
+  ChoiceInnerText:
+    begin: (\])
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.choice.suppression.sd
+    patterns:
+      - { include: "#ChoiceInnerTextContent" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceInnerSpans" }
+    end: (?={{CHOICE_INNER_TEXT_END}})
+
+  ChoiceTextUnit:
+    patterns:
+      - { include: "#SparkdownBlockComment" }
+      - { include: "#SparkdownInlineComment" }
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+
+  ChoiceStartTextContent:
+    match: ({{CHOICE_START_TEXT_CHARACTER}}+)
     captures:
       1:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#LuauFunctionCallShorthand" }
-          - { include: "#LuauInterpolatedStringExpression" }
-          - { include: "#SparkdownBlockCommentOnLine" }
-          - { include: "#SparkdownInlineComment" }
           - { include: "#DisplayText" }
+
+  ChoiceOnlyTextContent:
+    match: ({{CHOICE_ONLY_TEXT_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Annotation" }
+          - { include: "#DisplayText" }
+
+  ChoiceInnerTextContent:
+    match: ({{CHOICE_INNER_TEXT_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceTextDots:
+    match: ({{CHOICE_TEXT_DOTS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceStartSpans:
+    patterns:
+      - { include: "#ChoiceStartRaw" }
+      - { include: "#ChoiceStartUnderline" }
+      - { include: "#ChoiceStartBoldItalic" }
+      - { include: "#ChoiceStartBold" }
+      - { include: "#ChoiceStartItalic" }
+      - { include: "#ChoiceStartCentered" }
+      - { include: "#ChoiceStartEmphasisTilde" }
+      - { include: "#ChoiceStartEmphasisColon" }
+
+  ChoiceStartSpanContent:
+    patterns:
+      - { include: "#ChoiceStartSpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceStartSpans" }
+
+  ChoiceStartSpanText:
+    match: ({{CHOICE_START_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceStartRawContent:
+    patterns:
+      - { include: "#ChoiceStartRawText" }
+
+  ChoiceStartRawText:
+    match: ({{CHOICE_START_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceStartBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceStartBoldItalicText" }
+      - { include: "#ChoiceStartItalic" }
+
+  ChoiceStartBoldItalicText:
+    match: ({{CHOICE_START_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceStartRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartRawContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceStartText. It takes two
+  # stars and leaves the third to the nested ChoiceStartItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceStartBold, tried
+  # after it in ChoiceStartSpans, takes.
+  ChoiceStartBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceStartText. ChoiceStartBoldItalicContent
+  # lists ChoiceStartItalic without ChoiceStartBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
+  ChoiceStartItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceStartEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceStartSpanContent" }
+    end: (\1)|(?={{CHOICE_START_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlySpans:
+    patterns:
+      - { include: "#ChoiceOnlyRaw" }
+      - { include: "#ChoiceOnlyUnderline" }
+      - { include: "#ChoiceOnlyBoldItalic" }
+      - { include: "#ChoiceOnlyBold" }
+      - { include: "#ChoiceOnlyItalic" }
+      - { include: "#ChoiceOnlyCentered" }
+      - { include: "#ChoiceOnlyEmphasisTilde" }
+      - { include: "#ChoiceOnlyEmphasisColon" }
+
+  ChoiceOnlySpanContent:
+    patterns:
+      - { include: "#ChoiceOnlySpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceOnlySpans" }
+
+  ChoiceOnlySpanText:
+    match: ({{CHOICE_ONLY_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceOnlyRawContent:
+    patterns:
+      - { include: "#ChoiceOnlyRawText" }
+
+  ChoiceOnlyRawText:
+    match: ({{CHOICE_ONLY_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceOnlyBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceOnlyBoldItalicText" }
+      - { include: "#ChoiceOnlyItalic" }
+
+  ChoiceOnlyBoldItalicText:
+    match: ({{CHOICE_ONLY_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceOnlyRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlyRawContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceOnlyText. It takes two
+  # stars and leaves the third to the nested ChoiceOnlyItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceOnlyBold, tried
+  # after it in ChoiceOnlySpans, takes.
+  ChoiceOnlyBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlyBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceOnlyText. ChoiceOnlyBoldItalicContent
+  # lists ChoiceOnlyItalic without ChoiceOnlyBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
+  ChoiceOnlyItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceOnlyEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceOnlySpanContent" }
+    end: (\1)|(?={{CHOICE_ONLY_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerSpans:
+    patterns:
+      - { include: "#ChoiceInnerRaw" }
+      - { include: "#ChoiceInnerUnderline" }
+      - { include: "#ChoiceInnerBoldItalic" }
+      - { include: "#ChoiceInnerBold" }
+      - { include: "#ChoiceInnerItalic" }
+      - { include: "#ChoiceInnerCentered" }
+      - { include: "#ChoiceInnerEmphasisTilde" }
+      - { include: "#ChoiceInnerEmphasisColon" }
+
+  ChoiceInnerSpanContent:
+    patterns:
+      - { include: "#ChoiceInnerSpanText" }
+      - { include: "#ChoiceTextUnit" }
+      - { include: "#ChoiceTextDots" }
+      - { include: "#ChoiceInnerSpans" }
+
+  ChoiceInnerSpanText:
+    match: ({{CHOICE_INNER_SPAN_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  ChoiceInnerRawContent:
+    patterns:
+      - { include: "#ChoiceInnerRawText" }
+
+  ChoiceInnerRawText:
+    match: ({{CHOICE_INNER_RAW_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#PlainText" }
+
+  ChoiceInnerBoldItalicContent:
+    patterns:
+      - { include: "#ChoiceInnerBoldItalicText" }
+      - { include: "#ChoiceInnerItalic" }
+
+  ChoiceInnerBoldItalicText:
+    match: ({{CHOICE_INNER_BOLD_ITALIC_CHARACTER}}+)
+
+  ChoiceInnerRaw:
+    tag: content
+    name: markup.raw.text.sd
+    begin: ([`]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerRawContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: BoldItalic's begin, which this copies for ChoiceInnerText. It takes two
+  # stars and leaves the third to the nested ChoiceInnerItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceInnerBold, tried
+  # after it in ChoiceInnerSpans, takes.
+  ChoiceInnerBoldItalic:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])(?=[*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerBoldItalicContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerBold:
+    tag: strong
+    name: markup.other.bold.sd
+    begin: ([*][*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Italic's begin, which this copies for ChoiceInnerText. ChoiceInnerBoldItalicContent
+  # lists ChoiceInnerItalic without ChoiceInnerBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
+  ChoiceInnerItalic:
+    tag: emphasis
+    name: markup.other.italic.sd
+    begin: ([*])(?![*])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerUnderline:
+    tag: link
+    name: markup.other.underline.sd
+    begin: ([_]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerCentered:
+    tag: monospace
+    name: constant.character.escape.centered.sd
+    begin: ([\^]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerEmphasisTilde:
+    tag: quote
+    name: markup.emphasis.tilde.sd
+    begin: ([~][~]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  ChoiceInnerEmphasisColon:
+    tag: quote
+    name: markup.emphasis.colon.sd
+    begin: ([:][:]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+    patterns:
+      - { include: "#ChoiceInnerSpanContent" }
+    end: (\1)|(?={{CHOICE_INNER_SPAN_END}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+
+  # lookaround: Divert's begin would take the whitespace before a choice's arrow
+  # as OptionalWhitespace; RequiredWhitespace keeps main's scope for it, and the
+  # arrow after it is the Divert's.
+  ChoiceDivertWhitespace:
+    match: ({{WS}}+)(?=[-][>])
+    captures:
+      1:
+        patterns:
+          - { include: "#RequiredWhitespace" }
 
   LabelAnchor:
     match: ^({{WS}}*)(label){{LUAU_NAME_END}}({{WS}}*)({{IDENTIFIER}})({{WS}}*)
@@ -1059,12 +2114,17 @@ repository:
       - { include: "#DivertLoad" }
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
-      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#DivertStrayTextSpace" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#Unknown" }
+      - { include: "#DivertUnknown" }
     end: (?=$)
+
+  DivertUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ({{STORY_TEXT_UNIT}}+)
 
   DivertStrayTextSpace:
     match: ({{WS}}+)(?=\S)
@@ -1105,10 +2165,10 @@ repository:
       - { include: "#Tunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
-      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#Unknown" }
+      - { include: "#DivertUnknown" }
     end: (?=$)
 
   Thread:
@@ -2023,7 +3083,7 @@ repository:
           - { include: "#Whitespace" }
 
   ActionLineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -2031,10 +3091,31 @@ repository:
       2:
         patterns:
           - { include: "#ActionLoadKeyword" }
-          - { include: "#ChainDisplayLine" }
+          - { include: "#DisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
+  ActionLineChainTail:
+    match: ({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#ActionLoadKeyword" }
+          - { include: "#DisplayLine" }
+      2:
+        patterns:
+          - { include: "#Chain" }
+      3:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
+          - { include: "#SparkdownInlineComment" }
       4:
         patterns:
           - { include: "#EndOfLine" }
@@ -2048,14 +3129,17 @@ repository:
     # splitting a Switch has the same issue. The parent's end leaves whitespace
     # before tags to children. Tightening WS would lose indentation captures;
     # the first nonspace display token must remain unconsumed for the body.
+    # The end leaves a tag that ends in a chain mark to ActionLineChainTail
+    # (DISPLAY_CHAIN_TAG_TAIL).
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#ActionLineChainTail" }
       - { include: "#ActionDisplayLine" }
-    end: (?={{EOL}})
+    end: (?!{{DISPLAY_CHAIN_TAG_TAIL}})(?={{EOL}})
 
   ActionDisplayLine:
     patterns:
@@ -2154,14 +3238,14 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#ChainDisplayLine" }
+          - { include: "#DisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
@@ -2172,27 +3256,44 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  LineChainTail:
+    match: ({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayLine" }
+      2:
+        patterns:
+          - { include: "#Chain" }
+      3:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
+          - { include: "#SparkdownInlineComment" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
   LineEnd:
+    # lookaround: as ActionLineEnd's, whose comment names the rivals of the
+    # begin; the end leaves a tag that ends in a chain mark to LineChainTail
+    # (DISPLAY_CHAIN_TAG_TAIL).
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LineChainTail" }
       - { include: "#DisplayLine" }
-    end: (?={{EOL}})
+    end: (?!{{DISPLAY_CHAIN_TAG_TAIL}})(?={{EOL}})
 
   DisplayLine:
     patterns:
       - { include: "#DisplayLineCode" }
       - { include: "#SparkdownBlockComment" }
-      - { include: "#DisplayLineText" }
-
-  ChainDisplayLine:
-    patterns:
-      - { include: "#DisplayLineCode" }
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#SparkdownOpenCommentText" }
       - { include: "#DisplayLineText" }
 
   DisplayLineCode:
@@ -2641,8 +3742,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#PlainText" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#RawContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2657,8 +3758,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#Italic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#BoldItalicContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2667,15 +3768,14 @@ repository:
   Bold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])(?![*])
+    begin: ([*][*])
     beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2690,9 +3790,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2707,9 +3806,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2724,9 +3822,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2746,9 +3843,8 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
@@ -2763,13 +3859,25 @@ repository:
         patterns:
           - { include: "#StylingMark" }
     patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+      - { include: "#SpanContent" }
+    end: (\1)|(?={{SPAN_END}})
     endCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
+
+  SpanContent:
+    patterns:
+      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#InlineTextAndLogic" }
+
+  RawContent:
+    patterns:
+      - { include: "#PlainText" }
+
+  BoldItalicContent:
+    patterns:
+      - { include: "#Italic" }
 
   PlainText:
     patterns:

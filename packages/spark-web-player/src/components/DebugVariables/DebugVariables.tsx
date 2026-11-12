@@ -202,6 +202,7 @@ export function DebugRowMessage({ text, depth }: { text: string; depth: number }
           <WarningIcon />
         </span>
       }
+      overflow="wrap"
       label={
         <span role="alert" class="text-warning">
           {text}
@@ -295,6 +296,7 @@ function VariableNodeRow({
         size="compact"
         depth={depth}
         leading={leading}
+        overflow="self"
         label={
           <DebugNameValue
             name={node.name}
@@ -317,6 +319,7 @@ function VariableNodeRow({
       size="compact"
       depth={depth}
       leading={leading}
+      overflow="self"
       label={<DebugNameValue name={node.name} value={node.value} />}
       trailing={
         node.breaking ? (

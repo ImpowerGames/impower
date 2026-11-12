@@ -15,8 +15,34 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const session = await import("../../src/modules/spark-editor/workspace/uploadSession");
 const { addAssetFiles, landedView } = await import("../../src/modules/spark-editor/workspace/addAssetFiles");
+const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
+const { PROJECT_SETTINGS_SCHEMA } = await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 
 const file = (name: string, size = 10) => ({ name, size, getBuffer: async () => new ArrayBuffer(size) });
+
+const entry = (name: string, size = 1, unreadable = false) => ({
+  name,
+  isFile: true,
+  isDirectory: false,
+  file: (ok: (file: File) => void, fail: (error: unknown) => void) =>
+    unreadable ? fail(new DOMException("gone", "NotFoundError")) : ok(new File([new Uint8Array(size)], name)),
+});
+
+const folder = (name: string, pages: object[][], onRead = () => {}) =>
+  ({
+    name,
+    isFile: false,
+    isDirectory: true,
+    createReader: () => {
+      let page = 0;
+      return {
+        readEntries: (ok: (entries: object[]) => void) => {
+          onRead();
+          ok(pages[page++] ?? []);
+        },
+      };
+    },
+  }) as unknown as FileSystemDirectoryEntry;
 
 const zipped = (name: string, entries: Record<string, Uint8Array>) => {
   const bytes = zipSync(entries);
@@ -137,6 +163,112 @@ describe("adding files through the one upload path", () => {
     ]);
   });
 
+  it("adds a dropped folder's files with their folders through the Assets upload, after showing the panel and holding off a project replace while it walks", async () => {
+    estimate(1_000_000, 0);
+    const seen: { shown: number; batches: number }[] = [];
+    const showUploads = vi.fn();
+    const music = folder("Music", [[entry("theme.mp3", 3), folder("Strings", [[entry("violin.ogg", 5)]])]], () =>
+      seen.push({ shown: showUploads.mock.calls.length, batches: workspace.uploadBatches.peek() }),
+    );
+    const landed = await addAssetFiles([{ folder: music }, file("intro.ogg")], "Assets/Audio", { showUploads });
+    expect(seen[0]).toEqual({ shown: 1, batches: 1 });
+    expect(mocks.upload).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ name: "Music/theme.mp3", size: 3 }),
+        expect.objectContaining({ name: "Music/Strings/violin.ogg", size: 5 }),
+        expect.objectContaining({ name: "intro.ogg" }),
+      ],
+      "Assets/Audio",
+    );
+    expect(landed).toHaveLength(3);
+    expect(workspace.uploadBatches.value).toBe(0);
+    expect(workspace.uploadsFound.value).toBeNull();
+  });
+
+  it("refuses a dropped folder the storage cannot hold by its walked sizes before writing, listing each file and each entry it could not read", async () => {
+    estimate(1000, 0);
+    const art = folder("Art", [[entry("hero.png", 600), entry("ada.png", 600), entry("gone.png", 1, true)]]);
+    const landed = await addAssetFiles([{ folder: art }], "");
+    expect(landed).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["gone.png", "Not added: the file could not be read, so choose it again."],
+      ["hero.png", "Not added: these files need 1 kB and this browser has 1000 B left, so free some space or add fewer at once."],
+      ["ada.png", "Not added: these files need 1 kB and this browser has 1000 B left, so free some space or add fewer at once."],
+    ]);
+  });
+
+  it("lists an empty dropped folder as not added and writes nothing", async () => {
+    estimate(1_000_000, 0);
+    const landed = await addAssetFiles([{ folder: folder("Empty", [[folder("Nothing", [])]]) }], "");
+    expect(landed).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["Empty", "Not added: this folder holds no files."],
+    ]);
+  });
+
+  it("keeps a zip found inside a dropped folder as a file rather than unpacking it", async () => {
+    estimate(1_000_000_000, 0);
+    const landed = await addAssetFiles([{ folder: folder("Art", [[entry("pack.zip", 4)]]) }], "");
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "Art/pack.zip" })], "");
+    expect(landed).toHaveLength(1);
+  });
+
+  it("adds nothing from a dropped folder to another project when the project changes while it is walked, and says so for each file", async () => {
+    estimate(1_000_000, 0);
+    const switchProject = () => {
+      workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "local" } };
+    };
+    const music = folder("Music", [[entry("theme.mp3", 3), entry("rain.wav", 2)]], switchProject);
+    const landed = await addAssetFiles([{ folder: music }], "Assets/Audio");
+    expect(landed).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.importFiles).not.toHaveBeenCalled();
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["theme.mp3", "Not added: another project was opened before it could be added, so open this one and add it again."],
+      ["rain.wav", "Not added: another project was opened before it could be added, so open this one and add it again."],
+    ]);
+  });
+
+  it("keeps counting a folder still being walked when another dropped folder finishes first", async () => {
+    estimate(1_000_000, 0);
+    let release = () => {};
+    const slow = {
+      name: "Slow",
+      isFile: false,
+      isDirectory: true,
+      createReader: () => {
+        let page = 0;
+        return {
+          readEntries: (ok: (entries: object[]) => void) => {
+            if (page++) {
+              ok([]);
+              return;
+            }
+            release = () => ok([entry("late.ogg")]);
+          },
+        };
+      },
+    } as unknown as FileSystemDirectoryEntry;
+    const first = addAssetFiles([{ folder: slow }], "");
+    await addAssetFiles([{ folder: folder("Empty", []) }], "");
+    expect(workspace.uploadsFound.value).toBe(0);
+    expect(session.uploadHeading(workspace.uploads.value, workspace.uploadsFound.value)).toBe("Finding files");
+    release();
+    await first;
+    expect(workspace.uploadsFound.value).toBeNull();
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "Slow/late.ogg" })], "");
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["Empty", "Not added: this folder holds no files."],
+    ]);
+  });
+
+  it("counts the files found while a dropped folder is walked", () => {
+    expect(session.uploadHeading([], 0)).toBe("Finding files");
+    expect(session.uploadHeading([], 120)).toBe("Finding files: 120 found");
+  });
+
   it("shows the folder an unpacked zip made in the folder in view, rather than opening its last file's folder", () => {
     const facts = { modified: 1, size: 1 };
     workspace.assetListing.value = {
@@ -147,5 +279,25 @@ describe("adding files through the one upload path", () => {
     expect(
       landedView(["Assets/Images/Cast/hero.png", "Assets/Images/Cast/Extras/ada.png", "Assets/Audio/sfx/rain.wav"], "Assets/Images"),
     ).toEqual({ last: "Assets/Images/Cast" });
+  });
+
+  it("opens the folder a dropped folder of another type landed in and shows its row, rather than its last file's folder", () => {
+    const facts = { modified: 1, size: 1 };
+    setAssetFiles({
+      imageFiles: PROJECT_SETTINGS_SCHEMA.imageFiles.default,
+      audioFiles: PROJECT_SETTINGS_SCHEMA.audioFiles.default,
+      videoFiles: PROJECT_SETTINGS_SCHEMA.videoFiles.default,
+      fontFiles: PROJECT_SETTINGS_SCHEMA.fontFiles.default,
+    });
+    workspace.state.value = { ...workspace.state.value, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images" } } };
+    workspace.assetListing.value = {
+      projectId: "p",
+      files: { "Assets/Audio/Music/Act 1/theme.ogg": facts, "Assets/Audio/Music/Act 2/Scene 1/rain.ogg": facts },
+      folders: ["Assets", "Assets/Images", "Assets/Audio", "Assets/Audio/Music", "Assets/Audio/Music/Act 1", "Assets/Audio/Music/Act 2/Scene 1"],
+    };
+    expect(landedView(["Assets/Audio/Music/Act 1/theme.ogg", "Assets/Audio/Music/Act 2/Scene 1/rain.ogg"], "Assets/Images")).toEqual({
+      last: "Assets/Audio/Music",
+      lists: { assetsType: "audio", assetsFolders: { image: "Assets/Images", audio: "Assets/Audio" } },
+    });
   });
 });

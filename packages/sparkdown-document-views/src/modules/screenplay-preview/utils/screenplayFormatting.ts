@@ -302,6 +302,9 @@ export const decorate = (
     const name = nodeRef.name as SparkdownNodeName;
     if (
       name === "Centered" ||
+      name === "ChoiceStartCentered" ||
+      name === "ChoiceOnlyCentered" ||
+      name === "ChoiceInnerCentered" ||
       name === "BlockTitle" ||
       name === "InlineTitle"
     ) {

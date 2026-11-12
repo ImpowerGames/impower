@@ -12,8 +12,9 @@ const COMPILER_FIELDS = new Set(["typecheck"]);
 const SAME_LINE_TEXT_SEPARATORS = new Set([
   "SparkdownBlockComment",
   "SparkdownBlockCommentOnLine",
-  "SparkdownOpenCommentText",
 ]);
+
+const CHOICE_TEXT_COMMENTS = new Set(["SparkdownBlockComment", "SparkdownInlineComment"]);
 
 const ROOT_FUNCTION_WRAPPERS = new Set([
   "LuauFunctionAttributes",
@@ -60,28 +61,19 @@ export default class ScreenplayParser {
       return text;
     };
 
-    const precedingText = (node: SyntaxNode) => {
+    const continuesAfterComment = (node: SyntaxNode): boolean => {
       let before = node.prevSibling;
-      let between = "";
       while (before && SAME_LINE_TEXT_SEPARATORS.has(before.name)) {
-        if (before.name === "SparkdownOpenCommentText") {
-          between = read(before.from, before.to) + between;
-        }
         before = before.prevSibling;
       }
-      return {
-        continues: before !== node.prevSibling && before?.name === "TextChunk",
-        between,
-      };
+      return before !== node.prevSibling && before?.name === "TextChunk";
     };
-    const appendLine = (lines: string, node: SyntaxNode, text: string) => {
-      const { continues, between } = precedingText(node);
-      return continues
-        ? `${lines.replace(/\n$/, "")}${between}${text}\n`
-        : `${lines}${between}${text}\n`;
-    };
-    const readWithoutComments = (node: SyntaxNode): string =>
-      readSkipping(node, read, (child) => child.name === "SparkdownBlockComment");
+    const appendLine = (lines: string, node: SyntaxNode, text: string) =>
+      continuesAfterComment(node)
+        ? `${lines.replace(/\n$/, "")}${text}\n`
+        : `${lines}${text}\n`;
+    const readChoiceText = (node: SyntaxNode): string =>
+      readSkipping(node, read, (child) => CHOICE_TEXT_COMMENTS.has(child.name));
 
     const addSeparator = () => {
       if (tokens.at(-1)?.tag !== "separator") {
@@ -263,8 +255,8 @@ export default class ScreenplayParser {
           stack.includes("InlineDialogue_content")
         ) {
           if (name === "TextChunk") {
-            const { continues, between } = precedingText(nodeRef.node);
-            const text = between + readWords(nodeRef.node);
+            const continues = continuesAfterComment(nodeRef.node);
+            const text = readWords(nodeRef.node);
             const last = tokens.at(-1);
             if (continues && last?.tag === "dialogue_content") {
               last.text = `${last.text ?? ""}${text}`;
@@ -292,7 +284,7 @@ export default class ScreenplayParser {
             choice_prefix += text;
           }
           if (name === "Choice_content") {
-            choice += readWithoutComments(nodeRef.node);
+            choice += readChoiceText(nodeRef.node);
           }
         }
 

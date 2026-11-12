@@ -107,6 +107,7 @@ export function DebugCallStackRowView({
           <ListRow
             size="compact"
             current={frame.selected ? "location" : false}
+            overflow="self"
             label={
               <DebugNameValue
                 name={frame.name}

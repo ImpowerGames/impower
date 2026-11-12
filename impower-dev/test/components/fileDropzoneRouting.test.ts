@@ -54,19 +54,17 @@ const corrupted = (bytes: Uint8Array, entry: string) => {
   return bytes;
 };
 
-const zipDrop = (name: string, bytes: Uint8Array, read = async () => bytes.slice().buffer) => ({
+const asDropped = (list: File[], type: string) => ({
   types: ["Files"],
-  files: [Object.assign(new File([bytes as BlobPart], name), { arrayBuffer: read })],
-  items: [{ kind: "file", type: "application/x-zip-compressed" }],
+  files: list,
+  items: list.map((file) => ({ kind: "file", type, getAsFile: () => file })),
   dropEffect: "",
 });
 
-const files = (names: string[], type = "") => ({
-  types: ["Files"],
-  files: names.map(desktopFile),
-  items: names.map(() => ({ kind: "file", type })),
-  dropEffect: "",
-});
+const zipDrop = (name: string, bytes: Uint8Array, read = async () => bytes.slice().buffer) =>
+  asDropped([Object.assign(new File([bytes as BlobPart], name), { arrayBuffer: read })], "application/x-zip-compressed");
+
+const files = (names: string[], type = "") => asDropped(names.map(desktopFile), type);
 
 const fire = async (type: "dragover" | "drop", dataTransfer: ReturnType<typeof files>, target: EventTarget = document.body) => {
   await act(async () => {
@@ -215,6 +213,20 @@ describe("files dropped anywhere in the app", () => {
       page.remove();
     }
   });
+
+  it("leaves a drop to the Assets page even when the page's own handling removes the row it landed on", async () => {
+    const page = document.body.appendChild(document.createElement("div"));
+    page.setAttribute("data-file-drop-target", "");
+    const row = page.appendChild(document.createElement("li"));
+    page.addEventListener("drop", () => row.remove());
+    try {
+      await fire("drop", files(["hero.png"]), row);
+      expect(mocks.upload).not.toHaveBeenCalled();
+      expect(mocks.navigateTo).not.toHaveBeenCalled();
+    } finally {
+      page.remove();
+    }
+  });
 });
 
 describe("a single zip dropped anywhere", () => {
@@ -280,6 +292,28 @@ describe("a single zip dropped anywhere", () => {
     expect(new TextDecoder().decode(await unpacked[1]!.getBuffer())).toBe("ada");
     expect(new Uint8Array(await unpacked[4]!.getBuffer())).toEqual(inner);
     await vi.waitFor(() => expect(workspace.assetsReveal.value).toHaveLength(5));
+  });
+
+  it("opens Assets before walking a folder dropped on another route, then adds the files inside it with their folders", async () => {
+    const navigated: number[] = [];
+    const leaf = (name: string) => ({ name, isFile: true, isDirectory: false, file: (ok: (file: File) => void) => ok(desktopFile(name)) });
+    const reader = (pages: object[][]) => () => {
+      let page = 0;
+      return {
+        readEntries: (ok: (entries: object[]) => void) => {
+          navigated.push(mocks.navigateTo.mock.calls.length);
+          ok(pages[page++] ?? []);
+        },
+      };
+    };
+    const strings = { name: "Strings", isFile: false, isDirectory: true, createReader: reader([[leaf("violin.ogg")]]) };
+    const music = { name: "Music", isFile: false, isDirectory: true, createReader: reader([[leaf("theme.mp3"), leaf("Thumbs.db"), strings]]) };
+    const drop = files(["Music"]);
+    Object.assign(drop.items[0]!, { webkitGetAsEntry: () => music });
+    await fire("drop", drop);
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
+    expect(navigated[0]).toBe(1);
+    expect(mocks.upload.mock.calls[0]![0].map((file) => file.name)).toEqual(["Music/theme.mp3", "Music/Strings/violin.ogg"]);
   });
 
   it("lists a dropped zip that cannot be read as not added, and opens Assets to say so", async () => {

@@ -152,6 +152,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._documents.keys();
   }
 
+  fileUris() {
+    return this._watchedFiles.keys();
+  }
+
   hasFile(uri: string): boolean {
     return this._watchedFiles.has(uri) || this.document(uri) != null;
   }

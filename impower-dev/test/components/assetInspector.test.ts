@@ -12,9 +12,9 @@ vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   useCoarsePointer: () => layout.coarse,
 }));
 
-type Listener = (facts: { uses: unknown[] | null; problems: unknown[] | null }) => void;
+type Listener = (facts: { problems: unknown[] | null }) => void;
 
-const facts = vi.hoisted(() => ({ uses: [] as unknown[] | null, problems: [] as unknown[] | null, listeners: [] as Listener[] }));
+const facts = vi.hoisted(() => ({ problems: [] as unknown[] | null, listeners: [] as Listener[] }));
 const assets = vi.hoisted(() => ({
   watch: vi.fn(() => () => {}),
   upload: vi.fn(async (): Promise<string[]> => []),
@@ -27,7 +27,7 @@ const assets = vi.hoisted(() => ({
   measureImages: vi.fn(async () => undefined),
   watchFacts: vi.fn((_paths: string[], listener: Listener) => {
     facts.listeners.push(listener);
-    listener({ uses: facts.uses, problems: facts.problems });
+    listener({ problems: facts.problems });
     return () => {
       facts.listeners = facts.listeners.filter((l) => l !== listener);
     };
@@ -150,7 +150,8 @@ const lists = (next: Record<string, unknown>) => {
 beforeEach(() => {
   layout.value = "desktop";
   layout.coarse = false;
-  facts.uses = [];
+  workspace.assetUsage.value = { projectId: PROJECT, version: 1, uses: {}, order: ["main.sd"] };
+  workspace.assetUsageFailed.value = null;
   facts.problems = [];
   facts.listeners = [];
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
@@ -473,23 +474,29 @@ describe("the asset inspector", () => {
 
   it("lists each use as a row that opens the script at that line", async () => {
     const range = { start: { line: 4, character: 15 }, end: { line: 4, character: 25 } };
-    facts.uses = [
-      {
-        uri: "file:///p/main.sd",
-        uses: [
-          { uri: "file:///p/main.sd", range, lineText: "  ((play sound door_chime))" },
-          {
-            uri: "file:///p/main.sd",
-            range: { start: { line: 9, character: 15 }, end: { line: 9, character: 25 } },
-            lineText: "  ((play sound door_chime))",
-          },
+    const played = (at: typeof range) => ({
+      uri: "file:///p/main.sd",
+      path: "main.sd",
+      range: at,
+      role: "sound" as const,
+      text: "  ((play sound door_chime))",
+    });
+    workspace.assetUsage.value = {
+      projectId: PROJECT,
+      version: 1,
+      uses: {
+        "Assets/Audio/Sounds/door_chime.wav": [
+          played({ start: { line: 9, character: 15 }, end: { line: 9, character: 25 } }),
+          played(range),
         ],
       },
-    ];
+      order: ["main.sd"],
+    };
     await mount();
     await open("door_chime");
     expect(assets.watchFacts.mock.calls[0]![0]).toEqual(["Assets/Audio/Sounds/door_chime.wav"]);
     expect(sectionTitles()).toContain("Used in 2 lines");
+    expect(details()).toContain("Used as: Sound");
     const use = region()!.querySelector<HTMLElement>('button[aria-label="Line 5: ((play sound door_chime))"]');
     await click(use);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", range);
@@ -502,8 +509,17 @@ describe("the asset inspector", () => {
     expect(region()!.textContent).toContain("Nothing plays it yet.");
   });
 
+  it("says it is still looking until the project's uses are counted", async () => {
+    workspace.assetUsage.value = null;
+    await mount();
+    await open("door_chime");
+    expect(sectionTitles()).toContain("Uses");
+    expect(region()!.textContent).toContain("Looking for uses…");
+  });
+
   it("says where it is used could not be looked up when the lookup failed, rather than Not used yet", async () => {
-    facts.uses = null;
+    workspace.assetUsage.value = null;
+    workspace.assetUsageFailed.value = PROJECT;
     await mount();
     await open("door_chime");
     expect(sectionTitles()).toContain("Uses");
@@ -519,7 +535,7 @@ describe("the asset inspector", () => {
     await open("door_chime");
     expect(sectionTitles()[0]).toBe("Problems");
     expect(region()!.textContent).toContain("Malformed condition face..bad");
-    await act(async () => facts.listeners.forEach((listener) => listener({ uses: [], problems: [] })));
+    await act(async () => facts.listeners.forEach((listener) => listener({ problems: [] })));
     expect(sectionTitles()).not.toContain("Problems");
   });
 
@@ -902,6 +918,32 @@ describe("the Variants tester and the Files section", () => {
       folders: [`${P}/mia`],
       files: Object.fromEntries([...IMANI, ...MIA].map((path, i) => [path, fact(1024 * (i + 1))])),
     };
+  });
+
+  it("counts a stack's uses and roles from the shared usage map, as a portrait in two scripts", async () => {
+    const shown = (path: string, line: number, file: string) => ({
+      uri: `file:///p/${path}`,
+      path,
+      range: { start: { line, character: 4 }, end: { line, character: 9 } },
+      role: "portrait" as const,
+      text: `  [[${file}]]`,
+    });
+    workspace.assetUsage.value = {
+      projectId: PROJECT,
+      version: 1,
+      uses: {
+        [`${P}/imani.png`]: [shown("main.sd", 3, "imani"), shown("Scripts/market.sd", 1, "imani")],
+        [`${P}/imani@night.png`]: [shown("Scripts/market.sd", 6, "imani@night"), shown("main.sd", 3, "imani")],
+      },
+      order: ["main.sd", "Scripts/market.sd"],
+    };
+    await mount();
+    await open("imani");
+    expect(sectionTitles()).toContain("Used in 3 lines");
+    expect(details()).toContain("Used as: Portrait");
+    expect(
+      [...region()!.querySelectorAll<HTMLElement>('button[aria-label^="Line "]')].map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Line 4: [[imani]]", "Line 2: [[imani]]", "Line 7: [[imani@night]]"]);
   });
 
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {

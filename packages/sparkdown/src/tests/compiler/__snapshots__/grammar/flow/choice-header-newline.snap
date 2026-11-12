@@ -54,23 +54,21 @@ sparkdown [0..83]
  │   │   │   │   └─ Choice_begin_c7 [37..38]
  │   │   │   │       └─ Newline [37..38]: "\n"
  │   │   │   ├─ Choice_content [38..57]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [38..57]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [38..57]
- │   │   │   │       │   └─ ChoicePlainText [38..57]
- │   │   │   │       │       └─ ChoiceTextContent [38..57]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [38..57]
- │   │   │   │       │               ├─ Space [38..39]: " "
- │   │   │   │       │               ├─ Space [39..40]: " "
- │   │   │   │       │               ├─ Space [40..41]: " "
- │   │   │   │       │               ├─ Space [41..42]: " "
- │   │   │   │       │               ├─ Word [42..46]: "Next"
- │   │   │   │       │               ├─ Punctuation [46..47]: "-"
- │   │   │   │       │               ├─ Word [47..51]: "line"
- │   │   │   │       │               ├─ Space [51..52]: " "
- │   │   │   │       │               └─ Word [52..57]: "label"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 57
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 57
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 57
+ │   │   │   │   └─ ChoiceStartText [38..57]
+ │   │   │   │       ├─ ChoiceStartText_begin 38
+ │   │   │   │       ├─ ChoiceStartText_content [38..57]
+ │   │   │   │       │   └─ ChoiceStartTextContent [38..57]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [38..57]
+ │   │   │   │       │           ├─ Space [38..39]: " "
+ │   │   │   │       │           ├─ Space [39..40]: " "
+ │   │   │   │       │           ├─ Space [40..41]: " "
+ │   │   │   │       │           ├─ Space [41..42]: " "
+ │   │   │   │       │           ├─ Word [42..46]: "Next"
+ │   │   │   │       │           ├─ Punctuation [46..47]: "-"
+ │   │   │   │       │           ├─ Word [47..51]: "line"
+ │   │   │   │       │           ├─ Space [51..52]: " "
+ │   │   │   │       │           └─ Word [52..57]: "label"
+ │   │   │   │       └─ ChoiceStartText_end 57
  │   │   │   └─ Choice_end 57
  │   │   ├─ Newline [57..58]: "\n"
  │   │   ├─ Choice [58..72]
@@ -85,15 +83,13 @@ sparkdown [0..83]
  │   │   │   │   ├─ Choice_begin_c6 64
  │   │   │   │   └─ Choice_begin_c7 64
  │   │   │   ├─ Choice_content [64..72]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [64..72]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [64..72]
- │   │   │   │       │   └─ ChoicePlainText [64..72]
- │   │   │   │       │       └─ ChoiceTextContent [64..72]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [64..72]
- │   │   │   │       │               └─ Word [64..72]: "Fallback"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 72
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 72
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 72
+ │   │   │   │   └─ ChoiceStartText [64..72]
+ │   │   │   │       ├─ ChoiceStartText_begin 64
+ │   │   │   │       ├─ ChoiceStartText_content [64..72]
+ │   │   │   │       │   └─ ChoiceStartTextContent [64..72]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [64..72]
+ │   │   │   │       │           └─ Word [64..72]: "Fallback"
+ │   │   │   │       └─ ChoiceStartText_end 72
  │   │   │   └─ Choice_end 72
  │   │   └─ Newline [72..73]: "\n"
  │   └─ LuauSparkdownChooseBlock_end [73..78]

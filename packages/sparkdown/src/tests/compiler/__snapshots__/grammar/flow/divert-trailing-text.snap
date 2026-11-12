@@ -37,7 +37,7 @@ sparkdown [0..371]
  │   │   ├─ DivertStrayTextSpace [22..23]
  │   │   │   └─ DivertStrayTextSpace_c1 [22..23]
  │   │   │       └─ Whitespace [22..23]: " "
- │   │   └─ Unknown [23..30]: "> After"
+ │   │   └─ DivertUnknown [23..30]: "> After"
  │   └─ Divert_end 30
  ├─ Newline [30..31]: "\n"
  ├─ ImplicitAction [31..51]
@@ -77,7 +77,7 @@ sparkdown [0..371]
  │   │       │       │       │   ├─ DivertStrayTextSpace [43..44]
  │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [43..44]
  │   │       │       │       │   │       └─ Whitespace [43..44]: " "
- │   │       │       │       │   └─ Unknown [44..51]: "> After"
+ │   │       │       │       │   └─ DivertUnknown [44..51]: "> After"
  │   │       │       │       └─ Divert_end 51
  │   │       │       └─ TextChunk_end 51
  │   │       └─ ActionLineEnd_end 51
@@ -117,7 +117,7 @@ sparkdown [0..371]
  │   │       │       │       │   │   │       │       └─ DivertPartName [59..64]: "later"
  │   │       │       │       │   │   │       └─ DivertPath_end 64
  │   │       │       │       │   │   └─ DivertTarget_end 64
- │   │       │       │       │   └─ Unknown [64..70]: ">After"
+ │   │       │       │       │   └─ DivertUnknown [64..70]: ">After"
  │   │       │       │       └─ Divert_end 70
  │   │       │       └─ TextChunk_end 70
  │   │       └─ ActionLineEnd_end 70
@@ -177,7 +177,7 @@ sparkdown [0..371]
  │   │       │       │       │   ├─ DivertStrayTextSpace [90..91]
  │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [90..91]
  │   │       │       │       │   │       └─ Whitespace [90..91]: " "
- │   │       │       │       │   └─ Unknown [91..98]: "> After"
+ │   │       │       │       │   └─ DivertUnknown [91..98]: "> After"
  │   │       │       │       └─ Divert_end 98
  │   │       │       └─ TextChunk_end 98
  │   │       └─ LineEnd_end 98
@@ -195,45 +195,51 @@ sparkdown [0..371]
  │   │   ├─ Choice_begin_c6 103
  │   │   └─ Choice_begin_c7 103
  │   ├─ Choice_content [103..124]
- │   │   └─ ChoiceWithSuppressedText [103..124]
- │   │       ├─ ChoiceWithSuppressedText_c1 103
- │   │       ├─ ChoiceWithSuppressedText_c2 [103..104]: "["
- │   │       ├─ ChoiceWithSuppressedText_c3 [104..106]
- │   │       │   └─ ChoiceOnlyText [104..106]
- │   │       │       └─ ChoiceTextContent [104..106]
- │   │       │           └─ ChoiceTextContent_c1 [104..106]
- │   │       │               └─ Word [104..106]: "Go"
- │   │       ├─ ChoiceWithSuppressedText_c4 [106..107]: "]"
- │   │       ├─ ChoiceWithSuppressedText_c5 107
- │   │       ├─ ChoiceWithSuppressedText_c6 107
- │   │       ├─ ChoiceWithSuppressedText_c7 [107..108]
- │   │       │   └─ RequiredWhitespace [107..108]: " "
- │   │       └─ ChoiceWithSuppressedText_c8 [108..124]
- │   │           └─ Divert [108..124]
- │   │               ├─ Divert_begin [108..110]
- │   │               │   ├─ Divert_begin_c1 108
- │   │               │   │   └─ OptionalWhitespace 108
- │   │               │   └─ Divert_begin_c2 [108..110]
- │   │               │       └─ DivertMark [108..110]: "->"
- │   │               ├─ Divert_content [110..124]
- │   │               │   ├─ DivertTarget [110..116]
- │   │               │   │   ├─ DivertTarget_begin [110..111]
- │   │               │   │   │   └─ DivertTarget_begin_c1 [110..111]
- │   │               │   │   │       └─ DivertTarget_begin_c1 [110..111]
- │   │               │   │   │           └─ OptionalWhitespace [110..111]: " "
- │   │               │   │   ├─ DivertTarget_content [111..116]
- │   │               │   │   │   └─ DivertPath [111..116]
- │   │               │   │   │       ├─ DivertPath_begin 111
- │   │               │   │   │       ├─ DivertPath_content [111..116]
- │   │               │   │   │       │   └─ DivertPart [111..116]
- │   │               │   │   │       │       └─ DivertPartName [111..116]: "later"
- │   │               │   │   │       └─ DivertPath_end 116
- │   │               │   │   └─ DivertTarget_end 116
- │   │               │   ├─ DivertStrayTextSpace [116..117]
- │   │               │   │   └─ DivertStrayTextSpace_c1 [116..117]
- │   │               │   │       └─ Whitespace [116..117]: " "
- │   │               │   └─ Unknown [117..124]: "> After"
- │   │               └─ Divert_end 124
+ │   │   └─ ChoiceSuppression [103..124]
+ │   │       ├─ ChoiceSuppression_begin [103..104]
+ │   │       │   ├─ ChoiceSuppression_begin_c1 [103..104]: "["
+ │   │       │   └─ ChoiceSuppression_begin_c2 104
+ │   │       ├─ ChoiceSuppression_content [104..124]
+ │   │       │   ├─ ChoiceOnlyText [104..106]
+ │   │       │   │   ├─ ChoiceOnlyText_begin 104
+ │   │       │   │   ├─ ChoiceOnlyText_content [104..106]
+ │   │       │   │   │   └─ ChoiceOnlyTextContent [104..106]
+ │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [104..106]
+ │   │       │   │   │           └─ Word [104..106]: "Go"
+ │   │       │   │   └─ ChoiceOnlyText_end 106
+ │   │       │   ├─ ChoiceInnerText [106..107]
+ │   │       │   │   ├─ ChoiceInnerText_begin [106..107]
+ │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [106..107]: "]"
+ │   │       │   │   └─ ChoiceInnerText_end 107
+ │   │       │   ├─ ChoiceDivertWhitespace [107..108]
+ │   │       │   │   └─ ChoiceDivertWhitespace_c1 [107..108]
+ │   │       │   │       └─ RequiredWhitespace [107..108]: " "
+ │   │       │   └─ Divert [108..124]
+ │   │       │       ├─ Divert_begin [108..110]
+ │   │       │       │   ├─ Divert_begin_c1 108
+ │   │       │       │   │   └─ OptionalWhitespace 108
+ │   │       │       │   └─ Divert_begin_c2 [108..110]
+ │   │       │       │       └─ DivertMark [108..110]: "->"
+ │   │       │       ├─ Divert_content [110..124]
+ │   │       │       │   ├─ DivertTarget [110..116]
+ │   │       │       │   │   ├─ DivertTarget_begin [110..111]
+ │   │       │       │   │   │   └─ DivertTarget_begin_c1 [110..111]
+ │   │       │       │   │   │       └─ DivertTarget_begin_c1 [110..111]
+ │   │       │       │   │   │           └─ OptionalWhitespace [110..111]: " "
+ │   │       │       │   │   ├─ DivertTarget_content [111..116]
+ │   │       │       │   │   │   └─ DivertPath [111..116]
+ │   │       │       │   │   │       ├─ DivertPath_begin 111
+ │   │       │       │   │   │       ├─ DivertPath_content [111..116]
+ │   │       │       │   │   │       │   └─ DivertPart [111..116]
+ │   │       │       │   │   │       │       └─ DivertPartName [111..116]: "later"
+ │   │       │       │   │   │       └─ DivertPath_end 116
+ │   │       │       │   │   └─ DivertTarget_end 116
+ │   │       │       │   ├─ DivertStrayTextSpace [116..117]
+ │   │       │       │   │   └─ DivertStrayTextSpace_c1 [116..117]
+ │   │       │       │   │       └─ Whitespace [116..117]: " "
+ │   │       │       │   └─ DivertUnknown [117..124]: "> After"
+ │   │       │       └─ Divert_end 124
+ │   │       └─ ChoiceSuppression_end 124
  │   └─ Choice_end 124
  ├─ Newline [124..125]: "\n"
  ├─ Choice [125..148]
@@ -248,41 +254,41 @@ sparkdown [0..371]
  │   │   ├─ Choice_begin_c6 129
  │   │   └─ Choice_begin_c7 129
  │   ├─ Choice_content [129..148]
- │   │   └─ ChoiceWithNoSuppressedText [129..148]
- │   │       ├─ ChoiceWithNoSuppressedText_c1 [129..131]
- │   │       │   └─ ChoicePlainText [129..131]
- │   │       │       └─ ChoiceTextContent [129..131]
- │   │       │           └─ ChoiceTextContent_c1 [129..131]
- │   │       │               └─ Word [129..131]: "Go"
- │   │       ├─ ChoiceWithNoSuppressedText_c2 131
- │   │       ├─ ChoiceWithNoSuppressedText_c3 [131..132]
- │   │       │   └─ RequiredWhitespace [131..132]: " "
- │   │       └─ ChoiceWithNoSuppressedText_c4 [132..148]
- │   │           └─ Divert [132..148]
- │   │               ├─ Divert_begin [132..134]
- │   │               │   ├─ Divert_begin_c1 132
- │   │               │   │   └─ OptionalWhitespace 132
- │   │               │   └─ Divert_begin_c2 [132..134]
- │   │               │       └─ DivertMark [132..134]: "->"
- │   │               ├─ Divert_content [134..148]
- │   │               │   ├─ DivertTarget [134..140]
- │   │               │   │   ├─ DivertTarget_begin [134..135]
- │   │               │   │   │   └─ DivertTarget_begin_c1 [134..135]
- │   │               │   │   │       └─ DivertTarget_begin_c1 [134..135]
- │   │               │   │   │           └─ OptionalWhitespace [134..135]: " "
- │   │               │   │   ├─ DivertTarget_content [135..140]
- │   │               │   │   │   └─ DivertPath [135..140]
- │   │               │   │   │       ├─ DivertPath_begin 135
- │   │               │   │   │       ├─ DivertPath_content [135..140]
- │   │               │   │   │       │   └─ DivertPart [135..140]
- │   │               │   │   │       │       └─ DivertPartName [135..140]: "later"
- │   │               │   │   │       └─ DivertPath_end 140
- │   │               │   │   └─ DivertTarget_end 140
- │   │               │   ├─ DivertStrayTextSpace [140..141]
- │   │               │   │   └─ DivertStrayTextSpace_c1 [140..141]
- │   │               │   │       └─ Whitespace [140..141]: " "
- │   │               │   └─ Unknown [141..148]: "> After"
- │   │               └─ Divert_end 148
+ │   │   ├─ ChoiceStartText [129..131]
+ │   │   │   ├─ ChoiceStartText_begin 129
+ │   │   │   ├─ ChoiceStartText_content [129..131]
+ │   │   │   │   └─ ChoiceStartTextContent [129..131]
+ │   │   │   │       └─ ChoiceStartTextContent_c1 [129..131]
+ │   │   │   │           └─ Word [129..131]: "Go"
+ │   │   │   └─ ChoiceStartText_end 131
+ │   │   ├─ ChoiceDivertWhitespace [131..132]
+ │   │   │   └─ ChoiceDivertWhitespace_c1 [131..132]
+ │   │   │       └─ RequiredWhitespace [131..132]: " "
+ │   │   └─ Divert [132..148]
+ │   │       ├─ Divert_begin [132..134]
+ │   │       │   ├─ Divert_begin_c1 132
+ │   │       │   │   └─ OptionalWhitespace 132
+ │   │       │   └─ Divert_begin_c2 [132..134]
+ │   │       │       └─ DivertMark [132..134]: "->"
+ │   │       ├─ Divert_content [134..148]
+ │   │       │   ├─ DivertTarget [134..140]
+ │   │       │   │   ├─ DivertTarget_begin [134..135]
+ │   │       │   │   │   └─ DivertTarget_begin_c1 [134..135]
+ │   │       │   │   │       └─ DivertTarget_begin_c1 [134..135]
+ │   │       │   │   │           └─ OptionalWhitespace [134..135]: " "
+ │   │       │   │   ├─ DivertTarget_content [135..140]
+ │   │       │   │   │   └─ DivertPath [135..140]
+ │   │       │   │   │       ├─ DivertPath_begin 135
+ │   │       │   │   │       ├─ DivertPath_content [135..140]
+ │   │       │   │   │       │   └─ DivertPart [135..140]
+ │   │       │   │   │       │       └─ DivertPartName [135..140]: "later"
+ │   │       │   │   │       └─ DivertPath_end 140
+ │   │       │   │   └─ DivertTarget_end 140
+ │   │       │   ├─ DivertStrayTextSpace [140..141]
+ │   │       │   │   └─ DivertStrayTextSpace_c1 [140..141]
+ │   │       │   │       └─ Whitespace [140..141]: " "
+ │   │       │   └─ DivertUnknown [141..148]: "> After"
+ │   │       └─ Divert_end 148
  │   └─ Choice_end 148
  ├─ Newline [148..149]: "\n"
  ├─ ImplicitAction [149..169]
@@ -322,7 +328,7 @@ sparkdown [0..371]
  │   │       │       │       │   ├─ DivertStrayTextSpace [161..162]
  │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [161..162]
  │   │       │       │       │   │       └─ Whitespace [161..162]: " "
- │   │       │       │       │   └─ Unknown [162..169]: "! After"
+ │   │       │       │       │   └─ DivertUnknown [162..169]: "! After"
  │   │       │       │       └─ Divert_end 169
  │   │       │       └─ TextChunk_end 169
  │   │       └─ ActionLineEnd_end 169
@@ -472,46 +478,52 @@ sparkdown [0..371]
  │   │   ├─ Choice_begin_c6 242
  │   │   └─ Choice_begin_c7 242
  │   ├─ Choice_content [242..263]
- │   │   └─ ChoiceWithSuppressedText [242..263]
- │   │       ├─ ChoiceWithSuppressedText_c1 242
- │   │       ├─ ChoiceWithSuppressedText_c2 [242..243]: "["
- │   │       ├─ ChoiceWithSuppressedText_c3 [243..245]
- │   │       │   └─ ChoiceOnlyText [243..245]
- │   │       │       └─ ChoiceTextContent [243..245]
- │   │       │           └─ ChoiceTextContent_c1 [243..245]
- │   │       │               └─ Word [243..245]: "Go"
- │   │       ├─ ChoiceWithSuppressedText_c4 [245..246]: "]"
- │   │       ├─ ChoiceWithSuppressedText_c5 246
- │   │       ├─ ChoiceWithSuppressedText_c6 246
- │   │       ├─ ChoiceWithSuppressedText_c7 [246..247]
- │   │       │   └─ RequiredWhitespace [246..247]: " "
- │   │       └─ ChoiceWithSuppressedText_c8 [247..263]
- │   │           └─ Divert [247..263]
- │   │               ├─ Divert_begin [247..249]
- │   │               │   ├─ Divert_begin_c1 247
- │   │               │   │   └─ OptionalWhitespace 247
- │   │               │   └─ Divert_begin_c2 [247..249]
- │   │               │       └─ DivertMark [247..249]: "->"
- │   │               ├─ Divert_content [249..263]
- │   │               │   ├─ DivertTarget [249..255]
- │   │               │   │   ├─ DivertTarget_begin [249..250]
- │   │               │   │   │   └─ DivertTarget_begin_c1 [249..250]
- │   │               │   │   │       └─ DivertTarget_begin_c1 [249..250]
- │   │               │   │   │           └─ OptionalWhitespace [249..250]: " "
- │   │               │   │   ├─ DivertTarget_content [250..255]
- │   │               │   │   │   └─ DivertPath [250..255]
- │   │               │   │   │       ├─ DivertPath_begin 250
- │   │               │   │   │       ├─ DivertPath_content [250..255]
- │   │               │   │   │       │   └─ DivertPart [250..255]
- │   │               │   │   │       │       └─ DivertPartName [250..255]: "later"
- │   │               │   │   │       └─ DivertPath_end 255
- │   │               │   │   └─ DivertTarget_end 255
- │   │               │   └─ SparkdownInlineComment [255..263]
- │   │               │       ├─ SparkdownInlineComment_c1 [255..256]
- │   │               │       │   └─ OptionalWhitespace [255..256]: " "
- │   │               │       ├─ SparkdownInlineComment_c2 [256..258]: "//"
- │   │               │       └─ SparkdownInlineComment_c3 [258..263]: " note"
- │   │               └─ Divert_end 263
+ │   │   └─ ChoiceSuppression [242..263]
+ │   │       ├─ ChoiceSuppression_begin [242..243]
+ │   │       │   ├─ ChoiceSuppression_begin_c1 [242..243]: "["
+ │   │       │   └─ ChoiceSuppression_begin_c2 243
+ │   │       ├─ ChoiceSuppression_content [243..263]
+ │   │       │   ├─ ChoiceOnlyText [243..245]
+ │   │       │   │   ├─ ChoiceOnlyText_begin 243
+ │   │       │   │   ├─ ChoiceOnlyText_content [243..245]
+ │   │       │   │   │   └─ ChoiceOnlyTextContent [243..245]
+ │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [243..245]
+ │   │       │   │   │           └─ Word [243..245]: "Go"
+ │   │       │   │   └─ ChoiceOnlyText_end 245
+ │   │       │   ├─ ChoiceInnerText [245..246]
+ │   │       │   │   ├─ ChoiceInnerText_begin [245..246]
+ │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [245..246]: "]"
+ │   │       │   │   └─ ChoiceInnerText_end 246
+ │   │       │   ├─ ChoiceDivertWhitespace [246..247]
+ │   │       │   │   └─ ChoiceDivertWhitespace_c1 [246..247]
+ │   │       │   │       └─ RequiredWhitespace [246..247]: " "
+ │   │       │   └─ Divert [247..263]
+ │   │       │       ├─ Divert_begin [247..249]
+ │   │       │       │   ├─ Divert_begin_c1 247
+ │   │       │       │   │   └─ OptionalWhitespace 247
+ │   │       │       │   └─ Divert_begin_c2 [247..249]
+ │   │       │       │       └─ DivertMark [247..249]: "->"
+ │   │       │       ├─ Divert_content [249..263]
+ │   │       │       │   ├─ DivertTarget [249..255]
+ │   │       │       │   │   ├─ DivertTarget_begin [249..250]
+ │   │       │       │   │   │   └─ DivertTarget_begin_c1 [249..250]
+ │   │       │       │   │   │       └─ DivertTarget_begin_c1 [249..250]
+ │   │       │       │   │   │           └─ OptionalWhitespace [249..250]: " "
+ │   │       │       │   │   ├─ DivertTarget_content [250..255]
+ │   │       │       │   │   │   └─ DivertPath [250..255]
+ │   │       │       │   │   │       ├─ DivertPath_begin 250
+ │   │       │       │   │   │       ├─ DivertPath_content [250..255]
+ │   │       │       │   │   │       │   └─ DivertPart [250..255]
+ │   │       │       │   │   │       │       └─ DivertPartName [250..255]: "later"
+ │   │       │       │   │   │       └─ DivertPath_end 255
+ │   │       │       │   │   └─ DivertTarget_end 255
+ │   │       │       │   └─ SparkdownInlineComment [255..263]
+ │   │       │       │       ├─ SparkdownInlineComment_c1 [255..256]
+ │   │       │       │       │   └─ OptionalWhitespace [255..256]: " "
+ │   │       │       │       ├─ SparkdownInlineComment_c2 [256..258]: "//"
+ │   │       │       │       └─ SparkdownInlineComment_c3 [258..263]: " note"
+ │   │       │       └─ Divert_end 263
+ │   │       └─ ChoiceSuppression_end 263
  │   └─ Choice_end 263
  ├─ Newline [263..264]: "\n"
  ├─ ImplicitAction [264..290]
@@ -572,7 +584,7 @@ sparkdown [0..371]
  │   │       │       │       │   ├─ DivertStrayTextSpace [282..283]
  │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [282..283]
  │   │       │       │       │   │       └─ Whitespace [282..283]: " "
- │   │       │       │       │   └─ Unknown [283..290]: "> After"
+ │   │       │       │       │   └─ DivertUnknown [283..290]: "> After"
  │   │       │       │       └─ Divert_end 290
  │   │       │       └─ TextChunk_end 290
  │   │       └─ ActionLineEnd_end 290
@@ -608,7 +620,7 @@ sparkdown [0..371]
  │   │   ├─ DivertStrayTextSpace [306..307]
  │   │   │   └─ DivertStrayTextSpace_c1 [306..307]
  │   │   │       └─ Whitespace [306..307]: " "
- │   │   └─ Unknown [307..314]: "> After"
+ │   │   └─ DivertUnknown [307..314]: "> After"
  │   └─ Divert_end 314
  ├─ Newline [314..315]: "\n"
  ├─ Divert [315..329]
@@ -621,7 +633,7 @@ sparkdown [0..371]
  │   │   ├─ DivertStrayTextSpace [321..322]
  │   │   │   └─ DivertStrayTextSpace_c1 [321..322]
  │   │   │       └─ Whitespace [321..322]: " "
- │   │   └─ Unknown [322..329]: "> After"
+ │   │   └─ DivertUnknown [322..329]: "> After"
  │   └─ Divert_end 329
  ├─ Newline [329..330]: "\n"
  ├─ ImplicitAction [330..353]
