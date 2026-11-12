@@ -47,16 +47,28 @@ const isHeld = (held: Map<string, string>, change: DocumentChange) => {
 const changedBefore = (uri: string) =>
   `${uri.split("/").pop()} changed before the edit could be applied`;
 
-const claimHeld = (label: string, documentChanges: DocumentChange[]) => {
+const refused = (failureReason: string): ApplyWorkspaceEditResult => ({
+  applied: false,
+  failureReason,
+  rollback: { complete: true, failed: [], kept: [] },
+});
+
+const normalized = (text: string) => text.replace(/\r\n?/g, "\n");
+
+const sameTexts = (a: readonly string[] = [], b: readonly string[] = []) =>
+  a.length === b.length && [...a].sort().every((text, i) => text === [...b].sort()[i]);
+
+const claimTexts = (label: string, documentChanges: DocumentChange[]) => {
   const request = ApplyEditorEditMessage.type.request({
     label,
     edit: { documentChanges },
     claim: true,
   });
-  const held = new Map<string, string>();
+  const claims = new Map<string, string[]>();
   const stop = onProtocolMessage(ClaimedEditorEditMessage.type, (message) => {
-    if (message.params.request === request.id) {
-      held.set(message.params.uri, message.params.text);
+    const { request: id, uri, text } = message.params;
+    if (id === request.id) {
+      claims.set(uri, [...(claims.get(uri) ?? []), text]);
     }
   });
   try {
@@ -64,7 +76,7 @@ const claimHeld = (label: string, documentChanges: DocumentChange[]) => {
   } finally {
     stop();
   }
-  return held;
+  return claims;
 };
 
 const applyInEditors = (
@@ -106,16 +118,26 @@ const applyInEditors = (
 const commitInEditors = async (
   label: string,
   documentChanges: DocumentChange[],
-  held: Map<string, string>,
+  claims: Map<string, string[]>,
   closedTexts: Record<string, string>,
 ): Promise<string | undefined> => {
-  const now = claimHeld(
+  const held = new Map([...claims].map(([uri, [text]]) => [uri, text!]));
+  const now = claimTexts(
     label,
-    documentChanges.filter((c) => isHeld(held, c)),
+    documentChanges.filter((c) => editedUri(c)),
   );
-  const changed = [...held].find(([uri, text]) => now.get(uri) !== text);
+  const changed = [...new Set([...claims.keys(), ...now.keys()])].find(
+    (uri) =>
+      claims.has(uri)
+        ? !sameTexts(claims.get(uri), now.get(uri))
+        : now
+            .get(uri)!
+            .some(
+              (text) => normalized(text) !== normalized(closedTexts[uri] ?? ""),
+            ),
+  );
   if (changed) {
-    return changedBefore(changed[0]);
+    return changedBefore(changed);
   }
   const applied = await applyInEditors(
     ApplyEditorEditMessage.type.request({
@@ -136,7 +158,12 @@ export const applyEditorEdit = async (
   label: string,
 ): Promise<ApplyWorkspaceEditResult> => {
   const documentChanges = documentChangesOf(edit);
-  const held = claimHeld(label, documentChanges);
+  const claims = claimTexts(label, documentChanges);
+  const split = [...claims].find(([, texts]) => new Set(texts).size > 1);
+  if (split) {
+    return refused(changedBefore(split[0]));
+  }
+  const held = new Map([...claims].map(([uri, [text]]) => [uri, text!]));
   const closedUris = [
     ...new Set(
       documentChanges.flatMap((c) => {
@@ -152,17 +179,11 @@ export const applyEditorEdit = async (
     }),
   );
   const commit = () =>
-    commitInEditors(label, documentChanges, held, closedTexts);
+    commitInEditors(label, documentChanges, claims, closedTexts);
   const rest = documentChanges.filter((c) => !isHeld(held, c));
   if (!rest.length) {
     const refusal = await commit();
-    return refusal === undefined
-      ? { applied: true }
-      : {
-          applied: false,
-          failureReason: refusal,
-          rollback: { complete: true, failed: [], kept: [] },
-        };
+    return refusal === undefined ? { applied: true } : refused(refusal);
   }
   return files.applyWorkspaceEdit(
     { documentChanges: rest },

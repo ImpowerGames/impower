@@ -74,9 +74,9 @@ afterEach(() => {
   events = [];
 });
 
-const editorHolding = (uri: string) => {
+const editorHolding = (uri: string, text = `open text of ${uri}`) => {
   const editor = {
-    text: `open text of ${uri}`,
+    text,
     seen: [] as ApplyEditorEditMessage.Request[],
     applied: [] as ApplyEditorEditMessage.Request[],
   };
@@ -105,7 +105,12 @@ const editorHolding = (uri: string) => {
         });
       }
       const expected = expectedTexts?.[uri];
-      if (expected !== undefined && expected !== editor.text) {
+      if (expected === undefined) {
+        return ApplyEditorEditMessage.type.response(message.id, {
+          applied: [],
+        });
+      }
+      if (expected !== editor.text) {
         return ApplyEditorEditMessage.type.response(message.id, {
           applied: [],
           refused: [uri],
@@ -199,6 +204,48 @@ describe("an edit across scripts goes through the editor that holds the open scr
     });
     expect(editor.applied).toEqual([]);
     expect(editor.text).toBe("typed");
+  });
+
+  it("refuses the edit when a script it changes is opened and typed in while the worker runs", async () => {
+    let opened: ReturnType<typeof editorHolding> | undefined;
+    const fs = worker(undefined, () => {
+      opened = editorHolding(CHAPTER, `text of ${CHAPTER} typed`);
+    });
+    expect(
+      await applyEditorEdit(fs, { documentChanges: [edit(CHAPTER), rename] }, "Rename"),
+    ).toEqual({
+      applied: false,
+      failureReason: "chapter.sd changed before the edit could be applied",
+      rollback: ROLLED_BACK,
+    });
+    expect(opened!.applied).toEqual([]);
+    expect(opened!.text).toBe(`text of ${CHAPTER} typed`);
+  });
+
+  it("lets the worker's write reach a script opened, untouched, while the worker ran", async () => {
+    let opened: ReturnType<typeof editorHolding> | undefined;
+    const fs = worker(undefined, () => {
+      opened = editorHolding(CHAPTER, `text of ${CHAPTER}`);
+    });
+    expect(
+      await applyEditorEdit(fs, { documentChanges: [edit(CHAPTER), rename] }, "Rename"),
+    ).toEqual({ applied: true });
+    expect(opened!.applied).toEqual([]);
+  });
+
+  it("refuses before the worker runs when two editors hold one script with different text", async () => {
+    const fs = worker();
+    const first = editorHolding(MAIN, "one");
+    const second = editorHolding(MAIN, "two");
+    expect(
+      await applyEditorEdit(fs, { documentChanges: [edit(MAIN), rename] }, "Rename"),
+    ).toEqual({
+      applied: false,
+      failureReason: "main.sd changed before the edit could be applied",
+      rollback: ROLLED_BACK,
+    });
+    expect(fs.applyWorkspaceEdit).not.toHaveBeenCalled();
+    expect([first.applied, second.applied]).toEqual([[], []]);
   });
 
   it("writes every script through the worker when no editor is mounted", async () => {
