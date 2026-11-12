@@ -38,8 +38,30 @@ const FIXTURE = [
   "",
 ].join("\n");
 
-const lineOf = (text: string) =>
-  FIXTURE.split("\n").findIndex((line) => line.trim() === text);
+const TWO_LINES = [
+  "store visits = 0",
+  "",
+  "scene start",
+  "  The first beat.",
+  "  -> visit ->",
+  "  visits = visits + 10",
+  "  Back in the caller.",
+  "  The end.",
+  "end",
+  "",
+  "scene visit",
+  "  visits = visits + 1",
+  "  Inside the tunnel.",
+  "  Still in the tunnel.",
+  "  ->->",
+  "end",
+  "",
+].join("\n");
+
+const lineIn = (source: string, text: string) =>
+  source.split("\n").findIndex((line) => line.trim() === text);
+
+const lineOf = (text: string) => lineIn(FIXTURE, text);
 
 function compile(source: string): SparkProgram {
   const compiler = new SparkdownCompiler();
@@ -62,25 +84,38 @@ function compile(source: string): SparkProgram {
   return program as SparkProgram;
 }
 
-function play(breakpoint: string) {
+function play(breakpoint: string, source = FIXTURE) {
+  const lineOf = (text: string) => lineIn(source, text);
   const game = new Game({
     now: () => 0,
     setTimeout: (() => 0) as never,
     resolve: (path: string) => path,
     fetch: async () => "",
     log: () => {},
-    program: compile(FIXTURE),
+    program: compile(source),
   } as never);
   const stops: number[] = [];
+  const methods: string[] = [];
   game.connection.outgoing.addListener("*", (message) => {
     const { method, params } = message as unknown as {
       method: string;
       params: any;
     };
+    methods.push(method);
     if (method === "game/hitBreakpoint" || method === "game/stepped") {
       stops.push(params?.location?.range?.start?.line);
     }
   });
+  const topFrameLine = () => {
+    const thread = game.getThreads()[0]!.id;
+    return game.getStackTrace(thread).stackFrames[0]?.location?.range.start
+      .line;
+  };
+  const step = (traversal: "in" | "out" | "over") => {
+    methods.length = 0;
+    game.step(traversal);
+    return methods;
+  };
   const internal = game as any;
   const onScreen = () =>
     Object.values(internal._shownBeatOnScreen?.text ?? {})
@@ -105,7 +140,16 @@ function play(breakpoint: string) {
   }
   expect(stops).toEqual([lineOf(breakpoint)]);
   const stoppedAt = () => stops.at(-1);
-  return { game, stops, stoppedAt, onScreen, shownBeats, variable };
+  return {
+    game,
+    stops,
+    stoppedAt,
+    onScreen,
+    shownBeats,
+    variable,
+    topFrameLine,
+    step,
+  };
 }
 
 describe("Step Out leaves the frame whatever beats remain in it", () => {
@@ -126,6 +170,18 @@ describe("Step Out leaves the frame whatever beats remain in it", () => {
     expect(h.game.paused).toBe(true);
     h.game.resume();
     expect(h.onScreen()).toBe("The third beat.");
+  });
+
+  test("Step Out from a tunnel holding two text lines in a row stops at the caller's next statement", () => {
+    const h = play("-> visit ->", TWO_LINES);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(lineIn(TWO_LINES, "visits = visits + 1"));
+    const sent = h.step("out");
+    expect(h.stoppedAt()).toBe(lineIn(TWO_LINES, "visits = visits + 10"));
+    expect(h.topFrameLine()).toBe(lineIn(TWO_LINES, "visits = visits + 10"));
+    expect(sent).not.toContain("game/awaitingInteraction");
+    expect(h.onScreen()).toBe("Still in the tunnel.");
+    expect(h.game.paused).toBe(true);
   });
 
   test("Step Out from a nested tunnel stops at its caller's next statement in the outer tunnel", () => {
@@ -149,8 +205,10 @@ describe("Step Out leaves the frame whatever beats remain in it", () => {
 describe("Step Over passes the frames it calls whatever beats they hold", () => {
   test("Step Over on a tunnel call stops at the caller's next statement", () => {
     const h = play("-> visit ->");
-    h.game.step("over");
+    const sent = h.step("over");
     expect(h.stoppedAt()).toBe(lineOf("visits = add(visits, 10)"));
+    expect(h.topFrameLine()).toBe(lineOf("visits = add(visits, 10)"));
+    expect(sent).not.toContain("game/awaitingInteraction");
     expect(h.variable("visits")).toBe("202");
     expect(h.onScreen()).toBe("Still in the tunnel.");
   });

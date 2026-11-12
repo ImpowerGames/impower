@@ -3638,7 +3638,7 @@ export class Game<T extends M = {}> {
             this.insideSteppedFrame(traversal, initialCallstackDepth)
           ) {
             const beat = this.module.interpreter.flush()!;
-            this.showBeat(beat, drawsSettled(beat));
+            this.showBeat(beat, drawsSettled(beat), true);
             this.pause();
             continue;
           }
@@ -3799,7 +3799,11 @@ export class Game<T extends M = {}> {
     return false;
   }
 
-  protected showBeat(instructions: Instructions | null, settled: boolean) {
+  protected showBeat(
+    instructions: Instructions | null,
+    settled: boolean,
+    passing = false,
+  ) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
       this._coordinator = new Coordinator(this, this.toDraw(instructions), {
@@ -3812,6 +3816,7 @@ export class Game<T extends M = {}> {
         this._shownBeat = instructions;
       }
       if (
+        !passing &&
         !ending &&
         !this._coordinator.shouldContinue() &&
         this._simulation !== "simulating" &&
