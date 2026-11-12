@@ -325,10 +325,10 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
         .filter((d) => d.severity === 1 && d.text === "base")
         .map((d) => d.message);
     expect(errorsOnAs({ mouth: { state: "teeth", translate: "0 2px" } })).toEqual([
-      expect.stringMatching(/^`rest\.mouth\.translate`, inherited from `base`: `translate` does not belong in `rest`/),
+      expect.stringMatching(/^`rest`, inherited from `base`: `translate` does not belong in `rest`/),
     ]);
     expect(errorsOnAs({ mouth: { state: "" } })).toEqual([
-      "`rest.mouth.state`, inherited from `base`: `state` names an attribute state, such as `closed` or `eyes.closed`.",
+      "`rest`, inherited from `base`: `state` names an attribute state, such as `closed` or `eyes.closed`.",
     ]);
     expect(errorsOnAs({ mouth: { state: "teeth" } })).toEqual([]);
   });
@@ -370,13 +370,13 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       diagnosticsOf(text, undefined, unwritten)
         .filter((d) => d.severity === 1 && d.text === "base")
         .map((d) => d.message);
-    expect(errorsOnAs(child, { rest: { mouth: { state: "mouth." } } })).toEqual([`\`rest.mouth.state\`, inherited from \`base\`: ${empty}`]);
+    expect(errorsOnAs(child, { rest: { mouth: { state: "mouth." } } })).toEqual([`\`rest\`, inherited from \`base\`: ${empty}`]);
     const keyframes = [
       { offset: 0, mouth: { state: "mouth." } },
       { offset: 1, mouth: { state: "open" } },
     ];
     expect(errorsOnAs("morph talk as base {\n  blend = cut\n}\n", { keyframes })).toContain(
-      `\`keyframes\` (keyframe 1), inherited from \`base\`: ${empty}`,
+      `\`keyframes\`, inherited from \`base\`: ${empty}`,
     );
     const written = diagnosticsOf(talkSmile('  rest {\n    mouth {\n      state = "mouth."\n    }\n  }\n')).filter((d) => d.severity === 1);
     expect(written.map((d) => d.message)).toContain(empty);
@@ -389,7 +389,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       { offset: 2, mouth: { state: "open" } },
     ];
     expect(diagnosticsOf(text, undefined, { keyframes }).filter((d) => d.severity === 1 && d.text === "base").map((d) => d.message)).toEqual([
-      "`keyframes` (keyframe 2), inherited from `base`: Keyframe position `200%` must be between 0% and 100%.",
+      "`keyframes`, inherited from `base`: Keyframe position `200%` must be between 0% and 100%.",
     ]);
   });
 

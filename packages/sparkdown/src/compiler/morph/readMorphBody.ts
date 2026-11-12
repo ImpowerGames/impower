@@ -74,9 +74,19 @@ function qualifiedPoseStates(struct: Record<string, unknown>): QualifiedPoseStat
       if (dot < 0) continue;
       const prefix = state.slice(0, dot);
       const plain = state.slice(dot + 1);
-      if (prefix === group) {
+      if (prefix === group && !plain.includes(".")) {
         container["state"] = plain;
         found.push({ container, group, keyframe, plain });
+        continue;
+      }
+      if (prefix === group) {
+        found.push({
+          container,
+          group,
+          keyframe,
+          plain,
+          message: `\`${state}\` is not a state: a state is one name, written alone or after its group once, such as \`state = closed\` or \`state = ${group}.closed\`.`,
+        });
         continue;
       }
       found.push({

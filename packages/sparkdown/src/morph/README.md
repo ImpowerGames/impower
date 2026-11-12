@@ -73,9 +73,10 @@ A rest state the keyframes never name is reached by no segment, so the bake comp
 
 - Each of the entry's edges that the rest pose draws is bent onto itself, so its tips are the drawing's own tips. Edges whose tips meet pair into openings by the rule a segment's edges follow (`buildApertures`).
 - An edge with no facing edge is a closed opening. It adds no loop, and the targets around it are cut shut, as a closed keyframe cuts them. One entry can hold closed eyes beside open ones.
-- Every target of the entry that the rest pose draws must overlap an edge of that entry that the rest pose also draws (their bounding boxes meet). Otherwise the rest has no opening for that target.
+- An entry none of whose targets the rest pose draws needs no outline: nothing at rest is cut, and its edges are not read.
+- Every contour of every target of the entry that the rest pose draws must overlap an edge of that entry that the rest pose also draws (their bounding boxes meet). Otherwise the rest has no opening for that part of the target. A path that draws both eyes as two contours therefore needs lids around each.
 - The variant bakes static, with an error naming the clip and the rest pose, when the rest pose:
-  - draws none of the entry's edges, or draws a target with no edge around it (`edge-missing`);
+  - draws a target with a contour no edge of its entry surrounds, including a target drawn with none of the entry's edges at all (`edge-missing`);
   - draws an edge that does not morph with `bend` (`edge-not-bend`);
   - draws edges that share tips ambiguously or form no aperture (`aperture-ambiguous`, `aperture-unpaired`, `aperture-degenerate`).
 - The outline's loops join the entry's mask region and its widest-loop figure, alongside the segments' apertures, so the mask always contains the outline.

@@ -29,7 +29,7 @@ import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
 import { morphMotionProblem } from "../../morph/motion";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
-import { poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
+import type { MorphBody, MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
 type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
@@ -450,7 +450,8 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
           if (typeof offset !== "number" || !Number.isFinite(offset)) {
             push(span, KEYFRAME_OFFSET_FORM);
           } else if (offset < 0 || offset > 1) {
-            if (src(keyframe)?.values.get("offset")) push(span, keyframeRangeProblem(offset));
+            const written = src(keyframe);
+            if (!written || written.values.get("offset")) push(span, keyframeRangeProblem(offset));
           } else {
             if (previous && offset < previous.offset) {
               push(
@@ -793,120 +794,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
   return issues;
-}
-
-export interface MorphValueProblem {
-  field: string;
-  where?: string;
-  message: string;
-}
-
-export function morphValueProblems(
-  struct: Record<string, unknown>,
-  effective: Record<string, unknown> = struct,
-): MorphValueProblem[] {
-  const problems: MorphValueProblem[] = [];
-  const driven = keyframeStates(effective["keyframes"]);
-  const policy = (obj: Record<string, unknown>, prefix: string) => {
-    for (const field of MORPH_POLICY_FIELDS) {
-      if (!(field in obj)) continue;
-      const vocab = POLICY_VOCABULARY[field];
-      const message =
-        field === "spread"
-          ? spreadProblem(obj[field])
-          : vocab
-            ? has(vocab, obj[field])
-              ? null
-              : `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab)}.`
-            : depthFormProblem(obj[field]);
-      if (message) problems.push({ field: `${prefix}${field}`, message });
-    }
-  };
-  policy(struct, "");
-  for (const field of MORPH_CONDITION_FIELDS) {
-    if (!(field in struct)) continue;
-    for (const { item, message } of conditionProblems(field, struct[field], driven)) {
-      problems.push({ field, ...(item === undefined ? {} : { where: `entry ${item + 1}` }), message });
-    }
-  }
-  const rest = struct["rest"];
-  if (rest !== undefined) {
-    for (const problem of restValueProblems(rest)) {
-      const field = ["rest", ...(problem.group === undefined ? [] : [problem.group]), ...(problem.key === undefined ? [] : [problem.key])].join(".");
-      problems.push({ field, message: problem.message });
-    }
-  }
-  for (const { group, keyframe, message } of poseStateProblems(struct)) {
-    problems.push(
-      keyframe === undefined
-        ? { field: `rest.${group}.state`, message }
-        : { field: "keyframes", where: `keyframe ${keyframe + 1}`, message },
-    );
-  }
-  const keyframes = struct["keyframes"];
-  if (Array.isArray(keyframes)) {
-    let previous: number | undefined;
-    keyframes.forEach((keyframe, index) => {
-      if (!isRecord(keyframe)) return;
-      const at = (message: string) => problems.push({ field: "keyframes", where: `keyframe ${index + 1}`, message });
-      for (const [group, container] of Object.entries(keyframe)) {
-        if (group === "offset" || group.startsWith("$") || !isRecord(container) || !("state" in container)) continue;
-        const state = container["state"];
-        if (typeof state !== "string" || state.trim() === "") at("`state` names an attribute state, such as `closed` or `eyes.closed`.");
-      }
-      if (!("offset" in keyframe)) return;
-      const offset = keyframe["offset"];
-      if (typeof offset !== "number" || !Number.isFinite(offset)) at(KEYFRAME_OFFSET_FORM);
-      else if (offset < 0 || offset > 1) at(keyframeRangeProblem(offset));
-      else {
-        if (previous !== undefined && offset < previous) at(`Keyframe offsets must not decrease: ${offset} comes after ${previous}.`);
-        previous = offset;
-      }
-    });
-  }
-  const layers = struct["layers"];
-  if (isRecord(layers)) {
-    for (const [label, value] of Object.entries(layers)) {
-      if (!isRecord(value)) continue;
-      policy(value, `layers.${label}.`);
-      const problem = "partner" in value ? partnerFormProblem(value["partner"]) : null;
-      if (problem) problems.push({ field: `layers.${label}.partner`, message: problem.message });
-    }
-  }
-  const timing = struct["timing"];
-  if (isRecord(timing)) {
-    checkTiming(timing, (field, message) =>
-      problems.push({ field: `timing.${field}`, message }),
-    );
-  }
-  const paints = struct["paints"];
-  if (paints !== undefined && !Array.isArray(paints) && !(isRecord(paints) && Object.keys(paints).length === 0)) {
-    problems.push({ field: "paints", message: `\`paints\` is a list of \`{ … }\` entries. ${PAINT_ENTRY}` });
-  }
-  if (Array.isArray(paints)) {
-    paints.forEach((entry, index) => {
-      const add = (message: string) => problems.push({ field: "paints", where: `entry ${index + 1}`, message });
-      if (!isRecord(entry)) {
-        add(PAINT_ENTRY);
-        return;
-      }
-      for (const key of Object.keys(entry)) {
-        if ((MORPH_PAINT_FIELDS as readonly string[]).includes(key)) continue;
-        add(HOME[key] ? `\`${key}\` belongs ${HOME[key]}.` : `Unknown morph field \`${key}\`.`);
-      }
-      const targets = entry["targets"];
-      if (targets === undefined) {
-        add("This `paints` entry needs `targets { … }` with at least one layer label.");
-      } else if (!Array.isArray(targets) || targets.length === 0 || targets.some((label) => typeof label !== "string" || label.trim() === "")) {
-        add("`targets` is a list of layer labels: `targets { eyelash-left }`.");
-      }
-      if ("state" in entry && !parseMorphQualifiedState(entry["state"])) {
-        add(`${describeValue(entry["state"])} is not a pose: write a state with its group, such as \`state = eyes.closed\`.`);
-      }
-      for (const { message } of paintFormProblems(entry)) add(message);
-    });
-  }
-  return problems;
 }
 
 function checkTiming(

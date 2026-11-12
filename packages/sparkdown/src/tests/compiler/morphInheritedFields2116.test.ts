@@ -74,6 +74,18 @@ const ROWS: Row[] = [
   row("rest", "rest {", "  mouth { state = grin }", "}"),
   row("rest", "rest {", "  eyes { state = closed }", "}"),
   row("rest", "rest = mouth.teeth"),
+  row("rest", "rest {", "  mouth { state = mouth.mouth.closed }", "}"),
+  row("keyframes", "keyframes {", "  from { mouth { state = mouth.mouth.closed } }", "  to { mouth { state = open } }", "}"),
+  row("keyframes", "keyframes {", "  from { mouth { state = closed; rotate = bad } }", "  to { mouth { state = open } }", "}"),
+  row("keyframes", "keyframes {", "  from { mouth = mouth.closed }", "  to { mouth { state = open } }", "}"),
+  row("clips", "clips {", "  { between { lips }; targets { lips } }", "}"),
+  row("clips", "clips {", "  { between { lips }; targets { lids }; spread = big }", "}"),
+  row("clips", "clips {", "  { between { lips } }", "}"),
+  row("timing", "timing {", "  iteration_delay_min = 2", "  iteration_delay_max = 1", "}"),
+  row("timing", "timing {", "  duration = 1", "  nope = 2", "}"),
+  row("layers", "layers {", "  lips { partner = lips }", "}"),
+  row("depth", "depth = closed"),
+  row("paints", "paints {", "  { targets { lips }; state = closed; fill = red }", "}"),
 ];
 
 const childText = (row: Row, written: boolean) => {

@@ -13,8 +13,8 @@ import {
   morphImages,
 } from "./bindMorph";
 import { parseMorphQualifiedState } from "./morphSchema";
-import { plainPoseStates, readMorphBody, type MorphIssue } from "./readMorphBody";
-import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
+import { plainPoseStates, poseStateProblems, readMorphBody, type MorphIssue } from "./readMorphBody";
+import { validateMorphDeclaration, type MorphDeclaration } from "./validateMorph";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -204,20 +204,23 @@ export function collectMorphIssues(
       ? effectiveMorph(base, ancestors.slice(1), ancestors[0].struct, inherit)
       : null;
     const issues = [
-      ...validateMorphDeclaration({
-        name: nameSpan,
-        parent: parentSpan ?? null,
-        block: morph.node,
-        own: morph.own,
-        effective,
-        parentEffective,
-      }),
+      ...validateWithUnwrittenParents(
+        {
+          name: nameSpan,
+          parent: parentSpan ?? null,
+          block: morph.node,
+          own: morph.own,
+          effective,
+          parentEffective,
+        },
+        ancestors,
+        parentSpan ?? nameSpan,
+      ),
       ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images, {
         span: parentSpan ?? nameSpan,
         ancestors,
         parentEffective,
       }),
-      ...inheritedValueIssues(morph.own.struct, ancestors, effective, parentSpan ?? nameSpan),
     ];
     const parentName = morph.name ? parents.get(morph.name) : undefined;
     if (parentSpan && parentName && ancestors[0]?.name !== parentName) {
@@ -235,39 +238,51 @@ export function collectMorphIssues(
   return result;
 }
 
-function sets(obj: unknown, path: string): boolean {
-  let current: unknown = obj;
-  for (const key of path.split(".")) {
-    if (!isRecord(current) || !(key in current)) return false;
-    current = current[key];
-  }
-  return true;
-}
-
-function inheritedValueIssues(
-  own: Record<string, unknown>,
+function validateWithUnwrittenParents(
+  decl: MorphDeclaration,
   ancestors: readonly MorphLayer[],
-  effective: Record<string, unknown>,
   span: SourceSpan,
 ): LocatedMorphIssue[] {
   const firstWritten = ancestors.findIndex((layer) => layer.written);
   const defines = ancestors.slice(0, firstWritten < 0 ? ancestors.length : firstWritten);
-  if (defines.length === 0) return [];
+  if (defines.length === 0) return validateMorphDeclaration(decl);
   let merged: Record<string, unknown> = {};
-  for (let i = defines.length - 1; i >= 0; i -= 1) {
-    const struct = defines[i]!.struct;
-    merged = mergeRecords(merged, struct);
-  }
-  const issues: LocatedMorphIssue[] = [];
-  for (const { field, where, message } of morphValueProblems(merged, effective)) {
-    if (sets(own, field)) continue;
-    const supplier = defines.find((layer) => sets(layer.struct, field))?.name;
-    issues.push({
-      from: span.from,
-      to: span.to,
-      severity: "error",
-      message: `\`${field}\`${where ? ` (${where})` : ""}, inherited from \`${supplier ?? defines[0]!.name}\`: ${message}`,
-    });
+  for (let i = defines.length - 1; i >= 0; i -= 1) merged = mergeRecords(merged, defines[i]!.struct);
+  const own = decl.own.struct;
+  const inherited = inheritedFields(merged, own);
+  const fields = Object.keys(inherited);
+  if (fields.length === 0) return validateMorphDeclaration(decl);
+  const supplier = (field: string) => defines.find((layer) => field in layer.struct)?.name ?? defines[0]!.name;
+  const run = (omit?: string) => {
+    const aliases = new WeakMap<object, object>();
+    const struct: Record<string, unknown> = { ...own };
+    for (const [field, value] of Object.entries(inherited)) {
+      if (field === omit) continue;
+      const written = own[field];
+      if (isRecord(written) && isRecord(value)) {
+        const combined = { ...value, ...written };
+        aliases.set(combined, written);
+        struct[field] = combined;
+      } else {
+        struct[field] = value;
+      }
+    }
+    const base = decl.own.sources;
+    const sources = { get: (obj: object) => base.get(aliases.get(obj) ?? obj) } as WeakMap<object, StructSource>;
+    return validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
+  };
+  const key = (issue: MorphIssue) => `${issue.from}:${issue.to}:${issue.severity}:${issue.message}`;
+  const without = new Map(fields.map((field) => [field, new Set(run(field).map(key))]));
+  const atName = (issue: MorphIssue) => issue.from === decl.name.from && issue.to === decl.name.to;
+  const issues: LocatedMorphIssue[] = run().map((issue) => {
+    const cause = atName(issue) ? fields.find((field) => !without.get(field)!.has(key(issue))) : undefined;
+    if (!cause) return issue;
+    return { from: span.from, to: span.to, severity: issue.severity, message: `\`${cause}\`, inherited from \`${supplier(cause)}\`: ${issue.message}` };
+  });
+  for (const { group, keyframe, message } of poseStateProblems(inherited)) {
+    const label = keyframe === undefined ? `\`rest.${group}.state\`` : `\`keyframes\` (keyframe ${keyframe + 1})`;
+    const field = keyframe === undefined ? "rest" : "keyframes";
+    issues.push({ from: span.from, to: span.to, severity: "error", message: `${label}, inherited from \`${supplier(field)}\`: ${message}` });
   }
   return issues;
 }

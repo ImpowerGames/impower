@@ -4,9 +4,9 @@ import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, EYEBALL, LOWER_OPEN, portrait, shiftPath, UPPER_OPEN } from "./fixtures";
 
-type Layout = "none" | "one" | "pair" | "pair-and-lone" | "three";
+type Layout = "none" | "one" | "pair" | "pair-and-lone" | "three" | "stroke";
 
-const EYES = { left: { label: "left", x: 20 }, right: { label: "right", x: 140 } } as const;
+const EYES = { left: { x: 20 }, right: { x: 140 } } as const;
 type Eye = keyof typeof EYES;
 
 const at = (eye: Eye, path: string, dy = 10) => shiftPath(path, EYES[eye].x, dy);
@@ -25,10 +25,13 @@ const drawn = (eye: Eye, layout: Layout): string => {
       return white(eye) + lash(eye, UPPER_OPEN) + lash(eye, LOWER_OPEN) + lash(eye, CLOSED, -25);
     case "three":
       return white(eye) + lash(eye, UPPER_OPEN) + lash(eye, LOWER_OPEN) + lash(eye, CLOSED);
+    case "stroke":
+      return `<path data-name="sleep-mark-${eye}" d="${at(eye, "M20,20 L40,20 L20,40 L40,40", -20)}" fill="none" stroke="#111"/>`;
   }
 };
 
 const OPEN_LAYOUTS: readonly Layout[] = ["pair", "pair-and-lone"];
+const TARGET_LAYOUTS: readonly Layout[] = ["none", "pair", "pair-and-lone", "three"];
 
 const SHARED = [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "pupil-left", "eyeball-white-right", "pupil-right"] }];
 
@@ -42,7 +45,7 @@ interface Row {
 
 const ROWS: Row[] = [];
 for (const clips of ["per eye", "shared"] as const) {
-  for (const left of ["none", "one", "pair", "pair-and-lone", "three"] as const) {
+  for (const left of ["none", "one", "pair", "pair-and-lone", "three", "stroke"] as const) {
     for (const right of ["one", "pair"] as const) {
       ROWS.push({
         clips,
@@ -58,22 +61,6 @@ for (const clips of ["per eye", "shared"] as const) {
 }
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
-
-const elements = (svg: string): Element[] => {
-  const out: Element[] = [];
-  const walk = (nodes: unknown[]) => {
-    for (const node of nodes) {
-      if (!node || typeof node !== "object") continue;
-      out.push(node as Element);
-      walk((node as Element).children);
-    }
-  };
-  const doc = parse(svg);
-  walk(Array.isArray(doc) ? doc : [doc]);
-  return out;
-};
-
-const subtree = (root: Element): Element[] => [root, ...root.children.flatMap((child) => (child && typeof child === "object" ? subtree(child as Element) : []))];
 
 const loopsOf = (d: string): number[][] =>
   d
@@ -91,28 +78,55 @@ const area = (flat: number[]) => {
 const xs = (flat: number[]) => flat.filter((_, i) => i % 2 === 0);
 const ys = (flat: number[]) => flat.filter((_, i) => i % 2 === 1);
 
-function restMasks(artifact: MorphArtifact) {
-  return elements(artifact.rest)
-    .filter((e) => e.tagName === "mask")
-    .map((mask) => {
-      const region = {
-        x: Number(mask.attributes["x"]),
-        y: Number(mask.attributes["y"]),
-        width: Number(mask.attributes["width"]),
-        height: Number(mask.attributes["height"]),
-      };
-      const loops = subtree(mask)
-        .filter((e) => e.tagName === "path")
-        .flatMap((path) => loopsOf(path.attributes["d"] ?? ""));
-      return { id: mask.attributes["id"]!, region, loops };
-    });
+interface Mask {
+  region: { x: number; y: number; width: number; height: number };
+  loops: number[][];
 }
 
-const openWithin = (loops: number[][], eye: Eye) =>
+function restTargets(artifact: MorphArtifact, label: (name: string) => boolean) {
+  const masks = new Map<string, Mask>();
+  const targets: { name: string; mask: string | undefined }[] = [];
+  const children = (element: Element) => element.children.filter((c): c is Element => !!c && typeof c === "object");
+  const paths = (element: Element): Element[] => [...(element.tagName === "path" ? [element] : []), ...children(element).flatMap(paths)];
+  const walk = (nodes: Element[], mask: string | undefined) => {
+    for (const node of nodes) {
+      if (node.tagName === "mask") {
+        const loops = paths(node).flatMap((path) => loopsOf(path.attributes["d"] ?? ""));
+        masks.set(node.attributes["id"]!, {
+          region: { x: Number(node.attributes["x"]), y: Number(node.attributes["y"]), width: Number(node.attributes["width"]), height: Number(node.attributes["height"]) },
+          loops: [...new Map(loops.map((loop) => [loop.join(","), loop])).values()],
+        });
+        continue;
+      }
+      const applied = /url\(#([^)]+)\)/.exec(node.attributes["mask"] ?? "")?.[1] ?? mask;
+      const name = node.attributes["data-name"];
+      if (name && label(name)) targets.push({ name, mask: applied });
+      walk(children(node), applied);
+    }
+  };
+  const doc = parse(artifact.rest);
+  const nodes: unknown[] = Array.isArray(doc) ? doc : [doc];
+  walk(nodes.filter((c): c is Element => !!c && typeof c === "object"), undefined);
+  return { masks, targets };
+}
+
+const openOver = (loops: number[][], eye: Eye) =>
   loops.filter((loop) => area(loop) > 1000 && Math.min(...xs(loop)) >= EYES[eye].x - 10 && Math.max(...xs(loop)) <= EYES[eye].x + 110);
 
+const expectInside = (mask: Mask) => {
+  for (const loop of mask.loops) {
+    expect(Math.min(...xs(loop))).toBeGreaterThanOrEqual(mask.region.x);
+    expect(Math.max(...xs(loop))).toBeLessThanOrEqual(mask.region.x + mask.region.width);
+    expect(Math.min(...ys(loop))).toBeGreaterThanOrEqual(mask.region.y);
+    expect(Math.max(...ys(loop))).toBeLessThanOrEqual(mask.region.y + mask.region.height);
+  }
+};
+
+const rowName = (row: Row) =>
+  row.rest === "asleep" ? `${row.clips}, rest outside the keyframes: left ${row.left}, right ${row.right}` : `${row.clips}, rest ${row.rest} reached by a keyframe (control)`;
+
 describe("the rest outline of a rest no keyframe names", () => {
-  test.each(ROWS.map((row) => [row.rest === "asleep" ? `${row.clips}, rest outside the keyframes: left ${row.left}, right ${row.right}` : `${row.clips}, rest ${row.rest} reached by a keyframe (control)`, row] as const))("%s", (_name, row) => {
+  test.each(ROWS.map((row) => [rowName(row), row] as const))("%s", (_name, row) => {
     const source = portrait({ right: true }).replace("</svg>", `<g data-name="eyes.asleep">${drawn("left", row.left)}${drawn("right", row.right)}</g></svg>`);
     const recipe = blink({ rest: { eyes: { state: row.rest } }, ...(row.clips === "shared" ? { clips: SHARED } : {}) }, true);
     const artifact = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: `${row.clips}-${row.rest}-${row.left}-${row.right}` });
@@ -124,20 +138,54 @@ describe("the rest outline of a rest no keyframe names", () => {
     }
     expect(artifact.diagnostics).toEqual([]);
     expect(artifact.status).toBe("live");
-    const masks = restMasks(artifact);
-    expect(masks.length).toBeGreaterThan(0);
-    for (const { region, loops } of masks) {
-      for (const loop of loops) {
-        expect(Math.min(...xs(loop))).toBeGreaterThanOrEqual(region.x);
-        expect(Math.max(...xs(loop))).toBeLessThanOrEqual(region.x + region.width);
-        expect(Math.min(...ys(loop))).toBeGreaterThanOrEqual(region.y);
-        expect(Math.max(...ys(loop))).toBeLessThanOrEqual(region.y + region.height);
+    const { masks, targets } = restTargets(artifact, (name) => name.startsWith("eyeball-white-"));
+    for (const eye of ["left", "right"] as const) {
+      const layout = row.rest === "asleep" ? (eye === "left" ? row.left : row.right) : row.rest === "open" ? "pair" : "one";
+      const whites = targets.filter((target) => target.name === `eyeball-white-${eye}`);
+      if (row.rest === "asleep" && !TARGET_LAYOUTS.includes(layout)) {
+        expect(whites, `${eye} eye drawn ${layout} draws no target`).toEqual([]);
+        continue;
+      }
+      if (row.rest === "closed") continue;
+      expect(whites.length, `${eye} eye drawn ${layout} draws its white`).toBeGreaterThan(0);
+      for (const target of whites) {
+        const mask = target.mask === undefined ? undefined : masks.get(target.mask);
+        expect(mask, `${eye} white is masked`).toBeDefined();
+        expectInside(mask!);
+        expect(openOver(mask!.loops, eye).length, `${eye} eye drawn ${layout}: openings over it in its own mask`).toBe(OPEN_LAYOUTS.includes(layout) ? 1 : 0);
       }
     }
-    const loops = [...new Map(masks.flatMap((mask) => mask.loops).map((loop) => [loop.join(","), loop])).values()];
-    for (const eye of ["left", "right"] as const) {
-      const layout = eye === "left" ? row.left : row.right;
-      expect(openWithin(loops, eye).length, `${eye} eye drawn ${layout}`).toBe(OPEN_LAYOUTS.includes(layout) ? 1 : 0);
-    }
+  });
+
+  const compound = (lids: string) =>
+    portrait({ right: true }).replace(
+      "</svg>",
+      `<g data-name="eyes.asleep"><path data-name="eyeballs" d="${at("left", EYEBALL)} ${at("right", EYEBALL)}" fill="#fff"/>${lids}</g></svg>`,
+    );
+  const compoundBake = (lids: string) =>
+    bakeMorphArtifact({
+      source: compound(lids),
+      selection: {},
+      recipes: [blink({ rest: { eyes: { state: "asleep" } }, clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeballs"] }] }, true)],
+      key: `compound-${lids.length}`,
+    });
+
+  test("one compound target drawing both eyes, with lids around only one, bakes static naming the target", () => {
+    const artifact = compoundBake(lash("left", UPPER_OPEN) + lash("left", LOWER_OPEN));
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "edge-missing", severity: "error" })]);
+    expect(artifact.diagnostics[0]!.message).toContain('"eyeballs"');
+  });
+
+  test("one compound target drawing both eyes, with lids around each, plays an opening over each eye in its own mask", () => {
+    const artifact = compoundBake(lash("left", UPPER_OPEN) + lash("left", LOWER_OPEN) + lash("right", UPPER_OPEN) + lash("right", LOWER_OPEN));
+    expect(artifact.diagnostics).toEqual([]);
+    expect(artifact.status).toBe("live");
+    const { masks, targets } = restTargets(artifact, (name) => name === "eyeballs");
+    expect(targets).toHaveLength(1);
+    const mask = masks.get(targets[0]!.mask!)!;
+    expectInside(mask);
+    expect(openOver(mask.loops, "left")).toHaveLength(1);
+    expect(openOver(mask.loops, "right")).toHaveLength(1);
   });
 });

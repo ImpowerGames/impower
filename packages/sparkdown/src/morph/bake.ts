@@ -1613,6 +1613,11 @@ export function* bakeSteps(
   for (const [index, clip] of clips.entries()) {
     if (restLoopsAtRest[index]) continue;
     yield;
+    const drawnTargets = leaves.filter((leaf) => labelledAny(leaf.element, clip.targets) && visibleAt(leaf.element, restVisible));
+    if (drawnTargets.length === 0) {
+      restLoops[index] = [];
+      continue;
+    }
     const edges: EdgeTrack[] = [];
     for (const leaf of leaves) {
       if (!clip.between.includes(leaf.label) || !visibleAt(leaf.element, restVisible)) continue;
@@ -1625,18 +1630,13 @@ export function* bakeSteps(
       }
       edges.push({ id: leaf.node, label: leaf.label, track });
     }
-    if (edges.length === 0) {
-      report("edge-missing", "error", `Clip ${clip.number}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) are not drawn in the rest pose, so the rest has no opening to cut.`, { layer: clip.between[0], morphs: clip.morphs });
-      return disable();
-    }
     const edgeBoxes = leaves
       .filter((leaf) => clip.between.includes(leaf.label) && visibleAt(leaf.element, restVisible))
       .map((leaf) => hullBox(rootGeometry(leaf) ?? []));
-    for (const leaf of leaves) {
-      if (!labelledAny(leaf.element, clip.targets) || !visibleAt(leaf.element, restVisible)) continue;
-      const box = hullBox(rootGeometry(leaf) ?? []);
-      if (!box || edgeBoxes.some((edge) => edge && boxesMeet(edge, box))) continue;
-      report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with none of the clip's edges around it, so the rest has no opening for it.`, { layer: leaf.label, morphs: clip.morphs });
+    for (const leaf of drawnTargets) {
+      const contours = (rootGeometry(leaf) ?? []).map((subpath) => hullBox([subpath]));
+      if (contours.every((box) => !box || edgeBoxes.some((edge) => edge && boxesMeet(edge, box)))) continue;
+      report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with a part none of the clip's edges surround, so the rest has no opening for it.`, { layer: leaf.label, morphs: clip.morphs });
       return disable();
     }
     const lone = new Set(
