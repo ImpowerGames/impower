@@ -12,3 +12,13 @@ function f(c)
   for k, v in mia@end do c = false end
   local after = 1
 end
+
+scene s
+  & while c) x@end style card {}
+end
+
+scene s
+  & while c) x@end do
+  Hello.
+  & end
+end

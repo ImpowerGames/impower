@@ -1,4 +1,4 @@
-text.source.sparkdown [0..220]
+text.source.sparkdown [0..318]
  ├─ meta.function.luau [0..13]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -149,4 +149,63 @@ text.source.sparkdown [0..220]
  ├─ meta.function.luau [216..219]
  │   └─ meta.embedded.block.luau [216..219]
  │       └─ keyword.control.end.luau [216..219]: "end"
- └─ Newline [219..220]: "\n"
+ ├─ Newline [219..220]: "\n"
+ ├─ Newline [220..221]: "\n"
+ ├─ keyword.control.scene.sd [221..226]: "scene"
+ ├─ punctuation.whitespace.required.sd [226..227]: " "
+ ├─ keyword.control.section.sd [227..228]: "s"
+ ├─ Newline [228..229]: "\n"
+ ├─ punctuation.whitespace.optional.sd [229..231]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [231..232]: "&"
+ ├─ punctuation.whitespace.required.sd [232..233]: " "
+ ├─ meta.embedded.line.luau [233..261]
+ │   ├─ keyword.control.while.luau [233..238]: "while"
+ │   ├─ punctuation.whitespace.optional.sd [238..239]: " "
+ │   ├─ meta.embedded.line.luau [239..240]
+ │   │   └─ variable.other.readwrite.luau [239..240]: "c"
+ │   ├─ keyword.operator.luau [240..241]: ")"
+ │   ├─ punctuation.whitespace.extra.sd [241..242]: " "
+ │   ├─ variable.other.readwrite.luau [242..247]: "x@end"
+ │   └─ meta.style.luau [247..261]
+ │       ├─ punctuation.whitespace.optional.sd [247..248]: " "
+ │       ├─ keyword.control.style.luau [248..253]: "style"
+ │       ├─ punctuation.whitespace.optional.sd [253..254]: " "
+ │       └─ meta.embedded.block.luau [254..261]
+ │           ├─ entity.name.type.define.luau [254..258]: "card"
+ │           ├─ punctuation.whitespace.sd [258..259]: " "
+ │           ├─ punctuation.definition.template-expression.begin.sd [259..260]: "{"
+ │           └─ punctuation.definition.template-expression.end.sd [260..261]: "}"
+ ├─ Newline [261..262]: "\n"
+ ├─ keyword.control.end.luau [262..265]: "end"
+ ├─ Newline [265..266]: "\n"
+ ├─ Newline [266..267]: "\n"
+ ├─ keyword.control.scene.sd [267..272]: "scene"
+ ├─ punctuation.whitespace.required.sd [272..273]: " "
+ ├─ keyword.control.section.sd [273..274]: "s"
+ ├─ Newline [274..275]: "\n"
+ ├─ punctuation.whitespace.optional.sd [275..277]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [277..278]: "&"
+ ├─ punctuation.whitespace.required.sd [278..279]: " "
+ ├─ meta.embedded.line.luau [279..296]
+ │   ├─ keyword.control.while.luau [279..284]: "while"
+ │   ├─ punctuation.whitespace.optional.sd [284..285]: " "
+ │   ├─ meta.embedded.line.luau [285..286]
+ │   │   └─ variable.other.readwrite.luau [285..286]: "c"
+ │   ├─ keyword.operator.luau [286..287]: ")"
+ │   ├─ punctuation.whitespace.extra.sd [287..288]: " "
+ │   ├─ variable.other.readwrite.luau [288..293]: "x@end"
+ │   ├─ punctuation.whitespace.optional.sd [293..294]: " "
+ │   └─ keyword.control.do.luau [294..296]: "do"
+ ├─ Newline [296..297]: "\n"
+ ├─ punctuation.whitespace.optional.sd [297..299]: "  "
+ ├─ string.display.text.chunk.sd [299..305]
+ │   ├─ markup.raw.text.sd [299..304]: "Hello"
+ │   └─ markup.raw.punctuation.sd [304..305]: "."
+ ├─ Newline [305..306]: "\n"
+ ├─ punctuation.whitespace.optional.sd [306..308]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [308..309]: "&"
+ ├─ punctuation.whitespace.required.sd [309..310]: " "
+ ├─ keyword.control.end.luau [310..313]: "end"
+ ├─ Newline [313..314]: "\n"
+ ├─ keyword.control.end.luau [314..317]: "end"
+ └─ Newline [317..318]: "\n"
