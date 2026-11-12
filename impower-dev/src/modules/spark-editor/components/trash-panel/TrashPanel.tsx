@@ -43,16 +43,15 @@ function onePicture(batch: TrashBatch): string | null {
   return stacks.length === 1 ? stacks[0]!.name : null;
 }
 
-function batchLabel(batch: TrashBatch): string {
-  if (batch.reason?.kind === "failed-edit") {
-    const [only] = batch.entries;
-    const copies =
-      only && batch.entries.length === 1
-        ? `Copy of ${only.relPath.split("/").pop()}`
-        : `Copies of ${batch.entries.length} files`;
-    const action = batch.reason.action;
-    return `${copies} kept when ${action ? `“${action}”` : "an edit"} failed`;
+function keptReason(batch: TrashBatch): string | null {
+  if (batch.reason?.kind !== "failed-edit") {
+    return null;
   }
+  const action = batch.reason.action;
+  return `${batch.entries.length === 1 ? "Copy" : "Copies"} kept when ${action ? `“${action}”` : "an edit"} failed`;
+}
+
+function batchLabel(batch: TrashBatch): string {
   const picture = onePicture(batch);
   if (picture) {
     return picture;
@@ -236,14 +235,15 @@ export default function TrashPanel() {
         <div class="min-h-0 flex-1 overflow-y-auto pb-2">
           {batches!.map((batch) => {
             const loc = batchLocation(batch);
+            const reason = keptReason(batch);
             return (
               <ListRow
                 key={batch.batchId}
                 class="px-2"
                 icon={(batch.entries.length === 1 && !batch.folders?.length) || onePicture(batch) ? <FileIcon /> : <FolderIcon />}
                 label={batchLabel(batch)}
-                overflow={batch.reason ? "clamp" : "fade"}
-                description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
+                description={[reason, loc, timeAgo(batch.deletedAt)].filter(Boolean).join(" · ")}
+                descriptionFit={reason ? "wrap" : "line"}
                 actions={
                   <>
                     <Button

@@ -28,9 +28,14 @@ const openPanel = async () => {
   workspace.trashOpen.value = true;
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(TrashPanel, {}), host!));
-  const dialog = () => document.querySelector('[role="dialog"]')?.textContent ?? "";
-  await vi.waitFor(() => expect(dialog()).toContain("Recycle bin ("));
-  return dialog();
+  const dialog = () => document.querySelector('[role="dialog"]');
+  await vi.waitFor(() => expect(dialog()?.textContent).toContain("Recycle bin ("));
+  return [...dialog()!.querySelectorAll(".overflow-y-auto > *")].map((row) =>
+    [...row.querySelectorAll("span, small")]
+      .filter((part) => part.children.length === 0)
+      .map((part) => part.textContent)
+      .join(" | "),
+  );
 };
 
 it("says a failed edit's batch is a kept copy and names the action that failed, beside an ordinary delete", async () => {
@@ -49,16 +54,16 @@ it("says a failed edit's batch is a kept copy and names the action that failed, 
     },
     { batchId: "1", deletedAt: Date.now(), entries: [entry("Scripts/gone.sd")] },
   ];
-  const text = await openPanel();
-  expect(text).toContain("Copy of other.sd kept when “Rename hero” failed");
-  expect(text).toContain("Copies of 2 files kept when “Rename villain” failed");
-  expect(text).toContain("gone.sd");
-  expect(text.match(/kept when/g)).toHaveLength(2);
+  expect(await openPanel()).toEqual([
+    "other.sd | Copy kept when “Rename hero” failed · Scripts · just now",
+    "2 items | Copies kept when “Rename villain” failed · Scripts · just now",
+    "gone.sd | Scripts · just now",
+  ]);
 });
 
 it("says an edit failed when the batch does not name its action", async () => {
   batches.value = [
     { batchId: "1", deletedAt: Date.now(), entries: [entry("other.sd")], reason: { kind: "failed-edit" } },
   ];
-  expect(await openPanel()).toContain("Copy of other.sd kept when an edit failed");
+  expect(await openPanel()).toEqual(["other.sd | Copy kept when an edit failed · just now"]);
 });
