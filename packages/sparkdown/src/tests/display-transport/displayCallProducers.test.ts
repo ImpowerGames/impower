@@ -3,6 +3,7 @@ import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import { ObjectValue, StringValue } from "../../runtime/Value";
+import { writtenText } from "../../runtime/displayStyle";
 
 interface Step {
   text: string;
@@ -70,7 +71,9 @@ function steps(source: string): Step[] {
                 ? [...(v.value?.values() ?? [])].map(
                     (e) => (e as { value?: unknown }).value,
                   )
-                : (v as { value?: unknown }).value,
+                : v instanceof StringValue
+                  ? writtenText(v.value ?? "")
+                  : (v as { value?: unknown }).value,
             ]),
           ),
         ),

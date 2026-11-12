@@ -47,6 +47,29 @@ export function stripStyleCodes(text: string): string {
   return STYLE_CODE.test(text) ? text.replace(STYLE_CODES, "") : text;
 }
 
+export function writtenText(text: string): string {
+  if (!STYLE_CODE.test(text)) return text;
+  let out = "";
+  const open: string[] = [];
+  for (const c of text) {
+    if (c === SCAN_OPEN || c === SCAN_CLOSE) continue;
+    if (c === SPAN_CLOSE) {
+      out += open.pop() ?? "";
+    } else if (c === SPAN_END) {
+      open.pop();
+    } else {
+      const mark = spanOpenMark(c);
+      if (mark) {
+        open.push(mark);
+        out += mark;
+      } else {
+        out += c;
+      }
+    }
+  }
+  return out;
+}
+
 export function trimStyled(
   text: string,
   { start = true, end = true }: { start?: boolean; end?: boolean } = {},

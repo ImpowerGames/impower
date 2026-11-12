@@ -135,14 +135,14 @@ describe("lowerer synthesis: display() from authored prose", () => {
     };
   };
 
-  test("a styled span rides the table as a run with its marks, and the text has none", () => {
+  test("a styled span rides the table as a run with its marks, and the text reads as written", () => {
     expect(runsOf("This is **bold** here.")).toEqual({
       runs: [
         { text: "This is " },
         { text: "bold", marks: ["**"] },
         { text: " here." },
       ],
-      text: "This is bold here.",
+      text: "This is **bold** here.",
     });
   });
 
@@ -184,7 +184,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
         { text: " away", marks: ["*"] },
         { text: " now" },
       ],
-      text: "far a* b away now",
+      text: "*far a* b away* now",
     });
   });
 

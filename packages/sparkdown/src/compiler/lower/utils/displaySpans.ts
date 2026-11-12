@@ -57,7 +57,16 @@ export function collectDisplaySpans(
         hide(end.from, node.to);
         const contentFrom = Math.max(begin.to, from);
         const contentTo = Math.min(end.from, to);
-        if (contentFrom < contentTo) {
+        const closing =
+          end.to > end.from && end.from <= to ? SPAN_CLOSE : SPAN_END;
+        if (contentFrom === contentTo && begin.to >= from && end.from <= to) {
+          codes.push({
+            at: contentFrom,
+            code: spanOpen(ctx.read(begin.from, begin.to)) + closing,
+            closes: false,
+            depth,
+          });
+        } else if (contentFrom < contentTo) {
           codes.push({
             at: contentFrom,
             code: spanOpen(ctx.read(begin.from, begin.to)),
@@ -66,7 +75,7 @@ export function collectDisplaySpans(
           });
           codes.push({
             at: contentTo,
-            code: end.to > end.from && end.from <= to ? SPAN_CLOSE : SPAN_END,
+            code: closing,
             closes: true,
             depth,
           });

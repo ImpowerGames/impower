@@ -6,7 +6,7 @@ import { PRNG } from "../runtime/PRNG";
 import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
-import { stripStyleCodes } from "../runtime/displayStyle";
+import { writtenText } from "../runtime/displayStyle";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -676,7 +676,7 @@ export class ProgramStoryState {
       if (
         tableText instanceof StringValue &&
         tableText.isNonWhitespace &&
-        new StringValue(stripStyleCodes(tableText.value ?? "")).isNonWhitespace
+        new StringValue(writtenText(tableText.value ?? "")).isNonWhitespace
       ) {
         this.MarkFunctionsShown();
       }
@@ -904,7 +904,7 @@ export class ProgramStoryState {
   get currentText(): string | null {
     if (this._textDirty) {
       this._currentText = this._cleanWhitespace(
-        stripStyleCodes(this.outputText()),
+        writtenText(this.outputText()),
       );
       this._textDirty = false;
     }
