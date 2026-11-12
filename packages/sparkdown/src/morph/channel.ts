@@ -10,8 +10,8 @@ import { resolveImageAttributes } from "../compiler/utils/filterImage";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
 import { own, table } from "./own";
-import { buildMorphRecipe, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
-import { MORPH_BAKE_FORMAT, type MorphProgramChannel, type MorphRef } from "./types";
+import { buildMorphRecipe, morphOverlaps, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
+import { MORPH_BAKE_FORMAT, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -36,26 +36,48 @@ const canonicalSelection =(selection: Record<string, string>): string =>
   serializeImageFilterParam(selection) ??
   JSON.stringify(Object.fromEntries(Object.entries(selection).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
 
+interface MorphMember {
+  recipe: MorphRecipe;
+  text: string;
+  groups: string[];
+}
+
 function makeRef(
-  morph: string,
-  recipeText: string,
+  members: readonly MorphMember[],
   imageName: string,
   image: any,
   selection: Record<string, string>,
-  groups: string[],
 ): MorphRef | undefined {
   const token = sourceToken(image);
   if (!token) return undefined;
   const canonical = canonicalSelection(selection);
-  const key = hashText(JSON.stringify([MORPH_BAKE_FORMAT, token, canonical, recipeText]));
-  const ref: MorphRef = { morph, key, image: imageName, selection: canonical, groups };
+  const texts = members.map((member) => member.text);
+  const key = hashText(JSON.stringify([MORPH_BAKE_FORMAT, token, canonical, ...texts]));
+  const ref: MorphRef = {
+    morphs: members.map((member) => member.recipe.name),
+    key,
+    image: imageName,
+    selection: canonical,
+    groups: members.flatMap((member) => member.groups),
+  };
   if (!image?.data) {
     const filtered = buildFilteredSrc(image, selection);
     if (filtered?.includes("attributes=")) {
-      ref.src = `${filtered}&morph=${encodeURIComponent(recipeText)}&key=${key}`;
+      ref.src = `${filtered}${texts.map((text) => `&morph=${encodeURIComponent(text)}`).join("")}&key=${key}`;
     }
   }
   return ref;
+}
+
+function makeRefs(
+  members: readonly MorphMember[],
+  imageName: string,
+  image: any,
+  selection: Record<string, string>,
+): MorphRef[] {
+  const sorted = [...members].sort((a, b) => (a.recipe.name < b.recipe.name ? -1 : a.recipe.name > b.recipe.name ? 1 : 0));
+  const sets = morphOverlaps(sorted.map((member) => member.recipe)).length ? sorted.map((member) => [member]) : [sorted];
+  return sets.flatMap((set) => makeRef(set, imageName, image, selection) ?? []);
 }
 
 export function buildMorphChannel(
@@ -65,21 +87,27 @@ export function buildMorphChannel(
   if (morphs.size === 0) return undefined;
   const channel: MorphProgramChannel = { recipes: table(), variants: table() };
   const images = morphImages(context);
+  const playing = new Map<string, { image: string; selection: Record<string, string>; members: MorphMember[] }>();
   for (const [name, effective] of morphs) {
-    const recipeText = serializeMorphRecipe(buildMorphRecipe(name, effective));
-    channel.recipes[name] = recipeText;
+    const recipe = buildMorphRecipe(name, effective);
+    const text = serializeMorphRecipe(recipe);
+    channel.recipes[name] = text;
     const binding = bindMorph(context, effective, images);
     if (!startsEveryGroup(binding.requirements)) continue;
-    const groups = [...binding.requirements.groups.keys()];
+    const member: MorphMember = { recipe, text, groups: [...binding.requirements.groups.keys()] };
     for (const candidate of binding.candidates) {
       if (!candidate.compatible || candidate.type !== "image") continue;
-      const image = own(context["image"], candidate.image);
       for (const variant of candidate.variants) {
         if (variant.status !== "active") continue;
-        const ref = makeRef(name, recipeText, candidate.image, image, variant.selection, groups);
-        if (ref) (own(channel.variants, variant.name) ?? (channel.variants[variant.name] = [])).push(ref);
+        const entry = playing.get(variant.name) ?? { image: candidate.image, selection: variant.selection, members: [] };
+        entry.members.push(member);
+        playing.set(variant.name, entry);
       }
     }
+  }
+  for (const [variant, { image, selection, members }] of playing) {
+    const refs = makeRefs(members, image, own(context["image"], image), selection);
+    if (refs.length) channel.variants[variant] = refs;
   }
   return channel;
 }
@@ -97,9 +125,9 @@ export function morphRefsForStruct(
   const image = resolved.image;
   const vocabulary = resolved.vocabulary;
   if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") return [];
-  const refs: MorphRef[] = [];
-  for (const [morph, recipeText] of Object.entries(channel.recipes)) {
-    const recipe = parseMorphRecipe(recipeText);
+  const members: MorphMember[] = [];
+  for (const text of Object.values(channel.recipes)) {
+    const recipe = parseMorphRecipe(text);
     if (!recipe) continue;
     const requirements = morphRequirements(recipeAsMorph(recipe));
     const groups = [...requirements.groups.keys()];
@@ -109,8 +137,7 @@ export function morphRefsForStruct(
       groups.every((group) => [...requirements.groups.get(group)!].every((state) => groupHasState(vocabulary, group, state)));
     if (!compatible) continue;
     if (bindVariant(vocabulary, name, resolved.selection, requirements).status !== "active") continue;
-    const ref = makeRef(morph, recipeText, image.$name, image, resolved.selection, groups);
-    if (ref) refs.push(ref);
+    members.push({ recipe, text, groups });
   }
-  return refs;
+  return members.length ? makeRefs(members, image.$name, image, resolved.selection) : [];
 }

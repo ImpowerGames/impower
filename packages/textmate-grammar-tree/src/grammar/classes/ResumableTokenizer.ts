@@ -32,21 +32,25 @@ interface TokenizerFrame {
   wrapperNodes?: number[];
 }
 
+export interface TokenizerResumeScope {
+  readonly node: GrammarNode;
+  readonly beginCaptures: readonly string[];
+  readonly beginCapturedLineBreak: boolean;
+}
+
+export interface TokenizerResumeFrame {
+  readonly rule: ScopedRule;
+  readonly enteredAtAbs: number;
+  readonly contentNodeIndex: number;
+  readonly contentOpened: boolean;
+  readonly contentDropped: boolean;
+  readonly wrapperNodes?: readonly number[];
+}
+
 export interface TokenizerResume {
-  stack: {
-    node: GrammarNode;
-    beginCaptures: string[];
-    beginCapturedLineBreak: boolean;
-  }[];
-  frames: {
-    rule: ScopedRule;
-    openedAtAbs: number;
-    enteredAtAbs: number;
-    contentNodeIndex: number;
-    contentOpened: boolean;
-    contentDropped: boolean;
-    wrapperNodes?: number[];
-  }[];
+  readonly stack: readonly TokenizerResumeScope[];
+  readonly frames: readonly TokenizerResumeFrame[];
+  openedAtAbs: number[];
 }
 
 export interface TokenizerStepResult {
@@ -72,6 +76,8 @@ type DispatchResult =
 const REPEATED: DispatchResult = { kind: "repeated" };
 
 const CAPTURE_POOL_LIMIT = 64;
+
+const RECENT_RESUME_PARTS = 4;
 
 const capturePool: ResumableTokenizer[] = [];
 
@@ -105,6 +111,10 @@ export class ResumableTokenizer {
   protected retryingLineEnd = false;
 
   emitSplitSignals = false;
+
+  protected recentStacks: (readonly TokenizerResumeScope[])[] = [];
+
+  protected recentFrames: (readonly TokenizerResumeFrame[])[] = [];
 
   constructor(
     grammar: Grammar,
@@ -160,6 +170,8 @@ export class ResumableTokenizer {
     this.stoppedAtRoot = false;
     this.retryingLineEnd = false;
     this.emitSplitSignals = false;
+    this.recentStacks.length = 0;
+    this.recentFrames.length = 0;
     this._stepTokens.length = 0;
     this.state.resetToLine(text, offset, enclosing);
   }
@@ -610,22 +622,34 @@ export class ResumableTokenizer {
   }
 
   snapshot(): TokenizerResume {
-    return {
-      stack: this.state.stack.stack.slice(1).map((el) => ({
-        node: el.node,
-        beginCaptures: el.beginCaptures.slice(),
-        beginCapturedLineBreak: el.beginCapturedLineBreak,
-      })),
-      frames: this.frames.map((f) => ({
-        rule: f.rule,
-        openedAtAbs: this.anchor + f.openedAt,
-        enteredAtAbs: f.enteredAt < 0 ? -1 : this.anchor + f.enteredAt,
-        contentNodeIndex: f.contentNodeIndex,
-        contentOpened: f.contentOpened,
-        contentDropped: f.contentDropped,
-        wrapperNodes: f.wrapperNodes?.slice(),
-      })),
-    };
+    const stack =
+      recall(this.recentStacks, (scopes) => this.matchesStack(scopes)) ??
+      remember(
+        this.recentStacks,
+        this.state.stack.stack.slice(1).map((el) => ({
+          node: el.node,
+          beginCaptures: el.beginCaptures.slice(),
+          beginCapturedLineBreak: el.beginCapturedLineBreak,
+        })),
+      );
+    const frames =
+      recall(this.recentFrames, (parts) => this.matchesFrames(parts)) ??
+      remember(
+        this.recentFrames,
+        this.frames.map((f) => ({
+          rule: f.rule,
+          enteredAtAbs: f.enteredAt < 0 ? -1 : this.anchor + f.enteredAt,
+          contentNodeIndex: f.contentNodeIndex,
+          contentOpened: f.contentOpened,
+          contentDropped: f.contentDropped,
+          wrapperNodes: f.wrapperNodes?.slice(),
+        })),
+      );
+    const openedAtAbs = new Array<number>(this.frames.length);
+    for (let i = 0; i < this.frames.length; i++) {
+      openedAtAbs[i] = this.anchor + this.frames[i]!.openedAt;
+    }
+    return { stack, frames, openedAtAbs };
   }
 
   restore(resume: TokenizerResume, restartAbs: number) {
@@ -640,8 +664,9 @@ export class ResumableTokenizer {
         el.beginCapturedLineBreak,
       );
     }
-    for (const f of resume.frames) {
-      const openedAt = f.openedAtAbs - this.anchor;
+    for (let i = 0; i < resume.frames.length; i++) {
+      const f = resume.frames[i]!;
+      const openedAt = resume.openedAtAbs[i]! - this.anchor;
       this.frames.push({
         rule: f.rule,
         openedAt,
@@ -653,6 +678,8 @@ export class ResumableTokenizer {
       });
       this.state.enter(f.rule.id, openedAt, true);
     }
+    remember(this.recentStacks, resume.stack);
+    remember(this.recentFrames, resume.frames);
   }
 
   protected _stepTokens: GrammarToken[] = [];
@@ -801,16 +828,17 @@ export class ResumableTokenizer {
   }
 
   matchesResume(resume: TokenizerResume): boolean {
-    if (resume.frames.length !== this.frames.length) {
-      return false;
-    }
+    return this.matchesFrames(resume.frames) && this.matchesStack(resume.stack);
+  }
+
+  protected matchesStack(scopes: readonly TokenizerResumeScope[]): boolean {
     const stack = this.state.stack.stack;
-    if (resume.stack.length !== stack.length - 1) {
+    if (scopes.length !== stack.length - 1) {
       return false;
     }
-    for (let i = 0; i < resume.stack.length; i++) {
+    for (let i = 0; i < scopes.length; i++) {
       const a = stack[i + 1]!;
-      const b = resume.stack[i]!;
+      const b = scopes[i]!;
       if (a.node !== b.node) {
         return false;
       }
@@ -826,9 +854,16 @@ export class ResumableTokenizer {
         }
       }
     }
+    return true;
+  }
+
+  protected matchesFrames(frames: readonly TokenizerResumeFrame[]): boolean {
+    if (frames.length !== this.frames.length) {
+      return false;
+    }
     for (let i = 0; i < this.frames.length; i++) {
       const a = this.frames[i]!;
-      const b = resume.frames[i]!;
+      const b = frames[i]!;
       if (a.rule !== b.rule) {
         return false;
       }
@@ -883,4 +918,26 @@ export class ResumableTokenizer {
     this.state.stack.close(1);
     this.drained = true;
   }
+}
+
+function recall<T>(recent: T[], matches: (part: T) => boolean): T | undefined {
+  for (let i = 0; i < recent.length; i++) {
+    const part = recent[i]!;
+    if (matches(part)) {
+      if (i > 0) {
+        recent.splice(i, 1);
+        recent.unshift(part);
+      }
+      return part;
+    }
+  }
+  return undefined;
+}
+
+function remember<T>(recent: T[], part: T): T {
+  recent.unshift(part);
+  if (recent.length > RECENT_RESUME_PARTS) {
+    recent.length = RECENT_RESUME_PARTS;
+  }
+  return part;
 }

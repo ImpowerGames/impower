@@ -182,7 +182,7 @@ Rules to keep in mind:
 - The descriptive name before a condition cannot contain a dot, because a dot always means "is".
 - End every layer that belongs to the resting look with `:default`. Within one folder, the resting layers of a group must all name the same option; if they name two, the editor reports it. If a group of named options has no resting layer in a folder, nothing from it shows there until the script chooses. A switch, a group whose options are `on` and `off`, needs no marker: it is off until turned on.
 - A layer may list several options of one group after the dot, `hand-right:arms.down.phone-left`, and then shows for any of them: the right hand is down when the arms are down and also when the phone is in the left hand. Read the extra dots as "or". If this layer ends in `:default`, the first option is its resting option. Conditions from different groups still all have to hold.
-- An option with a hyphen in it is a kind of the word before the hyphen: `arms.phone` on a layer also matches `phone-left` and `phone-right`, so one layer can serve every way of holding the phone, while `arms.phone-left` matches only that one.
+- A condition matches only the options it names: `arms.phone` shows for `phone` and not for `phone-left`. A layer that serves every way of holding the phone lists each one, `arm:arms.phone.phone-left.phone-right`.
 - A layer inside a conditional layer inherits the condition and does not need to repeat it.
 - Layers may share a name. Give every mouth `mouth` and every set of open eyes `whites:eyes.open:default` if that is what they are.
 - Layer names are checked when the file is loaded into the project. A name that does not follow the rules is reported in the editor's problems panel with the layer name, so a slip never silently changes what a layer means.
@@ -199,7 +199,7 @@ The three punctuation marks follow from that:
 
 - A dot joins a question to its answer: `arms.phone-left`. A second dot lists another answer that also shows the layer: `arms.down.phone-left`.
 - A colon means "when": it separates the layer's name from its conditions, and one condition from the next. `hand-right:arms.down:clothes.coat` shows the hand when the arms are down and the outfit is the coat.
-- A hyphen joins words inside one name or one option: `hair-under-brim`, `far-right`, `phone-left`. It also makes an option a kind of a broader one, so `phone-left` counts as `phone`.
+- A hyphen joins words inside one name or one option: `hair-under-brim`, `far-right`, `phone-left`.
 
 So for a phone held in the left hand, the question is "what are the arms doing?", and the answer is "holding the phone, in the left hand": `arms.phone-left`. Not `hold-left.phone`, because `hold-left` is not a question about the character, and not `hold.phone-left`, because holding is not a part; the arms are.
 

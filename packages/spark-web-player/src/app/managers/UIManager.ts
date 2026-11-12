@@ -44,7 +44,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import type { StreamMessage } from "../../../../spark-engine/src/game/core/classes/Connection";
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
-import { MorphPlayback } from "../morph/MorphPlayback";
+import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -1781,6 +1781,7 @@ export default class UIManager extends Manager {
           }
           continue;
         }
+        const morphGroup = new MorphGroup();
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
             const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
@@ -1832,6 +1833,7 @@ export default class UIManager extends Manager {
                 content.background,
                 property === "mask_image" ? "mask" : "background",
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+                morphGroup,
               );
             }
             if (instruction.control === "show") {

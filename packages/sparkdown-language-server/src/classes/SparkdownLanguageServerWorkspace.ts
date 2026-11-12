@@ -475,7 +475,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     for (const { variant, ref, uri: artwork } of this.morphRefs(program)) {
       if (artwork !== uri) continue;
       for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
-        const key = JSON.stringify([d.morph, d.code, d.severity, d.layer, d.message]);
+        const key = JSON.stringify([d.morphs, d.code, d.severity, d.layer, d.message]);
         const group: Group = grouped.get(key) ?? { diagnostic: d, variants: [] };
         if (!group.variants.includes(variant)) group.variants.push(variant);
         grouped.set(key, group);
@@ -491,7 +491,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         severity: d.severity === "error" ? 1 : 2,
         code: `morph-${d.code}`,
         source: "sparkdown",
-        message: `Morph \`${d.morph}\` on ${shown}${more}${where}: ${d.message}`,
+        message: `${d.morphs.length > 1 ? "Morphs" : "Morph"} ${d.morphs.map((m) => `\`${m}\``).join(" and ")} on ${shown}${more}${where}: ${d.message}`,
       });
     }
     return out;
@@ -518,7 +518,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
                 code: "source-unreadable",
                 severity: "warning",
                 message: `It could not be baked: ${error instanceof Error ? error.message : String(error)}`,
-                morph: ref.morph,
+                morphs: ref.morphs,
                 variant,
               },
             ]);
@@ -539,7 +539,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const program = [...this._entryPrograms.values()].find(
       (p) => p.context === context || (!!p.context?.["image"] && p.context["image"] === context["image"]),
     );
-    const ref = program ? morphRefsForStruct(context, program.morphs, struct)[0] : undefined;
+    const refs = program ? morphRefsForStruct(context, program.morphs, struct) : [];
+    const ref = refs.length === 1 ? refs[0] : undefined;
     if (!program || !ref) return undefined;
     const wait = new Promise<undefined>((resolve) =>
       setTimeout(() => resolve(undefined), SparkdownLanguageServerWorkspace.MORPH_PREVIEW_WAIT_MS),

@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { dirname, join, sep } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, test } from "vitest";
-import { compareEnginesFull, type EngineOptions, formatDivergences } from "./scopeEquality";
+import { compareEnginesFull, type EngineOptions, formatDivergences, vscodeScopeStacksPerChar } from "./scopeEquality";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
@@ -18,6 +18,8 @@ const TARGETED: Record<string, string> = {
   "doc-param-tag-at-column-0":
     "function f()\n  --[[\n\\param x the value\n  ]]\n  return 1\nend\n",
   "assign-trailing-space-top-level": "x = \nlocal z = 1\n",
+  "ampersand-statement-after-values":
+    "scene s\n  local a = 0 & a = 2\n  store b = 0 & b = 2\n  a = 0 & a = 2\n  local c = 1 + 2&c = c * 2\n  c = -c & c = c .. \"x\"\n  local d = if a then 1 else 2 & d = #t\n  local e: A & B = f(1) & e = not e\n  repeat\n    Hi.\n  until a == b & a = a and b\n  x = a&b\nend\n",
   "next-line-method-trivia":
     "function f()\n  flag:\n\n  -- a note\n  m()\n  flag: --[[note]] m()\n  flag:\n  --[[note]] end\nend\nfunction g()\n  flag:\n  --[[note]] (1)\n  flag:\n  --[[note]] then\nend\nAfter {f()}.\n",
   "long-string-call-argument":
@@ -191,6 +193,26 @@ describe("engine scope-stack equality", () => {
         await assertEqual(source);
       });
     }
+  });
+
+  test("a same-line `&` after a declaration's, reassignment's or `until` condition's value is the statement mark", async () => {
+    const statements = [
+      "local a = 0 & a = 2",
+      "store b = 0 & b = 2",
+      "a = 0 & a = 2",
+      "local c = 1 + 2 & c = 3",
+      "c = -c & c = 1",
+      'local f = "a" .. "b" & f = 1',
+      "local e = not a & e = 1",
+      "local d = if a then 1 else 2 & d = #t",
+      "repeat\n    Hi.\n  until a == b & a = 1",
+    ];
+    const source = `scene s\n${statements.map((statement) => `  ${statement}\n`).join("")}end\n`;
+    await assertEqual(source);
+    const stacks = await vscodeScopeStacksPerChar(source);
+    const marks = [...source.matchAll(/&/g)].map((match) => match.index!);
+    expect(marks).toHaveLength(statements.length);
+    expect(marks.map((mark) => stacks[mark]!.at(-1))).toEqual(marks.map(() => "keyword.other.statement.explicit.luau.mark.sd"));
   });
 
   describe("snapshot corpus", () => {

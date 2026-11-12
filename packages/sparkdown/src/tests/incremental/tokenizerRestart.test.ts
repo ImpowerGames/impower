@@ -98,7 +98,7 @@ function tokenize(
   snapshotAt?: number,
 ): { tokens: GrammarToken[]; snapshot?: TokenizerResume } {
   const anchor = restart
-    ? lineStartOf(src, Math.min(restart.resume.frames[0]?.openedAtAbs ?? restart.at, restart.at))
+    ? lineStartOf(src, Math.min(restart.resume.openedAtAbs[0] ?? restart.at, restart.at))
     : 0;
   const tokenizer = new ResumableTokenizer(grammar, (p) => src.slice(p), anchor);
   if (restart) {

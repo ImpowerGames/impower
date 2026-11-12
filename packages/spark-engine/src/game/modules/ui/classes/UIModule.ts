@@ -12,6 +12,7 @@ import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolv
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { morphOverlaps, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
@@ -1743,33 +1744,45 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           continue;
         }
         this.deliverMorphArtifact(ref);
-        const timing = { ...default_morph().timing, ...(this.context.morph?.[ref.morph]?.timing ?? {}) } as MorphTiming;
-        const motion = buildMorphMotion(this.context.morph?.[ref.morph]?.keyframes);
-        plays.push({
-          layer: index,
-          ref,
-          timing,
-          ...(motion ? { motion } : {}),
-          definition: hashText(`${channel.recipes[ref.morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
-        });
+        for (const morph of ref.morphs) {
+          const timing = { ...default_morph().timing, ...(this.context.morph?.[morph]?.timing ?? {}) } as MorphTiming;
+          const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+          plays.push({
+            layer: index,
+            ref,
+            morph,
+            timing,
+            ...(motion ? { motion } : {}),
+            definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+          });
+        }
       }
     }
     return plays.length > 0 ? { plays, epoch: this._morphEpoch } : undefined;
   }
 
   protected reportMorphConflict(image: string, refs: MorphRef[]) {
-    const names = refs.map((r) => r.morph).sort();
+    const names = refs.flatMap((r) => r.morphs).sort();
     const key = `${image}\n${names.join("\n")}`;
     if (this._morphConflicts.has(key)) {
       return;
     }
     this._morphConflicts.add(key);
-    const shared = refs[0]!.groups.filter((g) => refs.slice(1).some((r) => r.groups.includes(g)));
-    const list = names.map((n) => `\`${n}\``).join(", ");
+    const recipes = names.flatMap((name) => {
+      const recipe = parseMorphRecipe(this._game.program?.morphs?.recipes[name] ?? "");
+      return recipe ? [recipe] : [];
+    });
+    const quote = (list: string[]) => list.map((n) => `\`${n}\``).join(", ");
+    const shares = morphOverlaps(recipes).map(({ morphs, groups, moved, clips }) => {
+      const what = [
+        ...(groups.length ? [`${groups.length > 1 ? "groups" : "group"} ${quote(groups)}`] : []),
+        ...(moved.length ? [`moved ${moved.length > 1 ? "labels" : "label"} ${quote(moved)}`] : []),
+        ...(clips.length ? [`clip ${clips.length > 1 ? "labels" : "label"} ${quote(clips)}`] : []),
+      ];
+      return `${quote(morphs)} share ${what.join(" and ")}`;
+    });
     this._game.log(
-      shared.length > 0
-        ? `\`${image}\` is claimed by ${list}, which all drive ${shared.map((g) => `\`${g}\``).join(", ")}; it stays still until only one morph plays on it.`
-        : `\`${image}\` has more than one morph (${list}); one image plays one morph, so it stays still until only one plays on it.`,
+      `\`${image}\` stays still: ${quote(names)} play on it, and ${shares.join("; ")}. Morphs play together on one image only where they drive different groups, move different labels and name different clip labels.`,
       "warning",
     );
   }

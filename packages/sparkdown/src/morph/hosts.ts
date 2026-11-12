@@ -66,16 +66,21 @@ const recipeFor = (text: string): MorphRecipe | undefined => {
 
 export function createMorphHost(options: MorphHostOptions): MorphHost {
   const load = (ref: MorphRef) => async (signal: AbortSignal): Promise<MorphLoad> => {
+    const names = ref.morphs.join(", ");
     if (ref.src && options.fetch) {
       const response = await options.fetch(ref.src, { signal });
-      if (!response.ok) throw new Error(`The asset service answered ${response.status} for ${ref.morph}.`);
+      if (!response.ok) throw new Error(`The asset service answered ${response.status} for ${names}.`);
       const artifact: unknown = await response.json();
-      if (!isMorphArtifact(artifact)) throw new Error(`The asset service's ${ref.morph} artifact is not one this player can read.`);
+      if (!isMorphArtifact(artifact)) throw new Error(`The asset service's ${names} artifact is not one this player can read.`);
       return { kind: "artifact", artifact: { ...artifact, key: ref.key } };
     }
-    const text = own(options.channel()?.recipes, ref.morph);
-    const recipe = text === undefined ? undefined : recipeFor(text);
-    if (!recipe) throw new Error(`The program has no recipe for \`${ref.morph}\`.`);
+    const recipes: MorphRecipe[] = [];
+    for (const name of ref.morphs) {
+      const text = own(options.channel()?.recipes, name);
+      const recipe = text === undefined ? undefined : recipeFor(text);
+      if (!recipe) throw new Error(`The program has no recipe for \`${name}\`.`);
+      recipes.push(recipe);
+    }
     const source = await options.readSource?.(ref, signal);
     if (!source) throw new Error(`The artwork for \`${ref.image}\` is not available to bake.`);
     let selection: Record<string, string>;
@@ -89,7 +94,7 @@ export function createMorphHost(options: MorphHostOptions): MorphHost {
       input: {
         source: source.text,
         selection,
-        recipe,
+        recipes,
         key: ref.key,
         variant: variantName(options.channel(), ref),
         ...(source.uri === undefined ? {} : { uri: source.uri }),

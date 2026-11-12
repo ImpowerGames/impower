@@ -145,14 +145,14 @@ await check("gestures take screen pixels with an optional duration", () => {
 });
 
 await check("every named step is accepted by --step in ui and screenshot, and an unknown one lists them all", () => {
-  const names = ["app-menu", "dialog", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings", "focus-project-name", "focus-script-name"];
+  const names = ["app-menu", "dialog", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings", "focus-project-name", "focus-script-name", "wheel-list"];
   assert.deepEqual(Object.keys(NAMED_STEPS).sort(), [...names].sort());
   for (const name of names) {
     const spec = name === "settings" ? "settings=appearance" : name;
     assert.deepEqual(parseUiSteps(["--step", spec], { device: null }), [name === "settings" ? { step: "settings", section: "appearance" } : { step: name }]);
     assert.deepEqual(parseScreenshotArgs(["story", "--step", spec], { viewport: null, colorScheme: null, theme: null }).steps, [spec]);
   }
-  assert.throws(() => parseUiSteps(["--step", "menu"], { device: null }), /unknown --step "menu" \(know: app-menu, dialog, .*settings=<section>, focus-project-name, focus-script-name\)/);
+  assert.throws(() => parseUiSteps(["--step", "menu"], { device: null }), /unknown --step "menu" \(know: app-menu, dialog, .*settings=<section>, focus-project-name, focus-script-name, wheel-list\)/);
   assert.throws(() => parseUiSteps(["--step", "settings"], { device: null }), /--step settings needs a section, as settings=<section>/);
   assert.throws(() => parseUiSteps(["--step", "play=fast"], { device: null }), /--step play takes no value/);
   assert.throws(() => parseScreenshotArgs(["story", "--step", "nope"], { viewport: null, colorScheme: null, theme: null }), /unknown --step "nope"/);
@@ -267,8 +267,8 @@ await check("every step not built yet runs through ui as a failure naming the ti
     assert.equal(process.exitCode, 1, spec);
     process.exitCode = 0;
   }
-  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["app-menu", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings", "focus-project-name", "focus-script-name"]);
-  for (const name of ["app-menu", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings=appearance", "focus-project-name", "focus-script-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["app-menu", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings", "focus-project-name", "focus-script-name", "wheel-list"]);
+  for (const name of ["app-menu", "drawer", "file-menu", "asset-inspector", "add-menu", "preview-settings", "play", "problems", "settings=appearance", "focus-project-name", "focus-script-name", "wheel-list"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
 });
 
 await check("on a device, ui reports the device, sends gestures through it and takes --shot as the whole screen", async () => {
