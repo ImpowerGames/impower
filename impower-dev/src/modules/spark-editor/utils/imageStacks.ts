@@ -56,6 +56,14 @@ export const stackNameOf = (base: string): string => {
   return dot > 0 ? base.slice(0, dot) : base;
 };
 
+export const AS_IS = "";
+
+export const choicesOf = (group: StackGroup): string[] =>
+  group.switch || group.default !== undefined ? group.options : [AS_IS, ...group.options];
+
+export const variantsOf = (groups: readonly StackGroup[]): number =>
+  groups.reduce((count, group) => count * choicesOf(group).length, 1);
+
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 const groupsOf = (names: readonly string[]): StackGroup[] => {
@@ -88,7 +96,7 @@ const pictureOf = (
     ...(own === undefined ? {} : { path: own }),
     layers,
     groups,
-    variants: groups.reduce((count, group) => count * group.options.length, 1),
+    variants: variantsOf(groups),
   };
 };
 
