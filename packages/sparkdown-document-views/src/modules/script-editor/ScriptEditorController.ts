@@ -1223,7 +1223,8 @@ export class ScriptEditorController {
   protected handleApplyEditorEdit = async (
     message: ApplyEditorEditMessage.Request,
   ) => {
-    const { edit, closedTexts, fix, undoFix } = message.params;
+    const { edit, closedTexts, claim, expectedTexts, fix, undoFix } =
+      message.params;
     const view = this._view;
     const uri = this._textDocument?.uri;
     const fixed = fix?.uri ?? undoFix?.uri;
@@ -1237,6 +1238,7 @@ export class ScriptEditorController {
         ClaimedEditorEditMessage.type.notification({
           request: message.id,
           uri,
+          text: view.state.doc.toString(),
         }),
         this.host,
       );
@@ -1265,14 +1267,32 @@ export class ScriptEditorController {
           uri,
           edits,
         }));
-    if (view && uri && textEdits.some((change) => change.uri === uri)) {
-      sendProtocolMessage(
-        ClaimedEditorEditMessage.type.notification({
-          request: message.id,
-          uri,
-        }),
-        this.host,
-      );
+    const holds =
+      view && uri && textEdits.some((change) => change.uri === uri);
+    if (claim) {
+      if (view && uri && holds) {
+        sendProtocolMessage(
+          ClaimedEditorEditMessage.type.notification({
+            request: message.id,
+            uri,
+            text: view.state.doc.toString(),
+          }),
+          this.host,
+        );
+      }
+      return ApplyEditorEditMessage.type.response(message.id, { applied: [] });
+    }
+    const expected = holds && uri ? expectedTexts?.[uri] : undefined;
+    if (
+      view &&
+      uri &&
+      expected !== undefined &&
+      view.state.doc.toString() !== expected
+    ) {
+      return ApplyEditorEditMessage.type.response(message.id, {
+        applied: [],
+        refused: [uri],
+      });
     }
     for (const change of textEdits) {
       const edits = change.edits.filter((e) => "newText" in e);
@@ -1280,6 +1300,9 @@ export class ScriptEditorController {
         continue;
       }
       if (view && change.uri === uri) {
+        if (expected === undefined) {
+          continue;
+        }
         const dispatch = (
           offsetOf: (position: Range["start"]) => number,
         ) =>
@@ -1468,12 +1491,6 @@ export class ScriptEditorController {
                     request.id,
                   ),
                 );
-              },
-              onWillApplyWorkspaceEdit: () => {
-                this.allowEditing(false);
-              },
-              onDidApplyWorkspaceEdit: () => {
-                this.allowEditing(!this.options.readonly);
               },
             }),
           textDocument: this._textDocument,

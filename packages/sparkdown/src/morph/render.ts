@@ -375,7 +375,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     const pose = own(poses, group);
     const segment = pose && "segment" in pose ? artifact.segments[pose.segment] : undefined;
     if (!segment || !pose || !("segment" in pose)) {
-      const held = pose && "state" in pose ? pose.state : own(artifact.schedules, group)?.[0]?.state;
+      const held = pose && "state" in pose ? pose.state : (own(artifact.rests ?? {}, group) ?? own(artifact.schedules, group)?.[0]?.state);
       const all = new Set(Object.values(states).flat());
       for (const node of all) (own(states, held ?? "")?.includes(node) ? shown : hidden).add(node);
       const last = pose && "state" in pose ? pose.last : undefined;
@@ -587,7 +587,7 @@ export function renderMorphFrame(artifact: MorphArtifact, pose: MorphPose): stri
   if (!segment) return artifact.rest;
   const poses: Record<string, MorphGroupPose> = table();
   for (const group of Object.keys(artifact.visibility)) {
-    poses[group] = group === segment.group ? pose : { state: own(artifact.schedules, group)?.[0]?.state ?? "" };
+    poses[group] = group === segment.group ? pose : { state: own(artifact.rests ?? {}, group) ?? own(artifact.schedules, group)?.[0]?.state ?? "" };
   }
   return renderMorphState(artifact, morphFrameState(artifact, poses));
 }

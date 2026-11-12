@@ -2,6 +2,7 @@ import { formatColor, readEntryColor } from "./color";
 import { morphMotionLabels } from "./motion";
 import { own, table } from "./own";
 import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyframes";
+import { morphRequirements } from "../compiler/morph/bindMorph";
 import {
   MORPH_BLENDS,
   MORPH_CLIP_SPREAD_DEFAULT,
@@ -134,6 +135,14 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
   for (const keyframe of keyframes) {
     for (const [group, state] of Object.entries(keyframe.states)) named.set(group, (named.get(group) ?? new Set()).add(state));
   }
+  const rest: Record<string, string> = table();
+  if (isRecord(morph["rest"])) {
+    for (const group of Object.keys(morph["rest"]).sort()) {
+      const container = morph["rest"][group];
+      const state = isRecord(container) ? container["state"] : undefined;
+      if (named.has(group) && typeof state === "string" && state && !state.includes(".")) rest[group] = state;
+    }
+  }
   const paints: MorphPaintEntry[] = [];
   if (Array.isArray(morph["paints"])) {
     for (const entry of morph["paints"]) {
@@ -155,6 +164,7 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     ...(root.spread ? { spread: root.spread } : {}),
     layers,
     keyframes,
+    ...(Object.keys(rest).length ? { rest } : {}),
     clips,
     ...(paints.length ? { paints } : {}),
     ...(motion.length ? { motion } : {}),
@@ -204,9 +214,29 @@ export function recipeAsMorph(recipe: MorphRecipe): Record<string, unknown> {
       for (const [group, state] of Object.entries(k.states)) frame[group] = { state };
       return frame;
     }),
+    ...(recipe.rest ? { rest: Object.fromEntries(Object.entries(recipe.rest).map(([group, state]) => [group, { state }])) } : {}),
     layers: recipe.layers,
     clips: recipe.clips,
   };
+}
+
+export function morphRestPose(recipe: MorphRecipe): Record<string, string> {
+  return Object.fromEntries(morphRequirements(recipeAsMorph(recipe)).rest);
+}
+
+export function morphPoseAt(recipe: MorphRecipe, offset: number): Record<string, string> {
+  const rest = morphRestPose(recipe);
+  const pose: Record<string, string> = table();
+  for (const group of recipeGroups(recipe)) {
+    const entries = recipe.keyframes.flatMap((keyframe) => {
+      const state = own(keyframe.states, group);
+      return state === undefined ? [] : [{ offset: keyframe.offset, state }];
+    });
+    if (entries[0]!.offset > 0) entries.unshift({ offset: 0, state: rest[group]! });
+    if (entries[entries.length - 1]!.offset < 1) entries.push({ offset: 1, state: rest[group]! });
+    pose[group] = entries.filter((entry) => entry.offset <= offset).at(-1)?.state ?? entries[0]!.state;
+  }
+  return pose;
 }
 
 export function serializeMorphRecipe(recipe: MorphRecipe): string {
@@ -229,6 +259,9 @@ export function parseMorphRecipe(text: string): MorphRecipe | undefined {
     clips: Array.isArray(value["clips"])
       ? value["clips"].map(pixels)
       : value["clips"],
+    rest: isRecord(value["rest"])
+      ? Object.fromEntries(Object.entries(value["rest"]).map(([group, state]) => [group, { state }]))
+      : value["rest"],
     keyframes: Array.isArray(value["keyframes"])
       ? value["keyframes"].map((k) => {
           if (!isRecord(k)) return {};

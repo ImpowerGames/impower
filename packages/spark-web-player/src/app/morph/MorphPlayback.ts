@@ -253,6 +253,7 @@ export class MorphPlayback {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
     this.restartAll();
+    for (const layer of this.layers) layer.showStill();
     this.render();
     this.schedule();
   }
@@ -525,6 +526,7 @@ export class MorphLayer {
   protected statics: { div: HTMLElement; layer: number }[] = [];
 
   protected layers: string[];
+  protected still?: string[];
 
   constructor(
     protected playback: MorphPlayback,
@@ -537,6 +539,7 @@ export class MorphLayer {
   ) {
     this.layers = cssList(background).reverse();
     group.add(this);
+    if (kind === "background" && content.still) this.still = cssList(content.still).reverse();
   }
 
   get active(): boolean {
@@ -545,6 +548,25 @@ export class MorphLayer {
 
   get pending(): boolean {
     return this.images.some((image) => image.slot.state === "pending");
+  }
+
+  protected staticLayer(index: number): string {
+    const image = this.images.find((entry) => entry.layer === index);
+    const pending =
+      !!image &&
+      (image.slot.state === "idle" ||
+        image.slot.state === "pending" ||
+        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.broken));
+    return pending && this.still && this.playback.animating ? (this.still[index] ?? this.layers[index]!) : this.layers[index]!;
+  }
+
+  showStill() {
+    if (!this.still || this.frozen || this.disposed) return;
+    if (this.shadowHost) {
+      this.layout();
+      return;
+    }
+    this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
   }
 
   get live(): boolean {
@@ -575,6 +597,7 @@ export class MorphLayer {
     }
     this.playback.track(this);
     for (const image of this.images) image.slot.set(image.plays[0]!.play.ref);
+    this.showStill();
   }
 
   get occurrenceKeys(): string[] {
@@ -609,6 +632,7 @@ export class MorphLayer {
       return;
     }
     this.build();
+    this.showStill();
     this.playback.track(this);
   }
 
@@ -792,7 +816,7 @@ export class MorphLayer {
       }
     }
     for (const { div, layer } of this.statics) {
-      const style = `position:absolute;inset:0;background-image:${this.layers[layer]};${this.layerStyle(computed, count - 1 - layer)}`;
+      const style = `position:absolute;inset:0;background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
     const area = positioningArea(this.span, computed);

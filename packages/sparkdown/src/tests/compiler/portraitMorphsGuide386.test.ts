@@ -36,6 +36,9 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
   </g>
   <g data-name="nose" id="no"/>
   <g data-name="masked-nose:mask.on" id="mn"/>
+  <g data-name="lips:mouth.closed:default" id="mc"/>
+  <g data-name="lips:mouth.open" id="mo"/>
+  <g data-name="lips:mouth.teeth" id="mt"/>
 </g>
 </svg>`;
 
@@ -90,15 +93,30 @@ describe("the portrait morphs guide chapter", () => {
     expect(found.map((d) => d.message)).toContain("No image the morph applies to has a layer labelled `eyelash-left`.");
   });
 
-  test("a look resting closed is dormant and silent, and folders resting apart warn on the morph", () => {
+  test("the first blink's `unless` keeps a closed look silent; without it the closed choice warns, and a folder lacking a state warns on the morph", () => {
     const first = examples()[0]!;
+    expect(first).toContain("unless = eyes.closed");
     expect(diagnosticsOf(first, undefined, "[[mia:eyes.closed]]")).toEqual([]);
-    const apart = `<svg xmlns="http://www.w3.org/2000/svg">
+    const plain = first.replace("  unless = eyes.closed\n", "");
+    const overridden = diagnosticsOf(plain, undefined, "[[mia:eyes.closed]]");
+    expect(overridden.map((d) => d.message)).toEqual([expect.stringContaining("`blink` plays on this look and rests its `eyes` on `open`")]);
+    expect(diagnosticsOf(plain)).toEqual([]);
+    const lacking = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="left" id="l"><g data-name="lid:eyes.open:default" id="lo"/><g data-name="lid:eyes.closed" id="lc"/></g>
-<g data-name="right" id="r"><g data-name="lid:eyes.closed:default" id="rc"/><g data-name="lid:eyes.open" id="ro"/></g>
+<g data-name="right" id="r"><g data-name="lid:eyes.open:default" id="ro"/></g>
 </svg>`;
-    const found = diagnosticsOf(first, [apart, SPLIT_LASHES]);
-    expect(found.some((d) => d.message.includes("rest in different `eyes` states"))).toBe(true);
+    const found = diagnosticsOf(first, [lacking, SPLIT_LASHES]);
+    expect(found.some((d) => d.message.includes('folder "right" draws no `eyes.closed`'))).toBe(true);
+  });
+
+  test("the chapter's `rest` example rests on a state its keyframes never show, on looks its `when` admits", () => {
+    const smile = examples().find((example) => example.includes("morph talk_smile"))!;
+    expect(smile).toContain("when = mouth.teeth");
+    expect(diagnosticsOf(smile, undefined, "[[mia:mouth.teeth]]")).toEqual([]);
+    expect(chapter()).toContain("### Keeping a morph off a look");
+    expect(chapter()).toContain("### Where a morph rests");
+    expect(chapter()).toContain("### The look a portrait shows");
+    expect(chapter()).not.toMatch(/dormant/);
   });
 
   test("the pairing the chapter describes is the pairing the bake runs", () => {
@@ -151,12 +169,11 @@ describe("the portrait morphs guide chapter", () => {
       morphRandom("guide"),
     ).at(0.0001);
     expect(reverse.phase === "playing" && reverse.offset).toBeGreaterThan(0.99);
-    expect(chapter()).toContain("This check uses the first pose whatever the `direction`, though a `reverse` play begins from the last pose");
-    expect(chapter()).not.toMatch(/where the morph starts|than the morph starts from/);
+    expect(chapter()).toContain("A morph whose first and last poses are both its rest comes back to rest seamlessly whichever direction it plays in");
+    expect(chapter()).not.toMatch(/where the morph starts|than the morph starts from|first pose is the state a portrait has to rest in/);
 
     const text = chapter();
     expect(text).toContain("the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches");
-    expect(text).toContain("so the portrait comes back to rest whichever direction the morph plays in");
     expect(text).not.toMatch(/returns to the state it was drawn in|holds its last pose when it finishes|End on it too/);
   });
 

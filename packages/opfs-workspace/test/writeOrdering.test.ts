@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { allocateCommit } from "../src/utils/commitSequence";
+import { reloadsForWrite } from "../../../impower-dev/src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
 import {
   MemoryDirectory,
   MemoryFile,
@@ -103,6 +104,7 @@ async function worker(root: MemoryDirectory) {
   vi.resetModules();
   vi.useFakeTimers();
   const messages: any[] = [];
+  const channelPosts: any[] = [];
   let channel: { onmessage: ((event: { data: unknown }) => void) | null } | undefined;
   vi.stubGlobal("navigator", {
     storage: { getDirectory: async () => root },
@@ -115,7 +117,9 @@ async function worker(root: MemoryDirectory) {
       constructor() {
         channel = this;
       }
-      postMessage() {}
+      postMessage(message: unknown) {
+        channelPosts.push(structuredClone(message));
+      }
       close() {}
     },
   );
@@ -159,7 +163,7 @@ async function worker(root: MemoryDirectory) {
     notifications("workspace/didWriteFiles", from).flatMap((m) =>
       m.params.files.filter((f: any) => f.uri === uriOf(path)).map((f: any) => f.text),
     );
-  return { messages, start, response, request, remote, enumerate, cached, notifications, writtenTexts };
+  return { messages, channelPosts, start, response, request, remote, enumerate, cached, notifications, writtenTexts };
 }
 
 const writeOf = (path: string, text: string, origin?: string) => ({
@@ -2493,4 +2497,492 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
     expect(textAt(root, "main.sd")).toBe("M");
   });
+});
+
+describe("an edit an open editor finishes after the worker has applied the rest (I-2100)", () => {
+  const rest = {
+    documentChanges: [
+      insert("chapter.sd", 0, "x"),
+      { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+    ],
+  };
+
+  const asks = (h: Awaited<ReturnType<typeof worker>>) =>
+    h.messages.filter((m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m);
+
+  const answer = (id: unknown, result: unknown) =>
+    void (globalThis as any).onmessage({
+      data: { jsonrpc: "2.0", method: "workspace/confirmWorkspaceEdit", id, result },
+    });
+
+  it("asks before it answers, and announces nothing until the editor has applied its part", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", { edit: rest, confirm: true });
+    await vi.advanceTimersByTimeAsync(250);
+    const [ask] = asks(h);
+    expect(ask?.params).toEqual({ edit: "edit" });
+    expect(h.response("edit")).toBeUndefined();
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect(h.writtenTexts("chapter.sd", from)).toEqual([]);
+    answer(ask.id, {});
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result).toEqual({ applied: true });
+    expect(listMemory(root, "local")).toEqual(["b.sd", "chapter.sd"]);
+    expect(textAt(root, "chapter.sd")).toBe("xC");
+  });
+
+  it("rolls the rest back and reports the editor's refusal when the editor refuses its part", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", { edit: rest, confirm: true });
+    await vi.advanceTimersByTimeAsync(250);
+    const [ask] = asks(h);
+    answer(ask.id, { refusal: "main.sd changed before the edit could be applied" });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result).toEqual({
+      applied: false,
+      failureReason: "main.sd changed before the edit could be applied",
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(listMemory(root, "local")).toEqual(["a.sd", "chapter.sd"]);
+    expect(textAt(root, "chapter.sd")).toBe("C");
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect((await h.cached("chapter.sd")).text).toBe("C");
+    expect(await h.cached("b.sd")).toBeUndefined();
+  });
+
+  it("does not ask when the rest fails on its own", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("chapter.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+      confirm: true,
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(asks(h)).toEqual([]);
+    expect(textAt(root, "chapter.sd")).toBe("C");
+  });
+});
+
+describe("the announcement of a rollback's restoring write (I-2100)", () => {
+  const restoredIn = (h: Awaited<ReturnType<typeof worker>>, from: number) =>
+    h.notifications("workspace/didWriteFiles", from).map((m) => ({
+      texts: m.params.files.map((f: any) => [f.uri, f.text]),
+      restored: m.params.restored,
+    }));
+
+  it("names the file a refused edit's rollback restored", async () => {
+    const root = seed({ "chapter.sd": "C", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          insert("chapter.sd", 0, "x"),
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+        ],
+      },
+      confirm: true,
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    const ask = h.messages.find((m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m);
+    void (globalThis as any).onmessage({
+      data: { jsonrpc: "2.0", method: "workspace/confirmWorkspaceEdit", id: ask.id, result: { refusal: "no" } },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(restoredIn(h, from)).toContainEqual({
+      texts: [
+        [uriOf("chapter.sd"), "C"],
+        [uriOf("a.sd"), "A"],
+      ],
+      restored: [uriOf("chapter.sd"), uriOf("a.sd")],
+    });
+  });
+
+  it("names the file restored after a later change of the edit failed", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+    });
+    expect(restoredIn(h, from)).toContainEqual({
+      texts: [[uriOf("main.sd"), "M"]],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
+  it("names the restored file when the shared sequence cannot be written", async () => {
+    const root = seed({ "main.sd": "M" });
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    sequence.createSyncAccessHandle = async () => {
+      throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+    };
+    root.entries.set(sequence.name, sequence);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+    });
+    const announced = restoredIn(h, from).filter((a) =>
+      a.texts.some(([uri]: string[]) => uri === uriOf("main.sd")),
+    );
+    expect(announced.length).toBeGreaterThan(0);
+    expect(announced.at(-1)).toEqual({
+      texts: [[uriOf("main.sd"), "M"]],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
+  it("keeps another tab's restored marking on an unsequenced announcement only while storage holds the restored text", async () => {
+    const root = seed({ "main.sd": "M", "other.sd": "O" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    writeMemoryFile(root, "local/other.sd", enc.encode("SAVED SINCE"));
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("main.sd", "M"), fileData("other.sd", "O")],
+      restored: [uriOf("main.sd"), uriOf("other.sd")],
+    });
+    const announced = restoredIn(h, from);
+    expect(announced).toContainEqual({
+      texts: [
+        [uriOf("main.sd"), "M"],
+        [uriOf("other.sd"), "SAVED SINCE"],
+      ],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
+  it("names nothing when the edit applies, nor for an ordinary save", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x")] },
+    });
+    await h.request("save", "workspace/willWriteFiles", writeOf("main.sd", "saved"));
+    const announced = restoredIn(h, from);
+    expect(announced.length).toBeGreaterThan(0);
+    expect(announced.every((a) => a.restored === undefined)).toBe(true);
+  });
+});
+
+describe("the schedule matrix of a refused edit and the author's typing (I-2100)", () => {
+  type Ownership = "held" | "opened" | "two editors";
+  type Sequence = "stamped" | "unsequenced";
+  type Tab =
+    | "this tab"
+    | "a second tab"
+    | "a second tab, with a third tab's superseded write before the follow-up";
+
+  const OWNERSHIPS: Ownership[] = ["held", "opened", "two editors"];
+  const SEQUENCES: Sequence[] = ["stamped", "unsequenced"];
+
+  const PRE: Record<string, string> = { "main.sd": "M", "chapter.sd": "C", "a.sd": "A" };
+  const TYPED: Record<string, string> = { "main.sd": "M typed", "chapter.sd": "C typed" };
+  const TYPED_IN_SECOND_TAB = "C typed in the second tab";
+
+  const typedScripts = (ownership: Ownership) =>
+    ownership === "held"
+      ? ["main.sd"]
+      : ownership === "opened"
+        ? ["chapter.sd"]
+        : ["main.sd", "chapter.sd"];
+
+  const editorOrigin = (path: string) => `editor:${path}`;
+
+  const rest = {
+    documentChanges: [
+      insert("chapter.sd", 0, "x"),
+      { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+    ],
+  };
+
+  const storageSteps = () => {
+    const state = { armed: false, count: 0, pauseAt: 0, paused: false, release: () => {} };
+    const patched: [any, string, any][] = [];
+    const step = async () => {
+      if (state.armed) {
+        state.count += 1;
+        if (state.count === state.pauseAt) {
+          state.paused = true;
+          await new Promise<void>((resolve) => {
+            state.release = resolve;
+          });
+        }
+      }
+    };
+    const wrap = (target: any, name: string, wrapResult?: (result: any) => any) => {
+      const original = target[name];
+      patched.push([target, name, original]);
+      target[name] = async function (this: unknown, ...args: unknown[]) {
+        await step();
+        const result = await original.apply(this, args);
+        return wrapResult ? wrapResult(result) : result;
+      };
+    };
+    const wrapRead = (file: any) => ({
+      ...file,
+      arrayBuffer: async () => {
+        await step();
+        return file.arrayBuffer();
+      },
+      text: async () => {
+        await step();
+        return file.text();
+      },
+    });
+    wrap(MemoryFile.prototype, "getFile", wrapRead);
+    wrap(MemoryFile.prototype, "createSyncAccessHandle");
+    wrap(MemoryDirectory.prototype, "getFileHandle");
+    wrap(MemoryDirectory.prototype, "getDirectoryHandle");
+    wrap(MemoryDirectory.prototype, "removeEntry");
+    const wrapLocks = () => wrap((globalThis as any).navigator.locks, "request");
+    const restore = () =>
+      patched.forEach(([target, name, original]) => {
+        target[name] = original;
+      });
+    return { state, restore, wrapLocks };
+  };
+
+  const seedFor = (sequence: Sequence) => {
+    const root = seed(PRE);
+    if (sequence === "unsequenced") {
+      const file = new MemoryFile(".opfs-workspace-sequence");
+      file.createSyncAccessHandle = async () => {
+        throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+      };
+      root.entries.set(file.name, file);
+    }
+    return root;
+  };
+
+  type Harness = Awaited<ReturnType<typeof worker>>;
+
+  const answerConfirm = (h: Harness, answered: Set<unknown>) => {
+    for (const ask of h.messages.filter(
+      (m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m,
+    )) {
+      if (!answered.has(ask.id)) {
+        answered.add(ask.id);
+        void (globalThis as any).onmessage({
+          data: {
+            jsonrpc: "2.0",
+            method: "workspace/confirmWorkspaceEdit",
+            id: ask.id,
+            result: { refusal: "an open script changed before the edit could be applied" },
+          },
+        });
+      }
+    }
+  };
+
+  const save = (h: Harness, path: string, text: string) =>
+    h.start(`save-${path}`, "workspace/willWriteFiles", writeOf(path, text, editorOrigin(path)));
+
+  type Plan = { pauseAt: number | "after"; ownership: Ownership; sequence: Sequence };
+
+  const runCell = async ({ pauseAt, ownership, sequence }: Plan) => {
+    const root = seedFor(sequence);
+    const steps = storageSteps();
+    try {
+      const h = await worker(root);
+      steps.wrapLocks();
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      await h.enumerate();
+      const from = h.messages.length;
+      const fromChannel = h.channelPosts.length;
+      const answered = new Set<unknown>();
+      let confirmAt: number | undefined;
+      let saved = false;
+      const saveAll = () => {
+        saved = true;
+        typedScripts(ownership).forEach((path) => save(h, path, TYPED[path]!));
+      };
+      steps.state.count = 0;
+      steps.state.pauseAt = pauseAt === "after" ? Number.MAX_SAFE_INTEGER : pauseAt;
+      steps.state.armed = true;
+      h.start("edit", "workspace/applyWorkspaceEdit", {
+        edit: rest,
+        confirm: true,
+        expectedTexts: { [uriOf("chapter.sd")]: PRE["chapter.sd"] },
+      });
+      for (let i = 0; i < 400 && !h.response("edit"); i += 1) {
+        await vi.advanceTimersByTimeAsync(5);
+        if (
+          confirmAt === undefined &&
+          h.messages.some((m) => m.method === "workspace/confirmWorkspaceEdit")
+        ) {
+          confirmAt = steps.state.count;
+        }
+        answerConfirm(h, answered);
+        if (steps.state.paused && !saved) {
+          saveAll();
+          await vi.advanceTimersByTimeAsync(300);
+          steps.state.release();
+        }
+      }
+      const total = steps.state.count;
+      steps.state.armed = false;
+      if (!saved) {
+        saveAll();
+      }
+      await vi.advanceTimersByTimeAsync(1000);
+      return { root, h, from, fromChannel, confirmAt, total, response: h.response("edit") };
+    } finally {
+      steps.restore();
+      vi.restoreAllMocks();
+    }
+  };
+
+  const reloadsOver = (
+    messages: any[],
+    path: string,
+    script: { text: string; stored: string; origin: string; savedBy?: string },
+  ) => {
+    let stored = script.stored;
+    const reloads: string[] = [];
+    for (const message of messages) {
+      if (script.savedBy && message.id === script.savedBy && "result" in message) {
+        stored = script.text;
+      }
+      if (message.method !== "workspace/didWriteFiles") {
+        continue;
+      }
+      const file = message.params.files.find((f: any) => f.uri === uriOf(path));
+      if (!file) {
+        continue;
+      }
+      const write = {
+        text: file.text,
+        remote: message.params.remote,
+        origin: message.params.origin,
+        restored: message.params.restored?.includes(file.uri) ?? false,
+      };
+      if (reloadsForWrite(write, { text: script.text, stored, origin: script.origin })) {
+        reloads.push(JSON.stringify(write));
+      }
+    }
+    return reloads;
+  };
+
+  const cellsOf = (workerPart: number, total: number) => [
+    ...Array.from({ length: total }, (_, i) => ({
+      pauseAt: i + 1,
+      name: `${i + 1 <= workerPart ? "worker's part" : "rollback"}, storage step ${i + 1} of ${total}`,
+    })),
+    { pauseAt: "after" as const, name: "after the edit answered" },
+  ];
+
+  const ROWS: { ownership: Ownership; sequence: Sequence; tab: Tab }[] = [
+    ...OWNERSHIPS.flatMap((ownership) =>
+      SEQUENCES.map((sequence) => ({ ownership, sequence, tab: "this tab" as Tab })),
+    ),
+    ...SEQUENCES.map((sequence) => ({
+      ownership: "held" as Ownership,
+      sequence,
+      tab: "a second tab" as Tab,
+    })),
+    {
+      ownership: "held",
+      sequence: "unsequenced",
+      tab: "a second tab, with a third tab's superseded write before the follow-up",
+    },
+  ];
+
+  it.each(ROWS)(
+    "keeps the typing in storage and in the editor at every step: $ownership, $sequence, $tab",
+    async ({ ownership, sequence, tab }) => {
+      const counted = await runCell({ pauseAt: "after", ownership, sequence });
+      expect(counted.confirmAt).toBeDefined();
+      const cells = cellsOf(counted.confirmAt!, counted.total);
+      expect(cells.some((c) => c.name.startsWith("worker's part"))).toBe(true);
+      expect(cells.some((c) => c.name.startsWith("rollback"))).toBe(true);
+      const ran: string[] = [];
+      const failures: string[] = [];
+      for (const cell of cells) {
+        const run = await runCell({ pauseAt: cell.pauseAt, ownership, sequence });
+        ran.push(cell.name);
+        const problems: string[] = [];
+        if (run.response?.result?.applied !== false) {
+          problems.push(`edit result ${JSON.stringify(run.response?.result)}`);
+        }
+        for (const path of typedScripts(ownership)) {
+          if (textAt(run.root, path) !== TYPED[path]) {
+            problems.push(`${path} stored ${JSON.stringify(textAt(run.root, path))}`);
+          }
+          if (tab === "this tab") {
+            const reloads = reloadsOver(run.h.messages.slice(run.from), path, {
+              text: TYPED[path]!,
+              stored: PRE[path]!,
+              origin: editorOrigin(path),
+              savedBy: `save-${path}`,
+            });
+            if (reloads.length > 0) {
+              problems.push(`${path} editor reloads for ${reloads.join(", ")}`);
+            }
+          }
+        }
+        if (tab !== "this tab") {
+          const posts = run.h.channelPosts.slice(run.fromChannel);
+          const second = await worker(run.root);
+          await second.enumerate();
+          const interleaved = tab !== "a second tab";
+          if (interleaved) {
+            await second.remote("workspace/didWriteFiles", {
+              files: [fileData("chapter.sd", PRE["chapter.sd"]!)],
+              origin: editorOrigin("chapter.sd"),
+              commits: { [uriOf("chapter.sd")]: { sequence: 5, writer: "second-tab" } },
+            });
+          }
+          const fromSecond = second.messages.length;
+          let superseded = false;
+          for (const post of posts) {
+            await second.remote(post.method, post.params);
+            const restoresChapter =
+              post.method === "workspace/didWriteFiles" &&
+              post.params.restored?.includes(uriOf("chapter.sd"));
+            if (interleaved && restoresChapter && !superseded) {
+              superseded = true;
+              await second.remote("workspace/didWriteFiles", {
+                files: [fileData("chapter.sd", "a third tab's superseded text")],
+                commits: { [uriOf("chapter.sd")]: { sequence: 1, writer: "third-tab" } },
+              });
+            }
+          }
+          if (interleaved && !superseded) {
+            problems.push("no restore of chapter.sd reached the second tab to interleave with");
+          }
+          await vi.advanceTimersByTimeAsync(500);
+          const reloads = reloadsOver(second.messages.slice(fromSecond), "chapter.sd", {
+            text: TYPED_IN_SECOND_TAB,
+            stored: PRE["chapter.sd"]!,
+            origin: editorOrigin("chapter.sd"),
+          });
+          if (reloads.length > 0) {
+            problems.push(`second tab's chapter.sd editor reloads for ${reloads.join(", ")}`);
+          }
+        }
+        if (problems.length > 0) {
+          failures.push(`${cell.name}: ${problems.join("; ")}`);
+        }
+      }
+      expect(ran).toEqual(cells.map((c) => c.name));
+      expect(failures).toEqual([]);
+    },
+    300_000,
+  );
 });

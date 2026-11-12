@@ -80,6 +80,11 @@ import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/proto
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
+  applyEditorEdit,
+  failureOf,
+  type EditorEditKind,
+} from "./applyEditorEdit";
+import {
   Color,
   ColorInformation,
   EditorState,
@@ -936,11 +941,17 @@ export default class WorkspaceWindow {
     message: ApplyWorkspaceEditMessage.Request,
   ) => {
     const { label, edit, metadata } = message.params;
-    const result = await this._workspace.fs.applyWorkspaceEdit(
+    const result = await applyEditorEdit(
+      this._workspace.fs,
       edit,
-      label,
-      metadata,
+      label ?? "Edit",
+      metadata?.action?.kind as EditorEditKind | undefined,
     );
+    if (result.applied) {
+      await this.recordScriptChange();
+    } else {
+      showSnackbar({ message: failureOf(result, "Nothing was changed.") });
+    }
     return ApplyWorkspaceEditMessage.type.response(message.id, result);
   };
 

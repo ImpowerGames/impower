@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   editor: undefined as Record<string, unknown> | undefined,
   reads: [] as (() => void)[],
   connect: [] as (() => void)[],
+  holdWrites: false,
+  held: [] as (() => void)[],
   writes: [] as {
     textDocument: { uri: string; version: number; text: string };
     origin?: string;
@@ -73,6 +75,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     fs: {
       writeTextDocument: async (params: (typeof mocks.writes)[number]) => {
         mocks.writes.push(params);
+        if (mocks.holdWrites) {
+          await new Promise<void>((resolve) => mocks.held.push(resolve));
+        }
       },
       getFiles: () =>
         new Promise((resolve) =>
@@ -181,6 +186,8 @@ afterEach(async () => {
   mocks.reads.splice(0);
   mocks.connect.splice(0);
   mocks.writes.splice(0);
+  mocks.held.splice(0).forEach((release) => release());
+  mocks.holdWrites = false;
   mocks.editor = undefined;
 });
 
@@ -234,7 +241,7 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
     return mocks.writes[count]!;
   };
 
-  const didWrite = async (text: string, origin?: string) => {
+  const didWrite = async (text: string, origin?: string, restored = false) => {
     await act(async () => {
       sendProtocolMessage(
         DidWriteFilesMessage.type.notification({
@@ -251,6 +258,7 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
           ],
           remote: false,
           origin,
+          ...(restored ? { restored: [uri] } : {}),
         }),
       );
     });
@@ -270,6 +278,34 @@ describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
     await autosave("hello a\n");
     await type("hello ab\n");
     await didWrite("hello a\n");
+    expect(mocks.reads.length).toBe(1);
+  });
+
+  it("keeps the typing over a rollback that restores the text it loaded, and autosaves it", async () => {
+    await loaded();
+    const count = mocks.writes.length;
+    await type("hello typed\n");
+    await didWrite("hello\n", undefined, true);
+    expect(mocks.reads.length).toBe(0);
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(count + 1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    expect(mocks.writes[count]!.textDocument.text).toBe("hello typed\n");
+  });
+
+  it("keeps the typing over a rollback that restores what it last autosaved", async () => {
+    await loaded();
+    await autosave("hello a\n");
+    await type("hello ab\n");
+    await didWrite("hello a\n", undefined, true);
+    expect(mocks.reads.length).toBe(0);
+  });
+
+  it("reloads for a rollback that restores text it never loaded", async () => {
+    await loaded();
+    await type("hello typed\n");
+    await didWrite("other\n", undefined, true);
     expect(mocks.reads.length).toBe(1);
   });
 });
@@ -361,6 +397,69 @@ describe("LogicScriptEditor load handover", { timeout: 60_000 }, () => {
   });
 });
 
+describe("LogicScriptEditor stored text per script", { timeout: 60_000 }, () => {
+  const MAIN = "file:///project/main.sd";
+  const OTHER = "file:///project/scripts/other.sd";
+
+  it("keeps typing in the script it switched to when a rollback restores that script after the previous script's autosave finishes", async () => {
+    await mount();
+    await connectController();
+    await answerReads();
+    mocks.holdWrites = true;
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri: MAIN },
+          text: "hello a\n",
+        }),
+      );
+    });
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    mocks.editor = { uri: OTHER };
+    await act(async () => {
+      render(h(LogicScriptEditor, { filename: "scripts/other.sd" }), host!);
+    });
+    await answerReads();
+    await act(async () => {
+      mocks.held.shift()!();
+    });
+    await settle();
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri: OTHER },
+          text: "typed\n",
+        }),
+      );
+    });
+    const reads = mocks.reads.length;
+    await act(async () => {
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: [
+            {
+              uri: OTHER,
+              name: "other",
+              ext: "sd",
+              type: "script",
+              src: OTHER,
+              version: 2,
+              text: "",
+            },
+          ],
+          remote: false,
+          restored: [OTHER],
+        }),
+      );
+    });
+    await settle();
+    expect(mocks.reads.length).toBe(reads);
+  });
+});
+
 describe("LogicScriptEditor save handover", { timeout: 60_000 }, () => {
   const uri = "file:///project/main.sd";
 
@@ -398,4 +497,134 @@ describe("LogicScriptEditor save handover", { timeout: 60_000 }, () => {
       text: "hello ab\n",
     });
   });
+});
+
+describe("the open script's typing over a rollback's restoring write, by schedule (I-2100)", { timeout: 60_000 }, () => {
+  const MAIN = "file:///project/main.sd";
+  const OTHER = "file:///project/scripts/other.sd";
+
+  type Ownership = "held" | "opened" | "two editors";
+  type Timing = "typing pending" | "autosave in flight" | "autosaved before the edit";
+  type Path = "this tab, stamped" | "this tab, unsequenced" | "a second tab";
+
+  const OWNERSHIPS: Ownership[] = ["held", "opened", "two editors"];
+  const TIMINGS: Timing[] = ["typing pending", "autosave in flight", "autosaved before the edit"];
+  const PATHS: Path[] = ["this tab, stamped", "this tab, unsequenced", "a second tab"];
+
+  const CELLS = OWNERSHIPS.flatMap((ownership) =>
+    TIMINGS.flatMap((timing) => PATHS.map((path) => ({ ownership, timing, path }))),
+  );
+
+  let version = 10;
+
+  const type = async (uri: string, text: string) => {
+    version += 1;
+    await act(async () => {
+      sendProtocolMessage(
+        DidChangeTextDocumentMessage.type.notification({
+          textDocument: { uri, version },
+          contentChanges: [],
+        }),
+      );
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({ textDocument: { uri }, text }),
+      );
+    });
+  };
+
+  const restore = async (uri: string, text: string, path: Path) => {
+    await act(async () => {
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: [{ uri, name: "script", ext: "sd", type: "script", src: uri, version: 2, text }],
+          remote: path === "a second tab",
+          ...(path === "this tab, stamped"
+            ? { commits: { [uri]: { sequence: 9, writer: "tab", local: 9 } as never } }
+            : {}),
+          restored: [uri],
+        }),
+      );
+    });
+    await settle();
+  };
+
+  const waitForWrites = (count: number) =>
+    vi.waitFor(() => expect(mocks.writes.length).toBeGreaterThanOrEqual(count), {
+      timeout: 5_000,
+      interval: 20,
+    });
+
+  it.each(CELLS)(
+    "keeps the typing and autosaves it: $ownership, $timing, $path",
+    async ({ ownership, timing, path }) => {
+      let second: HTMLDivElement | undefined;
+      try {
+        await mount();
+        await connectController();
+        await answerReads();
+        let uri = MAIN;
+        let loaded = "hello\n";
+        if (ownership === "opened") {
+          mocks.editor = { uri: OTHER };
+          await act(async () => {
+            render(h(LogicScriptEditor, { filename: "scripts/other.sd" }), host!);
+          });
+          await answerReads();
+          uri = OTHER;
+          loaded = "";
+        }
+        if (ownership === "two editors") {
+          second = document.body.appendChild(document.createElement("div"));
+          await act(async () => {
+            render(h(LogicScriptEditor, { filename: "main.sd" }), second!);
+          });
+          await vi.waitFor(() => expect(mocks.connect.length).toBe(1), {
+            timeout: 10_000,
+            interval: 20,
+          });
+          await connectController();
+          await answerReads();
+        }
+        const editors = ownership === "two editors" ? 2 : 1;
+        let restoredText = loaded;
+        if (timing === "autosaved before the edit") {
+          const count = mocks.writes.length;
+          await type(uri, "autosaved\n");
+          await waitForWrites(count + editors);
+          await settle();
+          restoredText = "autosaved\n";
+        }
+        const count = mocks.writes.length;
+        if (timing === "autosave in flight") {
+          mocks.holdWrites = true;
+        }
+        await type(uri, "typed\n");
+        if (timing === "autosave in flight") {
+          await vi.waitFor(() => expect(mocks.held.length).toBe(editors), {
+            timeout: 5_000,
+            interval: 20,
+          });
+        }
+        const reads = mocks.reads.length;
+        await restore(uri, restoredText, path);
+        expect(mocks.reads.length).toBe(reads);
+        if (timing === "autosave in flight") {
+          mocks.holdWrites = false;
+          await act(async () => {
+            mocks.held.splice(0).forEach((release) => release());
+          });
+        }
+        await waitForWrites(count + editors);
+        expect(mocks.writes.slice(count).map((w) => w.textDocument.text)).toEqual(
+          Array(editors).fill("typed\n"),
+        );
+        expect(mocks.reads.length).toBe(reads);
+      } finally {
+        if (second) {
+          await act(async () => render(null, second!));
+          second.remove();
+        }
+      }
+    },
+  );
 });

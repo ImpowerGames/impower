@@ -70,7 +70,10 @@ import {
 import selection from "../../workspace/assetsSelection";
 import { isInside, parentOf } from "../../workspace/scriptsListing";
 import type { SearchGroup } from "../../workspace/searchState";
+import type { Sound } from "../../workspace/AudioSession";
+import { audioSession } from "../../workspace/editorAudio";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { AUDITION_OWNER } from "../../workspace/WorkspaceAudition";
 import workspace from "../../workspace/WorkspaceStore";
 import { AssetInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
 import { UsesList } from "../find-references-rename";
@@ -96,6 +99,7 @@ import { addAssetFiles, landedView, type AddedFile } from "../../workspace/addAs
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
+import { SoundLine, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
 
@@ -181,6 +185,12 @@ const inspectedOf = (listing: AssetListing, row: AssetRow): InspectedAsset => {
 };
 
 const srcOf = (listing: AssetListing, path: string) => listing.files[path]?.src;
+
+const soundOf = (listing: AssetListing, path: string): Sound | null => {
+  const facts = listing.files[path];
+  const src = facts?.address ?? facts?.src;
+  return src ? { owner: path, src, size: facts?.address ? undefined : facts?.size } : null;
+};
 
 const usesCount = (groups: readonly SearchGroup[]) => groups.reduce((sum, group) => sum + group.uses.length, 0);
 
@@ -290,6 +300,19 @@ function AssetsBrowser() {
     lastPath.current = openPath;
   }
   const near = openPath ? neighborsOf(files, openPath) : null;
+
+  useEffect(
+    () => audioSession.stopUnless((owner, src) => owner === AUDITION_OWNER || soundOf(listing, owner)?.src === src),
+    [listing],
+  );
+
+  useEffect(() => {
+    if (openPath) {
+      audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
+    }
+  }, [openPath]);
+
+  useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);
   const [layout, setLayout] = useFolderLayout(
     "assetsLayouts",
     level.folder,
@@ -428,8 +451,7 @@ function AssetsBrowser() {
     }
   }, [revealing, loaded]);
 
-  const add = (files: AddedFile[], folder: string, dropped: boolean) =>
-    void run(async () => show(await addAssetFiles(files, folder, { dropped })));
+  const add = (files: AddedFile[], folder: string) => void run(async () => show(await addAssetFiles(files, folder)));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -439,13 +461,12 @@ function AssetsBrowser() {
     add(
       chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
       level.folder,
-      false,
     );
   };
 
   const fileDrop = useFileDrop({
     current: () => level.folder,
-    onDrop: (files, folder) => add(files, folder, true),
+    onDrop: add,
   });
 
   const remove = (paths: readonly string[]) =>
@@ -592,9 +613,11 @@ function AssetsBrowser() {
     }
     const line = rowLine({ entry: row, sort, location: row.location, holdings: row.holdings });
     const folder = row.kind === "folder";
+    const sound = !folder && row.type === "audio" ? soundOf(listing, row.path) : null;
     return (
       <ListRow
-        icon={<RowGlyph row={row} listing={listing} />}
+        icon={sound ? undefined : <RowGlyph row={row} listing={listing} />}
+        control={sound ? <SoundPlay name={row.name} sound={sound} /> : undefined}
         label={
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
@@ -605,7 +628,7 @@ function AssetsBrowser() {
             row.name
           )
         }
-        description={line}
+        description={sound ? <SoundLine sound={sound} line={line} /> : line}
         aria-label={openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}

@@ -11,6 +11,7 @@ import {
   WarningIcon,
 } from "../icon/icons.generated";
 import { useState } from "preact/hooks";
+import PlayButton from "../play-button/PlayButton";
 import ListRow, { ListRowBadge, type ListRowSize } from "./ListRow";
 
 const SIZES: Record<ListRowSize, string> = {
@@ -167,6 +168,24 @@ function SelectionDemo() {
               description="Modified 5m · 2 kB"
               actions={menu}
               onClick={() => toggle(name)}
+            />
+          ))}
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A control before the row's button (an audio row's Play), then the same rows while selecting, the mark in the control's place">
+        <div class="space-y-0">
+          {(["available", "active"] as const).map((selection) => (
+            <ListRow
+              key={selection}
+              control={<PlayButton name="door_knock" playing={selection === "available"} />}
+              selection={selection}
+              selected={false}
+              selectLabel="Select door_knock"
+              onSelectedChange={() => {}}
+              label="door_knock"
+              description={selection === "available" ? "0:02 / 0:05" : "Modified 5m · 48 kB"}
+              actions={menu}
+              onClick={() => {}}
             />
           ))}
         </div>

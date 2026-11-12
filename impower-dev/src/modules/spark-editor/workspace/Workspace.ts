@@ -15,6 +15,7 @@ import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
 import WorkspaceAssets from "./WorkspaceAssets";
 import WorkspaceAudition from "./WorkspaceAudition";
+import { audioSession } from "./editorAudio";
 import WorkspaceScripts from "./WorkspaceScripts";
 import WorkspaceSearch from "./WorkspaceSearch";
 import { searchSources } from "./searchSources";
@@ -45,7 +46,7 @@ export namespace Workspace {
   export const assets = new WorkspaceAssets({ fs, ls, window, autoRenameFiles });
   export const audition = new WorkspaceAudition({
     preview: (filename, shown) => window.auditionConstruct(filename, shown),
-    audio: () => new Audio(),
+    session: audioSession,
   });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();

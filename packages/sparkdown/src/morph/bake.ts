@@ -18,7 +18,7 @@ import {
   normalizeSVGAttributeNames,
   type AttributeSelection,
 } from "../attributes";
-import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
+import { bindVariant, morphRequirements, poseSelection } from "../compiler/morph/bindMorph";
 import { MORPH_DEPTH_REST, parseMorphDepth, parseMorphQualifiedState } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
@@ -35,7 +35,7 @@ import { own, table } from "./own";
 import { contourOverlapsItself } from "./contour";
 import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
 import { MORPH_MOTION_WRAPPER_STYLE } from "./motion";
-import { recipeAsMorph } from "./recipe";
+import { morphRestPose, recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
 import {
   ancestry,
@@ -135,10 +135,11 @@ function staticArtifact(
   input: MorphBakeInput,
   text: string,
   diagnostics: MorphBakeDiagnostic[],
+  selection: AttributeSelection = input.selection,
 ): MorphArtifact {
   let rest = text;
   try {
-    rest = filterSVGAttributes(text, input.selection);
+    rest = filterSVGAttributes(text, selection);
   } catch {
   }
   return {
@@ -227,6 +228,23 @@ function loopArea(flat: number[]): number {
   }
   return Math.abs(twice) / 2;
 }
+
+interface Box {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function hullBox(subpaths: readonly Subpath[]): Box | null {
+  const points = subpaths.flatMap((subpath) => subpath.segments.flatMap((cubic) => [cubic.p0, cubic.c1, cubic.c2, cubic.p1]));
+  if (!points.length) return null;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+const boxesMeet = (a: Box, b: Box) => a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
 
 function conditionOf(m: Affine): number {
   const [a, b, c, d] = m;
@@ -383,7 +401,11 @@ export function* bakeSteps(
     return staticArtifact(input, text, diagnostics);
   }
   const vocabulary = doc.vocabulary;
-  const disable = () => staticArtifact(input, text, diagnostics);
+  const restPose: Record<string, string> = table();
+  for (const recipe of recipes) Object.assign(restPose, morphRestPose(recipe));
+  const restOf = new Map(Object.entries(restPose));
+  const shown = poseSelection(vocabulary, selection, restPose);
+  const disable = () => staticArtifact(input, text, diagnostics, shown);
 
   if (doc.styleSheet) {
     report(
@@ -422,9 +444,7 @@ export function* bakeSteps(
     return disable();
   }
 
-  const startOf = new Map<string, string>();
   const recipeOfGroup = new Map<string, MorphRecipe>();
-  const bindingRest: Record<string, Record<string, string>> = table();
   for (const recipe of recipes) {
     const required = morphRequirements(recipeAsMorph(recipe));
     const binding = bindVariant(vocabulary, input.variant ?? "", selection, required);
@@ -433,34 +453,27 @@ export function* bakeSteps(
       report(
         "inactive-variant",
         "warning",
-        `\`${recipe.name}\` does not play on this variant${why ? `: ${why}` : `: it rests in a state the morph does not start from`}.`,
+        `\`${recipe.name}\` does not play on this variant${why ? `: ${why}` : ""}.`,
         { morphs: [recipe.name] },
       );
       return disable();
     }
     for (const group of required.groups.keys()) recipeOfGroup.set(group, recipe);
-    for (const [group, state] of required.rest) startOf.set(group, state);
-    Object.assign(bindingRest, binding.rest);
   }
   const ofGroup = (group: string) => ({ morphs: [recipeOfGroup.get(group)!.name] });
   const ofGroups = (groups: Iterable<string>) => ({ morphs: morphNames.filter((name) => [...groups].some((group) => recipeOfGroup.get(group)?.name === name)) });
   const ofLeaf = (leaf: Leaf) => (leaf.group === undefined ? {} : ofGroup(leaf.group));
   const recipeFor = (leaf: Leaf): MorphRecipe => recipeOfGroup.get(leaf.group!)!;
 
-  const restName = (group: string): string => {
-    const chosen = own(selection, group);
-    if (chosen !== undefined) return chosen;
-    const choices = new Set(Object.values(bindingRest[group] ?? {}));
-    return choices.size === 1 ? [...choices][0]! : (startOf.get(group) ?? "rest");
-  };
+  const restName = (group: string): string => restOf.get(group) ?? "rest";
   const schedules = new Map<string, { offset: number; state: string | Rest }[]>();
   for (const group of recipeOfGroup.keys()) {
-    const start = startOf.get(group);
+    const rest = restOf.get(group);
     const entries: { offset: number; state: string | Rest }[] = [];
     for (const keyframe of recipeOfGroup.get(group)!.keyframes) {
       const state = own(keyframe.states, group);
       if (state === undefined) continue;
-      entries.push({ offset: keyframe.offset, state: start !== undefined && state === start ? REST : state });
+      entries.push({ offset: keyframe.offset, state: state === rest ? REST : state });
     }
     if (!entries.length) continue;
     if (entries[0]!.offset > 0) entries.unshift({ offset: 0, state: REST });
@@ -469,12 +482,13 @@ export function* bakeSteps(
   }
 
   const selectionFor = (group: string, state: string | Rest): AttributeSelection =>
-    state === REST ? selection : { ...selection, [group]: state };
+    state === REST ? shown : poseSelection(vocabulary, selection, { ...restPose, [group]: state });
   const stateKey = (state: string | Rest) => (state === REST ? "" : state);
-  const restVisible = evaluateAttributeVisibility(vocabulary, selection).visible;
+  const poseKey = (group: string, state: string) => (state === restOf.get(group) ? "" : state);
+  const restVisible = evaluateAttributeVisibility(vocabulary, shown).visible;
   const visibleIn = new Map<string, Map<string, Record<string, boolean>>>();
   for (const [group, entries] of schedules) {
-    const byState = new Map<string, Record<string, boolean>>();
+    const byState = new Map<string, Record<string, boolean>>([["", restVisible]]);
     for (const { state } of entries) {
       if (!byState.has(stateKey(state))) {
         byState.set(stateKey(state), evaluateAttributeVisibility(vocabulary, selectionFor(group, state)).visible);
@@ -539,7 +553,7 @@ export function* bakeSteps(
       if (Object.keys(pose).length < 2) continue;
       const key = JSON.stringify(pose);
       let together = combined.get(key);
-      if (!together) combined.set(key, (together = evaluateAttributeVisibility(vocabulary, { ...selection, ...pose }).visible));
+      if (!together) combined.set(key, (together = evaluateAttributeVisibility(vocabulary, poseSelection(vocabulary, selection, { ...restPose, ...pose })).visible));
       const alone = owner === undefined ? restVisible : visibleIn.get(owner)!.get(pose[owner] ?? "")!;
       if (!!together[layer.key] === !!alone[layer.key]) continue;
       const meet = Object.entries(pose).map(([group, state]) => `\`${group}.${state}\``).join(" and ");
@@ -589,7 +603,7 @@ export function* bakeSteps(
   const appliedPaints = recipes.flatMap((recipe) =>
     (recipe.paints ?? []).flatMap((entry, index) => {
       const pose = parseMorphQualifiedState(entry.state);
-      const visible = pose && pose.state !== startOf.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
+      const visible = pose ? visibleIn.get(pose.group)?.get(poseKey(pose.group, pose.state)) : undefined;
       if (!pose || !visible) return [];
       if (entry.when !== undefined) {
         const when = parseMorphQualifiedState(entry.when);
@@ -713,7 +727,7 @@ export function* bakeSteps(
     const pose = parseMorphDepth(depth);
     if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
     if (pose.group !== group) return undefined;
-    if (pose.state === startOf.get(group)) return restVisible;
+    if (pose.state === restOf.get(group)) return restVisible;
     return visibleIn.get(group)?.get(pose.state);
   };
   const centre = (leaf: Leaf): Point | undefined => {
@@ -1098,6 +1112,7 @@ export function* bakeSteps(
   const edgeHomes = new Map<MorphClipFrames, Map<string, Leaf>>();
   const apertureIndex = new Map<string, number>();
   const restLoops: (number[][] | undefined)[] = clips.map(() => undefined);
+  const restLoopsAtRest = clips.map(() => false);
   const clipHasFrames = clips.map(() => false);
 
   for (const clip of clips) {
@@ -1541,9 +1556,14 @@ export function* bakeSteps(
         segmentClips.push(frames);
         edgeHomes.set(frames, new Map(entry.keys.map((key, k) => [key, entry.homes[k]!])));
         clipHasFrames[clipIndex] = true;
-        if (!restLoops[clipIndex]) {
-          const table = apertures[ref.index]!;
-          restLoops[clipIndex] = ref.reversed ? table[table.length - 1] : table[0];
+        const table = apertures[ref.index]!;
+        const [first, last] = ref.reversed ? [table[table.length - 1], table[0]] : [table[0], table[table.length - 1]];
+        const atRest = a.state === REST ? first : b.state === REST ? last : undefined;
+        if (atRest && !restLoopsAtRest[clipIndex]) {
+          restLoops[clipIndex] = atRest;
+          restLoopsAtRest[clipIndex] = true;
+        } else if (!restLoops[clipIndex]) {
+          restLoops[clipIndex] = first;
         }
       }
       segments.push({
@@ -1589,6 +1609,61 @@ export function* bakeSteps(
       report("edge-missing", "error", `Clip ${clip.number}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) never move in this variant, so there is no aperture to cut.`, { layer: clip.between[0], morphs: clip.morphs });
       return disable();
     }
+  }
+  for (const [index, clip] of clips.entries()) {
+    if (restLoopsAtRest[index]) continue;
+    yield;
+    const drawnTargets = leaves.filter((leaf) => labelledAny(leaf.element, clip.targets) && visibleAt(leaf.element, restVisible));
+    if (drawnTargets.length === 0) {
+      restLoops[index] = [];
+      continue;
+    }
+    const edges: EdgeTrack[] = [];
+    for (const leaf of leaves) {
+      if (!clip.between.includes(leaf.label) || !visibleAt(leaf.element, restVisible)) continue;
+      const geometry = rootGeometry(leaf);
+      const result = geometry ? morphSubpaths(geometry, geometry, { method: "bend", stillTolerance: -1 }) : undefined;
+      const track = result?.ok && result.morph.tracks.length === 1 ? result.morph.tracks[0] : undefined;
+      if (!isBend(track)) {
+        report("edge-not-bend", "error", `Clip ${clip.number}'s edge "${leaf.label}" as the rest pose draws it does not morph with \`bend\`, so the rest's opening cannot be cut; aperture edges need two tapered tips to meet.`, { layer: leaf.label, morphs: clip.morphs });
+        return disable();
+      }
+      edges.push({ id: leaf.node, label: leaf.label, track });
+    }
+    const edgeBoxes = leaves
+      .filter((leaf) => clip.between.includes(leaf.label) && visibleAt(leaf.element, restVisible))
+      .map((leaf) => hullBox(rootGeometry(leaf) ?? []));
+    for (const leaf of drawnTargets) {
+      const geometry = rootGeometry(leaf);
+      if (!geometry) {
+        report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with geometry the bake cannot read, so whether the clip's edges surround it cannot be checked.`, { layer: leaf.label, morphs: clip.morphs });
+        return disable();
+      }
+      const contours = geometry.map((subpath) => hullBox([subpath]));
+      if (contours.every((box) => !box || edgeBoxes.some((edge) => edge && boxesMeet(edge, box)))) continue;
+      report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with a part none of the clip's edges surround, so the rest has no opening for it.`, { layer: leaf.label, morphs: clip.morphs });
+      return disable();
+    }
+    const lone = new Set(
+      buildApertures(edges).diagnostics.flatMap((d) => (d.code === "unpaired-edge" ? d.edgeIds : [])),
+    );
+    const facing = edges.filter((edge) => !lone.has(edge.id));
+    if (facing.length === 0) {
+      restLoops[index] = [];
+      continue;
+    }
+    const built = buildApertures(facing);
+    for (const d of built.diagnostics) {
+      const code = d.code === "ambiguous" ? "aperture-ambiguous" : d.code === "unpaired-edge" ? "aperture-unpaired" : "aperture-degenerate";
+      report(code, "error", `Clip ${clip.number}, in the rest pose: ${d.message}`, { morphs: clip.morphs });
+    }
+    if (built.diagnostics.length || !built.apertures.length) {
+      if (!built.diagnostics.length) {
+        report("aperture-unpaired", "error", `Clip ${clip.number}'s edges in the rest pose do not meet at their tips, so they enclose no opening.`, { morphs: clip.morphs });
+      }
+      return disable();
+    }
+    restLoops[index] = built.apertures.map((aperture) => aperture.loop(0).flatMap(([x, y]) => [round(x), round(y)]));
   }
 
   const clipTargets: MorphClipTarget[] = [];
@@ -1640,21 +1715,25 @@ export function* bakeSteps(
     }
   }
   const apertureBounds = clips.map(() => ({ minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, widest: 0 }));
-  for (const segment of segments) {
-    for (const { clip, loops } of segment.clips) {
-      const box = apertureBounds[clip]!;
-      for (const sample of apertures[loops.index]!) {
-        for (const flat of sample) {
-          box.widest = Math.max(box.widest, loopArea(flat));
-          for (let i = 0; i + 1 < flat.length; i += 2) {
-            box.minX = Math.min(box.minX, flat[i]!);
-            box.maxX = Math.max(box.maxX, flat[i]!);
-            box.minY = Math.min(box.minY, flat[i + 1]!);
-            box.maxY = Math.max(box.maxY, flat[i + 1]!);
-          }
-        }
+  const bound = (clip: number, loops: readonly number[][]) => {
+    const box = apertureBounds[clip]!;
+    for (const flat of loops) {
+      box.widest = Math.max(box.widest, loopArea(flat));
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        box.minX = Math.min(box.minX, flat[i]!);
+        box.maxX = Math.max(box.maxX, flat[i]!);
+        box.minY = Math.min(box.minY, flat[i + 1]!);
+        box.maxY = Math.max(box.maxY, flat[i + 1]!);
       }
     }
+  };
+  for (const segment of segments) {
+    for (const { clip, loops } of segment.clips) {
+      for (const sample of apertures[loops.index]!) bound(clip, sample);
+    }
+  }
+  for (const [clip, loops] of restLoops.entries()) {
+    if (loops) bound(clip, loops);
   }
   const rooted = ({ clip, matrix, space }: Wrapper): boolean => {
     if (isIdentity(matrix)) return true;
@@ -1898,6 +1977,7 @@ export function* bakeSteps(
   const visibility: MorphArtifact["visibility"] = table();
   const scheduleOut: MorphArtifact["schedules"] = table();
   const groupsOut: MorphArtifact["groups"] = table();
+  const restsOut: Record<string, string> = table();
   for (const [group, entries] of schedules) {
     groupsOut[group] = recipeOfGroup.get(group)!.name;
     const byState = visibleIn.get(group)!;
@@ -1909,6 +1989,7 @@ export function* bakeSteps(
     }
     visibility[group] = states;
     scheduleOut[group] = entries.map((e) => ({ offset: e.offset, state: e.state === REST ? restName(group) : e.state }));
+    restsOut[group] = restName(group);
   }
 
   const paintPoses = paintPosesOf();
@@ -1927,6 +2008,7 @@ export function* bakeSteps(
     idPrefix: prefix,
     parts,
     visibility,
+    rests: restsOut,
     schedules: scheduleOut,
     segments,
     frames,

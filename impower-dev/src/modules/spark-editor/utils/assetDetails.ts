@@ -1,3 +1,4 @@
+import { clock } from "@impower/impower-ui/components";
 import { addMenuKindsOf, type AddMenuFolders, type AddMenuKind } from "./addMenuFolders";
 import { endingOf, type AssetType } from "./assetTypes";
 import { bytesLabel, plural } from "./fileListModel";
@@ -62,14 +63,6 @@ export const titleLine = (asset: InspectedAsset): string =>
     .filter(Boolean)
     .join(" · ");
 
-export const clock = (seconds: number): string => {
-  const whole = Math.max(0, Math.round(seconds));
-  const hours = Math.floor(whole / 3600);
-  const minutes = Math.floor((whole % 3600) / 60);
-  const rest = String(whole % 60).padStart(2, "0");
-  return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${rest}` : `${minutes}:${rest}`;
-};
-
 export const whereOf = (path: string, home: string): string => {
   const folder = folderOf(path);
   if (!folder || folder === home) {
@@ -113,7 +106,7 @@ export const assetDetails = ({
     rows.push({ label: "Size", value: `${measured.pixels.width} × ${measured.pixels.height}` });
   }
   if (measured.seconds != null && Number.isFinite(measured.seconds) && measured.seconds > 0) {
-    rows.push({ label: "Length", value: clock(measured.seconds) });
+    rows.push({ label: "Length", value: clock(Math.round(measured.seconds)) });
   }
   const total = asset.files.reduce((sum, file) => sum + file.size, 0);
   rows.push(

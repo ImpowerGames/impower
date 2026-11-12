@@ -253,3 +253,35 @@ describe("ListRow description fit", () => {
     expect(wrap!.textContent).toBe("That name is already in use in this folder.");
   });
 });
+
+describe("ListRow control", () => {
+  it("puts its control before the row's button, never inside it", async () => {
+    const onClick = vi.fn();
+    const root = await mount(
+      <ListRow label="door" control={<button type="button">Play door</button>} onClick={onClick} />,
+    );
+    const [control, body] = Array.from(root.querySelectorAll("button"));
+    expect(control!.textContent).toBe("Play door");
+    expect(body!.contains(control!)).toBe(false);
+    expect(control!.closest("[data-list-row-control]")!.nextElementSibling).toBe(body);
+    await act(async () => control!.click());
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("keeps its control in place of the selection mark until selecting starts, then hides it for the mark", async () => {
+    const control = <button type="button">Play door</button>;
+    const available = await mount(
+      <ListRow label="door" control={control} selection="available" selectLabel="Select door" onClick={() => undefined} />,
+    );
+    const mark = available.querySelector("label")!;
+    expect(mark.className).toContain("group-hover/row:opacity-0");
+    expect(mark.className).not.toContain("group-hover/row:opacity-100");
+    expect(available.querySelector("[data-list-row-control]")!.className).not.toContain("invisible");
+    await act(async () => render(null, host!));
+    host!.remove();
+    const active = await mount(
+      <ListRow label="door" control={control} selection="active" selectLabel="Select door" onClick={() => undefined} />,
+    );
+    expect(active.querySelector("[data-list-row-control]")!.className).toContain("invisible");
+  });
+});

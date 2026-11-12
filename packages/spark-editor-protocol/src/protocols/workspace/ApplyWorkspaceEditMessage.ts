@@ -15,7 +15,7 @@ export interface WorkspaceEdit extends LSP.WorkspaceEdit {
 }
 
 export interface WorkspaceEditAction {
-  kind: "rename" | "put-back";
+  kind: "rename" | "put-back" | "replace" | "rename-symbol";
   targets: LSP.DocumentUri[];
 }
 
@@ -28,6 +28,7 @@ export type ApplyWorkspaceEditParams = LSP.ApplyWorkspaceEditParams & {
   edit: WorkspaceEdit;
   metadata?: WorkspaceEditMetadata;
   expectedTexts?: Record<string, string>;
+  confirm?: boolean;
 };
 
 export interface WorkspaceEditRollback {

@@ -12,8 +12,9 @@ import {
   morphImageLabels,
   morphImages,
 } from "./bindMorph";
-import { readMorphBody, type MorphIssue } from "./readMorphBody";
-import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
+import { parseMorphQualifiedState } from "./morphSchema";
+import { plainPoseStates, poseStateProblems, readMorphBody, type MorphIssue } from "./readMorphBody";
+import { validateMorphDeclaration, type MorphDeclaration } from "./validateMorph";
 
 type Context = { [type: string]: { [name: string]: any } };
 
@@ -64,12 +65,12 @@ export function compiledAncestor(
 ): { struct: Record<string, unknown>; parent?: string } | undefined {
   if (name.startsWith("$")) return undefined;
   const direct = context["morph"]?.[name];
-  if (isRecord(direct)) return { struct: direct };
+  if (isRecord(direct)) return { struct: plainPoseStates(direct) };
   for (const [type, table] of Object.entries(context)) {
     if (type === "morph" || !isRecord(table)) continue;
     const struct = table[name];
     if (isRecord(struct) && struct["$type"] === type) {
-      return { struct, parent: type };
+      return { struct: plainPoseStates(struct), parent: type };
     }
   }
   return undefined;
@@ -199,19 +200,28 @@ export function collectMorphIssues(
       to: morph.node.from + "morph".length,
     };
     const parentSpan = parentSpans.get(morph);
+    const parentEffective = ancestors[0]?.written
+      ? effectiveMorph(base, ancestors.slice(1), ancestors[0].struct, inherit)
+      : null;
     const issues = [
-      ...validateMorphDeclaration({
-        name: nameSpan,
-        parent: parentSpan ?? null,
-        block: morph.node,
-        own: morph.own,
-        effective,
-        parentEffective: ancestors[0]?.written
-          ? effectiveMorph(base, ancestors.slice(1), ancestors[0].struct, inherit)
-          : null,
+      ...validateWithUnwrittenParents(
+        {
+          name: nameSpan,
+          parent: parentSpan ?? null,
+          block: morph.node,
+          own: morph.own,
+          effective,
+          parentEffective,
+        },
+        ancestors,
+        parentSpan ?? nameSpan,
+        inherit,
+      ),
+      ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images, {
+        span: parentSpan ?? nameSpan,
+        ancestors,
+        parentEffective,
       }),
-      ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images),
-      ...inheritedValueIssues(morph.own.struct, ancestors, parentSpan ?? nameSpan),
     ];
     const parentName = morph.name ? parents.get(morph.name) : undefined;
     if (parentSpan && parentName && ancestors[0]?.name !== parentName) {
@@ -229,53 +239,218 @@ export function collectMorphIssues(
   return result;
 }
 
-function sets(obj: unknown, path: string): boolean {
-  let current: unknown = obj;
-  for (const key of path.split(".")) {
-    if (!isRecord(current) || !(key in current)) return false;
-    current = current[key];
-  }
-  return true;
-}
-
-function inheritedValueIssues(
-  own: Record<string, unknown>,
+function validateWithUnwrittenParents(
+  decl: MorphDeclaration,
   ancestors: readonly MorphLayer[],
   span: SourceSpan,
+  inherit: (base: any, override: any) => any,
 ): LocatedMorphIssue[] {
   const firstWritten = ancestors.findIndex((layer) => layer.written);
   const defines = ancestors.slice(0, firstWritten < 0 ? ancestors.length : firstWritten);
-  if (defines.length === 0) return [];
+  if (defines.length === 0) return validateMorphDeclaration(decl);
   let merged: Record<string, unknown> = {};
-  for (let i = defines.length - 1; i >= 0; i -= 1) {
-    const struct = defines[i]!.struct;
-    merged = mergeRecords(merged, struct);
-  }
-  const issues: LocatedMorphIssue[] = [];
-  for (const { field, message } of morphValueProblems(merged)) {
-    if (sets(own, field)) continue;
-    const supplier = defines.find((layer) => sets(layer.struct, field))?.name;
-    issues.push({
-      from: span.from,
-      to: span.to,
-      severity: "error",
-      message: `\`${field}\`, inherited from \`${supplier ?? defines[0]!.name}\`: ${message}`,
-    });
+  for (let i = defines.length - 1; i >= 0; i -= 1) merged = inherit(merged, defines[i]!.struct);
+  const own = decl.own.struct;
+  const inherited = inheritedFields(merged, own);
+  if (Object.keys(inherited).length === 0) return validateMorphDeclaration(decl);
+  const supplier = (field: string) => defines.find((layer) => Object.hasOwn(layer.struct, field))?.name ?? defines[0]!.name;
+  const aliases = new WeakMap<object, { written: object; unwritten: Set<string> }>();
+  const fromParent = new WeakSet<object>();
+  const mark = (value: unknown) => {
+    if (!value || typeof value !== "object" || fromParent.has(value)) return;
+    fromParent.add(value);
+    for (const child of Object.values(value)) mark(child);
+  };
+  const combine = (written: Record<string, unknown>, from: Record<string, unknown>): Record<string, unknown> => {
+    const combined: Record<string, unknown> = { ...written };
+    const unwritten = new Set<string>();
+    for (const [key, value] of Object.entries(from)) {
+      const mine = Object.hasOwn(written, key) ? written[key] : undefined;
+      if (isRecord(mine) && isRecord(value)) {
+        combined[key] = combine(mine, value);
+      } else if (!Object.hasOwn(written, key)) {
+        mark(value);
+        combined[key] = value;
+        unwritten.add(key);
+      }
+    }
+    aliases.set(combined, { written, unwritten });
+    return combined;
+  };
+  const struct = combine(own, inherited);
+  const everywhere = { get: () => span } as unknown as Map<string, SourceSpan>;
+  const everyItem = new Proxy([] as SourceSpan[], {
+    get: (target, prop) => (typeof prop === "string" && /^[0-9]+$/.test(prop) ? span : Reflect.get(target, prop)),
+  });
+  const atParent: StructSource = { line: span, keys: everywhere, values: everywhere, lines: everywhere, items: everyItem, itemValues: everyItem };
+  const base = decl.own.sources;
+  const combinedSources = new WeakMap<object, StructSource>();
+  const combinedSource = (obj: object, alias: { written: object; unwritten: Set<string> }): StructSource => {
+    const known = combinedSources.get(obj);
+    if (known) return known;
+    const own = base.get(alias.written);
+    const lookup = (map: Map<string, SourceSpan> | undefined) =>
+      ({ get: (key: string) => map?.get(key) ?? (alias.unwritten.has(key) ? span : undefined) }) as Map<string, SourceSpan>;
+    const source: StructSource = {
+      ...(own?.line ? { line: own.line } : {}),
+      keys: lookup(own?.keys),
+      values: lookup(own?.values),
+      lines: lookup(own?.lines),
+      items: own?.items ?? [],
+      itemValues: own?.itemValues ?? [],
+    };
+    combinedSources.set(obj, source);
+    return source;
+  };
+  const sources = {
+    get: (obj: object) => {
+      if (fromParent.has(obj)) return atParent;
+      const alias = aliases.get(obj);
+      return alias ? combinedSource(obj, alias) : base.get(obj);
+    },
+  } as WeakMap<object, StructSource>;
+  const issues: LocatedMorphIssue[] = validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
+  for (const { group, keyframe, message } of poseStateProblems(inherited)) {
+    const label = keyframe === undefined ? `\`rest.${group}.state\`` : `\`keyframes\` (keyframe ${keyframe + 1})`;
+    const field = keyframe === undefined ? "rest" : "keyframes";
+    issues.push({ from: span.from, to: span.to, severity: "error", message: `${label}, inherited from \`${supplier(field)}\`: ${message}` });
   }
   return issues;
 }
 
-function mergeRecords(
-  base: Record<string, unknown>,
-  override: Record<string, unknown>,
+function inheritedFields(
+  effective: Record<string, unknown>,
+  own: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(effective)) {
     if (key.startsWith("$")) continue;
-    const prior = result[key];
-    result[key] = isRecord(prior) && isRecord(value) ? mergeRecords(prior, value) : value;
+    if (!Object.hasOwn(own, key)) {
+      result[key] = value;
+      continue;
+    }
+    const written = own[key];
+    if (isRecord(value) && isRecord(written)) {
+      const nested = inheritedFields(value, written);
+      if (Object.keys(nested).length > 0) result[key] = nested;
+    }
   }
   return result;
+}
+
+type FieldWarn = (field: string, span: SourceSpan | undefined, message: string) => void;
+
+function fieldWarnings(
+  struct: Record<string, unknown>,
+  binding: ReturnType<typeof bindMorph>,
+  images: ReturnType<typeof morphImages>,
+  label: string,
+  src: (obj: unknown) => StructSource | undefined,
+  warn: FieldWarn,
+): void {
+  const allGroups = new Set(images.flatMap((image) => Object.keys(image.vocabulary.groups)));
+  const candidateLabels = new Set<string>();
+  const labelSource = binding.candidates.length > 0
+    ? binding.candidates.map((c) => c.vocabulary)
+    : images.map((image) => image.vocabulary);
+  for (const vocabulary of labelSource) {
+    for (const l of morphImageLabels(vocabulary)) candidateLabels.add(l);
+  }
+  const checkLabel = (field: string, value: string, span: SourceSpan | undefined) => {
+    if (!candidateLabels.has(value)) {
+      warn(field, span, `No image the morph applies to has a layer labelled \`${value}\`.`);
+    }
+  };
+  const keyframes = struct["keyframes"];
+  if (Array.isArray(keyframes) && images.length > 0) {
+    for (const keyframe of keyframes) {
+      if (!isRecord(keyframe)) continue;
+      for (const [key, container] of Object.entries(keyframe)) {
+        if (key === "offset" || !isRecord(container)) continue;
+        const state = container["state"];
+        if (typeof state === "string" && state && !state.includes(".")) {
+          if (!allGroups.has(key)) {
+            warn("keyframes", src(keyframe)?.keys.get(key), `No image has a \`${key}\` attribute group.`);
+          } else {
+            const having = binding.candidates.filter((c) => c.vocabulary.groups[key]);
+            if (!having.some((c) => groupHasState(c.vocabulary, key, state))) {
+              warn(
+                "keyframes",
+                src(container)?.values.get("state"),
+                `No image's \`${key}\` group has a \`${state}\` state.`,
+              );
+            }
+          }
+        }
+        if (Object.keys(container).some((k) => k !== "state")) {
+          checkLabel("keyframes", key, src(keyframe)?.keys.get(key));
+        }
+      }
+    }
+  }
+  const rest = struct["rest"];
+  if (isRecord(rest) && images.length > 0) {
+    for (const [group, container] of Object.entries(rest)) {
+      const state = isRecord(container) ? container["state"] : undefined;
+      if (typeof state !== "string" || !state || state.includes(".")) continue;
+      const having = binding.candidates.filter((c) => c.vocabulary.groups[group]);
+      if (having.length > 0 && !having.some((c) => groupHasState(c.vocabulary, group, state))) {
+        warn(`rest.${group}`, src(container)?.values.get("state"), `No image's \`${group}\` group has a \`${state}\` state.`);
+      }
+    }
+  }
+  const conditionVocabularies = binding.candidates.length > 0 ? binding.candidates.map((c) => c.vocabulary) : images.map((image) => image.vocabulary);
+  for (const field of ["when", "unless"]) {
+    const value = struct[field];
+    const list = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+    if (images.length === 0) break;
+    list.forEach((item, index) => {
+      const condition = parseMorphQualifiedState(item);
+      if (!condition) return;
+      const span = Array.isArray(value)
+        ? (src(value)?.itemValues[index] ?? src(value)?.items[index])
+        : src(struct)?.values.get(field);
+      const having = conditionVocabularies.filter((vocabulary) => vocabulary.groups[condition.group]);
+      if (having.length === 0) {
+        warn(field, span, `No image ${label} could play on has a \`${condition.group}\` attribute group.`);
+      } else if (!having.some((vocabulary) => groupHasState(vocabulary, condition.group, condition.state))) {
+        warn(field, span, `No image's \`${condition.group}\` group has a \`${condition.state}\` state.`);
+      }
+    });
+  }
+  if (images.length > 0) {
+    const layers = struct["layers"];
+    if (isRecord(layers)) {
+      for (const key of Object.keys(layers)) {
+        if (key.startsWith("$")) continue;
+        const field = `layers.${key}`;
+        checkLabel(field, key, src(layers)?.keys.get(key));
+        const policy = layers[key];
+        const partner = isRecord(policy) ? policy["partner"] : undefined;
+        if (typeof partner === "string" && partner) checkLabel(field, partner, src(policy)?.values.get("partner"));
+        if (Array.isArray(partner)) {
+          partner.forEach((value, i) => {
+            if (typeof value === "string" && value) checkLabel(field, value, src(partner)?.itemValues[i] ?? src(partner)?.items[i]);
+          });
+        }
+      }
+    }
+    const clips = struct["clips"];
+    if (Array.isArray(clips)) {
+      for (const clip of clips) {
+        if (!isRecord(clip)) continue;
+        for (const field of ["between", "targets"]) {
+          const list = clip[field];
+          if (!Array.isArray(list)) continue;
+          list.forEach((value, i) => {
+            if (typeof value === "string" && value) {
+              checkLabel("clips", value, src(list)?.itemValues[i] ?? src(list)?.items[i]);
+            }
+          });
+        }
+      }
+    }
+  }
 }
 
 function coverageIssues(
@@ -285,6 +460,11 @@ function coverageIssues(
   effective: Record<string, unknown>,
   context: Context,
   images: ReturnType<typeof morphImages>,
+  inheritance: {
+    span: SourceSpan;
+    ancestors: readonly MorphLayer[];
+    parentEffective: Record<string, unknown> | null;
+  },
 ): LocatedMorphIssue[] {
   const issues: LocatedMorphIssue[] = [];
   const binding = bindMorph(context, effective, images);
@@ -301,78 +481,29 @@ function coverageIssues(
   };
   const label = name ? `\`${name}\`` : "This morph";
 
-  const allGroups = new Set(images.flatMap((image) => Object.keys(image.vocabulary.groups)));
-  const candidateLabels = new Set<string>();
-  const labelSource = binding.candidates.length > 0
-    ? binding.candidates.map((c) => c.vocabulary)
-    : images.map((image) => image.vocabulary);
-  for (const vocabulary of labelSource) {
-    for (const l of morphImageLabels(vocabulary)) candidateLabels.add(l);
-  }
-  const checkLabel = (value: string, span: SourceSpan | undefined) => {
-    if (!candidateLabels.has(value)) {
-      warn(span, `No image the morph applies to has a layer labelled \`${value}\`.`);
+  fieldWarnings(own.struct, binding, images, label, src, (_field, span, message) => warn(span, message));
+
+  const inherited = inheritedFields(effective, own.struct);
+  if (Object.keys(inherited).length > 0) {
+    const reported = new Set<string>();
+    const { parentEffective } = inheritance;
+    if (parentEffective) {
+      fieldWarnings(parentEffective, bindMorph(context, parentEffective, images), images, label, () => undefined, (field, _span, message) =>
+        reported.add(`${field}\n${message}`),
+      );
     }
-  };
-  const keyframes = own.struct["keyframes"];
-  if (Array.isArray(keyframes) && images.length > 0) {
-    for (const keyframe of keyframes) {
-      if (!isRecord(keyframe)) continue;
-      for (const [key, container] of Object.entries(keyframe)) {
-        if (key === "offset" || !isRecord(container)) continue;
-        const state = container["state"];
-        if (typeof state === "string" && state && !state.includes(".")) {
-          if (!allGroups.has(key)) {
-            warn(src(keyframe)?.keys.get(key), `No image has a \`${key}\` attribute group.`);
-          } else {
-            const having = binding.candidates.filter((c) => c.vocabulary.groups[key]);
-            if (!having.some((c) => groupHasState(c.vocabulary, key, state))) {
-              warn(
-                src(container)?.values.get("state"),
-                `No image's \`${key}\` group has a \`${state}\` state.`,
-              );
-            }
-          }
-        }
-        if (Object.keys(container).some((k) => k !== "state")) {
-          checkLabel(key, src(keyframe)?.keys.get(key));
-        }
-      }
-    }
-  }
-  if (images.length > 0) {
-    const layers = own.struct["layers"];
-    if (isRecord(layers)) {
-      for (const key of Object.keys(layers)) {
-        checkLabel(key, src(layers)?.keys.get(key));
-        const policy = layers[key];
-        const partner = isRecord(policy) ? policy["partner"] : undefined;
-        if (typeof partner === "string" && partner) checkLabel(partner, src(policy)?.values.get("partner"));
-        if (Array.isArray(partner)) {
-          partner.forEach((value, i) => {
-            if (typeof value === "string" && value) checkLabel(value, src(partner)?.itemValues[i] ?? src(partner)?.items[i]);
-          });
-        }
-      }
-    }
-    const clips = own.struct["clips"];
-    if (Array.isArray(clips)) {
-      for (const clip of clips) {
-        if (!isRecord(clip)) continue;
-        for (const field of ["between", "targets"]) {
-          const list = clip[field];
-          if (!Array.isArray(list)) continue;
-          list.forEach((value, i) => {
-            if (typeof value === "string" && value) {
-              checkLabel(value, src(list)?.itemValues[i] ?? src(list)?.items[i]);
-            }
-          });
-        }
-      }
-    }
+    fieldWarnings(inherited, binding, images, label, () => undefined, (field, _span, message) => {
+      const key = `${field}\n${message}`;
+      if (reported.has(key)) return;
+      reported.add(key);
+      const top = field.split(".")[0]!;
+      const supplier = inheritance.ancestors.find((layer) => Object.hasOwn(layer.struct, top))?.name;
+      warn(inheritance.span, `\`${field}\`, inherited${supplier ? ` from \`${supplier}\`` : ""}: ${message}`);
+    });
   }
 
   for (const candidate of binding.candidates) {
+    if (candidate.excluded) continue;
     const related = candidate.uri
       ? { uri: candidate.uri, message: `Artwork for \`${candidate.image}\`` }
       : undefined;

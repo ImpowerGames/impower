@@ -1,9 +1,20 @@
 import type WorkspaceSearch from "../../workspace/WorkspaceSearch";
 
+let loaded: WorkspaceSearch | undefined;
+let loading: Promise<WorkspaceSearch> | undefined;
+
+export const loadSearch = () =>
+  (loading ??= import("../../workspace/Workspace").then(({ Workspace }) => {
+    loaded = Workspace.search;
+    return loaded;
+  }));
+
 export const withSearch = (run: (search: WorkspaceSearch) => unknown) => {
-  void import("../../workspace/Workspace").then(({ Workspace }) =>
-    run(Workspace.search),
-  );
+  if (loaded) {
+    run(loaded);
+  } else {
+    void loadSearch().then(run);
+  }
 };
 
 export const openFind = () =>

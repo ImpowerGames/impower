@@ -135,6 +135,7 @@ const setup = (opened: string | undefined = MAIN) => {
     }),
     setMatches: vi.fn(),
     revealRail: vi.fn(),
+    focusScript: vi.fn(),
     autoRenameFiles: () => autoRenameFiles.value,
     onTextChanged: (listener: () => void) => {
       textListeners.push(listener);
@@ -281,9 +282,12 @@ describe("Replace", () => {
     search.setReplacement("tale");
     await search.replaceAll();
     expect(sources.applyEdit).toHaveBeenCalledTimes(1);
-    const [edit] = sources.applyEdit.mock.calls[0]! as unknown as [
+    const [edit, , kind] = sources.applyEdit.mock.calls[0]! as unknown as [
       { documentChanges: { textDocument: { uri: string }; edits: { newText: string }[] }[] },
+      string,
+      string,
     ];
+    expect(kind).toBe("replace");
     expect(
       edit.documentChanges.map((c) => [c.textDocument.uri, c.edits.map((e) => e.newText)]),
     ).toEqual([
@@ -476,9 +480,56 @@ describe("Rename", () => {
         ],
       },
       "Rename imani to amara",
+      "rename-symbol",
     );
     expect(sources.onRenamed).toHaveBeenCalled();
     expect(workspace.search.value.open).toBe(false);
+  });
+
+  it("stays open and says nothing was renamed when the edit was refused and rolled back", async () => {
+    const { search, sources } = make(MAIN);
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason: "main.sd changed before the edit could be applied",
+      rollback: { complete: true, failed: [], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(sources.onRenamed).not.toHaveBeenCalled();
+    expect(workspace.search.value).toMatchObject({
+      status: "main.sd changed before the edit could be applied. Nothing was renamed.",
+      statusTone: "error",
+      open: true,
+    });
+  });
+
+  it("ends a refused rename's reason with one full stop", async () => {
+    const { search, sources } = make(MAIN);
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason: "imani.png is locked.",
+      rollback: { complete: true, failed: [], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    await search.rename();
+    expect(workspace.search.value.status).toBe("imani.png is locked. Nothing was renamed.");
+  });
+
+  it("shows the worker's account of what it could not put back when the rollback was partial", async () => {
+    const { search, sources } = make(MAIN);
+    const failureReason =
+      "a.png is locked; the edit was partly applied: restoring the earlier changes failed, so these may be left changed: file:///p/chapter.sd";
+    sources.applyEdit.mockImplementation(async () => ({
+      applied: false,
+      failureReason,
+      rollback: { complete: false, failed: ["file:///p/chapter.sd"], kept: [] },
+    }));
+    await search.openRename();
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(workspace.search.value.status).toBe(failureReason);
   });
 
   it("shows the server's reason and changes nothing when the name is taken", async () => {
@@ -512,6 +563,42 @@ describe("a tool asked for from inside the editor", () => {
     await vi.waitFor(() =>
       expect(workspace.search.value).toMatchObject({ open: true, view: "find" }),
     );
+  });
+
+  it("opens Find at once and seeds it from the selection, asking the field to select it", async () => {
+    const { search, selection } = make(MAIN);
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    expect(workspace.search.value).toMatchObject({ open: true, view: "find", focusRequest: 1 });
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "imani", focusRequest: 2 });
+  });
+
+  it("keeps what was typed into Find before the selection's words arrive", async () => {
+    const { search, selection } = make(MAIN);
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    void search.setTerm("Ali");
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "Ali", focusRequest: 1 });
+  });
+
+  it("keeps the earlier query when it is typed again before the selection's words arrive", async () => {
+    const { search, selection } = make(MAIN);
+    await search.setTerm("old");
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    void search.setTerm("old");
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "old", focusRequest: 1 });
+  });
+
+  it("gives the focus back to the script when Find is dismissed", () => {
+    const { search, sources } = make(MAIN);
+    search.open("find");
+    search.dismiss();
+    expect(workspace.search.value.open).toBe(false);
+    expect(sources.focusScript).toHaveBeenCalledTimes(1);
   });
 
   it("steps forward and backward from the editor's own next and previous keys", async () => {

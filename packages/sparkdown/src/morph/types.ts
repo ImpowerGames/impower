@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 26;
+export const MORPH_BAKE_FORMAT = 27;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -22,6 +22,7 @@ export interface MorphRecipe {
   spread?: number;
   layers: Record<string, MorphPolicy>;
   keyframes: { offset: number; states: Record<string, string> }[];
+  rest?: Record<string, string>;
   clips: { between: string[]; targets: string[]; spread?: number }[];
   paints?: MorphPaintEntry[];
   motion?: string[];
@@ -56,9 +57,15 @@ export interface MorphTiming {
   iteration_delay_max?: number;
 }
 
+export interface MorphConditions {
+  when?: string[];
+  unless?: string[];
+}
+
 export interface MorphProgramChannel {
   recipes: Record<string, string>;
   variants: Record<string, MorphRef[]>;
+  conditions?: Record<string, MorphConditions>;
 }
 
 export type MorphDiagnosticCode =
@@ -223,6 +230,7 @@ export interface MorphArtifact {
   width?: string;
   height?: string;
   rest: string;
+  rests?: Record<string, string>;
   idPrefix: string;
   parts: MorphPart[];
   visibility: Record<string, Record<string, string[]>>;

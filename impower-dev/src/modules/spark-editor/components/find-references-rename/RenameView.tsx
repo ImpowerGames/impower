@@ -1,9 +1,10 @@
 import { Button, TextField } from "@impower/impower-ui/components";
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import { useScriptMode } from "../../workspace/useActiveEditor";
 import { renameNote } from "../../workspace/WorkspaceSearch";
 import workspace from "../../workspace/WorkspaceStore";
+import { useFieldFocus } from "./findControls";
 import { withSearch } from "./withSearch";
 
 export default function RenameView() {
@@ -13,10 +14,7 @@ export default function RenameView() {
   const field = useRef<HTMLInputElement>(null);
   const reading = useScriptMode() === "reading";
 
-  useEffect(() => {
-    field.current?.focus({ preventScroll: true });
-    field.current?.select();
-  }, [subject?.name]);
+  useFieldFocus(field, subject?.name);
 
   if (!subject) {
     return (
@@ -44,7 +42,7 @@ export default function RenameView() {
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
-          withSearch((search) => search.close());
+          withSearch((search) => search.dismiss());
         }
       }}
     >

@@ -296,6 +296,7 @@ export {
 export * from "./icon/icons.generated";
 export * from "./icon/icons.aliases";
 export * from "./registry";
+export { useEscapeWithin } from "../utils/escapeWithin";
 export * from "../layout";
 export {
   default as Slider,
@@ -305,6 +306,21 @@ export {
   type SliderWidth,
   type SliderTrack,
 } from "./slider/Slider";
+export {
+  default as PlayButton,
+  playButtonVariants,
+  type PlayButtonProps,
+  type PlayButtonSize,
+} from "./play-button/PlayButton";
+export {
+  default as AudioPlayer,
+  audioPlayerVariants,
+  audioWaveVariants,
+  clock,
+  type AudioPlayerProps,
+  type AudioPlayerSize,
+  type AudioPlayerState,
+} from "./audio-player/AudioPlayer";
 export {
   default as PortraitThumbnail,
   portraitThumbnailVariants,

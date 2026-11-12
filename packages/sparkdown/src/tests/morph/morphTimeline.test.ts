@@ -65,10 +65,16 @@ describe("morph easing", () => {
 describe("morph timeline", () => {
   test("the first play waits for the delay, and a finite sequence holds its terminal pose", () => {
     const timeline = new MorphTimeline(timing({ delay: 0.7, iterations: 2 }), morphRandom("a"));
-    expect(timeline.at(0.5)).toEqual({ phase: "waiting" });
+    expect(timeline.at(0.5)).toEqual({ phase: "waiting", play: 0, offset: 0 });
     expect(timeline.at(0.7 + 0.125)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
     expect(timeline.at(0.7 + 0.25 + 0.05)).toMatchObject({ phase: "playing", play: 1 });
     expect(timeline.at(5)).toEqual({ phase: "done", play: 1, offset: 1 });
+  });
+
+  test("while it waits for its first play, a morph shows the pose that play starts from", () => {
+    expect(new MorphTimeline(timing({ delay: 1, direction: "reverse" }), morphRandom("a")).at(0.5)).toEqual({ phase: "waiting", play: 0, offset: 1 });
+    expect(new MorphTimeline(timing({ delay: 1, direction: "alternate-reverse" }), morphRandom("a")).at(0)).toEqual({ phase: "waiting", play: 0, offset: 1 });
+    expect(new MorphTimeline(timing({ delay: 1, direction: "alternate" }), morphRandom("a")).at(0)).toEqual({ phase: "waiting", play: 0, offset: 0 });
   });
 
   test("zero iterations never plays", () => {

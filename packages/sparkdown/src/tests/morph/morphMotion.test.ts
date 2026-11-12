@@ -237,24 +237,33 @@ describe("baking secondary states and layer motion", () => {
     expect(artifact.rest).not.toContain("data-morph-motion");
   });
 
-  test("every driven group must rest where the morph starts: a variant resting with the brows down stays still", () => {
+  test("a variant whose look chooses the brows down plays the morph and rests them on the morph's rest", () => {
     const artifact = bake({}, { brows: "down" });
-    expect(artifact.status).toBe("static");
-    expect(artifact.diagnostics.map((d) => d.code)).toEqual(["inactive-variant"]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
+    expect(drawnNames(artifact.rest)).toContain("brow-left:brows.up:default");
+    expect(drawnNames(artifact.rest)).not.toContain("brow-left:brows.down");
   });
 
-  test("a hyphenated rest is its own state: a variant resting with the brows up-high stays still", () => {
+  test("a look's own choice the morph does not name gives way to its rest: brows chosen up-high rest up", () => {
     const artifact = bake({}, { brows: "up-high" });
-    expect(artifact.status).toBe("static");
-    expect(artifact.diagnostics.map((d) => d.code)).toEqual(["inactive-variant"]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
+    const shown = new Set(artifact.visibility["brows"]!["up"]);
+    const part = artifact.parts[3]!.svg;
+    const up = withAttribute(part, "data-name", "brow-left:brows.up:default")[0]!.el.attributes["data-morph"]!;
+    const down = withAttribute(part, "data-name", "brow-left:brows.down")[0]!.el.attributes["data-morph"]!;
+    expect(shown.has(up)).toBe(true);
+    expect(shown.has(down)).toBe(false);
+    expect(withAttribute(part, "data-name", "brow-left:brows.up-high")).toEqual([]);
   });
 
-  test("a group the artwork cannot rest in makes the whole morph inapplicable, not half of the face", () => {
-    const source = FACE.replace('data-name="brow-left:brows.up:default"', 'data-name="brow-left:brows.up"');
+  test("a group whose drawing folder lacks a state the morph names makes the whole morph inapplicable, not half of the face", () => {
+    const source = FACE.replace('<path data-name="brow-left:brows.down" d="M10,18H90V24H10Z" fill="url(#ink)"/>', "");
     const artifact = bake({}, {}, source);
     expect(artifact.status).toBe("static");
     expect(artifact.diagnostics[0]).toMatchObject({ code: "inactive-variant" });
-    expect(artifact.diagnostics[0]!.message).toContain("`brows`");
+    expect(artifact.diagnostics[0]!.message).toContain("`brows.down`");
   });
 
   test("a layer two driven groups both switch is an overlapping claim and keeps the variant still", () => {
