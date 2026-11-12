@@ -86,12 +86,12 @@ async function schedulesOf(
 
 describe("audio scheduled for a redelivered, unchanged beat (#2118)", () => {
   test.each([
-    { channel: "sound", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
-    { channel: "voice", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
-    { channel: "sound", events: [{ control: "play", assets: ["rain"] }], landing: ["start audio.rain"], redelivered: ["start audio.rain"] },
-    { channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }], landing: ["start audio.door"], redelivered: ["start audio.door"] },
-    { channel: "music", events: [{ control: "play", assets: ["theme"] }], landing: ["start audio.theme"], redelivered: ["start audio.theme"] },
-  ])("$channel $events.0.assets.0 (loop $events.0.loop)", async ({ channel, events, landing, redelivered }) => {
+    { name: "skips a one-shot sound", channel: "sound", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
+    { name: "skips a voice line", channel: "voice", events: [{ control: "play", assets: ["door"] }], landing: ["start audio.door"], redelivered: [] },
+    { name: "keeps a sound whose asset loops", channel: "sound", events: [{ control: "play", assets: ["rain"] }], landing: ["start audio.rain"], redelivered: ["start audio.rain"] },
+    { name: "keeps a sound played as a loop", channel: "sound", events: [{ control: "play", assets: ["door"], loop: true }], landing: ["start audio.door"], redelivered: ["start audio.door"] },
+    { name: "keeps music", channel: "music", events: [{ control: "play", assets: ["theme"] }], landing: ["start audio.theme"], redelivered: ["start audio.theme"] },
+  ])("$name", async ({ channel, events, landing, redelivered }) => {
     expect(await schedulesOf(channel, events, false)).toEqual(landing);
     expect(await schedulesOf(channel, events, true)).toEqual(redelivered);
   });

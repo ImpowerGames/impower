@@ -55,6 +55,7 @@ export const beatDrawing = (
           ),
         }
       : {}),
+    redelivered: true,
     end: 0,
   };
 };

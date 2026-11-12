@@ -658,7 +658,9 @@ export class AudioModule extends Module<
     channel: string,
     sequence: AudioInstruction[],
     autoTrigger = false,
+    redelivered = false,
   ): number {
+    const sounded = redelivered && BEAT_SCOPED_CHANNELS.has(channel);
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
     for (const e of sequence) {
@@ -700,8 +702,11 @@ export class AudioModule extends Module<
       }
       if (event.assets && event.assets.length > 0) {
         for (const d of this.getAllAudioData(channel, event.assets)) {
-          audioToLoad.add(d);
           const update = this.process(channel, event, d);
+          if (sounded && update.control === "start" && !update.loop) {
+            continue;
+          }
+          audioToLoad.add(d);
           this.setCurrentlyPlaying(channel, update, d);
           this.saveChannelState(channel, update, d);
           updates.push(update);
