@@ -11,8 +11,8 @@ import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scr
 export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, seedThemePreference, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
-import { LONG_PRESS_MS, ORIENTATIONS, SWIPE_MS, adbMissingMessage, findAdb, openAndroidDevice, parseGesture, parsePoint, takeDeviceFlags } from "./android.mjs";
-import { notBuiltYet, parseNamedStep } from "./steps.mjs";
+import { LONG_PRESS_MS, ORIENTATIONS, SWIPE_MS, adbMissingMessage, findAdb, openAndroidDevice, pageVerdict, parseGesture, parsePoint, takeDeviceFlags } from "./android.mjs";
+import { SURFACE_SELECTORS, notBuiltYet, parseNamedStep, shotWaitsFor } from "./steps.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -783,7 +783,7 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, d
   const consoleLines = [];
   const cleanups = [];
   try {
-    const page = ctx.pages()[0] ?? (await ctx.newPage());
+    const page = session.page ?? ctx.pages()[0] ?? (await ctx.newPage());
     page.on("console", (m) => consoleLines.push(consoleLine(m)));
     page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
     await grantDurableStorage(ctx, page).catch((error) => {
@@ -1746,7 +1746,15 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
-      if (device) result.device = await deviceReport(page, device);
+      if (device) {
+        result.device = await deviceReport(page, device);
+        if (result.device.reason) {
+          result.error = result.device.reason;
+          deps.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
+      }
       if (args.includes("--fresh-sw")) {
         const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
         monitoredWorker = worker;
@@ -2046,7 +2054,7 @@ const SCREENS = {
   share: "#share-page",
 };
 const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]';
-const ASSET_INSPECTOR_SELECTOR = 'section[aria-label="Asset details"]';
+const ASSET_INSPECTOR_SELECTOR = SURFACE_SELECTORS.assetInspector;
 const ASSET_FOLDER_DEPTH = 4;
 
 export async function openAssetInspector(page, { timeout = 10_000 } = {}) {
@@ -2178,7 +2186,7 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
 const RAIL_SELECTOR = 'aside[aria-label="Sidebar"]';
 const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
 const APP_MENU_BUTTON_SELECTOR = 'button[aria-label="App menu"], aside[aria-label="Sidebar"] button[aria-haspopup="menu"]';
-const APP_MENU_SELECTOR = '[role="menu"]';
+const APP_MENU_SELECTOR = SURFACE_SELECTORS.menu;
 
 export async function openAppMenu(page, { timeout = 5000 } = {}) {
   const button = page.locator(APP_MENU_BUTTON_SELECTOR).first();
@@ -2204,8 +2212,8 @@ export async function openAppMenu(page, { timeout = 5000 } = {}) {
   const sheet = await page.evaluate((selector) => !!document.querySelector(selector)?.closest('[role="dialog"]'), APP_MENU_SELECTOR);
   return { step: "app-menu", ran: true, opened: sheet ? "sheet" : "popover" };
 }
-const PROJECT_NAME_SELECTOR = 'input[aria-label="Project name"], input[aria-label="Project Name"]';
-const SCRIPT_NAME_SELECTOR = 'input[data-script-name]';
+const PROJECT_NAME_SELECTOR = SURFACE_SELECTORS.projectName;
+const SCRIPT_NAME_SELECTOR = SURFACE_SELECTORS.scriptName;
 
 export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   const rail = await page.evaluate((selector) => {
@@ -2254,7 +2262,7 @@ export function focusScriptName(page, { timeout = 10000 } = {}) {
   return focusNameField(page, "focus-script-name", SCRIPT_NAME_SELECTOR, "script name (Main's name is fixed, so open another script first)", timeout);
 }
 
-const ADD_PANEL_SELECTOR = '[role="dialog"][aria-label="Add to script"]';
+const ADD_PANEL_SELECTOR = SURFACE_SELECTORS.addPanel;
 
 export async function openAddMenu(page, { timeout = 5000 } = {}) {
   const desktop = page.locator("[data-add-trigger]").first();
@@ -2732,6 +2740,33 @@ async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
       { timeout },
     )
     .then(() => true, () => false);
+}
+
+export function surfaceSettled(selector) {
+  return [...document.querySelectorAll(selector)].some((el) => {
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || getComputedStyle(el).visibility === "hidden") return false;
+    return !document.getAnimations().some((animation) => {
+      const target = animation.effect?.target;
+      return target && (target.contains(el) || el.contains(target)) && animation.playState === "running" && Number.isFinite(animation.effect.getComputedTiming().endTime);
+    });
+  });
+}
+
+const SURFACE_POLL_MS = 100;
+
+export async function surfacePainted(page, waitsFor) {
+  const deadline = Date.now() + PAINT_BUDGET_MS;
+  for (;;) {
+    for (const frame of page.frames()) {
+      if (await frame.evaluate(surfaceSettled, waitsFor.selector).catch(() => false)) {
+        await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        return true;
+      }
+    }
+    if (Date.now() >= deadline) return false;
+    await page.waitForTimeout(SURFACE_POLL_MS);
+  }
 }
 
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
@@ -3520,10 +3555,13 @@ async function screenshot(args, deps = liveDeps) {
 }
 
 async function deviceReport(page, device, display = DISPLAY) {
-  const report = { ...device.report(), page: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio })) };
+  const { visibility, ...measured } = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio, visibility: document.visibilityState }));
+  const report = { ...device.report(), page: measured };
   if (display.viewport && Math.abs(report.page.width - display.viewport.width) > 1) {
     report.note = `--viewport ${display.viewport.name} asked for a page ${display.viewport.width} wide and the device's density gives ${report.page.width}`;
   }
+  const blank = pageVerdict({ ...measured, visibility });
+  if (blank) report.reason = blank;
   return report;
 }
 
@@ -3594,7 +3632,15 @@ async function ui(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
-      if (device) result.device = await deviceReport(page, device);
+      if (device) {
+        result.device = await deviceReport(page, device);
+        if (result.device.reason) {
+          result.failed = [result.device.reason];
+          deps.log(JSON.stringify(result, null, 2));
+          process.exitCode = 1;
+          return result;
+        }
+      }
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
@@ -3821,12 +3867,23 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
+            const waitsFor = shotWaitsFor(steps, index);
+            const painted = waitsFor ? await (deps.surfacePainted ?? surfacePainted)(page, waitsFor) : true;
+            let taken;
             if (step.shotOf === "screen") {
               const target = path.resolve(step.out);
               fs.mkdirSync(path.dirname(target), { recursive: true });
               await device.screenshot(target);
-              result.steps.push({ of: "screen", screenshot: target });
-            } else result.steps.push(await shotOf(page, step.shotOf, step.out));
+              taken = { of: "screen", screenshot: target };
+            } else taken = await shotOf(page, step.shotOf, step.out);
+            if (waitsFor) {
+              taken.waitedFor = waitsFor.what;
+              if (!painted) {
+                const missed = `${waitsFor.what} had not painted within ${seconds(PAINT_BUDGET_MS)} of the screenshot, so the picture may not show it`;
+                taken.reason = taken.reason ? `${taken.reason}; also ${missed}` : missed;
+              }
+            }
+            result.steps.push(taken);
           } else if (step.probe) {
             const code = fs.readFileSync(path.resolve(step.probe), "utf8");
             result.steps.push({
@@ -4001,6 +4058,7 @@ const liveDeps = {
   waitForDomQuiet,
   previewSummary,
   editorPainted,
+  surfacePainted,
   clickLine,
   documentLines,
   routeLabel,
