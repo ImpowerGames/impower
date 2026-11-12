@@ -255,27 +255,38 @@ function validateWithUnwrittenParents(
   const supplier = (field: string) => defines.find((layer) => field in layer.struct)?.name ?? defines[0]!.name;
   const run = (omit?: string) => {
     const aliases = new WeakMap<object, object>();
-    const struct: Record<string, unknown> = { ...own };
-    for (const [field, value] of Object.entries(inherited)) {
-      if (field === omit) continue;
-      const written = own[field];
-      if (isRecord(written) && isRecord(value)) {
-        const combined = { ...value, ...written };
-        aliases.set(combined, written);
-        struct[field] = combined;
-      } else {
-        struct[field] = value;
+    const combine = (written: Record<string, unknown>, from: Record<string, unknown>): Record<string, unknown> => {
+      const combined: Record<string, unknown> = { ...written };
+      for (const [key, value] of Object.entries(from)) {
+        const mine = written[key];
+        combined[key] = isRecord(mine) && isRecord(value) ? combine(mine, value) : key in written ? mine : value;
       }
-    }
+      aliases.set(combined, written);
+      return combined;
+    };
+    const struct = combine(own, Object.fromEntries(Object.entries(inherited).filter(([field]) => field !== omit)));
     const base = decl.own.sources;
     const sources = { get: (obj: object) => base.get(aliases.get(obj) ?? obj) } as WeakMap<object, StructSource>;
     return validateMorphDeclaration({ ...decl, own: { ...decl.own, struct, sources } });
   };
   const key = (issue: MorphIssue) => `${issue.from}:${issue.to}:${issue.severity}:${issue.message}`;
-  const without = new Map(fields.map((field) => [field, new Set(run(field).map(key))]));
+  const count = (issues: readonly MorphIssue[]) => {
+    const counts = new Map<string, number>();
+    for (const issue of issues) counts.set(key(issue), (counts.get(key(issue)) ?? 0) + 1);
+    return counts;
+  };
+  const full = run();
+  const totals = count(full);
+  const causes = new Map<string, string[]>();
+  for (const field of fields) {
+    const remaining = count(run(field));
+    for (const [issue, total] of totals) {
+      for (let i = remaining.get(issue) ?? 0; i < total; i += 1) causes.set(issue, [...(causes.get(issue) ?? []), field]);
+    }
+  }
   const atName = (issue: MorphIssue) => issue.from === decl.name.from && issue.to === decl.name.to;
-  const issues: LocatedMorphIssue[] = run().map((issue) => {
-    const cause = atName(issue) ? fields.find((field) => !without.get(field)!.has(key(issue))) : undefined;
+  const issues: LocatedMorphIssue[] = full.map((issue) => {
+    const cause = atName(issue) ? causes.get(key(issue))?.shift() : undefined;
     if (!cause) return issue;
     return { from: span.from, to: span.to, severity: issue.severity, message: `\`${cause}\`, inherited from \`${supplier(cause)}\`: ${issue.message}` };
   });
@@ -307,12 +318,14 @@ function inheritedFields(
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(effective)) {
     if (key.startsWith("$")) continue;
-    const written = own[key];
-    if (written === undefined) {
+    if (!(key in own)) {
       result[key] = value;
-    } else if (isRecord(value) && isRecord(written)) {
-      const entries = Object.entries(value).filter(([entry]) => !entry.startsWith("$") && !(entry in written));
-      if (entries.length > 0) result[key] = Object.fromEntries(entries);
+      continue;
+    }
+    const written = own[key];
+    if (isRecord(value) && isRecord(written)) {
+      const nested = inheritedFields(value, written);
+      if (Object.keys(nested).length > 0) result[key] = nested;
     }
   }
   return result;

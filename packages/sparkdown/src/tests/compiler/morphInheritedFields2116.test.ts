@@ -22,12 +22,25 @@ const KEYFRAMES = [
 
 const SCENE = ["scene start", "  [[bunny]]", "  [[bunny~eyes.closed]]", "  [[bunny~mouth.teeth]]", "  [[bunny~mouth.open]]", "end", ""];
 
+type Field = (typeof MORPH_ROOT_FIELDS)[number];
+
 interface Row {
-  field: (typeof MORPH_ROOT_FIELDS)[number];
-  lines: string[];
+  fields: Field[];
+  written: string[];
+  inherited: string[];
+  parent: string[];
 }
 
-const row = (field: Row["field"], ...lines: string[]): Row => ({ field, lines: lines.map((line) => `  ${line}`) });
+const indent = (lines: string[]) => lines.map((line) => `  ${line}`);
+
+const row = (field: Field, ...lines: string[]): Row => ({ fields: [field], written: indent(lines), inherited: [], parent: indent(lines) });
+
+const split = (fields: Field[], written: string[], inherited: string[], parent: string[]): Row => ({
+  fields,
+  written: indent(written),
+  inherited: indent(inherited),
+  parent: indent(parent),
+});
 
 const ROWS: Row[] = [
   row("blend", "blend = cut"),
@@ -86,11 +99,27 @@ const ROWS: Row[] = [
   row("layers", "layers {", "  lips { partner = lips }", "}"),
   row("depth", "depth = closed"),
   row("paints", "paints {", "  { targets { lips }; state = closed; fill = red }", "}"),
+  split(["layers"], ["layers {", "  lips { spread = 1px; blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  lips { blend = jump }", "}"]),
+  split(["rest"], ["rest {", "  mouth { state = closed; translate = 0 2px }", "}"], ["rest {", "  mouth { state = closed }", "}"], ["rest {", "  mouth { translate = 0 2px }", "}"]),
+  split(["rest"], ["rest {", "  mouth { state = teeth }", "}"], ["rest {", "  mouth { }", "}"], ["rest {", "  mouth { state = teeth }", "}"]),
+  split(["timing"], ["blend = jump", "timing {", "  duration = 0.5", "}"], ["blend = jump"], ["timing {", "  duration = 0.5", "}"]),
+  split(["timing"], ["when = closed", "timing {", "  duration = 0.5", "}"], ["when = closed"], ["timing {", "  duration = 0.5", "}"]),
+  split(["method", "layers"], ["method = warp", "layers {", "  lips { method = warp }", "}"], [], ["method = warp", "layers {", "  lips { method = warp }", "}"]),
 ];
 
-const childText = (row: Row, written: boolean) => {
-  const body = [...(row.field === "keyframes" ? [] : KEYFRAMES), ...(written ? row.lines : [])];
-  return ["morph child as base {", ...body, "}", "", ...SCENE].join("\n");
+const preamble = (row: Row) => (row.fields.includes("keyframes") ? [] : KEYFRAMES);
+
+const childText = (row: Row, lines: string[]) => ["morph child as base {", ...preamble(row), ...lines, "}", "", ...SCENE].join("\n");
+
+const movedLines = (row: Row) => {
+  const kept = [...row.inherited];
+  const moved = new Set<number>();
+  row.written.forEach((line, index) => {
+    const at = kept.indexOf(line);
+    if (at >= 0) kept.splice(at, 1);
+    else moved.add(1 + preamble(row).length + index);
+  });
+  return moved;
 };
 
 function compile(text: string, base: Record<string, unknown>) {
@@ -108,7 +137,7 @@ function compile(text: string, base: Record<string, unknown>) {
 
 const INHERITED = /^`[^`]+`(?: \((?:keyframe|entry) [0-9]+\))?, inherited(?: from `base`)?: /;
 
-function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLines: [number, number] | null) {
+function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLines: Set<number> | null) {
   const lines = text.split("\n");
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1 || d.severity === 2)
@@ -116,9 +145,7 @@ function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLin
       const { start, end } = d.range;
       const message = typeof d.message === "string" ? d.message : d.message.value;
       const spanned = start.line === end.line ? lines[start.line]!.slice(start.character, end.character) : lines[start.line]!.slice(start.character);
-      const onField = fieldLines
-        ? start.line >= fieldLines[0] && start.line <= fieldLines[1]
-        : start.line === 0 && spanned === "base";
+      const onField = fieldLines ? fieldLines.has(start.line) : start.line === 0 && spanned === "base";
       return `${d.severity === 1 ? "error" : "warning"} @ ${onField ? "<field>" : spanned} : ${message.replace(INHERITED, "")}`;
     })
     .sort();
@@ -134,18 +161,25 @@ function binding(program: ReturnType<typeof compile>) {
 
 describe("a field inherited from a parent the scripts do not write reads as the same field written on the child", () => {
   test("the table covers every field a morph's root admits", () => {
-    expect([...new Set(ROWS.map((r) => r.field))].sort()).toEqual([...MORPH_ROOT_FIELDS].sort());
+    expect([...new Set(ROWS.flatMap((r) => r.fields))].sort()).toEqual([...MORPH_ROOT_FIELDS].sort());
   });
 
-  test.each(ROWS.map((r) => [`${r.field}: ${r.lines.map((l) => l.trim()).join(" ")}`, r] as const))("%s", (_name, r) => {
-    const writtenText = childText(r, true);
+  const rowName = (r: Row) =>
+    `${r.fields.join(" + ")}: ${r.written.map((l) => l.trim()).join(" ")}${r.inherited.length ? ` (the child keeps: ${r.inherited.map((l) => l.trim()).join(" ")})` : ""}`;
+
+  test.each(ROWS.map((r) => [rowName(r), r] as const))("%s", (_name, r) => {
+    const parentProgram = compile(childText(r, r.parent), {});
+    const lowered = parentProgram.context?.["morph"]?.["child"] as Record<string, unknown> | undefined;
+    const base: Record<string, unknown> = {};
+    for (const field of r.fields) {
+      expect(lowered?.[field], `the parent's ${field} lowers to a value`).not.toBeUndefined();
+      base[field] = lowered![field];
+    }
+    const writtenText = childText(r, r.written);
     const written = compile(writtenText, {});
-    const value = (written.context?.["morph"]?.["child"] as Record<string, unknown> | undefined)?.[r.field];
-    expect(value, "the written field lowers to a value").not.toBeUndefined();
-    const inheritedText = childText(r, false);
-    const inherited = compile(inheritedText, { [r.field]: value });
-    const first = 1 + (r.field === "keyframes" ? 0 : KEYFRAMES.length);
-    expect(diagnostics(inherited, inheritedText, null)).toEqual(diagnostics(written, writtenText, [first, first + r.lines.length - 1]));
+    const inheritedText = childText(r, r.inherited);
+    const inherited = compile(inheritedText, base);
+    expect(diagnostics(inherited, inheritedText, null)).toEqual(diagnostics(written, writtenText, movedLines(r)));
     expect(binding(inherited)).toEqual(binding(written));
   });
 });
