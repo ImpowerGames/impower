@@ -1,5 +1,6 @@
-import { type Tree } from "@lezer/common";
+import { type NodeType, type Tree } from "@lezer/common";
 import { type Grammar } from "../../grammar/classes/Grammar";
+import { expandedScopeOf } from "./expandedScope";
 
 export type EmbeddedLanguages = Readonly<Record<string, string>>;
 
@@ -81,16 +82,25 @@ export const createLanguageReader = (
     const { name } = node.props;
     if (typeof name === "string") nameByNode.set(node.typeId, name);
   }
+  const loadedTypes = grammar.loadedTypes;
   const languageByNode = new Map<string, string | null>();
-  const languageOfNode = (nodeName: string): string | null => {
-    const cached = languageByNode.get(nodeName);
+  const languageByExpandedType = new WeakMap<NodeType, string | null>();
+  const languageOf = (scopeName: string | undefined): string | null =>
+    scopeName === undefined
+      ? null
+      : (languageOfScopeName(scopeName, keys, embeddedLanguages) ?? null);
+  const languageOfNode = (type: NodeType): string | null => {
+    if (type.id >= loadedTypes) {
+      const cached = languageByExpandedType.get(type);
+      if (cached !== undefined) return cached;
+      const language = languageOf(expandedScopeOf(type));
+      languageByExpandedType.set(type, language);
+      return language;
+    }
+    const cached = languageByNode.get(type.name);
     if (cached !== undefined) return cached;
-    const scopeName = nameByNode.get(nodeName);
-    const language =
-      scopeName === undefined
-        ? null
-        : (languageOfScopeName(scopeName, keys, embeddedLanguages) ?? null);
-    languageByNode.set(nodeName, language);
+    const language = languageOf(nameByNode.get(type.name));
+    languageByNode.set(type.name, language);
     return language;
   };
   const character: LanguageReader["character"] = (
@@ -106,7 +116,7 @@ export const createLanguageReader = (
       node;
       node = node.parent
     ) {
-      const language = languageOfNode(node.name);
+      const language = languageOfNode(node.type);
       if (language !== null) return language;
     }
     return documentLanguage;

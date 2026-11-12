@@ -233,13 +233,18 @@ function spliceStateAccountsForSeeds(
     return false;
   }
   const derived: number[] = [];
-  for (const f of resume.frames) {
+  for (let i = 0; i < resume.frames.length; i++) {
+    const f = resume.frames[i]!;
     if (f.wrapperNodes) {
       for (const w of f.wrapperNodes) {
         derived.push(w);
       }
     }
-    derived.push(f.rule.node.typeIndex);
+    derived.push(
+      f.rule.nameTemplate === undefined
+        ? f.rule.node.typeIndex
+        : f.rule.nodeFor(resume.stack[i]!.beginCaptures).typeIndex,
+    );
     if (f.contentOpened) {
       derived.push(f.contentNodeIndex);
     }

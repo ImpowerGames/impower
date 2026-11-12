@@ -1,5 +1,6 @@
 import { GrammarRegistry } from "@impower/textmate-grammar-tree/src/grammar/classes/GrammarRegistry";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { expandedScopeOf } from "@impower/textmate-grammar-tree/src/tree/utils/expandedScope";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import vstm from "vscode-textmate";
@@ -53,11 +54,11 @@ interface OurToken {
 
 const INCOMPLETE_ID = 3;
 
-function buildScopeMap(parser: any): Map<number, string> {
-  const m = new Map<number, string>();
+function buildScopeMap(parser: any): Map<number, string[]> {
+  const m = new Map<number, string[]>();
   for (const n of parser.grammar.nodes) {
     if (n?.props?.name) {
-      m.set(n.typeIndex, n.props.name);
+      m.set(n.typeIndex, n.props.name.split(" "));
     }
   }
   return m;
@@ -91,8 +92,9 @@ function flatten(
     if (node.type.id === INCOMPLETE_ID) {
       hasErrors = true;
     }
-    const sc = scopeMap.get(node.type.id);
-    const my = sc ? [...chain, sc] : chain;
+    const expanded = expandedScopeOf(node.type);
+    const sc = expanded !== undefined ? expanded.split(" ") : scopeMap.get(node.type.id);
+    const my = sc ? [...chain, ...sc] : chain;
     for (let i = node.from; i < node.to; i++) charScopes[i] = my;
     let c = node.firstChild;
     while (c) {
