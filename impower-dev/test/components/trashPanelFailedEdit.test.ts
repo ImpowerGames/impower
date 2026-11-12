@@ -21,7 +21,8 @@ afterEach(async () => {
   workspace.trashOpen.value = false;
 });
 
-const entry = (relPath: string) => ({ relPath, originalUri: `file:///p/${relPath}`, type: "script" });
+const uri = (relPath: string) => `file:///p/${relPath}`;
+const entry = (relPath: string) => ({ relPath, originalUri: uri(relPath), type: "script" });
 
 const openPanel = async () => {
   workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "p" } };
@@ -38,32 +39,44 @@ const openPanel = async () => {
   );
 };
 
-it("says a failed edit's batch is a kept copy and names the action that failed, beside an ordinary delete", async () => {
+it.each([
+  {
+    action: { kind: "rename", targets: [uri("Assets/ada.png")] },
+    row: "other.sd | Copy kept when renaming ada.png failed · Scripts · just now",
+  },
+  {
+    action: { kind: "rename", targets: [uri("Assets/imani.png"), uri("Assets/imani@night.png"), uri("Assets/imani~face.png")] },
+    row: "other.sd | Copy kept when renaming imani.png and 2 more failed · Scripts · just now",
+  },
+  {
+    action: { kind: "put-back", targets: [uri("Scripts/other.sd")] },
+    row: "other.sd | Copy kept when putting back other.sd failed · Scripts · just now",
+  },
+  { action: undefined, row: "other.sd | Copy kept when an edit failed · Scripts · just now" },
+  {
+    action: { kind: "merge", targets: [uri("Scripts/other.sd")] },
+    row: "other.sd | Copy kept when an edit failed · Scripts · just now",
+  },
+  { action: { kind: "rename", targets: [] }, row: "other.sd | Copy kept when an edit failed · Scripts · just now" },
+])("says which failed $action.kind left a kept copy, from the batch's data", async ({ action, row }) => {
   batches.value = [
-    {
-      batchId: "3",
-      deletedAt: Date.now(),
-      entries: [entry("Scripts/other.sd")],
-      reason: { kind: "failed-edit", action: "Rename hero" },
-    },
+    { batchId: "1", deletedAt: Date.now(), entries: [entry("Scripts/other.sd")], reason: { kind: "failed-edit", action } },
+  ];
+  expect(await openPanel()).toEqual([row]);
+});
+
+it("marks only the kept copies, beside an ordinary delete", async () => {
+  batches.value = [
     {
       batchId: "2",
       deletedAt: Date.now(),
       entries: [entry("Scripts/a.sd"), entry("Scripts/b.sd")],
-      reason: { kind: "failed-edit", action: "Rename villain" },
+      reason: { kind: "failed-edit", action: { kind: "rename", targets: [uri("Assets/ada.png")] } },
     },
     { batchId: "1", deletedAt: Date.now(), entries: [entry("Scripts/gone.sd")] },
   ];
   expect(await openPanel()).toEqual([
-    "other.sd | Copy kept when “Rename hero” failed · Scripts · just now",
-    "2 items | Copies kept when “Rename villain” failed · Scripts · just now",
+    "2 items | Copies kept when renaming ada.png failed · Scripts · just now",
     "gone.sd | Scripts · just now",
   ]);
-});
-
-it("says an edit failed when the batch does not name its action", async () => {
-  batches.value = [
-    { batchId: "1", deletedAt: Date.now(), entries: [entry("other.sd")], reason: { kind: "failed-edit" } },
-  ];
-  expect(await openPanel()).toEqual(["other.sd | Copy kept when an edit failed · just now"]);
 });

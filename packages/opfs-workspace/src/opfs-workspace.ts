@@ -4,7 +4,10 @@ import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { RESOURCE_PROTOCOL } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import {
+  ApplyWorkspaceEditMessage,
+  WorkspaceEditAction,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
@@ -1047,14 +1050,12 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts, label } = message.params;
+    const { edit, expectedTexts, metadata } = message.params;
     const log = new CommitLog();
-    const { effects, failure } = await applyWorkspaceEdit(
-      edit,
-      log,
+    const { effects, failure } = await applyWorkspaceEdit(edit, log, {
       expectedTexts,
-      label,
-    );
+      action: metadata?.action,
+    });
 
     broadcastCreates(log, effects.created);
     broadcastDeletes(log, effects.deleted);
@@ -1161,7 +1162,7 @@ class UndoLog {
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
 
-  constructor(readonly action?: string) {}
+  constructor(readonly action?: WorkspaceEditAction) {}
 
   watch = (uris: string[], local: number) => {
     for (const uri of uris) {
@@ -1522,8 +1523,10 @@ const applyChange = async (
 const applyWorkspaceEdit = async (
   edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
   log: CommitLog,
-  expectedTexts?: Record<string, string>,
-  label?: string,
+  {
+    expectedTexts,
+    action,
+  }: { expectedTexts?: Record<string, string>; action?: WorkspaceEditAction } = {},
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??
@@ -1544,7 +1547,7 @@ const applyWorkspaceEdit = async (
       },
     };
   }
-  const undo = new UndoLog(label);
+  const undo = new UndoLog(action);
   const effects = noEffects();
   commitWatchers.add(undo.watch);
   try {

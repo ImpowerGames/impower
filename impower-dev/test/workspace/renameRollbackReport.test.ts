@@ -176,8 +176,8 @@ it("leaves a renamed picture saved during a failed rename at its saved path", as
 it("carries the rollback of a failed put-back, with its Trash copies, into the rename's error", async () => {
   const h = await harness();
   const main = h.fs.getFileUri("local", "main.sd");
-  vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (_edit: unknown, label?: string) => {
-    if (label?.startsWith("Put back")) {
+  const apply = vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (_edit: unknown, _label?: string, metadata?: any) => {
+    if (metadata?.action?.kind === "put-back") {
       return {
         applied: false,
         failureReason: "disk full",
@@ -193,6 +193,10 @@ it("carries the rollback of a failed put-back, with its Trash copies, into the r
   });
   const error = await failureOf(h.fs.renameFileWithReferences("local", "assets/a.png", "assets/b.png"));
   expect(error.rollback).toEqual({ complete: false, failed: ["main.sd"], kept: [], trashed: ["main.sd"] });
+  expect(apply.mock.calls.map((call) => (call[2] as any)?.action)).toEqual([
+    { kind: "rename", targets: [h.fs.getFileUri("local", "assets/a.png")] },
+    { kind: "put-back", targets: [main] },
+  ]);
 }, 15_000);
 
 it("leaves every file alone after a rename the worker rolled back whole", async () => {

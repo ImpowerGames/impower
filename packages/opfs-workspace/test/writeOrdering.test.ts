@@ -1733,6 +1733,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
       edit: referenceRename("a.sd", "b.sd"),
       label: "Rename a",
+      metadata: { isRefactoring: true, action: { kind: "rename", targets: [uriOf("a.sd")] } },
     });
     expect(response.result.rollback.trashed).toEqual([uriOf("main.sd")]);
     const trash = (id: string, params: Record<string, unknown>) =>
@@ -1740,7 +1741,7 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     const [batch] = (await trash("list", { action: "list" })).result.batches;
     expect(batch).toMatchObject({
       entries: [{ relPath: "main.sd", originalUri: uriOf("main.sd") }],
-      reason: { kind: "failed-edit", action: "Rename a" },
+      reason: { kind: "failed-edit", action: { kind: "rename", targets: [uriOf("a.sd")] } },
     });
     await trash("restore", { action: "restore", batchId: batch.batchId });
     expect(textAt(root, "main.sd")).toBe("see b");

@@ -5,6 +5,7 @@ import {
   ApplyWorkspaceEditMessage,
   ApplyWorkspaceEditResult,
   WorkspaceEdit,
+  WorkspaceEditMetadata,
   WorkspaceEditRollback,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
@@ -1092,7 +1093,7 @@ export default class WorkspaceFileSystem {
             ],
           },
           `Put back ${leafOf(uri)}`,
-          undefined,
+          { action: { kind: "put-back", targets: [uri] } },
           { [uri]: written },
         );
         if (restored.rollback) {
@@ -1187,7 +1188,13 @@ export default class WorkspaceFileSystem {
         ],
       },
       `Rename ${name}`,
-      { isRefactoring: true },
+      {
+        isRefactoring: true,
+        action: {
+          kind: "rename",
+          targets: renames.map(({ from }) => this.getFileUri(projectId, from)),
+        },
+      },
       Object.fromEntries(collected.scripts),
     );
     if (!result.applied) {
@@ -1382,7 +1389,7 @@ export default class WorkspaceFileSystem {
   async applyWorkspaceEdit(
     edit: WorkspaceEdit,
     label?: string,
-    metadata?: { isRefactoring?: boolean },
+    metadata?: WorkspaceEditMetadata,
     expectedTexts?: Record<string, string>,
   ): Promise<ApplyWorkspaceEditResult> {
     const result = await this.sendRequest(

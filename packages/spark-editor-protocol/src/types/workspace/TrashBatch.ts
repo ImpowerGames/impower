@@ -1,3 +1,5 @@
+import type { WorkspaceEditAction } from "../../protocols/workspace/ApplyWorkspaceEditMessage";
+
 export interface TrashEntry {
   relPath: string;
   originalUri: string;
@@ -6,7 +8,7 @@ export interface TrashEntry {
 
 export interface TrashReason {
   kind: "failed-edit";
-  action?: string;
+  action?: WorkspaceEditAction;
 }
 
 export interface TrashBatch {
