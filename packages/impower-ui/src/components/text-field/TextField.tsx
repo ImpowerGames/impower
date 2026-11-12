@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { JSX } from "preact";
 import { forwardRef } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
+import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { cn } from "../../utils/cn";
 
 export const textFieldVariants = cva(
@@ -86,6 +87,9 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
   ref,
 ) {
   const own = useRef<HTMLInputElement | null>(null);
+  const setRef = useForwardedRef(ref, (element: HTMLInputElement | null) => {
+    own.current = element;
+  });
   const commit = useRef(onCommit);
   commit.current = onCommit;
   const controlled = useRef(value);
@@ -103,14 +107,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
 
   return (
     <input
-      ref={(element: HTMLInputElement | null) => {
-        own.current = element;
-        if (typeof ref === "function") {
-          ref(element);
-        } else if (ref) {
-          (ref as { current: HTMLInputElement | null }).current = element;
-        }
-      }}
+      ref={setRef}
       type={type}
       class={cn(textFieldVariants({ frame, size, width, font }), className)}
       autocomplete="off"

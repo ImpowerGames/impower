@@ -10,6 +10,7 @@ import {
   type VNode,
 } from "preact";
 import { useCallback, useContext, useRef, useState } from "preact/hooks";
+import { useForwardedRef } from "../../hooks/useForwardedRef";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
@@ -135,27 +136,25 @@ export function DropdownTrigger({
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
+  const child = (Array.isArray(children) ? children[0] : children) as
+    | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
+        ref?: Ref<HTMLElement>;
+      })
+    | undefined;
+  const setTriggerRef = useForwardedRef(
+    child && typeof child === "object" ? child.ref : undefined,
+    (element: HTMLElement | null) => {
+      ctx.trigger.current = element;
+    },
+  );
   if (ctx.mode === "sheet") {
-    const child = (Array.isArray(children) ? children[0] : children) as
-      | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
-          ref?: Ref<HTMLElement>;
-        })
-      | undefined;
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
         onClick: (e: MouseEvent) => {
           child.props.onClick?.(e);
           ctx.setOpen(true);
         },
-        ref: (element: HTMLElement | null) => {
-          ctx.trigger.current = element;
-          const ref = child.ref;
-          if (typeof ref === "function") {
-            ref(element);
-          } else if (ref) {
-            ref.current = element;
-          }
-        },
+        ref: setTriggerRef,
       });
     }
     return <>{children}</>;
@@ -168,7 +167,7 @@ export function DropdownTrigger({
 }
 
 const dropdownContent = cva([
-  "z-50 min-w-[120px] overflow-y-auto rounded-card",
+  "z-50 min-w-[120px] overflow-y-auto overscroll-contain rounded-card",
   "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
   "origin-[--radix-dropdown-menu-content-transform-origin]",
   "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
@@ -200,7 +199,7 @@ function SheetMenu({
       <div
         ref={owner}
         role="menu"
-        class={cn("overflow-y-auto p-1.5", className)}
+        class={cn("overflow-y-auto overscroll-contain p-1.5", className)}
       >
         {children}
       </div>

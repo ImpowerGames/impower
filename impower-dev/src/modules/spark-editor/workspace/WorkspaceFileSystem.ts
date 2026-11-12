@@ -71,6 +71,11 @@ import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import workspace from "./WorkspaceStore";
+import {
+  findProjectRoot,
+  isArchiveDropping,
+  ProjectImportError,
+} from "./projectImport";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
@@ -630,18 +635,26 @@ export default class WorkspaceFileSystem {
     const encode = (text: string) =>
       new TextEncoder().encode(text).buffer as ArrayBuffer;
     const entries = files
-      .filter(({ uri }) => this._unstoredUris.has(uri))
+      .filter(({ uri }) => !this.isStored(uri))
       .map(({ path, text }) => ({ path, data: encode(text ?? "") }));
     if (settingsJson !== undefined) {
       entries.push({ path: SETTINGS_JSON_PATH, data: encode(settingsJson) });
     }
     return this.zipFiles({
       files: files
-        .filter(({ uri }) => !this._unstoredUris.has(uri))
+        .filter(({ uri }) => this.isStored(uri))
         .map(({ uri, path }) => ({ uri, path })),
       directories: await this.foldersOutside(projectId, files),
       entries,
     });
+  }
+
+  protected isStored(uri: string) {
+    return !this._unstoredUris.has(uri);
+  }
+
+  protected storedFiles(files: Record<string, FileData>) {
+    return Object.entries(files).filter(([uri]) => this.isStored(uri));
   }
 
   protected async foldersOutside(
@@ -685,9 +698,27 @@ export default class WorkspaceFileSystem {
   async writeProjectZip(
     projectId: string,
     content: ArrayBuffer,
-  ): Promise<string | undefined> {
+  ): Promise<{
+    settingsJson?: string;
+    leftOut: { count: number; folders: string[] };
+  }> {
     const existingFiles = await this.getFiles(projectId);
-    const archive = await this.unzipFiles({ data: content });
+    const unzippedArchive = await this.unzipFiles({ data: content }).catch(
+      (cause) => {
+        throw new ProjectImportError({ reason: "unreadable_zip" }, { cause });
+      },
+    );
+    const found = findProjectRoot(unzippedArchive.map((e) => e.filename));
+    if (found.kind === "refused") {
+      throw new ProjectImportError(found);
+    }
+    const archive = unzippedArchive.flatMap((entry) =>
+      entry.filename.startsWith(found.root) &&
+      entry.filename !== found.root &&
+      !isArchiveDropping(entry.filename)
+        ? [{ ...entry, filename: entry.filename.slice(found.root.length) }]
+        : [],
+    );
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
@@ -699,7 +730,7 @@ export default class WorkspaceFileSystem {
         data,
       }));
     const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
-    const zipFilesToDelete = Object.entries(existingFiles)
+    const zipFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           (!isProjectMetadata(this.getRelativePath(projectId, uri)) ||
@@ -707,15 +738,22 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
-    if (zipFilesToDelete.length > 0) {
-      await this.deleteFiles({ files: zipFilesToDelete });
+    try {
+      if (zipFilesToDelete.length > 0) {
+        await this.deleteFiles({ files: zipFilesToDelete });
+      }
+      await this.replaceFolders(projectId, unzipped);
+      await this.createFiles({ files: zipFilesToWrite });
+      await this.writeProjectMetadata(projectId, "folders", "1");
+    } catch (cause) {
+      throw new ProjectImportError({ reason: "storage" }, { cause });
     }
-    await this.replaceFolders(projectId, unzipped);
-    await this.createFiles({ files: zipFilesToWrite });
-    await this.writeProjectMetadata(projectId, "folders", "1");
-    return settingsEntry
-      ? new TextDecoder().decode(settingsEntry.data)
-      : undefined;
+    return {
+      settingsJson: settingsEntry
+        ? new TextDecoder().decode(settingsEntry.data)
+        : undefined,
+      leftOut: found.leftOut,
+    };
   }
 
   async readProjectScriptBundle(projectId: string) {
@@ -759,7 +797,7 @@ export default class WorkspaceFileSystem {
         data: arrayBuffer,
       };
     });
-    const textFilesToDelete = Object.entries(existingFiles)
+    const textFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           !isProjectMetadata(this.getRelativePath(projectId, uri)) &&
@@ -786,7 +824,7 @@ export default class WorkspaceFileSystem {
         uri: this.getFileUri(projectId, filename),
         data,
       }));
-    const zipFilesToDelete = Object.entries(existingFiles)
+    const zipFilesToDelete = this.storedFiles(existingFiles)
       .filter(
         ([uri, fileData]) =>
           !isProjectMetadata(this.getRelativePath(projectId, uri)) &&

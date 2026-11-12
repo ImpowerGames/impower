@@ -165,7 +165,7 @@ A `state` is always the name of an option, never a variable or a number, so `sta
 
 The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. As in CSS keyframes, a last pose that leaves a group out uses the portrait's resting state there.
 
-An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
+States match exactly ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` plays on a portrait resting in `open` and not on one resting in `open-wide`.
 
 ### How shapes change
 
@@ -479,7 +479,7 @@ A morph that drives several groups makes these checks for each of them, and the 
 
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
 
-Two morphs that drive the same portrait cannot both play on it; the portrait stays still, with a warning.
+Several morphs can play on one portrait at once, each on its own timing, so a face can blink while its mouth moves. They play together when they drive different groups, move different labels and name different labels in their clips' `between` and `targets`. If any two of them share a group, a moved label or a clip label, none of them plays: the portrait stays still, with a warning that names the morphs and what they share. A drawing whose showing depends on groups that two of the morphs drive, such as a crease conditioned on `eyes.closed` inside a `mouth.open` layer, also keeps the portrait still, with an error on the artwork.
 
 ## Timing
 

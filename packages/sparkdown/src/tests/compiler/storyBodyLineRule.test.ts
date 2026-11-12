@@ -419,6 +419,14 @@ describe("a statement later on the line keeps its own continuation", () => {
     ["a declaration's call", inScene("local a = 0 local b = math.max(1,\n  2)\nValue {b}.\n"), "Value 2.\n"],
     ["a function value", inScene("local a = 0 local f = function()\n  return 2\nend\nValue {f()}.\n"), "Value 2.\n"],
     ["an `&` call", inScene("local a = 0 & a = math.max(1,\n  2)\nValue {a}.\n"), "Value 2.\n"],
+    ["an `&` after an operation", inScene("local a = 1 + 2 & a = a * 2\nValue {a}.\n"), "Value 6.\n"],
+    ["an `&` after a reassignment", inScene("local a = 0\na = 1 & a = a + 1\nValue {a}.\n"), "Value 2.\n"],
+    ["an `&` after an if expression", inScene("local a = if true then 1 else 2 & a = a + 1\nValue {a}.\n"), "Value 2.\n"],
+    [
+      "an `&` after an `until` condition",
+      inScene("local n = 0\nlocal done = false\nrepeat\n  & n = n + 1\nuntil n > 2 & done = true\nValue {n} {done}.\n"),
+      "Value 3 true.\n",
+    ],
     ["a story `if`", inScene("local a = 0 if true then\n  Yes.\nend\n"), "Yes.\n"],
     ["a long string", `${SCENE}  local a = 0 a = [[two\nlines]]\n  Value {a}.\nend\n`, "Value two\nlines.\n"],
     ["a block comment", inScene("local a = 0 a = --[[two\nlines]] 2\nValue {a}.\n"), "Value 2.\n"],
@@ -426,6 +434,23 @@ describe("a statement later on the line keeps its own continuation", () => {
   ])("%s", (_name, source, output) => {
     expect(errorsOf(source)).toEqual([]);
     expect(run(source).output).toBe(output);
+  });
+
+  test.each([
+    "local a = 0 & a = 2",
+    "store b = 0 & b = 2",
+    "a = 0 & a = 2",
+    "local a = 1 + 2 & a = 3",
+    "a = not a & a = 3",
+    "local a = if a then 1 else 2 & a = 3",
+    "repeat\n  Hi.\nuntil a == 1 & a = 2",
+  ])("the line's first statement closes at the `&` and the `&` statement opens there (`%s`)", (statement) => {
+    const source = inScene(`${statement}\n`);
+    const mark = source.indexOf("&");
+    expect(stripAnsi(dumpTree(source))).not.toContain("ERROR_INCOMPLETE");
+    const nodes = topNodes(source);
+    expect(nodes.some((node) => node.to === mark)).toBe(true);
+    expect(nodes.find((node) => node.from === mark)?.name).toBe("LuauSparkdownExplicitStatement");
   });
 
   test("a statement inside the later block still ends at its own line", () => {
