@@ -2559,6 +2559,50 @@ describe("the announcement of a rollback's restoring write (I-2100)", () => {
     });
   });
 
+  it("names the restored file when the shared sequence cannot be written", async () => {
+    const root = seed({ "main.sd": "M" });
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    sequence.createSyncAccessHandle = async () => {
+      throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+    };
+    root.entries.set(sequence.name, sequence);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    const from = h.messages.length;
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("main.sd", 0, "x"), insert("missing.sd", 0, "x")] },
+    });
+    const announced = restoredIn(h, from).filter((a) =>
+      a.texts.some(([uri]: string[]) => uri === uriOf("main.sd")),
+    );
+    expect(announced.length).toBeGreaterThan(0);
+    expect(announced.at(-1)).toEqual({
+      texts: [[uriOf("main.sd"), "M"]],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
+  it("keeps another tab's restored marking on an unsequenced announcement only while storage holds the restored text", async () => {
+    const root = seed({ "main.sd": "M", "other.sd": "O" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    writeMemoryFile(root, "local/other.sd", enc.encode("SAVED SINCE"));
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("main.sd", "M"), fileData("other.sd", "O")],
+      restored: [uriOf("main.sd"), uriOf("other.sd")],
+    });
+    const announced = restoredIn(h, from);
+    expect(announced).toContainEqual({
+      texts: [
+        [uriOf("main.sd"), "M"],
+        [uriOf("other.sd"), "SAVED SINCE"],
+      ],
+      restored: [uriOf("main.sd")],
+    });
+  });
+
   it("names nothing when the edit applies, nor for an ordinary save", async () => {
     const root = seed({ "main.sd": "M" });
     const h = await worker(root);

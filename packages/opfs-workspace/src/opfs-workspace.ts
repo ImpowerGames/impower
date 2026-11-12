@@ -367,7 +367,12 @@ channel.onmessage = (event) => {
         postMessage(forward);
       }
       if (unordered.length > 0) {
-        announceSettled(await settlePaths(unordered), { local: false });
+        announceSettled(await settlePaths(unordered), {
+          local: false,
+          restoredTexts: DidWriteFilesMessage.type.isNotification(event.data)
+            ? restoredTextsOf(event.data.params.files, event.data.params.restored)
+            : new Map(),
+        });
       }
     })
     .catch((err) => console.error(err));
@@ -580,9 +585,21 @@ const settlePaths = async (paths: { uri: string; directory: boolean }[]) => {
   return settled;
 };
 
+const restoredTextsOf = (files: FileData[], restored: string[] = []) =>
+  new Map(
+    files.flatMap((file) =>
+      restored.includes(file.uri) && file.text != null
+        ? [[file.uri, file.text] as const]
+        : [],
+    ),
+  );
+
 const announceSettled = (
   observed: SettledPath[],
-  { local }: { local: boolean },
+  {
+    local,
+    restoredTexts = new Map(),
+  }: { local: boolean; restoredTexts?: Map<string, string> },
 ) => {
   const settled = observed.filter((e) => isLocalLatest(e.uri, e.local));
   const commitsOf = (entries: SettledPath[]): FileCommits =>
@@ -596,11 +613,15 @@ const announceSettled = (
   const watched = settled.filter((e) => !e.directory);
   const messages: NotificationMessage<string, any>[] = [];
   if (files.length > 0) {
+    const restored = files
+      .filter((e) => e.file!.text != null && restoredTexts.get(e.uri) === e.file!.text)
+      .map((e) => e.uri);
     messages.push(
       DidWriteFilesMessage.type.notification({
         files: files.map((e) => e.file!),
         remote: !local,
         commits: commitsOf(files),
+        ...(restored.length > 0 ? { restored } : {}),
       }),
     );
   }
@@ -658,7 +679,13 @@ const announceUnordered = async (log: CommitLog) => {
     await settlePaths(
       [...log.unordered].map(([uri, directory]) => ({ uri, directory })),
     ),
-    { local: true },
+    {
+      local: true,
+      restoredTexts: restoredTextsOf(
+        [...log.writes.values()].map((write) => write.file),
+        [...log.restored],
+      ),
+    },
   );
 };
 
@@ -1075,12 +1102,10 @@ onmessage = async (e) => {
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
     const { edit, expectedTexts, confirm } = message.params;
     const log = new CommitLog();
-    const { effects, failure } = await applyWorkspaceEdit(
-      edit,
-      log,
+    const { effects, failure } = await applyWorkspaceEdit(edit, log, {
       expectedTexts,
-      confirm ? () => confirmEdit(message.id) : undefined,
-    );
+      confirm: confirm ? () => confirmEdit(message.id) : undefined,
+    });
 
     broadcastCreates(log, effects.created);
     broadcastDeletes(log, effects.deleted);
@@ -1546,8 +1571,13 @@ const applyChange = async (
 const applyWorkspaceEdit = async (
   edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
   log: CommitLog,
-  expectedTexts?: Record<string, string>,
-  confirm?: () => Promise<string | undefined>,
+  {
+    expectedTexts,
+    confirm,
+  }: {
+    expectedTexts?: Record<string, string>;
+    confirm?: () => Promise<string | undefined>;
+  } = {},
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??

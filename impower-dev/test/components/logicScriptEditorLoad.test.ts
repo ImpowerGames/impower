@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   editor: undefined as Record<string, unknown> | undefined,
   reads: [] as (() => void)[],
   connect: [] as (() => void)[],
+  holdWrites: false,
+  held: [] as (() => void)[],
   writes: [] as {
     textDocument: { uri: string; version: number; text: string };
     origin?: string;
@@ -73,6 +75,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     fs: {
       writeTextDocument: async (params: (typeof mocks.writes)[number]) => {
         mocks.writes.push(params);
+        if (mocks.holdWrites) {
+          await new Promise<void>((resolve) => mocks.held.push(resolve));
+        }
       },
       getFiles: () =>
         new Promise((resolve) =>
@@ -181,6 +186,8 @@ afterEach(async () => {
   mocks.reads.splice(0);
   mocks.connect.splice(0);
   mocks.writes.splice(0);
+  mocks.held.splice(0).forEach((release) => release());
+  mocks.holdWrites = false;
   mocks.editor = undefined;
 });
 
@@ -387,6 +394,69 @@ describe("LogicScriptEditor load handover", { timeout: 60_000 }, () => {
     } finally {
       window.removeEventListener("jsonrpc", hear);
     }
+  });
+});
+
+describe("LogicScriptEditor stored text per script", { timeout: 60_000 }, () => {
+  const MAIN = "file:///project/main.sd";
+  const OTHER = "file:///project/scripts/other.sd";
+
+  it("keeps typing in the script it switched to when a rollback restores that script after the previous script's autosave finishes", async () => {
+    await mount();
+    await connectController();
+    await answerReads();
+    mocks.holdWrites = true;
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri: MAIN },
+          text: "hello a\n",
+        }),
+      );
+    });
+    await vi.waitFor(() => expect(mocks.held.length).toBe(1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    mocks.editor = { uri: OTHER };
+    await act(async () => {
+      render(h(LogicScriptEditor, { filename: "scripts/other.sd" }), host!);
+    });
+    await answerReads();
+    await act(async () => {
+      mocks.held.shift()!();
+    });
+    await settle();
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri: OTHER },
+          text: "typed\n",
+        }),
+      );
+    });
+    const reads = mocks.reads.length;
+    await act(async () => {
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: [
+            {
+              uri: OTHER,
+              name: "other",
+              ext: "sd",
+              type: "script",
+              src: OTHER,
+              version: 2,
+              text: "",
+            },
+          ],
+          remote: false,
+          restored: [OTHER],
+        }),
+      );
+    });
+    await settle();
+    expect(mocks.reads.length).toBe(reads);
   });
 });
 
