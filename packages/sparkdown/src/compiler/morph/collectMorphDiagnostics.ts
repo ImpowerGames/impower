@@ -13,7 +13,7 @@ import {
   morphImages,
 } from "./bindMorph";
 import { parseMorphQualifiedState } from "./morphSchema";
-import { readMorphBody, type MorphIssue } from "./readMorphBody";
+import { plainPoseStates, readMorphBody, type MorphIssue } from "./readMorphBody";
 import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
 
 type Context = { [type: string]: { [name: string]: any } };
@@ -116,7 +116,8 @@ export function effectiveMorph(
 ): Record<string, unknown> {
   let result: Record<string, unknown> = isRecord(base) ? base : {};
   for (let i = ancestors.length - 1; i >= 0; i -= 1) {
-    result = inherit(result, ancestors[i]!.struct);
+    const layer = ancestors[i]!;
+    result = inherit(result, layer.written ? layer.struct : plainPoseStates(layer.struct));
   }
   return inherit(result, own);
 }

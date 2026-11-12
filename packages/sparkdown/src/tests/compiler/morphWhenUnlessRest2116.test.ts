@@ -333,6 +333,36 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     expect(errorsOnAs({ mouth: { state: "teeth" } })).toEqual([]);
   });
 
+  test("a state qualified with its own group, inherited from a parent the scripts do not write, is read like a written one", () => {
+    const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
+    const unwritten = { rest: { mouth: { state: "mouth.teeth" } } };
+    expect(diagnosticsOf(child, undefined, unwritten).filter((d) => d.code === "morph" && (d.severity === 1 || d.severity === 2))).toEqual([]);
+    expect(parseMorphRecipe(compile(child, undefined, unwritten).morphs!.recipes["talk_smile"]!)?.rest).toEqual({ mouth: "teeth" });
+    const keyframes = [
+      { offset: 0, mouth: { state: "mouth.closed" } },
+      { offset: 1, mouth: { state: "mouth.open" } },
+    ];
+    const inheriting = "morph talk as base {\n  blend = cut\n}\n";
+    expect(parseMorphRecipe(compile(inheriting, undefined, { keyframes }).morphs!.recipes["talk"]!)?.keyframes.map((k) => k.states)).toEqual([
+      { mouth: "closed" },
+      { mouth: "open" },
+    ]);
+  });
+
+  test("an inherited `rest` naming another group's state, or written as a value, is an error on the `as`", () => {
+    const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
+    const errorsOnAs = (rest: unknown) =>
+      diagnosticsOf(child, undefined, { rest })
+        .filter((d) => d.severity === 1 && d.text === "base")
+        .map((d) => d.message);
+    expect(errorsOnAs({ mouth: { state: "eyes.closed" } })).toEqual([
+      expect.stringMatching(/^`rest\.mouth\.state`, inherited from `base`: `eyes\.closed` names a state of the `eyes` group, but this container poses `mouth`/),
+    ]);
+    expect(errorsOnAs({ $type: "mouth", $name: "teeth" })).toEqual([
+      "`rest`, inherited from `base`: `rest` is a block, not a value: write `rest { mouth { state = teeth } }`.",
+    ]);
+  });
+
   test("inherited keyframe offsets from a parent the scripts do not write are checked, on the `as`", () => {
     const text = "morph talk as base {\n  blend = cut\n}\n";
     const keyframes = [

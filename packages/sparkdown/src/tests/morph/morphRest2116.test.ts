@@ -5,7 +5,7 @@ import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { morphFrameState, morphPosesAt } from "../../morph/render";
 import { MorphTimeline } from "../../morph/timeline";
-import { blink, LOWER_OPEN, partnerPortrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, EYEBALL, LOWER_OPEN, partnerPortrait, UPPER_OPEN } from "./fixtures";
 
 const square = (name: string, id: string, y: number) => `<path data-name="${name}" id="${id}" d="M0,${y}H10V${y + 10}H0Z"/>`;
 
@@ -225,6 +225,44 @@ describe("a morph's rest beside other poses", () => {
     const open = area(reached.rest);
     expect(open).toBeGreaterThan(100);
     expect(Math.abs(area(outside.rest) - open) / open).toBeLessThan(0.05);
+  });
+
+  test("a rest no keyframe names, drawn with one closed edge, is clipped shut like the same drawing reached by a keyframe", () => {
+    const drawings = `<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/><path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>`;
+    const art = partnerPortrait({ closed: drawings, more: { asleep: drawings } });
+    const bake = (rest: string) => bakeMorphArtifact({ source: art, selection: {}, recipes: [blink({ rest: { eyes: { state: rest } } })], key: `rest-${rest}` });
+    const area = (svg: string) => maskLoops(svg).reduce((sum, loop) => sum + loopArea(loop), 0);
+    const outside = bake("asleep");
+    const reached = bake("closed");
+    const open = bake("open");
+    expect(outside.status).toBe("live");
+    expect(outside.diagnostics).toEqual([]);
+    expect(area(open.rest)).toBeGreaterThan(100);
+    expect(area(reached.rest)).toBeLessThan(area(open.rest) / 5);
+    expect(area(outside.rest)).toBeLessThan(1);
+  });
+
+  test("a rest opening drawn away from the keyframes' openings lies inside its mask", () => {
+    const away = `<g transform="translate(600 0)"><path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/><path data-name="eyelash-left" d="${UPPER_OPEN}"/><path data-name="eyelash-left" d="${LOWER_OPEN}"/></g>`;
+    const art = partnerPortrait({ more: { away } }).replace('viewBox="0 0 140 100" width="140"', 'viewBox="0 0 750 100" width="750"');
+    const artifact = bakeMorphArtifact({ source: art, selection: {}, recipes: [blink({ rest: { eyes: { state: "away" } } })], key: "away" });
+    expect(artifact.status).toBe("live");
+    const loops = maskLoops(artifact.rest).filter((loop) => loopArea(loop) > 100);
+    expect(loops).not.toHaveLength(0);
+    const xs = loops.flatMap((loop) => loop.filter((_, i) => i % 2 === 0));
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(590);
+    const mask = elements(artifact.rest).find((e) => e.tagName === "mask")!;
+    const left = Number(mask.attributes["x"]);
+    expect(left).toBeLessThanOrEqual(Math.min(...xs));
+    expect(left + Number(mask.attributes["width"])).toBeGreaterThanOrEqual(Math.max(...xs));
+  });
+
+  test("a rest no keyframe names that draws none of a clip's edges bakes still, naming the clip", () => {
+    const art = partnerPortrait({ more: { bare: `<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>` } });
+    const artifact = bakeMorphArtifact({ source: art, selection: {}, recipes: [blink({ rest: { eyes: { state: "bare" } } })], key: "bare" });
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "edge-missing", severity: "error" })]);
+    expect(artifact.diagnostics[0]!.message).toContain("rest pose");
   });
 
   test("a morph waiting for its first play shows that play's directed start, which its still can show", () => {

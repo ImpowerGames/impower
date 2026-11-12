@@ -1603,14 +1603,30 @@ export function* bakeSteps(
       const result = geometry ? morphSubpaths(geometry, geometry, { method: "bend", stillTolerance: -1 }) : undefined;
       const track = result?.ok && result.morph.tracks.length === 1 ? result.morph.tracks[0] : undefined;
       if (!isBend(track)) {
-        edges.length = 0;
-        break;
+        report("edge-not-bend", "error", `Clip ${clip.number}'s edge "${leaf.label}" as the rest pose draws it does not morph with \`bend\`, so the rest's opening cannot be cut; aperture edges need two tapered tips to meet.`, { layer: leaf.label, morphs: clip.morphs });
+        return disable();
       }
       edges.push({ id: leaf.node, label: leaf.label, track });
     }
-    if (!edges.length) continue;
+    if (edges.length === 0) {
+      report("edge-missing", "error", `Clip ${clip.number}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) are not drawn in the rest pose, so the rest has no opening to cut.`, { layer: clip.between[0], morphs: clip.morphs });
+      return disable();
+    }
+    if (edges.length === 1) {
+      restLoops[index] = [];
+      continue;
+    }
     const built = buildApertures(edges);
-    if (built.diagnostics.length || !built.apertures.length) continue;
+    for (const d of built.diagnostics) {
+      const code = d.code === "ambiguous" ? "aperture-ambiguous" : d.code === "unpaired-edge" ? "aperture-unpaired" : "aperture-degenerate";
+      report(code, "error", `Clip ${clip.number}, in the rest pose: ${d.message}`, { morphs: clip.morphs });
+    }
+    if (built.diagnostics.length || !built.apertures.length) {
+      if (!built.diagnostics.length) {
+        report("aperture-unpaired", "error", `Clip ${clip.number}'s edges in the rest pose do not meet at their tips, so they enclose no opening.`, { morphs: clip.morphs });
+      }
+      return disable();
+    }
     restLoops[index] = built.apertures.map((aperture) => aperture.loop(0).flatMap(([x, y]) => [round(x), round(y)]));
   }
 
@@ -1663,21 +1679,25 @@ export function* bakeSteps(
     }
   }
   const apertureBounds = clips.map(() => ({ minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, widest: 0 }));
-  for (const segment of segments) {
-    for (const { clip, loops } of segment.clips) {
-      const box = apertureBounds[clip]!;
-      for (const sample of apertures[loops.index]!) {
-        for (const flat of sample) {
-          box.widest = Math.max(box.widest, loopArea(flat));
-          for (let i = 0; i + 1 < flat.length; i += 2) {
-            box.minX = Math.min(box.minX, flat[i]!);
-            box.maxX = Math.max(box.maxX, flat[i]!);
-            box.minY = Math.min(box.minY, flat[i + 1]!);
-            box.maxY = Math.max(box.maxY, flat[i + 1]!);
-          }
-        }
+  const bound = (clip: number, loops: readonly number[][]) => {
+    const box = apertureBounds[clip]!;
+    for (const flat of loops) {
+      box.widest = Math.max(box.widest, loopArea(flat));
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        box.minX = Math.min(box.minX, flat[i]!);
+        box.maxX = Math.max(box.maxX, flat[i]!);
+        box.minY = Math.min(box.minY, flat[i + 1]!);
+        box.maxY = Math.max(box.maxY, flat[i + 1]!);
       }
     }
+  };
+  for (const segment of segments) {
+    for (const { clip, loops } of segment.clips) {
+      for (const sample of apertures[loops.index]!) bound(clip, sample);
+    }
+  }
+  for (const [clip, loops] of restLoops.entries()) {
+    if (loops) bound(clip, loops);
   }
   const rooted = ({ clip, matrix, space }: Wrapper): boolean => {
     if (isIdentity(matrix)) return true;

@@ -29,7 +29,7 @@ import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
 import { morphMotionProblem } from "../../morph/motion";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
-import type { MorphBody, MorphIssue } from "./readMorphBody";
+import { poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
 type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
@@ -192,7 +192,7 @@ function restValueProblems(rest: unknown): { group?: string; key?: string; missi
     if (text && group !== undefined && !text.includes(".")) return `rest { ${group} { state = ${text} } }`;
     return undefined;
   };
-  if (!isRecord(rest)) {
+  if (!isRecord(rest) || "$type" in rest || "$name" in rest) {
     const fix = writtenState(rest);
     return [{ message: fix ? `\`rest\` is a block, not a value: write \`${fix}\`.` : REST_FORM }];
   }
@@ -823,6 +823,13 @@ export function morphValueProblems(
       const field = ["rest", ...(problem.group === undefined ? [] : [problem.group]), ...(problem.key === undefined ? [] : [problem.key])].join(".");
       problems.push({ field, message: problem.message });
     }
+  }
+  for (const { group, keyframe, message } of poseStateProblems(struct)) {
+    problems.push(
+      keyframe === undefined
+        ? { field: `rest.${group}.state`, message }
+        : { field: "keyframes", message: `keyframe ${keyframe + 1}: ${message}` },
+    );
   }
   const keyframes = struct["keyframes"];
   if (Array.isArray(keyframes)) {
