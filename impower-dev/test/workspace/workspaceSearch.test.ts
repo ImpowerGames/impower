@@ -135,6 +135,7 @@ const setup = (opened: string | undefined = MAIN) => {
     }),
     setMatches: vi.fn(),
     revealRail: vi.fn(),
+    focusScript: vi.fn(),
     autoRenameFiles: () => autoRenameFiles.value,
     onTextChanged: (listener: () => void) => {
       textListeners.push(listener);
@@ -562,6 +563,32 @@ describe("a tool asked for from inside the editor", () => {
     await vi.waitFor(() =>
       expect(workspace.search.value).toMatchObject({ open: true, view: "find" }),
     );
+  });
+
+  it("opens Find at once and seeds it from the selection, asking the field to select it", async () => {
+    const { search, selection } = make(MAIN);
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    expect(workspace.search.value).toMatchObject({ open: true, view: "find", focusRequest: 1 });
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "imani", focusRequest: 2 });
+  });
+
+  it("keeps what was typed into Find before the selection's words arrive", async () => {
+    const { search, selection } = make(MAIN);
+    selection.value = range(1, 6, 11);
+    const opening = search.openFindFromSelection();
+    void search.setTerm("Ali");
+    await opening;
+    expect(workspace.search.value).toMatchObject({ term: "Ali", focusRequest: 1 });
+  });
+
+  it("gives the focus back to the script when Find is dismissed", () => {
+    const { search, sources } = make(MAIN);
+    search.open("find");
+    search.dismiss();
+    expect(workspace.search.value.open).toBe(false);
+    expect(sources.focusScript).toHaveBeenCalledTimes(1);
   });
 
   it("steps forward and backward from the editor's own next and previous keys", async () => {

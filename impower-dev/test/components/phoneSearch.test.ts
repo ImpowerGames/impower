@@ -10,6 +10,7 @@ const search = vi.hoisted(() => ({
   replaceOne: vi.fn(),
   replaceAll: vi.fn(),
   close: vi.fn(),
+  dismiss: vi.fn(),
   openUse: vi.fn(),
   openAsset: vi.fn(),
   setRenameName: vi.fn(),
@@ -189,7 +190,7 @@ describe("the phone's find bar", () => {
     await press("Escape");
     await flush();
     expect(search.step.mock.calls).toEqual([[false], [true]]);
-    expect(search.close).toHaveBeenCalledTimes(1);
+    expect(search.dismiss).toHaveBeenCalledTimes(1);
   });
 
   it("takes the focus again each time Search is asked for", async () => {

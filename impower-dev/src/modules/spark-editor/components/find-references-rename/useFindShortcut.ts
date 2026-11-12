@@ -2,7 +2,7 @@ import { editorShortcutDispatch } from "@impower/codemirror-vscode-lsp-client/sr
 import { useEffect } from "preact/hooks";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import workspace from "../../workspace/WorkspaceStore";
-import { withSearch } from "./withSearch";
+import { loadSearch, withSearch } from "./withSearch";
 
 const leftTheField = (event: KeyboardEvent) =>
   event.target === document.body ||
@@ -16,6 +16,7 @@ const leftTheField = (event: KeyboardEvent) =>
 
 export default function useFindShortcut() {
   useEffect(() => {
+    void loadSearch();
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === "Escape" &&

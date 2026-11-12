@@ -1,7 +1,7 @@
 import { Button } from "@impower/impower-ui/components";
 import type { ButtonSize } from "@impower/impower-ui/components";
 import type { ComponentChildren, RefObject } from "preact";
-import { useEffect } from "preact/hooks";
+import { useLayoutEffect } from "preact/hooks";
 import { count } from "../../workspace/WorkspaceSearch";
 import type { FindOption, FindOptions } from "../../workspace/searchState";
 import { withSearch } from "./withSearch";
@@ -94,15 +94,15 @@ export const onFindKeyDown = (event: KeyboardEvent) => {
   } else if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
-    withSearch((search) => search.close());
+    withSearch((search) => search.dismiss());
   }
 };
 
 export const useFieldFocus = (
   field: RefObject<HTMLInputElement>,
-  focusRequest: number,
+  focusRequest: unknown,
 ) => {
-  useEffect(() => {
+  useLayoutEffect(() => {
     field.current?.focus({ preventScroll: true });
     field.current?.select();
   }, [focusRequest]);

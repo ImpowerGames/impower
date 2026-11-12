@@ -3,7 +3,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { search: {} },
+  Workspace: { search: { openFindFromSelection: vi.fn() } },
 }));
 
 const storage = new Map<string, string>();
@@ -13,7 +13,7 @@ vi.stubGlobal("localStorage", {
   removeItem: (key: string) => void storage.delete(key),
 });
 
-const { SearchRail } = await import(
+const { SearchRail, openFind, useFindShortcut } = await import(
   "../../src/modules/spark-editor/components/find-references-rename"
 );
 const { default: PhoneFindBar } = await import(
@@ -103,5 +103,19 @@ describe("the first key after Search opens", () => {
     );
     expect(host.querySelector<HTMLInputElement>("#rename-new-name")!.value).toBe("Robin");
     expect(script.value).toBe("Hello");
+  });
+});
+
+describe("a Search button", () => {
+  it("opens Find in the click's own task once the editor's window has mounted", async () => {
+    const { Workspace } = await import("../../src/modules/spark-editor/workspace/Workspace");
+    const Window = () => {
+      useFindShortcut();
+      return null;
+    };
+    await act(async () => render(h(Window, {}), host));
+    await nextTask();
+    openFind();
+    expect(Workspace.search.openFindFromSelection).toHaveBeenCalledTimes(1);
   });
 });
