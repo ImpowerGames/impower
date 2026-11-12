@@ -35,6 +35,10 @@ const IMPOWER_UI_SRC_SYNTAX = [
     selector: `CallExpression[callee.name="require"][arguments.0.value=${IMPOWER_UI_SRC_SOURCE}]`,
     message: IMPOWER_UI_SRC_MESSAGE,
   },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.quasis.0.value.raw=${IMPOWER_UI_SRC_SOURCE}]`,
+    message: IMPOWER_UI_SRC_MESSAGE,
+  },
   { selector: `TSImportType[argument.literal.value=${IMPOWER_UI_SRC_SOURCE}]`, message: IMPOWER_UI_SRC_MESSAGE },
 ];
 

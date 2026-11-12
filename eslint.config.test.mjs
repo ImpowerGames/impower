@@ -215,6 +215,9 @@ test("a relative import into packages/impower-ui/src from impower-dev/src fails"
   for (const code of [
     'export const load = () => import("../../../../../../packages/impower-ui/src/utils/cn");\n',
     'export type B = typeof import("../../../../../../packages/impower-ui/src/components/button/Button");\n',
+    "export const load = () => import(`../../../../../../packages/impower-ui/src/utils/cn`);\n",
+    'const cn = require("../../../../../../packages/impower-ui/src/utils/cn");\nmodule.exports = cn;\n',
+    "const cn = require(`../../../../../../packages/impower-ui/src/utils/cn`);\nmodule.exports = cn;\n",
   ]) {
     await assertImpowerUiSrcRefused(code, "no-restricted-syntax");
   }
