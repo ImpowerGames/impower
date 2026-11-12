@@ -36,7 +36,14 @@ const ASSETS = [HARBOR, IMANI, UNUSED, THEME, DOOR];
 
 const leaf = (uri: string) => uri.split("/").at(-1)!;
 
-const setup = (sources: Record<string, string> = SOURCES) => {
+const TYPES: Record<string, { type: string; ext: string }> = {
+  png: { type: "image", ext: "png" },
+  url: { type: "image", ext: "png" },
+  mp3: { type: "audio", ext: "mp3" },
+  ttf: { type: "font", ext: "ttf" },
+};
+
+const setup = (sources: Record<string, string> = SOURCES, assets: readonly string[] = ASSETS) => {
   const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
   for (const [uri, text] of Object.entries(sources)) {
     documents.add({ textDocument: { uri, languageId: "sparkdown", version: 1, text } });
@@ -44,12 +51,13 @@ const setup = (sources: Record<string, string> = SOURCES) => {
   const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
   Object.assign(workspace, {
     _documents: documents,
-    _watchedFiles: new Map([...Object.keys(sources), ...ASSETS].map((uri) => [uri, { uri }])),
+    _watchedFiles: new Map([...Object.keys(sources), ...assets].map((uri) => [uri, { uri }])),
     _programStates: new Map(),
     _documentVersions: new Map(),
     _scriptFilePattern: /[.]sd$/,
     _imageFilePattern: /[.]png$/,
     _audioFilePattern: /[.]mp3$/,
+    _fontFilePattern: /[.]ttf$/,
   });
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -63,12 +71,11 @@ const setup = (sources: Record<string, string> = SOURCES) => {
         version: 1,
         languageId: "sparkdown",
       })),
-      ...ASSETS.map((uri) => ({
+      ...assets.map((uri) => ({
         uri,
-        type: uri.endsWith(".png") ? "image" : "audio",
+        ...TYPES[uri.split(".").at(-1)!]!,
         name: leaf(uri).split(".")[0]!,
-        ext: uri.split(".").at(-1)!,
-        src: uri,
+        src: uri.endsWith(".url") ? "https://example.com/harbor-at-night.png" : uri,
         version: 1,
       })),
     ] as never,
@@ -141,6 +148,39 @@ describe("asset usage for the whole project in one request (#1033)", () => {
         list.map(({ uri: at, range, kind }) => ({ uri: at, range, kind }));
       expect(located(usage.uses[uri]!)).toEqual(located(references));
     }
+  });
+
+  test("counts a linked file by the asset its address names, as the compiler does", () => {
+    const LINK = `${ROOT}Assets/Images/dusk.url`;
+    const { workspace, program } = setup(
+      { [MAIN]: lines("scene start", "  [[show backdrop dusk]]", "end") },
+      [LINK, UNUSED],
+    );
+    const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+    expect(summary(usage.uses[LINK])).toEqual([["main.sd", 1, "backdrop", "[[show backdrop dusk]]"]]);
+    expect(usage.uses[UNUSED]).toEqual([]);
+  });
+
+  test("counts a use of a numbered-layer portrait folder for every layer file in it", () => {
+    const BODY = `${ROOT}Assets/Images/mira/001_body.png`;
+    const FACE = `${ROOT}Assets/Images/mira/002_face.png`;
+    const { workspace, program } = setup(
+      { [MAIN]: lines("scene start", "  MIRA: Hello.", "  [[show portrait mira]]", "end") },
+      [BODY, FACE],
+    );
+    const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+    expect(summary(usage.uses[BODY])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
+    expect(summary(usage.uses[FACE])).toEqual([["main.sd", 2, "portrait", "[[show portrait mira]]"]]);
+  });
+
+  test("counts a style's font family as a use of the font file, in the Style font role", () => {
+    const FONT = `${ROOT}Assets/Fonts/review_font.ttf`;
+    const { workspace, program } = setup(
+      { [MAIN]: lines("define dialogue_text as style with", "  font_family = font.review_font", "end", "scene start", "  Hello.", "end") },
+      [FONT, UNUSED],
+    );
+    const usage = provider.getAssetUsage(workspace, program, MAIN)!;
+    expect(summary(usage.uses[FONT])).toEqual([["main.sd", 1, "font", "font_family = font.review_font"]]);
   });
 
   test("follows a script edit: a use added or removed changes the next answer", () => {

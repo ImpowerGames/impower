@@ -74,37 +74,127 @@ const roleOf = (
   return place === "backdrop" || place === "background" ? "backdrop" : place === "portrait" ? "portrait" : "other";
 };
 
+type Target = { uri: string; type: string };
+
+const ASSET_KINDS: Record<string, string> = {
+  image: "image",
+  layered_image: "image",
+  filtered_image: "image",
+  graphic: "image",
+  audio: "audio",
+  layered_audio: "audio",
+  synth: "audio",
+  video: "video",
+  font: "font",
+};
+
+const assetKindOf = (type: string) => ASSET_KINDS[type] ?? "other";
+
+const REFERENCE_DEPTH = 4;
+
+const backingFiles = (
+  program: SparkProgram | undefined,
+  assets: ReadonlySet<string>,
+): { type: string; name: string; uris: ReadonlySet<string> }[] => {
+  const context = program?.context as Record<string, Record<string, unknown>> | undefined;
+  if (!context || !assets.size) {
+    return [];
+  }
+  const memo = new Map<string, Set<string>>();
+  const filesOf = (type: string, name: string): Set<string> => {
+    const id = `${type}.${name}`;
+    const known = memo.get(id);
+    if (known) {
+      return known;
+    }
+    const files = new Set<string>();
+    memo.set(id, files);
+    const definition = context[type]?.[name];
+    const visit = (value: unknown, depth: number) => {
+      if (!value || typeof value !== "object" || depth > REFERENCE_DEPTH) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((item) => visit(item, depth + 1));
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      if (depth > 0 && typeof record["$type"] === "string" && typeof record["$name"] === "string") {
+        filesOf(record["$type"], record["$name"]).forEach((uri) => files.add(uri));
+        return;
+      }
+      for (const [key, child] of Object.entries(record)) {
+        if (key !== "$default") {
+          visit(child, depth + 1);
+        }
+      }
+    };
+    if (definition && typeof definition === "object") {
+      const uri = (definition as Record<string, unknown>)["uri"];
+      if (typeof uri === "string" && assets.has(uri)) {
+        files.add(uri);
+      }
+      visit(definition, 0);
+    }
+    return files;
+  };
+  const backed: { type: string; name: string; uris: ReadonlySet<string> }[] = [];
+  for (const [type, definitions] of Object.entries(context)) {
+    if (!definitions || typeof definitions !== "object" || !(type in ASSET_KINDS)) {
+      continue;
+    }
+    for (const name of Object.keys(definitions)) {
+      if (name.startsWith("$")) {
+        continue;
+      }
+      const uris = filesOf(type, name);
+      if (uris.size) {
+        backed.push({ type, name, uris });
+      }
+    }
+  }
+  return backed;
+};
+
 export const getAssetUses = (
   workspace: SparkdownLanguageServerWorkspace,
   program: SparkProgram | undefined,
   assetUris: Iterable<string>,
 ): Record<string, AssetUse[]> => {
-  const direct = new Map<string, { uri: string; type: string }[]>();
-  const linked = new Map<string, { uri: string; type: string }[]>();
+  const direct = new Map<string, Map<string, Target>>();
+  const linked = new Map<string, Map<string, Target>>();
   const links = new Map<string, string[]>();
   const result: Record<string, AssetUse[]> = {};
-  const add = (map: typeof direct, id: string, target: { uri: string; type: string }) => {
-    const list = map.get(id);
-    if (list) list.push(target);
-    else map.set(id, [target]);
+  const add = (map: typeof direct, id: string, target: Target) => {
+    const targets = map.get(id) ?? new Map<string, Target>();
+    targets.set(target.uri, target);
+    map.set(id, targets);
   };
-  for (const uri of assetUris) {
-    const symbol = getFileSymbol(workspace, uri);
-    if (!symbol) {
-      continue;
-    }
-    result[uri] = [];
-    const target = { uri, type: symbol.type };
-    for (const id of symbol.symbolIds) {
-      add(direct, id, target);
-    }
-    let types = links.get(symbol.type);
+  const linkedTo = (type: string) => {
+    let types = links.get(type);
     if (!types) {
-      types = linkedTypes(program, symbol.type);
-      links.set(symbol.type, types);
+      types = linkedTypes(program, type);
+      links.set(type, types);
     }
-    for (const linkedType of types) {
-      add(linked, `${linkedType}.${symbol.name}`, target);
+    return types;
+  };
+  const index = (type: string, name: string, target: Target) => {
+    result[target.uri] ??= [];
+    add(direct, `${type}.${name}`, target);
+    for (const linkedType of linkedTo(type)) {
+      add(linked, `${linkedType}.${name}`, target);
+    }
+  };
+  const assets = new Set(assetUris);
+  for (const uri of assets) {
+    const symbol = getFileSymbol(workspace, uri);
+    if (symbol) {
+      index(symbol.type, symbol.name, { uri, type: symbol.type });
+    }
+  }
+  for (const { type, name, uris } of backingFiles(program, assets)) {
+    for (const uri of uris) {
+      index(type, name, { uri, type: getFileSymbol(workspace, uri)?.type ?? assetKindOf(type) });
     }
   }
   if (!direct.size) {
@@ -123,7 +213,7 @@ export const getAssetUses = (
         return;
       }
       let unbound: boolean | undefined;
-      const hit = (target: { uri: string; type: string }) => {
+      const hit = (target: Target) => {
         unbound ??= bindingAt(scriptUri, r.from, reference) === undefined;
         if (!unbound) {
           return;
@@ -155,11 +245,11 @@ export const getAssetUses = (
           continue;
         }
         if (reference.linkable) {
-          for (const target of linked.get(id) ?? []) {
+          for (const target of linked.get(id)?.values() ?? []) {
             hit(target);
           }
         }
-        for (const target of direct.get(id) ?? []) {
+        for (const target of direct.get(id)?.values() ?? []) {
           hit(target);
         }
       }
