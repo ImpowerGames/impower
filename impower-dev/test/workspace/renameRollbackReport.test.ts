@@ -150,3 +150,16 @@ it("leaves a script saved with the renamed text during a failed rename as it was
   expect([...h.assets.entries.keys()]).toEqual(["a.png"]);
   expect(h.snackbar.value?.message).toContain("main.sd");
 }, 15_000);
+
+it("leaves a renamed picture saved during a failed rename at its saved path", async () => {
+  const h = await harness();
+  const zz = (h.fileAt("scripts") as unknown as MemoryDirectory).entries.get("zz.sd") as MemoryFile;
+  zz.createSyncAccessHandle = async () => {
+    await h.write("assets/b.png", "AUTHOR-SAVED-TARGET");
+    throw new DOMException("The script could not be written", "NoModificationAllowedError");
+  };
+  expect(await h.rename()).toEqual({ renamed: false });
+  expect([...h.assets.entries.keys()].sort()).toEqual(["a.png", "b.png"]);
+  expect(await h.read("assets/b.png")).toBe("AUTHOR-SAVED-TARGET");
+  expect(h.snackbar.value?.message).toContain("assets/b.png");
+}, 15_000);

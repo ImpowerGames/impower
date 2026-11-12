@@ -2249,8 +2249,59 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     fileAt(root, "b.sd")!.gate = undefined;
     release();
     await vi.advanceTimersByTimeAsync(500);
-    expect(h.response("edit").result).toMatchObject({ applied: false, failedChange: 2, rollback: keptA });
+    const result = h.response("edit").result;
+    expect(result).toMatchObject({ applied: false, failedChange: 2 });
+    expect(result.rollback).toEqual({
+      complete: false,
+      failed: [expect.stringMatching(/^file:\/\/local\/\.trash\/[^/]+\/b\.sd$/)],
+      kept: [uriOf("a.sd")],
+    });
+    expect(result.failureReason).toContain("could not be listed in the Trash");
     expect(textAt(root, "b.sd")).toBe("B");
+    const listed = await h.request("list", "workspace/trashFiles", { projectId: "local", action: "list" });
+    expect(listed.result.batches).toEqual([]);
+    expect(textAt(root, result.rollback.failed[0].replace("file://local/", ""))).toBe("B!");
+  });
+
+  it("reports a save that lands while the rollback removes a folder the edit made", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A" });
+    const project = projectDirectory(root);
+    const remove = project.removeEntry.bind(project);
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    project.removeEntry = async (entry, options) => {
+      if (entry === "new" && !reached) {
+        reached = true;
+        await held;
+      }
+      return remove(entry, options);
+    };
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("new/b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(reached).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toMatchObject({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
   });
 
   it("keeps a file another tab writes between the rollback's look at it and its restore, and removes nothing after", async () => {

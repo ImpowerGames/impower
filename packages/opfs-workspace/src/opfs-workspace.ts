@@ -1269,7 +1269,7 @@ class UndoLog {
       } catch (err) {
         console.error(err);
       }
-      return [];
+      return { trashed: [], unlisted: [] };
     }
     const { projectId, deletedAt, id } = this.trashBatch!;
     const manifest = JSON.stringify({
@@ -1289,8 +1289,9 @@ class UndoLog {
       ]);
     } catch (err) {
       console.error(err);
+      return { trashed: [], unlisted: this.copies.map((c) => c.uri) };
     }
-    return this.copies.map((c) => c.originalUri);
+    return { trashed: this.copies.map((c) => c.originalUri), unlisted: [] };
   }
 
   async put(target: Restoring, log: CommitLog, effects: EditEffects) {
@@ -1425,15 +1426,15 @@ class UndoLog {
       }
       return unknown.length === 0 && kept.length === 0;
     };
-    promote();
-    const trashed = await this.settleTrash(promote);
-    promote();
     try {
       await deleteEmptyDirectories([...this.directories], log);
     } catch (err) {
       console.error(err);
       unknown.push(...this.directories);
     }
+    promote();
+    const { trashed, unlisted } = await this.settleTrash(promote);
+    promote();
     for (const uri of unknown) {
       log.reconcile(
         uri,
@@ -1450,7 +1451,7 @@ class UndoLog {
         State.documents.delete(entry.uri);
       }
     }
-    return { effects, unknown, kept, trashed };
+    return { effects, unknown, kept, trashed, unlisted };
   }
 }
 
@@ -1548,7 +1549,7 @@ const applyWorkspaceEdit = async (
       } catch (err: any) {
         console.error(err, err?.stack);
         const reason = err?.message ?? String(err);
-        const { effects, unknown, kept, trashed } = await undo
+        const { effects, unknown, kept, trashed, unlisted } = await undo
           .restore(log)
           .catch((restoreError) => {
             console.error(restoreError);
@@ -1556,7 +1557,8 @@ const applyWorkspaceEdit = async (
               effects: noEffects(),
               unknown: [...undo.prior.keys()],
               kept: [] as string[],
-              trashed: undo.copies.map((c) => c.originalUri),
+              trashed: [] as string[],
+              unlisted: undo.copies.map((c) => c.uri),
             };
           });
         const partial = [
@@ -1569,6 +1571,9 @@ const applyWorkspaceEdit = async (
           ...(trashed.length > 0
             ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
             : []),
+          ...(unlisted.length > 0
+            ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
+            : []),
         ];
         return {
           effects,
@@ -1580,7 +1585,7 @@ const applyWorkspaceEdit = async (
                 : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
             rollback: {
               complete: partial.length === 0,
-              failed: unknown,
+              failed: [...unknown, ...unlisted],
               kept,
               ...(trashed.length > 0 ? { trashed } : {}),
             },

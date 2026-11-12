@@ -1190,7 +1190,16 @@ export default class WorkspaceFileSystem {
         ...collected,
         texts: collected.texts.filter((change) => !kept.has(change.textDocument.uri)),
       });
-      const files = await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
+      const keptPaths = [...kept].map((uri) => this.getRelativePath(projectId, uri));
+      const touchesKept = (path: string) =>
+        keptPaths.some((keptPath) => keptPath === path || keptPath.startsWith(`${path}/`));
+      const files = await settleFailedMoves(
+        this,
+        projectId,
+        renames.filter((move) => !touchesKept(move.from) && !touchesKept(move.to)),
+        before,
+        `Couldn't rename ${name}: ${reason}.`,
+      );
       const relative = (uris: string[]) =>
         uris.map((uri) => this.getRelativePath(projectId, uri));
       throw Object.assign(
