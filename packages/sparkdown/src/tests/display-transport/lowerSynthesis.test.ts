@@ -248,6 +248,10 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
-    expect(field(instructions[0]!, "text")).toBe("The light flickers now.");
+    expect(styleRuns(field(instructions[0]!, "text") as string)).toEqual([
+      { text: "The light " },
+      { text: "flickers", value: true },
+      { text: " now." },
+    ]);
   });
 });

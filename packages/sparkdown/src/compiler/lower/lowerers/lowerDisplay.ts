@@ -467,7 +467,7 @@ function processDisplayBody(
       } else {
         const inlineAlt = tryLowerInlineAlternator(seg.node, ctx);
         if (inlineAlt) {
-          for (const obj of inlineAlt) out.push(obj);
+          out.push(...scannedValue(inlineAlt));
         } else {
           const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
@@ -634,22 +634,47 @@ const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
 ]);
 
-function isBodyInjection(node: SyntaxNode): boolean {
-  return (
-    node.name === "DisplayLoadKeyword" ||
-    node.name === "LuauInterpolatedString" ||
+function injectionKind(
+  node: SyntaxNode,
+): BodyInjection["kind"] | "opaque" | null {
+  if (node.name === "DisplayLoadKeyword") return "load";
+  if (node.name === "LuauInterpolatedString") return "opaque";
+  if (
     isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
-    isExplicitRuleName(node.name, "LuauFunctionCallShorthand") ||
-    node.name === "Divert" ||
-    INLINE_GLUED_ALTERNATOR_NAMES.has(node.name) ||
-    isExplicitRuleName(node.name, "Tags") ||
+    isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
+  ) {
+    return "expr";
+  }
+  if (node.name === "Divert") return "divert";
+  if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) return "inlineGluedAlt";
+  if (isExplicitRuleName(node.name, "Tags")) return "tag";
+  if (
     node.name === "SparkdownLineComment" ||
     node.name === "SparkdownInlineComment" ||
-    node.name === "SparkdownBlockComment" ||
-    node.name === "Glue" ||
-    node.name === "LeadingGlue" ||
-    node.name === "Break"
-  );
+    node.name === "SparkdownBlockComment"
+  ) {
+    return "comment";
+  }
+  if (node.name === "Glue") return "glue";
+  if (node.name === "LeadingGlue") return "leadingGlue";
+  if (node.name === "Break") return "break";
+  return null;
+}
+
+function injectionFrom(node: SyntaxNode, kind: BodyInjection["kind"]): number {
+  if (kind === "divert") {
+    return getDescendent("DivertMark", node)?.from ?? node.from;
+  }
+  if (kind === "inlineGluedAlt") {
+    const begin = findChildByNameDirect(node, `${node.name}_begin`);
+    return (begin && getDescendent("AlternatorGlue", begin)?.from) ?? node.from;
+  }
+  if (kind === "glue") return node.to - 2;
+  return node.from;
+}
+
+function isBodyInjection(node: SyntaxNode): boolean {
+  return injectionKind(node) !== null;
 }
 
 function scannedValue(body: ParsedObject[]): ParsedObject[] {
@@ -680,76 +705,15 @@ function collectTopLevelInjections(
   const out: BodyInjection[] = [];
   const visit = (node: SyntaxNode): void => {
     if (node.to <= bodyStart || node.from >= bodyEnd) return;
-    if (node !== parent) {
-      if (node.name === "DisplayLoadKeyword") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "load", node, from: node.from, to: node.to });
-        }
-        return;
+    const kind = node === parent ? null : injectionKind(node);
+    if (kind === "opaque") return;
+    if (kind) {
+      const from = injectionFrom(node, kind);
+      const start = kind === "divert" ? from : node.from;
+      if (start >= bodyStart && node.to <= bodyEnd) {
+        out.push({ kind, node, from, to: node.to });
       }
-      if (node.name === "LuauInterpolatedString") return;
-      if (
-        isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
-        isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
-      ) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "expr", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Divert") {
-        const mark = getDescendent("DivertMark", node);
-        const from = mark ? mark.from : node.from;
-        if (from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "divert", node, from, to: node.to });
-        }
-        return;
-      }
-      if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          const beginNode = findChildByNameDirect(node, `${node.name}_begin`);
-          const openingGlue = beginNode
-            ? getDescendent("AlternatorGlue", beginNode)
-            : null;
-          const from = openingGlue ? openingGlue.from : node.from;
-          out.push({ kind: "inlineGluedAlt", node, from, to: node.to });
-        }
-        return;
-      }
-      if (isExplicitRuleName(node.name, "Tags")) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "tag", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (
-        node.name === "SparkdownLineComment" ||
-        node.name === "SparkdownInlineComment" ||
-        node.name === "SparkdownBlockComment"
-      ) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "comment", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Glue") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "glue", node, from: node.to - 2, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "LeadingGlue") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "leadingGlue", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Break") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "break", node, from: node.from, to: node.to });
-        }
-        return;
-      }
+      return;
     }
     let child = node.firstChild;
     while (child) {

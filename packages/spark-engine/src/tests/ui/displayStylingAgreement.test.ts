@@ -316,6 +316,20 @@ describe("a mark inside an inserted value is styled within the value only", () =
     expect(show(opening("action"))).toBe("E z F");
   });
 
+  test("an alternator's chosen value inside braces is styled within the value", async () => {
+    const cellsOf = await renderedBeat(
+      script(`A {queue | "*one*" | "two" end} end`),
+    );
+    expect(show(cellsOf("action"))).toBe("A [italic: one] end");
+  });
+
+  test("an escape at the end of one value does not reach into the next", async () => {
+    const cellsOf = await renderedBeat(
+      script("A {x}{y} end", `store x = "back\\\\"\nstore y = "*b*"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("A back[italic: b] end");
+  });
+
   test("a table a script builds and hands to display() is read as a value", async () => {
     const cellsOf = await renderedBeat(
       script(`& display({ target = "action", text = "*word* here" })`),

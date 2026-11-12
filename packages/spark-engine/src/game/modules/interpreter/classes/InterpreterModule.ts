@@ -1147,6 +1147,7 @@ export class InterpreterModule extends Module<
               scanDepth = Math.max(0, scanDepth + (char === SCAN_OPEN ? 1 : -1));
               activeMarks.length = 0;
               raw = false;
+              escaped = false;
             } else if (opened) {
               spanMarks.push([opened.mark]);
             } else if (char === SPAN_CLOSE || char === SPAN_END) {
