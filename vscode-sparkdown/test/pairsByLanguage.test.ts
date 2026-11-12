@@ -137,6 +137,7 @@ class FakeEditor {
   get selection() {
     return this.selections[0]!;
   }
+  editOptions: { undoStopBefore: boolean; undoStopAfter: boolean }[] = [];
   undoStack: string[] = [];
   undoGroupOpen = false;
   applyUndoable(
@@ -170,6 +171,7 @@ class FakeEditor {
         inserts.push({ offset: this.document.offsetAt(position), text }),
     });
     this.edits.push(inserts.map(({ text }) => text));
+    this.editOptions.push(options);
     this.applyUndoable(inserts, options.undoStopBefore, options.undoStopAfter);
     return true;
   }
@@ -304,6 +306,23 @@ describe("auto-closing pairs in a .sd document follow the language at the cursor
     expect(await type(editor, "--[=[")).toBe(FUNCTION("--[=[|]=]"));
     expect(editor.undo()).toBe(FUNCTION("--[=[]"));
     expect(editor.undo()).toBe(FUNCTION("--[=]"));
+  });
+
+  it("leaves a function-body `[` completing `--[[` before an existing `]` to VS Code, so its undo follows the story pair (stated limit)", async () => {
+    const editor = open(FUNCTION("--[|]"));
+    expect(await type(editor, "[")).toBe(FUNCTION("--[[|]]"));
+    expect(state.nativeTypes).toBe(1);
+    expect(editor.edits).toEqual([]);
+    expect(editor.undo()).toBe(FUNCTION("--[]"));
+  });
+
+  it("makes a suppressed closer's keystroke its own undo step (stated limit)", async () => {
+    const editor = open(FUNCTION("local x = y |"));
+    expect(await type(editor, "::")).toBe(FUNCTION("local x = y ::|"));
+    expect(editor.editOptions).toEqual([
+      { undoStopBefore: true, undoStopAfter: false },
+    ]);
+    expect(editor.undo()).toBe(FUNCTION("local x = y :"));
   });
 
   it("undoes a typed `--[=[` the same way as a .luau document", async () => {

@@ -664,10 +664,12 @@ For each keystroke in a `.sd` document with every selection empty, the extension
 
 Typing `::` then closes in story text and not in a Luau expression, and `--[=[` closes with `]=]` in a function body and as brackets in story text, in both editors. A `.luau` document takes its pairs from the Luau config in both editors.
 
-Two limits remain in VS Code:
+Four limits remain in VS Code:
 
 - With `sparkdown.editor.autoCloseAngleBrackets` off, the extension does not own `type`. An editor emulator that owns `type` needs that, since only one extension can own it. VS Code then chooses every pair in a `.sd` document from the story config: `::` gets a closing `::` in a Luau expression, and `--[=[` in a function body closes as brackets.
 - VS Code types over only the closers it inserted itself. Typing a closer's character in front of a closer the extension inserted, such as the `]` of `]=]`, adds the character instead of stepping over it. The web editor's handler behaves the same way.
+- A keystroke whose closer is the same in both languages is left to VS Code, which then groups its undo by the story pair. Typing `--[[` in a function body gives `--[[]]`. One undo then gives `--[]`, removing the typed `[` with its `]`. A `.luau` document gives `--[[]`, removing only the `]`.
+- A keystroke whose closer the extension suppresses is its own undo step. Typing `::` after `local x = y ` in a function body gives `local x = y ::`. One undo then gives `local x = y :`. A `.luau` document gives `local x = y `, since VS Code groups the two colons as typing.
 
 The indentation patterns skip comments with a scanner that steps over strings, so a `--` or `//` inside a string does not hide a `then`, a `do` or an open bracket. It runs in the Luau `increaseIndentPattern`, in both files' `indentNextLinePattern`, and in the story `increaseIndentPattern`'s `function` and open-bracket alternatives. The story `if`, `elseif`, `for` and `while` alternatives are anchored at the line start, so a commented-out header cannot match them; they do not scan for comments. A `then` or `do` written inside a trailing comment (`if x -- then`) therefore indents there. The scanner reads:
 
