@@ -874,6 +874,10 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.loop).toBe(false);
     await click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!);
     expect(loop().getAttribute("aria-pressed")).toBe("true");
+    await click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="previous"]')!);
+    expect(loop().getAttribute("aria-pressed")).toBe("false");
+    await click(loop());
+    expect(loop().getAttribute("aria-pressed")).toBe("true");
   });
 
   it("starts Loop off for a sound in the Sounds folder", async () => {
@@ -1071,6 +1075,311 @@ describe("playing sounds from their rows", () => {
         await new Promise((resolve) => setTimeout(resolve, 300));
       });
       expect(inspector()?.querySelector("[data-audio-player]") ?? null).toBeNull();
+    });
+  }
+});
+
+describe("the rows and the inspector show one session's state", () => {
+  type Expect = { sounding: string | null; held: string | null; at?: string; failed?: string; cued?: boolean };
+  type Step = [action: string, expect: Expect];
+
+  const SOUNDS = ["door_chime", "footsteps"];
+  const MUSIC = ["harbor_theme", "night_market"];
+  const SRC: Record<string, string> = {
+    door_chime: "/p/512",
+    footsteps: "/p/768",
+    harbor_theme: "/p/4096",
+    night_market: "/p/2048",
+  };
+  const PATH: Record<string, string> = {
+    door_chime: "Assets/Audio/Sounds/door_chime.wav",
+    footsteps: "Assets/Audio/Sounds/footsteps.wav",
+  };
+
+  const playButton = (name: string) => host?.querySelector<HTMLElement>(`[data-asset-play][aria-label$=" ${name}"]`) ?? null;
+  const rowOf = (name: string) => playButton(name)?.closest<HTMLElement>('[role="listitem"]') ?? null;
+  const inspector = () => document.querySelector<HTMLElement>('section[aria-label="Asset details"]');
+  const player = () => inspector()?.querySelector<HTMLElement>("[data-audio-player]") ?? null;
+  const tell = async (type: string, change?: () => void) => {
+    await act(async () => {
+      change?.();
+      speaker.audio.dispatchEvent(new Event(type));
+    });
+    await settle();
+  };
+  const closeInspector = async () => {
+    await click(inspector()!.querySelector<HTMLElement>("[data-inspector-close]")!);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+  };
+
+  const act_: Record<string, (name: string) => Promise<void>> = {
+    play: async (name) => click(playButton(name)!),
+    open: async (name) => click(rowOf(name)!.querySelector<HTMLElement>(`button[aria-label^="Open audio ${name}"]`)!),
+    toggle: async () => click(player()!.querySelector<HTMLElement>("[data-audio-toggle]")!),
+    restart: async () => click(player()!.querySelector<HTMLElement>("[data-audio-restart]")!),
+    loop: async () => click(player()!.querySelector<HTMLElement>("[data-audio-loop]")!),
+    cue: async () => {
+      const slider = player()!.querySelector<HTMLElement>('[role="slider"]')!;
+      await act(async () => {
+        slider.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+      });
+      await settle();
+    },
+    next: async () => click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!),
+    close: closeInspector,
+    time: async (seconds) => tell("timeupdate", () => (speaker.audio.currentTime = Number(seconds))),
+    end: async () => {
+      if (speaker.audio.loop) {
+        await tell("timeupdate", () => (speaker.audio.currentTime = 0));
+        return;
+      }
+      await act(async () => {
+        speaker.audio.currentTime = 5;
+        speaker.audio.paused = true;
+        speaker.audio.dispatchEvent(new Event("pause"));
+        speaker.audio.dispatchEvent(new Event("ended"));
+      });
+      await settle();
+    },
+    outside: async () => {
+      await act(async () => (speaker.audio as unknown as { pause(): void }).pause());
+      await settle();
+    },
+    error: async () => tell("error"),
+    delete: async (name) => {
+      const { [PATH[name]!]: gone, ...kept } = workspace.assetListing.value!.files;
+      expect(gone).toBeDefined();
+      await act(async () => setListing(kept));
+      await settle();
+    },
+    leave: async () => {
+      await act(async () => render(null, host!));
+    },
+  };
+
+  const rowTime = (name: string) => rowOf(name)?.querySelector("[data-asset-sound-time]")?.textContent ?? null;
+
+  const agree = (names: readonly string[], want: Expect, step: string) => {
+    const where = (detail: string) => `after "${step}": ${detail}`;
+    for (const name of names) {
+      if (!playButton(name)) continue;
+      const label = playButton(name)!.getAttribute("aria-label");
+      expect(label, where(`${name}'s row button`)).toBe(`${want.sounding === name ? "Pause" : "Play"} ${name}`);
+      const failedLine = rowOf(name)!.querySelector("[data-asset-sound-failed]");
+      expect(!!failedLine, where(`${name}'s row failure line`)).toBe(want.failed === name);
+      const time = rowTime(name);
+      expect(time !== null, where(`${name}'s row time`)).toBe(want.held === name && want.failed !== name);
+      if (time !== null && want.at) {
+        expect(time.split(" / ")[0], where(`${name}'s row time`)).toBe(want.at);
+      }
+    }
+    const shown = player();
+    if (shown) {
+      const inspected = (shown.closest("[data-sound-frame]")!.getAttribute("aria-label") ?? "").replace(/ player$/, "");
+      expect(names, where("the inspected sound")).toContain(inspected);
+      const state = shown.getAttribute("data-state");
+      if (want.failed === inspected) {
+        expect(state, where("inspector state")).toBe("failed");
+      } else {
+        const toggle = shown.querySelector("[data-audio-toggle]")!.getAttribute("aria-label");
+        expect(toggle, where("inspector toggle")).toBe(`${want.sounding === inspected ? "Pause" : "Play"} ${inspected}`);
+        const held = want.held === inspected;
+        expect(state, where("inspector state")).toBe(
+          want.sounding === inspected ? "playing" : held && !want.cued ? "paused" : "ready",
+        );
+        const elapsed = shown.querySelector("[data-audio-elapsed]")!.textContent;
+        if (held) {
+          if (playButton(inspected)) {
+            expect(elapsed, where("inspector and row time")).toBe(rowTime(inspected)!.split(" / ")[0]);
+          }
+          if (want.at) {
+            expect(elapsed, where("inspector time")).toBe(want.at);
+          }
+        } else {
+          expect(elapsed, where("inspector time of a sound the session does not hold")).toBe("0:00");
+        }
+      }
+    }
+    const loaded = speaker.audio.src;
+    if (want.failed) {
+      return;
+    }
+    expect(loaded, where("the element's source")).toBe(want.held ? SRC[want.held] : "");
+    expect(speaker.audio.paused, where("the element paused")).toBe(want.sounding === null);
+  };
+
+  const none: Expect = { sounding: null, held: null };
+  const playing = (name: string, at?: string): Expect => ({ sounding: name, held: name, at });
+  const paused = (name: string, at?: string): Expect => ({ sounding: null, held: name, at });
+  const cued = (name: string, at?: string): Expect => ({ sounding: null, held: name, at, cued: true });
+
+  const TABLE: { title: string; folder: "Sounds" | "Music"; steps: Step[] }[] = [
+    {
+      title: "a row starts, pauses and resumes, and the inspector opened on it shows the same",
+      folder: "Sounds",
+      steps: [
+        ["play door_chime", playing("door_chime")],
+        ["time 3.2", playing("door_chime", "0:03")],
+        ["play door_chime", paused("door_chime", "0:03")],
+        ["open door_chime", paused("door_chime", "0:03")],
+        ["toggle", playing("door_chime", "0:03")],
+        ["time 4.1", playing("door_chime", "0:04")],
+        ["play door_chime", paused("door_chime", "0:04")],
+        ["toggle", playing("door_chime", "0:04")],
+        ["toggle", paused("door_chime", "0:04")],
+      ],
+    },
+    {
+      title: "starting another row stops the first and forgets its place, from a row or under the inspector",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["time 2.2", playing("door_chime", "0:02")],
+        ["play footsteps", playing("footsteps", "0:00")],
+        ["toggle", playing("door_chime", "0:00")],
+        ["toggle", paused("door_chime", "0:00")],
+        ["play footsteps", playing("footsteps", "0:00")],
+        ["play footsteps", paused("footsteps", "0:00")],
+        ["play door_chime", playing("door_chime", "0:00")],
+      ],
+    },
+    {
+      title: "a cue before the first Play, a Restart in each state, and a scrub while paused",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["cue", cued("door_chime", "0:05")],
+        ["restart", cued("door_chime", "0:00")],
+        ["play door_chime", playing("door_chime", "0:00")],
+        ["time 3.6", playing("door_chime", "0:03")],
+        ["restart", playing("door_chime", "0:00")],
+        ["time 2.5", playing("door_chime", "0:02")],
+        ["toggle", paused("door_chime", "0:02")],
+        ["cue", paused("door_chime", "0:05")],
+        ["restart", paused("door_chime", "0:00")],
+      ],
+    },
+    {
+      title: "a sound ends and lets go without Loop, and wraps with it",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["time 4.9", playing("door_chime", "0:04")],
+        ["end", none],
+        ["loop", none],
+        ["toggle", playing("door_chime")],
+        ["time 4.9", playing("door_chime", "0:04")],
+        ["end", playing("door_chime", "0:00")],
+        ["loop", playing("door_chime", "0:00")],
+        ["end", none],
+      ],
+    },
+    {
+      title: "a Music sound loops by default from its row and from the inspector",
+      folder: "Music",
+      steps: [
+        ["play harbor_theme", playing("harbor_theme")],
+        ["end", playing("harbor_theme", "0:00")],
+        ["open harbor_theme", playing("harbor_theme", "0:00")],
+        ["toggle", paused("harbor_theme", "0:00")],
+        ["toggle", playing("harbor_theme", "0:00")],
+        ["end", playing("harbor_theme", "0:00")],
+      ],
+    },
+    {
+      title: "selecting another asset stops the sound, playing or paused, unless it is that asset's own",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["next", none],
+        ["toggle", playing("footsteps")],
+        ["toggle", paused("footsteps")],
+        ["open door_chime", none],
+        ["play footsteps", playing("footsteps")],
+        ["open footsteps", playing("footsteps")],
+      ],
+    },
+    {
+      title: "closing the inspector stops the sound, whoever started it and whether it plays or is paused",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["close", none],
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["toggle", paused("door_chime")],
+        ["close", none],
+        ["open door_chime", none],
+        ["play footsteps", playing("footsteps")],
+        ["play footsteps", paused("footsteps")],
+        ["close", none],
+        ["play footsteps", playing("footsteps")],
+      ],
+    },
+    {
+      title: "a pause from outside the editor holds the place in both views",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["time 1.5", playing("door_chime", "0:01")],
+        ["outside door_chime", paused("door_chime", "0:01")],
+        ["toggle", playing("door_chime", "0:01")],
+      ],
+    },
+    {
+      title: "a file that fails, playing or paused, says so in both views and the next press tries again",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["error", { sounding: null, held: null, failed: "door_chime" }],
+        ["play door_chime", playing("door_chime")],
+        ["play door_chime", paused("door_chime")],
+        ["error", { sounding: null, held: null, failed: "door_chime" }],
+      ],
+    },
+    {
+      title: "deleting the file playing or paused stops it",
+      folder: "Sounds",
+      steps: [
+        ["play door_chime", playing("door_chime")],
+        ["delete door_chime", none],
+        ["play footsteps", playing("footsteps")],
+        ["play footsteps", paused("footsteps")],
+        ["delete footsteps", none],
+      ],
+    },
+    {
+      title: "leaving the page stops a paused sound",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["toggle", paused("door_chime")],
+        ["leave", none],
+      ],
+    },
+  ];
+
+  for (const { title, folder, steps } of TABLE) {
+    it(title, async () => {
+      await mount();
+      await showTab("Audio");
+      await click(all<HTMLElement>(`button[aria-label^="Open folder ${folder}"]`)[0]);
+      const names = folder === "Music" ? MUSIC : SOUNDS;
+      agree(names, none, "the start");
+      for (const [action, want] of steps) {
+        const [verb, argument = ""] = action.split(" ");
+        await act_[verb]!(argument);
+        agree(names, want, action);
+      }
     });
   }
 });
