@@ -211,14 +211,53 @@ morph child as base {
     ]);
   });
 
-  test("a parent whose own fields cannot be read, a refused script `define`, supplies none: its refusal is the error", () => {
+  const MIDDLE = talk("    duration = 0.2", "middle");
+  const speechChildOf = (parent: string) => `morph child as ${parent} {
+  timing {
+    trigger = speech
+  }
+}
+`;
+
+  test("a script `define` of a named morph supplies the timing fields its own body writes, even at the builtin's values", () => {
+    const text = `${MIDDLE}
+define alias as middle with
+  timing = { delay = 0, iterations = 1 }
+end
+
+${speechChildOf("alias")}`;
+    const asLine = lineOf(text, "morph child as alias");
+    expect(errorsOf(text)).toEqual([
+      expect.objectContaining({ line: asLine, text: "alias", message: expect.stringMatching(/^`delay`, inherited, does not apply to a speech morph/) }),
+      expect.objectContaining({ line: asLine, text: "alias", message: expect.stringMatching(/^`iterations`, inherited, does not apply to a speech morph/) }),
+    ]);
+  });
+
+  test("a chain of configured, written, script-`define` and written layers reports each supplied field once, on the child's `as`", () => {
+    const text = `${talk("    duration = 0.2", "middle", "morph middle as base {")}
+define alias as middle with
+  timing = { delay = 0 }
+end
+
+${speechChildOf("alias")}`;
+    const asLine = lineOf(text, "morph child as alias");
+    expect(errorsOf(text, withConfiguredBase({ iterations: 1 }))).toEqual([
+      expect.objectContaining({ line: asLine, text: "alias", message: expect.stringContaining("`delay`, inherited,") }),
+      expect.objectContaining({ line: asLine, text: "alias", message: expect.stringContaining("`iterations`, inherited,") }),
+    ]);
+  });
+
+  test("a refused script `define … as morph` keeps its own error, and the timing fields its body writes reach a speech child's `as`", () => {
     const text = `define base as morph with
-  timing = { delay = 2, iterations = 3 }
+  timing = { delay = 0, iterations = 1 }
 end
 
 ${talk("    trigger = speech", "child", "morph child as base {")}`;
     const found = errorsOf(text);
     expect(found).toEqual(expect.arrayContaining([expect.objectContaining({ line: 0, message: expect.stringContaining("A morph is declared with its own keyword") })]));
-    expect(found.filter((d) => d.message.includes("speech morph"))).toEqual([]);
+    expect(found.filter((d) => d.message.includes("speech morph")).map((d) => [d.line, d.text, d.message.split(" does")[0]])).toEqual([
+      [lineOf(text, "morph child as base"), "base", "`delay`, inherited,"],
+      [lineOf(text, "morph child as base"), "base", "`iterations`, inherited,"],
+    ]);
   });
 });
