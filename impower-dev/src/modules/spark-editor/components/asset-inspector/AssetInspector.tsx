@@ -43,6 +43,7 @@ import AssetFrame from "./AssetFrame";
 import type { InspectorHost } from "./dock";
 import FilesSection from "./FilesSection";
 import Section from "./Section";
+import { soundOfAsset } from "./SoundFrame";
 import VariantsSection from "./VariantsSection";
 
 export type InspectorNeighbor = { path: string; name: string };
@@ -65,20 +66,22 @@ const SKIPS_ARROWS = "input, textarea, select, video, audio, [contenteditable], 
 
 function useAudioSeconds(asset: InspectedAsset) {
   const [seconds, setSeconds] = useState<number | null>(null);
+  const sound = asset.type === "audio" ? soundOfAsset(asset) : null;
+  const refused = !!sound && audioSession.failureOf(sound) === "too_large";
   useEffect(() => {
     setSeconds(null);
-    if (asset.type !== "audio" || !asset.src || typeof Audio === "undefined") {
+    if (!sound || refused || typeof Audio === "undefined") {
       return;
     }
     const probe = new Audio();
     probe.preload = "metadata";
     probe.onloadedmetadata = () => setSeconds(probe.duration);
-    probe.src = asset.src;
+    probe.src = sound.src;
     return () => {
       probe.onloadedmetadata = null;
       probe.removeAttribute("src");
     };
-  }, [asset.path, asset.src, asset.type]);
+  }, [asset.path, asset.src, asset.type, refused]);
   return seconds;
 }
 

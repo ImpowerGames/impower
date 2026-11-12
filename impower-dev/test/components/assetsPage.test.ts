@@ -37,6 +37,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 
 const speaker = vi.hoisted(() => ({
   audio: undefined as unknown as EventTarget & { src: string; currentTime: number; duration: number; paused: boolean; log: string[] },
+  reads: [] as string[],
 }));
 vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
   const { default: AudioSession } = await import("../../src/modules/spark-editor/workspace/AudioSession");
@@ -72,6 +73,7 @@ vi.mock("../../src/modules/spark-editor/workspace/editorAudio", async () => {
     soundPeaks: new SoundPeaks(
       {
         read: async (src) => {
+          speaker.reads.push(src);
           if (src.includes("bad")) throw new Error("unreadable");
           return new Float32Array([0.5, 1]).buffer;
         },
@@ -169,6 +171,7 @@ beforeEach(() => {
   });
   for (const fn of [...Object.values(assets), ...Object.values(window)]) fn.mockClear();
   speaker.audio.log = [];
+  speaker.reads = [];
   window.setListState.mockImplementation((lists) => {
     workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, ...lists } };
   });
@@ -881,14 +884,32 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/768"]);
   });
 
-  it("says a file over the size limit is too large to play here, before anything is loaded", async () => {
-    setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": facts(2_000_000) });
-    await openSounds();
-    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
-    expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("This file is too large to play here.");
-    expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("This file is too large to play here.");
-    await click(playButton("door_chime"));
-    expect(speaker.audio.log).toEqual([]);
+  it("says a file over the size limit is too large to play here, and loads nothing of it", async () => {
+    const loaded: string[] = [];
+    vi.stubGlobal("Audio", function () {
+      const audio = document.createElement("audio");
+      Object.defineProperty(audio, "src", {
+        configurable: true,
+        get: () => "",
+        set: (source: string) => loaded.push(source),
+      });
+      return audio;
+    });
+    try {
+      setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": facts(2_000_000) });
+      await openSounds();
+      await click(rowOf("footsteps").querySelector<HTMLElement>('button[aria-label^="Open audio footsteps"]')!);
+      expect(loaded).toEqual(["/p/768"]);
+      await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+      expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("This file is too large to play here.");
+      expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("This file is too large to play here.");
+      await click(playButton("door_chime"));
+      expect(speaker.audio.log).toEqual([]);
+      expect(loaded).toEqual(["/p/768"]);
+      expect(speaker.reads).not.toContain("/p/2000000");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("says a file it cannot play can't be played here, in the row and in the inspector, which still downloads it", async () => {
