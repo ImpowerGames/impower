@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { allocateCommit } from "../src/utils/commitSequence";
+import { reloadsForWrite } from "../../../impower-dev/src/modules/spark-editor/components/logic-script-editor/reloadsForWrite";
 import {
   MemoryDirectory,
   MemoryFile,
@@ -103,6 +104,7 @@ async function worker(root: MemoryDirectory) {
   vi.resetModules();
   vi.useFakeTimers();
   const messages: any[] = [];
+  const channelPosts: any[] = [];
   let channel: { onmessage: ((event: { data: unknown }) => void) | null } | undefined;
   vi.stubGlobal("navigator", {
     storage: { getDirectory: async () => root },
@@ -115,7 +117,9 @@ async function worker(root: MemoryDirectory) {
       constructor() {
         channel = this;
       }
-      postMessage() {}
+      postMessage(message: unknown) {
+        channelPosts.push(structuredClone(message));
+      }
       close() {}
     },
   );
@@ -159,7 +163,7 @@ async function worker(root: MemoryDirectory) {
     notifications("workspace/didWriteFiles", from).flatMap((m) =>
       m.params.files.filter((f: any) => f.uri === uriOf(path)).map((f: any) => f.text),
     );
-  return { messages, start, response, request, remote, enumerate, cached, notifications, writtenTexts };
+  return { messages, channelPosts, start, response, request, remote, enumerate, cached, notifications, writtenTexts };
 }
 
 const writeOf = (path: string, text: string, origin?: string) => ({
@@ -2616,4 +2620,263 @@ describe("the announcement of a rollback's restoring write (I-2100)", () => {
     expect(announced.length).toBeGreaterThan(0);
     expect(announced.every((a) => a.restored === undefined)).toBe(true);
   });
+});
+
+describe("the schedule matrix of a refused edit and the author's typing (I-2100)", () => {
+  type Ownership = "held" | "opened" | "two editors";
+  type Sequence = "stamped" | "unsequenced";
+  type Tab = "this tab" | "a second tab";
+
+  const OWNERSHIPS: Ownership[] = ["held", "opened", "two editors"];
+  const SEQUENCES: Sequence[] = ["stamped", "unsequenced"];
+
+  const PRE: Record<string, string> = { "main.sd": "M", "chapter.sd": "C", "a.sd": "A" };
+  const TYPED: Record<string, string> = { "main.sd": "M typed", "chapter.sd": "C typed" };
+  const TYPED_IN_SECOND_TAB = "C typed in the second tab";
+
+  const typedScripts = (ownership: Ownership) =>
+    ownership === "held"
+      ? ["main.sd"]
+      : ownership === "opened"
+        ? ["chapter.sd"]
+        : ["main.sd", "chapter.sd"];
+
+  const editorOrigin = (path: string) => `editor:${path}`;
+
+  const rest = {
+    documentChanges: [
+      insert("chapter.sd", 0, "x"),
+      { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+    ],
+  };
+
+  const storageSteps = () => {
+    const state = { armed: false, count: 0, pauseAt: 0, paused: false, release: () => {} };
+    const patched: [any, string, any][] = [];
+    const wrap = (proto: any, name: string) => {
+      const original = proto[name];
+      patched.push([proto, name, original]);
+      proto[name] = async function (this: unknown, ...args: unknown[]) {
+        if (state.armed) {
+          state.count += 1;
+          if (state.count === state.pauseAt) {
+            state.paused = true;
+            await new Promise<void>((resolve) => {
+              state.release = resolve;
+            });
+          }
+        }
+        return original.apply(this, args);
+      };
+    };
+    wrap(MemoryFile.prototype, "getFile");
+    wrap(MemoryFile.prototype, "createSyncAccessHandle");
+    wrap(MemoryDirectory.prototype, "getFileHandle");
+    wrap(MemoryDirectory.prototype, "getDirectoryHandle");
+    wrap(MemoryDirectory.prototype, "removeEntry");
+    const restore = () =>
+      patched.forEach(([proto, name, original]) => {
+        proto[name] = original;
+      });
+    return { state, restore };
+  };
+
+  const seedFor = (sequence: Sequence) => {
+    const root = seed(PRE);
+    if (sequence === "unsequenced") {
+      const file = new MemoryFile(".opfs-workspace-sequence");
+      file.createSyncAccessHandle = async () => {
+        throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+      };
+      root.entries.set(file.name, file);
+    }
+    return root;
+  };
+
+  type Harness = Awaited<ReturnType<typeof worker>>;
+
+  const answerConfirm = (h: Harness, answered: Set<unknown>) => {
+    for (const ask of h.messages.filter(
+      (m) => m.method === "workspace/confirmWorkspaceEdit" && "id" in m,
+    )) {
+      if (!answered.has(ask.id)) {
+        answered.add(ask.id);
+        void (globalThis as any).onmessage({
+          data: {
+            jsonrpc: "2.0",
+            method: "workspace/confirmWorkspaceEdit",
+            id: ask.id,
+            result: { refusal: "an open script changed before the edit could be applied" },
+          },
+        });
+      }
+    }
+  };
+
+  const save = (h: Harness, path: string, text: string) =>
+    h.start(`save-${path}`, "workspace/willWriteFiles", writeOf(path, text, editorOrigin(path)));
+
+  type Plan = { pauseAt: number | "after"; ownership: Ownership; sequence: Sequence };
+
+  const runCell = async ({ pauseAt, ownership, sequence }: Plan) => {
+    const root = seedFor(sequence);
+    const steps = storageSteps();
+    try {
+      const h = await worker(root);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      await h.enumerate();
+      const from = h.messages.length;
+      const fromChannel = h.channelPosts.length;
+      const answered = new Set<unknown>();
+      let confirmAt: number | undefined;
+      let saved = false;
+      const saveAll = () => {
+        saved = true;
+        typedScripts(ownership).forEach((path) => save(h, path, TYPED[path]!));
+      };
+      steps.state.count = 0;
+      steps.state.pauseAt = pauseAt === "after" ? Number.MAX_SAFE_INTEGER : pauseAt;
+      steps.state.armed = true;
+      h.start("edit", "workspace/applyWorkspaceEdit", {
+        edit: rest,
+        confirm: true,
+        expectedTexts: { [uriOf("chapter.sd")]: PRE["chapter.sd"] },
+      });
+      for (let i = 0; i < 400 && !h.response("edit"); i += 1) {
+        await vi.advanceTimersByTimeAsync(5);
+        if (
+          confirmAt === undefined &&
+          h.messages.some((m) => m.method === "workspace/confirmWorkspaceEdit")
+        ) {
+          confirmAt = steps.state.count;
+        }
+        answerConfirm(h, answered);
+        if (steps.state.paused && !saved) {
+          saveAll();
+          await vi.advanceTimersByTimeAsync(300);
+          steps.state.release();
+        }
+      }
+      const total = steps.state.count;
+      steps.state.armed = false;
+      if (!saved) {
+        saveAll();
+      }
+      await vi.advanceTimersByTimeAsync(1000);
+      return { root, h, from, fromChannel, confirmAt, total, response: h.response("edit") };
+    } finally {
+      steps.restore();
+    }
+  };
+
+  const reloadsOver = (
+    messages: any[],
+    path: string,
+    script: { text: string; stored: string; origin: string; savedBy?: string },
+  ) => {
+    let stored = script.stored;
+    const reloads: string[] = [];
+    for (const message of messages) {
+      if (script.savedBy && message.id === script.savedBy && "result" in message) {
+        stored = script.text;
+      }
+      if (message.method !== "workspace/didWriteFiles") {
+        continue;
+      }
+      const file = message.params.files.find((f: any) => f.uri === uriOf(path));
+      if (!file) {
+        continue;
+      }
+      const write = {
+        text: file.text,
+        remote: message.params.remote,
+        origin: message.params.origin,
+        restored: message.params.restored?.includes(file.uri) ?? false,
+      };
+      if (reloadsForWrite(write, { text: script.text, stored, origin: script.origin })) {
+        reloads.push(JSON.stringify(write));
+      }
+    }
+    return reloads;
+  };
+
+  const cellsOf = (workerPart: number, total: number) => [
+    ...Array.from({ length: total }, (_, i) => ({
+      pauseAt: i + 1,
+      name: `${i + 1 <= workerPart ? "worker's part" : "rollback"}, storage step ${i + 1} of ${total}`,
+    })),
+    { pauseAt: "after" as const, name: "after the edit answered" },
+  ];
+
+  const ROWS: { ownership: Ownership; sequence: Sequence; tab: Tab }[] = [
+    ...OWNERSHIPS.flatMap((ownership) =>
+      SEQUENCES.map((sequence) => ({ ownership, sequence, tab: "this tab" as Tab })),
+    ),
+    ...SEQUENCES.map((sequence) => ({
+      ownership: "held" as Ownership,
+      sequence,
+      tab: "a second tab" as Tab,
+    })),
+  ];
+
+  it.each(ROWS)(
+    "keeps the typing in storage and in the editor at every step: $ownership, $sequence, $tab",
+    async ({ ownership, sequence, tab }) => {
+      const counted = await runCell({ pauseAt: "after", ownership, sequence });
+      expect(counted.confirmAt).toBeDefined();
+      const cells = cellsOf(counted.confirmAt!, counted.total);
+      expect(cells.some((c) => c.name.startsWith("worker's part"))).toBe(true);
+      expect(cells.some((c) => c.name.startsWith("rollback"))).toBe(true);
+      const ran: string[] = [];
+      const failures: string[] = [];
+      for (const cell of cells) {
+        const run = await runCell({ pauseAt: cell.pauseAt, ownership, sequence });
+        ran.push(cell.name);
+        const problems: string[] = [];
+        if (run.response?.result?.applied !== false) {
+          problems.push(`edit result ${JSON.stringify(run.response?.result)}`);
+        }
+        for (const path of typedScripts(ownership)) {
+          if (textAt(run.root, path) !== TYPED[path]) {
+            problems.push(`${path} stored ${JSON.stringify(textAt(run.root, path))}`);
+          }
+          if (tab === "this tab") {
+            const reloads = reloadsOver(run.h.messages.slice(run.from), path, {
+              text: TYPED[path]!,
+              stored: PRE[path]!,
+              origin: editorOrigin(path),
+              savedBy: `save-${path}`,
+            });
+            if (reloads.length > 0) {
+              problems.push(`${path} editor reloads for ${reloads.join(", ")}`);
+            }
+          }
+        }
+        if (tab === "a second tab") {
+          const posts = run.h.channelPosts.slice(run.fromChannel);
+          const second = await worker(run.root);
+          await second.enumerate();
+          const fromSecond = second.messages.length;
+          for (const post of posts) {
+            await second.remote(post.method, post.params);
+          }
+          await vi.advanceTimersByTimeAsync(500);
+          const reloads = reloadsOver(second.messages.slice(fromSecond), "chapter.sd", {
+            text: TYPED_IN_SECOND_TAB,
+            stored: PRE["chapter.sd"]!,
+            origin: editorOrigin("chapter.sd"),
+          });
+          if (reloads.length > 0) {
+            problems.push(`second tab's chapter.sd editor reloads for ${reloads.join(", ")}`);
+          }
+        }
+        if (problems.length > 0) {
+          failures.push(`${cell.name}: ${problems.join("; ")}`);
+        }
+      }
+      expect(ran).toEqual(cells.map((c) => c.name));
+      expect(failures).toEqual([]);
+    },
+    300_000,
+  );
 });
