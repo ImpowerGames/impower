@@ -157,12 +157,31 @@ const COMMAND_LINES = [
   ["a text command", "+ Go <wait {#{{{{1}}}}}> now", "Go <wait {#{{{{1}}}}}> now", "meta.text.sd"],
 ] as const;
 
-const COMMENTED_COMMAND_LINE = "+ Go ((a /* c */ b)) now";
+const COMMENTED_COMMAND_LINES = [
+  ["an audio command", "+ Go ((a /* c */ b)) now", "Go ((a /* c */ b)) now", "meta.audio.sd"],
+  ["an image command", "+ Go [x] [[a /* c */ b]] now", "Go x", "meta.image.sd"],
+  ["a text command", "+ Go <wait /* c */ 1> now", "Go <wait /* c */ 1> now", "meta.text.sd"],
+  ["an audio command whose comment holds an arrow", "+ Go ((a /* -> x */ b)) now", "Go ((a /* -> x */ b)) now", "meta.audio.sd"],
+] as const;
+
+const RAW_LINES = [
+  ["an interpolation read as a unit elsewhere", "+ Go `far {#{{{{1}}}}} away` now", "Go `far {#{{{{1}}}}} away` now"],
+  ["a plain interpolation", "+ Go `far {x} away` now", "Go `far {x} away` now"],
+  ["a block comment", "+ Go `far /* secret */ away` now", "Go `far /* secret */ away` now"],
+  ["a suppression", "+ Go [`far {#{{{{1}}}}} away`] now", "Go `far {#{{{{1}}}}} away`"],
+] as const;
+
+const BOLD_ITALIC_LINES = [
+  ["an interpolation read as a unit elsewhere", "+ Go ***a* {#{{{{1}}}}} b** now", "Go ***a* {#{{{{1}}}}} b** now"],
+  ["a block comment", "+ Go ***a* /* c */ b** now", "Go ***a* /* c */ b** now"],
+] as const;
 
 const HIGHLIGHTED_LINES = [
   ...BRACKET_LINES,
   ...COMMAND_LINES.map(([, line]) => line),
-  COMMENTED_COMMAND_LINE,
+  ...COMMENTED_COMMAND_LINES.map(([, line]) => line),
+  ...RAW_LINES.map(([, line]) => line),
+  ...BOLD_ITALIC_LINES.map(([, line]) => line),
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"].map(glueLine),
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT].flatMap(spanLines),
   ...SPAN_MARKS.map(([mark]) => markLine(mark)),
@@ -274,10 +293,41 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
     },
   );
 
-  test("a comment inside a command in choice text is read as a comment, where main read it as the command's text", async () => {
-    expect(outcome(COMMENTED_COMMAND_LINE).choices).toEqual(["Go ((a b)) now"]);
-    expect(await scopesOf(COMMENTED_COMMAND_LINE, "/*")).toContain("comment.block.sd");
-    expect(await scopesOf(COMMENTED_COMMAND_LINE, "b))")).not.toContain("meta.audio.sd");
+  test.each(COMMENTED_COMMAND_LINES)(
+    "a comment inside %s in choice text is the command's text, read and highlighted as one command as on a display line",
+    async (_kind, line, label, scope) => {
+      expect(outcome(line).choices).toEqual([label]);
+      const dump = (await tokenize(choose(line)))[CHOICE_LINE]!;
+      const command = line.slice(line.search(/\(\(|\[\[|</), line.search(/\)\)|\]\]|>(?= now)/) + 2).trimEnd();
+      const from = dump.lineText.indexOf(command);
+      const covered = dump.tokens.filter((token) => token.startIndex >= from && token.endIndex <= from + command.length);
+      expect(covered.map((token) => token.text).join("")).toBe(command);
+      for (const token of covered) {
+        expect(token.scopes).toContain(scope);
+        expect(token.scopes).not.toContain("comment.block.sd");
+      }
+    },
+  );
+
+  test.each(BOLD_ITALIC_LINES)(
+    "%s inside a bold-italic span but outside its italic is text, as on main and in display text",
+    async (_what, line, label) => {
+      expect(outcome(line).choices).toEqual([label]);
+      for (const token of (await tokensOf(line)).filter((token) => /[{}/]/.test(token.text))) {
+        expect(token.scopes).toContain("markup.other.bold.sd");
+        expect(token.scopes).not.toContain("meta.embedded.line.luau");
+        expect(token.scopes).not.toContain("comment.block.sd");
+      }
+    },
+  );
+
+  test.each(RAW_LINES)("a raw span around %s in choice text keeps its text literal, as on main", async (_what, line, label) => {
+    expect(outcome(line).choices).toEqual([label]);
+    const tokens = await tokensOf(line);
+    for (const token of tokens.filter((token) => /[{}/]/.test(token.text))) {
+      expect(token.scopes).not.toContain("meta.embedded.line.luau");
+      expect(token.scopes).not.toContain("comment.block.sd");
+    }
   });
 
   test("both highlighting engines give every line above the same scopes", async () => {

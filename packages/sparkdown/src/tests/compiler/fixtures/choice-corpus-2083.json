@@ -26216,6 +26216,1641 @@
     "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
    ],
    "scopes": "4c333374"
+  },
+  {
+   "id": "plain-raw-0",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {#{{{{1}}}}} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {#{{{{1}}}}} away` now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {#{{{{1}}}}} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6f8865ff"
+  },
+  {
+   "id": "plain-raw-1",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {#{{{{1}}}}} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {#{{{{1}}}}} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9a8dcece"
+  },
+  {
+   "id": "plain-raw-2",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {#{{{{1}}}}} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {#{{{{1}}}}} away`"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e391509f"
+  },
+  {
+   "id": "plain-raw-3",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {#{{{{1}}}}} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {#{{{{1}}}}} away` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {#{{{{1}}}}} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "ebf6ff78"
+  },
+  {
+   "id": "plain-raw-4",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {#{{{{1}}}}} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {#{{{{1}}}}} away`` now"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {#{{{{1}}}}} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "14a6a765"
+  },
+  {
+   "id": "plain-raw-5",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {#{{{{1}}}}} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {#{{{{1}}}}} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c3708bd8"
+  },
+  {
+   "id": "plain-raw-6",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {#{{{{1}}}}} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {#{{{{1}}}}} away``"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "225fb469"
+  },
+  {
+   "id": "plain-raw-7",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {#{{{{1}}}}} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {#{{{{1}}}}} away`` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {#{{{{1}}}}} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c624a272"
+  },
+  {
+   "id": "plain-raw-8",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {#{{{{1}}}}} now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {#{{{{1}}}}} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "098837e6"
+  },
+  {
+   "id": "plain-raw-9",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {#{{{{1}}}}} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5e5775b9"
+  },
+  {
+   "id": "plain-raw-10",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {#{{{{1}}}}}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {#{{{{1}}}}}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "bc2c8a6c"
+  },
+  {
+   "id": "plain-raw-11",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {#{{{{1}}}}} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {#{{{{1}}}}} b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {#{{{{1}}}}} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4822faac"
+  },
+  {
+   "id": "plain-raw-12",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[[a]]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {]} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f21cc253"
+  },
+  {
+   "id": "plain-raw-13",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {[[a]]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {[[a]]} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f10ea54f"
+  },
+  {
+   "id": "plain-raw-14",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[[a]]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]} away`] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "704ad0ba"
+  },
+  {
+   "id": "plain-raw-15",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[[a]]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {]} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9778e712"
+  },
+  {
+   "id": "plain-raw-16",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[[a]]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {]} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f7417bcc"
+  },
+  {
+   "id": "plain-raw-17",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {[[a]]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {[[a]]} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2901498f"
+  },
+  {
+   "id": "plain-raw-18",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[[a]]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]} away``] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8934ef27"
+  },
+  {
+   "id": "plain-raw-19",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[[a]]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {]} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7f5cfe88"
+  },
+  {
+   "id": "plain-raw-20",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "697e4b8c"
+  },
+  {
+   "id": "plain-raw-21",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {[[a]]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "da29304e"
+  },
+  {
+   "id": "plain-raw-22",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[[a]]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9d0e978b"
+  },
+  {
+   "id": "plain-raw-23",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[[a]]} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {]} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "777808d3"
+  },
+  {
+   "id": "plain-raw-24",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[=[a]=]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {=]} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "ad1d74f2"
+  },
+  {
+   "id": "plain-raw-25",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {[=[a]=]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {[=[a]=]} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0466d731"
+  },
+  {
+   "id": "plain-raw-26",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[=[a]=]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]} away`] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "99ddbcd9"
+  },
+  {
+   "id": "plain-raw-27",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[=[a]=]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {=]} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "cde4ded3"
+  },
+  {
+   "id": "plain-raw-28",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {[=[a]=]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {=]} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4ed838a1"
+  },
+  {
+   "id": "plain-raw-29",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {[=[a]=]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {[=[a]=]} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "09add6a9"
+  },
+  {
+   "id": "plain-raw-30",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {[=[a]=]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]} away``] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "eaabadc2"
+  },
+  {
+   "id": "plain-raw-31",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {[=[a]=]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {=]} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "38a1df9f"
+  },
+  {
+   "id": "plain-raw-32",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {=]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9c054539"
+  },
+  {
+   "id": "plain-raw-33",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {[=[a]=]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "db770444"
+  },
+  {
+   "id": "plain-raw-34",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {[=[a]=]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f7b53c3a"
+  },
+  {
+   "id": "plain-raw-35",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {[=[a]=]} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {=]} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5523ae80"
+  },
+  {
+   "id": "plain-raw-36",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {1 --[[c]] + 1} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {1 --] + 1} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "99888615"
+  },
+  {
+   "id": "plain-raw-37",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {1 --[[c]] + 1} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {1 --[[c]] + 1} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3b296063"
+  },
+  {
+   "id": "plain-raw-38",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {1 --[[c]] + 1} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1} away`] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4cbcead6"
+  },
+  {
+   "id": "plain-raw-39",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {1 --[[c]] + 1} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {1 --] + 1} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2a7d88fc"
+  },
+  {
+   "id": "plain-raw-40",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {1 --[[c]] + 1} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {1 --] + 1} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e647946e"
+  },
+  {
+   "id": "plain-raw-41",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {1 --[[c]] + 1} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {1 --[[c]] + 1} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "07052dab"
+  },
+  {
+   "id": "plain-raw-42",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {1 --[[c]] + 1} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1} away``] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "553c852f"
+  },
+  {
+   "id": "plain-raw-43",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {1 --[[c]] + 1} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {1 --] + 1} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "fa9120ea"
+  },
+  {
+   "id": "plain-raw-44",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {1 --] + 1} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6cada296"
+  },
+  {
+   "id": "plain-raw-45",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {1 --[[c]] + 1} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f1797eea"
+  },
+  {
+   "id": "plain-raw-46",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {1 --[[c]] + 1}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5f098b4f"
+  },
+  {
+   "id": "plain-raw-47",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {1 --[[c]] + 1} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {1 --] + 1} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "05ff818d"
+  },
+  {
+   "id": "plain-raw-48",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {\"->\"} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d6dc74c0"
+  },
+  {
+   "id": "plain-raw-49",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {\"->\"} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "32ed3657"
+  },
+  {
+   "id": "plain-raw-50",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {\"->\"} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "Go [`far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [`far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "785a04e4"
+  },
+  {
+   "id": "plain-raw-51",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {\"->\"} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "68cfe0d8"
+  },
+  {
+   "id": "plain-raw-52",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {\"->\"} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "cb046e3d"
+  },
+  {
+   "id": "plain-raw-53",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {\"->\"} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "22e73149"
+  },
+  {
+   "id": "plain-raw-54",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {\"->\"} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "Go [``far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [``far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "345f292d"
+  },
+  {
+   "id": "plain-raw-55",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {\"->\"} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f6154816"
+  },
+  {
+   "id": "plain-raw-56",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b43e2c1c"
+  },
+  {
+   "id": "plain-raw-57",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "589e4713"
+  },
+  {
+   "id": "plain-raw-58",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {\"->\"}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "Go [`far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [`far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0ed4c310"
+  },
+  {
+   "id": "plain-raw-59",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {\"->\"} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {\""
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "86340614"
+  },
+  {
+   "id": "plain-raw-60",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {t[1]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {t} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b13de2a3"
+  },
+  {
+   "id": "plain-raw-61",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {t[1]} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {t[1]} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6945362d"
+  },
+  {
+   "id": "plain-raw-62",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {t[1]} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go } away`] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8b9072fc"
+  },
+  {
+   "id": "plain-raw-63",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {t[1]} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {t} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "1e95de4d"
+  },
+  {
+   "id": "plain-raw-64",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {t[1]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {t} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9a51b722"
+  },
+  {
+   "id": "plain-raw-65",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {t[1]} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {t[1]} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "1b6c6a95"
+  },
+  {
+   "id": "plain-raw-66",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {t[1]} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go } away``] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9461b011"
+  },
+  {
+   "id": "plain-raw-67",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {t[1]} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {t} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0d64dba9"
+  },
+  {
+   "id": "plain-raw-68",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {t} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "42a06e9c"
+  },
+  {
+   "id": "plain-raw-69",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {t[1]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "05edade8"
+  },
+  {
+   "id": "plain-raw-70",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {t[1]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go }] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "23661fc9"
+  },
+  {
+   "id": "plain-raw-71",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {t[1]} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {t} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5b8c4e5a"
+  },
+  {
+   "id": "plain-raw-72",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {x} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x} away` now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "857d3993"
+  },
+  {
+   "id": "plain-raw-73",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {x} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3d9e19bf"
+  },
+  {
+   "id": "plain-raw-74",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {x} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x} away`"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6c2fcabb"
+  },
+  {
+   "id": "plain-raw-75",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {x} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {x} away` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {x} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c2333161"
+  },
+  {
+   "id": "plain-raw-76",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {x} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {x} away`` now"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {x} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "340db587"
+  },
+  {
+   "id": "plain-raw-77",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {x} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {x} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0f75647f"
+  },
+  {
+   "id": "plain-raw-78",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {x} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {x} away``"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "be7840ef"
+  },
+  {
+   "id": "plain-raw-79",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {x} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {x} away`` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {x} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e1041621"
+  },
+  {
+   "id": "plain-raw-80",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x} now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b0a70982"
+  },
+  {
+   "id": "plain-raw-81",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c849d0be"
+  },
+  {
+   "id": "plain-raw-82",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {x}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4ec31750"
+  },
+  {
+   "id": "plain-raw-83",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {x} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {x} b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {x} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "1bb32e33"
+  },
+  {
+   "id": "plain-raw-84",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {x -- c} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x -- c} away` now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x -- c} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "df3fe1cc"
+  },
+  {
+   "id": "plain-raw-85",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {x -- c} away` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x -- c} away` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8498c32b"
+  },
+  {
+   "id": "plain-raw-86",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {x -- c} away`] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x -- c} away`"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d0f4ee3c"
+  },
+  {
+   "id": "plain-raw-87",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {x -- c} away` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {x -- c} away` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {x -- c} away` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e86fcd91"
+  },
+  {
+   "id": "plain-raw-88",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ``far {x -- c} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {x -- c} away`` now"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {x -- c} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "23ad4f08"
+  },
+  {
+   "id": "plain-raw-89",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ``far {x -- c} away`` now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ``far {x -- c} away`` now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a8c62f5b"
+  },
+  {
+   "id": "plain-raw-90",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [``far {x -- c} away``] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ``far {x -- c} away``"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b30598f8"
+  },
+  {
+   "id": "plain-raw-91",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a ``far {x -- c} away`` b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a ``far {x -- c} away`` b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a ``far {x -- c} away`` b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0e670831"
+  },
+  {
+   "id": "plain-raw-92",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go `far {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x -- c} now"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x -- c} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "dbf7e1e7"
+  },
+  {
+   "id": "plain-raw-93",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] `far {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go `far {x -- c} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d7e33c32"
+  },
+  {
+   "id": "plain-raw-94",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [`far {x -- c}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go `far {x -- c}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b61e498d"
+  },
+  {
+   "id": "plain-raw-95",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *a `far {x -- c} b* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *a `far {x -- c} b* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *a `far {x -- c} b* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2dbab203"
   }
  ]
 }

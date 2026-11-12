@@ -241,7 +241,6 @@ variables:
   # (ChoiceTextUnit) only where CHOICE_PLAIN_INTERPOLATION cannot keep it in the
   # text segment.
   CHOICE_READ_INTERPOLATION: (?:(?!{{CHOICE_PLAIN_INTERPOLATION}}){{CHOICE_INTERPOLATION_UNIT}})
-  CHOICE_READ_UNIT: (?:{{STORY_COMMENT_START}}|{{CHOICE_READ_INTERPOLATION}})
   # lookaround: Glue reads a `..` at its capture's end as glue (GLUE_END), and
   # a text segment now also ends before a span mark, an interpolation read as a
   # unit and a chain mark, where main's one capture went on and the `..` was
@@ -250,15 +249,20 @@ variables:
   # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
   # LuauInterpolatedStringExpression); a character before neither is the text
-  # segment's own.
+  # segment's own. A segment is one capture, so ordering ChoiceStartText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
   CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_FREE}})
   CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_TEXT_FREE}})
-  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and the comments of
-  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
-  # AudioCommand and ImageCommand read a brace inside them as their own text, so
-  # no interpolation there is a unit, as on main.
-  CHOICE_START_COMMAND_CHARACTER: (?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_START_TEXT_END}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceStartTextContent takes the command
   # whole, up to where the segment ends anyway.
@@ -284,12 +288,16 @@ variables:
   # (CHOICE_START_SPAN_END), which ChoiceStartSpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_START_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_START_SPAN_END}}){{CHOICE_START_TEXT_PIECE}})
-  # lookaround: ChoiceStartRaw's end and ChoiceTextUnit's rules; Raw reads
-  # everything else as PlainText.
-  CHOICE_START_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_START_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceStartItalic, ChoiceStartBoldItalic's end and ChoiceTextUnit's
-  # rules; BoldItalic reads nothing else.
-  CHOICE_START_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceStartRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_START_RAW_CHARACTER: (?:(?![`]|{{CHOICE_START_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceStartItalic and ChoiceStartBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_START_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_START_SPAN_END}})[^\r\n])
   CHOICE_START_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_START_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -298,15 +306,20 @@ variables:
   # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
   # LuauInterpolatedStringExpression); a character before neither is the text
-  # segment's own.
+  # segment's own. A segment is one capture, so ordering ChoiceOnlyText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
   CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_FREE}})
   CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_TEXT_FREE}})
-  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and the comments of
-  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
-  # AudioCommand and ImageCommand read a brace inside them as their own text, so
-  # no interpolation there is a unit, as on main.
-  CHOICE_ONLY_COMMAND_CHARACTER: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_ONLY_TEXT_END}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceOnlyTextContent takes the command
   # whole, up to where the segment ends anyway.
@@ -332,12 +345,16 @@ variables:
   # (CHOICE_ONLY_SPAN_END), which ChoiceOnlySpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_ONLY_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_ONLY_SPAN_END}}){{CHOICE_ONLY_TEXT_PIECE}})
-  # lookaround: ChoiceOnlyRaw's end and ChoiceTextUnit's rules; Raw reads
-  # everything else as PlainText.
-  CHOICE_ONLY_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceOnlyItalic, ChoiceOnlyBoldItalic's end and ChoiceTextUnit's
-  # rules; BoldItalic reads nothing else.
-  CHOICE_ONLY_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceOnlyRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_ONLY_RAW_CHARACTER: (?:(?![`]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceOnlyItalic and ChoiceOnlyBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_ONLY_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_ONLY_SPAN_END}})[^\r\n])
   CHOICE_ONLY_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_ONLY_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -346,15 +363,20 @@ variables:
   # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and ChoiceTextUnit's rules
   # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
   # LuauInterpolatedStringExpression); a character before neither is the text
-  # segment's own.
+  # segment's own. A segment is one capture, so ordering ChoiceInnerText's patterns
+  # cannot stop a run that began earlier, the region's end cannot claim text
+  # inside it, and splitting the region's Switch leaves the same run; only the
+  # segment's character can refuse the next unit or end.
   CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_FREE}})
   CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_TEXT_FREE}})
-  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and the comments of
-  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
-  # AudioCommand and ImageCommand read a brace inside them as their own text, so
-  # no interpolation there is a unit, as on main.
-  CHOICE_INNER_COMMAND_CHARACTER: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END. TextCommand, AudioCommand
+  # and ImageCommand read a brace and a comment opener inside them as their own
+  # text, as on main and on a display line, so neither an interpolation nor a
+  # comment there is a unit, and the command is one capture. A block comment
+  # closed on the line is taken whole, so a bracket or an arrow inside it ends
+  # nothing. The run is one capture, so no order can stop it at the region's end.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_ON_LINE}}|(?!{{CHOICE_INNER_TEXT_END}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceInnerTextContent takes the command
   # whole, up to where the segment ends anyway.
@@ -380,12 +402,16 @@ variables:
   # (CHOICE_INNER_SPAN_END), which ChoiceInnerSpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
   CHOICE_INNER_SPAN_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_SPAN_END}}){{CHOICE_INNER_TEXT_PIECE}})
-  # lookaround: ChoiceInnerRaw's end and ChoiceTextUnit's rules; Raw reads
-  # everything else as PlainText.
-  CHOICE_INNER_RAW_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?![`]|{{CHOICE_READ_UNIT}}|{{CHOICE_INNER_SPAN_END}})[^\r\n])
-  # lookaround: ChoiceInnerItalic, ChoiceInnerBoldItalic's end and ChoiceTextUnit's
-  # rules; BoldItalic reads nothing else.
-  CHOICE_INNER_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_READ_UNIT}}|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceInnerRaw's end, which a run of raw text must leave to it as
+  # Raw's PlainText does one character at a time; a run started earlier cannot
+  # be interrupted by order. Everything else, braces and comment openers
+  # included, is the raw span's literal text, as in display text.
+  CHOICE_INNER_RAW_CHARACTER: (?:(?![`]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
+  # lookaround: ChoiceInnerItalic and ChoiceInnerBoldItalic's end, both opened or
+  # closed by a star, which a run of text must leave to them; a run started
+  # earlier cannot be interrupted by order. BoldItalic reads nothing else, so
+  # a brace or a comment opener outside its italic is text, as in display text.
+  CHOICE_INNER_BOLD_ITALIC_CHARACTER: (?:(?![*]|{{CHOICE_INNER_SPAN_END}})[^\r\n])
   CHOICE_INNER_SPAN_END: (?:{{SPAN_END}}|{{WS}}*{{CHOICE_INNER_TEXT_END}})
   # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
   # capture, so an interpolation and a comment opener inside a tag are the tag's
@@ -1137,7 +1163,6 @@ repository:
   ChoiceStartRawContent:
     patterns:
       - { include: "#ChoiceStartRawText" }
-      - { include: "#ChoiceTextUnit" }
 
   ChoiceStartRawText:
     match: ({{CHOICE_START_RAW_CHARACTER}}+)
@@ -1149,7 +1174,6 @@ repository:
   ChoiceStartBoldItalicContent:
     patterns:
       - { include: "#ChoiceStartBoldItalicText" }
-      - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceStartItalic" }
 
   ChoiceStartBoldItalicText:
@@ -1171,7 +1195,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceStartText: `(?=[*])` leaves a `**` with no third `*` to ChoiceStartBold.
+  # lookaround: BoldItalic's begin, which this copies for ChoiceStartText. It takes two
+  # stars and leaves the third to the nested ChoiceStartItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceStartBold, tried
+  # after it in ChoiceStartSpans, takes.
   ChoiceStartBoldItalic:
     tag: strong
     name: markup.other.bold.sd
@@ -1188,11 +1215,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Bold's begin, which this copies for ChoiceStartText: `(?![*])` leaves `***` to ChoiceStartBoldItalic.
   ChoiceStartBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])(?![*])
+    begin: ([*][*])
     beginCaptures:
       1:
         patterns:
@@ -1205,7 +1231,9 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceStartText: `(?![*])` leaves `**` to ChoiceStartBold and ChoiceStartBoldItalic.
+  # lookaround: Italic's begin, which this copies for ChoiceStartText. ChoiceStartBoldItalicContent
+  # lists ChoiceStartItalic without ChoiceStartBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceStartItalic:
     tag: emphasis
     name: markup.other.italic.sd
@@ -1314,7 +1342,6 @@ repository:
   ChoiceOnlyRawContent:
     patterns:
       - { include: "#ChoiceOnlyRawText" }
-      - { include: "#ChoiceTextUnit" }
 
   ChoiceOnlyRawText:
     match: ({{CHOICE_ONLY_RAW_CHARACTER}}+)
@@ -1326,7 +1353,6 @@ repository:
   ChoiceOnlyBoldItalicContent:
     patterns:
       - { include: "#ChoiceOnlyBoldItalicText" }
-      - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceOnlyItalic" }
 
   ChoiceOnlyBoldItalicText:
@@ -1348,7 +1374,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceOnlyText: `(?=[*])` leaves a `**` with no third `*` to ChoiceOnlyBold.
+  # lookaround: BoldItalic's begin, which this copies for ChoiceOnlyText. It takes two
+  # stars and leaves the third to the nested ChoiceOnlyItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceOnlyBold, tried
+  # after it in ChoiceOnlySpans, takes.
   ChoiceOnlyBoldItalic:
     tag: strong
     name: markup.other.bold.sd
@@ -1365,11 +1394,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Bold's begin, which this copies for ChoiceOnlyText: `(?![*])` leaves `***` to ChoiceOnlyBoldItalic.
   ChoiceOnlyBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])(?![*])
+    begin: ([*][*])
     beginCaptures:
       1:
         patterns:
@@ -1382,7 +1410,9 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceOnlyText: `(?![*])` leaves `**` to ChoiceOnlyBold and ChoiceOnlyBoldItalic.
+  # lookaround: Italic's begin, which this copies for ChoiceOnlyText. ChoiceOnlyBoldItalicContent
+  # lists ChoiceOnlyItalic without ChoiceOnlyBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceOnlyItalic:
     tag: emphasis
     name: markup.other.italic.sd
@@ -1491,7 +1521,6 @@ repository:
   ChoiceInnerRawContent:
     patterns:
       - { include: "#ChoiceInnerRawText" }
-      - { include: "#ChoiceTextUnit" }
 
   ChoiceInnerRawText:
     match: ({{CHOICE_INNER_RAW_CHARACTER}}+)
@@ -1503,7 +1532,6 @@ repository:
   ChoiceInnerBoldItalicContent:
     patterns:
       - { include: "#ChoiceInnerBoldItalicText" }
-      - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceInnerItalic" }
 
   ChoiceInnerBoldItalicText:
@@ -1525,7 +1553,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: BoldItalic's begin, which this copies for ChoiceInnerText: `(?=[*])` leaves a `**` with no third `*` to ChoiceInnerBold.
+  # lookaround: BoldItalic's begin, which this copies for ChoiceInnerText. It takes two
+  # stars and leaves the third to the nested ChoiceInnerItalic, so it cannot consume
+  # the third; only the lookahead tells `***` from `**`, which ChoiceInnerBold, tried
+  # after it in ChoiceInnerSpans, takes.
   ChoiceInnerBoldItalic:
     tag: strong
     name: markup.other.bold.sd
@@ -1542,11 +1573,10 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Bold's begin, which this copies for ChoiceInnerText: `(?![*])` leaves `***` to ChoiceInnerBoldItalic.
   ChoiceInnerBold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])(?![*])
+    begin: ([*][*])
     beginCaptures:
       1:
         patterns:
@@ -1559,7 +1589,9 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  # lookaround: Italic's begin, which this copies for ChoiceInnerText: `(?![*])` leaves `**` to ChoiceInnerBold and ChoiceInnerBoldItalic.
+  # lookaround: Italic's begin, which this copies for ChoiceInnerText. ChoiceInnerBoldItalicContent
+  # lists ChoiceInnerItalic without ChoiceInnerBold, so no order there leaves a `**` to a
+  # bold span; the lookahead keeps an italic from opening on its first star.
   ChoiceInnerItalic:
     tag: emphasis
     name: markup.other.italic.sd
@@ -3485,7 +3517,7 @@ repository:
   Bold:
     tag: strong
     name: markup.other.bold.sd
-    begin: ([*][*])(?![*])
+    begin: ([*][*])
     beginCaptures:
       1:
         patterns:
