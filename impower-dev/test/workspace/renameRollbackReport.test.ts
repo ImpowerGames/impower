@@ -85,8 +85,17 @@ async function harness() {
     new TextDecoder().decode(await fs.readFile({ file: { uri: fs.getFileUri("local", path) } }));
   const write = (path: string, text: string) =>
     fs.createFiles({ files: [{ uri: fs.getFileUri("local", path), data: new TextEncoder().encode(text).buffer }] });
-  return { assets, fileAt, rename, read, write, snackbar };
+  return { fs, assets, fileAt, rename, read, write, snackbar };
 }
+
+const failureOf = async (attempt: Promise<unknown>) => {
+  try {
+    await attempt;
+  } catch (error) {
+    return error as Error & { rollback?: unknown };
+  }
+  throw new Error("expected the rename to fail");
+};
 
 const failCreating = (directory: MemoryDirectory, name: string) => {
   const get = directory.getFileHandle.bind(directory);
@@ -162,4 +171,26 @@ it("leaves a renamed picture saved during a failed rename at its saved path", as
   expect([...h.assets.entries.keys()].sort()).toEqual(["a.png", "b.png"]);
   expect(await h.read("assets/b.png")).toBe("AUTHOR-SAVED-TARGET");
   expect(h.snackbar.value?.message).toContain("assets/b.png");
+}, 15_000);
+
+it("carries the rollback of a failed put-back, with its Trash copies, into the rename's error", async () => {
+  const h = await harness();
+  const main = h.fs.getFileUri("local", "main.sd");
+  vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (_edit: unknown, label?: string) => {
+    if (label?.startsWith("Put back")) {
+      return {
+        applied: false,
+        failureReason: "disk full",
+        rollback: { complete: false, failed: [], kept: [], trashed: [main] },
+      };
+    }
+    await h.write("main.sd", "see b");
+    return {
+      applied: false,
+      failureReason: "assets/b.png cannot be created",
+      rollback: { complete: false, failed: [main], kept: [] },
+    };
+  });
+  const error = await failureOf(h.fs.renameFileWithReferences("local", "assets/a.png", "assets/b.png"));
+  expect(error.rollback).toEqual({ complete: false, failed: ["main.sd"], kept: [], trashed: ["main.sd"] });
 }, 15_000);
