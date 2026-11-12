@@ -31,7 +31,7 @@ import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
-const { shotWaitsFor } = await import("./steps.mjs");
+const { shotGate, shotWaitsFor } = await import("./steps.mjs");
 const { surfacePainted } = await import("./driver.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -612,6 +612,44 @@ await check("a device shot waits for the surface the step before it opened, and 
   assert.equal(shotWaitsFor(steps, 3), null);
   assert.deepEqual(shotWaitsFor(steps, 7), NAMED_STEPS["app-menu"].waitsFor);
   assert.equal(shotWaitsFor(parseUiSteps(["--shot", "a.png"], { device }), 0), null);
+});
+
+await check("one rule picks a shot's gate: after a named step it is that step's surface, and only a shot of nothing named waits on the script editor", () => {
+  const steps = parseUiSteps(["--shot", "a.png", "--step", "play", "--shot", "b.png", "--shot-of", "page", "c.png", "--tap", "1,2", "--shot", "d.png"], { device });
+  assert.deepEqual(shotGate(steps, 0), { gate: "editor" });
+  assert.deepEqual(shotGate(steps, 2), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 3), { gate: "surface", waitsFor: NAMED_STEPS.play.waitsFor });
+  assert.deepEqual(shotGate(steps, 5), { gate: "editor" });
+  for (const name of Object.keys(NAMED_STEPS)) {
+    if (NAMED_STEPS[name].builtBy || NAMED_STEPS[name].argument) continue;
+    assert.equal(shotGate(parseUiSteps(["--step", name, "--shot", "x.png"], { device }), 1).gate, "surface", name);
+  }
+});
+
+await check("a shot of a named step's surface is not refused because the script editor is covered, while a shot of nothing named still is", async () => {
+  const { page } = addSheetPage({ animationPolls: 0 });
+  const dev = stubDevice();
+  const asked = [];
+  const refusing = () => {
+    const gate = async (_page, what) => {
+      asked.push(what);
+      return { required: true, ok: false, reason: "the script editor is not on screen (the preview covers it)" };
+    };
+    gate.noteSettled = () => {};
+    gate.reset = () => {};
+    return gate;
+  };
+  const before = path.join(scratch, "covered-before.png");
+  const after = path.join(scratch, "covered-after.png");
+  const result = await ui(["--shot", before, "--step", "add-menu", "--shot", after], { device, ...uiDeps(page, dev).deps, editorGate: refusing });
+  assert.equal(result.steps[0].gated, true);
+  assert.equal(result.steps[0].screenshot, null);
+  assert.equal(result.steps[2].gated, undefined);
+  assert.equal(result.steps[2].waitedFor, "the Add to script panel");
+  assert.equal(result.steps[2].screenshot, path.resolve(after));
+  assert.deepEqual(asked, ["screenshot"]);
+  assert.deepEqual(dev.calls.filter(([kind]) => kind === "screenshot"), [["screenshot", path.resolve(after)]]);
+  process.exitCode = 0;
 });
 
 function addSheetPage({ animationPolls, hidden = false }) {

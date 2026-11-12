@@ -15,9 +15,9 @@ export const NAMED_STEPS = {
   "file-menu": { does: "open a file row's menu", waitsFor: { what: "the row's menu", selector: SURFACE_SELECTORS.menu } },
   "asset-inspector": { does: "open the asset inspector", waitsFor: { what: "the asset inspector", selector: SURFACE_SELECTORS.assetInspector } },
   "add-menu": { does: "open the Add menu", waitsFor: { what: "the Add to script panel", selector: SURFACE_SELECTORS.addPanel } },
-  "preview-settings": { does: "open the preview's settings menu", waitsFor: { what: "the preview's settings menu", selector: SURFACE_SELECTORS.menu } },
-  play: { does: "press Play", waitsFor: { what: "the game", selector: "#game" } },
-  problems: { does: "open the Problems panel", waitsFor: { what: "the Problems panel or the Problems to fix dialog", selector: '#problems-panel, [role="dialog"]' } },
+  "preview-settings": { does: "open the preview's settings menu", reveals: "preview", waitsFor: { what: "the preview's settings menu", selector: SURFACE_SELECTORS.menu } },
+  play: { does: "press Play", reveals: "preview", waitsFor: { what: "the game", selector: "#game" } },
+  problems: { does: "open the Problems panel", reveals: "preview", waitsFor: { what: "the Problems panel or the Problems to fix dialog", selector: '#problems-panel, [role="dialog"]' } },
   settings: { does: "open Settings and a named section", argument: "section", waitsFor: { what: "the Settings section", selector: "[data-settings-section]" } },
   "focus-project-name": { does: "focus the project name", waitsFor: { what: "the project name field", selector: SURFACE_SELECTORS.projectName } },
   "focus-script-name": { does: "focus the script name", waitsFor: { what: "the script name field", selector: SURFACE_SELECTORS.scriptName } },
@@ -44,6 +44,11 @@ export function shotWaitsFor(steps, index) {
     return (steps[at].step && NAMED_STEPS[steps[at].step]?.waitsFor) || null;
   }
   return null;
+}
+
+export function shotGate(steps, index) {
+  const waitsFor = shotWaitsFor(steps, index);
+  return waitsFor ? { gate: "surface", waitsFor } : { gate: "editor" };
 }
 
 export function notBuiltYet(step) {
