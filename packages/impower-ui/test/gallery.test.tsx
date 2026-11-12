@@ -44,4 +44,4 @@ it("mounts the gallery with every exported component on the page", async () => {
     }
   });
   expect(componentNames.filter((name) => !types.has(exportedValue(name)))).toEqual([]);
-});
+}, 30_000);

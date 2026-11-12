@@ -22,9 +22,6 @@ const draggedZip = (event: DragEvent) => {
 
 const viewedFolder = (): string => {
   const state = workspace.state.peek();
-  if (routeOfState(state) !== "collection") {
-    return "";
-  }
   const type = isAssetType(state.lists?.assetsType) ? state.lists.assetsType : "image";
   return state.lists?.assetsFolders?.[type] ?? "";
 };
@@ -36,12 +33,13 @@ export const deliverDrop = async (files: AddedFile[]): Promise<void> => {
   const { Workspace } = await import("../../workspace/Workspace");
   const onAssets = routeOfState(workspace.state.peek()) === "collection";
   const zip = isProjectZipDrop(files);
+  const folder = onAssets ? viewedFolder() : "";
   if (!onAssets && !zip) {
     Workspace.window.navigateTo("collection");
   }
   const before = workspace.uploads.peek();
   try {
-    const landed = await addAssetFiles(files, viewedFolder(), { dropped: true });
+    const landed = await addAssetFiles(files, folder, { dropped: true });
     if (landed.length) {
       workspace.assetsReveal.value = landed;
     }

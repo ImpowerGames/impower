@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Resolved = { survivors: { uri: string; payload: unknown }[]; trashedOldUris: string[]; since: number };
 
 const mocks = vi.hoisted(() => ({
+  disk: new Map<string, ArrayBuffer>(),
   createFiles: vi.fn(async (_params: { files: { uri: string; data: ArrayBuffer }[] }) => undefined as unknown),
   deleteFiles: vi.fn(async (_params: { files: { uri: string }[] }) => undefined as unknown),
+  readFile: vi.fn(async (_params: { file: { uri: string } }) => new ArrayBuffer(0)),
   recordScriptChange: vi.fn(async () => undefined),
   recordAssetChange: vi.fn(async () => undefined),
   recordResolvedUpload: vi.fn(async (..._args: unknown[]) => undefined),
@@ -39,6 +41,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     fs: {
       createFiles: mocks.createFiles,
       deleteFiles: mocks.deleteFiles,
+      readFile: mocks.readFile,
       getRelativePath: (projectId: string, uri: string) => uri.slice(`file://${projectId}/`.length),
     },
     window: {
@@ -48,10 +51,20 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
-const { importFiles, WRITE_CHUNK_FILES } = await import("../../src/modules/spark-editor/utils/importDroppedFiles");
+const { importFiles } = await import("../../src/modules/spark-editor/utils/importDroppedFiles");
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 
-const dropped = (rel: string) => ({ rel, getBuffer: async () => new ArrayBuffer(1) });
+const bytesOf = (rel: string) => {
+  const buffer = new ArrayBuffer(rel.length);
+  new Uint8Array(buffer).set(Array.from(rel, (char) => char.charCodeAt(0)));
+  return buffer;
+};
+
+const dropped = (rel: string) => ({ rel, getBuffer: async () => bytesOf(rel) });
+
+const save = (files: { uri: string; data: ArrayBuffer }[]) => {
+  for (const file of files) mocks.disk.set(file.uri, file.data);
+};
 
 const rows = () =>
   workspace.uploads.value.map((row) =>
@@ -63,7 +76,16 @@ const writtenUris = () => mocks.createFiles.mock.calls.flatMap(([params]) => par
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.resolve = null;
-  mocks.createFiles.mockImplementation(async () => undefined);
+  mocks.disk.clear();
+  mocks.createFiles.mockImplementation(async ({ files }) => save(files));
+  mocks.deleteFiles.mockImplementation(async ({ files }) => {
+    for (const file of files) mocks.disk.delete(file.uri);
+  });
+  mocks.readFile.mockImplementation(async ({ file }) => {
+    const data = mocks.disk.get(file.uri);
+    if (!data) throw new Error("NotFoundError");
+    return data;
+  });
   workspace.uploads.value = [];
 });
 
@@ -87,8 +109,7 @@ describe("importFiles outcomes per file", () => {
   it("writes a large batch a few files at a time and lists each one as added where it landed", async () => {
     const names = Array.from({ length: 20 }, (_, i) => `Assets/Audio/track_${i}.ogg`);
     const returned = await importFiles("p", names.map(dropped));
-    expect(mocks.createFiles).toHaveBeenCalledTimes(Math.ceil(20 / WRITE_CHUNK_FILES));
-    expect(mocks.createFiles.mock.calls.every(([params]) => params.files.length <= WRITE_CHUNK_FILES)).toBe(true);
+    expect(mocks.createFiles.mock.calls.map(([params]) => params.files.length)).toEqual([8, 8, 4]);
     expect(returned).toEqual(names);
     expect(rows()).toEqual(names.map((path) => `${path.split("/").pop()}: added ${path}`));
     expect(mocks.recordResolvedUpload).toHaveBeenCalledWith("p", names.map((path) => `file://p/${path}`), [], 0, "20 files");
@@ -103,7 +124,7 @@ describe("importFiles outcomes per file", () => {
         throw new Error("QuotaExceededError: the quota has been exceeded.");
       }
       room -= files.length;
-      return undefined;
+      save(files);
     });
     const returned = await importFiles("p", names.map(dropped));
     expect(returned).toEqual(names.slice(0, 9));
@@ -136,7 +157,7 @@ describe("importFiles outcomes per file", () => {
       if (files.some((file) => file.uri.endsWith("hero.png"))) {
         throw new Error("disk is full: not enough space");
       }
-      return undefined;
+      save(files);
     });
     await importFiles("p", [dropped("Assets/Images/hero.png"), dropped("Assets/Images/ada.png")]);
     expect(rows()).toEqual(["hero.png: replace_failed", "ada.png: added Assets/Images/ada.png"]);
@@ -151,6 +172,35 @@ describe("importFiles outcomes per file", () => {
       5,
       "ada.png",
     );
+  });
+
+  it("keeps a file the failed chunk already saved whole, without writing or deleting it again", async () => {
+    let calls = 0;
+    mocks.createFiles.mockImplementation(async ({ files }) => {
+      calls += 1;
+      if (calls === 1) {
+        save(files.filter((file) => file.uri.endsWith("one.wav")));
+      }
+      throw new Error("QuotaExceededError: the quota has been exceeded.");
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav"), dropped("Assets/Audio/two.wav")]);
+    expect(returned).toEqual(["Assets/Audio/one.wav"]);
+    expect(rows()).toEqual(["one.wav: added Assets/Audio/one.wav", "two.wav: storage"]);
+    expect(new TextDecoder().decode(mocks.disk.get("file://p/Assets/Audio/one.wav"))).toBe("Assets/Audio/one.wav");
+    expect(mocks.disk.has("file://p/Assets/Audio/two.wav")).toBe(false);
+    expect(writtenUris().filter((uri) => uri.endsWith("one.wav"))).toHaveLength(1);
+    expect(mocks.deleteFiles.mock.calls.map(([params]) => params.files[0]!.uri)).toEqual(["file://p/Assets/Audio/two.wav"]);
+  });
+
+  it("counts a file whose retry failed after its bytes landed as added", async () => {
+    mocks.createFiles.mockImplementation(async ({ files }) => {
+      save(files);
+      throw new Error("the write could not be confirmed");
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
+    expect(returned).toEqual(["Assets/Audio/one.wav"]);
+    expect(rows()).toEqual(["one.wav: added Assets/Audio/one.wav"]);
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
   });
 
   it("lists a file that could not be read as not added and still adds the rest", async () => {

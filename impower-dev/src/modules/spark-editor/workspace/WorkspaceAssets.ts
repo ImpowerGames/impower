@@ -18,6 +18,7 @@ import { renameOrReport } from "../utils/renameOrReport";
 import { showSnackbar } from "../utils/snackbar";
 import { undo } from "../utils/undoManager";
 import { replacementOf } from "../utils/replaceRule";
+import { sameBytes } from "../utils/sameBytes";
 import { isScriptPath, scriptFilesGlob } from "../utils/scriptFiles";
 import {
   assetHomes,
@@ -96,15 +97,6 @@ export interface InspectorFacts {
   uses: SearchGroup[] | null;
   problems: SparkDiagnostic[] | null;
 }
-
-const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
-  if (a.byteLength !== b.byteLength) {
-    return false;
-  }
-  const x = new Uint8Array(a);
-  const y = new Uint8Array(b);
-  return x.every((byte, index) => byte === y[index]);
-};
 
 
 const failedWrite = (

@@ -106,6 +106,10 @@ describe("files dropped anywhere in the app", () => {
   });
 
   it("opens Assets and adds a PNG and a WAV dropped on the Story route, each to its type's folder", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images/Portraits/Cast" } } };
+    mocks.navigateTo.mockImplementationOnce(() => {
+      workspace.current = { ...workspace.current, pane: "assets" };
+    });
     mocks.upload.mockImplementationOnce(async () => {
       workspace.assetListing.value = {
         projectId: "p",

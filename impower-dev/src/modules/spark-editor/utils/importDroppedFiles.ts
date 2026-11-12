@@ -2,6 +2,7 @@ import { failUnfinished, startUploads, updateUpload, type UploadReason } from ".
 import { reasonOf } from "./fileMoves";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
+import { sameBytes } from "./sameBytes";
 import { isScriptPath } from "./scriptFiles";
 import { resolveUploadConflicts } from "./uploadConflicts";
 
@@ -10,7 +11,7 @@ export interface DroppedItem {
   getBuffer: () => Promise<ArrayBuffer>;
 }
 
-export const WRITE_CHUNK_FILES = 8;
+const WRITE_CHUNK_FILES = 8;
 
 const leafOf = (rel: string) => rel.slice(rel.lastIndexOf("/") + 1);
 
@@ -86,11 +87,26 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
                   }
                   chunk.forEach(settle);
                 } catch {
+                  const holds = async (pending: Pending) => {
+                    try {
+                      return sameBytes(await fs.readFile({ file: { uri: pending.uri } }), pending.data);
+                    } catch {
+                      return false;
+                    }
+                  };
                   for (const pending of chunk) {
+                    if (await holds(pending)) {
+                      settle(pending);
+                      continue;
+                    }
                     try {
                       await fs.createFiles({ files: [{ uri: pending.uri, data: pending.data.slice(0) }] });
                       settle(pending);
                     } catch (error) {
+                      if (await holds(pending)) {
+                        settle(pending);
+                        continue;
+                      }
                       await fs.deleteFiles({ files: [{ uri: pending.uri }] }).catch(() => undefined);
                       fail(pending.index, failedWrite(pending, error));
                       advance();
