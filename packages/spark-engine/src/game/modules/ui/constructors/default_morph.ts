@@ -11,6 +11,7 @@ export const default_morph: Create<Morph> = (obj) => ({
   keyframes: (obj?.keyframes ?? []) as Morph["keyframes"],
   clips: (obj?.clips ?? []) as Morph["clips"],
   timing: {
+    trigger: "appear",
     delay: 0,
     duration: 0.25,
     easing: "ease-out",

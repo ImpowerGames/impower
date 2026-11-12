@@ -88,6 +88,7 @@ describe("morph completion in brace bodies", () => {
 
   test("timing fields and values", () => {
     const fields = [
+      "trigger",
       "duration",
       "delay",
       "easing",
@@ -136,6 +137,33 @@ describe("morph completion in brace bodies", () => {
 }
 `),
     ).toEqual(["infinite"]);
+  });
+
+  test("`trigger` offers `appear` and `speech`, each documented with what it does", () => {
+    const source = `morph talk {
+  timing {
+    trigger = |
+  }
+}
+`;
+    expect(labelsAt(source)).toEqual(["appear", "speech"]);
+    expect(labelsAt(`morph talk {
+  timing { trigger = sp| }
+}
+`)).toEqual(expect.arrayContaining(["speech"]));
+    for (const label of ["appear", "speech"]) {
+      const doc = (itemAt(source, label).documentation as any)?.value as string;
+      expect(doc).toContain("`appear` (default) plays it on its own schedule from the moment its portrait appears");
+      expect(doc).toContain("`speech` plays it only while its portrait's character is speaking");
+    }
+    const field = itemAt(`morph talk {
+  timing {
+    |
+  }
+}
+`, "trigger");
+    expect(insertedText(field)).toBe("trigger = ");
+    expect((field.documentation as any)?.value).toContain("What starts the morph");
   });
 
   test("policy values and fields under a hyphenated label", () => {

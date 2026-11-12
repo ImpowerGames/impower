@@ -76,7 +76,15 @@ export function parseMorphSpan(value: unknown): number | undefined {
   return percent <= 100 ? percent / 100 : undefined;
 }
 
+export const MORPH_TRIGGERS = ["appear", "speech"] as const;
+
+export const MORPH_SPEECH_EXCLUDED_TIMING = {
+  delay: "speech decides when its plays start",
+  iterations: "speech decides how many plays there are",
+} as const;
+
 export const MORPH_TIMING_FIELDS = [
+  "trigger",
   "duration",
   "delay",
   "easing",
@@ -135,6 +143,7 @@ export function parseMorphConditions(value: unknown): { group: string; state: st
 }
 
 export const MORPH_TIMING_DEFAULTS = {
+  trigger: "appear",
   duration: 0.25,
   delay: 0,
   easing: "ease-out",
@@ -160,11 +169,13 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
+  trigger:
+    "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` plays it only while its portrait's character is speaking, and shows its rest otherwise. A speech morph takes no `delay` or `iterations`: speech decides when its plays start and how many there are.",
   duration: "Seconds one play lasts. Default 0.25.",
-  delay: "Seconds before the first play. Default 0.",
+  delay: "Seconds before the first play. Default 0. Not allowed with `trigger = speech`.",
   easing:
     "The timing curve over a whole play: a CSS name (`ease-out` by default), `cubic-bezier(…)`, `steps(…)` or `linear(…)`.",
-  iterations: "How many plays: a whole number, or `infinite`. `0` disables playback. Default 1.",
+  iterations: "How many plays: a whole number, or `infinite`. `0` disables playback. Default 1. Not allowed with `trigger = speech`.",
   direction: "`normal` (default), `reverse`, `alternate` or `alternate-reverse`.",
   iteration_delay_min:
     "Shortest quiet time, in seconds, between the end of one play and the start of the next. Needs `iteration_delay_max`.",

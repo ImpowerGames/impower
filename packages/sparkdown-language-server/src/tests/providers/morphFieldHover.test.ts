@@ -93,6 +93,26 @@ describe("morph field hover", () => {
     expect(await hoverAt(MORPH, "partner =")).toEqual({ value: expect.stringContaining("priority order"), marked: "partner" });
   });
 
+  it("documents `trigger` with what `appear` and `speech` do", async () => {
+    const TALK = `morph talk {
+  blend = cut
+  keyframes {
+    from { mouth { state = closed } }
+    to { mouth { state = open } }
+  }
+  timing {
+    trigger = speech
+    delay = 1
+  }
+}
+`;
+    const hover = await hoverAt(TALK, "trigger =");
+    expect(hover).toEqual({ value: expect.stringContaining("What starts the morph"), marked: "trigger" });
+    expect(hover!.value).toContain("`appear` (default) plays it on its own schedule from the moment its portrait appears");
+    expect(hover!.value).toContain("`speech` plays it only while its portrait's character is speaking");
+    expect((await hoverAt(TALK, "delay ="))?.value).toContain("Not allowed with `trigger = speech`");
+  });
+
   it("does not document values, labels or anything outside the morph", async () => {
     expect(await hoverAt(MORPH, "#c9c9c9")).toBeNull();
     expect(await hoverAt(MORPH, "eyelash-left }", 2, 1)).toBeNull();

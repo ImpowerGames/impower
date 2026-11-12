@@ -16,8 +16,10 @@ import {
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
+  MORPH_SPEECH_EXCLUDED_TIMING,
   MORPH_SPREAD_PROBLEM,
   MORPH_TIMING_FIELDS,
+  MORPH_TRIGGERS,
   easingProblem,
   parseMorphDepth,
   parseMorphPartner,
@@ -305,6 +307,7 @@ export interface MorphDeclaration {
   own: MorphBody;
   effective: Record<string, unknown>;
   parentEffective: Record<string, unknown> | null;
+  timingWritten: ReadonlySet<string>;
 }
 
 export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
@@ -792,6 +795,16 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         `\`iteration_delay_max\` (${max}) must be at least \`iteration_delay_min\` (${min}).`,
       );
     }
+    if (effectiveTiming["trigger"] === "speech") {
+      for (const [field, reason] of Object.entries(MORPH_SPEECH_EXCLUDED_TIMING)) {
+        if (!decl.timingWritten.has(field)) continue;
+        const written = ownTiming !== undefined && Object.hasOwn(ownTiming, field);
+        push(
+          spanOf(field),
+          `${written ? `\`${field}\`` : `\`${field}\`, inherited,`} does not apply to a speech morph: ${reason}. Remove it, or use \`trigger = appear\`.`,
+        );
+      }
+    }
   }
   return issues;
 }
@@ -823,6 +836,14 @@ function checkTiming(
   };
   for (const [field, value] of Object.entries(timing)) {
     switch (field) {
+      case "trigger":
+        if (!has(MORPH_TRIGGERS, value)) {
+          report(
+            field,
+            `${describeValue(value)} is not a \`trigger\`. Use ${quoteList(MORPH_TRIGGERS)}.`,
+          );
+        }
+        break;
       case "duration":
         seconds(field, value, true);
         break;
