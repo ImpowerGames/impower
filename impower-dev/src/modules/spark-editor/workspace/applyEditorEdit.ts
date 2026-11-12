@@ -63,6 +63,13 @@ const refused = (failureReason: string): ApplyWorkspaceEditResult => ({
   rollback: { complete: true, failed: [], kept: [] },
 });
 
+export const failureOf = (outcome: ApplyWorkspaceEditResult, nothing: string) =>
+  !outcome.failureReason
+    ? nothing
+    : outcome.rollback?.complete
+      ? `${outcome.failureReason.replace(/[.]$/, "")}. ${nothing}`
+      : outcome.failureReason;
+
 const normalized = (text: string) => text.replace(/\r\n?/g, "\n");
 
 const sameTexts = (a: readonly string[] = [], b: readonly string[] = []) =>
