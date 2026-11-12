@@ -85,13 +85,26 @@ const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
   };
 };
 
-interface PlayState {
-  play: MorphLayerPlay;
+interface ImageState {
+  layer: number;
   slot: MorphArtifactSlot;
-  occurrence?: Occurrence;
+  plays: { play: MorphLayerPlay; occurrence?: Occurrence }[];
   view?: LiveView;
   broken?: boolean;
 }
+
+const restFrame = (): MorphFrameState => ({
+  shown: new Set(),
+  hidden: new Set(),
+  geometry: new Map(),
+  paint: new Map(),
+  gradients: new Map(),
+  opacity: new Map(),
+  clips: new Map(),
+  reaches: new Map(),
+  spread: new Map(),
+  masks: new Map(),
+});
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -352,8 +365,9 @@ export class MorphPlayback {
     background: string,
     kind: "background" | "mask",
     base: string,
+    group: MorphGroup = new MorphGroup(),
   ): MorphLayer {
-    const layer = new MorphLayer(this, span, content, background, kind, base);
+    const layer = new MorphLayer(this, span, content, background, kind, base, group);
     this.layers.add(layer);
     (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph = layer;
     layer.start();
@@ -471,10 +485,42 @@ function defaultHost(delivered: DeliveredArtifacts): MorphHost {
   };
 }
 
+export class MorphGroup {
+  protected members = new Set<MorphLayer>();
+  protected version = 0;
+
+  add(layer: MorphLayer) {
+    this.members.add(layer);
+  }
+
+  remove(layer: MorphLayer) {
+    if (this.members.delete(layer)) void this.changed();
+  }
+
+  async changed() {
+    const version = ++this.version;
+    const members = [...this.members].filter((layer) => layer.active);
+    if (members.some((layer) => layer.pending)) return;
+    await Promise.all(members.map((layer) => layer.prepare()));
+    if (version !== this.version) return;
+    for (const layer of members) layer.commit();
+  }
+}
+
+function decodeImage(doc: Document, url: string): Promise<unknown> {
+  const Img = doc.defaultView?.Image;
+  if (!Img) return Promise.resolve();
+  const img = new Img();
+  img.crossOrigin = "anonymous";
+  img.src = url;
+  return typeof img.decode === "function" ? img.decode().catch(() => undefined) : Promise.resolve();
+}
+
 export class MorphLayer {
-  protected plays: PlayState[] = [];
+  protected images: ImageState[] = [];
   protected frozen = false;
   protected disposed = false;
+  protected stale = false;
   protected shadowHost?: HTMLElement;
   protected statics: { div: HTMLElement; layer: number }[] = [];
 
@@ -487,12 +533,22 @@ export class MorphLayer {
     background: string,
     protected kind: "background" | "mask",
     protected base: string,
+    protected group: MorphGroup,
   ) {
     this.layers = cssList(background).reverse();
+    group.add(this);
+  }
+
+  get active(): boolean {
+    return !this.frozen && !this.disposed;
+  }
+
+  get pending(): boolean {
+    return this.images.some((image) => image.slot.state === "pending");
   }
 
   get live(): boolean {
-    return !this.frozen && !this.disposed && this.plays.some((p) => p.view);
+    return !this.frozen && !this.disposed && this.images.some((image) => image.view);
   }
 
   get drawable(): boolean {
@@ -500,30 +556,50 @@ export class MorphLayer {
       !this.frozen &&
       !this.disposed &&
       this.kind === "background" &&
-      this.plays.some((p) => p.slot.state === "ready" && p.slot.artifact?.status === "live")
+      this.images.some((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live")
     );
   }
 
   start() {
     for (const play of this.content.plays) {
-      const state: PlayState = { play, slot: undefined as unknown as MorphArtifactSlot };
-      state.slot = new MorphArtifactSlot(this.playback.resolver, () => this.changed());
-      if (this.kind === "background") {
-        const key = [this.base, play.layer, play.ref.image, play.ref.morph, play.definition, this.content.epoch].join("|");
-        state.occurrence = this.playback.occurrenceFor(key, play.timing);
+      let image = this.images.find((entry) => entry.layer === play.layer);
+      if (!image) {
+        image = { layer: play.layer, slot: new MorphArtifactSlot(this.playback.resolver, () => this.changed()), plays: [] };
+        this.images.push(image);
       }
-      this.plays.push(state);
+      const key = [this.base, play.layer, play.ref.image, play.morph, play.definition, this.content.epoch].join("|");
+      image.plays.push({
+        play,
+        ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(key, play.timing) } : {}),
+      });
     }
     this.playback.track(this);
-    for (const state of this.plays) state.slot.set(state.play.ref);
+    for (const image of this.images) image.slot.set(image.plays[0]!.play.ref);
   }
 
   get occurrenceKeys(): string[] {
-    return this.plays.flatMap((p) => (p.occurrence ? [p.occurrence.key] : []));
+    return this.images.flatMap((image) => image.plays.flatMap((p) => (p.occurrence ? [p.occurrence.key] : [])));
   }
 
   protected changed() {
-    if (this.disposed || this.frozen) return;
+    if (!this.active) return;
+    if (!this.span.isConnected) {
+      this.dispose();
+      return;
+    }
+    this.stale = true;
+    void this.group.changed();
+  }
+
+  async prepare() {
+    if (this.kind !== "mask" || !this.stale) return;
+    const doc = this.span.ownerDocument;
+    await Promise.all([...this.maskUrls().values()].map((url) => decodeImage(doc, url)));
+  }
+
+  commit() {
+    if (!this.active || !this.stale) return;
+    this.stale = false;
     if (!this.span.isConnected) {
       this.dispose();
       return;
@@ -536,24 +612,30 @@ export class MorphLayer {
     this.playback.track(this);
   }
 
-  protected applyMask() {
-    const layers = [...this.layers];
-    let changed = false;
-    for (const state of this.plays) {
-      if (state.slot.state !== "ready" || !state.slot.handle) continue;
+  protected maskUrls(): Map<number, string> {
+    const urls = new Map<number, string>();
+    for (const image of this.images) {
+      if (image.slot.state !== "ready" || !image.slot.handle) continue;
       try {
-        layers[state.play.layer] = `url("${state.slot.handle.url("rest")}")`;
-        changed = true;
+        urls.set(image.layer, image.slot.handle.url("rest"));
       } catch {
       }
     }
-    if (changed) this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
+    return urls;
+  }
+
+  protected applyMask() {
+    const urls = this.maskUrls();
+    if (!urls.size) return;
+    const layers = [...this.layers];
+    for (const [layer, url] of urls) layers[layer] = `url("${url}")`;
+    this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
   }
 
   protected build() {
     this.releaseMotions();
-    for (const state of this.plays) state.view = undefined;
-    const ready = this.plays.filter((s) => s.slot.state === "ready" && s.slot.artifact?.status === "live");
+    for (const image of this.images) image.view = undefined;
+    const ready = this.images.filter((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live");
     if (!ready.length) {
       this.unbuild();
       return;
@@ -573,7 +655,7 @@ export class MorphLayer {
     const computed = doc.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
     for (let i = 0; i < count; i++) {
-      const state = ready.find((s) => s.play.layer === i);
+      const state = ready.find((image) => image.layer === i);
       const view =
         state && !state.broken && this.placement(state.slot.artifact!, computed, count - 1 - i)
           ? this.liveView(state, doc)
@@ -615,7 +697,7 @@ export class MorphLayer {
       .join(";");
   }
 
-  protected liveView(state: PlayState, doc: Document): LiveView | undefined {
+  protected liveView(state: ImageState, doc: Document): LiveView | undefined {
     const artifact = state.slot.artifact!;
     const prefix = `${artifact.idPrefix.slice(0, -1)}o${++occurrencePrefixes}_`;
     const box = doc.createElement("div");
@@ -700,10 +782,10 @@ export class MorphLayer {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
-    for (const state of this.plays) {
+    for (const state of this.images) {
       const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
       if (!artifact || artifact.status !== "live" || state.broken) continue;
-      const eligible = !!this.placement(artifact, computed, count - 1 - state.play.layer);
+      const eligible = !!this.placement(artifact, computed, count - 1 - state.layer);
       if (eligible !== !!state.view) {
         this.build();
         return;
@@ -715,10 +797,10 @@ export class MorphLayer {
     }
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
-    for (const state of this.plays) {
+    for (const state of this.images) {
       const view = state.view;
       if (!view) continue;
-      const rect = this.placement(view.artifact, computed, count - 1 - state.play.layer, area);
+      const rect = this.placement(view.artifact, computed, count - 1 - state.layer, area);
       if (!rect) continue;
       for (const part of view.parts) {
         part.setAttribute("x", String(rect.x));
@@ -731,31 +813,24 @@ export class MorphLayer {
 
   render() {
     if (this.frozen || this.disposed) return;
-    for (const state of this.plays) {
-      const view = state.view;
-      if (!view || !state.occurrence) continue;
-      const head = this.playback.playhead(state.occurrence);
-      const at = "offset" in head ? head.offset : "rest";
-      const signature = String(at);
+    for (const image of this.images) {
+      const view = image.view;
+      if (!view || !image.plays.some((p) => p.occurrence)) continue;
+      const heads = image.plays.map(({ occurrence }) => {
+        const head = occurrence ? this.playback.playhead(occurrence) : undefined;
+        return head && "offset" in head ? head.offset : ("rest" as const);
+      });
+      const signature = heads.join(",");
       if (view.last === signature) continue;
       view.last = signature;
-      const frame: MorphFrameState =
-        at === "rest"
-          ? {
-              shown: new Set(),
-              hidden: new Set(),
-              geometry: new Map(),
-              paint: new Map(),
-              gradients: new Map(),
-              opacity: new Map(),
-              clips: new Map(),
-              reaches: new Map(),
-              spread: new Map(),
-              masks: new Map(),
-            }
-          : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
+      const offsets: Record<string, number> = Object.create(null);
+      image.plays.forEach(({ play }, i) => {
+        const at = heads[i]!;
+        if (at !== "rest") offsets[play.morph] = at;
+      });
+      const frame = Object.keys(offsets).length ? morphFrameState(view.artifact, morphPosesAt(view.artifact, offsets)) : restFrame();
       applyFrame(view, frame);
-      this.moveLayers(view, state.play, at);
+      image.plays.forEach(({ play }, i) => this.moveLayers(view, play, heads[i]!));
     }
   }
 
@@ -773,18 +848,21 @@ export class MorphLayer {
   }
 
   protected releaseMotions() {
-    for (const state of this.plays) {
-      for (const motion of state.view?.motions ?? []) motion.effect?.cancel();
+    for (const image of this.images) {
+      for (const motion of image.view?.motions ?? []) motion.effect?.cancel();
     }
   }
 
   freeze() {
     if (this.frozen || this.disposed) return;
     this.frozen = true;
-    for (const state of this.plays) {
-      if (state.occurrence) this.playback.letGo(state.occurrence);
-      state.occurrence = undefined;
+    for (const image of this.images) {
+      for (const entry of image.plays) {
+        if (entry.occurrence) this.playback.letGo(entry.occurrence);
+        entry.occurrence = undefined;
+      }
     }
+    this.group.remove(this);
   }
 
   dispose() {
@@ -792,9 +870,9 @@ export class MorphLayer {
     this.freeze();
     this.disposed = true;
     this.releaseMotions();
-    for (const state of this.plays) {
-      state.slot.dispose();
-      state.view = undefined;
+    for (const image of this.images) {
+      image.slot.dispose();
+      image.view = undefined;
     }
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;

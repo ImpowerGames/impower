@@ -43,7 +43,7 @@ describe("asset service morph endpoint", () => {
     const ref = program.morphs!.variants["bunny"]![0]!;
     const request = parseMorphAssetRequest(new URL(ref.src!, "https://host.invalid").searchParams);
     expect(request).not.toBe("invalid");
-    expect(request && request !== "invalid" && serializeMorphRecipe(request.recipe)).toBe(program.morphs!.recipes["blink"]);
+    expect(request && request !== "invalid" && request.recipes.map(serializeMorphRecipe)).toEqual([program.morphs!.recipes["blink"]]);
     expect(request && request !== "invalid" && request.key).toBe(ref.key);
   });
 
