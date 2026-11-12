@@ -11,7 +11,7 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
 import { MORPH_PICK_NONE } from "../../morph/types";
-import { readImageClauses, type MorphClause, type StrayClauseText } from "../morph/morphClause";
+import { readDirectiveClauses, type MorphClause, type StrayClauseText } from "../morph/morphClause";
 import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
@@ -4756,7 +4756,7 @@ export class SparkdownCompiler {
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
-      const clauses = scriptTree ? readImageClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const clauses = scriptTree ? readDirectiveClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
       const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
         const look = shownLook(program.context, program.morphs, struct, undefined, pick);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
@@ -4830,11 +4830,11 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
-      for (const { directive, control, morph, stray } of clauses) {
+      for (const { kind, directive, control, morph, stray } of clauses) {
         const directiveImages = shownImages.filter((image) => directive.from <= image.from && image.to <= directive.to);
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
-          ...stray.map((text) => ({ ...strayClauseIssue(text, control), keyword: text })),
+          ...stray.map((text) => ({ ...strayClauseIssue(text, kind === "image" ? control : undefined), keyword: text })),
         ];
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;

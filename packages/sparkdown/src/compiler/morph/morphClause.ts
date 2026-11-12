@@ -18,7 +18,8 @@ export interface StrayClauseText extends ClauseSpan {
   node?: string;
 }
 
-export interface ImageClauses {
+export interface DirectiveClauses {
+  kind: "image" | "audio";
   directive: { from: number; to: number };
   control?: string;
   morph?: MorphClause;
@@ -33,19 +34,22 @@ type Token =
   | { kind: "value"; from: number; to: number; text: string; node: string }
   | { kind: "skip"; from: number; to: number };
 
-export function readImageClauses(tree: Tree, read: (from: number, to: number) => string): ImageClauses[] {
-  const directives: { directive: { from: number; to: number }; end: number; control?: string; tokens: Token[] }[] = [];
+const DIRECTIVES: Record<string, DirectiveClauses["kind"]> = { ImageCommand: "image", AudioCommand: "audio" };
+
+export function readDirectiveClauses(tree: Tree, read: (from: number, to: number) => string): DirectiveClauses[] {
+  const directives: { kind: DirectiveClauses["kind"]; directive: { from: number; to: number }; end: number; control?: string; tokens: Token[] }[] = [];
   let current: (typeof directives)[number] | undefined;
   const span = (node: SyntaxNode): ClauseSpan => ({ from: node.from, to: node.to, text: read(node.from, node.to) });
   tree.iterate({
     enter: (ref) => {
-      if (ref.name === "ImageCommand") {
-        current = { directive: { from: ref.from, to: ref.to }, end: ref.to, tokens: [] };
+      const kind = Object.hasOwn(DIRECTIVES, ref.name) ? DIRECTIVES[ref.name] : undefined;
+      if (kind) {
+        current = { kind, directive: { from: ref.from, to: ref.to }, end: ref.to, tokens: [] };
         directives.push(current);
         return undefined;
       }
       if (!current || ref.from >= current.directive.to) return undefined;
-      if (ref.name === "ImageEndMark") {
+      if (ref.name === "ImageEndMark" || ref.name === "AudioEndMark") {
         current.end = ref.from;
         return false;
       }
@@ -74,8 +78,8 @@ export function readImageClauses(tree: Tree, read: (from: number, to: number) =>
       return undefined;
     },
   });
-  return directives.map(({ directive, end, control, tokens }) => {
-    const clauses: ImageClauses = { directive, stray: [], groups: [], ...(control ? { control } : {}) };
+  return directives.map(({ kind, directive, end, control, tokens }) => {
+    const clauses: DirectiveClauses = { kind, directive, stray: [], groups: [], ...(control ? { control } : {}) };
     const first = tokens.find((token) => token.kind === "clause");
     if (!first) return clauses;
     let last: StrayClauseText["after"];
@@ -94,7 +98,7 @@ export function readImageClauses(tree: Tree, read: (from: number, to: number) =>
       at = Math.max(at, token.to);
       if (token.kind === "clause") {
         clauses.groups.push([token.keyword.text, ...(token.value ? [token.value.text] : [])]);
-        if (token.keyword.text === "morph") {
+        if (kind === "image" && token.keyword.text === "morph") {
           clauses.morph = { directive, keyword: { from: token.keyword.from, to: token.keyword.to }, ...(token.value ? { value: token.value } : {}) };
         }
         last = { ...token.keyword, takesValue: token.value !== undefined };

@@ -8,4 +8,8 @@ scene start
   [[mia morph = talk]]
   ((play music theme to 0.5 with echo))
   ((play music theme loop with over))
+  [[mia-morph]]
+  [[mia-morph with fade]]
+  [[mia # note morph none]]
+  ((theme wait garbage))
 end

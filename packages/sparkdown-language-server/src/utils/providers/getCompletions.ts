@@ -2009,10 +2009,17 @@ const completionsAt = (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      leftStack[0]?.name === "NameValue"
+      (leftStack[0]?.name === "NameValue" &&
+        getNodeText(keywordOfValue(leftStack[0].node)) === "with")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["modulation"]);
+      }
+      return buildCompletions();
+    }
+    if (isClauseStart(leftStack[0]?.node)) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS, writtenClauses("AudioCommand"));
       }
       return buildCompletions();
     }

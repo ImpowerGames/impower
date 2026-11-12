@@ -1,4 +1,4 @@
-text.source.sparkdown [0..264]
+text.source.sparkdown [0..359]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -127,5 +127,47 @@ text.source.sparkdown [0..264]
  │   ├─ variable.other.constant.sd [253..257]: "over"
  │   └─ keyword.operator.expression.end.audio.sd [257..259]: "))"
  ├─ Newline [259..260]: "\n"
- ├─ keyword.control.end.luau [260..263]: "end"
- └─ Newline [263..264]: "\n"
+ ├─ punctuation.whitespace.optional.sd [260..262]: "  "
+ ├─ meta.image.sd [262..275]
+ │   ├─ keyword.operator.expression.begin.image.sd [262..264]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [264..273]: "mia-morph"
+ │   └─ keyword.operator.expression.end.image.sd [273..275]: "]]"
+ ├─ Newline [275..276]: "\n"
+ ├─ punctuation.whitespace.optional.sd [276..278]: "  "
+ ├─ meta.image.sd [278..301]
+ │   ├─ keyword.operator.expression.begin.image.sd [278..280]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [280..289]: "mia-morph"
+ │   ├─ punctuation.whitespace.required.sd [289..290]: " "
+ │   ├─ keyword.asset.clause.keyword.sd [290..294]: "with"
+ │   ├─ punctuation.whitespace.required.sd [294..295]: " "
+ │   ├─ variable.other.constant.sd [295..299]: "fade"
+ │   └─ keyword.operator.expression.end.image.sd [299..301]: "]]"
+ ├─ Newline [301..302]: "\n"
+ ├─ punctuation.whitespace.optional.sd [302..304]: "  "
+ ├─ meta.image.sd [304..329]
+ │   ├─ keyword.operator.expression.begin.image.sd [304..306]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [306..309]: "mia"
+ │   ├─ punctuation.whitespace.required.sd [309..310]: " "
+ │   ├─ comment.line.sd [310..327]
+ │   │   └─ entity.tag.sd [310..327]
+ │   │       └─ comment.line.sd [310..327]
+ │   │           └─ entity.tag.sd [310..327]
+ │   │               ├─ punctuation.definition.comment.sd [310..311]
+ │   │               │   └─ comment.line.sd [310..311]
+ │   │               │       └─ entity.tag.begin.sd [310..311]: "#"
+ │   │               └─ punctuation.definition.comment.content.sd [311..327]
+ │   │                   └─ punctuation.definition.comment.content.sd [311..327]: " note morph none"
+ │   └─ keyword.operator.expression.end.image.sd [327..329]: "]]"
+ ├─ Newline [329..330]: "\n"
+ ├─ punctuation.whitespace.optional.sd [330..332]: "  "
+ ├─ meta.audio.sd [332..354]
+ │   ├─ keyword.operator.expression.begin.audio.sd [332..334]: "(("
+ │   ├─ variable.other.constant.asset.file.sd [334..339]: "theme"
+ │   ├─ punctuation.whitespace.required.sd [339..340]: " "
+ │   ├─ keyword.asset.clause.keyword.sd [340..344]: "wait"
+ │   ├─ punctuation.whitespace.required.sd [344..345]: " "
+ │   ├─ variable.other.constant.sd [345..352]: "garbage"
+ │   └─ keyword.operator.expression.end.audio.sd [352..354]: "))"
+ ├─ Newline [354..355]: "\n"
+ ├─ keyword.control.end.luau [355..358]: "end"
+ └─ Newline [358..359]: "\n"

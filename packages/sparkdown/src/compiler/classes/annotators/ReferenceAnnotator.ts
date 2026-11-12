@@ -1055,6 +1055,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         }
       }
       if (context.includes("AudioCommand")) {
+        const keyword = keywordOfValue(nodeRef.node);
+        if (!keyword || this.read(keyword.from, keyword.to) !== "with") {
+          return annotations;
+        }
         const types = ["modulation"];
         const name = this.read(nodeRef.from, nodeRef.to);
         annotations.push(

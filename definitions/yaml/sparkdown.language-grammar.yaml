@@ -88,6 +88,13 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # lookaround: `AssetCommandFileName` reads a name with `-` inside it whole
+  # (`mia-morph`), but the keyword lists' `STORY_NAME_START` lets a `-` end
+  # the word before them, so `AssetCommandContent`'s lazy name text would
+  # stop there and start the clauses at `morph`. The name has no end the
+  # split could stop at instead, and the lists' boundary must keep treating
+  # `-` as a word end elsewhere, so the split refuses a clause word after `-`.
+  ASSET_CLAUSE_START: (?<![-])
   NOT_TAG_HASH: (?:[#]+[^#\s])
   # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
   # as display text. The line rules that end here (ImplicitAction,
@@ -3460,7 +3467,7 @@ repository:
           - { include: "#AssetCommandContent" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
+    match: (.*?)($|(?:{{TAG_START}}|{{ASSET_CLAUSE_START}}(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}})).*)
     captures:
       1:
         patterns:

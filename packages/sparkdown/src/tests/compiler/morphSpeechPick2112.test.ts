@@ -213,6 +213,25 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
+  test("a name with a clause word after a `-` is one name, and a tag before any clause is a tag", () => {
+    const text = story(TALK, "  [[mia-morph]]\n  [[mia-morph with fade]]\n  [[bunny # note]]\n  [[bunny # note morph none]]");
+    const scene = text.split("\n").indexOf("scene start");
+    const after = diagnosticsOf(text, { bunny: FACE, "mia-morph": FACE }).filter((d) => d.line > scene);
+    expect(after).toEqual([]);
+  });
+
+  test("a word no clause takes in an audio directive is an error on that word", () => {
+    const lines = ["  ((theme wait garbage))", "  ((theme with echo garbage))", "  ((play music theme loop with over))"];
+    const text = story(TALK, lines.join("\n"));
+    const all = text.split("\n");
+    const scene = all.indexOf("scene start");
+    const tail = diagnosticsOf(text).filter((d) => d.line > scene && /is not a clause|not part of a clause/.test(d.message));
+    expect(tail).toEqual([
+      expect.objectContaining({ severity: 1, line: all.indexOf(lines[0]!), text: "garbage", message: "`garbage` is not a clause, and `wait` takes no value." }),
+      expect.objectContaining({ severity: 1, line: all.indexOf(lines[1]!), text: "garbage", message: "`garbage` is not a clause: `with` takes one value." }),
+    ]);
+  });
+
   test("a transition or an ease named like a clause word is a value of `with` or `ease`, not a clause", () => {
     const text = story(TALK, "  [[bunny with wait]]\n  [[bunny ease ease over 1s]]\n  [[bunny with over]]");
     const scene = text.split("\n").indexOf("scene start");
