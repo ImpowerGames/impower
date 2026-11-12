@@ -215,6 +215,7 @@ export function collectMorphIssues(
         },
         ancestors,
         parentSpan ?? nameSpan,
+        inherit,
       ),
       ...coverageIssues(morph.name, nameSpan, morph.own, effective, context, images, {
         span: parentSpan ?? nameSpan,
@@ -242,16 +243,17 @@ function validateWithUnwrittenParents(
   decl: MorphDeclaration,
   ancestors: readonly MorphLayer[],
   span: SourceSpan,
+  inherit: (base: any, override: any) => any,
 ): LocatedMorphIssue[] {
   const firstWritten = ancestors.findIndex((layer) => layer.written);
   const defines = ancestors.slice(0, firstWritten < 0 ? ancestors.length : firstWritten);
   if (defines.length === 0) return validateMorphDeclaration(decl);
   let merged: Record<string, unknown> = {};
-  for (let i = defines.length - 1; i >= 0; i -= 1) merged = mergeRecords(merged, defines[i]!.struct);
+  for (let i = defines.length - 1; i >= 0; i -= 1) merged = inherit(merged, defines[i]!.struct);
   const own = decl.own.struct;
   const inherited = inheritedFields(merged, own);
   if (Object.keys(inherited).length === 0) return validateMorphDeclaration(decl);
-  const supplier = (field: string) => defines.find((layer) => field in layer.struct)?.name ?? defines[0]!.name;
+  const supplier = (field: string) => defines.find((layer) => Object.hasOwn(layer.struct, field))?.name ?? defines[0]!.name;
   const aliases = new WeakMap<object, { written: object; unwritten: Set<string> }>();
   const fromParent = new WeakSet<object>();
   const mark = (value: unknown) => {
@@ -263,10 +265,10 @@ function validateWithUnwrittenParents(
     const combined: Record<string, unknown> = { ...written };
     const unwritten = new Set<string>();
     for (const [key, value] of Object.entries(from)) {
-      const mine = written[key];
+      const mine = Object.hasOwn(written, key) ? written[key] : undefined;
       if (isRecord(mine) && isRecord(value)) {
         combined[key] = combine(mine, value);
-      } else if (!(key in written)) {
+      } else if (!Object.hasOwn(written, key)) {
         mark(value);
         combined[key] = value;
         unwritten.add(key);
@@ -316,19 +318,6 @@ function validateWithUnwrittenParents(
   return issues;
 }
 
-function mergeRecords(
-  base: Record<string, unknown>,
-  override: Record<string, unknown>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    if (key.startsWith("$")) continue;
-    const prior = result[key];
-    result[key] = isRecord(prior) && isRecord(value) ? mergeRecords(prior, value) : value;
-  }
-  return result;
-}
-
 function inheritedFields(
   effective: Record<string, unknown>,
   own: Record<string, unknown>,
@@ -336,7 +325,7 @@ function inheritedFields(
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(effective)) {
     if (key.startsWith("$")) continue;
-    if (!(key in own)) {
+    if (!Object.hasOwn(own, key)) {
       result[key] = value;
       continue;
     }
@@ -508,7 +497,7 @@ function coverageIssues(
       if (reported.has(key)) return;
       reported.add(key);
       const top = field.split(".")[0]!;
-      const supplier = inheritance.ancestors.find((layer) => top in layer.struct)?.name;
+      const supplier = inheritance.ancestors.find((layer) => Object.hasOwn(layer.struct, top))?.name;
       warn(inheritance.span, `\`${field}\`, inherited${supplier ? ` from \`${supplier}\`` : ""}: ${message}`);
     });
   }

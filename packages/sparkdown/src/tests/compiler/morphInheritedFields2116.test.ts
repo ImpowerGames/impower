@@ -38,11 +38,12 @@ interface Row {
   inherited: string[];
   parent: string[];
   at: Placement;
+  prefixed: [prefix: string, message: string][];
 }
 
 const indent = (lines: string[]) => lines.map((line) => `  ${line}`);
 
-const row = (field: Field, ...lines: string[]): Row => ({ fields: [field], written: indent(lines), inherited: [], parent: indent(lines), at: "as" });
+const row = (field: Field, ...lines: string[]): Row => ({ fields: [field], written: indent(lines), inherited: [], parent: indent(lines), at: "as", prefixed: [] });
 
 const split = (fields: Field[], written: string[], inherited: string[], parent: string[]): Row => ({
   fields,
@@ -50,7 +51,12 @@ const split = (fields: Field[], written: string[], inherited: string[], parent: 
   inherited: indent(inherited),
   parent: indent(parent),
   at: "as",
+  prefixed: [],
 });
+
+const from = (field: string) => `\`${field}\`, inherited from \`base\`: `;
+
+const prefixed = (r: Row, ...pairs: [prefix: string, message: string][]): Row => ({ ...r, prefixed: pairs });
 
 
 const ROWS: Row[] = [
@@ -67,12 +73,12 @@ const ROWS: Row[] = [
   row("spread", "spread = big"),
   row("layers", "layers {", "  lips { spread = 1px }", "}"),
   row("layers", "layers {", "  lips { blend = jump }", "}"),
-  row("layers", "layers {", "  nose { method = bend }", "}"),
+  prefixed(row("layers", "layers {", "  nose { method = bend }", "}"), [from("layers.nose"), "No image the morph applies to has a layer labelled `nose`."]),
   row("keyframes", ...KEYFRAMES.map((line) => line.slice(2))),
   row("keyframes", "keyframes {", "  from { mouth { state = mouth.closed } }", "  to { mouth { state = mouth.open } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = grin } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = eyes.open } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { hat { state = on } }", "}"),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = grin } }", "}"), [from("keyframes"), "No image's `mouth` group has a `grin` state."]),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = eyes.open } }", "}"), ["`keyframes` (keyframe 2), inherited from `base`: ", "`eyes.open` names a state of the `eyes` group, but this container poses `mouth`. Write `state = open` or `state = mouth.open`, or move it into a `eyes:` container."]),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth { state = closed } }", "  to { hat { state = on } }", "}"), [from("keyframes"), "No image has a `hat` attribute group."]),
   row("keyframes", "keyframes {", "  0% { mouth { state = closed } }", "  200% { mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", "  { offset = 0; mouth { state = closed } }", "  { offset = 2; mouth { state = open } }", "}"),
   row("keyframes", "keyframes {", '  from { mouth { state = "mouth." } }', "  to { mouth { state = open } }", "}"),
@@ -80,28 +86,28 @@ const ROWS: Row[] = [
   row("timing", "timing {", "  duration = 0.5", "}"),
   row("timing", "timing {", "  duration = -1", "}"),
   row("timing", "timing {", "  easing = wobble", "}"),
-  row("clips", "clips {", "  { between { nose }; targets { chin } }", "}"),
+  prefixed(row("clips", "clips {", "  { between { nose }; targets { chin } }", "}"), [from("clips"), "No image the morph applies to has a layer labelled `nose`."], [from("clips"), "No image the morph applies to has a layer labelled `chin`."]),
   row("paints", "paints {", "  { targets { lips }; state = mouth.open; fill = red }", "}"),
   row("paints", "paints {", "  { targets { lips }; state = mouth.grin; fill = red }", "}"),
   row("when", "when = mouth.teeth"),
-  row("when", "when = eyes.shut"),
+  prefixed(row("when", "when = eyes.shut"), [from("when"), "No image's `eyes` group has a `shut` state."]),
   row("when", "when = closed"),
   row("when", "when {", "  mouth.teeth", "  eyes.open", "}"),
   row("unless", "unless = eyes.closed"),
-  row("unless", "unless = hat.on"),
+  prefixed(row("unless", "unless = hat.on"), [from("unless"), "No image `child` could play on has a `hat` attribute group."]),
   row("unless", "unless {", "  eyes.closed", "  mouth.teeth", "}"),
   row("rest", "rest {", "  mouth { state = teeth }", "}"),
   row("rest", "rest {", "  mouth { state = mouth.teeth }", "}"),
-  row("rest", "rest {", "  mouth { state = eyes.closed }", "}"),
+  prefixed(row("rest", "rest {", "  mouth { state = eyes.closed }", "}"), [from("rest.mouth.state"), "`eyes.closed` names a state of the `eyes` group, but this container poses `mouth`. Write `state = closed` or `state = mouth.closed`, or move it into a `eyes:` container."]),
   row("rest", "rest {", '  mouth { state = "mouth." }', "}"),
   row("rest", "rest {", "  mouth { state = teeth; translate = 0 2px }", "}"),
-  row("rest", "rest {", "  mouth { state = grin }", "}"),
+  prefixed(row("rest", "rest {", "  mouth { state = grin }", "}"), [from("rest.mouth"), "No image's `mouth` group has a `grin` state."]),
   row("rest", "rest {", "  eyes { state = closed }", "}"),
   row("rest", "rest = mouth.teeth"),
-  row("rest", "rest {", "  mouth { state = mouth.mouth.closed }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = mouth.mouth.closed } }", "  to { mouth { state = open } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth { state = closed; rotate = bad } }", "  to { mouth { state = open } }", "}"),
-  row("keyframes", "keyframes {", "  from { mouth = mouth.closed }", "  to { mouth { state = open } }", "}"),
+  prefixed(row("rest", "rest {", "  mouth { state = mouth.mouth.closed }", "}"), [from("rest.mouth.state"), "`mouth.mouth.closed` is not a state: a state is one name, written alone or after its group once, such as `state = closed` or `state = mouth.closed`."]),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth { state = mouth.mouth.closed } }", "  to { mouth { state = open } }", "}"), ["`keyframes` (keyframe 1), inherited from `base`: ", "`mouth.mouth.closed` is not a state: a state is one name, written alone or after its group once, such as `state = closed` or `state = mouth.closed`."]),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth { state = closed; rotate = bad } }", "  to { mouth { state = open } }", "}"), [from("keyframes"), "No image the morph applies to has a layer labelled `mouth`."]),
+  prefixed(row("keyframes", "keyframes {", "  from { mouth = mouth.closed }", "  to { mouth { state = open } }", "}"), [from("keyframes"), "No image the morph applies to has a layer labelled `mouth`."]),
   row("clips", "clips {", "  { between { lips }; targets { lips } }", "}"),
   row("clips", "clips {", "  { between { lips }; targets { lids }; spread = big }", "}"),
   row("clips", "clips {", "  { between { lips } }", "}"),
@@ -117,6 +123,10 @@ const ROWS: Row[] = [
   split(["timing"], ["when = closed", "timing {", "  duration = 0.5", "}"], ["when = closed"], ["timing {", "  duration = 0.5", "}"]),
   split(["method", "layers"], ["method = warp", "layers {", "  lips { method = warp }", "}"], [], ["method = warp", "layers {", "  lips { method = warp }", "}"]),
   split(["clips", "layers"], ["clips {", "  { between { lips }; targets { lids }; spread = big }", "}", "layers {", "  lips { spread = big }", "}"], [], ["clips {", "  { between { lips }; targets { lids }; spread = big }", "}", "layers {", "  lips { spread = big }", "}"]),
+  prefixed(
+    split(["layers"], ["layers {", "  lips { spread = 1px }", "  constructor { blend = jump }", "}"], ["layers {", "  lips { spread = 1px }", "}"], ["layers {", "  constructor { blend = jump }", "}"]),
+    [from("layers.constructor"), "No image the morph applies to has a layer labelled `constructor`."],
+  ),
   split(["keyframes", "rest"], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"], [], ["keyframes {", "  from { mouth { state = closed } }", "  to { mouth { state = open } }", "}", "rest {", "  eyes { state = closed }", "}"]),
 ];
 
@@ -150,8 +160,6 @@ function compile(text: string, base: Record<string, unknown>) {
   return compiler.compile({ textDocument: { uri: URI } }).program;
 }
 
-const INHERITED = /^`[^`]+`(?: \((?:keyframe|entry) [0-9]+\))?, inherited(?: from `base`)?: /;
-
 function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLines: Set<number>) {
   const lines = text.split("\n");
   return (program.diagnostics?.[URI] ?? [])
@@ -161,11 +169,11 @@ function diagnostics(program: ReturnType<typeof compile>, text: string, fieldLin
       const message = typeof d.message === "string" ? d.message : d.message.value;
       const spanned = start.line === end.line ? lines[start.line]!.slice(start.character, end.character) : lines[start.line]!.slice(start.character);
       const where = fieldLines.has(start.line) ? "<field>" : start.line === 0 && spanned === "base" ? "as" : start.line === 0 && spanned === "child" ? "name" : spanned;
-      return { where, said: `${d.severity === 1 ? "error" : "warning"} : ${message.replace(INHERITED, "")}` };
+      return { where, severity: d.severity === 1 ? "error" : "warning", message };
     });
 }
 
-const listed = (found: { where: string; said: string }[]) => found.map(({ where, said }) => `${where} | ${said}`).sort();
+const listed = (found: { where: string; severity: string; message: string }[]) => found.map(({ where, severity, message }) => `${where} | ${severity} : ${message}`).sort();
 
 function binding(program: ReturnType<typeof compile>) {
   const channel = program.morphs;
@@ -196,10 +204,21 @@ describe("a field inherited from a parent the scripts do not write reads as the 
     const inheritedText = childText(r, r.inherited);
     const inherited = compile(inheritedText, base);
     const writtenFound = diagnostics(written, writtenText, movedLines(r));
-    const moved = writtenFound.filter((d) => d.where === "<field>").sort((a, b) => a.said.localeCompare(b.said));
+    const moved = writtenFound.filter((d) => d.where === "<field>").sort((a, b) => a.message.localeCompare(b.message));
     const placements = PLACEMENTS[rowName(r)] ?? moved.map(() => r.at);
     expect(placements).toHaveLength(moved.length);
-    const expected = [...writtenFound.filter((d) => d.where !== "<field>"), ...moved.map((d, i) => ({ where: placements[i]!, said: d.said }))];
+    const pairs = [...r.prefixed];
+    const inheritedMessage = (message: string) => {
+      const at = pairs.findIndex(([, said]) => said === message);
+      if (at < 0) return message;
+      const [prefix] = pairs.splice(at, 1)[0]!;
+      return `${prefix}${message}`;
+    };
+    const expected = [
+      ...writtenFound.filter((d) => d.where !== "<field>"),
+      ...moved.map((d, i) => ({ where: placements[i]!, severity: d.severity, message: inheritedMessage(d.message) })),
+    ];
+    expect(pairs, "every expected prefix matches a moved diagnostic").toEqual([]);
     expect(listed(diagnostics(inherited, inheritedText, new Set()))).toEqual(listed(expected));
     expect(binding(inherited)).toEqual(binding(written));
   });

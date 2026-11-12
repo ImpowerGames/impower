@@ -80,12 +80,16 @@ type Image = { name: string; svg: string };
 const withStart = (text: string) =>
   /^scene start$/m.test(text) ? text : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
-function compile(text: string, images: Image[] = [{ name: "bunny", svg: FACE }], unwritten?: Record<string, unknown>) {
+function compile(
+  text: string,
+  images: Image[] = [{ name: "bunny", svg: FACE }],
+  unwritten?: Record<string, unknown>,
+  builtins?: Record<string, Record<string, unknown>>,
+) {
   const compiler = new SparkdownCompiler();
+  const configured = builtins ?? (unwritten ? { morph: { base: { $type: "morph", $name: "base", ...unwritten } } } : undefined);
   compiler.configure({
-    ...(unwritten
-      ? { useBuiltinsPrelude: false, definitions: { builtins: { morph: { base: { $type: "morph", $name: "base", ...unwritten } } } } }
-      : {}),
+    ...(configured ? { useBuiltinsPrelude: false, definitions: { builtins: configured } } : {}),
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
       ...images.map((image) => ({
@@ -108,8 +112,13 @@ interface Found {
   text: string;
 }
 
-function diagnosticsOf(text: string, images?: Image[], unwritten?: Record<string, unknown>): Found[] {
-  const program = compile(text, images, unwritten);
+function diagnosticsOf(
+  text: string,
+  images?: Image[],
+  unwritten?: Record<string, unknown>,
+  builtins?: Record<string, Record<string, unknown>>,
+): Found[] {
+  const program = compile(text, images, unwritten, builtins);
   const lines = withStart(text).split("\n");
   return (program.diagnostics?.[URI] ?? []).map((d) => {
     const { start, end } = d.range;
@@ -438,6 +447,62 @@ end
     const found = diagnosticsOf(text, images).filter((d) => d.message.includes("does not apply"));
     expect(found).toHaveLength(1);
     expect(found[0]!.message).toContain("image `plain`: its `mouth` group has no `teeth` state");
+  });
+});
+
+describe("what a child inherits, by own property only and by the compiler's own merge", () => {
+  const labelled = (label: string) => `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="${label}:mouth.open:default" id="m-open"/>
+<g data-name="${label}:mouth.closed" id="m-closed"/>
+</svg>`;
+
+  test("a layer label named like an object property, inherited from a written parent, is checked against the child's portraits like any other", () => {
+    const text = (label: string) => `morph base {
+  blend = cut
+  layers {
+    ${label} { spread = 1px }
+  }
+  keyframes {
+    from { mouth { state = closed } }
+    to { mouth { state = open } }
+  }
+}
+
+morph child as base {
+  blend = cut
+  layers {
+    lids { spread = 1px }
+  }
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = closed } }
+  }
+}
+`;
+    for (const label of ["special", "constructor", "toString", "valueOf"]) {
+      const images = [
+        { name: "face", svg: labelled(label) },
+        { name: "sleepy", svg: SLEEPY },
+      ];
+      const found = diagnosticsOf(text(label), images).filter((d) => d.message.includes(`labelled \`${label}\``));
+      expect(found, label).toEqual([
+        expect.objectContaining({
+          text: "base",
+          severity: 2,
+          message: `\`layers.${label}\`, inherited from \`base\`: No image the morph applies to has a layer labelled \`${label}\`.`,
+        }),
+      ]);
+    }
+  });
+
+  test("a chain of parents the scripts do not write merges as the compiler does: a nearer block replaces a farther reference", () => {
+    const builtins = {
+      morph: { grand: { $type: "morph", $name: "grand", rest: { mouth: { $type: "mouth", $name: "closed" } } } },
+      grand: { base: { $type: "grand", $name: "base", rest: { mouth: { state: "teeth" } } } },
+    };
+    const text = "morph child as base {\n  blend = cut\n  keyframes {\n    from { mouth { state = closed } }\n    to { mouth { state = open } }\n  }\n}\n";
+    expect(parseMorphRecipe(compile(text, undefined, undefined, builtins).morphs!.recipes["child"]!)?.rest).toEqual({ mouth: "teeth" });
+    expect(diagnosticsOf(text, undefined, undefined, builtins).filter((d) => d.severity === 1).map((d) => d.message)).toEqual([]);
   });
 });
 
