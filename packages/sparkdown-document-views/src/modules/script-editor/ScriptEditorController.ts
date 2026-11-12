@@ -1492,12 +1492,6 @@ export class ScriptEditorController {
                   ),
                 );
               },
-              onWillApplyWorkspaceEdit: () => {
-                this.allowEditing(false);
-              },
-              onDidApplyWorkspaceEdit: () => {
-                this.allowEditing(!this.options.readonly);
-              },
             }),
           textDocument: this._textDocument,
           defaultState: this.cachedEditorState(textDocument),

@@ -9,6 +9,10 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { WorkspaceFileUpdate } from "@impower/codemirror-vscode-lsp-client/src/workspace";
 import { InitializeResult } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
+import type {
+  WorkspaceEditAction,
+  WorkspaceEditMetadata,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type * as lsp from "vscode-languageserver-protocol";
 
 interface FileHandler {
@@ -21,11 +25,13 @@ interface FileHandler {
   applyWorkspaceEdit: (params: {
     label?: string;
     edit: lsp.WorkspaceEdit;
-    metadata?: { isRefactoring?: boolean };
-  }) => Promise<void>;
-  onWillApplyWorkspaceEdit?: () => void;
-  onDidApplyWorkspaceEdit?: () => void;
+    metadata?: WorkspaceEditMetadata;
+  }) => Promise<unknown>;
 }
+
+const EDIT_KINDS: Record<string, WorkspaceEditAction["kind"]> = {
+  rename: "rename-symbol",
+};
 
 const NEWLINE_REGEX = /\r\n|\r\n/g;
 
@@ -174,68 +180,12 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
     },
     userEvent: string,
   ): Promise<void> {
-    const openFilesDocumentChanges: (
-      | lsp.TextDocumentEdit
-      | lsp.CreateFile
-      | lsp.RenameFile
-      | lsp.DeleteFile
-    )[] = [];
-    const closedFilesDocumentChanges: (
-      | lsp.TextDocumentEdit
-      | lsp.CreateFile
-      | lsp.RenameFile
-      | lsp.DeleteFile
-    )[] = [];
-    const openFilesChanges: Record<string, lsp.TextEdit[]> = {};
-    const closedFilesChanges: Record<string, lsp.TextEdit[]> = {};
-
-    if (params.edit.documentChanges) {
-      for (const c of params.edit.documentChanges) {
-        if ("kind" in c || !this.isOpen(c.textDocument.uri)) {
-          closedFilesDocumentChanges.push(c);
-        } else {
-          openFilesDocumentChanges.push(c);
-        }
-      }
-    } else if (params.edit.changes) {
-      for (const [uri, edits] of Object.entries(params.edit.changes)) {
-        if (!this.isOpen(uri)) {
-          closedFilesChanges[uri] = edits;
-        } else {
-          openFilesChanges[uri] = edits;
-        }
-      }
-    }
-
-    const openFilesEdit = {
-      documentChanges: openFilesDocumentChanges,
-      changes: openFilesChanges,
-      changeAnnotations: params.edit.changeAnnotations,
-    };
-    const closedFilesEdit = {
-      documentChanges: closedFilesDocumentChanges,
-      changes: closedFilesChanges,
-      changeAnnotations: params.edit.changeAnnotations,
-    };
-
-    this._fileHandler.onWillApplyWorkspaceEdit?.();
-
+    const kind = EDIT_KINDS[userEvent];
     await this._fileHandler.applyWorkspaceEdit({
       label: params.label,
-      edit: closedFilesEdit,
-      metadata: params.metadata,
+      edit: params.edit,
+      ...(kind ? { metadata: { action: { kind, targets: [] } } } : {}),
     });
-
-    await super.updateFiles(
-      {
-        label: params.label,
-        edit: openFilesEdit,
-        metadata: params.metadata,
-      },
-      userEvent,
-    );
-
-    this._fileHandler.onDidApplyWorkspaceEdit?.();
   }
 
   override async changeWatchedFiles(

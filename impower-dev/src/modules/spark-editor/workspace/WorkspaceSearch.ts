@@ -14,7 +14,7 @@ import type {
   Position,
   Range,
 } from "vscode-languageserver-protocol";
-import type { EditorEditKind } from "./applyEditorEdit";
+import { failureOf, type EditorEditKind } from "./applyEditorEdit";
 import {
   type FindOption,
   type NameSubject,
@@ -66,13 +66,6 @@ export interface SearchSources {
 
 export const count = (n: number, one: string, many = `${one}s`) =>
   `${n} ${n === 1 ? one : many}`;
-
-const failureOf = (outcome: ApplyWorkspaceEditResult, nothing: string) =>
-  !outcome.failureReason
-    ? nothing
-    : outcome.rollback?.complete
-      ? `${outcome.failureReason.replace(/[.]$/, "")}. ${nothing}`
-      : outcome.failureReason;
 
 const isMain = (uri: string) => uri.endsWith("/main.sd") || uri === "main.sd";
 
