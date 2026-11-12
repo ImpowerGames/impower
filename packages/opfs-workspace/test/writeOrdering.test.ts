@@ -1724,6 +1724,63 @@ describe("applying a workspace edit whole or not at all (I-2070)", () => {
     ]);
   });
 
+  it("marks the Recycle bin batch a failed edit leaves with the action that failed, and restores it beside the live file", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    failRemoving(projectDirectory(root), "a.sd");
+    failWrite(fileAt(root, "main.sd")!, 2);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: referenceRename("a.sd", "b.sd"),
+      label: "Rename a",
+    });
+    expect(response.result.rollback.trashed).toEqual([uriOf("main.sd")]);
+    const trash = (id: string, params: Record<string, unknown>) =>
+      h.request(id, "workspace/trashFiles", { projectId: "local", ...params });
+    const [batch] = (await trash("list", { action: "list" })).result.batches;
+    expect(batch).toMatchObject({
+      entries: [{ relPath: "main.sd", originalUri: uriOf("main.sd") }],
+      reason: { kind: "failed-edit", action: "Rename a" },
+    });
+    await trash("restore", { action: "restore", batchId: batch.batchId });
+    expect(textAt(root, "main.sd")).toBe("see b");
+    expect(textAt(root, "main (restored).sd")).toBe("see b");
+    expect((await trash("relist", { action: "list" })).result.batches).toEqual([]);
+  });
+
+  it("lists an ordinary delete and a batch written before failed edits were marked without a reason", async () => {
+    const root = seed({ "main.sd": "M", "gone.sd": "GONE" });
+    writeMemoryFile(root, "local/.trash/1000__legacy/old.sd", enc.encode("OLD"));
+    writeMemoryFile(
+      root,
+      "local/.trash/1000__legacy/__manifest.json",
+      enc.encode(
+        JSON.stringify({
+          deletedAt: 1000,
+          entries: [{ relPath: "old.sd", originalUri: uriOf("old.sd"), type: "script" }],
+        }),
+      ),
+    );
+    const h = await worker(root);
+    await h.enumerate();
+    await h.request("delete", "workspace/willDeleteFiles", {
+      files: [{ uri: uriOf("gone.sd") }],
+      mode: "trash",
+    });
+    const trash = (id: string, params: Record<string, unknown>) =>
+      h.request(id, "workspace/trashFiles", { projectId: "local", ...params });
+    const batches = (await trash("list", { action: "list" })).result.batches;
+    expect(batches.map((b: any) => b.entries[0].relPath)).toEqual(["gone.sd", "old.sd"]);
+    for (const batch of batches) {
+      expect(batch).not.toHaveProperty("reason");
+    }
+    for (const batch of batches) {
+      await trash(`restore-${batch.batchId}`, { action: "restore", batchId: batch.batchId });
+    }
+    expect(textAt(root, "gone.sd")).toBe("GONE");
+    expect(textAt(root, "old.sd")).toBe("OLD");
+  });
+
   it("announces what storage holds, not the edit's text, for a file whose restore failed", async () => {
     const root = seed({ "main.sd": "see a", "a.sd": "A" });
     failRemoving(projectDirectory(root), "a.sd");

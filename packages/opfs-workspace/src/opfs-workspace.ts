@@ -24,7 +24,7 @@ import {
   TrashFilesMessage,
   TrashFilesResult,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
-import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
+import { TrashBatch, TrashReason } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -1047,12 +1047,13 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts } = message.params;
+    const { edit, expectedTexts, label } = message.params;
     const log = new CommitLog();
     const { effects, failure } = await applyWorkspaceEdit(
       edit,
       log,
       expectedTexts,
+      label,
     );
 
     broadcastCreates(log, effects.created);
@@ -1159,6 +1160,8 @@ class UndoLog {
   copies: TrashCopy[] = [];
   trashDirectories = new Set<string>();
   trashBatch?: { projectId: string; deletedAt: number; id: string };
+
+  constructor(readonly action?: string) {}
 
   watch = (uris: string[], local: number) => {
     for (const uri of uris) {
@@ -1272,6 +1275,7 @@ class UndoLog {
       return { trashed: [], unlisted: [] };
     }
     const { projectId, deletedAt, id } = this.trashBatch!;
+    const reason: TrashReason = { kind: "failed-edit", action: this.action };
     const manifest = JSON.stringify({
       deletedAt,
       entries: this.copies.map(({ relPath, originalUri, type }) => ({
@@ -1279,6 +1283,7 @@ class UndoLog {
         originalUri,
         type,
       })),
+      reason,
     });
     try {
       await createFiles([
@@ -1518,6 +1523,7 @@ const applyWorkspaceEdit = async (
   edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
   log: CommitLog,
   expectedTexts?: Record<string, string>,
+  label?: string,
 ) => {
   const changes: WorkspaceEditChange[] =
     edit.documentChanges ??
@@ -1538,7 +1544,7 @@ const applyWorkspaceEdit = async (
       },
     };
   }
-  const undo = new UndoLog();
+  const undo = new UndoLog(label);
   const effects = noEffects();
   commitWatchers.add(undo.watch);
   try {
@@ -2285,6 +2291,7 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
         deletedAt: m.deletedAt,
         entries: m.entries,
         ...(m.folders?.length ? { folders: m.folders } : {}),
+        ...(m.reason?.kind === "failed-edit" ? { reason: m.reason } : {}),
       });
     } catch {
     }
