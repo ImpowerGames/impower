@@ -260,6 +260,12 @@ describe("the story increaseIndentPattern", () => {
       "  call(a, function(x)",
       "  return function(x)",
       "t = { function(x)",
+      "  local callback = ready and function(value)",
+      "  local callback = cached or function(value)",
+      "  local callback = not function(value)",
+      "  local callback = if ready then function(value)",
+      "  local callback = if ready then f else function(value)",
+      "t[function(x)",
       "  if x then -- note",
       "  if x then // note",
     ]) {
