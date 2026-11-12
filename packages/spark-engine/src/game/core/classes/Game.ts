@@ -3792,7 +3792,7 @@ export class Game<T extends M = {}> {
     traversal: "in" | "out" | "over",
     initialCallstackDepth: number,
   ): boolean {
-    const depth = this._story.state.callstackDepth;
+    const depth = this.stoppedDepth();
     if (traversal === "out") {
       return depth >= initialCallstackDepth;
     }

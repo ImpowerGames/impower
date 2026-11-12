@@ -308,6 +308,17 @@ describe("Step Over passes the frames it calls whatever beats they hold", () => 
     expect(h.onScreen()).toBe("Deep inside.");
   });
 
+  test("Step Over onto a tunnel call line stops on the call line", () => {
+    const h = play("Inside the tunnel.");
+    h.game.step("over");
+    expect(h.stoppedAt()).toBe(lineOf("Inside the tunnel."));
+    h.game.step("over");
+    expect(h.stoppedAt()).toBe(lineOf("-> inner ->"));
+    expect(h.topFrameLine()).toBe(lineOf("-> inner ->"));
+    h.game.step("over");
+    expect(h.stoppedAt()).toBe(lineOf("Still in the tunnel."));
+  });
+
   test("Step Over on a function call stops at the next statement", () => {
     const h = play("visits = add(visits, 10)");
     h.game.step("over");

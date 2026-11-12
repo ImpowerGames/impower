@@ -117,13 +117,14 @@ describe("a debugger stop presents the beat it reaches", () => {
     h.game.start();
     h.game.pause();
     const stops: { line?: number; text: string; settled: boolean }[] = [];
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       h.game.step("over");
       const { text, settled } = h.onScreen();
       stops.push({ line: h.stoppedAt(), text, settled });
     }
     expect(stops).toEqual([
       { line: lineOf("mood = mood + 1"), text: FIRST, settled: false },
+      { line: lineOf("-> aside ->"), text: FIRST, settled: false },
       { line: lineOf(BACK), text: TUNNEL, settled: true },
       { line: lineOf(BACK), text: BACK, settled: true },
     ]);
@@ -498,12 +499,13 @@ describe("a stop notification says whether the stopped line's beat is on screen"
     h.game.start();
     h.game.pause();
     const stops: { line?: number; beat?: string }[] = [];
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       h.game.step("over");
       stops.push({ line: h.stoppedAt(), beat: h.stopBeat() });
     }
     expect(stops).toEqual([
       { line: lineOf("mood = mood + 1"), beat: "none" },
+      { line: lineOf("-> aside ->"), beat: "none" },
       { line: lineOf(BACK), beat: "none" },
       { line: lineOf(BACK), beat: "shown" },
     ]);
