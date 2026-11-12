@@ -83,7 +83,17 @@ const ratioGroup = (menu: HTMLElement) =>
   menu.querySelector<HTMLElement>('[role="group"][aria-label="Game aspect ratio"]');
 
 const rows = (menu: HTMLElement) =>
-  Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+  Array.from(
+    ratioGroup(menu)?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [],
+  );
+
+const schemeGroup = (menu: HTMLElement) =>
+  menu.querySelector<HTMLElement>('[role="group"][aria-label="Device color scheme"]');
+
+const schemeRows = (menu: HTMLElement) =>
+  Array.from(
+    schemeGroup(menu)?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [],
+  );
 
 beforeEach(() => {
   localStorage.clear();
@@ -151,6 +161,42 @@ describe("the Preview settings menu", () => {
     const menu = await openSettings();
     expect(ratioGroup(menu)).toBeNull();
     expect(rows(menu)).toHaveLength(0);
+  });
+
+  it.each(["game", "textstream"] as const)(
+    "offers the device color scheme below the %s toggles, checked on the project's choice (#2062)",
+    async (mode) => {
+      workspaceSettings.setPreference("previewMode", mode);
+      workspaceSettings.setProjectSetting("previewColorScheme", "dark");
+      const menu = await openSettings();
+      const group = schemeGroup(menu);
+      expect(group).not.toBeNull();
+      expect(menu.textContent).toContain("Device color scheme");
+      expect(menu.textContent).toContain(
+        "The light or dark setting the game sees on the reader's device. It changes only styles with a dark variant, and a game that sets ui.color_scheme to light or dark ignores it.",
+      );
+      expect(
+        schemeRows(menu).map((row) => [row.textContent, row.getAttribute("aria-checked")]),
+      ).toEqual([
+        ["Match editor", "false"],
+        ["Light", "false"],
+        ["Dark", "true"],
+      ]);
+      const toggles = Array.from(menu.querySelectorAll('[role="menuitemcheckbox"]'));
+      expect(toggles.length).toBeGreaterThan(0);
+      expect(
+        toggles.every((toggle) => toggle.compareDocumentPosition(group!) & Node.DOCUMENT_POSITION_FOLLOWING),
+      ).toBe(true);
+      await act(async () => schemeRows(menu)[1]!.click());
+      await settle(300);
+      expect(workspaceSettings.projectSettings.value.previewColorScheme).toBe("light");
+    },
+  );
+
+  it("has no device color scheme in Screenplay mode (#2062)", async () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    const menu = await openSettings();
+    expect(schemeGroup(menu)).toBeNull();
   });
 
   it.each(["compact", "desktop"] as const)(

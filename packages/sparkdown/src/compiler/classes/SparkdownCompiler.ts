@@ -37,6 +37,7 @@ import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
+import { getSparklePropertyName } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -4516,7 +4517,57 @@ export class SparkdownCompiler {
         result[k] = v;
       }
     }
+    this.yieldSchemeVariants(base, override, result);
     return result;
+  }
+
+  protected yieldSchemeVariants(
+    base: Record<string, any>,
+    override: Record<string, any>,
+    result: Record<string, any>,
+  ) {
+    const overridden = new Set(
+      Object.entries(override)
+        .filter(
+          ([k, v]) =>
+            !k.startsWith("$") &&
+            (v == null || typeof v !== "object" || Array.isArray(v)),
+        )
+        .map(([k]) => getSparklePropertyName(k)),
+    );
+    for (const [k, bv] of Object.entries(base)) {
+      const variant = result[k];
+      if (
+        overridden.size === 0 ||
+        !k.startsWith("@theme(") ||
+        bv == null ||
+        typeof bv !== "object" ||
+        variant == null ||
+        typeof variant !== "object"
+      ) {
+        continue;
+      }
+      const own = override[k];
+      for (const p of Object.keys(bv)) {
+        const name = getSparklePropertyName(p);
+        if (
+          [...overridden].some((o) => name === o || name.startsWith(`${o}-`)) &&
+          !(own != null && typeof own === "object" && p in own)
+        ) {
+          delete variant[p];
+        }
+      }
+      if (Object.keys(variant).length === 0) {
+        delete result[k];
+      }
+    }
+    for (const k of Object.keys(result)) {
+      if (k.startsWith("@theme(")) {
+        const variant = result[k];
+        delete result[k];
+        result[k] = variant;
+      }
+    }
   }
 
   getPropertyPath(

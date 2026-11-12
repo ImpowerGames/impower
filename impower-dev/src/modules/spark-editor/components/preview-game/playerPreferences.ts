@@ -9,6 +9,11 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
+import {
+  SetSimulatedColorSchemeMessage,
+  type ColorScheme,
+} from "@impower/spark-engine/src/game/core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
   SetStartingDisplayModeMessage,
   type StartingDisplayMode,
@@ -21,8 +26,10 @@ import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import {
+  simulatedColorSchemeOf,
   startingDisplayModeOf,
   type Preferences,
+  type ProjectSettings,
 } from "../../workspace/settings/settingsSchema";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
@@ -54,6 +61,7 @@ export const createPlayerPreferenceSync = (
   routePins: () => RoutePin[] = () => [],
   theme: ReadonlySignal<string> = workspaceSettings.theme,
   preferences: ReadonlySignal<Preferences> = workspaceSettings.preferences,
+  projectSettings: ReadonlySignal<ProjectSettings> = workspaceSettings.projectSettings,
 ) => {
   const sendTheme = (value: string) =>
     post(SetPreviewThemeMessage.type.notification({ theme: value }));
@@ -67,11 +75,19 @@ export const createPlayerPreferenceSync = (
     );
   const sendDisplayMode = (mode: StartingDisplayMode) =>
     post(SetStartingDisplayModeMessage.type.request({ mode }));
+  const currentColorScheme = () =>
+    simulatedColorSchemeOf(
+      projectSettings.peek().previewColorScheme,
+      theme.peek(),
+    );
+  const sendColorScheme = (scheme: ColorScheme) =>
+    post(SetSimulatedColorSchemeMessage.type.request({ color_scheme: scheme }));
   const send = () => {
     sendTheme(theme.peek());
     sendIdleAnimations(preferences.peek().previewIdleAnimations);
     sendTypingPauses(preferences.peek().previewTypingPauses);
     sendDisplayMode(startingDisplayModeOf(preferences.peek().previewMode));
+    sendColorScheme(currentColorScheme());
     post(
       SetRouteTogglesMessage.type.request({
         toggles: storedRouteToggles(),
@@ -112,10 +128,22 @@ export const createPlayerPreferenceSync = (
       sendTypingPauses(typingPauses);
     }
   });
+  let colorScheme = currentColorScheme();
+  const disposeColorScheme = effect(() => {
+    const next = simulatedColorSchemeOf(
+      projectSettings.value.previewColorScheme,
+      theme.value,
+    );
+    if (next !== colorScheme) {
+      colorScheme = next;
+      sendColorScheme(colorScheme);
+    }
+  });
   return {
     dispose: () => {
       disposeTheme();
       disposePreferences();
+      disposeColorScheme();
     },
     initialized: send,
     received: (message: unknown) => {
@@ -124,6 +152,9 @@ export const createPlayerPreferenceSync = (
         message.params.type === "game"
       ) {
         send();
+      }
+      if (GameStartedMessage.type.isNotification(message)) {
+        sendColorScheme(currentColorScheme());
       }
       if (DidChangeRouteTogglesMessage.type.isNotification(message)) {
         localStorage.setItem(

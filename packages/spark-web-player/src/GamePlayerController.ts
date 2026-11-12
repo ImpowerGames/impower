@@ -78,6 +78,8 @@ import {
   type PlayerBarState,
 } from "./components/PlayerBar/playerBarState";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { SetSimulatedColorSchemeMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetSimulatedColorSchemeMessage";
+import { ColorSchemeHost } from "./app/ColorSchemeHost";
 import {
   SetStartingDisplayModeMessage,
   type StartingDisplayMode,
@@ -544,6 +546,7 @@ export class GamePlayerController {
     renderRouteViews(this.routeViewTargets(), null);
     renderSavesViews(this.savesTargets(), null);
     this._saves.dispose();
+    ColorSchemeHost.release(this.refs.gameUI);
     this._previewPosition = null;
     this._selectionVersion++;
     this._launchState = null;
@@ -1472,6 +1475,11 @@ export class GamePlayerController {
       this.host,
     );
     p.onRequest(
+      SetSimulatedColorSchemeMessage.type,
+      this.handleSetSimulatedColorScheme,
+      this.host,
+    );
+    p.onRequest(
       SetStartingDisplayModeMessage.type,
       this.handleSetStartingDisplayMode,
       this.host,
@@ -2110,6 +2118,16 @@ export class GamePlayerController {
   ) => {
     this.morphs?.setEnabled(message.params.enabled);
     return SetAnimatePortraitsMessage.type.response(message.id, {});
+  };
+
+  protected handleSetSimulatedColorScheme = async (
+    message: SetSimulatedColorSchemeMessage.Request,
+  ) => {
+    const overlay = this.refs.gameUI;
+    if (overlay) {
+      ColorSchemeHost.for(overlay).simulate(message.params.color_scheme);
+    }
+    return SetSimulatedColorSchemeMessage.type.response(message.id, {});
   };
 
   protected handleSetRouteToggles = async (

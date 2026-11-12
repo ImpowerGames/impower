@@ -7,6 +7,7 @@ import {
   DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
+  DropdownLabel,
   DropdownRadioGroup,
   DropdownRadioItem,
   DropdownRoot,
@@ -31,8 +32,11 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import { useSettings } from "../../workspace/settings/useSettings";
 import {
+  playsGame,
+  PREVIEW_COLOR_SCHEMES,
   PREVIEW_MODES,
   type PreferenceKey,
+  type PreviewColorScheme,
   type Preferences,
   type PreviewMode,
 } from "../../workspace/settings/settingsSchema";
@@ -126,6 +130,15 @@ export const QUICK_TOGGLES: Record<PreviewMode, PreviewToggleKey[]> = {
     "screenplayPaperTexture",
   ],
 };
+
+export const PREVIEW_COLOR_SCHEME_NAMES: Record<PreviewColorScheme, string> = {
+  editor: "Match editor",
+  light: "Light",
+  dark: "Dark",
+};
+
+export const PREVIEW_COLOR_SCHEME_DETAIL =
+  "The light or dark setting the game sees on the reader's device. It changes only styles with a dark variant, and a game that sets ui.color_scheme to light or dark ignores it.";
 
 const STEPS: readonly {
   traversal: StepTraversal;
@@ -358,6 +371,37 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
   );
 }
 
+function ColorSchemeSettings() {
+  const { projectSettings, setProjectSetting } = useSettings();
+  return (
+    <>
+      <DropdownSeparator />
+      <DropdownLabel variant="heading">Device color scheme</DropdownLabel>
+      <DropdownLabel class="pt-0 text-xs/[1.5] text-muted">
+        {PREVIEW_COLOR_SCHEME_DETAIL}
+      </DropdownLabel>
+      <DropdownRadioGroup
+        label="Device color scheme"
+        value={projectSettings.previewColorScheme}
+        onValueChange={(value: string) => {
+          const choice = PREVIEW_COLOR_SCHEMES.find((c) => c === value);
+          if (choice) {
+            setProjectSetting("previewColorScheme", choice);
+          }
+        }}
+      >
+        {PREVIEW_COLOR_SCHEMES.map((id) => (
+          <DropdownRadioItem key={id} value={id}>
+            <span class="group-data-[state=checked]:text-accent">
+              {PREVIEW_COLOR_SCHEME_NAMES[id]}
+            </span>
+          </DropdownRadioItem>
+        ))}
+      </DropdownRadioGroup>
+    </>
+  );
+}
+
 function SettingsMenu({ mode }: { mode: PreviewMode }) {
   const phone = useLayout() === "phone";
   const menuWidth = useMenuWidth();
@@ -404,6 +448,7 @@ function SettingsMenu({ mode }: { mode: PreviewMode }) {
             </DropdownCheckboxItem>
           );
         })}
+        {playsGame(mode) ? <ColorSchemeSettings /> : null}
         {phone ? <AspectRatioSettings mode={mode} /> : null}
       </DropdownContent>
     </DropdownRoot>

@@ -37,7 +37,10 @@ const OPEN_TEXTSTREAM = `define ui as config with
 end
 `;
 
-const OPEN_BOTH = `define ui as config with
+const withColorScheme = (colorScheme: string) =>
+  OPEN_TEXTSTREAM.replace("end\n", `  color_scheme = "${colorScheme}"\nend\n`);
+
+const OPEN_BOTH =`define ui as config with
   layouts_initial = { "textbox", "textstream" }
 end
 `;
@@ -522,7 +525,8 @@ end
   });
 });
 
-describe("both mount paths build the same page (#1990)", () => {
+describe.each(["system", "dark"])("both mount paths build the same page (#1990), ui.color_scheme %s (#2062)", (colorScheme) => {
+  const OPEN_TEXTSTREAM = withColorScheme(colorScheme);
   test("the AST mount and the static fallback send the same messages for the textstream layout, and both mark its scroll root to follow the end", async () => {
     const source = `${OPEN_TEXTSTREAM}
 scene start
@@ -639,7 +643,8 @@ end
   });
 });
 
-describe("[[clear textstream]] starts a fresh page (#1991)", () => {
+describe.each(["system", "dark"])("[[clear textstream]] starts a fresh page (#1991), ui.color_scheme %s (#2062)", (colorScheme) => {
+  const OPEN_TEXTSTREAM = withColorScheme(colorScheme);
   const CLEARING = `${OPEN_TEXTSTREAM}\nscene start\n  One.\n  Two.\n  Three.\n  [[clear textstream]] Fresh.\n  After.\nend\n`;
 
   test("three entries, then a clear, leaves only the clearing beat's entry, and a save after it loads back that one entry", () => {
