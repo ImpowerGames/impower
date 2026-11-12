@@ -4,6 +4,8 @@ import { getAnimationContent } from "@impower/spark-dom/src/utils/getAnimationCo
 import { getCssTokenValue } from "@impower/spark-dom/src/utils/getCssTokenValue";
 import { getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
+import { getComponents, parseSparkle, renderCssVDOM, renderVNode, type SparkleNode, type VNode } from "../../../../sparkle-screen-renderer/src";
+import { createScreenRenderContext } from "../../../../sparkle-screen-preview/src/utils/createScreenRenderContext";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -41,6 +43,14 @@ const declarationsOf = (css: string): Map<string, string> => {
     }
   }
   return found;
+};
+
+const screenStrings = (node: VNode): string[] =>
+  typeof node === "string" ? [node] : typeof node === "object" && node && "children" in node ? (node.children ?? []).flatMap((child) => screenStrings(child as VNode)) : [];
+
+const screenCss = (source: string) => {
+  const parsed = parseSparkle(source);
+  return screenStrings(renderCssVDOM(parsed, createScreenRenderContext(getComponents(parsed), {}, new Set()))).join("\n");
 };
 
 const DISTINCT = ["a-b", "a--b", "a.b", "a~b", "a b", "a@b"];
@@ -95,6 +105,19 @@ describe("a theme variable name keeps the declared name (#2137)", () => {
     const variable = getVarName("color", name);
     const css = getAnimationContent({ fade: { keyframes: [{ [variable]: "red" }] } as never }, new Set());
     expect(declarationsOf(css).get(variable)).toBe("red");
+  });
+
+  it.each(DISTINCT)("declares a screen theme block's category %s under the variable of that category's names", (name) => {
+    const css = screenCss(`theme dark\n  ${name}\n    deep = navy\n    pale = white\n`);
+    expect(declarationsOf(css).get(getVarName(name, "deep"))).toBe("navy");
+    expect(declarationsOf(css).get(getVarName(name, "pale"))).toBe("white");
+  });
+
+  it.each(DISTINCT)("declares a screen animation %s's timing under that animation's variable", (name) => {
+    const parent: SparkleNode = { root: "animation", type: "animation", args: { name } };
+    const timing: SparkleNode = { root: "animation", type: "timing", children: [{ root: "animation", type: "property", args: { key: "duration", value: "1s" } }] };
+    const css = String(renderVNode(timing, createScreenRenderContext({}, {}, new Set()), parent));
+    expect(declarationsOf(css).has(getVarName("animation", name))).toBe(true);
   });
 });
 

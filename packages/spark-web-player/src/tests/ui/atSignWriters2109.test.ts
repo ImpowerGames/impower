@@ -8,6 +8,8 @@ import { getCSSSelector, getStyleContent } from "@impower/spark-dom/src/utils/ge
 import { getVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getVarName";
 import { getResourcePathFromUrl, getResourceSrcFromPath } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
+import { renderVNode } from "../../../../sparkle-screen-renderer/src";
+import { createScreenRenderContext } from "../../../../sparkle-screen-preview/src/utils/createScreenRenderContext";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getThemeVar } from "../../../../sparkle-style-transformer/src/utils/transformers";
 import { compile, createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -255,6 +257,8 @@ describe("an @ name gets output distinct from the same name with _ or - (#2109)"
     ["getThemeVar", (name) => (getThemeVar(new Set([getVarName("color", name)]), "color", name) ?? "")],
     ["getCssTokenValue", (name) => String(getCssTokenValue({ $type: "image", $name: name }))],
     ["theme variable declaration", (name) => getStyleContent({ "": { [getVarName("image", name)]: "none" } }, { breakpoints: {}, theme })],
+    ["screen theme block", (name) => JSON.stringify(renderVNode({ root: "theme", type: "theme", args: { name: "dark" }, children: [{ root: "theme", type: name, children: [{ root: "theme", type: "property", args: { key: "deep", value: "navy" } }] }] }, createScreenRenderContext({}, {}, theme)))],
+    ["screen animation timing", (name) => String(renderVNode({ root: "animation", type: "timing", children: [{ root: "animation", type: "property", args: { key: "duration", value: "1s" } }] }, createScreenRenderContext({}, {}, theme), { root: "animation", type: "animation", args: { name } }))],
     ["getCSSSelector", (name) => getCSSSelector(name, {})],
     ["@keyframes", (name) => getAnimationContent({ [name]: { keyframes: [{ opacity: 1 }] } as never }, theme)],
     ["@font-face", (name) => getFontContent({ [name]: { font_family: name, src: "a.woff2" } })],
