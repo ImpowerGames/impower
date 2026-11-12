@@ -279,6 +279,9 @@ describe("the story increaseIndentPattern", () => {
       "local callback = function(fn: (number) -> (string, number), b)",
       "local f = function(x): (number, string)",
       "local f = function(x) -- note",
+      "local f = function(x: ((((number)))))",
+      "local f = function(a, b: { [string]: (number) -> () })",
+      "  call(function(a, b",
       "  if x then -- note",
       "  if x then // note",
     ]) {
@@ -376,7 +379,11 @@ describe("the stated limits of the story function alternative (GRAMMAR.md 8.2)",
   const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
 
   it("indents after prose that ends in a parameter list after an admitted word", () => {
-    for (const line of ["  He walked in and function (x)", "  She said = function (a, b)"]) {
+    for (const line of [
+      "  He walked in and function (x)",
+      "  She said = function (a, b)",
+      "  He read it and function (note: the old one) began",
+    ]) {
       expect(storyIncrease.test(line), line).toBe(true);
     }
   });
