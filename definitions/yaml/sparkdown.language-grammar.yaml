@@ -321,7 +321,7 @@ variables:
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_START_REGION_CHARACTER,
   # which never asks again.
   CHOICE_START_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_START_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
-  CHOICE_START_COMMAND_ESCAPE: (?:[\\](?:{{BLOCK_COMMENT_CLOSED}}|{{CHOICE_START_REGION_CHARACTER}}))
+  CHOICE_START_COMMAND_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
@@ -413,7 +413,7 @@ variables:
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_ONLY_REGION_CHARACTER,
   # which never asks again.
   CHOICE_ONLY_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
-  CHOICE_ONLY_COMMAND_ESCAPE: (?:[\\](?:{{BLOCK_COMMENT_CLOSED}}|{{CHOICE_ONLY_REGION_CHARACTER}}))
+  CHOICE_ONLY_COMMAND_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
@@ -505,7 +505,7 @@ variables:
   # past it (BLOCK_COMMENT_RUNS_ON) is read with CHOICE_INNER_REGION_CHARACTER,
   # which never asks again.
   CHOICE_INNER_COMMAND_CHARACTER: (?:{{BLOCK_COMMENT_CLOSED}}|(?!{{CHOICE_INNER_TEXT_END}}|{{SPARKDOWN_BLOCK_COMMENT_START}})[^\r\n])
-  CHOICE_INNER_COMMAND_ESCAPE: (?:[\\](?:{{BLOCK_COMMENT_CLOSED}}|{{CHOICE_INNER_REGION_CHARACTER}}))
+  CHOICE_INNER_COMMAND_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
   # lookaround: TextCommand's end, a `>` that no backslash escapes, which a run
   # of the command's text must leave to it; a run started earlier cannot be
   # interrupted by order.
