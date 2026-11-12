@@ -10,6 +10,7 @@ export interface AssetUse {
     end: { line: number; character: number };
   };
   role: AssetUseRole;
+  roles?: readonly AssetUseRole[];
   text: string;
 }
 
@@ -53,14 +54,24 @@ export const usageOf = (
   return { projectId, version: answer.version, uses, order: storyOrder(main, references) };
 };
 
+const rolesOf = (use: AssetUse): readonly AssetUseRole[] => use.roles ?? [use.role];
+
 const onePerLine = (uses: Iterable<AssetUse>): AssetUse[] => {
-  const seen = new Set<string>();
+  const kept = new Map<string, number>();
   const result: AssetUse[] = [];
   for (const use of uses) {
     const key = `${use.uri}:${use.range.start.line}`;
-    if (!seen.has(key)) {
-      seen.add(key);
+    const at = kept.get(key);
+    if (at === undefined) {
+      kept.set(key, result.length);
       result.push(use);
+      continue;
+    }
+    const first = result[at]!;
+    const roles = rolesOf(first);
+    const added = rolesOf(use).filter((role) => !roles.includes(role));
+    if (added.length) {
+      result[at] = { ...first, roles: [...roles, ...added] };
     }
   }
   return result;
@@ -99,7 +110,7 @@ export const storyPlace = (usage: AssetUsage) => {
 };
 
 export const usedAs = (uses: readonly AssetUse[]): string[] => {
-  const roles = new Set(uses.map((use) => use.role));
+  const roles = new Set(uses.flatMap(rolesOf));
   return ROLE_ORDER.filter((role) => roles.has(role)).map((role) => USE_ROLE_LABELS[role]);
 };
 

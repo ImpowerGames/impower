@@ -16,7 +16,7 @@ const { default: WorkspaceLanguageServer } = await import(
 const { assetLevel, assetSearch } = await import("../../src/modules/spark-editor/workspace/assetsListing");
 const { assetEndings, setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
 const { rowLine } = await import("../../src/modules/spark-editor/utils/fileListModel");
-const { usesLabel } = await import("../../src/modules/spark-editor/workspace/assetUsage");
+const { usedAs, usesLabel, usesOf } = await import("../../src/modules/spark-editor/workspace/assetUsage");
 const { PROJECT_SETTINGS_SCHEMA } = await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 
 const PROJECT = "project";
@@ -151,6 +151,28 @@ describe("asset usage, asked once for the whole project (#1033)", () => {
     expect(rows("uses-desc").find((row) => row.name === "market")!.uses).toBe(2);
     const groups = (await assets.usedBy([`${IMAGES}/market.png`]))!;
     expect(groups.flatMap((group) => group.uses.map((u) => u.range.start.line))).toEqual([2, 5]);
+  });
+
+  it("keeps every role of a line it counts once, in one file and across a stack's files", async () => {
+    const { assets, ls } = fakeWorkspace();
+    const at = (line: number, character: number, role: Use["role"]) => ({
+      ...use("main.sd", line, role),
+      range: { start: { line, character }, end: { line, character: character + 6 } },
+    });
+    ls.getAssetUsage.mockResolvedValue(
+      answer({
+        [`${IMAGES}/market.png`]: [at(2, 4, "backdrop"), at(2, 30, "portrait")],
+        [`${IMAGES}/harbor.png`]: [at(5, 4, "backdrop")],
+        [`${IMAGES}/harbor@night.png`]: [at(5, 30, "portrait")],
+      }),
+    );
+    await assets.load();
+    await assets.loadUsage();
+    const usage = workspace.assetUsage.value!;
+    const market = usesOf(usage, [`${IMAGES}/market.png`]);
+    expect([market.length, usedAs(market)]).toEqual([1, ["Backdrop", "Portrait"]]);
+    const harbor = usesOf(usage, [`${IMAGES}/harbor.png`, `${IMAGES}/harbor@night.png`]);
+    expect([harbor.length, usedAs(harbor)]).toEqual([1, ["Backdrop", "Portrait"]]);
   });
 
   it("lists every unused thing first under Uses ascending", async () => {
