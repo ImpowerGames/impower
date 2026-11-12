@@ -389,6 +389,62 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
   }
 
+  private pushStylingAccessPath(
+    annotations: Range<SparkdownAnnotation<Reference>>[],
+    path: SyntaxNode,
+  ) {
+    const content = findChildByName(path, "StylingAccessPath_content");
+    const parts: SyntaxNode[] = [];
+    for (let part = content?.firstChild; part; part = part.nextSibling) {
+      if (!isTrivia(part)) parts.push(part);
+    }
+    const namespace = parts[0]?.firstChild;
+    const typeName = namespace?.name === "NamespaceAccessor" ? getDescendent("TypeName", namespace) : null;
+    if (!namespace || !typeName) return;
+    const type = this.read(typeName.from, typeName.to);
+    annotations.push(
+      SparkdownAnnotation.mark<Reference>({
+        symbolIds: ["." + type, type],
+        kind: "read",
+        linkable: true,
+        firstMatchOnly: true,
+      }).range(typeName.from, typeName.to),
+    );
+    const name = getDescendent("VariableName", namespace);
+    if (!name) return;
+    const assetName = this.read(name.from, name.to);
+    if (
+      parts.length === 1 &&
+      DEFINE_ASSET_TYPES.includes(type) &&
+      onlyTrivia(path.prevSibling, "prevSibling") &&
+      onlyTrivia(path.nextSibling, "nextSibling")
+    ) {
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: [`${type}.${assetName}`],
+          kind: "read",
+          asset: { types: [type], name: assetName, typed: true },
+        }).range(name.from, name.to),
+      );
+      return;
+    }
+    const segments = [type];
+    const properties = parts.slice(1).map((part) =>
+      part.firstChild?.name === "PropertyAccessor" ? getDescendent("PropertyName", part.firstChild) : null,
+    );
+    for (const segmentName of [name, ...properties]) {
+      if (!segmentName) return;
+      segments.push(this.read(segmentName.from, segmentName.to));
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: [segments.join(".")],
+          kind: "read",
+          root: segmentName.from - typeName.from,
+        }).range(segmentName.from, segmentName.to),
+      );
+    }
+  }
+
   private typeNameSelector(type: string): SparkSelector[] {
     return [
       {
@@ -691,15 +747,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
 
-    if (nodeRef.name === "TypeName") {
-      const type = this.read(nodeRef.from, nodeRef.to);
-      const types = [type];
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          symbolIds: types,
-          kind: "read",
-        }).range(nodeRef.from, nodeRef.to),
-      );
+    if (nodeRef.name === "StylingAccessPath") {
+      this.pushStylingAccessPath(annotations, nodeRef.node);
+      return annotations;
     }
     if (nodeRef.name === "LuauVariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
