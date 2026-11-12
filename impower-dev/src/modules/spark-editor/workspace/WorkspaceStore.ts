@@ -204,6 +204,8 @@ class WorkspaceStore {
 
   readonly uploads = signal<readonly UploadRow[]>([]);
 
+  readonly assetsReveal = signal<readonly string[] | null>(null);
+
   readonly trashOpen = signal<boolean>(false);
 
   readonly scriptListing = signal<ScriptListing | null>(null);

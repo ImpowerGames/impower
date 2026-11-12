@@ -2,7 +2,7 @@ import { DropZone } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 import { isAssetType } from "../../utils/assetTypes";
 import { showSnackbar } from "../../utils/snackbar";
-import { addAssetFiles, isProjectZipDrop, landedView, type AddedFile } from "../../workspace/addAssetFiles";
+import { addAssetFiles, isProjectZipDrop, type AddedFile } from "../../workspace/addAssetFiles";
 import { routeOfState } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { carriesFiles, droppedFiles, FILE_DROP_HIDE_MS, FILE_DROP_TARGET } from "../../utils/fileDrops";
@@ -40,11 +40,10 @@ export const deliverDrop = async (files: AddedFile[]): Promise<void> => {
     Workspace.window.navigateTo("collection");
   }
   const before = workspace.uploads.peek();
-  const viewed = viewedFolder();
   try {
-    const lists = landedView(await addAssetFiles(files, viewed, { dropped: true }), viewed)?.lists;
-    if (lists) {
-      Workspace.window.setListState(lists);
+    const landed = await addAssetFiles(files, viewedFolder(), { dropped: true });
+    if (landed.length) {
+      workspace.assetsReveal.value = landed;
     }
   } catch (error) {
     showSnackbar({ message: error instanceof Error ? error.message : String(error) });

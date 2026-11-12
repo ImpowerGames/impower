@@ -726,6 +726,7 @@ describe("adding files dragged in from the desktop", () => {
   beforeEach(() => {
     selection.end();
     workspace.uploads.value = [];
+    workspace.assetsReveal.value = null;
     setListing({ [`${P}/imani.png`]: facts(7001) }, [`${P}/Cast`]);
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
   });
@@ -756,6 +757,21 @@ describe("adding files dragged in from the desktop", () => {
     expect(host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast"]`)!.closest("[data-drop-target]")).not.toBeNull();
     await dragFiles(cast, "drop", files);
     await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada.png" })], `${P}/Cast`));
+  });
+
+  it("opens on the files a drop elsewhere in the app added, clearing a saved search", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P }, assetsQueries: { all: "old" } } };
+    await mount();
+    expect(host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!.value).toBe("old");
+    setListing({ [`${P}/imani.png`]: facts(7001), "Assets/Audio/rain.ogg": facts(300) }, [`${P}/Cast`]);
+    await act(async () => {
+      workspace.assetsReveal.value = ["Assets/Audio/rain.ogg"];
+    });
+    await settle();
+    expect(workspace.assetsReveal.value).toBeNull();
+    expect(host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!.value).toBe("");
+    expect(workspace.current.lists?.assetsType).toBe("audio");
+    expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
   });
 
   it("shows the upload panel at the page's foot with each file's note, until closed", async () => {

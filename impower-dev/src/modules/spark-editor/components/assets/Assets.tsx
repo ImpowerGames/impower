@@ -405,12 +405,22 @@ function AssetsBrowser() {
     if (!view) {
       return;
     }
-    if (view.lists) {
+    if (view.lists || searching) {
       setQuery("");
+    }
+    if (view.lists) {
       setLists(view.lists);
     }
     revealRow(view.last);
   };
+
+  const revealing = workspace.assetsReveal.value;
+  useEffect(() => {
+    if (revealing && loaded) {
+      workspace.assetsReveal.value = null;
+      show(revealing);
+    }
+  }, [revealing, loaded]);
 
   const add = (files: AddedFile[], folder: string, dropped: boolean) =>
     void run(async () => show(await addAssetFiles(files, folder, { dropped })));

@@ -16,7 +16,11 @@ export const isProjectZipDrop = (files: readonly { name: string }[]): boolean =>
 
 const openDroppedZip = async (file: AddedFile): Promise<void> => {
   const { Workspace } = await import("./Workspace");
-  const data = await file.getBuffer();
+  const data = await file.getBuffer().catch(() => null);
+  if (!data) {
+    refuseUploads([file.name], { kind: "unreadable" });
+    return;
+  }
   const entries = await Workspace.fs.unzipFiles({ data: data.slice(0) }).catch(() => null);
   const found = entries
     ? findProjectRoot(entries.map((entry) => entry.filename))

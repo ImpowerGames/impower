@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(async (files: readonly { name: string }[], _folder: string) => files.map((file) => `Assets/x/${file.name}`)),
   load: vi.fn(async () => null),
   navigateTo: vi.fn(),
-  setListState: vi.fn(),
   requestProjectReplace: vi.fn(async (_file: File) => undefined),
   unzipFiles: vi.fn(async (_params: { data: ArrayBuffer }): Promise<{ filename: string }[]> => []),
 }));
@@ -19,7 +18,7 @@ vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     assets: { upload: mocks.upload, load: mocks.load },
-    window: { navigateTo: mocks.navigateTo, setListState: mocks.setListState, requestProjectReplace: mocks.requestProjectReplace },
+    window: { navigateTo: mocks.navigateTo, requestProjectReplace: mocks.requestProjectReplace },
     fs: { unzipFiles: mocks.unzipFiles },
   },
 }));
@@ -65,6 +64,7 @@ const overlay = () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   workspace.uploads.value = [];
+  workspace.assetsReveal.value = null;
   setAssetFiles({
     imageFiles: PROJECT_SETTINGS_SCHEMA.imageFiles.default,
     audioFiles: PROJECT_SETTINGS_SCHEMA.audioFiles.default,
@@ -120,9 +120,7 @@ describe("files dropped anywhere in the app", () => {
     const [dropped, folder] = mocks.upload.mock.calls[0]!;
     expect(dropped.map((file) => file.name)).toEqual(["hero.png", "rain.wav"]);
     expect(folder).toBe("");
-    await vi.waitFor(() =>
-      expect(mocks.setListState).toHaveBeenCalledWith({ assetsType: "audio", assetsFolders: { audio: "Assets/Audio" } }),
-    );
+    await vi.waitFor(() => expect(workspace.assetsReveal.value).toEqual(["Assets/Images/hero.png", "Assets/Audio/rain.wav"]));
   });
 
   it("adds to the folder in view when the drop lands outside the page while Assets is open", async () => {
@@ -178,6 +176,19 @@ describe("a single zip dropped anywhere", () => {
     expect(mocks.importFiles).not.toHaveBeenCalled();
     expect(mocks.navigateTo).not.toHaveBeenCalled();
     expect(workspace.uploads.value).toEqual([]);
+  });
+
+  it("lists a dropped zip that cannot be read as not added, and opens Assets to say so", async () => {
+    const dataTransfer = files(["art.zip"]);
+    dataTransfer.files[0]!.arrayBuffer = async () => {
+      throw new DOMException("The file could not be read.", "NotReadableError");
+    };
+    await fire("drop", dataTransfer);
+    await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
+    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe("Not added: the file could not be read, so choose it again.");
+    expect(mocks.unzipFiles).not.toHaveBeenCalled();
+    expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
   });
 
   it.each([
