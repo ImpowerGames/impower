@@ -75,6 +75,7 @@ export default function UsesList({
                       {use.range.start.line + 1}
                     </span>
                   }
+                  overflow="self"
                   label={<Snippet use={use} />}
                   onClick={() => onOpen(use)}
                 />
