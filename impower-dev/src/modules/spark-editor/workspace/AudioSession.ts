@@ -62,6 +62,14 @@ export default class AudioSession {
     return this._time;
   }
 
+  failureOf(sound: Sound): PlaybackFailure | null {
+    const playback = this._playback.value;
+    if (playback?.owner === sound.owner && playback.src === sound.src) {
+      return playback.status === "failed" ? (playback.failure ?? "unreadable") : null;
+    }
+    return sound.size !== undefined && sound.size > this._ports.maxBytes ? "too_large" : null;
+  }
+
   protected get audio(): SessionAudio {
     if (!this._audio) {
       const audio = this._ports.audio();

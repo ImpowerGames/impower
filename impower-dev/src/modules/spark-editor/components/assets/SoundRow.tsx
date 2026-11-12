@@ -19,22 +19,20 @@ export function SoundPlay({ name, sound }: { name: string; sound: Sound }) {
 }
 
 export function SoundLine({ sound, line }: { sound: Sound; line: string }) {
-  const playback = audioSession.playback.value;
+  const failed = audioSession.failureOf(sound);
+  if (failed) {
+    return <span data-asset-sound-failed>{PLAYBACK_FAILURES[failed]}</span>;
+  }
+  if (!sounding(sound.owner)) {
+    return <>{line}</>;
+  }
   void soundPeaks.settled.value;
   const shape = soundPeaks.peek({ src: sound.src, size: sound.size ?? 0 });
-  if (sounding(sound.owner)) {
-    const length = playback!.duration ?? (shape?.ok ? shape.duration : null);
-    return (
-      <span class="tabular-nums" data-asset-sound-time>
-        {length === null ? clock(audioSession.time.value) : `${clock(audioSession.time.value)} / ${clock(Math.round(length))}`}
-      </span>
-    );
-  }
-  if (playback?.owner === sound.owner && playback.status === "failed") {
-    return <span data-asset-sound-failed>{PLAYBACK_FAILURES[playback.failure ?? "unreadable"]}</span>;
-  }
-  if (shape && !shape.ok) {
-    return <span data-asset-sound-failed>{PLAYBACK_FAILURES[shape.failure]}</span>;
-  }
-  return <>{line}</>;
+  const length = audioSession.playback.value!.duration ?? (shape?.ok ? shape.duration : null);
+  const elapsed = clock(audioSession.time.value);
+  return (
+    <span class="tabular-nums" data-asset-sound-time>
+      {length === null ? elapsed : `${elapsed} / ${clock(Math.round(length))}`}
+    </span>
+  );
 }

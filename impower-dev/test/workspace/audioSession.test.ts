@@ -195,4 +195,18 @@ describe("the editor's audio session", () => {
     expect(session.playback.value).toMatchObject({ owner: door.owner, status: "failed", failure: "too_large" });
     expect(audio.log).toEqual([]);
   });
+
+  it("names a sound's failure only from its own playback or its size, never another sound's", async () => {
+    const { session, audio } = setup(100);
+    expect(session.failureOf(door)).toBeNull();
+    expect(session.failureOf({ ...door, size: 101 })).toBe("too_large");
+    expect(session.failureOf({ ...door, size: undefined })).toBeNull();
+    session.toggle(door);
+    audio.emit("error");
+    expect(session.failureOf(door)).toBe("unreadable");
+    expect(session.failureOf(rain)).toBeNull();
+    expect(session.failureOf({ ...door, src: "blob:door-replaced" })).toBeNull();
+    session.toggle(door);
+    expect(session.failureOf(door)).toBeNull();
+  });
 });

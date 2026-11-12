@@ -14,22 +14,21 @@ export default function SoundFrame({ asset }: { asset: InspectedAsset }) {
   const shape = file ? soundPeaks.peek(file) : undefined;
   const playback = audioSession.playback.value;
   const mine = !!sound && playback?.owner === sound.owner && playback.src === sound.src ? playback : null;
+  const failed = sound ? audioSession.failureOf(sound) : "unreadable";
 
   useEffect(() => {
-    if (file) {
+    if (file && !failed) {
       void soundPeaks.load(file);
     }
-  }, [file?.src, file?.size]);
+  }, [file?.src, file?.size, failed]);
 
-  const sounding = mine?.status === "playing" || mine?.status === "loading";
-  const failure = !sound
-    ? PLAYBACK_FAILURES.unreadable
-    : mine?.status === "failed"
-      ? PLAYBACK_FAILURES[mine.failure ?? "unreadable"]
-      : shape && !shape.ok && !sounding
-        ? PLAYBACK_FAILURES[shape.failure]
-        : undefined;
-  const state: AudioPlayerState = failure ? "failed" : sounding ? "playing" : !shape ? "loading" : "ready";
+  const state: AudioPlayerState = failed
+    ? "failed"
+    : mine?.status === "playing" || mine?.status === "loading"
+      ? "playing"
+      : !shape
+        ? "loading"
+        : "ready";
 
   return (
     <section aria-label={`${asset.name} player`} data-sound-frame>
@@ -39,7 +38,7 @@ export default function SoundFrame({ asset }: { asset: InspectedAsset }) {
         peaks={shape?.ok ? shape.peaks : shape ? null : undefined}
         time={mine ? audioSession.time.value : 0}
         duration={mine?.duration ?? (shape?.ok ? shape.duration : null)}
-        failure={failure}
+        failure={failed ? PLAYBACK_FAILURES[failed] : undefined}
         onToggle={() => sound && audioSession.toggle(sound)}
         onSeek={(seconds) => sound && audioSession.seek(sound, seconds)}
       />

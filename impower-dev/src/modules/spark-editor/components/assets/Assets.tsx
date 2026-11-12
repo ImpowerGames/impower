@@ -297,12 +297,15 @@ function AssetsBrowser() {
   const near = openPath ? neighborsOf(files, openPath) : null;
 
   useEffect(
-    () =>
-      audioSession.stopUnless(
-        (owner, src) => owner === AUDITION_OWNER || (soundOf(listing, owner)?.src === src && (!openPath || owner === openPath)),
-      ),
-    [listing, openPath],
+    () => audioSession.stopUnless((owner, src) => owner === AUDITION_OWNER || soundOf(listing, owner)?.src === src),
+    [listing],
   );
+
+  useEffect(() => {
+    if (openPath) {
+      audioSession.stopUnless((owner) => owner === AUDITION_OWNER || owner === openPath);
+    }
+  }, [openPath]);
 
   useEffect(() => () => audioSession.stopUnless((owner) => owner === AUDITION_OWNER), []);
   const [layout, setLayout] = useFolderLayout(

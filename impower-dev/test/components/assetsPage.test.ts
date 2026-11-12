@@ -847,20 +847,48 @@ describe("playing sounds from their rows", () => {
     ]);
   });
 
-  it("keeps Stop and the time for a sound that plays when only its waveform cannot be read", async () => {
+  it("plays a sound whose waveform cannot be read like any other, on a plain track, before, during and after playing", async () => {
     setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": { ...facts(512), src: "/p/bad" } });
     await openSounds();
     await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
-    expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("failed");
-    await click(playButton("door_chime"));
+    const player = () => inspector()!.querySelector("[data-audio-player]")!;
+    const toggle = () => player().querySelector<HTMLElement>("[data-audio-toggle]");
+    expect(player().getAttribute("data-state")).toBe("ready");
+    expect(player().querySelector("[data-audio-wave]")!.getAttribute("data-wave")).toBe("plain");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")).toBeNull();
+    await click(toggle()!);
     await tell("timeupdate", () => (speaker.audio.currentTime = 1.2));
-    const player = inspector()!.querySelector("[data-audio-player]")!;
-    expect(player.getAttribute("data-state")).toBe("playing");
-    expect(player.querySelector("[data-audio-toggle]")!.getAttribute("aria-label")).toBe("Stop door_chime");
-    expect(player.querySelector('[data-audio-wave]')!.getAttribute("data-wave")).toBe("plain");
+    expect(player().getAttribute("data-state")).toBe("playing");
+    expect(toggle()!.getAttribute("aria-label")).toBe("Stop door_chime");
     expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:01");
-    await click(player.querySelector<HTMLElement>("[data-audio-toggle]")!);
-    expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
+    await click(toggle()!);
+    expect(player().getAttribute("data-state")).toBe("ready");
+    expect(toggle()!.getAttribute("aria-label")).toBe("Play door_chime");
+    expect(player().querySelector('[role="slider"]')).not.toBeNull();
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")).toBeNull();
+    await click(toggle()!);
+    expect(speaker.audio.log).toEqual(["play /p/bad", "stop /p/bad", "play /p/bad"]);
+  });
+
+  it("keeps a row's sound playing through unrelated file changes while another file is open", async () => {
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    await click(playButton("footsteps"));
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    await act(async () => setListing({ ...workspace.assetListing.value!.files, "Assets/Other/new.csv": facts(7) }));
+    await settle();
+    expect(playButton("footsteps").getAttribute("aria-label")).toBe("Stop footsteps");
+    expect(speaker.audio.log).toEqual(["play /p/768"]);
+  });
+
+  it("says a file over the size limit is too large to play here, before anything is loaded", async () => {
+    setListing({ ...workspace.assetListing.value!.files, "Assets/Audio/Sounds/door_chime.wav": facts(2_000_000) });
+    await openSounds();
+    await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
+    expect(inspector()!.querySelector('[data-audio-player] [role="status"]')!.textContent).toBe("This file is too large to play here.");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-failed]")!.textContent).toBe("This file is too large to play here.");
+    await click(playButton("door_chime"));
+    expect(speaker.audio.log).toEqual([]);
   });
 
   it("says a file it cannot play can't be played here, in the row and in the inspector, which still downloads it", async () => {
