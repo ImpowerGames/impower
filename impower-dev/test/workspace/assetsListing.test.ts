@@ -403,7 +403,7 @@ describe("a stack of one file", () => {
     });
     expect(level.rows.map((row) => [row.name, row.path, row.paths, row.variantCount])).toEqual([
       ["imani", "Assets/Images/Cast/imani@night.png", ["Assets/Images/Cast/imani@night.png"], undefined],
-      ["kai", "Assets/Images/Cast/kai~mouth.open.closed.png", ["Assets/Images/Cast/kai~mouth.open.closed.png"], 2],
+      ["kai", "Assets/Images/Cast/kai~mouth.open.closed.png", ["Assets/Images/Cast/kai~mouth.open.closed.png"], 3],
       ["zed", "Assets/Images/Cast/zed.png", undefined, undefined],
     ]);
   });
