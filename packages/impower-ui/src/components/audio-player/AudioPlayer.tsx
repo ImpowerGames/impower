@@ -28,9 +28,7 @@ export const audioWaveVariants = cva("relative flex h-10 items-center", {
   defaultVariants: { loading: false },
 });
 
-const audioTransportVariants = cva(
-  "rounded-full text-muted [&_svg]:size-[18px] aria-pressed:bg-tint aria-pressed:text-accent",
-);
+const TRANSPORT = "rounded-full text-muted [&_svg]:size-[18px] aria-pressed:bg-tint aria-pressed:text-accent";
 
 export type AudioPlayerProps = VariantProps<typeof audioPlayerVariants> & {
   name: string;
@@ -147,7 +145,7 @@ export default function AudioPlayer({
           <Button
             variant="quiet"
             size="icon"
-            class={audioTransportVariants()}
+            class={TRANSPORT}
             aria-label="Restart"
             title="Restart"
             data-audio-restart
@@ -205,7 +203,7 @@ export default function AudioPlayer({
           <Button
             variant="quiet"
             size="icon"
-            class={audioTransportVariants()}
+            class={TRANSPORT}
             aria-label="Loop"
             title="Loop"
             aria-pressed={loop}
