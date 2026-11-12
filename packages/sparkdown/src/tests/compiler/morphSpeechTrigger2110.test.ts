@@ -183,3 +183,42 @@ morph child as base {
     expect(errorsOf(text)).toEqual([]);
   });
 });
+
+describe("which layer supplies a speech morph's `delay` and `iterations`", () => {
+  test("a chain of a written and a configured parent reports each supplied field once, on the child's `as`", () => {
+    const text = `${talk("    delay = 2", "middle", "morph middle as base {")}
+${talk("    trigger = speech", "child", "morph child as middle {")}`;
+    const asLine = lineOf(text, "morph child as middle");
+    expect(errorsOf(text, withConfiguredBase({ iterations: 1 }))).toEqual([
+      expect.objectContaining({ line: asLine, text: "middle", message: expect.stringMatching(/^`delay`, inherited, does not apply to a speech morph/) }),
+      expect.objectContaining({ line: asLine, text: "middle", message: expect.stringMatching(/^`iterations`, inherited, does not apply to a speech morph/) }),
+    ]);
+  });
+
+  test("a field written by the child and by its parent is reported once, on the child's field, and the parent's other field on the `as`", () => {
+    const text = `${talk("    delay = 2\n    iterations = 3", "base")}
+morph child as base {
+  timing {
+    trigger = speech
+    delay = 1
+  }
+}
+`;
+    const asLine = lineOf(text, "morph child as base");
+    expect(errorsOf(text)).toEqual([
+      expect.objectContaining({ line: lineOf(text, "delay = 1"), text: "delay", message: expect.stringMatching(/^`delay` does not apply to a speech morph/) }),
+      expect.objectContaining({ line: asLine, text: "base", message: expect.stringMatching(/^`iterations`, inherited, does not apply to a speech morph/) }),
+    ]);
+  });
+
+  test("a parent whose own fields cannot be read, a refused script `define`, supplies none: its refusal is the error", () => {
+    const text = `define base as morph with
+  timing = { delay = 2, iterations = 3 }
+end
+
+${talk("    trigger = speech", "child", "morph child as base {")}`;
+    const found = errorsOf(text);
+    expect(found).toEqual(expect.arrayContaining([expect.objectContaining({ line: 0, message: expect.stringContaining("A morph is declared with its own keyword") })]));
+    expect(found.filter((d) => d.message.includes("speech morph"))).toEqual([]);
+  });
+});
