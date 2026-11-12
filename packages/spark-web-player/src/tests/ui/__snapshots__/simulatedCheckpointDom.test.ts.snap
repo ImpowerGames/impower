@@ -844,8 +844,8 @@ spark-web-player #game .button {
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
-    background-color: var(--theme-color-sky_50);
-    border-color: var(--theme-color-sky_50);
+    background-color: var(--theme-color-sky_30);
+    border-color: var(--theme-color-sky_30);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
@@ -1930,7 +1930,7 @@ spark-web-player #game .badge {
   justify-content: center;
   padding: 0.125rem 0.5rem;
   border-radius: 1rem;
-  background-color: var(--theme-color-sky_60);
+  background-color: var(--theme-color-sky_40);
   color: var(--theme-color-white);
   font-size: 0.75rem;
   font-weight: 600;

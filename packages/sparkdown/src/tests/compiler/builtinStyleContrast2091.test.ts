@@ -18,11 +18,6 @@ const TEXTLESS: { name: string; holds: (path: string, alpha: number) => boolean 
   { name: `tint under ${TINT_ALPHA * 100}% opacity`, holds: (_path: string, alpha: number) => alpha < TINT_ALPHA },
 ];
 
-const ACCENT_EXCEPTIONS: Record<string, number> = {
-  badge: 2.77,
-  "button @hovered, @pressed, @focused": 4.1,
-};
-
 type Rgba = [number, number, number, number];
 
 const WHITE: Rgba = [255, 255, 255, 1];
@@ -158,16 +153,8 @@ describe.each(SCHEMES)("builtin styles that set a background, in the %s scheme",
     return { at: p.path, background: p.background, ink: p.ink ?? null, ratio: Number(ratio.toFixed(2)) };
   });
 
-  test("every one sets a text colour that reads against it, apart from the listed accent pairs", () => {
-    expect(measured.filter((r) => r.ratio < 4.5 && !(r.at in ACCENT_EXCEPTIONS))).toEqual([]);
-  });
-
-  test("the listed accent pairs are exactly the ones below 4.5:1 and none has got worse", () => {
-    const below = Object.fromEntries(measured.filter((r) => r.ratio < 4.5).map((r) => [r.at, r.ratio]));
-    expect(Object.keys(below).sort()).toEqual(Object.keys(ACCENT_EXCEPTIONS).sort());
-    for (const [at, ratio] of Object.entries(ACCENT_EXCEPTIONS)) {
-      expect(below[at], at).toBeGreaterThanOrEqual(ratio);
-    }
+  test("every one sets a text colour that reads against it at 4.5:1 or better", () => {
+    expect(measured.filter((r) => r.ratio < 4.5)).toEqual([]);
   });
 
   test("each exclusion still matches a builtin background", () => {

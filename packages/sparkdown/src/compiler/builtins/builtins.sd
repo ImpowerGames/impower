@@ -1782,8 +1782,8 @@ style button {
   cursor = pointer
   transition = all 0.2s ease-in-out
   @hovered, @pressed, @focused {
-    background-color = sky_50
-    border-color = sky_50
+    background-color = sky_30
+    border-color = sky_30
   }
   -- Variants as COMPOUND selectors (`&.secondary`), so they compose: `outline`
   -- combined with a colour variant takes that variant's colour. A CSS custom
@@ -3359,7 +3359,7 @@ style badge {
   child-justify = center
   padding = 0.125rem 0.5rem
   corner = 1rem
-  background-color = sky_60
+  background-color = sky_40
   text-color = white
   text-size = 0.75rem
   text-weight = 600
