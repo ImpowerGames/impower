@@ -4,6 +4,7 @@ import {
   SPAN_END,
   spanOpen,
 } from "../../../runtime/displayStyle";
+import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext } from "../context";
 
@@ -50,8 +51,8 @@ export function collectDisplaySpans(
     if (node !== root && isOpaque(node)) return;
     let childDepth = depth;
     if (SPAN_NODES.has(node.name)) {
-      const begin = childNamed(node, `${node.name}_begin`);
-      const end = childNamed(node, `${node.name}_end`);
+      const begin = findChildByName(node, `${node.name}_begin`);
+      const end = findChildByName(node, `${node.name}_end`);
       if (begin && end) {
         hide(node.from, begin.to);
         hide(end.from, node.to);
@@ -159,13 +160,4 @@ export function insideChoice(node: SyntaxNode): boolean {
     if (n.name === "Choice") return true;
   }
   return false;
-}
-
-function childNamed(node: SyntaxNode, name: string): SyntaxNode | null {
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === name) return child;
-    child = child.nextSibling;
-  }
-  return null;
 }
