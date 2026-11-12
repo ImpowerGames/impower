@@ -97,5 +97,5 @@ export function trimStyled(
 }
 
 export function scanned(text: string): string {
-  return SCAN_OPEN + text + SCAN_CLOSE;
+  return SCAN_OPEN + stripStyleCodes(text) + SCAN_CLOSE;
 }

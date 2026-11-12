@@ -304,6 +304,17 @@ describe("a mark inside an inserted value is styled within the value only", () =
     expect(show(cellsOf("action"))).toBe("Value [italic: b] here");
   });
 
+  test("a value holding a style code's character cannot close or open a span", async () => {
+    const closing = await renderedBeat(
+      script("C *span {pua} still* D", `store pua = "x\\u{E002}y"\n`),
+    );
+    expect(show(closing("action"))).toBe("C [italic: span xy still] D");
+    const opening = await renderedBeat(
+      script("E {opener} F", `store opener = "\\u{E101}z"\n`),
+    );
+    expect(show(opening("action"))).toBe("E z F");
+  });
+
   test("a value's unclosed mark ends with the value", async () => {
     const cellsOf = await renderedBeat(
       script("Value {y} here", `store y = "*b"\n`),
