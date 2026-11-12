@@ -88,6 +88,7 @@ vi.mock("@impower/impower-ui/components", async () => {
       h(tag, props);
   const Radio = createContext<{ value?: string; onValueChange?: (value: string) => void }>({});
   const icons = [
+    "BookmarkIcon",
     "BreakpointIcon",
     "CheckIcon",
     "ChevronDownIcon",
@@ -110,6 +111,9 @@ vi.mock("@impower/impower-ui/components", async () => {
     Button: element("button"),
     SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
       h("div", {}, start as never, end as never),
+    Popover: ({ children }: { children?: unknown }) => h("div", {}, children as never),
+    PopoverTrigger: element("div"),
+    PopoverContent: element("div"),
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
@@ -2289,6 +2293,7 @@ describe("The preview's top bar", () => {
       "Skip back",
       "Play From Here",
       "Skip forward",
+      "Saves",
       "Preview settings",
     ]);
   });
@@ -2338,6 +2343,7 @@ describe("The preview's top bar", () => {
         "Skip forward",
         "Step Out",
         "Toggle breakpoint",
+        "Saves",
         "Preview settings",
       ]);
       for (const step of ["Step Over", "Step Into", "Step Out"]) {
@@ -2401,6 +2407,7 @@ describe("The preview's top bar", () => {
         "Skip back",
         "Stop",
         "Skip forward",
+        "Saves",
         "Preview settings",
       ]);
       expect(
@@ -2434,6 +2441,7 @@ describe("The preview's top bar", () => {
       "Skip forward",
       "Step Out",
       "Toggle breakpoint",
+      "Saves",
       "Preview settings",
     ]);
     for (const step of ["Step Over", "Step Into", "Step Out"]) {
