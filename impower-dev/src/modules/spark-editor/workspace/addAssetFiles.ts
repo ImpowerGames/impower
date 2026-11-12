@@ -9,7 +9,7 @@ import workspace from "./WorkspaceStore";
 
 export type AddedFile = DroppedFile & { size: number };
 
-type OpenedFiles = { files: readonly AddedFile[]; from?: string };
+type OpenedFiles = { files: readonly AddedFile[]; zip?: { name: string; inflates: () => boolean } };
 
 const isZip = (files: readonly { name: string }[]): boolean =>
   files.length === 1 && /\.zip$/i.test(files[0]!.name);
@@ -45,7 +45,8 @@ const openZip = async (file: AddedFile): Promise<OpenedFiles | null> => {
     });
     return refused;
   }
-  return { files, from: file.name };
+  const entries = files.map((entry) => ({ path: entry.name, size: entry.size }));
+  return { files, zip: { name: file.name, inflates: () => zipInflates(data, entries) } };
 };
 
 export const addAssetFiles = async (
@@ -68,8 +69,13 @@ export const addAssetFiles = async (
   const free = await storageLeft();
   const needed = opened.files.reduce((sum, file) => sum + file.size, 0);
   if (free !== null && needed > free) {
-    const names = opened.from ? [opened.from] : opened.files.map((file) => file.name);
+    const names = opened.zip ? [opened.zip.name] : opened.files.map((file) => file.name);
     await withUploadGroup(async () => refuseUploads(names, { kind: "no_room", needed, free }));
+    return [];
+  }
+  const zip = opened.zip;
+  if (zip && !zip.inflates()) {
+    await withUploadGroup(async () => refuseUploads([zip.name], { kind: "zip", reason: "unreadable_zip" }));
     return [];
   }
   const { Workspace } = await import("./Workspace");

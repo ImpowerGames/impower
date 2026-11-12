@@ -123,6 +123,20 @@ describe("adding files through the one upload path", () => {
     ]);
   });
 
+  it("refuses a zip with an entry that cannot be inflated before resolving conflicts or writing any of its files", async () => {
+    estimate(1_000_000_000, 0);
+    const bytes = zipSync({ "Cast/hero.png": strToU8("hero ".repeat(50)), "Cast/good.png": strToU8("good") });
+    const name = strToU8("Cast/hero.png");
+    const start = bytes.findIndex((_, at) => name.every((byte, i) => bytes[at + i] === byte)) + name.length;
+    bytes.fill(0xff, start, start + 8);
+    const landed = await addAssetFiles([{ name: "art.zip", size: bytes.byteLength, getBuffer: async () => bytes.slice().buffer }], "Assets/Images");
+    expect(landed).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(workspace.uploads.value.map((row) => [row.name, session.uploadNote(row, () => "")])).toEqual([
+      ["art.zip", "Nothing was changed because “art.zip” is not a .zip the editor can open."],
+    ]);
+  });
+
   it("shows the folder an unpacked zip made in the folder in view, rather than opening its last file's folder", () => {
     const facts = { modified: 1, size: 1 };
     workspace.assetListing.value = {
