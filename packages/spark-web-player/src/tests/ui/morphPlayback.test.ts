@@ -1269,10 +1269,11 @@ end
     await until(() => playback.stats.live === 2, "both portraits' artifacts");
     const heads = () =>
       new Map(
-        [...(playback as any).occurrences.values()].map((occurrence: any) => {
-          const [, , image, morph] = occurrence.key.split("|");
-          return [`${image}:${morph}`, playback.playhead(occurrence)];
-        }),
+        [...(playback as any).layers].flatMap((layer: any) =>
+          layer.images.flatMap((image: any) =>
+            image.plays.filter((p: any) => p.occurrence).map((p: any) => [`${p.play.ref.image}:${p.play.morph}`, playback.playhead(p.occurrence)]),
+          ),
+        ),
       );
     const head = (image: string) => heads().get(`${image}:talk`);
     const shadow = shadowOf(portraitSpan(h.overlay))!;
@@ -1377,6 +1378,43 @@ end
     expect(head("mia")).toEqual({ phase: "off" });
     playback.advance(0.3);
     expect(head("mia")).toEqual({ phase: "off" });
+  });
+
+  test("changing the speaker's expression mid-line keeps the flap's phase and drawn gaps", async () => {
+    const timing = `  timing {
+    trigger = speech
+    duration = 0.1
+    easing = linear
+    iteration_delay_min = 0.2
+    iteration_delay_max = 0.6
+  }
+`;
+    const source = `${CHARACTERS}\n${talkScript(timing)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    First line.\nend\n`;
+    const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    const shown = () =>
+      [...(playback as any).layers]
+        .filter((layer: any) => layer.live)
+        .flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => ({ image: p.play.ref.image, occurrence: p.occurrence }))));
+    await until(() => shown().length === 1, "the first look");
+    playback.speak("mia", [[0, 4]]);
+    for (let step = 0; step < 8; step++) playback.advance(0.05);
+    const first = shown()[0]!.occurrence;
+    await h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"] }], true);
+    await flushMicrotasks(10);
+    await until(() => shown().length === 1 && shown()[0]!.image === "mia@day", "the second look");
+    const phases = new Set<string>();
+    for (let step = 0; step < 16; step++) {
+      playback.advance(0.05);
+      const head = playback.playhead(shown()[0]!.occurrence);
+      phases.add(head.phase);
+      expect(head).toEqual(playback.playhead(first));
+    }
+    expect([...phases].sort()).toEqual(["between", "playing"]);
   });
 
   test("a portrait replaced by another character's look on the same drawing flaps for the new character", async () => {
