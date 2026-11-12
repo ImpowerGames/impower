@@ -69,7 +69,9 @@ import {
   type RenameOutcome,
 } from "../utils/fileMoves";
 import { imageStacks } from "../utils/imageStacks";
-import { storageLeft } from "../utils/storageLeft";import SingletonPromise from "./SingletonPromise";
+import { storageLeft } from "../utils/storageLeft";
+import { storagePath } from "../utils/storageName";
+import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -737,13 +739,22 @@ export default class WorkspaceFileSystem {
     if (found.kind === "refused") {
       throw new ProjectImportError(found);
     }
-    const archive = unzippedArchive.flatMap((entry) =>
-      entry.filename.startsWith(found.root) &&
-      entry.filename !== found.root &&
-      !isArchiveDropping(entry.filename)
-        ? [{ ...entry, filename: entry.filename.slice(found.root.length) }]
-        : [],
-    );
+    const archive = unzippedArchive.flatMap((entry) => {
+      if (
+        !entry.filename.startsWith(found.root) ||
+        entry.filename === found.root ||
+        isArchiveDropping(entry.filename)
+      ) {
+        return [];
+      }
+      const path = storagePath(entry.filename.slice(found.root.length));
+      if (!path) {
+        return [];
+      }
+      return [
+        { ...entry, filename: entry.filename.endsWith("/") ? `${path}/` : path },
+      ];
+    });
     const settingsEntry = archive.find(
       ({ filename }) => filename === SETTINGS_JSON_PATH,
     );
