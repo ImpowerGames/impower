@@ -33,6 +33,7 @@ export interface MorphLayerPlay {
   morph: string;
   timing: MorphTiming;
   motion?: MorphMotion;
+  owner?: string;
   definition: string;
 }
 

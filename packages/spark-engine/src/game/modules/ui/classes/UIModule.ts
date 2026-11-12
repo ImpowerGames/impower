@@ -61,7 +61,7 @@ import {
   StringValue,
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
-import type { Instructions } from "../../../core/types/Instructions";
+import type { BeatSpeech, Instructions } from "../../../core/types/Instructions";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
@@ -86,6 +86,7 @@ import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
 import { cssIdent } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
+import { getImageOwner } from "../utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -165,6 +166,7 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
+import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -426,6 +428,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   PlayCutsceneMessageMap &
   SetThemeMessageMap &
   SkipCutsceneMessageMap &
+  SpeechMessageMap &
   SweepReconcileMessageMap &
   UnobserveElementMessageMap &
   UpdateElementMessageMap &
@@ -1310,7 +1313,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       BatchElementsMessage.type.isNotification(msg as any) ||
       BeginReconcileMessage.type.isNotification(msg as any) ||
       ObserveElementMessage.type.isNotification(msg as any) ||
-      UnobserveElementMessage.type.isNotification(msg as any)
+      UnobserveElementMessage.type.isNotification(msg as any) ||
+      SpeechMessage.type.isNotification(msg as any)
     ) {
       c.messages.push(structuredClone(msg));
       return { result: undefined };
@@ -1773,9 +1777,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (resolved.length !== count) {
         continue;
       }
+      const owner = getImageOwner(this.context, imageName);
       for (const [offset, layer] of resolved.entries()) {
         const index = first + offset;
         const refs = morphRefsForStruct(this.context, channel, layer.struct);
+        const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
           continue;
@@ -1794,6 +1800,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             morph,
             timing,
             ...(motion ? { motion } : {}),
+            ...(layerOwner ? { owner: layerOwner } : {}),
             definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
           });
         }
@@ -1808,6 +1815,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       content.still = still;
     }
     return content;
+  }
+
+  protected _speaking = false;
+
+  speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
+    if (this.context?.system?.simulating) {
+      return;
+    }
+    const spans = instant ? [] : (speech?.spans ?? []);
+    if (spans.length === 0 && !this._speaking) {
+      return;
+    }
+    this._speaking = spans.length > 0;
+    void this.emit(
+      SpeechMessage.type.notification({
+        ...(speech?.character ? { character: speech.character } : {}),
+        spans,
+        ...(time != null ? { time } : {}),
+      }),
+    );
   }
 
   protected reportMorphConflict(image: string, refs: MorphRef[]) {

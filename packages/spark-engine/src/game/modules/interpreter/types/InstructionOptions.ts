@@ -3,4 +3,5 @@ export interface InstructionOptions {
   choice?: boolean;
   character?: string;
   position?: string;
+  spoken?: boolean;
 }

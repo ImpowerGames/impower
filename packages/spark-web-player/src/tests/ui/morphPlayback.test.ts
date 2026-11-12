@@ -8,6 +8,8 @@ import { blink, blinkScript, CLOSED, partnerPortrait, portrait, talkingPortrait,
 import { backgroundRect, layerValue, svgIntrinsicSize } from "../../app/morph/backgroundFit";
 import { MorphPlayback, type MorphImageContent } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
+import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
+import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { createDOMHarness, createStubApp, flushMicrotasks, installJSDOM } from "./domTestHarness";
@@ -727,6 +729,23 @@ describe("morph layers", () => {
     expect(playback.mount(span(), content(), BG, "background", "backdrop:0").occurrenceKeys[0]).not.toBe(base);
   });
 
+  test.each([
+    ["a character's at-sign drawings keep the morph's place", ["mia@night", "mia"], ["mia@day", "mia"], 0.4],
+    ["at-sign drawings of an image no character owns keep the morph's place", ["stranger@a", undefined], ["stranger@b", undefined], 0.4],
+    ["another character on the same target starts the morph again", ["mia@night", "mia"], ["mia@night", "bob"], 0],
+  ] as const)("%s", (_label, [fromImage, fromOwner], [toImage, toOwner], offset) => {
+    const { playback, span } = setup();
+    const look = (image: string, owner: string | undefined) => content({ ref: ref(`${image}|${owner}`, image), ...(owner ? { owner } : {}) });
+    const occurrenceOf = (layer: any) => (playback as any).occurrences.get(layer.occurrenceKeys[0]);
+    const first = span();
+    const outgoing = playback.mount(first, look(fromImage, fromOwner), BG, "background", "portrait:0");
+    playback.advance(0.1);
+    expect(playback.playhead(occurrenceOf(outgoing))).toEqual({ phase: "playing", play: 0, offset: expect.closeTo(0.4, 9) });
+    const incoming = playback.mount(span(), look(toImage, toOwner), BG, "background", "portrait:0");
+    playback.freezeWithin(first);
+    expect(playback.playhead(occurrenceOf(incoming))).toEqual({ phase: "playing", play: 0, offset: expect.closeTo(offset, 9) });
+  });
+
   test("a pending or failed artifact leaves the static image in place", async () => {
     const never: MorphHost = { resolve: () => new Promise(() => {}) };
     const pending = setup(never);
@@ -1224,6 +1243,343 @@ end
       expect(leafStates(shadow)).toEqual(referenceStates(artifact, { blink: blinkHead.offset }));
       expect(leafStates(shadow)).not.toEqual(rest);
     }
+  });
+});
+
+describe("a speech morph while its character speaks (#2111)", () => {
+  const SPEECH_TIMING = `  timing {
+    trigger = speech
+    duration = 0.1
+    easing = linear
+  }
+`;
+  const CHARACTERS = `define mia as character with
+  name = "MIA"
+end
+
+define bunny as character with
+  name = "BUNNY"
+end
+`;
+  const scene = (backdrop: string) => `
+
+scene start
+  MIA:
+    [[show portrait mia]]
+    [[show backdrop ${backdrop}]]
+    First line.
+end
+`;
+  const art = (name: string) => ({ uri: `inmemory:///${name}.svg`, type: "image", name, ext: "svg", data: talkingPortrait({ dx: 0, dy: 0 }) });
+  const files = [art("mia"), art("mia@night"), art("bunny")];
+  const speechMorphs: [string, string][] = [
+    ["a speech morph", talkScript(SPEECH_TIMING)],
+    ["a child of a speech morph", `${talkScript(`  when = eyes.closed\n${SPEECH_TIMING}`, "speaking")}\nmorph talk as speaking {\n  when = eyes.open\n}\n`],
+  ];
+
+  async function speaking(backdrop = "bunny", morphs = speechMorphs[0]![1]) {
+    const source = `${CHARACTERS}\n${morphs}${scene(backdrop)}`;
+    const h = createDOMHarness(source, 0, { files });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 2, "both portraits' artifacts");
+    const heads = () =>
+      new Map(
+        [...(playback as any).layers].flatMap((layer: any) =>
+          layer.images.flatMap((image: any) =>
+            image.plays.filter((p: any) => p.occurrence).map((p: any) => [`${p.play.ref.image}:${p.play.morph}`, playback.playhead(p.occurrence)]),
+          ),
+        ),
+      );
+    const head = (image: string) => heads().get(`${image}:talk`);
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = [...(playback as any).layers]
+      .flatMap((layer: any) => layer.images)
+      .find((image: any) => image.plays[0].play.ref.image === "mia").slot.artifact as MorphArtifact;
+    return { h, playback, head, shadow, artifact, rest: leafStates(shadow) };
+  }
+
+  const playing = (offset: number) => ({ phase: "playing", play: expect.any(Number), offset: expect.closeTo(offset, 9) });
+
+  test.each(speechMorphs)("%s plays only inside a span, finishes the play in progress and starts none after it", async (_label, morphs) => {
+    const { playback, head, shadow, artifact, rest } = await speaking("bunny", morphs);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.speak("mia", [[0.2, 0.45]]);
+    for (const [step, expected] of [
+      [0.1, { phase: "off" }],
+      [0.15, playing(0.5)],
+      [0.1, playing(0.5)],
+      [0.07, playing(0.2)],
+      [0.05, playing(0.7)],
+      [0.08, { phase: "off" }],
+      [1, { phase: "off" }],
+    ] as const) {
+      playback.advance(step);
+      expect(head("mia")).toEqual(expected);
+      const at = head("mia") as { offset?: number };
+      expect(leafStates(shadow)).toEqual(at.offset === undefined ? rest : referenceStates(artifact, { talk: at.offset }));
+    }
+  });
+
+  test("a skip ends the speech: the play in progress finishes and no other starts", async () => {
+    const { playback, head } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.05);
+    expect(head("mia")).toEqual(playing(0.5));
+    playback.speak("mia", []);
+    playback.advance(0.03);
+    expect(head("mia")).toEqual(playing(0.8));
+    playback.advance(0.05);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(1);
+    expect(head("mia")).toEqual({ phase: "off" });
+  });
+
+  test("pausing freezes the flap on its frame", async () => {
+    const { playback, head, shadow, artifact } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.04);
+    const frozen = leafStates(shadow);
+    expect(frozen).toEqual(referenceStates(artifact, { talk: 0.4 }));
+    playback.setPaused(true);
+    playback.advance(0.5);
+    expect(head("mia")).toEqual(playing(0.4));
+    expect(leafStates(shadow)).toEqual(frozen);
+    playback.setPaused(false);
+    playback.advance(0.03);
+    expect(head("mia")).toEqual(playing(0.7));
+  });
+
+  test("`Animate portraits` off holds a speaking portrait at rest", async () => {
+    const { playback, head, shadow, rest } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.setEnabled(false);
+    for (const step of [0.03, 0.05, 0.2]) {
+      playback.advance(step);
+      expect(head("mia")).toEqual({ phase: "off" });
+      expect(leafStates(shadow)).toEqual(rest);
+    }
+  });
+
+  test("every portrait of the speaker flaps, and another character's portrait stays at rest", async () => {
+    const two = await speaking("mia@night");
+    two.playback.speak("mia", [[0, 2]]);
+    two.playback.advance(0.05);
+    expect(two.head("mia")).toEqual(playing(0.5));
+    expect(two.head("mia@night")).toEqual(playing(0.5));
+    const other = await speaking("bunny");
+    other.playback.speak("mia", [[0, 2]]);
+    other.playback.advance(0.05);
+    expect(other.head("mia")).toEqual(playing(0.5));
+    expect(other.head("bunny")).toEqual({ phase: "off" });
+  });
+
+  test("the page times the speech from the beat's start, as the text reveal is", async () => {
+    const { h, playback, head } = await speaking();
+    const timeline = h.overlay.ownerDocument.timeline as unknown as { currentTime: number };
+    timeline.currentTime = 1_000;
+    h.ui.onReceiveNotification({ jsonrpc: "2.0", method: "morph/speech", params: { character: "mia", spans: [[0, 0.3]], time: 1_200 } } as any);
+    playback.advance(0.15);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(0.1);
+    expect(head("mia")).toEqual(playing(0.5));
+  });
+
+  test("stepping the clock back puts a speaking portrait at rest until the next line speaks", async () => {
+    const { playback, head } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.05);
+    expect(head("mia")).toEqual(playing(0.5));
+    playback.advance(-0.01);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(0.3);
+    expect(head("mia")).toEqual({ phase: "off" });
+  });
+
+  test("a continued line that changes the speaker's expression flaps exactly as it would without the change", async () => {
+    const timing = `  timing {
+    trigger = speech
+    duration = 0.1
+    easing = linear
+    iteration_delay_min = 0.2
+    iteration_delay_max = 0.6
+  }
+`;
+    const run = async (nextLook: string) => {
+      const source = `${CHARACTERS}\n${talkScript(timing)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    Hello there my old friend, how are you ..>..[[show portrait ${nextLook}]] doing on this fine and sunny day, my dear?\nend\n`;
+      const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+      await h.ready;
+      h.game.context.system.previewing = undefined;
+      h.jumpTo("start");
+      await flushMicrotasks(10);
+      const shown = () =>
+        [...(playback as any).layers]
+          .filter((layer: any) => layer.active && layer.span.isConnected)
+          .flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => ({ image: p.play.ref.image, occurrence: p.occurrence }))));
+      const present = async (beat: any) => {
+        const before = (playback as any).speech;
+        const coordinator = new Coordinator(h.game, beat);
+        for (let n = 0; n < 40 && (playback as any).speech === before; n++) {
+          await flushMicrotasks(10);
+          coordinator.onUpdate({ deltaMS: 0 } as Clock);
+        }
+        await flushMicrotasks(10);
+        expect((playback as any).speech?.spans.length).toBeGreaterThan(0);
+      };
+      await present(h.nextBeat()!);
+      const spoken = (playback as any).speech.spans.at(-1)[1] as number;
+      for (let step = 0; step < 200 && playback.now < spoken + 0.03; step++) playback.advance(0.05);
+      const second = h.nextBeat()!;
+      expect(second.extended).toBeDefined();
+      expect(second.image?.["portrait"]?.[0]?.assets).toEqual([nextLook]);
+      await present(second);
+      expect(shown().map((entry) => entry.image)).toEqual([nextLook]);
+      const heads: unknown[] = [];
+      for (let step = 0; step < 30; step++) {
+        heads.push(playback.playhead(shown()[0]!.occurrence));
+        playback.advance(0.05);
+      }
+      return heads;
+    };
+    const unchanged = await run("mia@night");
+    const changed = await run("mia@day");
+    expect(changed).toEqual(unchanged);
+    expect(new Set(unchanged.map((head: any) => head.phase))).toEqual(new Set(["playing", "between", "off"]));
+  });
+
+  test("a portrait replaced by another character's look on the same drawing flaps for the new character", async () => {
+    const source = `${CHARACTERS}
+define bob as character with
+  name = "BOB"
+end
+
+define mia@look as filtered_image with
+  image = image.face
+end
+
+define bob@look as filtered_image with
+  image = image.face
+end
+
+${talkScript(SPEECH_TIMING)}
+
+scene start
+  MIA:
+    [[show portrait mia@look]]
+    First line.
+  BOB:
+    [[show portrait bob@look]]
+    Second line.
+end
+`;
+    const h = createDOMHarness(source, 0, { files: [art("face")] });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    const shown = () =>
+      [...(playback as any).layers].filter((layer: any) => layer.live).flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => p.occurrence)));
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => shown().length === 1, "Mia's look");
+    expect(shown()[0].owner).toBe("mia");
+    await h.preview(lineOf(source, "Second line."));
+    await flushMicrotasks(10);
+    await until(() => shown().length === 1 && shown()[0].owner === "bob", "Bob's look");
+    playback.speak("bob", [[0, 2]]);
+    playback.advance(0.05);
+    expect(playback.playhead(shown()[0])).toEqual(playing(0.5));
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.2);
+    expect(playback.playhead(shown()[0])).toEqual({ phase: "off" });
+  });
+
+  describe("an outgoing look", () => {
+    const source = `${CHARACTERS}\n${blinkScript(TIMING)}\n${talkScript(SPEECH_TIMING)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    First line.\nend\n`;
+
+    async function replacing(after: number) {
+      const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+      await h.ready;
+      await h.preview(lineOf(source, "First line."));
+      await flushMicrotasks(10);
+      await until(() => playback.stats.live === 1, "the first look");
+      const g = globalThis as any;
+      const installed = [g.Animation, g.KeyframeEffect];
+      const finishers: (() => void)[] = [];
+      g.KeyframeEffect = class {
+        constructor(
+          public target?: unknown,
+          public keyframes?: unknown,
+          public options?: EffectTiming,
+        ) {}
+        getTiming() {
+          return this.options ?? {};
+        }
+      };
+      g.Animation = class {
+        startTime: number | null = null;
+        finished: Promise<unknown>;
+        constructor(public effect?: { target?: Element }) {
+          this.finished = effect?.target?.classList.contains("instance")
+            ? new Promise((resolve) => finishers.push(() => resolve(this)))
+            : Promise.resolve(this);
+        }
+        play() {}
+        cancel() {}
+        finish() {}
+      };
+      restore = ((previous) => () => {
+        g.Animation = installed[0];
+        g.KeyframeEffect = installed[1];
+        previous?.();
+      })(restore);
+      const timeline = h.overlay.ownerDocument.timeline as unknown as { currentTime: number };
+      timeline.currentTime = 1_000;
+      const layers = () => [...(playback as any).layers] as any[];
+      const outgoing = layers()[0];
+      playback.speak("mia", [[0, 4]]);
+      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: "fade", after }], false);
+      await until(() => layers().some((layer) => layer.images[0].plays[0].play.ref.image === "mia@day"), "the incoming look");
+      await flushMicrotasks(10);
+      return { h, playback, outgoing, layers, timeline, finish: () => finishers.forEach((finish) => finish()) };
+    }
+
+    test("keeps its flap and blink until its delayed fade starts, then freezes, and is disposed when the fade ends", async () => {
+      const { playback, outgoing, layers, timeline, finish } = await replacing(0.5);
+      const shadow = shadowOf(outgoing.span)!;
+      expect(outgoing.active).toBe(true);
+      const frames = new Set<string>();
+      for (let step = 0; step < 8; step++) {
+        playback.advance(0.05);
+        frames.add(JSON.stringify(leafStates(shadow)));
+      }
+      expect(frames.size).toBeGreaterThan(1);
+      expect(outgoing.active).toBe(true);
+      timeline.currentTime = 1_501;
+      await until(() => !outgoing.active, "the outgoing look to freeze");
+      const frozen = JSON.stringify(leafStates(shadow));
+      for (let step = 0; step < 8; step++) {
+        playback.advance(0.05);
+        expect(JSON.stringify(leafStates(shadow))).toBe(frozen);
+      }
+      finish();
+      await until(() => layers().length === 1, "the outgoing look to be disposed");
+      expect(outgoing.span.isConnected).toBe(false);
+      expect(playback.stats.occurrences).toBe(2);
+    });
+
+    test("freezes at once when its fade starts at once", async () => {
+      const { outgoing, layers, finish } = await replacing(0);
+      expect(outgoing.active).toBe(false);
+      finish();
+      await until(() => layers().length === 1, "the outgoing look to be disposed");
+    });
   });
 });
 
