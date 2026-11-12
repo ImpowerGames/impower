@@ -198,7 +198,7 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
       expect(emptyRuns(unchanged)).toEqual([]);
       expect(shownText(h.overlay)).toContain("You have 5 gold.");
       const changed = await editAndWatch("& gold = gold + 5", "5", "7");
-      expect(emptyRuns(changed).every((run) => run <= 1)).toBe(true);
+      expect(emptyRuns(changed)).toEqual([]);
       expect(shownText(h.overlay)).toContain("You have 7 gold.");
       expect(shownText(h.overlay)).not.toContain("5");
     } finally {
@@ -206,11 +206,11 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
     }
   }, 120_000);
 
-  it("empties the screen for at most one frame when the edit changes the line", async () => {
+  it("never empties the screen when the edit changes the line", async () => {
     const { h, editAndWatch } = await playing();
     try {
       const samples = await editAndWatch("The second line.", "second", "middle");
-      expect(emptyRuns(samples).every((run) => run <= 1)).toBe(true);
+      expect(emptyRuns(samples)).toEqual([]);
       expect(samples.at(-1)!.letters).toBeGreaterThan(0);
       expect(samples.at(-1)!.portraits).toBeGreaterThan(0);
     } finally {
