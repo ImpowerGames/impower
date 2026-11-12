@@ -26,6 +26,7 @@ import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
 import type { ImageSize } from "../utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
+import type { UploadRow } from "./uploadSession";
 import type { Reference } from "../utils/fileListModel";
 import {
   INITIAL_SEARCH,
@@ -200,6 +201,14 @@ class WorkspaceStore {
   readonly importProgress = signal<{ loaded: number; total: number } | null>(
     null,
   );
+
+  readonly uploads = signal<readonly UploadRow[]>([]);
+
+  readonly assetsReveal = signal<readonly string[] | null>(null);
+
+  readonly uploadBatches = signal(0);
+
+  readonly replacing = signal(false);
 
   readonly trashOpen = signal<boolean>(false);
 

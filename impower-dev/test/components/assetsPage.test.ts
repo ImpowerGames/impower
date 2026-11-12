@@ -707,3 +707,90 @@ describe("selecting, moving and deleting", () => {
     expect(assets.move).toHaveBeenLastCalledWith([`${P}/Cast/ada.png`], `${P}/Cast/Extras`);
   });
 });
+
+describe("adding files dragged in from the desktop", () => {
+  const P = "Assets/Images/Portraits";
+  const desktopFiles = (...names: string[]) => ({
+    types: ["Files"],
+    files: names.map((name) => new File(["xy"], name)),
+    items: names.map(() => ({ kind: "file", type: "" })),
+    dropEffect: "",
+  });
+  const dragFiles = async (target: Element, type: "dragover" | "drop", dataTransfer: ReturnType<typeof desktopFiles>) => {
+    await act(async () => {
+      target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { dataTransfer }));
+    });
+    await settle();
+  };
+  const note = () => host!.querySelector<HTMLElement>('[data-drop-zone="pane"]')?.textContent ?? null;
+
+  beforeEach(() => {
+    selection.end();
+    workspace.uploads.value = [];
+    workspace.assetsReveal.value = null;
+    setListing({ [`${P}/imani.png`]: facts(7001) }, [`${P}/Cast`]);
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P } } };
+  });
+
+  it("frames the page with a note naming the folder in view, and adds the drop there", async () => {
+    await mount();
+    const list = host!.querySelector<HTMLElement>('button[aria-label^="Open image imani"]')!;
+    const files = desktopFiles("rain.ogg", "ada.png");
+    await dragFiles(list, "dragover", files);
+    expect(note()).toBe("Drop to add to Portraits");
+    expect(host!.querySelector("[data-file-drop-target]")).not.toBeNull();
+    await dragFiles(list, "drop", files);
+    expect(note()).toBeNull();
+    await vi.waitFor(() =>
+      expect(assets.upload).toHaveBeenCalledWith(
+        [expect.objectContaining({ name: "rain.ogg", size: 2 }), expect.objectContaining({ name: "ada.png", size: 2 })],
+        P,
+      ),
+    );
+  });
+
+  it("takes a drop on a folder tile into that folder, highlighting it while files are over it", async () => {
+    await mount();
+    const cast = host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast"]`)!;
+    const files = desktopFiles("ada.png");
+    await dragFiles(cast, "dragover", files);
+    expect(note()).toBe("Drop to add to Portraits/Cast");
+    expect(host!.querySelector<HTMLElement>(`[data-drop-folder="${P}/Cast"]`)!.closest("[data-drop-target]")).not.toBeNull();
+    await dragFiles(cast, "drop", files);
+    await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada.png" })], `${P}/Cast`));
+  });
+
+  it("opens on the files a drop elsewhere in the app added, clearing a saved search", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: P }, assetsQueries: { all: "old" } } };
+    await mount();
+    expect(host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!.value).toBe("old");
+    setListing({ [`${P}/imani.png`]: facts(7001), "Assets/Audio/rain.ogg": facts(300) }, [`${P}/Cast`]);
+    await act(async () => {
+      workspace.assetsReveal.value = ["Assets/Audio/rain.ogg"];
+    });
+    await settle();
+    expect(workspace.assetsReveal.value).toBeNull();
+    expect(host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!.value).toBe("");
+    expect(workspace.current.lists?.assetsType).toBe("audio");
+    expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
+  });
+
+  it("shows the upload panel at the page's foot with each file's note, until closed", async () => {
+    await mount();
+    workspace.uploads.value = [
+      { id: 1, name: "ada.png", state: "added", path: `${P}/ada.png` },
+      { id: 2, name: "rain.ogg", state: "added", path: "Assets/Audio/rain.ogg" },
+      { id: 3, name: "big.mp4", state: "failed", reason: { kind: "storage" } },
+    ];
+    await settle();
+    const panel = host!.querySelector<HTMLElement>('section[aria-label="Uploads"]')!;
+    expect(panel.querySelector('[role="status"]')!.textContent).toBe("2 files added, 1 not added");
+    expect([...panel.querySelectorAll("li small")].map((el) => el.textContent)).toEqual([
+      "Added to Portraits",
+      "Added to Audio",
+      "Not added: this browser ran out of room for it, so free some space and try again.",
+    ]);
+    await click(panel.querySelector<HTMLElement>('button[aria-label="Close uploads"]')!);
+    expect(host!.querySelector('section[aria-label="Uploads"]')).toBeNull();
+  });
+});
