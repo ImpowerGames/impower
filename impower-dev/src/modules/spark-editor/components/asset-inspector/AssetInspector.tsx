@@ -14,6 +14,7 @@ import {
   ReplaceSwapIcon,
   SaveIcon,
   TextField,
+  useEscapeWithin,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { Ref } from "preact";
@@ -34,12 +35,15 @@ import { assetsHome } from "../../workspace/assetsListing";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
 import type { InspectorFacts } from "../../workspace/WorkspaceAssets";
 import { useSettings } from "../../workspace/settings/useSettings";
+import { audioSession } from "../../workspace/editorAudio";
+import { AUDITION_OWNER } from "../../workspace/WorkspaceAudition";
 import workspace from "../../workspace/WorkspaceStore";
 import { UsesList } from "../find-references-rename";
 import AssetFrame from "./AssetFrame";
 import type { InspectorHost } from "./dock";
 import FilesSection from "./FilesSection";
 import Section from "./Section";
+import { soundOfAsset } from "./SoundFrame";
 import VariantsSection from "./VariantsSection";
 
 export type InspectorNeighbor = { path: string; name: string };
@@ -62,20 +66,22 @@ const SKIPS_ARROWS = "input, textarea, select, video, audio, [contenteditable], 
 
 function useAudioSeconds(asset: InspectedAsset) {
   const [seconds, setSeconds] = useState<number | null>(null);
+  const sound = asset.type === "audio" ? soundOfAsset(asset) : null;
+  const refused = !!sound && audioSession.failureOf(sound) === "too_large";
   useEffect(() => {
     setSeconds(null);
-    if (asset.type !== "audio" || !asset.src || typeof Audio === "undefined") {
+    if (!sound || refused || typeof Audio === "undefined") {
       return;
     }
     const probe = new Audio();
     probe.preload = "metadata";
     probe.onloadedmetadata = () => setSeconds(probe.duration);
-    probe.src = asset.src;
+    probe.src = sound.src;
     return () => {
       probe.onloadedmetadata = null;
       probe.removeAttribute("src");
     };
-  }, [asset.path, asset.src, asset.type]);
+  }, [asset.path, asset.src, asset.type, refused]);
   return seconds;
 }
 
@@ -185,6 +191,11 @@ export default function AssetInspector({
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
   const variant = stack ? variantOf(stack, previewing ?? selection) : null;
   const variantKey = variant ? JSON.stringify(variant) : "";
+
+  const playback = audioSession.playback.value;
+  const sounding =
+    !!playback && playback.owner !== AUDITION_OWNER && (playback.status === "playing" || playback.status === "loading");
+  useEscapeWithin(region, sounding, () => audioSession.stop());
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });

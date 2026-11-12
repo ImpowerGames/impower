@@ -1,5 +1,6 @@
 import type { InsertConstruct } from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { signal, type ReadonlySignal } from "@preact/signals";
+import type AudioSession from "./AudioSession";
 
 export type PictureAudition = {
   kind: "picture";
@@ -12,25 +13,18 @@ export type SoundAudition = { kind: "sound"; src: string };
 
 export type AuditionTarget = PictureAudition | SoundAudition;
 
-export interface AuditionAudio {
-  src: string;
-  currentTime: number;
-  play(): Promise<void>;
-  pause(): void;
-}
+export const AUDITION_OWNER = "audition";
 
 export interface AuditionPorts {
   preview(
     filename: string,
     shown: { construct: InsertConstruct; name: string } | null,
   ): Promise<unknown>;
-  audio(): AuditionAudio;
+  session: AudioSession;
 }
 
 export default class WorkspaceAudition {
   protected readonly _current = signal<AuditionTarget | null>(null);
-
-  protected _audio: AuditionAudio | undefined;
 
   constructor(protected readonly _ports: AuditionPorts) {}
 
@@ -48,10 +42,7 @@ export default class WorkspaceAudition {
       if (previous?.kind === "picture") {
         void this._ports.preview(previous.filename, null);
       }
-      const audio = (this._audio ??= this._ports.audio());
-      audio.src = target.src;
-      audio.currentTime = 0;
-      void audio.play().catch(() => undefined);
+      this._ports.session.play({ owner: AUDITION_OWNER, src: target.src });
       return;
     }
     if (previous?.kind === "picture" && previous.filename !== target.filename) {
@@ -82,11 +73,6 @@ export default class WorkspaceAudition {
   }
 
   protected stop() {
-    const audio = this._audio;
-    if (!audio) {
-      return;
-    }
-    audio.pause();
-    audio.currentTime = 0;
+    this._ports.session.stopUnless((owner) => owner !== AUDITION_OWNER);
   }
 }

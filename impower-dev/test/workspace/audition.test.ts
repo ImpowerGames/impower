@@ -1,27 +1,35 @@
 import { describe, expect, it } from "vitest";
-import WorkspaceAudition, {
-  type AuditionAudio,
-} from "../../src/modules/spark-editor/workspace/WorkspaceAudition";
+import AudioSession, { type SessionAudio } from "../../src/modules/spark-editor/workspace/AudioSession";
+import WorkspaceAudition from "../../src/modules/spark-editor/workspace/WorkspaceAudition";
 
 const setup = () => {
   const log: string[] = [];
-  const audio: AuditionAudio = {
+  const audio = Object.assign(new EventTarget(), {
     src: "",
     currentTime: 0,
+    duration: Number.NaN,
+    paused: true,
     play: async () => {
       log.push(`play ${audio.src}`);
     },
     pause: () => {
       log.push(`pause at ${audio.currentTime}`);
     },
-  };
+    load: () => {
+      audio.currentTime = 0;
+    },
+    removeAttribute: () => {
+      audio.src = "";
+    },
+  }) satisfies SessionAudio;
+  const session = new AudioSession({ audio: () => audio, maxBytes: Number.POSITIVE_INFINITY });
   const audition = new WorkspaceAudition({
     preview: async (filename, shown) => {
       log.push(shown ? `show ${filename} ${shown.construct} ${shown.name}` : `revert ${filename}`);
     },
-    audio: () => audio,
+    session,
   });
-  return { audition, audio, log };
+  return { audition, audio, log, session };
 };
 
 describe("the audition controller", () => {
@@ -73,6 +81,18 @@ describe("the audition controller", () => {
     audition.commit();
     audition.revert();
     expect(log).toEqual(["show main.sd backdrop beach", "play blob:door", "pause at 0"]);
+  });
+
+  it("shares the editor's one audio session: a sound played elsewhere stops the audition's, and the audition's stops it", async () => {
+    const { audition, session, log } = setup();
+    audition.show({ kind: "sound", src: "blob:door" });
+    session.play({ owner: "Audio/rain.ogg", src: "blob:rain" });
+    expect(session.playback.value?.owner).toBe("Audio/rain.ogg");
+    audition.revert();
+    expect(session.playback.value?.owner).toBe("Audio/rain.ogg");
+    audition.show({ kind: "sound", src: "blob:click" });
+    expect(session.playback.value).toMatchObject({ owner: "audition", src: "blob:click" });
+    expect(log).toEqual(["play blob:door", "pause at 0", "play blob:rain", "pause at 0", "play blob:click"]);
   });
 
   it("reports what it is auditioning", () => {

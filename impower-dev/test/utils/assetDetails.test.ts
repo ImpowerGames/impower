@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   assetDetails,
-  clock,
   neighborsOf,
   NOT_USED_NOTES,
   titleLine,
@@ -115,7 +114,8 @@ describe("the inspector's details rows", () => {
   });
 
   it("reads lengths as minutes and seconds, and hours past an hour", () => {
-    expect([0, 9.6, 84, 600, 3725].map(clock)).toEqual(["0:00", "0:10", "1:24", "10:00", "1:02:05"]);
+    const length = (seconds: number) => rows(asset("Assets/Audio/a.wav", "audio"), { seconds }).find((row) => row.startsWith("Length"));
+    expect([0.4, 9.6, 84, 600, 3725].map(length)).toEqual(["Length: 0:00", "Length: 0:10", "Length: 1:24", "Length: 10:00", "Length: 1:02:05"]);
   });
 
   it("says Assets root for a file directly under the assets folder", () => {

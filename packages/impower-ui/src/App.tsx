@@ -28,6 +28,8 @@ import { portraitThumbnailGallery } from "./components/portrait-thumbnail/Portra
 import { selectGallery } from "./components/select/Select.gallery";
 import { settingsGallery } from "./components/settings/Settings.gallery";
 import { sliderGallery } from "./components/slider/Slider.gallery";
+import { playButtonGallery } from "./components/play-button/PlayButton.gallery";
+import { audioPlayerGallery } from "./components/audio-player/AudioPlayer.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { switchGallery } from "./components/switch/Switch.gallery";
@@ -84,6 +86,8 @@ export const galleryEntries: readonly GalleryEntry[] = [
   settingsGallery,
   sidebarLayoutGallery,
   sliderGallery,
+  playButtonGallery,
+  audioPlayerGallery,
   splitPaneGallery,
   switchGallery,
   tabbedPageGallery,

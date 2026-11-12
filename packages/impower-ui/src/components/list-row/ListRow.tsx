@@ -82,8 +82,12 @@ export const listRowBodyVariants = cva(
         true: "pl-0",
         false: "",
       },
+      control: {
+        true: "pl-[13px]",
+        false: "",
+      },
     },
-    defaultVariants: { size: "default", interactive: true, selection: "none", leading: false },
+    defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false },
   },
 );
 
@@ -107,10 +111,37 @@ export const listRowMarkVariants = cva(
           "pointer-events-none opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 has-focus-visible:opacity-100",
         active: "",
       },
+      control: {
+        true: "",
+        false: "",
+      },
     },
-    defaultVariants: { size: "default", selection: "active" },
+    compoundVariants: [
+      {
+        selection: "available",
+        control: true,
+        class: "group-hover/row:pointer-events-none group-hover/row:opacity-0",
+      },
+    ],
+    defaultVariants: { size: "default", selection: "active", control: false },
   },
 );
+
+export const listRowControlVariants = cva("relative flex flex-none items-center", {
+  variants: {
+    size: {
+      default: "pl-2",
+      compact: "pl-1",
+      block: "pl-2",
+    },
+    selection: {
+      none: "",
+      available: "",
+      active: "invisible",
+    },
+  },
+  defaultVariants: { size: "default", selection: "none" },
+});
 
 export const listRowDescriptionVariants = cva("text-muted", {
   variants: {
@@ -176,6 +207,7 @@ type ListRowSelectionProps = {
 
 export type ListRowProps = (ListRowLeadingProps | ListRowSelectionProps) & {
   icon?: ComponentChildren;
+  control?: ComponentChildren;
   label: ComponentChildren;
   description?: ComponentChildren;
   descriptionFit?: ListRowDescriptionFit;
@@ -222,6 +254,7 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
 export default function ListRow({
   leading,
   icon,
+  control,
   label,
   description,
   descriptionFit,
@@ -269,6 +302,7 @@ export default function ListRow({
     interactive,
     selection,
     leading: !!leading,
+    control: !!control,
   });
   return (
     <div
@@ -288,7 +322,7 @@ export default function ListRow({
       {depth > 0 && <Guides depth={depth} current={!!current} />}
       {leading}
       {selection !== "none" && (
-        <label class={listRowMarkVariants({ size, selection })}>
+        <label class={cn(listRowMarkVariants({ size, selection, control: !!control }))}>
           <input
             type="checkbox"
             class="sr-only"
@@ -302,6 +336,11 @@ export default function ListRow({
             <CheckIcon />
           </span>
         </label>
+      )}
+      {control && (
+        <span class={listRowControlVariants({ size, selection })} data-list-row-control>
+          {control}
+        </span>
       )}
       {interactive ? (
         <button
