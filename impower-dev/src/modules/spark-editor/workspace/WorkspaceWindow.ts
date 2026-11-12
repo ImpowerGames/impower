@@ -161,7 +161,7 @@ import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
 import { countProjectFiles } from "./replaceProject";
-import { uploadActive } from "./uploadSession";
+import { projectReplacing, uploadActive } from "./uploadSession";
 import {
   loadExtensionDefaults,
   projectSettingsFromJson,
@@ -799,7 +799,7 @@ export default class WorkspaceWindow {
   }
 
   async confirmProjectReplace() {
-    if (uploadActive()) {
+    if (uploadActive() || projectReplacing()) {
       return;
     }
     const file = this._replacementFile;

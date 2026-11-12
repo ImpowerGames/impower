@@ -106,10 +106,11 @@ describe("importFiles change recording", () => {
 });
 
 describe("importFiles outcomes per file", () => {
-  it("writes a large batch a few files at a time and lists each one as added where it landed", async () => {
+  it("writes each file of a large batch in its own request and lists each one as added where it landed", async () => {
     const names = Array.from({ length: 20 }, (_, i) => `Assets/Audio/track_${i}.ogg`);
     const returned = await importFiles("p", names.map(dropped));
-    expect(mocks.createFiles.mock.calls.map(([params]) => params.files.length)).toEqual([8, 8, 4]);
+    expect(mocks.createFiles.mock.calls.map(([params]) => params.files.length)).toEqual(Array.from({ length: 20 }, () => 1));
+    expect(mocks.readFile).not.toHaveBeenCalled();
     expect(returned).toEqual(names);
     expect(rows()).toEqual(names.map((path) => `${path.split("/").pop()}: added ${path}`));
     expect(mocks.recordResolvedUpload).toHaveBeenCalledWith("p", names.map((path) => `file://p/${path}`), [], 0, "20 files");
@@ -127,12 +128,13 @@ describe("importFiles outcomes per file", () => {
       save(files);
     });
     const returned = await importFiles("p", names.map(dropped));
-    expect(returned).toEqual(names.slice(0, 9));
-    expect(rows().filter((row) => row.endsWith("storage"))).toEqual(["t9.ogg: storage", "t10.ogg: storage", "t11.ogg: storage"]);
-    expect(rows().filter((row) => row.includes(": added "))).toHaveLength(9);
-    expect(names.filter((path) => mocks.disk.has(`file://p/${path}`))).toEqual(names.slice(0, 9));
+    expect(returned).toEqual(names.slice(0, 10));
+    expect(rows().filter((row) => row.endsWith("storage"))).toEqual(["t10.ogg: storage", "t11.ogg: storage"]);
+    expect(rows().filter((row) => row.includes(": added "))).toHaveLength(10);
+    expect(names.filter((path) => mocks.disk.has(`file://p/${path}`))).toEqual(names.slice(0, 10));
     expect(mocks.deleteFiles).not.toHaveBeenCalled();
-    expect(mocks.recordResolvedUpload.mock.calls[0]![1]).toEqual(names.slice(0, 9).map((path) => `file://p/${path}`));
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.recordResolvedUpload.mock.calls[0]![1]).toEqual(names.slice(0, 10).map((path) => `file://p/${path}`));
   });
 
   it("lists a file whose name conflict was skipped as not added and writes nothing for it", async () => {
@@ -173,41 +175,7 @@ describe("importFiles outcomes per file", () => {
     );
   });
 
-  it("keeps a file the failed chunk already saved whole, without writing it again or deleting anything", async () => {
-    let calls = 0;
-    mocks.createFiles.mockImplementation(async ({ files }) => {
-      calls += 1;
-      if (calls === 1) {
-        save(files.filter((file) => file.uri.endsWith("one.wav")));
-      }
-      throw new Error("QuotaExceededError: the quota has been exceeded.");
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav"), dropped("Assets/Audio/two.wav")]);
-    expect(returned).toEqual(["Assets/Audio/one.wav"]);
-    expect(rows()).toEqual(["one.wav: added Assets/Audio/one.wav", "two.wav: storage"]);
-    expect(new TextDecoder().decode(mocks.disk.get("file://p/Assets/Audio/one.wav"))).toBe("Assets/Audio/one.wav");
-    expect(mocks.disk.has("file://p/Assets/Audio/two.wav")).toBe(false);
-    expect(writtenUris().filter((uri) => uri.endsWith("one.wav"))).toHaveLength(1);
-    expect(mocks.deleteFiles).not.toHaveBeenCalled();
-  });
-
-  it("counts a file whose retry failed after its bytes landed as added", async () => {
-    let calls = 0;
-    mocks.createFiles.mockImplementation(async ({ files }) => {
-      calls += 1;
-      if (calls === 2) {
-        save(files);
-      }
-      throw new Error("the write could not be confirmed");
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
-    expect(calls).toBe(2);
-    expect(returned).toEqual(["Assets/Audio/one.wav"]);
-    expect(rows()).toEqual(["one.wav: added Assets/Audio/one.wav"]);
-    expect(mocks.deleteFiles).not.toHaveBeenCalled();
-  });
-
-  it("leaves a file another save put at the name while the chunk failed, without retrying over it", async () => {
+  it("reports a failed write once with its reason and never reads back, retries or deletes, whatever is at the name afterwards", async () => {
     const author = bytesOf("the author's own file");
     mocks.createFiles.mockImplementation(async () => {
       mocks.disk.set("file://p/Assets/Audio/one.wav", author);
@@ -215,35 +183,14 @@ describe("importFiles outcomes per file", () => {
     });
     const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
     expect(returned).toEqual([]);
-    expect(rows()).toEqual(["one.wav: left_as_is"]);
+    expect(rows()).toEqual(["one.wav: storage"]);
     expect(mocks.createFiles).toHaveBeenCalledTimes(1);
+    expect(mocks.readFile).not.toHaveBeenCalled();
     expect(mocks.deleteFiles).not.toHaveBeenCalled();
     expect(mocks.disk.get("file://p/Assets/Audio/one.wav")).toBe(author);
-    const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
-    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe(
-      "Not added: one.wav now holds a different file, from another save or from a write the browser could not undo, so it was left as it is.",
-    );
   });
 
-  it("leaves what a failed retry could not undo in place and says so, instead of deleting it", async () => {
-    let calls = 0;
-    mocks.createFiles.mockImplementation(async () => {
-      calls += 1;
-      if (calls === 2) {
-        mocks.disk.set("file://p/Assets/Audio/one.wav", bytesOf("par"));
-        throw new Error("QuotaExceededError; cleanup failed: InvalidStateError");
-      }
-      throw new Error("QuotaExceededError: the quota has been exceeded.");
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/one.wav")]);
-    expect(calls).toBe(2);
-    expect(returned).toEqual([]);
-    expect(rows()).toEqual(["one.wav: left_as_is"]);
-    expect(mocks.deleteFiles).not.toHaveBeenCalled();
-    expect(mocks.disk.has("file://p/Assets/Audio/one.wav")).toBe(true);
-  });
-
-  it("counts a batch held mid-chunk as still writing, then as finished", async () => {
+  it("counts a batch held mid-write as still writing, then as finished", async () => {
     const { uploadsWriting } = await import("../../src/modules/spark-editor/workspace/uploadSession");
     let release: () => void = () => {};
     const held = new Promise<void>((resolve) => {
@@ -295,54 +242,6 @@ describe("importFiles outcomes per file", () => {
     expect(uploadActive()).toBe(false);
   });
 
-  it("leaves a file it cannot read back after a failed chunk, without retrying over it", async () => {
-    const other = bytesOf("another save");
-    mocks.createFiles.mockImplementation(async () => {
-      mocks.disk.set("file://p/Assets/Audio/a.wav", other);
-      throw new Error("QuotaExceededError: the quota has been exceeded.");
-    });
-    mocks.readFile.mockImplementation(async () => {
-      throw new Error("NotReadableError: The file could not be read.");
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
-    expect(returned).toEqual([]);
-    expect(rows()).toEqual(["a.wav: unchecked"]);
-    expect(mocks.createFiles).toHaveBeenCalledTimes(1);
-    expect(mocks.disk.get("file://p/Assets/Audio/a.wav")).toBe(other);
-    const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
-    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe(
-      "Not added: a.wav could not be checked after a failed write, so it was left as it is.",
-    );
-  });
-
-  it("leaves an existing file whose name holds the not-found words when its read fails another way", async () => {
-    const uri = "file://p/Assets/Audio/was not found.wav";
-    const other = bytesOf("another save");
-    mocks.createFiles.mockImplementation(async () => {
-      mocks.disk.set(uri, other);
-      throw new Error("QuotaExceededError: the quota has been exceeded.");
-    });
-    mocks.readFile.mockImplementation(async ({ file }) => {
-      throw new Error(`NotReadableError: ${file.uri} could not be read`);
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/was not found.wav")]);
-    expect(returned).toEqual([]);
-    expect(rows()).toEqual(["was not found.wav: unchecked"]);
-    expect(mocks.createFiles).toHaveBeenCalledTimes(1);
-    expect(mocks.disk.get(uri)).toBe(other);
-  });
-
-  it("counts only the worker's not-found for this file, or the browser's own sentence, as absent", async () => {
-    const { isMissingFile } = await import("../../src/modules/spark-editor/utils/importDroppedFiles");
-    const uri = "file://p/Assets/Audio/a.wav";
-    expect(isMissingFile(new Error(`${uri} was not found`), uri)).toBe(true);
-    expect(isMissingFile(new Error("A requested file or directory could not be found at the time an operation was processed."), uri)).toBe(true);
-    expect(isMissingFile(Object.assign(new Error("gone"), { name: "NotFoundError" }), uri)).toBe(true);
-    expect(isMissingFile(new Error("file://p/Assets/Audio/b.wav was not found"), uri)).toBe(false);
-    expect(isMissingFile(new Error(`NotReadableError: ${uri} was not found earlier but now could not be read`), uri)).toBe(false);
-    expect(isMissingFile(new Error("InvalidStateError: the file could not be read"), uri)).toBe(false);
-  });
-
   it("ends the batch when conflict resolution throws, and when every file is skipped", async () => {
     mocks.resolve = () => {
       throw new Error("the conflict check failed");
@@ -364,23 +263,6 @@ describe("importFiles outcomes per file", () => {
     } finally {
       workspace.replacing.value = false;
     }
-  });
-
-  it("retries a file the worker's read reports as not found", async () => {
-    let calls = 0;
-    mocks.createFiles.mockImplementation(async ({ files }) => {
-      calls += 1;
-      if (calls === 1) throw new Error("QuotaExceededError: the quota has been exceeded.");
-      save(files);
-    });
-    mocks.readFile.mockImplementation(async ({ file }) => {
-      const data = mocks.disk.get(file.uri);
-      if (!data) throw new Error(`${file.uri} was not found`);
-      return data;
-    });
-    const returned = await importFiles("p", [dropped("Assets/Audio/a.wav")]);
-    expect(calls).toBe(2);
-    expect(returned).toEqual(["Assets/Audio/a.wav"]);
   });
 
   it("lists a file that could not be read as not added and still adds the rest", async () => {

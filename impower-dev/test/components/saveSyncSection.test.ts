@@ -358,6 +358,22 @@ describe("the Replace dialog", () => {
     }
   });
 
+  it("keeps Replace project unavailable while another replace is importing, and says so", async () => {
+    workspace.replacing.value = true;
+    try {
+      await mountSection();
+      await act(async () => {
+        workspace.replaceProject.value = request;
+      });
+      await settle();
+      const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
+      expect(replace.disabled).toBe(true);
+      expect(dialog()!.textContent).toContain("Wait for the project being replaced to finish, then replace it again.");
+    } finally {
+      workspace.replacing.value = false;
+    }
+  });
+
   it("runs the import from Replace project", async () => {
     await mountSection();
     await act(async () => {

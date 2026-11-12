@@ -966,6 +966,30 @@ describe("WorkspaceWindow store transitions", () => {
       }
     });
 
+    it("refuses a second replace while one is importing, and keeps the mark until the first one finishes", async () => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const importing = vi.spyOn(win, "importLocalProject").mockImplementation(async () => {
+        await held;
+      });
+      const backup = (name: string) => Object.assign(new File(["zip"], name), { arrayBuffer: async () => new ArrayBuffer(3) });
+      await win.requestProjectReplace(backup("a.zip"));
+      const first = win.confirmProjectReplace();
+      await vi.waitFor(() => expect(importing).toHaveBeenCalledTimes(1));
+      await win.requestProjectReplace(backup("b.zip"));
+      await win.confirmProjectReplace();
+      expect(importing).toHaveBeenCalledTimes(1);
+      expect(projectReplacing()).toBe(true);
+      expect(workspace.replaceProject.value).toMatchObject({ fileName: "b.zip" });
+      release();
+      await first;
+      expect(projectReplacing()).toBe(false);
+      win.cancelProjectReplace();
+    });
+
     it("counts again what the replace removes once a batch that was still writing has finished", async () => {
       await win.requestProjectReplace(new File(["zip"], "backup.zip"));
       expect(workspace.replaceProject.value).toMatchObject({ scripts: 4, assets: 3 });
