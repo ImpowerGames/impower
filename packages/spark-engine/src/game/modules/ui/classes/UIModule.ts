@@ -73,6 +73,8 @@ ImageInstruction,
 LayoutInstruction,
 TextInstruction,
 } from "../../../core/types/Instruction";
+import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
+import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
@@ -5334,6 +5336,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.show(true);
       }
 
+      end(ending: StoryEnding | null): void {
+        const shown =
+          ending && $.openedLayoutsAfter([]).includes(PAGE_SCROLLER)
+            ? ending
+            : null;
+        const before = $._state.page?.entries ?? [];
+        const entries = before.filter((entry) => entry.kind !== "ending");
+        if (!shown && entries.length === before.length) {
+          return;
+        }
+        this.state.entries = shown
+          ? [...entries, { kind: "ending", ending: shown }]
+          : entries;
+        this.sync(this._presented);
+      }
+
       onChoose(choose: (index: number) => void): void {
         this._choose = choose;
       }
@@ -5445,6 +5463,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): Element {
         if (entry.kind === "rule") {
           return $.createElement(column, { type: "hr", name: "textstream_rule" });
+        }
+        if (entry.kind === "ending") {
+          const ending = entry.ending ?? "out";
+          return $.createElement(column, {
+            name:
+              ending === "error"
+                ? "textstream_end textstream_error"
+                : "textstream_end muted",
+            attributes: { role: "status" },
+            content: { text: endingStatusText(ending) },
+          });
         }
         if (entry.kind === "caption") {
           return $.createElement(column, {

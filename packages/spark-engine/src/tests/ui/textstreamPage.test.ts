@@ -643,6 +643,145 @@ end
   });
 });
 
+describe("the page ends with a line saying how the story ended (#2189)", () => {
+  const ENDINGS = {
+    fin: "  fin\n",
+    out: "  done\n",
+    error: '  & error("boom")\n  Never.\n',
+  } as const;
+  const ending = (kind: keyof typeof ENDINGS, prelude = OPEN_TEXTSTREAM) =>
+    `${prelude}\nscene start\n  First.\n  Last.\n${ENDINGS[kind]}end\n`;
+  const endings = (h: ReturnType<typeof play>) =>
+    h.page().filter((entry) => entry.kind === "ending");
+  const playToEnd = (h: ReturnType<typeof play>) => {
+    h.game.start();
+    for (let i = 0; i < 12 && !h.game.ending; i += 1) {
+      h.game.clickedToContinue();
+    }
+    expect(h.game.ending).not.toBeNull();
+  };
+
+  test.each(["fin", "out", "error"] as const)(
+    "a story that ends with %s gets one ending entry of that kind after its last line",
+    (kind) => {
+      const h = play(ending(kind));
+      playToEnd(h);
+      expect(h.game.ending!.kind).toBe(kind);
+      expect(h.page().map(describeEntry)).toEqual([
+        "action First.",
+        "action Last.",
+        "ending ",
+      ]);
+      expect(h.page().at(-1)).toEqual({ kind: "ending", ending: kind });
+      h.game.clickedToContinue();
+      expect(endings(h)).toHaveLength(1);
+    },
+  );
+
+  test("rolling back past the ending removes the line, and playing forward brings it back once", async () => {
+    const h = play(ending("fin"));
+    playToEnd(h);
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    expect(h.game.ending).toBeNull();
+    expect(endings(h)).toEqual([]);
+    playToEnd(h);
+    expect(endings(h)).toHaveLength(1);
+    expect(h.page().at(-1)?.kind).toBe("ending");
+  });
+
+  test("skipping back to the last choice removes the line", async () => {
+    const h = play(`${OPEN_TEXTSTREAM}
+scene start
+  choose
+    + [Left.]
+      Left result.
+    + [Right.]
+      Right result.
+  end
+  fin
+end
+`);
+    h.game.start();
+    h.tapToChoice();
+    h.game.chosePathToContinue(0);
+    for (let i = 0; i < 12 && !h.game.ending; i += 1) {
+      h.game.clickedToContinue();
+    }
+    expect(endings(h)).toHaveLength(1);
+    const back = await h.game.rollBack("choice");
+    expect(back.moved).toBe(true);
+    expect(endings(h)).toEqual([]);
+  });
+
+  test("a replay starts a page with no line", () => {
+    const h = play(ending("out"));
+    playToEnd(h);
+    expect(endings(h)).toHaveLength(1);
+    h.game.reset();
+    expect(endings(h)).toEqual([]);
+    h.game.start();
+    expect(endings(h)).toEqual([]);
+  });
+
+  test("a save taken at the ending loads with the line, once", () => {
+    const h = play(ending("fin"));
+    playToEnd(h);
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const entries = structuredClone(h.page());
+    expect(entries.at(-1)).toEqual({ kind: "ending", ending: "fin" });
+    const loaded = play(ending("fin"));
+    expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+    expect(loaded.page()).toEqual(entries);
+    loaded.game.start();
+    for (let i = 0; i < 4; i += 1) {
+      loaded.game.clickedToContinue();
+    }
+    expect(loaded.page()).toEqual(entries);
+  });
+
+  test("the Visual Novel output keeps an empty page when its story ends", () => {
+    const h = play(ending("fin", ""));
+    playToEnd(h);
+    expect(h.page()).toEqual([]);
+  });
+
+  test("the line is a status in the page column, muted for an ending and in the error colour for an error", async () => {
+    for (const [kind, name, text] of [
+      ["fin", "textstream_end muted", "End of story"],
+      ["out", "textstream_end muted", "Story ran out"],
+      ["error", "textstream_end textstream_error", "Stopped by an error"],
+    ] as const) {
+      const h = createHarness(ending(kind), 0, {
+        reactive: true,
+        autoOpenAll: false,
+      });
+      await h.ready;
+      h.jumpToFlow("start");
+      new Coordinator(h.game, h.nextBeat()!);
+      await flushMicrotasks(30);
+      expect(created(h, "textstream_action")).toHaveLength(1);
+      h.reset();
+      h.game.module.ui.page.end(kind);
+      await flushMicrotasks(10);
+      const lines = created(h, name);
+      expect(lines).toHaveLength(1);
+      expect(lines[0].params.attributes).toEqual({ role: "status" });
+      expect(lines[0].params.content).toEqual({ text });
+      h.game.module.ui.page.end(null);
+      await flushMicrotasks(10);
+      expect(
+        flattenMessages(h.messages).some(
+          (m: any) =>
+            m.method === "ui/destroy" &&
+            m.params.element === lines[0].params.element,
+        ),
+      ).toBe(true);
+    }
+  });
+});
+
 describe.each(["system", "dark"])("[[clear textstream]] starts a fresh page (#1991), ui.color_scheme %s (#2062)", (colorScheme) => {
   const OPEN_TEXTSTREAM = withColorScheme(colorScheme);
   const CLEARING = `${OPEN_TEXTSTREAM}\nscene start\n  One.\n  Two.\n  Three.\n  [[clear textstream]] Fresh.\n  After.\nend\n`;

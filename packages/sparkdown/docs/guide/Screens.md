@@ -154,7 +154,7 @@ A colour you set on one of the four styles replaces its dark value too, so the p
 
 The scheme is not part of a save or a checkpoint. Loading a save shows the same page in the scheme the reader has now. An exported game uses `ui.color_scheme` and the reader's device the same way.
 
-The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen` and `textstream_caption`, can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
+The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen`, `textstream_caption`, `textstream_end` (the line at the foot of the page saying how the story ended) and `textstream_error` (that line's colour when an error stopped the story), can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
 
 ---
 

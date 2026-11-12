@@ -2278,6 +2278,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -4769,6 +4782,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -7226,6 +7252,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -9801,6 +9840,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -12239,6 +12291,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -14661,6 +14726,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -17127,6 +17205,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -19823,6 +19914,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -22519,6 +22623,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -25215,6 +25332,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],
@@ -27911,6 +28041,19 @@ spark-web-player #game .textstream_chosen {
 spark-web-player #game .textstream_caption {
   margin: 0px;
   font-size: 0.8em;
+}
+spark-web-player #game .textstream_end {
+  margin: 1em 0px;
+  text-align: center;
+  font-size: 0.8em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+spark-web-player #game .textstream_error {
+  color: var(--theme-color-red_40);
+  :where([data-color-scheme="dark"]) & {
+    color: var(--theme-color-red_80);
+  }
 }",
             },
           ],

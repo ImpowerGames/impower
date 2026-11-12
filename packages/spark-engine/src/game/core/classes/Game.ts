@@ -4081,6 +4081,7 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    this.module.ui.page.end(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
     }
@@ -5274,6 +5275,7 @@ export class Game<T extends M = {}> {
 
   protected showPreviewEnding(): void {
     const ending = this._previewEnding;
+    this.module.ui.page.end(ending?.kind ?? null);
     if (!ending) {
       return;
     }
