@@ -24,8 +24,15 @@ const WRITE_CHUNK_FILES = 8;
 
 const leafOf = (rel: string) => rel.slice(rel.lastIndexOf("/") + 1);
 
-const isMissing = (error: unknown) =>
-  (error as { name?: unknown })?.name === "NotFoundError" || /NotFoundError|was not found|could not be found/i.test(reasonOf(error));
+const BROWSER_NOT_FOUND = "A requested file or directory could not be found";
+
+export const isMissingFile = (error: unknown, uri: string): boolean => {
+  if ((error as { name?: unknown })?.name === "NotFoundError") {
+    return true;
+  }
+  const message = reasonOf(error);
+  return message === `${uri} was not found` || message.startsWith(BROWSER_NOT_FOUND);
+};
 
 const isStorageError = (error: unknown) =>
   (error as { name?: unknown })?.name === "QuotaExceededError" ||
@@ -110,7 +117,7 @@ export async function importFiles(projectId: string, items: DroppedItem[]): Prom
                       try {
                         now = await fs.readFile({ file: { uri: pending.uri } });
                       } catch (error) {
-                        return isMissing(error) ? "none" : "unknown";
+                        return isMissingFile(error, pending.uri) ? "none" : "unknown";
                       }
                       return sameBytes(now, pending.data) ? "ours" : "other";
                     };

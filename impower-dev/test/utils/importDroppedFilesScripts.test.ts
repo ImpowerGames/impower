@@ -315,6 +315,57 @@ describe("importFiles outcomes per file", () => {
     );
   });
 
+  it("leaves an existing file whose name holds the not-found words when its read fails another way", async () => {
+    const uri = "file://p/Assets/Audio/was not found.wav";
+    const other = bytesOf("another save");
+    mocks.createFiles.mockImplementation(async () => {
+      mocks.disk.set(uri, other);
+      throw new Error("QuotaExceededError: the quota has been exceeded.");
+    });
+    mocks.readFile.mockImplementation(async ({ file }) => {
+      throw new Error(`NotReadableError: ${file.uri} could not be read`);
+    });
+    const returned = await importFiles("p", [dropped("Assets/Audio/was not found.wav")]);
+    expect(returned).toEqual([]);
+    expect(rows()).toEqual(["was not found.wav: unchecked"]);
+    expect(mocks.createFiles).toHaveBeenCalledTimes(1);
+    expect(mocks.disk.get(uri)).toBe(other);
+  });
+
+  it("counts only the worker's not-found for this file, or the browser's own sentence, as absent", async () => {
+    const { isMissingFile } = await import("../../src/modules/spark-editor/utils/importDroppedFiles");
+    const uri = "file://p/Assets/Audio/a.wav";
+    expect(isMissingFile(new Error(`${uri} was not found`), uri)).toBe(true);
+    expect(isMissingFile(new Error("A requested file or directory could not be found at the time an operation was processed."), uri)).toBe(true);
+    expect(isMissingFile(Object.assign(new Error("gone"), { name: "NotFoundError" }), uri)).toBe(true);
+    expect(isMissingFile(new Error("file://p/Assets/Audio/b.wav was not found"), uri)).toBe(false);
+    expect(isMissingFile(new Error(`NotReadableError: ${uri} was not found earlier but now could not be read`), uri)).toBe(false);
+    expect(isMissingFile(new Error("InvalidStateError: the file could not be read"), uri)).toBe(false);
+  });
+
+  it("ends the batch when conflict resolution throws, and when every file is skipped", async () => {
+    mocks.resolve = () => {
+      throw new Error("the conflict check failed");
+    };
+    await expect(importFiles("p", [dropped("Assets/Audio/a.wav")])).rejects.toThrow("the conflict check failed");
+    expect(workspace.uploadBatches.value).toBe(0);
+    expect(rows()).toEqual(["a.wav: failed"]);
+    mocks.resolve = () => ({ survivors: [], trashedOldUris: [], since: 0 });
+    await importFiles("p", [dropped("Assets/Audio/b.wav")]);
+    expect(workspace.uploadBatches.value).toBe(0);
+    expect(rows()).toEqual(["b.wav: skipped"]);
+  });
+
+  it("never starts a batch it refuses during a replace", async () => {
+    workspace.replacing.value = true;
+    try {
+      await importFiles("p", [dropped("Assets/Audio/a.wav")]);
+      expect(workspace.uploadBatches.value).toBe(0);
+    } finally {
+      workspace.replacing.value = false;
+    }
+  });
+
   it("retries a file the worker's read reports as not found", async () => {
     let calls = 0;
     mocks.createFiles.mockImplementation(async ({ files }) => {

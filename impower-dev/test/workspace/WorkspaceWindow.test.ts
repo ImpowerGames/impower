@@ -943,6 +943,29 @@ describe("WorkspaceWindow store transitions", () => {
       expect(projectReplacing()).toBe(false);
     });
 
+    it.each([
+      ["the import refuses the backup", async () => {
+        throw new ProjectImportError({ reason: "no_main_script" });
+      }, async () => new ArrayBuffer(3)],
+      ["the import fails to save", async () => {
+        throw new ProjectImportError({ reason: "storage" });
+      }, async () => new ArrayBuffer(3)],
+      ["the backup's bytes cannot be read", async () => ({ leftOut: { count: 0, folders: [] } }), async () => {
+        throw new Error("NotReadableError");
+      }],
+    ] as const)("clears the replace mark when %s", async (_case, writeProjectZip, arrayBuffer) => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      workspace.current = { ...workspace.current, sync: { status: "cached" } };
+      fs.writeProjectZip = vi.fn(writeProjectZip);
+      try {
+        await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer }));
+        await win.confirmProjectReplace();
+        expect(projectReplacing()).toBe(false);
+      } finally {
+        delete fs.writeProjectZip;
+      }
+    });
+
     it("counts again what the replace removes once a batch that was still writing has finished", async () => {
       await win.requestProjectReplace(new File(["zip"], "backup.zip"));
       expect(workspace.replaceProject.value).toMatchObject({ scripts: 4, assets: 3 });
