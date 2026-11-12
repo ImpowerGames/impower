@@ -50,7 +50,7 @@ const cases: [string, string[], Record<string, unknown> | undefined, string][] =
   ["a parent from definitions.builtins.morph", ["morph child as base {", "  blend = cut", "}"], BASE_STRUCT, "child"],
 ];
 
-describe("a child morph resolves its parent's fields for the engine", () => {
+describe("program.context resolves a child morph's inherited fields", () => {
   test.each(cases)("%s", (_label, lines, builtinBase, name) => {
     const program = compile(lines, builtinBase);
     const morph = program.context!["morph"]![name]!;
