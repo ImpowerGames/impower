@@ -8,6 +8,8 @@ import { blink, blinkScript, CLOSED, partnerPortrait, portrait, talkingPortrait,
 import { backgroundRect, layerValue, svgIntrinsicSize } from "../../app/morph/backgroundFit";
 import { MorphPlayback, type MorphImageContent } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
+import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
+import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { createDOMHarness, createStubApp, flushMicrotasks, installJSDOM } from "./domTestHarness";
@@ -1380,7 +1382,7 @@ end
     expect(head("mia")).toEqual({ phase: "off" });
   });
 
-  test("changing the speaker's expression mid-line keeps the flap's phase and drawn gaps", async () => {
+  test("a continued line that changes the speaker's expression flaps exactly as it would without the change", async () => {
     const timing = `  timing {
     trigger = speech
     duration = 0.1
@@ -1389,32 +1391,48 @@ end
     iteration_delay_max = 0.6
   }
 `;
-    const source = `${CHARACTERS}\n${talkScript(timing)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    First line.\nend\n`;
-    const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
-    const playback = MorphPlayback.for(h.overlay);
-    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
-    await h.ready;
-    await h.preview(lineOf(source, "First line."));
-    await flushMicrotasks(10);
-    const shown = () =>
-      [...(playback as any).layers]
-        .filter((layer: any) => layer.live)
-        .flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => ({ image: p.play.ref.image, occurrence: p.occurrence }))));
-    await until(() => shown().length === 1, "the first look");
-    playback.speak("mia", [[0, 4]]);
-    for (let step = 0; step < 8; step++) playback.advance(0.05);
-    const first = shown()[0]!.occurrence;
-    await h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"] }], true);
-    await flushMicrotasks(10);
-    await until(() => shown().length === 1 && shown()[0]!.image === "mia@day", "the second look");
-    const phases = new Set<string>();
-    for (let step = 0; step < 16; step++) {
-      playback.advance(0.05);
-      const head = playback.playhead(shown()[0]!.occurrence);
-      phases.add(head.phase);
-      expect(head).toEqual(playback.playhead(first));
-    }
-    expect([...phases].sort()).toEqual(["between", "playing"]);
+    const run = async (nextLook: string) => {
+      const source = `${CHARACTERS}\n${talkScript(timing)}\n\nscene start\n  MIA:\n    [[show portrait mia@night]]\n    Hello there my old friend, how are you ..>..[[show portrait ${nextLook}]] doing on this fine and sunny day, my dear?\nend\n`;
+      const h = createDOMHarness(source, 0, { files: [art("mia@night"), art("mia@day")] });
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+      await h.ready;
+      h.game.context.system.previewing = undefined;
+      h.jumpTo("start");
+      await flushMicrotasks(10);
+      const shown = () =>
+        [...(playback as any).layers]
+          .filter((layer: any) => layer.active && layer.span.isConnected)
+          .flatMap((layer: any) => layer.images.flatMap((image: any) => image.plays.map((p: any) => ({ image: p.play.ref.image, occurrence: p.occurrence }))));
+      const present = async (beat: any) => {
+        const before = (playback as any).speech;
+        const coordinator = new Coordinator(h.game, beat);
+        for (let n = 0; n < 40 && (playback as any).speech === before; n++) {
+          await flushMicrotasks(10);
+          coordinator.onUpdate({ deltaMS: 0 } as Clock);
+        }
+        await flushMicrotasks(10);
+        expect((playback as any).speech?.spans.length).toBeGreaterThan(0);
+      };
+      await present(h.nextBeat()!);
+      const spoken = (playback as any).speech.spans.at(-1)[1] as number;
+      for (let step = 0; step < 200 && playback.now < spoken + 0.03; step++) playback.advance(0.05);
+      const second = h.nextBeat()!;
+      expect(second.extended).toBeDefined();
+      expect(second.image?.["portrait"]?.[0]?.assets).toEqual([nextLook]);
+      await present(second);
+      expect(shown().map((entry) => entry.image)).toEqual([nextLook]);
+      const heads: unknown[] = [];
+      for (let step = 0; step < 30; step++) {
+        heads.push(playback.playhead(shown()[0]!.occurrence));
+        playback.advance(0.05);
+      }
+      return heads;
+    };
+    const unchanged = await run("mia@night");
+    const changed = await run("mia@day");
+    expect(changed).toEqual(unchanged);
+    expect(new Set(unchanged.map((head: any) => head.phase))).toEqual(new Set(["playing", "between", "off"]));
   });
 
   test("a portrait replaced by another character's look on the same drawing flaps for the new character", async () => {
