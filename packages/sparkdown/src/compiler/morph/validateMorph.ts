@@ -180,6 +180,52 @@ function paintStateProblem(value: unknown, driven: Map<string, string[]>, start:
   return null;
 }
 
+const REST_FORM = "`rest` holds group containers with a `state` each, written like a keyframe's: `rest { mouth { state = teeth } }`.";
+
+function restValueProblems(rest: unknown): { group?: string; key?: string; missingState?: true; message: string }[] {
+  const writtenState = (value: unknown, group?: string): string | undefined => {
+    const text = isRecord(value) && typeof value["$type"] === "string" && typeof value["$name"] === "string"
+      ? `${value["$type"]}.${value["$name"]}`
+      : typeof value === "string" ? value : undefined;
+    const parsed = text === undefined ? undefined : parseMorphQualifiedState(text);
+    if (parsed && (group === undefined || parsed.group === group)) return `rest { ${parsed.group} { state = ${parsed.state} } }`;
+    if (text && group !== undefined && !text.includes(".")) return `rest { ${group} { state = ${text} } }`;
+    return undefined;
+  };
+  if (!isRecord(rest)) {
+    const fix = writtenState(rest);
+    return [{ message: fix ? `\`rest\` is a block, not a value: write \`${fix}\`.` : REST_FORM }];
+  }
+  const problems: { group?: string; key?: string; missingState?: true; message: string }[] = [];
+  for (const [group, container] of Object.entries(rest)) {
+    if (group.startsWith("$")) continue;
+    if (!isRecord(container) || "$type" in container || "$name" in container) {
+      const fix = writtenState(container, group);
+      problems.push({ group, message: `\`${group} = …\` is not a pose. ${fix ? `Write \`${fix}\`.` : REST_FORM}` });
+      continue;
+    }
+    for (const key of Object.keys(container)) {
+      if (key === "state" || key.startsWith("$")) continue;
+      problems.push({
+        group,
+        key,
+        message: (MORPH_LAYER_PROPERTIES as readonly string[]).includes(key)
+          ? `\`${key}\` does not belong in \`rest\`: a moved layer rests where it is drawn. \`rest\` holds group states only, such as \`rest { mouth { state = teeth } }\`.`
+          : HOME[key]
+            ? `\`${key}\` belongs ${HOME[key]}.`
+            : `Unknown morph field \`${key}\`.`,
+      });
+    }
+    const state = container["state"];
+    if (!("state" in container)) {
+      problems.push({ group, missingState: true, message: `\`${group} { … }\` in \`rest\` needs a \`state\`, such as \`${group} { state = … }\`.` });
+    } else if (typeof state !== "string" || state.trim() === "") {
+      problems.push({ group, key: "state", message: "`state` names an attribute state, such as `closed` or `eyes.closed`." });
+    }
+  }
+  return problems;
+}
+
 function conditionProblems(
   field: "when" | "unless",
   value: unknown,
@@ -571,49 +617,23 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
 
   const rest = own["rest"];
   if (rest !== undefined) {
-    const restForm = "`rest` holds group containers with a `state` each, written like a keyframe's: `rest { mouth { state = teeth } }`.";
-    const writtenState = (value: unknown, group?: string): string | undefined => {
-      const text = isRecord(value) && typeof value["$type"] === "string" && typeof value["$name"] === "string"
-        ? `${value["$type"]}.${value["$name"]}`
-        : typeof value === "string" ? value : undefined;
-      const parsed = text === undefined ? undefined : parseMorphQualifiedState(text);
-      if (parsed && (group === undefined || parsed.group === group)) return `rest { ${parsed.group} { state = ${parsed.state} } }`;
-      if (text && group !== undefined && !text.includes(".")) return `rest { ${group} { state = ${text} } }`;
-      return undefined;
-    };
-    if (!isRecord(rest)) {
-      const fix = writtenState(rest);
-      push(
-        valueSpan(own, "rest") ?? keySpan(own, "rest"),
-        fix ? `\`rest\` is a block, not a value: write \`${fix}\`.` : restForm,
-      );
-    } else {
+    for (const problem of restValueProblems(rest)) {
+      const container = problem.group === undefined || !isRecord(rest) ? undefined : rest[problem.group];
+      const span =
+        problem.group === undefined
+          ? (valueSpan(own, "rest") ?? keySpan(own, "rest"))
+          : problem.key === undefined
+            ? (problem.missingState ? (lineSpan(container) ?? keySpan(rest, problem.group)) : (src(rest)?.lines.get(problem.group) ?? keySpan(rest, problem.group)))
+            : problem.key === "state"
+              ? valueSpan(container, "state")
+              : keySpan(container, problem.key);
+      push(span, problem.message);
+    }
+    if (isRecord(rest)) {
       for (const [group, container] of Object.entries(rest)) {
-        if (!isRecord(container) || "$type" in container || "$name" in container) {
-          const fix = writtenState(container, group);
-          push(
-            src(rest)?.lines.get(group) ?? keySpan(rest, group),
-            `\`${group} = …\` is not a pose. ${fix ? `Write \`${fix}\`.` : restForm}`,
-          );
-          continue;
-        }
-        for (const key of Object.keys(container)) {
-          if (key === "state") continue;
-          push(
-            keySpan(container, key),
-            (MORPH_LAYER_PROPERTIES as readonly string[]).includes(key)
-              ? `\`${key}\` does not belong in \`rest\`: a moved layer rests where it is drawn. \`rest\` holds group states only, such as \`rest { mouth { state = teeth } }\`.`
-              : HOME[key]
-                ? `\`${key}\` belongs ${HOME[key]}.`
-                : `Unknown morph field \`${key}\`.`,
-          );
-        }
-        const state = container["state"];
-        if (!("state" in container)) {
-          push(lineSpan(container) ?? keySpan(rest, group), `\`${group} { … }\` in \`rest\` needs a \`state\`, such as \`${group} { state = … }\`.`);
-        } else if (typeof state !== "string" || state.trim() === "") {
-          push(valueSpan(container, "state"), "`state` names an attribute state, such as `closed` or `eyes.closed`.");
-        } else if (!driven.has(group)) {
+        const state = isRecord(container) && !("$type" in container) && !("$name" in container) ? container["state"] : undefined;
+        if (typeof state !== "string" || state.trim() === "") continue;
+        if (!driven.has(group)) {
           const drives = [...driven.keys()];
           push(
             keySpan(rest, group),
@@ -798,8 +818,26 @@ export function morphValueProblems(
     for (const { message } of conditionProblems(field, struct[field], new Map())) problems.push({ field, message });
   }
   const rest = struct["rest"];
-  if (rest !== undefined && (!isRecord(rest) || Object.values(rest).some((container) => !isRecord(container) || typeof container["state"] !== "string"))) {
-    problems.push({ field: "rest", message: "`rest` holds group containers with a `state` each, written like a keyframe's: `rest { mouth { state = teeth } }`." });
+  if (rest !== undefined) {
+    for (const problem of restValueProblems(rest)) {
+      const field = ["rest", ...(problem.group === undefined ? [] : [problem.group]), ...(problem.key === undefined ? [] : [problem.key])].join(".");
+      problems.push({ field, message: problem.message });
+    }
+  }
+  const keyframes = struct["keyframes"];
+  if (Array.isArray(keyframes)) {
+    let previous: number | undefined;
+    keyframes.forEach((keyframe, index) => {
+      if (!isRecord(keyframe) || !("offset" in keyframe)) return;
+      const offset = keyframe["offset"];
+      const at = (message: string) => problems.push({ field: "keyframes", message: `keyframe ${index + 1}: ${message}` });
+      if (typeof offset !== "number" || !Number.isFinite(offset)) at("A keyframe `offset` is a number from 0 to 1.");
+      else if (offset < 0 || offset > 1) at(`Keyframe offset ${offset} must be between 0 and 1.`);
+      else {
+        if (previous !== undefined && offset < previous) at(`Keyframe offsets must not decrease: ${offset} comes after ${previous}.`);
+        previous = offset;
+      }
+    });
   }
   const layers = struct["layers"];
   if (isRecord(layers)) {

@@ -80,9 +80,12 @@ type Image = { name: string; svg: string };
 const withStart = (text: string) =>
   /^scene start$/m.test(text) ? text : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
-function compile(text: string, images: Image[] = [{ name: "bunny", svg: FACE }]) {
+function compile(text: string, images: Image[] = [{ name: "bunny", svg: FACE }], unwritten?: Record<string, unknown>) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    ...(unwritten
+      ? { useBuiltinsPrelude: false, definitions: { builtins: { morph: { base: { $type: "morph", $name: "base", ...unwritten } } } } }
+      : {}),
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
       ...images.map((image) => ({
@@ -105,8 +108,8 @@ interface Found {
   text: string;
 }
 
-function diagnosticsOf(text: string, images?: Image[]): Found[] {
-  const program = compile(text, images);
+function diagnosticsOf(text: string, images?: Image[], unwritten?: Record<string, unknown>): Found[] {
+  const program = compile(text, images, unwritten);
   const lines = withStart(text).split("\n");
   return (program.diagnostics?.[URI] ?? []).map((d) => {
     const { start, end } = d.range;
@@ -313,6 +316,61 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
     const found = diagnosticsOf(text).filter((d) => d.message.includes("`rest.eyes`, inherited"));
     expect(found).toEqual([expect.objectContaining({ line: 11, text: "base", severity: 1 })]);
     expect(diagnosticsOf(text).filter((d) => d.code === "morph" && d.line < 10 && d.severity === 1)).toEqual([]);
+  });
+
+  test("an inherited `rest` from a parent the scripts do not write is checked like a written one, on the `as`", () => {
+    const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
+    const errorsOnAs = (rest: unknown) =>
+      diagnosticsOf(child, undefined, { rest })
+        .filter((d) => d.severity === 1 && d.text === "base")
+        .map((d) => d.message);
+    expect(errorsOnAs({ mouth: { state: "teeth", translate: "0 2px" } })).toEqual([
+      expect.stringMatching(/^`rest\.mouth\.translate`, inherited from `base`: `translate` does not belong in `rest`/),
+    ]);
+    expect(errorsOnAs({ mouth: { state: "" } })).toEqual([
+      "`rest.mouth.state`, inherited from `base`: `state` names an attribute state, such as `closed` or `eyes.closed`.",
+    ]);
+    expect(errorsOnAs({ mouth: { state: "teeth" } })).toEqual([]);
+  });
+
+  test("inherited keyframe offsets from a parent the scripts do not write are checked, on the `as`", () => {
+    const text = "morph talk as base {\n  blend = cut\n}\n";
+    const keyframes = [
+      { offset: 0, mouth: { state: "closed" } },
+      { offset: 2, mouth: { state: "open" } },
+    ];
+    expect(diagnosticsOf(text, undefined, { keyframes }).filter((d) => d.severity === 1 && d.text === "base").map((d) => d.message)).toEqual([
+      "`keyframes`, inherited from `base`: keyframe 2: Keyframe offset 2 must be between 0 and 1.",
+    ]);
+  });
+
+  test("an inherited condition no candidate portrait draws is reported on the `as`", () => {
+    const child = blink("").replace("morph blink {", "morph blink as base {");
+    for (const field of ["when", "unless"]) {
+      const found = diagnosticsOf(child, undefined, { [field]: "eyes.shut" }).filter((d) => d.severity === 2 && d.text === "base");
+      expect(found.map((d) => d.message)).toEqual([`\`${field}\`, inherited from \`base\`: No image's \`eyes\` group has a \`shut\` state.`]);
+    }
+  });
+
+  test("an inherited condition naming a group the child's portraits lack is reported on the child's `as`, and the parent's own warnings are not repeated", () => {
+    const images = [
+      { name: "sleepy", svg: SLEEPY },
+      { name: "plain", svg: NO_TEETH },
+    ];
+    const base = (condition: string) => blink(condition).replace("morph blink {", "morph base {");
+    const child = talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {");
+    for (const field of ["when", "unless"]) {
+      const found = diagnosticsOf(`${base(`  ${field} = eyes.open\n`)}\n${child}`, images).filter((d) => d.code === "morph" && d.severity === 2);
+      expect(found).toEqual([
+        expect.objectContaining({
+          text: "base",
+          message: `\`${field}\`, inherited from \`base\`: No image \`talk_smile\` could play on has a \`eyes\` attribute group.`,
+        }),
+      ]);
+    }
+    const shut = diagnosticsOf(`${base("  unless = eyes.shut\n")}\n${blink("").replace("morph blink {", "morph blink_child as base {")}`, images)
+      .filter((d) => d.message.includes("`shut` state"));
+    expect(shut).toEqual([expect.objectContaining({ text: "eyes.shut" })]);
   });
 
   test("a condition holds only for the state it names, not for a hyphenated state", () => {

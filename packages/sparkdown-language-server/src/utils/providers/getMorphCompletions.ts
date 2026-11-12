@@ -348,7 +348,7 @@ export function getMorphCompletions(
   } else if (first !== undefined && CONDITION_KEYS.has(first) && (path.length === 1 || (path.length === 2 && second === "-"))) {
     return conditionChoices(first, typed, typed.length);
   } else if (first === "rest" && path.length === 1) {
-    for (const group of driven) addLabel(group, containerSuffix, "attribute group");
+    for (const group of named.keys()) addLabel(group, containerSuffix, "attribute group");
   } else if (first === "rest" && path.length === 2) {
     addField("state");
   } else if (first === "timing" && path.length === 1) {

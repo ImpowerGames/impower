@@ -55,6 +55,32 @@ describe("completion for `when`, `unless` and `rest`", () => {
     expect(labels(TALK("  rest {\n    mouth { state = | }\n  }")).sort()).toEqual(["closed", "open", "teeth"]);
   });
 
+  test("`rest` in a child offers the groups its own keyframes drive, not those of keyframes it replaced", () => {
+    const inherited = {
+      context: {
+        ...program.context,
+        morph: {
+          $default: {},
+          base: { keyframes: [{ eyes: { state: "open" } }, { eyes: { state: "closed" } }] },
+          child: { $extends: "base" },
+        },
+      },
+    } as any;
+    const source = `morph child as base {
+  rest {
+    |
+  }
+  keyframes {
+    from { mouth { state = closed } }
+    to { mouth { state = open } }
+  }
+}
+`;
+    expect(completeAt(source, inherited).map((item) => String(item.label))).toEqual(["mouth"]);
+    const inheriting = source.replace("  keyframes {\n    from { mouth { state = closed } }\n    to { mouth { state = open } }\n  }\n", "");
+    expect(completeAt(inheriting, inherited).map((item) => String(item.label))).toEqual(["eyes"]);
+  });
+
   test("each field's documentation comes with it", () => {
     const items = completeAt(TALK("  |"), program);
     const doc = (label: string) => (items.find((item) => item.label === label)?.documentation as any)?.value as string;
