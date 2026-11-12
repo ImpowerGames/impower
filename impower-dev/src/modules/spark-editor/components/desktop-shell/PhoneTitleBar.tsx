@@ -9,7 +9,7 @@ import {
 } from "@impower/impower-ui/components";
 import type { EditorCommand } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { useComputed } from "@preact/signals";
-import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import { cn } from "@impower/impower-ui/components";
 import {
   storyScriptOf,
   useEditorHistory,

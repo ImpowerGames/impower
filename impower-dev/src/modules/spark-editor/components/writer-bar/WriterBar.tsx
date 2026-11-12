@@ -7,7 +7,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { EditorCommand } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
-import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import { cn } from "@impower/impower-ui/components";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import {
   useCaretPosition,

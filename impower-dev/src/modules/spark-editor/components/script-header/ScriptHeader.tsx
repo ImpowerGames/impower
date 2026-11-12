@@ -5,7 +5,7 @@ import {
   ChevronLeftIcon,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import { cn } from "../../../../../../packages/impower-ui/src/utils/cn";
+import { cn } from "@impower/impower-ui/components";
 import { finishNaming, useNaming } from "../desktop-shell";
 import { splitScriptPath } from "../../utils/nameRules";
 import { useSettings } from "../../workspace/settings/useSettings";

@@ -3,6 +3,7 @@ import * as kit from "../src/components";
 
 export const NOT_COMPONENTS: readonly string[] = [
   "announce",
+  "cn",
   "buttonVariants",
   "choiceGroupVariants",
   "choiceOptionVariants",
