@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../runtime/Value";
+import {
+  SCAN_CLOSE,
+  SCAN_OPEN,
+  writtenText,
+} from "../../runtime/displayStyle";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 
 function compile(source: string): ProgramRoot {
@@ -60,8 +65,40 @@ end
     const table = restored[0]!;
     expect(table).toBeInstanceOf(ObjectValue);
     expect(field(table, "target")).toBe("action");
-    expect(field(table, "text")).toBe("Hi.");
+    expect(writtenText(String(field(table, "text")))).toBe("Hi.");
     expect(field(table, "value")).toBe(7);
     expect((storyB.currentText ?? "").trim()).toBe("Hi.");
+  });
+
+  test("a save written before style codes reads its tables' text as values, whose marks the player scans", () => {
+    const compiled = compile(`scene start\n  A *word* here.\n  done\nend\n`);
+    const storyA = testStory(compiled);
+    storyA.Continue();
+    const current = JSON.parse(storyA.state.ToJson() as string);
+    expect(current.styleCodes).toBe(true);
+
+    const legacy = (value: unknown): unknown =>
+      typeof value === "string"
+        ? writtenText(value)
+        : Array.isArray(value)
+          ? value.map(legacy)
+          : value && typeof value === "object"
+            ? Object.fromEntries(
+                Object.entries(value)
+                  .filter(([key]) => key !== "styleCodes")
+                  .map(([key, item]) => [key, legacy(item)]),
+              )
+            : value;
+
+    const storyB = testStory(compiled);
+    storyB.state.LoadJson(JSON.stringify(legacy(current)));
+    expect(storyB.currentStyledText?.trim()).toBe(
+      `${SCAN_OPEN}A *word* here.${SCAN_CLOSE}`,
+    );
+    expect((storyB.currentText ?? "").trim()).toBe("A *word* here.");
+
+    const storyC = testStory(compiled);
+    storyC.state.LoadJson(storyA.state.ToJson() as string);
+    expect(storyC.currentStyledText).toBe(storyA.currentStyledText);
   });
 });

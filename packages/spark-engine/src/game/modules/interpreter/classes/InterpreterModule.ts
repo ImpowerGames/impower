@@ -4,10 +4,13 @@ import {
   SCAN_CLOSE,
   SCAN_OPEN,
   SCANNED_MARKS,
+  SPAN_CLOSE,
+  SPAN_END,
   isStyleCode,
+  readSpanOpen,
   scanned,
-  spanOpenMark,
   stripStyleCodes,
+  writtenText,
   trimStyled,
 } from "@impower/sparkdown/src/runtime/displayStyle";
 import {
@@ -294,9 +297,10 @@ export class InterpreterModule extends Module<
     const characterParentheticalMatch = match?.[3] || "";
     const characterPositionMatch = match?.[7] || "";
     const characterMap = this.context?.["character"] as any;
-    const characterId = this._characterNameMap[characterNameMatch] || "";
+    const writtenName = writtenText(characterNameMatch);
+    const characterId = this._characterNameMap[writtenName] || "";
     const characterObj =
-      characterMap?.[characterNameMatch] || characterMap?.[characterId];
+      characterMap?.[writtenName] || characterMap?.[characterId];
     const characterName =
       typeof characterObj?.name === "string" && characterObj.name
         ? scanned(characterObj.name)
@@ -1137,20 +1141,18 @@ export class InterpreterModule extends Module<
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
           if (isStyleCode(char)) {
-            i += 1;
+            const opened = readSpanOpen(chars, i);
+            i = opened ? opened.next : i + 1;
             if (char === SCAN_OPEN || char === SCAN_CLOSE) {
               scanDepth = Math.max(0, scanDepth + (char === SCAN_OPEN ? 1 : -1));
               activeMarks.length = 0;
               raw = false;
-            } else {
-              const opened = spanOpenMark(char);
-              if (opened) {
-                spanMarks.push([opened]);
-              } else {
-                spanMarks.pop();
-              }
-              spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
+            } else if (opened) {
+              spanMarks.push([opened.mark]);
+            } else if (char === SPAN_CLOSE || char === SPAN_END) {
+              spanMarks.pop();
             }
+            spanRaw = spanMarks.some(([m]) => m.startsWith("`"));
             continue;
           }
           const scanning = scansAll || scanDepth > 0;

@@ -76,6 +76,7 @@ import {
   CALL_ARGS_UNKNOWN,
   CALL_METHOD,
   CALL_DISCARD,
+  CALL_STYLED,
   CALL_TUNNEL,
   JUMP_ARGUMENTS,
   CHOICE_CONDITION,
@@ -356,6 +357,7 @@ export type StoryEnding = "fin" | "out" | "error";
 export class ProgramStory implements StoryEngine {
   collapseWhitespace = true;
   processEscapes = true;
+  stdCallStyled = false;
 
   onError: StoryErrorHandler | null = null;
   onDidContinue: (() => void) | null = null;
@@ -2352,11 +2354,16 @@ export class ProgramStory implements StoryEngine {
         if (!TEXT_BUILTINS.has(this.root.table.strings[arg]!)) {
           this.callsMade += 1;
         }
-        this.callStd(
-          this.root.table.strings[arg]!,
-          auxOf(w0),
-          (flags & CALL_DISCARD) !== 0,
-        );
+        this.stdCallStyled = (flags & CALL_STYLED) !== 0;
+        try {
+          this.callStd(
+            this.root.table.strings[arg]!,
+            auxOf(w0),
+            (flags & CALL_DISCARD) !== 0,
+          );
+        } finally {
+          this.stdCallStyled = false;
+        }
         break;
       case Op.Done:
         if (

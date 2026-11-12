@@ -6,7 +6,7 @@ import { PRNG } from "../runtime/PRNG";
 import { PushPopType } from "../runtime/PushPop";
 import { SimpleJson } from "../runtime/SimpleJson";
 import { StringBuilder } from "../runtime/StringBuilder";
-import { writtenText } from "../runtime/displayStyle";
+import { scanned, writtenText } from "../runtime/displayStyle";
 import { Tag } from "../runtime/Tag";
 import {
   MultiValue,
@@ -322,6 +322,21 @@ export interface SuspendedLineEnd {
   carried: CarriedStep | null;
   holdsInherited: boolean;
   joined: boolean;
+}
+
+function readOutput(json: any[], styleCodes: boolean): InkObject[] {
+  const output = JsonSerialisation.JArrayToRuntimeObjList(json);
+  if (styleCodes) return output;
+  for (const obj of output) {
+    const text = obj instanceof ObjectValue ? obj.value?.get("text") : null;
+    if (text instanceof StringValue && text.value) {
+      (obj as ObjectValue).value!.set(
+        "text",
+        new StringValue(scanned(text.value)),
+      );
+    }
+  }
+  return output;
 }
 
 export class ProgramStoryState {
@@ -1105,6 +1120,7 @@ export class ProgramStoryState {
     writer.WriteProperty("output", (w) =>
       JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
+    writer.WriteProperty("styleCodes", true);
     if (this.carried) {
       const carried = this.carried;
       writer.WriteProperty("carried", (w) =>
@@ -1687,12 +1703,13 @@ export class ProgramStoryState {
     this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
       obj["evalStack"],
     );
-    this.outputStream = JsonSerialisation.JArrayToRuntimeObjList(obj["output"]);
+    const styleCodes = obj["styleCodes"] === true;
+    this.outputStream = readOutput(obj["output"], styleCodes);
     this.ForgetOpenStrings();
     this._openStringIndex = -1;
     this.carried = obj["carried"]
       ? {
-          output: JsonSerialisation.JArrayToRuntimeObjList(obj["carried"]),
+          output: readOutput(obj["carried"], styleCodes),
           lineEndPending: obj["carriedLineEndPending"] === true,
           addresses: codec.readAddresses(obj["carriedAddresses"]),
         }

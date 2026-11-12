@@ -210,6 +210,7 @@ function finishCall(
     new ObjectExpression(entries),
   ]);
   call.shouldPopReturnedValue = true;
+  call.carriesStyleCodes = true;
   if (range) stampDebugMetadata([call], range.from, range.to, ctx);
   return call;
 }

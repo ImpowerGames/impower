@@ -83,6 +83,7 @@ const CORPUS: Case[] = [
   action("A *`b`* c"),
   action("A `b"),
   action("A *b `c* d` e"),
+  action(`A ${"_".repeat(40)}long${"_".repeat(40)} B`),
   action("**bold /* c */ more** end"),
   action("*a /* c */ b* c"),
   {
@@ -235,7 +236,7 @@ async function renderedBeat(source: string) {
     }
     return cells;
   };
-  return cellsOf;
+  return Object.assign(cellsOf, { beat });
 }
 
 const show = (cells: Cell[]): string => {
@@ -310,9 +311,27 @@ describe("a mark inside an inserted value is styled within the value only", () =
     );
     expect(show(closing("action"))).toBe("C [italic: span xy still] D");
     const opening = await renderedBeat(
-      script("E {opener} F", `store opener = "\\u{E101}z"\n`),
+      script("E {opener} F", `store opener = "\\u{E010}\\u{E021}z"\n`),
     );
     expect(show(opening("action"))).toBe("E z F");
+  });
+
+  test("a table a script builds and hands to display() is read as a value", async () => {
+    const cellsOf = await renderedBeat(
+      script(`& display({ target = "action", text = "*word* here" })`),
+    );
+    expect(show(cellsOf("action"))).toBe("[italic: word] here");
+  });
+
+  test("a cue whose marks spell a declared character's name finds that character", async () => {
+    const cellsOf = await renderedBeat(
+      script(
+        "*NOVA*: Hey",
+        `${VALUES}define nova as character with\n  name = "*NOVA*"\nend\n`,
+      ),
+    );
+    expect(cellsOf.beat.speaker?.character).toBe("nova");
+    expect(show(cellsOf("character_name"))).toBe("[italic: NOVA]");
   });
 
   test("a value's unclosed mark ends with the value", async () => {

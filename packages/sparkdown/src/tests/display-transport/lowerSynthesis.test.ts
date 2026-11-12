@@ -169,6 +169,14 @@ describe("lowerer synthesis: display() from authored prose", () => {
     ]);
   });
 
+  test("a mark of any length rides whole and is written back whole", () => {
+    const mark = "_".repeat(40);
+    expect(runsOf(`A ${mark}long${mark} B`)).toEqual({
+      runs: [{ text: "A " }, { text: "long", marks: [mark] }, { text: " B" }],
+      text: `A ${mark}long${mark} B`,
+    });
+  });
+
   test("an unclosed mark styles to the end of the line", () => {
     expect(runsOf("A *rest of line").runs).toEqual([
       { text: "A " },

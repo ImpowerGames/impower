@@ -3,7 +3,7 @@ import {
   SCAN_OPEN,
   SPAN_CLOSE,
   SPAN_END,
-  spanOpenMark,
+  readSpanOpen,
 } from "../../runtime/displayStyle";
 
 export interface StyleRun {
@@ -18,7 +18,16 @@ export function styleRuns(text: string): StyleRun[] {
   const marks: string[] = [];
   let value = false;
   let current: StyleRun | null = null;
-  for (const char of text) {
+  for (let i = 0; i < text.length; ) {
+    const char = text[i]!;
+    const opened = readSpanOpen(text, i);
+    if (opened) {
+      marks.push(opened.mark);
+      current = null;
+      i = opened.next;
+      continue;
+    }
+    i++;
     if (char === SCAN_OPEN || char === SCAN_CLOSE) {
       value = char === SCAN_OPEN;
       current = null;
@@ -27,12 +36,6 @@ export function styleRuns(text: string): StyleRun[] {
       marks.pop();
       current = null;
     } else {
-      const opened = spanOpenMark(char);
-      if (opened) {
-        marks.push(opened);
-        current = null;
-        continue;
-      }
       if (!current) {
         current = { text: "" };
         if (marks.length > 0) current.marks = [...marks];

@@ -2513,11 +2513,20 @@ export const STDLIB: Record<string, StdLibEntry> = {
   display: {
     arity: -1,
     fn: (story, args) => {
-      const payload = args[0];
+      let payload = args[0];
       if (payload instanceof ObjectValue && payload.value) {
         story.state.variablesState.PrepareTableWrite?.(payload);
         if (joinDisplayParts(payload.value)) {
           writtenIn(story)(payload);
+        }
+        const text = payload.value.get("text");
+        if (!story.stdCallStyled && text instanceof StringValue && text.value) {
+          payload = new ObjectValue(
+            new Map(payload.value).set(
+              "text",
+              new StringValue(scanned(text.value)),
+            ),
+          );
         }
       }
       const flag = (key: string) => {

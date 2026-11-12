@@ -46,7 +46,7 @@ import {
   SCAN_OPEN,
   SPAN_CLOSE,
   SPAN_END,
-  spanOpenMark,
+  readSpanOpen,
   stripStyleCodes,
 } from "../../../runtime/displayStyle";
 import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
@@ -768,8 +768,9 @@ function applyDisplayEscapes(raw: string): string {
   let i = 0;
   while (i < input.length) {
     const c = input[i]!;
-    if (spanOpenMark(c)?.[0] === "`") {
-      let close = i + 1;
+    const opened = readSpanOpen(input, i);
+    if (opened?.mark[0] === "`") {
+      let close = opened.next;
       while (
         close < input.length &&
         input[close] !== SPAN_CLOSE &&

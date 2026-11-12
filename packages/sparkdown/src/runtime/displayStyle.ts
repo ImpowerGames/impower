@@ -1,38 +1,64 @@
 export const SCANNED_MARKS: readonly string[] = ["^", "*", "_", "~~", "::"];
 
-export const SCAN_OPEN = String.fromCharCode(0xe000);
-export const SCAN_CLOSE = String.fromCharCode(0xe001);
-export const SPAN_CLOSE = String.fromCharCode(0xe002);
-export const SPAN_END = String.fromCharCode(0xe003);
+const SCAN_OPEN_POINT = 0xe000;
+const SCAN_CLOSE_POINT = 0xe001;
+const SPAN_CLOSE_POINT = 0xe002;
+const SPAN_END_POINT = 0xe003;
+const SPAN_KIND_BASE = 0xe010;
+const LENGTH_DIGIT_BASE = 0xe020;
+const LENGTH_DIGITS = 32;
+
+export const SCAN_OPEN = String.fromCharCode(SCAN_OPEN_POINT);
+export const SCAN_CLOSE = String.fromCharCode(SCAN_CLOSE_POINT);
+export const SPAN_CLOSE = String.fromCharCode(SPAN_CLOSE_POINT);
+export const SPAN_END = String.fromCharCode(SPAN_END_POINT);
 
 const SPAN_MARK_CHARACTERS = ["*", "_", "^", "~", ":", "`"];
-const SPAN_OPEN_BASE = 0xe100;
-const SPAN_OPEN_LENGTHS = 0x20;
-const SPAN_OPEN_LIMIT =
-  SPAN_OPEN_BASE + SPAN_MARK_CHARACTERS.length * SPAN_OPEN_LENGTHS;
 
-const STYLE_CODE = /[--]/;
-const STYLE_CODES = /[--]/g;
+const range = (from: number, count: number) =>
+  `${String.fromCharCode(from)}-${String.fromCharCode(from + count - 1)}`;
+const STYLE_CODE_CLASS = `[${range(SCAN_OPEN_POINT, 4)}${range(SPAN_KIND_BASE, SPAN_MARK_CHARACTERS.length)}${range(LENGTH_DIGIT_BASE, LENGTH_DIGITS)}]`;
+const STYLE_CODE = new RegExp(STYLE_CODE_CLASS);
+const STYLE_CODES = new RegExp(STYLE_CODE_CLASS, "g");
 
 export function spanOpen(mark: string): string {
   const kind = SPAN_MARK_CHARACTERS.indexOf(mark[0] ?? "");
-  if (kind < 0 || mark.length === 0) {
+  if (kind < 0) {
     throw new Error(`Not a span mark: ${JSON.stringify(mark)}`);
   }
-  const length = Math.min(mark.length, SPAN_OPEN_LENGTHS - 1);
-  return String.fromCharCode(
-    SPAN_OPEN_BASE + kind * SPAN_OPEN_LENGTHS + length,
-  );
+  let digits = "";
+  for (let length = mark.length; digits === "" || length > 0; ) {
+    digits =
+      String.fromCharCode(LENGTH_DIGIT_BASE + (length % LENGTH_DIGITS)) +
+      digits;
+    length = Math.floor(length / LENGTH_DIGITS);
+  }
+  return String.fromCharCode(SPAN_KIND_BASE + kind) + digits;
 }
 
-export function spanOpenMark(code: string): string | undefined {
-  const point = code.charCodeAt(0);
-  if (code.length !== 1 || point < SPAN_OPEN_BASE || point >= SPAN_OPEN_LIMIT) {
-    return undefined;
+const lengthDigit = (character: string | undefined): number => {
+  const point = character?.charCodeAt(0) ?? -1;
+  return point >= LENGTH_DIGIT_BASE && point < LENGTH_DIGIT_BASE + LENGTH_DIGITS
+    ? point - LENGTH_DIGIT_BASE
+    : -1;
+};
+
+export function readSpanOpen(
+  characters: ArrayLike<string>,
+  index: number,
+): { mark: string; next: number } | undefined {
+  const kind =
+    (characters[index]?.charCodeAt(0) ?? -1) - SPAN_KIND_BASE;
+  const character = SPAN_MARK_CHARACTERS[kind];
+  if (kind < 0 || !character) return undefined;
+  let next = index + 1;
+  let length = 0;
+  for (let digit = lengthDigit(characters[next]); digit >= 0; ) {
+    length = length * LENGTH_DIGITS + digit;
+    next++;
+    digit = lengthDigit(characters[next]);
   }
-  const offset = point - SPAN_OPEN_BASE;
-  const kind = SPAN_MARK_CHARACTERS[Math.floor(offset / SPAN_OPEN_LENGTHS)]!;
-  return kind.repeat(offset % SPAN_OPEN_LENGTHS);
+  return { mark: character.repeat(length), next };
 }
 
 export function isStyleCode(character: string): boolean {
@@ -51,21 +77,23 @@ export function writtenText(text: string): string {
   if (!STYLE_CODE.test(text)) return text;
   let out = "";
   const open: string[] = [];
-  for (const c of text) {
-    if (c === SCAN_OPEN || c === SCAN_CLOSE) continue;
+  for (let i = 0; i < text.length; ) {
+    const c = text[i]!;
+    const opened = readSpanOpen(text, i);
+    if (opened) {
+      open.push(opened.mark);
+      out += opened.mark;
+      i = opened.next;
+      continue;
+    }
     if (c === SPAN_CLOSE) {
       out += open.pop() ?? "";
     } else if (c === SPAN_END) {
       open.pop();
-    } else {
-      const mark = spanOpenMark(c);
-      if (mark) {
-        open.push(mark);
-        out += mark;
-      } else {
-        out += c;
-      }
+    } else if (!isStyleCode(c)) {
+      out += c;
     }
+    i++;
   }
   return out;
 }
