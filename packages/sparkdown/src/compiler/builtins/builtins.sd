@@ -57,6 +57,7 @@ define ui as config with
   -- Prefer a percentage over px so a reader who has raised their browser's
   -- default font size keeps that adjustment.
   root_text_size = ""
+  color_scheme = "system"
   -- Transition the `ending` layout opens with when the story ends with `fin`.
   ending_transition = "fade"
 end
@@ -2526,6 +2527,9 @@ style h6 {
 
 style muted {
   text-color = slate_60
+  @theme(dark) {
+    text-color = slate_70
+  }
 }
 
 // The colour roles of the Interactive Fiction page (`layout textstream`): the
@@ -2535,14 +2539,26 @@ style muted {
 style paper {
   background-color = neutral_99
   text-color = slate_20
+  color-scheme = light
+  @theme(dark) {
+    background-color = neutral_10
+    text-color = slate_90
+    color-scheme = dark
+  }
 }
 
 style ink {
   text-color = slate_20
+  @theme(dark) {
+    text-color = slate_90
+  }
 }
 
 style accent {
   text-color = orange_30
+  @theme(dark) {
+    text-color = orange_80
+  }
 }
 
 // A document paragraph, and the one block builtin that keeps a MARGIN.

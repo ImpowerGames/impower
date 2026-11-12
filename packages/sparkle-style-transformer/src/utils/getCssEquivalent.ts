@@ -9,6 +9,7 @@ import type {
   StyleTransformer,
   ThemeVariables,
 } from "../types/themeVariables.js";
+import { cssIdent } from "./cssSyntax.js";
 import { getCssPropertyName } from "./getCssPropertyName.js";
 import { getCssWideKeyword } from "./getCssWideKeyword.js";
 
@@ -36,6 +37,9 @@ const getCssValueText = (value: unknown): string => {
 };
 
 const getUnrecognizedCssValue = (name: string, value: unknown): string => {
+  if (name === "animation-name") {
+    return getCssValueText(value).split(" ").map(cssIdent).join(" ");
+  }
   if (LENGTH_PROPERTY_SUFFIX.test(name)) {
     if (Array.isArray(value)) {
       return value.map((x) => (isNumber(x) ? `${x}px` : x)).join(" ");

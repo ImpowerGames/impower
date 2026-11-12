@@ -61,6 +61,7 @@ import {
   assetMoveCheck,
   assetTrail,
   coveredPaths,
+  folderStackReason,
   foldersUnder,
   thingsLabel,
   type AssetListing,
@@ -272,8 +273,9 @@ function AssetsBrowser() {
   const layoutName = useLayout();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
+  const holds = (row: AssetRow, path: string) => row.path === path || !!row.paths?.includes(path);
   const rowOf = (path: string): AssetRow | null =>
-    files.find((row) => row.path === path) ??
+    files.find((row) => holds(row, path)) ??
     (Object.hasOwn(listing.files, path)
       ? (assetLevel({
           listing,
@@ -281,7 +283,7 @@ function AssetsBrowser() {
           folder: parentOf(path),
           sort,
           endings,
-        }).rows.find((row) => row.kind === "file" && row.path === path) ?? null)
+        }).rows.find((row) => row.kind === "file" && holds(row, path)) ?? null)
       : null);
   const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
   if (openPath) {
@@ -342,6 +344,10 @@ function AssetsBrowser() {
   const [settled, setSettled] = useState(0);
 
   useEffect(() => {
+    if (openPath && openRowOf && openRowOf.path !== openPath) {
+      setOpenPath(openRowOf.path);
+      return;
+    }
     if (openPath && !openRowOf) {
       if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
         return;
@@ -461,7 +467,7 @@ function AssetsBrowser() {
   };
 
   const drag = useLibraryDrag({
-    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder),
+    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder, endings),
     carried: (path) => {
       const chosen = selection.selected.peek();
       return chosen.includes(path) ? [...chosen] : [path];
@@ -537,7 +543,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );
@@ -599,7 +611,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );
@@ -612,6 +630,7 @@ function AssetsBrowser() {
       next={near?.next ? { path: near.next.path, name: near.next.name } : null}
       host={host}
       intents={intents}
+      relocate={relocating}
       onStep={stepTo}
       onClose={closeInspector}
       closeRef={closeButton}

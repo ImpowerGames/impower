@@ -44,6 +44,7 @@ import {
 } from "../../lower/utils/structBodyEntries";
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
+import { luauNameAtStart, LUAU_NAME_SOURCE } from "../../utils/luauName";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -192,13 +193,12 @@ const TYPE_COLON_BEGINS = nodeNameSet([
 ]);
 const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
 const LUAU_NAME_START = /[A-Za-z_]/;
-const LUAU_NAME = /^[A-Za-z_]\w*/;
 const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
   GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
 );
 const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\n]*/y;
 const LUAU_BLOCK_COMMENT_OPENER = /--\[=*\[/y;
-const LUAU_TOKEN = /[A-Za-z_]\w*|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S/y;
+const LUAU_TOKEN = new RegExp(String.raw`${LUAU_NAME_SOURCE}|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S`, "y");
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const STRAY_CLOSING_BRACKET =
   "Expected identifier when parsing expression, got ']'";
@@ -785,7 +785,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return char;
         }
         const lineTo = Math.min(to, this.text?.lineAt(pos).to ?? pos + 1);
-        return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
+        return luauNameAtStart(this.read(pos, lineTo)) ?? char;
       }
       pos = node.to;
     }
@@ -1634,6 +1634,27 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
+      }
+    }
+    if (
+      nodeRef.name === "SelectorStateName" &&
+      this.read(nodeRef.from, nodeRef.to) === "theme"
+    ) {
+      const parameters = /^\(([^()\r\n]*)\)?/.exec(
+        this.read(nodeRef.to, nodeRef.to + 64),
+      );
+      const scheme = parameters?.[1]?.trim();
+      const unclosed = parameters != null && !parameters[0].endsWith(")");
+      if (!unclosed && scheme !== "light" && scheme !== "dark") {
+        const to = nodeRef.to + (parameters?.[0].length ?? 0);
+        const given = parameters ? `, not \`${parameters[0]}\`` : " right after it";
+        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so this block never applies\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from - 1, to),
+        );
       }
     }
     if (PAREN_CLOSED_LISTS.has(nodeRef.name)) {

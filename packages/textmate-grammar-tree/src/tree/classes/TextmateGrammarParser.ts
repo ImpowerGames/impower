@@ -7,6 +7,7 @@ GrammarDefinition,
 RuleDefinition,
 } from "../../grammar/types/GrammarDefinition";
 import { defineNodeType } from "../utils/defineNodeType";
+import { recordExpandedScope } from "../utils/expandedScope";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";
 
 export class TextmateGrammarParser extends Parser {
@@ -51,8 +52,15 @@ export class TextmateGrammarParser extends Parser {
         : defineNodeType(validRootNodeType, typeIndex, typeId, data),
     });
     this.grammar = new Grammar(registry, declarator);
-    const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);
+    const nodeTypes: NodeType[] = this.grammar.nodes.map(
+      (n) => n.props[nodeTypeProp],
+    );
     this.nodeSet = new NodeSet(nodeTypes);
+    this.grammar.onDerive = (node) => {
+      const type: NodeType = node.props[nodeTypeProp];
+      nodeTypes.push(type);
+      recordExpandedScope(type, node.props["name"]);
+    };
   }
 
   createParse(

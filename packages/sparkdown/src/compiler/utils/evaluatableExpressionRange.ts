@@ -1,4 +1,6 @@
-const EXPRESSION = /\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/g;
+import { LUAU_NAME_SOURCE } from "./luauName";
+
+const EXPRESSION = new RegExp(`(?<![A-Za-z0-9_@])(?:${LUAU_NAME_SOURCE})(?:\\.(?:${LUAU_NAME_SOURCE}))*`, "g");
 
 export const evaluatableExpressionRange = (
   text: string,

@@ -53,8 +53,8 @@ const rows: Row[] = [
   { name: "plain text, unchanged", beat: line("The second line."), delivery: "redelivery", onScreen: shownBeat, atOnce: true, audio: [] },
   { name: "text with a portrait", beat: line("The second line.", portrait("smile")), delivery: "redelivery", onScreen: line("The second line.", portrait("smile")), atOnce: true, kept: ["image"] },
   { name: "text with music", beat: line("The second line.", music), delivery: "redelivery", onScreen: line("The second line.", music), atOnce: true, audio: ["music"] },
-  { name: "text with a voice line, which still plays", beat: line("The second line.", voice), delivery: "redelivery", onScreen: line("The second line.", voice), atOnce: true, audio: ["voice"] },
-  { name: "text with a sound, which still plays", beat: line("The second line.", sound), delivery: "redelivery", onScreen: line("The second line.", sound), atOnce: true, audio: ["sound"] },
+  { name: "text with a voice line, left for the audio module to skip",beat: line("The second line.", voice), delivery: "redelivery", onScreen: line("The second line.", voice), atOnce: true, audio: ["voice"] },
+  { name: "text with a sound, left for the audio module to skip",beat: line("The second line.", sound), delivery: "redelivery", onScreen: line("The second line.", sound), atOnce: true, audio: ["sound"] },
   { name: "text with a load, which still runs", beat: line("The second line.", load), delivery: "redelivery", onScreen: line("The second line.", load), atOnce: true, kept: ["load"] },
   { name: "text with a cutscene, which still runs", beat: line("The second line.", cutscene), delivery: "redelivery", onScreen: line("The second line.", cutscene), atOnce: true, kept: ["cutscene"] },
   { name: "a line moved down by an insertion above", beat: line("The second line.", {}, "HERO", [0, 8, 4, 8, 20]), delivery: "redelivery", onScreen: shownBeat, atOnce: true },
@@ -107,6 +107,7 @@ describe("a delivered beat is drawn typed, or with its text complete at once (#2
     const events = Object.values(drawn.text ?? {}).flat();
     expect(events.every((e) => e.after === 0 && e.over === 0)).toBe(true);
     expect(drawn.end).toBe(0);
+    expect(drawn.redelivered).toBe(true);
     expect(Object.keys(drawn.audio ?? {})).toEqual(audio ?? []);
     for (const key of kept ?? []) {
       expect(drawn[key]).toEqual(beat[key]);

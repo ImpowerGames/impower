@@ -84,6 +84,7 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
+import { cssIdent } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -132,6 +133,10 @@ import {
   SetThemeMessage,
   type SetThemeMessageMap,
 } from "./messages/SetThemeMessage";
+import {
+  COLOR_SCHEME_SETTINGS,
+  type ColorSchemeSetting,
+} from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
@@ -194,6 +199,7 @@ interface Retirement {
 
 interface Composition {
   kind: "display" | "beat";
+  held?: boolean;
   messages: IMessage[];
   realizing: { done: boolean }[];
   afterSent: (() => void)[];
@@ -405,6 +411,9 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
+export const UNKNOWN_COLOR_SCHEME_MESSAGE =
+  "ui.color_scheme must be system, light or dark. Using system.";
+
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
   BeatMessageMap &
@@ -607,6 +616,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   sweepReconcile() {
     const standing = this.standingScreen();
+    if (this._compose?.held) {
+      this._compose.standing = standing;
+      this._compose.sweep = true;
+      return;
+    }
     if (this._compose) {
       this._compose.standing = standing;
       void this.endCompose({ sweep: true });
@@ -879,6 +893,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const previewing = this.context?.system?.previewing;
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
+    } else if (this._game.redelivering && this.beginCompose("display")) {
+      this._compose!.held = true;
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
@@ -1088,6 +1104,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     }
     const open = this._compose;
+    if (open?.held && kind === "beat") {
+      open.held = false;
+      open.kind = "beat";
+      return true;
+    }
     if (open && (open.kind === "display" || !open.ending)) {
       return false;
     }
@@ -1145,12 +1166,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     c.ending = true;
     c.time = options.time;
-    c.sweep = options.sweep;
+    c.sweep = options.sweep ?? c.sweep;
     await this.realized(c);
     if (this._compose !== c) {
       return;
     }
     this.sendCompose(c);
+  }
+
+  releaseHeldConnect(): void {
+    const c = this._compose;
+    if (c?.held) {
+      c.held = false;
+      void this.endCompose();
+    }
   }
 
   protected sendCompose(c: Composition) {
@@ -1669,6 +1698,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _morphEpoch = 0;
 
+  protected _colorSchemeReported = false;
+
   protected _morphConflicts = new Set<string>();
 
   protected _unknownLayoutVerbs = new Set<string>();
@@ -1968,7 +1999,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const [name] of Object.entries(fonts)) {
         if (!name.startsWith("$")) {
           const varName = getVarName("font", name);
-          const varValue = name;
+          const varValue = cssIdent(name);
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
@@ -3561,15 +3592,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   loadTheme(variables: Record<string, string>): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
     const root_text_size = this.context?.config?.ui?.root_text_size;
+    const color_scheme = this.colorSchemeSetting();
     if (breakpoints) {
       this.enqueueUI(
         SetThemeMessage.type.request({
           breakpoints,
           root_text_size,
+          color_scheme,
           variables: Object.keys(variables),
         }),
       );
     }
+  }
+
+  protected colorSchemeSetting(): ColorSchemeSetting {
+    const setting = this.context?.config?.ui?.color_scheme;
+    const known = COLOR_SCHEME_SETTINGS.find((s) => s === setting);
+    if (known) {
+      return known;
+    }
+    if (setting != null && !this._colorSchemeReported) {
+      this._colorSchemeReported = true;
+      this._game.log(UNKNOWN_COLOR_SCHEME_MESSAGE, "warning");
+    }
+    return "system";
   }
 
   hideLayout(...structNames: string[]): void {

@@ -182,9 +182,10 @@ async function harness(stored: Record<string, string>) {
     };
     return created;
   };
-  const failWriting = (path: string) => {
+  const failWriting = (path: string, before: () => Promise<unknown> = async () => {}) => {
     const entry = folder(path);
     entry.createSyncAccessHandle = async () => {
+      await before();
       throw new DOMException("The script could not be written", "NoModificationAllowedError");
     };
   };
@@ -447,24 +448,19 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await h.read("zz.sd")).toBe(other);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(h.history.canUndo.value).toBe(false);
-    expect(apply.mock.calls.map(([, label]) => label).filter((label) => label?.startsWith("Put back"))).toEqual(["Put back main.sd"]);
+    expect(apply.mock.calls.map(([, label]) => label).filter((label) => label?.startsWith("Put back"))).toEqual([]);
   });
 
   it("leaves a script the author saved during recovery as the author saved it, and says so", async () => {
     const other = lines("scene other", "  [[show portrait imani]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
-    h.failWriting("zz.sd");
-    const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
     const saved = (await h.read("main.sd")).replace("[[show portrait imani]]", "[[show portrait zadie]]") + "The author's saved line." + NL;
-    vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: Parameters<typeof apply>) => {
-      if (args[1]?.startsWith("Put back")) {
-        await h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL);
-      }
-      return apply(...args);
-    });
-    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
-      "main.sd changed before its lines could be put back, so it was left as it is (main.sd changed before the edit could be applied); check it.",
+    h.failWriting("zz.sd", async () =>
+      h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL),
     );
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toMatchObject({
+      rollback: { complete: false, kept: ["main.sd"] },
+    });
     expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|~face)/g, "zadie$1"));
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
@@ -699,8 +695,10 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     let failed = false;
     h.failCreating(RENAMED[3]!, () => (failed = true));
     h.failCreating(STACK[1]!, () => failed);
-    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
-      `Couldn't rename imani: The storage is full. Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
+    const failure = h.assets.rename(STACK[0]!, "zadie");
+    await expect(failure).rejects.toThrow(/^Couldn't rename imani: The storage is full; the edit was partly applied: /);
+    await expect(failure).rejects.toThrow(
+      `Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
     );
     expect(await h.paths()).toContain(RENAMED[1]);
     expect(h.history.canUndo.value).toBe(false);
@@ -758,5 +756,171 @@ describe("moving and deleting a stacked picture", { timeout: 120000 }, () => {
     expect(await h.history.undo()).toBe(true);
     await vi.waitFor(async () => expect(await inPortraits(h)).toEqual(ORIGINAL));
     expect(await h.read(STACK[2]!)).toBe("picture 2");
+  });
+});
+
+const MIA = `${P}/mia`;
+const FOLDER_STACK = [`${MIA}/10_hat.on.png`, `${MIA}/30_face.happy.png`, `${MIA}/30_face.neutral~default.png`, `${MIA}/90_body.png`];
+const withFolderStack = (extra: Record<string, string> = {}) =>
+  project({ ...Object.fromEntries(FOLDER_STACK.map((path, i) => [path, `layer ${i}`])), ...extra });
+const inMia = async (h: Awaited<ReturnType<typeof harness>>) =>
+  (await h.paths()).filter((path) => path.startsWith(`${MIA}/`));
+
+describe("a stack's own files", { timeout: 120000 }, () => {
+  it("renames one layer's option part, leaving the other files and the picture's name alone", async () => {
+    const h = await harness(project());
+    expect(await h.assets.renameMember(STACK[3]!, "imani~face.glad")).toBe(`${P}/imani~face.glad.png`);
+    expect(await inPortraits(h)).toEqual(
+      [...STACK.filter((path) => path !== STACK[3]), `${P}/imani~face.glad.png`, `${P}/imani_extra.png`].sort(),
+    );
+    expect(await h.read(`${P}/imani~face.glad.png`)).toBe("picture 3");
+    expect(h.snackbar.value?.message).toBe("Renamed imani~face.happy.png.");
+    expect(await h.history.undo()).toBe(true);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
+  it("renames only the one layer when another layer shares its name up to the first dot", async () => {
+    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad", [`${P}/imani~face.happy.webp`]: "webp" }));
+    await h.assets.renameMember(STACK[3]!, "imani~face.glad");
+    expect((await inPortraits(h)).filter((path) => path.includes("~face."))).toEqual(
+      [`${P}/imani@night~face.sad.png`, `${P}/imani~face.glad.png`, `${P}/imani~face.happy.webp`, `${P}/imani~face.sad.png`].sort(),
+    );
+    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+  });
+
+  it("renames a layer's group beside another option of that group, leaving the scripts alone", async () => {
+    const h = await harness(project({ [`${P}/imani~face.sad.png`]: "sad" }));
+    expect(await h.assets.renameMember(STACK[3]!, "imani~mood.happy")).toBe(`${P}/imani~mood.happy.png`);
+    expect(await h.read(`${P}/imani~face.sad.png`)).toBe("sad");
+    expect(await h.read("main.sd")).toBe(SCRIPT);
+  });
+
+  it("refuses a rename that changes the picture the file belongs to, in WorkspaceAssets' words", async () => {
+    const h = await harness(project());
+    await expect(h.assets.renameMember(STACK[3]!, "zadie~face.happy")).rejects.toThrow(
+      "Keep imani before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.",
+    );
+    await expect(h.assets.renameMember(STACK[1]!, "imani.v2@night")).rejects.toThrow(
+      "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.",
+    );
+    await expect(h.assets.renameMember(STACK[1]!, "imani@night~face.sad")).rejects.toThrow(
+      "That name is already in use in this folder.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+  });
+
+  it("leaves a script the author saved during a failed alternate rename as saved, puts the file back, and says so from the rollback", async () => {
+    const other = lines("scene other", "  [[show portrait imani@night]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    const saved = (await h.read("main.sd")) + "The author's saved line." + NL;
+    h.failWriting("zz.sd", async () => h.write("main.sd", saved));
+    const failure = h.assets.renameMember(STACK[1]!, "imani@dark");
+    await expect(failure).rejects.toMatchObject({ rollback: { complete: false, kept: ["main.sd"] } });
+    await expect(failure).rejects.toThrow(/^Couldn't rename imani@night\.png, and these files may be left changed: .*main\.sd/);
+    expect(await h.read("main.sd")).toBe(saved);
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("leaves a script the author saved during a failed Undo of an alternate rename as saved", async () => {
+    const other = lines("scene other", "  [[show portrait imani@night]]", "end");
+    const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
+    expect(await h.assets.renameMember(STACK[1]!, "imani@dark")).toBe(`${P}/imani@dark.png`);
+    const saved = (await h.read("main.sd")) + "The author's saved line." + NL;
+    h.failWriting("zz.sd", async () => h.write("main.sd", saved));
+    expect(await h.history.undo()).toBe(false);
+    expect(await h.read("main.sd")).toBe(saved);
+    expect(await inPortraits(h)).toContain(`${P}/imani@dark.png`);
+    expect(h.snackbar.value?.message).toMatch(/^Couldn't rename imani@dark\.png, and these files may be left changed: .*main\.sd/);
+  });
+
+  it("deletes one file to the bin and keeps the rest of the picture", async () => {
+    const h = await harness(project());
+    await h.assets.removeMember(STACK[2]!);
+    expect(await inPortraits(h)).toEqual(ORIGINAL.filter((path) => path !== STACK[2]));
+    expect(h.snackbar.value?.message).toBe("Deleted imani@night~face.sad.png");
+    const [batch] = await h.fs.listTrash(PROJECT);
+    expect(batch!.entries.map((entry) => entry.relPath)).toEqual([STACK[2]]);
+  });
+
+  it("says when storage refuses to move one file to the bin, and keeps it and the rest", async () => {
+    const h = await harness(project());
+    h.failRemoving(STACK[2]!);
+    await expect(h.assets.removeMember(STACK[2]!)).rejects.toThrow(
+      "Couldn't move imani@night~face.sad.png to the bin. It is still where it was.",
+    );
+    expect(await inPortraits(h)).toEqual(ORIGINAL);
+    expect(await h.read(STACK[2]!)).toBe("picture 2");
+    expect(h.history.canUndo.value).toBe(false);
+  });
+
+  it("keeps the @ and ~ of a layer and an alternate file uploaded from the page", async () => {
+    const h = await harness(project());
+    const file = (name: string) => ({ name, getBuffer: async () => encode(name).buffer as ArrayBuffer });
+    await h.assets.upload([file("imani~hat.on.png"), file("imani@dusk.png")], P);
+    expect(await inPortraits(h)).toEqual(expect.arrayContaining([`${P}/imani~hat.on.png`, `${P}/imani@dusk.png`]));
+    expect(await h.read(`${P}/imani@dusk.png`)).toBe("imani@dusk.png");
+  });
+
+  it("adds a layer or alternate beside the base, not in the Add menu's folder", async () => {
+    const h = await harness(project());
+    await h.assets.addBeside([{ name: "imani~hat.on.png", getBuffer: async () => encode("hat").buffer as ArrayBuffer }], STACK[0]!);
+    expect(await inPortraits(h)).toContain(`${P}/imani~hat.on.png`);
+    expect(await h.read(`${P}/imani~hat.on.png`)).toBe("hat");
+  });
+});
+
+describe("a folder stack", { timeout: 120000 }, () => {
+  it("keeps the thing's Rename and Move to its folder, and says why", async () => {
+    const h = await harness(withFolderStack());
+    const reason = "mia is made of the numbered files in its folder. Rename or move the folder mia instead.";
+    await expect(h.assets.rename(FOLDER_STACK[0]!, "zadie")).rejects.toThrow(reason);
+    await h.fs.createFolder(PROJECT, "Assets/Images/Cast");
+    await h.assets.load();
+    await expect(h.assets.move([FOLDER_STACK[0]!], "Assets/Images/Cast")).rejects.toThrow(reason);
+    expect(await inMia(h)).toEqual(FOLDER_STACK);
+  });
+
+  it("renames a layer's name after its number, and refuses one that drops the number", async () => {
+    const h = await harness(withFolderStack());
+    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30_face.glad")).toBe(`${MIA}/30_face.glad.png`);
+    await expect(h.assets.renameMember(FOLDER_STACK[0]!, "hat.on")).rejects.toThrow(
+      "Keep the number and underscore at the start, as in 10_face.happy. They place the file among mia's layers.",
+    );
+    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_face.glad.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+  });
+
+  it("renames a layer's group without taking the group's other options along, and undoes it", async () => {
+    const h = await harness(withFolderStack());
+    expect(await h.assets.renameMember(FOLDER_STACK[1]!, "30_eyes.happy")).toBe(`${MIA}/30_eyes.happy.png`);
+    expect(await inMia(h)).toEqual([FOLDER_STACK[0], `${MIA}/30_eyes.happy.png`, FOLDER_STACK[2], FOLDER_STACK[3]].sort());
+    expect(await h.history.undo()).toBe(true);
+    expect(await inMia(h)).toEqual(FOLDER_STACK);
+  });
+
+  it("deletes every layer to the bin under the thing's name, and Undo restores them", async () => {
+    const h = await harness(withFolderStack());
+    await h.assets.remove([FOLDER_STACK[2]!]);
+    expect(await inMia(h)).toEqual([]);
+    expect(h.snackbar.value?.message).toBe("Deleted mia");
+    const [batch] = await h.fs.listTrash(PROJECT);
+    expect(batch!.entries.map((entry) => entry.relPath).sort()).toEqual(FOLDER_STACK);
+    expect(await h.history.undo()).toBe(true);
+    await vi.waitFor(async () => expect(await inMia(h)).toEqual(FOLDER_STACK));
+  });
+
+  it("restores every layer from the bin", async () => {
+    const h = await harness(withFolderStack());
+    await h.assets.remove([FOLDER_STACK[0]!]);
+    const [batch] = await h.fs.listTrash(PROJECT);
+    await h.fs.restoreTrash(PROJECT, batch!.batchId);
+    await vi.waitFor(async () => expect(await inMia(h)).toEqual(FOLDER_STACK));
+  });
+
+  it("downloads every layer as one zip named for the thing", async () => {
+    const h = await harness(withFolderStack());
+    await h.assets.downloadAll([FOLDER_STACK[0]!]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.saved.at(-1)!.name).toBe("mia.zip");
   });
 });

@@ -144,8 +144,18 @@ function VideoFrame({ asset, onSeconds }: { asset: InspectedAsset; onSeconds: (s
   );
 }
 
-function PictureFrame({ asset, pixels }: { asset: InspectedAsset; pixels?: { width: number; height: number } | null }) {
-  const [failed, setFailed] = useState(false);
+function PictureFrame({
+  asset,
+  pixels,
+  picture,
+}: {
+  asset: InspectedAsset;
+  pixels?: { width: number; height: number } | null;
+  picture?: string | null;
+}) {
+  const [brokenSrc, setBrokenSrc] = useState<string | undefined>(undefined);
+  const src = picture === undefined ? asset.src : picture;
+  const failed = picture === null || (!!src && brokenSrc === src);
   return (
     <ZoomFrame
       label={asset.name}
@@ -153,9 +163,11 @@ function PictureFrame({ asset, pixels }: { asset: InspectedAsset; pixels?: { wid
       backdrop={failed ? "none" : "checker"}
       ratio={pixels ? pixels.width / pixels.height : undefined}
     >
-      <div class="absolute inset-0" onErrorCapture={() => setFailed(true)}>
-        <Thumbnail size="fill" fit="contain" src={asset.src} class="bg-transparent" />
-      </div>
+      {src ? (
+        <div class="absolute inset-0" onErrorCapture={() => setBrokenSrc(src)}>
+          <Thumbnail size="fill" fit="contain" src={src} class="bg-transparent" />
+        </div>
+      ) : null}
       {failed && <FrameFailure>This picture could not be shown.</FrameFailure>}
     </ZoomFrame>
   );
@@ -164,13 +176,14 @@ function PictureFrame({ asset, pixels }: { asset: InspectedAsset; pixels?: { wid
 export type AssetFrameProps = {
   asset: InspectedAsset;
   pixels?: { width: number; height: number } | null;
+  picture?: string | null;
   read: (path: string) => Promise<string>;
   onSeconds: (seconds: number) => void;
 };
 
-export default function AssetFrame({ asset, pixels, read, onSeconds }: AssetFrameProps) {
+export default function AssetFrame({ asset, pixels, picture, read, onSeconds }: AssetFrameProps) {
   if (asset.type === "image") {
-    return <PictureFrame asset={asset} pixels={pixels} />;
+    return <PictureFrame asset={asset} pixels={pixels} picture={picture} />;
   }
   if (asset.type === "video") {
     return <VideoFrame asset={asset} onSeconds={onSeconds} />;

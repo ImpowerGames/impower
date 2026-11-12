@@ -1,4 +1,4 @@
-const SEGMENT_DISALLOWED = /[^\w\n\r.]/g;
+const SEGMENT_DISALLOWED = /[^\w\n\r.@]/g;
 
 const sanitizeSegment = (segment: string): string =>
   segment.replace(SEGMENT_DISALLOWED, "_");

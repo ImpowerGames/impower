@@ -140,6 +140,18 @@ describe("the Assets page's file intents", () => {
     expect(mocks.importFiles.mock.calls[1]![1][0].rel).toBe("assets/Audio/wind.wav");
   });
 
+  it("keeps the @ and ~ of an uploaded or dropped alternate or layer file, and cleans other characters", async () => {
+    const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
+    await assets.load();
+    mocks.importFiles.mockClear();
+    await assets.upload([dropped("imani~face.happy.png"), dropped("imani@night.png"), dropped("door knock.wav")], "");
+    expect(mocks.importFiles.mock.calls[0]![1].map((item: { rel: string }) => item.rel)).toEqual([
+      "Assets/Images/imani~face.happy.png",
+      "Assets/Images/imani@night.png",
+      "Assets/Audio/door_knock.wav",
+    ]);
+  });
+
   it("adds a link under the type its address names, with a name no other file has", async () => {
     const { assets, fs, files } = fakeWorkspace({ "Assets/Audio/horn.wav": "wav", "Assets/Images/horn.url": "https://cdn.example.com/horn.png" });
     await assets.load();

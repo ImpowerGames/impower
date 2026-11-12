@@ -18,6 +18,7 @@ export interface UIConfig {
   layouts_initial: string[];
   breakpoints: Record<string, number>;
   root_text_size: string;
+  color_scheme: string;
   ending_transition: string;
 }
 

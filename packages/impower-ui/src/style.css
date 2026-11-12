@@ -301,3 +301,23 @@
 @utility anim-menu-out { animation: fade-out 150ms ease-in forwards; }
 @utility anim-toast-in  { animation: toast-in 150ms ease-out; }
 @utility anim-toast-out { animation: fade-out 150ms ease-out forwards; }
+
+@keyframes wheel-row-tilt {
+  from { transform: rotateX(-56deg); opacity: 0.28; }
+  50% { transform: none; opacity: 1; }
+  to { transform: rotateX(56deg); opacity: 0.28; }
+}
+@utility wheel-row-tilt {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: wheel-row-tilt linear both;
+      animation-timeline: view();
+    }
+  }
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@utility anim-sheet-in { animation: sheet-in 180ms ease-out; }

@@ -68,6 +68,7 @@ import { nodeNameSet } from "../utils/nodeNameSet";
 import { numberLiteralValue } from "../utils/numberLiteralValue";
 import { stringLiteralValue } from "../utils/stringLiteralValue";
 import { lintFormatStringCall } from "./formatString";
+import { isLuauName, LUAU_NAME_SOURCE } from "../utils/luauName";
 import { collectNameFacts, isAuthoredLuauName, type LuauNameFacts, type LuauProgramNames, type NameRange, type NameRoot } from "./luauNames";
 export { indexProgramNames } from "./luauNames";
 
@@ -194,13 +195,13 @@ function lintSyntaxNodes(tree: Tree, text: string): SyntaxNode[] {
     if (bits & 1) return true;
     if (!(bits & 2)) return false;
     const name = text.slice(from, to);
-    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !RESERVED.has(name);
+    return isLuauName(name) && !RESERVED.has(name);
   };
   const scan = (part: Tree | TreeBuffer, offset: number): void => {
     if (part instanceof TreeBuffer) {
       const buffer = part.buffer;
       let types = lintNodeTypes.get(part.set);
-      if (!types) {
+      if (!types || types.length !== part.set.types.length) {
         types = Uint8Array.from(part.set.types, (type) => flags(type.name));
         lintNodeTypes.set(part.set, types);
       }
@@ -232,7 +233,7 @@ function uncertainNames(nodes: SyntaxNode[], text: string, facts: LuauNameFacts)
   for (const node of nodes) {
     if (!node.name.startsWith("Luau") || !node.name.endsWith("Keyword") || represented.has(key(node))) continue;
     const name = text.slice(node.from, node.to);
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || RESERVED.has(name)) continue;
+    if (!isLuauName(name) || RESERVED.has(name)) continue;
     found.push({ name, from: node.from, to: node.to, reason: "grammar-keyword" });
     represented.add(key(node));
   }
@@ -240,7 +241,7 @@ function uncertainNames(nodes: SyntaxNode[], text: string, facts: LuauNameFacts)
 }
 
 function unplacedMention(tree: Tree, text: string, placed: ReadonlySet<number>, definitions: ReadonlySet<number>, misread: boolean, name: string): boolean {
-  const word = new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`, "g");
+  const word = new RegExp(`(?<![A-Za-z0-9_]|[A-Za-z0-9_]@)${name}(?![A-Za-z0-9_]|@[A-Za-z0-9_])`, "g");
   for (const match of text.matchAll(word)) {
     if (definitions.has(match.index) || (!misread && placed.has(match.index))) continue;
     const node = tree.resolveInner(match.index, 1);
@@ -577,7 +578,7 @@ function isLocalWrite(target: AstExpr): boolean {
 function keywordWords(tree: Tree, text: string, from: number, to: number, names: Set<string>): { name: string; at: number }[] {
   const found: { name: string; at: number }[] = [];
   if (names.size === 0) return found;
-  const word = /[A-Za-z_][A-Za-z0-9_]*/g;
+  const word = new RegExp(LUAU_NAME_SOURCE, "g");
   for (const match of text.slice(from, to).matchAll(word)) {
     if (!names.has(match[0])) continue;
     const at = from + match.index;

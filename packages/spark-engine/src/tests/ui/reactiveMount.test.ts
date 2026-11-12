@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
-const SCREEN = `layout main {
+const LAYOUT = `layout main {
   stage {
     backdrop {
       image
@@ -29,7 +29,8 @@ const SCREEN = `layout main {
 }
 `;
 
-describe("reactive mount (Phase 3 I1)", () => {
+describe.each(["system", "dark"])("reactive mount (Phase 3 I1), ui.color_scheme %s (#2062)", (colorScheme) => {
+  const SCREEN = `define ui as config with\n  color_scheme = "${colorScheme}"\nend\n\n${LAYOUT}`;
   test("AST-driven static mount matches the static constructLayout stream", async () => {
     const staticH = createHarness(SCREEN, 0, { staticFallback: true });
     const reactiveH = createHarness(SCREEN);

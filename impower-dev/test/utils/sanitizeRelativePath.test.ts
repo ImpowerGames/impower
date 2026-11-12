@@ -11,7 +11,12 @@ describe("sanitizeRelativePath", () => {
 
   it("preserves folder structure, sanitizing each segment", () => {
     expect(sanitizeRelativePath("art/my file.png")).toBe("art/my_file.png");
-    expect(sanitizeRelativePath("a b/c@d.png")).toBe("a_b/c_d.png");
+    expect(sanitizeRelativePath("a b/c#d.png")).toBe("a_b/c_d.png");
+  });
+
+  it("keeps the @ an image file names its alternate with (#2109)", () => {
+    expect(getValidFileName("mia@night.svg")).toBe("mia@night.svg");
+    expect(sanitizeRelativePath("portraits/raffles@confident.png")).toBe("portraits/raffles@confident.png");
     expect(sanitizeRelativePath("chapters/sub/intro.sd")).toBe("chapters/sub/intro.sd");
   });
 

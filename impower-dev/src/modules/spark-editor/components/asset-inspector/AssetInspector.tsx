@@ -16,9 +16,9 @@ import {
   TextField,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import type { ComponentChildren, Ref } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
-import { addMenuFolders } from "../../utils/addMenuFolders";
+import type { Ref } from "preact";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import {
   assetDetails,
   NOT_USED_NOTES,
@@ -26,6 +26,9 @@ import {
   type InspectedAsset,
 } from "../../utils/assetDetails";
 import { plural } from "../../utils/fileListModel";
+import { reasonOf, type FileMove } from "../../utils/fileMoves";
+import { imageStacks, isStacked } from "../../utils/imageStacks";
+import { defaultForm, variantOf, type VariantForm, type VariantSelection } from "../../utils/imageVariants";
 import { showSnackbar } from "../../utils/snackbar";
 import { assetsHome } from "../../workspace/assetsListing";
 import type { Workspace as WorkspaceIntents } from "../../workspace/Workspace";
@@ -35,6 +38,9 @@ import workspace from "../../workspace/WorkspaceStore";
 import { UsesList } from "../find-references-rename";
 import AssetFrame from "./AssetFrame";
 import type { InspectorHost } from "./dock";
+import FilesSection from "./FilesSection";
+import Section from "./Section";
+import VariantsSection from "./VariantsSection";
 
 export type InspectorNeighbor = { path: string; name: string };
 
@@ -44,6 +50,7 @@ export type AssetInspectorProps = {
   next: InspectorNeighbor | null;
   host: InspectorHost;
   intents: () => Promise<typeof WorkspaceIntents>;
+  relocate: (paths: readonly string[], action: () => Promise<readonly FileMove[]>) => Promise<void>;
   onStep: (path: string) => void;
   onClose: () => void;
   closeRef?: Ref<HTMLButtonElement>;
@@ -52,28 +59,6 @@ export type AssetInspectorProps = {
 const EMPTY_LISTING = { files: {}, folders: [] };
 
 const SKIPS_ARROWS = "input, textarea, select, video, audio, [contenteditable], [role=slider]";
-
-function Section({
-  title,
-  aside,
-  label,
-  children,
-}: {
-  title: string;
-  aside?: string;
-  label: string;
-  children: ComponentChildren;
-}) {
-  return (
-    <section aria-label={label} class="min-w-0">
-      <div class="mb-2 flex items-center justify-between gap-3 border-b border-edge pb-2">
-        <h3 class="m-0 text-[13px]/[1.4] font-semibold text-ink">{title}</h3>
-        {aside ? <span class="text-[11px] text-muted">{aside}</span> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function useAudioSeconds(asset: InspectedAsset) {
   const [seconds, setSeconds] = useState<number | null>(null);
@@ -114,7 +99,7 @@ function LinkAddress({
       .then((Workspace) => Workspace.assets.setAddress(asset.path, draft))
       .then(
         () => showSnackbar({ message: "Address saved." }),
-        (error: unknown) => showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+        (error: unknown) => showSnackbar({ message: reasonOf(error) }),
       );
   };
   return (
@@ -167,6 +152,7 @@ export default function AssetInspector({
   next,
   host,
   intents,
+  relocate,
   onStep,
   onClose,
   closeRef,
@@ -189,6 +175,16 @@ export default function AssetInspector({
   const { projectSettings } = useSettings();
   const pixels = asset.src ? workspace.assetSizes.value[asset.src] : undefined;
   const filesKey = asset.files.map((file) => `${file.path} ${file.src ?? ""}`).join("\n");
+  const stack = useMemo(() => {
+    const [only] = asset.type === "image" && !asset.link ? imageStacks(asset.files.map((file) => file.path)) : [];
+    return only && isStacked(only) ? only : null;
+  }, [filesKey, asset.type, asset.link]);
+  const [selection, setSelection] = useState<VariantSelection>({});
+  const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
+  const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
+  const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const variant = stack ? variantOf(stack, previewing ?? selection) : null;
+  const variantKey = variant ? JSON.stringify(variant) : "";
 
   useEffect(() => {
     close.current?.focus({ preventScroll: true });
@@ -215,6 +211,30 @@ export default function AssetInspector({
   useEffect(() => {
     setVideoSeconds(null);
   }, [asset.path, asset.src]);
+
+  useEffect(() => {
+    setSelection({});
+    setPreviewing(null);
+    setChosenForm(null);
+    setPicture(undefined);
+  }, [asset.path]);
+
+  useEffect(() => {
+    if (!variant) {
+      return;
+    }
+    let dispose: (() => void) | undefined;
+    let alive = true;
+    void intents().then((Workspace) => {
+      if (alive) {
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, setPicture);
+      }
+    });
+    return () => {
+      alive = false;
+      dispose?.();
+    };
+  }, [variantKey, filesKey]);
 
   useEffect(() => {
     if (asset.type === "image" && asset.src && pixels === undefined) {
@@ -309,7 +329,7 @@ export default function AssetInspector({
         }),
       )
       .catch((error: unknown) =>
-        showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+        showSnackbar({ message: reasonOf(error) }),
       );
   };
 
@@ -324,6 +344,13 @@ export default function AssetInspector({
   });
 
   const uses = facts?.uses;
+  const form =
+    chosenForm ??
+    defaultForm({
+      kinds: stack ? addMenuKindsOf({ path: stack.cover, type: "image" }, addMenuFolders(projectSettings)) : [],
+      lines: (uses ?? []).flatMap((group) => group.uses.map((use) => use.lineText)),
+      pixels,
+    });
   const lines = uses?.reduce((sum, group) => sum + group.uses.length, 0) ?? 0;
   const problems = facts ? facts.problems : [];
 
@@ -358,8 +385,8 @@ export default function AssetInspector({
       data-asset-inspector={host}
       class={
         sheet
-          ? "flex h-full min-h-0 flex-col bg-panel text-ink"
-          : "flex h-full min-h-0 flex-col bg-preview-mat text-ink"
+          ? "relative flex h-full min-h-0 flex-col bg-panel text-ink"
+          : "relative flex h-full min-h-0 flex-col bg-preview-mat text-ink"
       }
       onKeyDown={onKeyDown}
       onFocusIn={(event) => {
@@ -408,16 +435,28 @@ export default function AssetInspector({
       />
       <div
         ref={body}
-        class="grid min-h-0 flex-1 content-start gap-5 overflow-x-hidden overflow-y-auto px-4 pt-3.5 pb-7"
+        class="grid min-h-0 flex-1 auto-rows-max content-start gap-5 overflow-x-hidden overflow-y-auto px-4 pt-3.5 pb-7"
         data-inspector-body
       >
         <AssetFrame
           key={`${asset.path}\n${asset.src ?? ""}`}
           asset={asset}
+          picture={stack ? picture : undefined}
           pixels={pixels}
           read={(path) => intents().then((Workspace) => Workspace.assets.readText(path))}
           onSeconds={setVideoSeconds}
         />
+        {stack && (
+          <VariantsSection
+            stack={stack}
+            selection={selection}
+            form={form}
+            onSelect={setSelection}
+            onPreview={setPreviewing}
+            onForm={setChosenForm}
+            sheetContainer={region}
+          />
+        )}
         {asset.link && <LinkAddress key={`${asset.path}\n${asset.address ?? ""}`} asset={asset} intents={intents} />}
         {problems === null ? (
           <Section title="Problems" label="Problems">
@@ -441,6 +480,14 @@ export default function AssetInspector({
         <Section title="Details" label="Details">
           <DetailList rows={rows} />
         </Section>
+        {stack && stack.paths.length > 1 && (
+          <FilesSection
+            stack={stack}
+            sizes={Object.fromEntries(asset.files.map((file) => [file.path, file.size]))}
+            intents={intents}
+            relocate={relocate}
+          />
+        )}
         <Section
           title={!uses ? "Uses" : lines ? `Used in ${plural(lines, "line")}` : "Not used yet"}
           label="Uses"
@@ -476,9 +523,9 @@ export default function AssetInspector({
               data-inspector-download
               onClick={() =>
                 void intents()
-                  .then((Workspace) => Workspace.assets.download(asset.path))
+                  .then((Workspace) => Workspace.assets.downloadAll([asset.path]))
                   .catch((error: unknown) =>
-                    showSnackbar({ message: error instanceof Error ? error.message : String(error) }),
+                    showSnackbar({ message: reasonOf(error) }),
                   )
               }
             >

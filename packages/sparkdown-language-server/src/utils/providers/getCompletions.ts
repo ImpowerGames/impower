@@ -1286,7 +1286,7 @@ const addDivertPathCompletions = (
   }
 };
 
-export const getCompletions = (
+const completionsAt = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   scripts: Map<string, AnnotatedScript>,
@@ -1419,7 +1419,7 @@ export const getCompletions = (
   if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
     const asset = leftStack.find((node) => node.name === "AssetCommandName");
     const prefix = asset ? read(asset.from, documentCursorOffset) : "";
-    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_][\w]*)((?:[:~][\w.-]*)+)$/);
+    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_]\w*(?:@\w+)*)((?:[:~][\w.-]*)+)$/);
     if (match) {
       const name = match[1]!;
       const current = match[2]!.split(/[:~]/).at(-1) ?? "";
@@ -2575,4 +2575,56 @@ export const getCompletions = (
   }
 
   return undefined;
+};
+
+const AT_NAME = /^[_\p{L}][_\p{L}\p{N}-]*(?:@[_\p{L}\p{N}-]+)*$/u;
+
+const typedAtName = (
+  document: SparkdownDocument,
+  tree: Tree,
+  offset: number,
+): { from: number; nameEnd: number } | undefined => {
+  const trailing = document.read(offset - 1, offset) === "@";
+  const nameEnd = trailing ? offset - 1 : offset;
+  const node = tree.resolveInner(nameEnd, -1);
+  if (node.to !== nameEnd || node.from >= nameEnd) {
+    return undefined;
+  }
+  const name = document.read(node.from, nameEnd);
+  if (!AT_NAME.test(name) || (!trailing && !name.includes("@"))) {
+    return undefined;
+  }
+  return { from: node.from, nameEnd };
+};
+
+export const getCompletions = (
+  document: SparkdownDocument | undefined,
+  tree: Tree | undefined,
+  scripts: Map<string, AnnotatedScript>,
+  program: SparkProgram | undefined,
+  config: SparkdownCompilerConfig | undefined,
+  position: Position,
+  context: CompletionContext | undefined,
+): CompletionItem[] | null | undefined => {
+  if (!document || !tree) {
+    return completionsAt(document, tree, scripts, program, config, position, context);
+  }
+  const offset = document.offsetAt(position);
+  const typed = typedAtName(document, tree, offset);
+  if (!typed) {
+    return completionsAt(document, tree, scripts, program, config, position, context);
+  }
+  const items = completionsAt(
+    document,
+    tree,
+    scripts,
+    program,
+    config,
+    document.positionAt(typed.nameEnd),
+    typed.nameEnd === offset ? context : undefined,
+  );
+  const range = document.range(typed.from, offset);
+  return items?.map((item) =>
+    item.textEdit ? item : { ...item, textEdit: { range, newText: item.insertText ?? item.label } },
+  );
 };

@@ -77,6 +77,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xl": 1280,
               "xs": 400,
             },
+            "color_scheme": "system",
             "root_text_size": "",
             "variables": [
               "--theme-color-red",
@@ -1676,6 +1677,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "accent": {
                   "$name": "accent",
                   "$type": "style",
+                  "@theme(dark)": {
+                    "text-color": "orange_80",
+                  },
                   "text-color": "orange_30",
                 },
                 "action": {
@@ -2498,6 +2502,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "ink": {
                   "$name": "ink",
                   "$type": "style",
+                  "@theme(dark)": {
+                    "text-color": "slate_90",
+                  },
                   "text-color": "slate_20",
                 },
                 "input": {
@@ -2971,6 +2978,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "muted": {
                   "$name": "muted",
                   "$type": "style",
+                  "@theme(dark)": {
+                    "text-color": "slate_70",
+                  },
                   "text-color": "slate_60",
                 },
                 "nav": {
@@ -3033,7 +3043,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "paper": {
                   "$name": "paper",
                   "$type": "style",
+                  "@theme(dark)": {
+                    "background-color": "neutral_10",
+                    "color-scheme": "dark",
+                    "text-color": "slate_90",
+                  },
                   "background-color": "neutral_99",
+                  "color-scheme": "light",
                   "text-color": "slate_20",
                 },
                 "paragraph": {

@@ -256,6 +256,27 @@ end
 
 `image.mia` refers to the image asset named `mia`. The attributes are written in quotes because a bare `look.left` would be read as a table lookup inside a define. Then `[[mia_party]]` is the same as `[[mia:happy:hat:look.left]]`, and you can still adjust it: `[[mia_party:sad]]` keeps the hat and the look and changes the face, because the later choice in the `face` group wins.
 
+## Several pictures of one character
+
+A name may hold `@` after its first character. The part before the first `@` says whose picture it is, and the part after it says which picture: an image file named `mia@night.svg` is the image `mia@night`, a picture of `mia`.
+
+```
+define mia@party as filtered_image with
+  image = image.mia@night
+  attributes = { "happy", "hat" }
+end
+
+scene start
+  [[mia@night]]
+  [[mia@night:happy]]
+  [[mia@night~hat]]
+  [[mia@party]]
+  [[office + mia@night:happy]]
+end
+```
+
+The rule is the same for every name Sparkdown reads: an image, a named look, a define, a variable or function in code, and each name in a directive. A name does not begin or end with `@`, and two `@` never sit together, so `@mia`, `mia@` and `mia@@night` are not names. An `@` joins a name as `_` does, even next to a word Luau reserves: `end@night` and `mia@end` are names, as `end_night` and `mia_end` are. The forms that begin with `@` keep their meaning: a style's state rule (`@hovered { … }`), an event (`@click`), a regular expression (`@/a+/`) and a function attribute (`@native`). An `@` followed by `/` is never part of a name.
+
 ## Backgrounds and props
 
 Nothing in this chapter is only about characters. A background whose props change over the story is the same kind of image: a stack of layers, some of which show only in some states. A door that opens, a vase that breaks, a light that goes out, a note that appears on a table, are each a group with its options, drawn once in the same file as the room.
@@ -376,6 +397,8 @@ scene start
   [[name:group.option]]
   [[name:switch]]
   [[name:switch.off]]
+  [[name@picture]]
+  [[name@picture:option]]
 end
 ```
 

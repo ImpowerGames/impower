@@ -1,9 +1,15 @@
 import { GAME_ASPECT_RATIOS } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import type { StartingDisplayMode } from "@impower/spark-engine/src/game/core/classes/messages/SetStartingDisplayModeMessage";
+import type { ColorScheme } from "@impower/spark-engine/src/game/core/classes/messages/SetSimulatedColorSchemeMessage";
 import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { SHORTCUT_PREFERENCES } from "../shortcuts/shortcutTable";
-import { SURFACES, SYNTAX_PALETTES, THEME_PREFERENCES } from "./applyTheme";
+import {
+  colorSchemeOfTheme,
+  SURFACES,
+  SYNTAX_PALETTES,
+  THEME_PREFERENCES,
+} from "./applyTheme";
 
 export const PORTRAIT_CROP = { min: 25, max: 100, step: 5, default: 50 } as const;
 
@@ -54,6 +60,15 @@ export const fillsPane = (mode: PreviewMode) => mode === "textstream";
 
 export const startingDisplayModeOf = (mode: PreviewMode): StartingDisplayMode =>
   mode === "textstream" ? "textstream" : "textbox";
+
+export const PREVIEW_COLOR_SCHEMES = ["editor", "light", "dark"] as const;
+
+export type PreviewColorScheme = (typeof PREVIEW_COLOR_SCHEMES)[number];
+
+export const simulatedColorSchemeOf = (
+  choice: PreviewColorScheme,
+  theme: string,
+): ColorScheme => (choice === "editor" ? colorSchemeOfTheme(theme) : choice);
 
 export const SCREENPLAY_PAPERS = ["paper", "theme"] as const;
 
@@ -167,6 +182,7 @@ export const PROJECT_SETTINGS_SCHEMA = {
   ),
   previewAspectRatio: choice("auto", ["auto", ...GAME_ASPECT_RATIOS]),
   previewPanelHeight: setting(44),
+  previewColorScheme: choice("editor", PREVIEW_COLOR_SCHEMES),
   problemsScriptCardOpen: setting(true),
   problemsPlayedCardOpen: setting(true),
   problemsVariablesCardOpen: setting(true),

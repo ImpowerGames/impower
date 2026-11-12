@@ -1,6 +1,7 @@
 export * from "./types/GrammarSyntaxNode";
 export * from "./types/GrammarSyntaxNodeRef";
 export * from "./utils/createLanguageReader";
+export * from "./utils/expandedScope";
 export * from "./utils/getDescendent";
 export * from "./utils/getDescendentInsideParent";
 export * from "./utils/getStack";

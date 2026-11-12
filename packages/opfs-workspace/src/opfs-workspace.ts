@@ -4,7 +4,10 @@ import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { RESOURCE_PROTOCOL } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import {
+  ApplyWorkspaceEditMessage,
+  WorkspaceEditAction,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
@@ -24,7 +27,7 @@ import {
   TrashFilesMessage,
   TrashFilesResult,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
-import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
+import { TrashBatch, TrashReason } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -158,11 +161,14 @@ abstract class State {
   static writer = crypto.randomUUID();
 }
 
+const commitWatchers = new Set<(uris: string[], local: number) => void>();
+
 const touch = (uris: string[]) => {
   State.localClock += 1;
   for (const uri of uris) {
     State.localVersions.set(uri, State.localClock);
   }
+  commitWatchers.forEach((watch) => watch(uris, State.localClock));
   return State.localClock;
 };
 
@@ -310,6 +316,10 @@ class CommitLog {
     if (!held || result.local > held.local) {
       this.writes.set(uri, result);
     }
+  }
+
+  reconcile(uri: string, directory: boolean) {
+    this.unordered.set(uri, directory || (this.unordered.get(uri) ?? false));
   }
 
   isCurrent(uri: string) {
@@ -1040,106 +1050,18 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    const { edit, expectedTexts } = message.params;
-
+    const { edit, expectedTexts, metadata } = message.params;
     const log = new CommitLog();
-    const fileEvents: FileEvent[] = [];
-    const created: WriteResult[] = [];
-    const deleted: DeleteResult[] = [];
-    const renamed: RenameOutcome[] = [];
-    const wrote = (result: WriteResult) => {
-      log.wrote(result);
-      if (result.created) {
-        created.push(result);
-      }
-      fileEvents.push({
-        uri: result.file.uri,
-        type: result.created ? FileChangeType.Created : FileChangeType.Changed,
-      });
-    };
+    const { effects, failure } = await applyWorkspaceEdit(edit, log, {
+      expectedTexts,
+      action: metadata?.action,
+    });
 
-    let changeIndex = 0;
-    let failure: { message: string } | undefined;
-
-    try {
-      const changed = Object.keys(expectedTexts ?? {}).find(
-        (uri) => !matchesExpectedText(uri, expectedTexts),
-      );
-      if (changed) {
-        throw new Error(`${changed.split("/").pop()} changed before the edit could be applied`);
-      }
-      if (edit.documentChanges) {
-        for (const c of edit.documentChanges) {
-          if ("kind" in c && !("textDocument" in c)) {
-            if (c.kind === "create") {
-              (await createFiles([c])).forEach(wrote);
-            } else if (c.kind === "delete") {
-              const [result] = await deleteFiles([c]);
-              if (result) {
-                log.record(result.uri, result.local, result.commit);
-                deleted.push(result);
-                fileEvents.push({ uri: c.uri, type: FileChangeType.Deleted });
-              }
-            } else if (c.kind === "rename") {
-              const [outcome] = await renameFiles([c]);
-              if (outcome?.write) {
-                log.wrote(outcome.write);
-              }
-              if (outcome?.deleted) {
-                log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
-                renamed.push(outcome);
-                fileEvents.push({
-                  uri: c.oldUri,
-                  type: FileChangeType.Deleted,
-                });
-              }
-              if (outcome?.write) {
-                fileEvents.push({
-                  uri: c.newUri,
-                  type: FileChangeType.Created,
-                });
-              }
-              if (outcome?.error != null) {
-                throw outcome.error;
-              }
-            }
-          } else {
-            const [written] = await editTextFiles([c], expectedTexts);
-            if (written) {
-              wrote(written);
-            } else {
-              fileEvents.push({
-                uri: c.textDocument.uri,
-                type: FileChangeType.Changed,
-              });
-            }
-          }
-          changeIndex++;
-        }
-      } else if (edit.changes) {
-        for (const [uri, edits] of Object.entries(edit.changes)) {
-          const beforeVersion = State.files.get(uri)?.version ?? 0;
-          const [written] = await editTextFiles(
-            [{ textDocument: { uri, version: beforeVersion }, edits }],
-            expectedTexts,
-          );
-          if (written) {
-            wrote(written);
-          } else {
-            fileEvents.push({ uri, type: FileChangeType.Changed });
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error(err, err.stack);
-      failure = { message: err?.message ?? String(err) };
-    }
-
-    broadcastCreates(log, created);
-    broadcastDeletes(log, deleted);
-    broadcastRenames(log, renamed);
+    broadcastCreates(log, effects.created);
+    broadcastDeletes(log, effects.deleted);
+    broadcastRenames(log, effects.renamed);
     broadcastWrites(log);
-    broadcastWatchedChanges(log, fileEvents);
+    broadcastWatchedChanges(log, effects.fileEvents);
     await announceUnordered(log);
 
     respond(
@@ -1148,12 +1070,541 @@ onmessage = async (e) => {
         failure
           ? {
               applied: false,
-              failureReason: failure.message,
-              failedChange: changeIndex,
+              failureReason: failure.reason,
+              failedChange: failure.change,
+              rollback: failure.rollback,
             }
           : { applied: true },
       ),
     );
+  }
+};
+
+type WorkspaceEditChange = NonNullable<
+  ApplyWorkspaceEditMessage.Request["params"]["edit"]["documentChanges"]
+>[number];
+
+interface EditEffects {
+  created: WriteResult[];
+  deleted: DeleteResult[];
+  renamed: RenameOutcome[];
+  fileEvents: FileEvent[];
+}
+
+interface PriorEntry {
+  uri: string;
+  bytes?: ArrayBuffer;
+  directory: boolean;
+  version?: number;
+  document?: TextDocument;
+}
+
+const noEffects = (): EditEffects => ({
+  created: [],
+  deleted: [],
+  renamed: [],
+  fileEvents: [],
+});
+
+interface Unchanged {
+  bytes?: ArrayBuffer;
+  local?: number;
+}
+
+interface Restoring {
+  entry: PriorEntry;
+  current?: ArrayBuffer;
+  local?: number;
+}
+
+interface TrashCopy {
+  uri: string;
+  relPath: string;
+  originalUri: string;
+  type: string;
+  bytes: ArrayBuffer;
+  local: number;
+}
+
+const isUnchanged = async (uri: string, unchanged: Unchanged) =>
+  (!("local" in unchanged) ||
+    State.localVersions.get(uri) === unchanged.local) &&
+  sameStored(await readStored(uri), unchanged.bytes);
+
+const readStored = async (uri: string) => {
+  const handle = await findFileHandle(uri);
+  return handle ? (await handle.getFile()).arrayBuffer() : undefined;
+};
+
+const storedBytes = (uri: string) => withCommitLock(uri, () => readStored(uri));
+
+const sameStored = (a?: ArrayBuffer, b?: ArrayBuffer) =>
+  a && b ? sameBytes(a, b) : !a && !b;
+
+const missingDirectories = async (uri: string) => {
+  const missing: string[] = [];
+  for (
+    let path = getParentPath(getPathFromUri(uri));
+    path && !(await isStoredDirectory(getUriFromPath(path)));
+    path = getParentPath(path)
+  ) {
+    missing.push(getUriFromPath(path));
+  }
+  return missing;
+};
+
+class UndoLog {
+  prior = new Map<string, PriorEntry>();
+  directories = new Set<string>();
+  own = new Set<number>();
+  seen = new Map<string, Set<number>>();
+  copies: TrashCopy[] = [];
+  trashDirectories = new Set<string>();
+  trashBatch?: { projectId: string; deletedAt: number; id: string };
+
+  constructor(readonly action?: WorkspaceEditAction) {}
+
+  watch = (uris: string[], local: number) => {
+    for (const uri of uris) {
+      this.seen.get(uri)?.add(local);
+    }
+  };
+
+  async record(change: WorkspaceEditChange) {
+    const uris =
+      "textDocument" in change
+        ? [change.textDocument.uri]
+        : change.kind === "rename"
+          ? [change.oldUri, change.newUri]
+          : [change.uri];
+    for (const uri of uris) {
+      if (this.prior.has(uri)) {
+        continue;
+      }
+      await drainWrites(uri);
+      this.seen.set(uri, new Set());
+      const bytes = await storedBytes(uri);
+      this.prior.set(uri, {
+        uri,
+        bytes,
+        directory: !bytes && (await isStoredDirectory(uri)),
+        version: State.files.get(uri)?.version,
+        document: State.documents.get(uri),
+      });
+      for (const directory of await missingDirectories(uri)) {
+        this.directories.add(directory);
+      }
+    }
+  }
+
+  commit(local: number) {
+    this.own.add(local);
+  }
+
+  movedOn(entry: PriorEntry) {
+    return this.changedElsewhere(entry.uri);
+  }
+
+  changedElsewhere(uri: string) {
+    return [...(this.seen.get(uri) ?? [])].some((local) => !this.own.has(local));
+  }
+
+  async copyToTrash(target: Restoring) {
+    const originalUri = target.entry.uri;
+    const path = getPathFromUri(originalUri);
+    const projectId = path.split("/")[0]!;
+    if (!this.trashBatch) {
+      const deletedAt = Date.now();
+      this.trashBatch = {
+        projectId,
+        deletedAt,
+        id: `${deletedAt}__${crypto.randomUUID()}`,
+      };
+    }
+    const relPath = path.slice(projectId.length + 1);
+    const uri = getUriFromPath(
+      `${this.trashBatch.projectId}/${TRASH_DIR}/${this.trashBatch.id}/${relPath}`,
+    );
+    for (const directory of await missingDirectories(uri)) {
+      this.trashDirectories.add(directory);
+    }
+    this.seen.set(uri, new Set());
+    const result = (await commitWrite(uri, new Uint8Array(target.current!), 0))!;
+    this.commit(result.local);
+    const copy: TrashCopy = {
+      uri,
+      relPath,
+      originalUri,
+      type: State.files.get(originalUri)?.type ?? getFileType(originalUri),
+      bytes: target.current!,
+      local: result.local,
+    };
+    this.copies.push(copy);
+    return copy;
+  }
+
+  async discardCopy(copy: TrashCopy) {
+    try {
+      const removed = await removeFile(copy.uri, {
+        bytes: copy.bytes,
+        local: copy.local,
+      });
+      if (removed) {
+        this.commit(removed.local);
+        this.copies = this.copies.filter((c) => c !== copy);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async settleTrash(clean: () => boolean) {
+    const unchanged = () =>
+      clean() && !this.copies.some((c) => this.changedElsewhere(c.uri));
+    for (const copy of [...this.copies]) {
+      if (!unchanged()) {
+        break;
+      }
+      await this.discardCopy(copy);
+    }
+    if (this.copies.length === 0) {
+      try {
+        await deleteEmptyDirectories([...this.trashDirectories], new CommitLog());
+      } catch (err) {
+        console.error(err);
+      }
+      return { trashed: [], unlisted: [] };
+    }
+    const { projectId, deletedAt, id } = this.trashBatch!;
+    const reason: TrashReason = { kind: "failed-edit", action: this.action };
+    const manifest = JSON.stringify({
+      deletedAt,
+      entries: this.copies.map(({ relPath, originalUri, type }) => ({
+        relPath,
+        originalUri,
+        type,
+      })),
+      reason,
+    });
+    try {
+      await createFiles([
+        {
+          uri: getUriFromPath(`${projectId}/${TRASH_DIR}/${id}/${TRASH_MANIFEST}`),
+          data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+      return { trashed: [], unlisted: this.copies.map((c) => c.uri) };
+    }
+    return { trashed: this.copies.map((c) => c.originalUri), unlisted: [] };
+  }
+
+  async put(target: Restoring, log: CommitLog, effects: EditEffects) {
+    const { entry, current, local } = target;
+    const unchanged = { bytes: current, local };
+    if (entry.bytes) {
+      const result = await commitWrite(
+        entry.uri,
+        new Uint8Array(entry.bytes),
+        entry.version ?? 0,
+        unchanged,
+      );
+      if (!result) {
+        return false;
+      }
+      this.commit(result.local);
+      log.wrote(result);
+      effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Changed });
+      return true;
+    }
+    const removed = await removeFile(entry.uri, { ...unchanged, bytes: current! });
+    if (!removed) {
+      return false;
+    }
+    this.commit(removed.local);
+    log.record(removed.uri, removed.local, removed.commit);
+    effects.deleted.push(removed);
+    effects.fileEvents.push({ uri: entry.uri, type: FileChangeType.Deleted });
+    return true;
+  }
+
+  async restore(log: CommitLog) {
+    const effects = noEffects();
+    const unknown: string[] = [];
+    const kept: string[] = [];
+    const restored: string[] = [];
+    const entries = [...this.prior.values()].reverse();
+    for (const entry of entries.filter((e) => e.directory)) {
+      try {
+        if (this.movedOn(entry)) {
+          kept.push(entry.uri);
+        } else if (!(await isStoredDirectory(entry.uri))) {
+          await createDirectories([entry.uri], log);
+          this.commit(State.localVersions.get(entry.uri)!);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(entry.uri);
+      }
+    }
+    const creates: Restoring[] = [];
+    const overwrites: Restoring[] = [];
+    const removals: Restoring[] = [];
+    for (const entry of entries.filter((e) => !e.directory)) {
+      try {
+        await drainWrites(entry.uri);
+        const local = State.localVersions.get(entry.uri);
+        const current = await storedBytes(entry.uri);
+        if (this.movedOn(entry)) {
+          kept.push(entry.uri);
+          continue;
+        }
+        const target = { entry, current, local };
+        if (sameStored(current, entry.bytes)) {
+          restored.push(entry.uri);
+        } else if (!current) {
+          creates.push(target);
+        } else if (entry.bytes) {
+          overwrites.push(target);
+        } else {
+          removals.push(target);
+        }
+      } catch (err) {
+        console.error(err);
+        unknown.push(entry.uri);
+      }
+    }
+    const settle = async (target: Restoring) => {
+      try {
+        const done = await this.put(target, log, effects);
+        (done ? restored : kept).push(target.entry.uri);
+        return done ? "restored" : "refused";
+      } catch (err) {
+        console.error(err);
+        unknown.push(target.entry.uri);
+        return "failed";
+      }
+    };
+    for (const target of creates) {
+      await settle(target);
+    }
+    const destroy = async (target: Restoring) => {
+      let copy: TrashCopy;
+      try {
+        copy = await this.copyToTrash(target);
+      } catch (err) {
+        console.error(err);
+        unknown.push(target.entry.uri);
+        return;
+      }
+      if ((await settle(target)) === "refused") {
+        await this.discardCopy(copy);
+      }
+    };
+    if (unknown.length > 0) {
+      unknown.push(...overwrites.map((t) => t.entry.uri));
+    } else {
+      for (const target of overwrites) {
+        await destroy(target);
+      }
+    }
+    if (unknown.length > 0 || entries.some((e) => kept.includes(e.uri) && e.bytes)) {
+      unknown.push(...removals.map((t) => t.entry.uri));
+    } else {
+      for (const target of removals) {
+        await destroy(target);
+      }
+    }
+    const promote = () => {
+      for (const entry of entries) {
+        if (
+          this.movedOn(entry) &&
+          !kept.includes(entry.uri) &&
+          !unknown.includes(entry.uri)
+        ) {
+          kept.push(entry.uri);
+          const at = restored.indexOf(entry.uri);
+          if (at >= 0) {
+            restored.splice(at, 1);
+          }
+        }
+      }
+      return unknown.length === 0 && kept.length === 0;
+    };
+    try {
+      await deleteEmptyDirectories([...this.directories], log);
+    } catch (err) {
+      console.error(err);
+      unknown.push(...this.directories);
+    }
+    promote();
+    const { trashed, unlisted } = await this.settleTrash(promote);
+    promote();
+    for (const uri of unknown) {
+      log.reconcile(
+        uri,
+        this.directories.has(uri) || !!this.prior.get(uri)?.directory,
+      );
+    }
+    for (const entry of entries) {
+      if (!restored.includes(entry.uri)) {
+        continue;
+      }
+      if (entry.document) {
+        State.documents.set(entry.uri, entry.document);
+      } else {
+        State.documents.delete(entry.uri);
+      }
+    }
+    return { effects, unknown, kept, trashed, unlisted };
+  }
+}
+
+const applyChange = async (
+  change: WorkspaceEditChange,
+  log: CommitLog,
+  effects: EditEffects,
+  undo: UndoLog,
+  expectedTexts?: Record<string, string>,
+) => {
+  const wrote = (result: WriteResult) => {
+    undo.commit(result.local);
+    log.wrote(result);
+    if (result.created) {
+      effects.created.push(result);
+    }
+    effects.fileEvents.push({
+      uri: result.file.uri,
+      type: result.created ? FileChangeType.Created : FileChangeType.Changed,
+    });
+  };
+  if ("textDocument" in change) {
+    const [written] = await editTextFiles([change], expectedTexts);
+    if (written) {
+      wrote(written);
+    } else {
+      effects.fileEvents.push({
+        uri: change.textDocument.uri,
+        type: FileChangeType.Changed,
+      });
+    }
+  } else if (change.kind === "create") {
+    (await createFiles([change])).forEach(wrote);
+  } else if (change.kind === "delete") {
+    const [result] = await deleteFiles([change]);
+    if (result) {
+      undo.commit(result.local);
+      log.record(result.uri, result.local, result.commit);
+      effects.deleted.push(result);
+      effects.fileEvents.push({ uri: change.uri, type: FileChangeType.Deleted });
+    }
+  } else if (change.kind === "rename") {
+    const [outcome] = await renameFiles([change]);
+    if (outcome?.write) {
+      undo.commit(outcome.write.local);
+      log.wrote(outcome.write);
+    }
+    if (outcome?.deleted) {
+      undo.commit(outcome.deleted.local);
+      log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
+      effects.renamed.push(outcome);
+      effects.fileEvents.push({ uri: change.oldUri, type: FileChangeType.Deleted });
+    }
+    if (outcome?.write) {
+      effects.fileEvents.push({ uri: change.newUri, type: FileChangeType.Created });
+    }
+    if (outcome?.error != null) {
+      throw outcome.error;
+    }
+  }
+};
+
+const applyWorkspaceEdit = async (
+  edit: ApplyWorkspaceEditMessage.Request["params"]["edit"],
+  log: CommitLog,
+  {
+    expectedTexts,
+    action,
+  }: { expectedTexts?: Record<string, string>; action?: WorkspaceEditAction } = {},
+) => {
+  const changes: WorkspaceEditChange[] =
+    edit.documentChanges ??
+    Object.entries(edit.changes ?? {}).map(([uri, edits]) => ({
+      textDocument: { uri, version: State.files.get(uri)?.version ?? 0 },
+      edits,
+    }));
+  const changed = Object.keys(expectedTexts ?? {}).find(
+    (uri) => !matchesExpectedText(uri, expectedTexts),
+  );
+  if (changed) {
+    return {
+      effects: noEffects(),
+      failure: {
+        change: 0,
+        reason: `${changed.split("/").pop()} changed before the edit could be applied`,
+        rollback: { complete: true, failed: [], kept: [] },
+      },
+    };
+  }
+  const undo = new UndoLog(action);
+  const effects = noEffects();
+  commitWatchers.add(undo.watch);
+  try {
+    for (const [index, change] of changes.entries()) {
+      try {
+        await undo.record(change);
+        await applyChange(change, log, effects, undo, expectedTexts);
+      } catch (err: any) {
+        console.error(err, err?.stack);
+        const reason = err?.message ?? String(err);
+        const { effects, unknown, kept, trashed, unlisted } = await undo
+          .restore(log)
+          .catch((restoreError) => {
+            console.error(restoreError);
+            return {
+              effects: noEffects(),
+              unknown: [...undo.prior.keys()],
+              kept: [] as string[],
+              trashed: [] as string[],
+              unlisted: undo.copies.map((c) => c.uri),
+            };
+          });
+        const partial = [
+          ...(unknown.length > 0
+            ? [`restoring the earlier changes failed, so these may be left changed: ${unknown.join(", ")}`]
+            : []),
+          ...(kept.length > 0
+            ? [`these were changed by another save while the edit ran, so they were left as they are: ${kept.join(", ")}`]
+            : []),
+          ...(trashed.length > 0
+            ? [`copies of what the rollback replaced or removed are in the Trash: ${trashed.join(", ")}`]
+            : []),
+          ...(unlisted.length > 0
+            ? [`copies of what the rollback replaced or removed could not be listed in the Trash; they are stored at: ${unlisted.join(", ")}`]
+            : []),
+        ];
+        return {
+          effects,
+          failure: {
+            change: index,
+            reason:
+              partial.length === 0
+                ? reason
+                : `${reason}; the edit was partly applied: ${partial.join("; ")}`,
+            rollback: {
+              complete: partial.length === 0,
+              failed: [...unknown, ...unlisted],
+              kept,
+              ...(trashed.length > 0 ? { trashed } : {}),
+            },
+          },
+        };
+      }
+    }
+    return { effects, failure: undefined };
+  } finally {
+    commitWatchers.delete(undo.watch);
   }
 };
 
@@ -1676,6 +2127,38 @@ const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
   }
 };
 
+const commitWrite = async (
+  fileUri: string,
+  buffer: DataView | Uint8Array,
+  version: number,
+  unchangedSince?: Unchanged,
+): Promise<WriteResult | undefined> => {
+  const { result: created, commit, local } = await commitChange(
+    fileUri,
+    async () =>
+      unchangedSince && !(await isUnchanged(fileUri, unchangedSince))
+        ? null
+        : writeToDisk(fileUri, buffer),
+    (created) => (created === null ? [] : withAncestors(fileUri)),
+  );
+  if (created === null) {
+    return undefined;
+  }
+  const arrayBuffer = buffer.buffer as ArrayBuffer;
+  const current = isLocalLatest(fileUri, local!);
+  const file = current
+    ? updateFileCache(fileUri, arrayBuffer, true, version, Date.now())
+    : describeFile(fileUri, arrayBuffer, true, version, Date.now());
+  if (current) {
+    await enrichUrlAssetType(fileUri);
+  }
+  const committedFile = isLocalLatest(fileUri, local!)
+    ? (State.files.get(fileUri) ?? file)
+    : file;
+  await enqueueThumbnail(fileUri);
+  return { file: committedFile, created, local: local!, commit };
+};
+
 const write = async (fileUri: string) => {
   const entry = State.writeQueue.get(fileUri);
   const batch = entry?.batches[0];
@@ -1685,25 +2168,9 @@ const write = async (fileUri: string) => {
   console.log(MAGENTA, "WRITE", fileUri);
   const { buffer, version, origin, listeners } = batch;
   try {
-    const { result: created, commit, local } = await commitChange(
-      fileUri,
-      () => writeToDisk(fileUri, buffer),
-      () => withAncestors(fileUri),
-    );
-    const arrayBuffer = buffer.buffer as ArrayBuffer;
-    const current = isLocalLatest(fileUri, local!);
-    const file = current
-      ? updateFileCache(fileUri, arrayBuffer, true, version, Date.now())
-      : describeFile(fileUri, arrayBuffer, true, version, Date.now());
-    if (current) {
-      await enrichUrlAssetType(fileUri);
-    }
-    const committedFile = isLocalLatest(fileUri, local!)
-      ? (State.files.get(fileUri) ?? file)
-      : file;
-    await enqueueThumbnail(fileUri);
+    const result = (await commitWrite(fileUri, buffer, version))!;
     listeners.forEach((l) => {
-      l.resolve({ file: committedFile, created, local: local!, commit, origin });
+      l.resolve({ ...result, origin });
     });
   } catch (err: any) {
     listeners.forEach((listener) => listener.reject(err));
@@ -1827,6 +2294,7 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
         deletedAt: m.deletedAt,
         entries: m.entries,
         ...(m.folders?.length ? { folders: m.folders } : {}),
+        ...(m.reason?.kind === "failed-edit" ? { reason: m.reason } : {}),
       });
     } catch {
     }
@@ -1993,7 +2461,7 @@ const evictFile = (uri: string) => {
 
 const removeFile = async (
   uri: string,
-  unchangedSince?: ArrayBuffer,
+  unchangedSince?: Unchanged & { bytes: ArrayBuffer },
 ): Promise<DeleteResult | undefined> => {
   console.log(MAGENTA, "DELETE", uri);
   const root = await navigator.storage.getDirectory();
@@ -2014,7 +2482,11 @@ const removeFile = async (
             await directoryHandle.getFileHandle(getFileName(relativePath))
           ).getFile()
         ).arrayBuffer();
-        if (!sameBytes(stored, unchangedSince)) {
+        if (
+          !sameBytes(stored, unchangedSince.bytes) ||
+          ("local" in unchangedSince &&
+            State.localVersions.get(uri) !== unchangedSince.local)
+        ) {
           return null;
         }
       }
@@ -2084,7 +2556,7 @@ const copyThenRemove = async (
     const data = await readFile(sourceUri);
     const [write] = await createFiles([{ uri: destinationUri, data }]);
     copied?.(write);
-    const deleted = await removeFile(sourceUri, data);
+    const deleted = await removeFile(sourceUri, { bytes: data });
     if (deleted) {
       return deleted;
     }

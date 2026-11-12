@@ -7,6 +7,7 @@ import { coarsePointer } from "./pointer";
 import { findReferences } from "./tools";
 import { renameSymbol } from "./rename";
 import type { EditorShortcutId } from "./shortcutTable";
+import { wordAt } from "../../codemirror-vscode-language/src/utils/wordAt";
 
 export type ContextMenuItem =
   | {
@@ -236,7 +237,7 @@ export const textContextMenuItems: ContextMenuItem[] = [
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 const onName = (state: EditorState, pos: number) => {
-  const word = state.wordAt(pos);
+  const word = wordAt(state, pos);
   if (!word) {
     return false;
   }

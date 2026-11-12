@@ -1,0 +1,11 @@
+function f(ok)
+  local s = (x@return if ok then 1)
+end
+
+function f(ok)
+  print(x@and if ok then 1)
+end
+
+function f(ok)
+  local s = (x@return --[[c]] if ok then 1)
+end
