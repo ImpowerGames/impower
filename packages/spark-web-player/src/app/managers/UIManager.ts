@@ -1,6 +1,7 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
+import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import {
@@ -86,6 +87,7 @@ interface PendingBeat {
   ops: IMessage[];
   plan: Map<IMessage, WriteDecision>;
   at: number;
+  lag: number;
   timer?: ReturnType<typeof setTimeout>;
   owner: UIManager;
 }
@@ -227,6 +229,14 @@ export default class UIManager extends Manager {
   protected _breakpoints: Record<string, number> = {};
 
   protected _theme: ThemeVariables = new Set();
+
+  protected _hold = new AnimationHold();
+
+  protected _heldAt?: number;
+
+  protected _heldLag = 0;
+
+  protected _lag = 0;
 
   protected _themeKey = getThemeKey([]);
 
@@ -403,21 +413,48 @@ export default class UIManager extends Manager {
   }
 
   override onSkip(seconds: number) {
+    this._lag -= seconds * 1000;
+    this._hold.step(seconds * 1000);
     this.morphs?.step(seconds);
     this.skipMovies(seconds);
+    this.scheduleCommit();
   }
 
   override onPause() {
+    if (this._heldAt == null) {
+      this._heldAt = this.documentNow();
+      this._heldLag = this._lag;
+    }
+    this._hold.pause();
+    this.scheduleCommit();
     this.morphs?.setPaused(true);
     this.pauseMovies();
   }
 
   override onUnpause() {
+    if (this._heldAt != null) {
+      this._lag += this.documentNow() - this._heldAt;
+      this._heldAt = undefined;
+    }
+    this._hold.resume();
     this.morphs?.setPaused(false);
     this.resumeMovies();
+    this.scheduleCommit();
+  }
+
+  protected documentNow(): number {
+    const doc = this.app.overlay?.ownerDocument;
+    return Number(
+      doc?.timeline?.currentTime ?? doc?.defaultView?.performance.now(),
+    );
+  }
+
+  protected lag(now = this.documentNow()): number {
+    return this._lag + (this._heldAt != null ? now - this._heldAt : 0);
   }
 
   override onDispose() {
+    this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
     }
@@ -529,28 +566,49 @@ export default class UIManager extends Manager {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
-    const wait = this.waitToCommit(params, ops, plan);
+    const now = this.documentNow();
+    const lag = this._heldAt != null ? this._heldLag : this.lag(now);
+    const storyNow = now - (this.lag(now) - lag);
+    const wait = this.waitToCommit(params, ops, plan, storyNow);
     if (!overlay || wait <= 0) {
+      this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan);
       return;
     }
-    const at = Number(overlay.ownerDocument.timeline?.currentTime) + wait;
-    const pending: PendingBeat = { params, ops, plan, at, owner: this };
-    pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
-    overlay.__sdBeat = pending;
+    overlay.__sdBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
+    this.scheduleCommit();
+  }
+
+  protected dueAt(pending: PendingBeat, now: number): number {
+    return pending.at + this.lag(now) - pending.lag;
+  }
+
+  protected scheduleCommit() {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const pending = overlay?.__sdBeat;
+    if (!pending || pending.owner !== this) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    pending.timer = undefined;
+    const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
+    if (wait <= 0) {
+      this.flushPendingBeat();
+      return;
+    }
+    if (this._heldAt == null) {
+      pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
+    }
   }
 
   protected commitWhenDue(pending: PendingBeat) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
-    if (overlay?.__sdBeat !== pending) {
+    if (overlay?.__sdBeat !== pending || this._heldAt != null) {
       return;
     }
-    const doc = overlay.ownerDocument;
-    const view = doc.defaultView;
-    if (
-      view?.requestAnimationFrame &&
-      Number(doc.timeline?.currentTime) < pending.at
-    ) {
+    const view = overlay.ownerDocument.defaultView;
+    const now = this.documentNow();
+    if (view?.requestAnimationFrame && now < this.dueAt(pending, now)) {
       view.requestAnimationFrame(() => pending.owner.commitWhenDue(pending));
       return;
     }
@@ -565,18 +623,34 @@ export default class UIManager extends Manager {
     }
     overlay.__sdBeat = undefined;
     clearTimeout(pending.timer);
+    this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
     this.applyBeat(pending.params, pending.ops, pending.plan);
+  }
+
+  protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
+    if (shift === 0 || !Number.isFinite(shift)) {
+      return;
+    }
+    if (params.time != null) {
+      params.time += shift;
+    }
+    for (const op of ops) {
+      const stamped = (op as { params?: { time?: unknown } }).params;
+      if (typeof stamped?.time === "number") {
+        stamped.time += shift;
+      }
+    }
   }
 
   protected waitToCommit(
     params: BeatParams,
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
+    now: number,
   ): number {
     if (params.time == null) {
       return 0;
     }
-    const now = Number(this.app.overlay?.ownerDocument?.timeline?.currentTime);
     const shown = this.getDisplayTime(params.time);
     if (!Number.isFinite(now) || shown == null || shown - now > COMMIT_WAIT_LIMIT_MS) {
       return 0;
@@ -1282,7 +1356,7 @@ export default class UIManager extends Manager {
     }
     if (AnimateElementsMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       const validEffects: number[] = [];
       for (let i = 0; i < params.effects.length; i += 1) {
         const effect = params.effects[i];
@@ -1676,7 +1750,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
-    const shownNow = new AnimationPlayer(this._theme);
+    const shownNow = new AnimationPlayer(this._theme, this._hold);
     for (const { element, animation } of enterNow) {
       (element as any).__sdReveal = shownNow.add({
         element,
@@ -1685,7 +1759,7 @@ export default class UIManager extends Manager {
     }
     const showing = enterNow.length > 0 ? shownNow.play() : undefined;
     if (enter.length > 0 || waiting.length > 0) {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const { element, animation } of enter) {
         (element as any).__sdReveal = player.add({
           element,
@@ -1910,13 +1984,13 @@ export default class UIManager extends Manager {
     }
 
     if (targetEffects.length > 0) {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const e of targetEffects) {
         player.add(e);
       }
       await player.play(startTime);
       if (startTime != null) {
-        startTime += player.endTime;
+        startTime = player.finishTime ?? startTime + player.endTime;
       }
     }
     for (const video of newMovies) {
@@ -1930,7 +2004,7 @@ export default class UIManager extends Manager {
       if (effects.length === 0) {
         return Promise.resolve();
       }
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       for (const e of effects) {
         const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
@@ -1963,20 +2037,24 @@ export default class UIManager extends Manager {
   ) {
     const doc = el.ownerDocument;
     const view = doc.defaultView;
-    const starts = exits
-      .map((exit) =>
-        exit.startTime == null
-          ? NaN
-          : Number(exit.startTime) +
-            Number(exit.effect?.getTiming?.().delay ?? 0),
-      )
-      .filter((at) => Number.isFinite(at));
-    const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
+    const startOf = (exit: globalThis.Animation, now: number) =>
+      exit.startTime != null
+        ? Number(exit.startTime)
+        : exit.currentTime != null
+          ? now - Number(exit.currentTime) / exit.playbackRate
+          : NaN;
     const check = () => {
       if (!el.isConnected) {
         return;
       }
       const now = Number(doc.timeline?.currentTime);
+      const starts = exits
+        .map(
+          (exit) =>
+            startOf(exit, now) + Number(exit.effect?.getTiming?.().delay ?? 0),
+        )
+        .filter((at) => Number.isFinite(at));
+      const at = starts.length > 0 ? Math.min(...starts) : -Infinity;
       if (!(now < at)) {
         this.morphs?.freezeWithin(el);
         return;
@@ -2027,7 +2105,7 @@ export default class UIManager extends Manager {
     };
     let transition: ReturnType<AnimationPlayer["add"]> = [];
     const playTransition = (animation: Animation) => {
-      const player = new AnimationPlayer(this._theme);
+      const player = new AnimationPlayer(this._theme, this._hold);
       transition = player.add({ element, animations: [animation] });
       return player.play().finally(() => {
         transition = [];

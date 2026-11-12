@@ -2,6 +2,7 @@ import type { Animation as AnimationDefinition } from "../../../spark-engine/src
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssTokenValue } from "../utils/getCssTokenValue";
+import type AnimationHold from "./AnimationHold";
 import { getMilliseconds } from "../utils/getMilliseconds";
 
 export interface AnimationInstance {
@@ -19,11 +20,11 @@ export default class AnimationPlayer {
 
   protected _theme: ThemeVariables;
 
-  constructor(theme: ThemeVariables, effects: AnimationEffect[] = []) {
+  protected _hold?: AnimationHold;
+
+  constructor(theme: ThemeVariables, hold?: AnimationHold) {
     this._theme = theme;
-    for (const t of effects) {
-      this.add(t);
-    }
+    this._hold = hold;
   }
 
   add(effect: AnimationEffect): Animation[] {
@@ -123,6 +124,28 @@ export default class AnimationPlayer {
     return created;
   }
 
+  get finishTime(): number | undefined {
+    let finish: number | undefined;
+    for (const { animation } of this._instances) {
+      const rate = animation.playbackRate;
+      const time = animation.currentTime;
+      const now = animation.timeline?.currentTime;
+      const start =
+        animation.startTime ??
+        (time == null || now == null || !rate
+          ? null
+          : Number(now) - Number(time) / rate);
+      if (start == null || !rate) {
+        continue;
+      }
+      const end =
+        Number(start) +
+        Number(animation.effect?.getComputedTiming?.().endTime ?? 0) / rate;
+      finish = finish == null ? end : Math.max(finish, end);
+    }
+    return finish;
+  }
+
   get endTime(): number {
     let end = 0;
     for (const instance of this._instances) {
@@ -141,7 +164,9 @@ export default class AnimationPlayer {
           instance.animation.startTime = document.timeline.currentTime;
           instance.animation.play();
         }
-        await instance.animation.finished;
+        await (this._hold
+          ? this._hold.add(instance.animation)
+          : instance.animation.finished);
       }),
     );
   }
