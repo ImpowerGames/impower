@@ -30,7 +30,7 @@ import {
 import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
-const { LAUNCH_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
+const { LAUNCH_SECONDS, SHELL_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
 const { shotWaitsFor } = await import("./steps.mjs");
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -306,10 +306,14 @@ await check("on a device, ui reports the device, sends gestures through it and t
   assert.equal(process.exitCode, 0);
 });
 
-function fakeTab(log, name, url) {
+const LAID_OUT = { width: 980, height: 1839 };
+const UNRENDERED = { width: 0, height: 0 };
+
+function fakeTab(log, name, url, size = LAID_OUT) {
   return {
     name,
     url: () => url,
+    evaluate: async () => size,
     bringToFront: async () => log.push([`${name}.bringToFront`]),
     close: async () => log.push([`${name}.close`]),
   };
@@ -326,7 +330,7 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
     if (command.startsWith("settings get system user_rotation")) return Buffer.from("null\n");
     return Buffer.from("");
   };
-  const listed = tabs.map(([name, url]) => fakeTab(log, name, url));
+  const listed = tabs.map(([name, url, size]) => fakeTab(log, name, url, size));
   const ctx = {
     close: async () => log.push(["context.close"]),
     pages: () => [...listed],
@@ -527,26 +531,61 @@ await check("the route drives the one tab Chrome's launch opened, fronts it and 
     assert.deepEqual(fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]), ["launch.close", "context.close", "device.close"]);
   }));
 
-await check("with other tabs listed, the route opens a tab of its own, drives and closes only that one, and never touches the others", () =>
+await check("with restored tabs listed beside it, the route still drives and closes the launch tab, the only blank one laid out, and touches no other", () =>
   withAdb(async () => {
-    const fake = fakeAndroid({ tabs: [["stray1", "about:blank"], ["stray2", "https://example.com/"], ["launch", "about:blank"]] });
+    const fake = fakeAndroid({ tabs: [["stray1", "about:blank", UNRENDERED], ["stray2", "https://example.com/", UNRENDERED], ["launch", "about:blank", LAID_OUT]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "launch");
+    assert.ok(!fake.log.some((entry) => entry[0] === "newPage"));
+    assert.equal(session.device.report().tab, "the tab Chrome opened for this run");
+    await session.close();
+    const closed = fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]);
+    assert.deepEqual(closed, ["launch.close", "context.close", "device.close"]);
+  }));
+
+await check("when the launch tab cannot be told apart, the route opens a tab of its own, drives and closes only that one, and says the launch tab stays", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["stray", "about:blank", LAID_OUT], ["launch", "about:blank", LAID_OUT]] });
     const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
     assert.equal(session.page.name, "new");
     assert.ok(fake.log.some((entry) => entry[0] === "new.bringToFront"));
-    assert.match(session.device.report().tab, /^a new tab: Chrome listed 3 tabs at launch/);
+    assert.match(session.device.report().tab, /^a new tab: of the 2 tabs Chrome listed at launch, not exactly one was a blank page laid out on screen/);
     await session.close();
     const closed = fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]);
     assert.deepEqual(closed, ["new.close", "context.close", "device.close"]);
   }));
 
-await check("the tab choice takes Chrome's launch tab only when it is the one tab listed and still blank", () => {
-  const tab = (url) => ({ url: () => url });
-  const only = tab("about:blank");
-  assert.equal(launchTab([only]), only);
-  assert.equal(launchTab([]), null);
-  assert.equal(launchTab([tab("https://example.com/")]), null);
-  assert.equal(launchTab([tab("about:blank"), tab("about:blank")]), null);
+await check("the tab choice takes the one blank tab laid out on screen, since after Chrome's restart only the tab its launch fronts is laid out", async () => {
+  const tab = (url, size) => ({ url: () => url, size });
+  const measure = async (page) => page.size;
+  const launch = tab("about:blank", LAID_OUT);
+  assert.equal(await launchTab([launch], measure), launch);
+  assert.equal(await launchTab([tab("about:blank", UNRENDERED), tab("https://example.com/", LAID_OUT), launch], measure), launch);
+  assert.equal(await launchTab([], measure), null);
+  assert.equal(await launchTab([tab("https://example.com/", LAID_OUT)], measure), null);
+  assert.equal(await launchTab([tab("about:blank", UNRENDERED)], measure), null);
+  assert.equal(await launchTab([tab("about:blank", LAID_OUT), tab("about:blank", LAID_OUT)], measure), null);
+  const failing = { url: () => "about:blank", evaluate: async () => { throw new Error("Target closed"); } };
+  assert.equal(await launchTab([failing]), null);
 });
+
+await check("a device that stops answering fails the run within the answer limit, naming the command, and the session is undone", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid();
+    const answering = fake.devices[0].shell;
+    fake.devices[0].shell = (command) => (command === "wm size" ? new Promise(() => {}) : answering(command));
+    await assert.rejects(
+      openAndroidDevice({ record: { url: "http://localhost:38000" }, answerMs: 50, ...fake, ...adbHere }),
+      /`adb shell wm size` on emulator-5554 did not answer within 0\.05 s; the device has stopped responding/,
+    );
+    assert.deepEqual(fake.log.slice(-3), [["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
+
+    const listing = fakeAndroid();
+    listing.playwright = async () => ({ _android: { devices: () => new Promise(() => {}) } });
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, answerMs: 50, ...listing, ...adbHere }), /Playwright's list of Android devices did not answer within 0\.05 s/);
+    assert.deepEqual(listing.log.at(-1), ["release"]);
+    assert.equal(SHELL_SECONDS, 30);
+  }));
 
 await check("a page that measures 0x0 or is not the visible tab fails the run, naming the cause", () => {
   assert.equal(pageVerdict({ width: 430, height: 807, visibility: "visible" }), null);
@@ -574,27 +613,64 @@ await check("a device shot waits for the surface the step before it opened, and 
   assert.equal(shotWaitsFor(parseUiSteps(["--shot", "a.png"], { device }), 0), null);
 });
 
-await check("on a device, --shot after a named step waits for that step's surface to paint before the capture, and fails when it never paints", async () => {
-  for (const painted of [true, false]) {
-    const page = stubPage();
-    const dev = stubDevice();
-    const { deps } = uiDeps(page, dev);
-    const order = [];
-    dev.screenshot = async (file) => order.push(["screenshot", file]);
-    const shot = path.join(scratch, `after-step-${painted}.png`);
-    const result = await ui(["--step", "add-menu", "--shot", shot], {
-      device,
-      ...deps,
-      surfacePainted: async (_page, waitsFor) => {
-        order.push(["waited", waitsFor.what]);
-        return painted;
+function addSheetPage({ animationPolls, hidden = false }) {
+  const panelSelector = NAMED_STEPS["add-menu"].waitsFor.selector;
+  const dom = { open: false, polls: 0 };
+  const panel = { getBoundingClientRect: () => ({ width: 430, height: 420 }), contains: (other) => other === panel };
+  const running = () => dom.open && dom.polls < animationPolls;
+  const fakeDocument = {
+    querySelectorAll: (selector) => (selector === panelSelector && dom.open ? [panel] : []),
+    getAnimations: () => (running() ? [{ effect: { target: panel, getComputedTiming: () => ({ endTime: 250 }) }, playState: "running" }] : []),
+  };
+  const page = stubPage();
+  const evaluateDefault = page.evaluate;
+  page.locator = (selector) => ({
+    first: () => ({
+      isVisible: async () => selector === "[data-add-trigger]",
+      click: async () => {
+        dom.open = true;
       },
-    });
-    assert.deepEqual(order, [["waited", NAMED_STEPS["add-menu"].waitsFor.what], ["screenshot", shot]]);
-    const shotStep = result.steps.at(-1);
-    assert.equal(shotStep.waitedFor, NAMED_STEPS["add-menu"].waitsFor.what);
-    if (painted) assert.equal(shotStep.reason, undefined);
-    else assert.match(shotStep.reason, /had not painted within/);
+      waitFor: async () => {
+        if (selector === panelSelector && !dom.open) throw new Error("not visible");
+      },
+    }),
+  });
+  page.evaluate = (fn, arg) => (arg === panelSelector ? Promise.resolve([{ construct: "character", disabled: false }]) : evaluateDefault(fn, arg));
+  page.waitForFunction = async (fn, arg) => {
+    const saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+    globalThis.document = fakeDocument;
+    globalThis.getComputedStyle = () => ({ visibility: hidden ? "hidden" : "visible" });
+    try {
+      for (; dom.polls < 20; dom.polls++) if (fn(arg)) return true;
+    } finally {
+      Object.assign(globalThis, saved);
+    }
+    throw new Error("Timeout exceeded");
+  };
+  return { page, dom, animating: running };
+}
+
+await check("on a device, --shot after a named step waits until that step's surface has finished animating, and fails when it never settles", async () => {
+  for (const [label, options, settles] of [["settles", { animationPolls: 3 }, true], ["never settles", { animationPolls: Infinity }, false], ["stays hidden", { animationPolls: 0, hidden: true }, false]]) {
+    const { page, animating } = addSheetPage(options);
+    const dev = stubDevice();
+    const captured = [];
+    dev.screenshot = async () => captured.push({ animating: animating() });
+    const result = await ui(["--step", "add-menu", "--shot", path.join(scratch, `add-${label}.png`)], { device, ...uiDeps(page, dev).deps });
+    assert.deepEqual(result.steps[0], { step: "add-menu", ran: true, opened: "popover", rows: [{ construct: "character", disabled: false }] }, label);
+    const shotStep = result.steps[1];
+    assert.equal(shotStep.waitedFor, "the Add to script panel", label);
+    assert.equal(captured.length, 1, label);
+    if (settles) {
+      assert.deepEqual(captured, [{ animating: false }], label);
+      assert.equal(shotStep.reason, undefined, label);
+      assert.deepEqual(result.failed, [], label);
+      assert.equal(process.exitCode, 0, label);
+    } else {
+      assert.match(shotStep.reason, /the Add to script panel had not painted within 5s of the screenshot/, label);
+      assert.deepEqual(result.failed, [shotStep.reason], label);
+      assert.equal(process.exitCode, 1, label);
+    }
     process.exitCode = 0;
   }
 });

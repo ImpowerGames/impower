@@ -2742,22 +2742,20 @@ async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
     .then(() => true, () => false);
 }
 
-async function surfacePainted(page, waitsFor, timeout = PAINT_BUDGET_MS) {
+export function surfaceSettled(selector) {
+  return [...document.querySelectorAll(selector)].some((el) => {
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || getComputedStyle(el).visibility === "hidden") return false;
+    return !document.getAnimations().some((animation) => {
+      const target = animation.effect?.target;
+      return target && (target.contains(el) || el.contains(target)) && animation.playState === "running" && Number.isFinite(animation.effect.getComputedTiming().endTime);
+    });
+  });
+}
+
+export async function surfacePainted(page, waitsFor, timeout = PAINT_BUDGET_MS) {
   const shown = await page
-    .waitForFunction(
-      (selector) =>
-        [...document.querySelectorAll(selector)].some((el) => {
-          const rect = el.getBoundingClientRect();
-          if (rect.width <= 0 || rect.height <= 0) return false;
-          const moving = document.getAnimations().filter((animation) => {
-            const target = animation.effect?.target;
-            return target && (target.contains(el) || el.contains(target)) && animation.playState === "running" && Number.isFinite(animation.effect.getComputedTiming().endTime);
-          });
-          return moving.length === 0;
-        }),
-      waitsFor.selector,
-      { timeout },
-    )
+    .waitForFunction(surfaceSettled, waitsFor.selector, { timeout })
     .then(() => true, () => false);
   if (!shown) return false;
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

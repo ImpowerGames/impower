@@ -350,8 +350,16 @@ export function planReverse(ports, mapped) {
   return plan;
 }
 
-export function launchTab(pages) {
-  return pages.length === 1 && pages[0].url() === BLANK_URL ? pages[0] : null;
+const pageSize = (page) => page.evaluate(() => ({ width: innerWidth, height: innerHeight })).catch(() => ({ width: 0, height: 0 }));
+
+export async function launchTab(pages, measure = pageSize) {
+  const blank = pages.filter((page) => page.url() === BLANK_URL);
+  const shown = [];
+  for (const page of blank) {
+    const { width, height } = await measure(page);
+    if (width > 0 && height > 0) shown.push(page);
+  }
+  return shown.length === 1 ? shown[0] : null;
 }
 
 export function pageVerdict({ width, height, visibility }) {
@@ -361,23 +369,24 @@ export function pageVerdict({ width, height, visibility }) {
   return null;
 }
 
-function withinLimit(promise, ms) {
-  let timer;
-  const late = new Promise((resolve) => {
-    timer = setTimeout(() => resolve({ late: true }), ms);
-  });
-  const settled = promise.then((value) => ({ value }));
-  settled.catch(() => {});
-  return Promise.race([settled, late]).finally(() => clearTimeout(timer));
+export const SHELL_SECONDS = 30;
+
+async function answered(promise, ms, what) {
+  const settled = await settleWithin(promise, ms);
+  if (settled.late) {
+    settled.late.catch(() => {});
+    throw new Error(`${what} did not answer within ${ms / 1000} s; the device has stopped responding (\`adb shell\` hangs while \`adb devices\` still lists it), so restart the emulator`);
+  }
+  return settled.value;
 }
 
-const shellText = async (device, command) => String(await device.shell(command)).trim();
+const shellText = async (device, answerMs, command) => String(await answered(device.shell(command), answerMs, `\`adb shell ${command}\` on ${device.serial()}`)).trim();
 
-export function deviceInput(device) {
+export function deviceInput(device, answerMs) {
   return {
-    tap: ({ x, y }) => shellText(device, `input tap ${x} ${y}`),
-    longPress: ({ x, y }, ms = LONG_PRESS_MS) => shellText(device, `input swipe ${x} ${y} ${x} ${y} ${ms}`),
-    swipe: (from, to, ms = SWIPE_MS) => shellText(device, `input swipe ${from.x} ${from.y} ${to.x} ${to.y} ${ms}`),
+    tap: ({ x, y }) => shellText(device, answerMs, `input tap ${x} ${y}`),
+    longPress: ({ x, y }, ms = LONG_PRESS_MS) => shellText(device, answerMs, `input swipe ${x} ${y} ${x} ${y} ${ms}`),
+    swipe: (from, to, ms = SWIPE_MS) => shellText(device, answerMs, `input swipe ${from.x} ${from.y} ${to.x} ${to.y} ${ms}`),
   };
 }
 
@@ -393,6 +402,7 @@ export async function openAndroidDevice({
   acquire = acquireDevice,
   lockOptions = {},
   launchMs = LAUNCH_SECONDS * 1000,
+  answerMs = SHELL_SECONDS * 1000,
   log = () => {},
 }) {
   const adb = requireAdb({ env, platform });
@@ -416,7 +426,7 @@ export async function openAndroidDevice({
   };
   try {
     const { _android } = await playwright();
-    const enumerated = await _android.devices({ omitDriverInstall: true });
+    const enumerated = await answered(_android.devices({ omitDriverInstall: true }), answerMs, "Playwright's list of Android devices");
     const device = enumerated.find((candidate) => candidate.serial() === serial);
     if (device) undo.push({ what: "close the device connection", run: () => device.close() });
     const others = enumerated.filter((candidate) => candidate !== device);
@@ -424,7 +434,7 @@ export async function openAndroidDevice({
     if (!device) throw new Error(`adb lists ${serial}, and Playwright's Android connection does not; restart the adb server (\`adb kill-server\`) and retry`);
     const stuck = closed.map((result, index) => (result.status === "rejected" ? `${others[index].serial()}: ${String(result.reason?.message || result.reason).split("\n")[0]}` : null)).filter(Boolean);
     if (stuck.length) throw new Error(`could not close Playwright's connection to the other attached devices (${stuck.join("; ")})`);
-    const chrome = requireChrome(parseChromeVersion(await shellText(device, `dumpsys package ${CHROME_PACKAGE}`)), serial);
+    const chrome = requireChrome(parseChromeVersion(await shellText(device, answerMs, `dumpsys package ${CHROME_PACKAGE}`)), serial);
 
     const mapped = parseReverseList((await adbOn(["reverse", "--list"])).stdout);
     const plan = planReverse(editorPorts(record), mapped);
@@ -441,20 +451,21 @@ export async function openAndroidDevice({
       undo.push({ what: `remove the adb reverse mapping for port ${port}`, run: () => adbOn(["reverse", "--remove", `tcp:${port}`]) });
     }
 
-    const screen = parseWmSize(await shellText(device, "wm size"));
-    const density = parseWmDensity(await shellText(device, "wm density"));
+    const screen = parseWmSize(await shellText(device, answerMs, "wm size"));
+    const density = parseWmDensity(await shellText(device, answerMs, "wm density"));
     let appliedDensity = density.override ?? density.physical;
     if (viewport) {
       const width = Math.min((screen.override ?? screen.physical).width, (screen.override ?? screen.physical).height);
       appliedDensity = densityForWidth(width, viewport.width);
-      undo.push({ what: "restore the screen density", run: () => shellText(device, density.override ? `wm density ${density.override}` : "wm density reset") });
-      await shellText(device, `wm density ${appliedDensity}`);
+      undo.push({ what: "restore the screen density", run: () => shellText(device, answerMs, density.override ? `wm density ${density.override}` : "wm density reset") });
+      await shellText(device, answerMs, `wm density ${appliedDensity}`);
     }
 
     let ctx;
     try {
-      const launched = await withinLimit(device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) }), launchMs);
+      const launched = await settleWithin(device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) }), launchMs);
       if (launched.late) {
+        launched.late.then((late) => late?.close(), () => {});
         throw new Error(`Chrome on ${serial} offered no debugging connection within ${launchMs / 1000} s: it died, or it did not read the command line that names the connection; ${COMMAND_LINE_CHECK(serial)}\n${ANDROID_SETUP}`);
       }
       ctx = launched.value;
@@ -467,36 +478,36 @@ export async function openAndroidDevice({
     undo.push({ what: "close Chrome's browser context", run: () => ctx.close() });
 
     const listed = ctx.pages();
-    const opened = launchTab(listed);
+    const opened = await launchTab(listed);
     const page = opened ?? (await ctx.newPage());
     undo.push({ what: "close the tab this run drove", run: () => page.close() });
     await page.bringToFront();
-    const tab = opened ? "the tab Chrome opened for this run" : `a new tab: Chrome listed ${listed.length} tab${listed.length === 1 ? "" : "s"} at launch, so the one its launch opened could not be told apart and stays open`;
+    const tab = opened ? "the tab Chrome opened for this run" : `a new tab: of the ${listed.length} tab${listed.length === 1 ? "" : "s"} Chrome listed at launch, not exactly one was a blank page laid out on screen, so the one its launch opened could not be told apart and stays open`;
 
     let rotation = null;
-    const input = deviceInput(device);
+    const input = deviceInput(device, answerMs);
     const handle = {
       kind: "android",
       serial,
       model: device.model(),
       chrome: chrome.version,
       ...input,
-      screenshot: (file) => device.screenshot({ path: file }),
+      screenshot: (file) => answered(device.screenshot({ path: file }), answerMs, `the screen capture on ${serial}`),
       async rotate(orientation) {
         if (!(orientation in ORIENTATIONS)) throw new Error(`rotate takes ${Object.keys(ORIENTATIONS).join(" or ")}, got "${orientation}"`);
         if (!rotation) {
           rotation = {
-            accelerometer: await shellText(device, "settings get system accelerometer_rotation"),
-            user: await shellText(device, "settings get system user_rotation"),
+            accelerometer: await shellText(device, answerMs, "settings get system accelerometer_rotation"),
+            user: await shellText(device, answerMs, "settings get system user_rotation"),
           };
-          const restore = (key, value) => shellText(device, /^\d+$/.test(value) ? `settings put system ${key} ${value}` : `settings delete system ${key}`);
+          const restore = (key, value) => shellText(device, answerMs, /^\d+$/.test(value) ? `settings put system ${key} ${value}` : `settings delete system ${key}`);
           undo.push({ what: "restore the screen rotation", run: async () => {
             await restore("user_rotation", rotation.user);
             await restore("accelerometer_rotation", rotation.accelerometer);
           } });
         }
-        await shellText(device, "settings put system accelerometer_rotation 0");
-        await shellText(device, `settings put system user_rotation ${ORIENTATIONS[orientation]}`);
+        await shellText(device, answerMs, "settings put system accelerometer_rotation 0");
+        await shellText(device, answerMs, `settings put system user_rotation ${ORIENTATIONS[orientation]}`);
       },
       report: () => ({
         kind: "android",
