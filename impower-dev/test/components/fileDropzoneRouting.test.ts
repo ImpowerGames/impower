@@ -47,6 +47,13 @@ const desktopFile = (name: string) =>
 const zipOf = (entries: Record<string, string>) =>
   zipSync(Object.fromEntries(Object.entries(entries).map(([path, text]) => [path, strToU8(text)])));
 
+const corrupted = (bytes: Uint8Array, entry: string) => {
+  const name = strToU8(entry);
+  const start = bytes.findIndex((_, at) => name.every((byte, i) => bytes[at + i] === byte)) + name.length;
+  bytes.fill(0xff, start, start + 8);
+  return bytes;
+};
+
 const zipDrop = (name: string, bytes: Uint8Array, read = async () => bytes.slice().buffer) => ({
   types: ["Files"],
   files: [Object.assign(new File([bytes as BlobPart], name), { arrayBuffer: read })],
@@ -296,6 +303,11 @@ describe("a single zip dropped anywhere", () => {
     [
       "cannot be opened",
       strToU8("not a zip"),
+      "Nothing was changed because “art.zip” is not a .zip the editor can open.",
+    ],
+    [
+      "holds a project whose files cannot be inflated, though its directory reads",
+      corrupted(zipOf({ "My Story/main.sd": "# Story\n".repeat(40), "My Story/Assets/a.png": "png" }), "My Story/main.sd"),
       "Nothing was changed because “art.zip” is not a .zip the editor can open.",
     ],
     [

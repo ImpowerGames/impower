@@ -1,6 +1,6 @@
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { assetEndings, assetTypeOf } from "../utils/assetTypes";
-import { inflateZipEntry, listZip } from "../utils/zipEntries";
+import { inflateZipEntry, listZip, zipInflates } from "../utils/zipEntries";
 import { findProjectRoot, isArchiveDropping } from "./projectImport";
 import { joinPath, parentOf } from "./scriptsListing";
 import { refuseUploads, storageLeft, withUploadGroup } from "./uploadSession";
@@ -21,10 +21,10 @@ const openZip = async (file: AddedFile): Promise<OpenedFiles | null> => {
     refuseUploads([file.name], { kind: "unreadable" });
     return refused;
   }
+  const unreadable = { kind: "refused", reason: "unreadable_zip" } as const;
   const listed = listZip(data);
-  const found = listed
-    ? findProjectRoot(listed.map((entry) => entry.path))
-    : ({ kind: "refused", reason: "unreadable_zip" } as const);
+  const root = listed ? findProjectRoot(listed.map((entry) => entry.path)) : unreadable;
+  const found = root.kind === "root" && !zipInflates(data, listed ?? []) ? unreadable : root;
   if (found.kind === "root") {
     const { Workspace } = await import("./Workspace");
     await Workspace.window.requestProjectReplace(new File([data], file.name, { type: "application/zip" }));
