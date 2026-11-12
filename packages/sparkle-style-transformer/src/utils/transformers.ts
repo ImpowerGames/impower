@@ -577,10 +577,11 @@ export const getCssTextFont = (
   value: string,
   theme: ThemeVariables,
 ): string => {
-  if (value.startsWith("var(")) {
-    return escapeNameAts(value);
+  const variable = getThemeVar(theme, "font", value);
+  if (variable !== undefined) {
+    return variable;
   }
-  return getThemeVar(theme, "font", value) ?? cssIdent(value);
+  return value.startsWith("var(") ? escapeNameAts(value) : cssIdent(value);
 };
 
 export const getCssTextAlign = (value: string): string => {
@@ -661,8 +662,12 @@ export const getCssEase = (
   if (!value) {
     return defaultValue;
   }
+  const variable = getThemeVar(theme, "ease", value);
+  if (variable !== undefined) {
+    return variable;
+  }
   if (value.includes("(")) {
-    return getThemeVar(theme, "ease", value) ?? value;
+    return value;
   }
   const [ease, outgoing, incoming] = value.split("-");
   const outgoingPercent = Number(outgoing);
@@ -676,7 +681,7 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return getThemeVar(theme, "ease", value) ?? value;
+  return value;
 };
 
 export const getCssFilter = (value: string, theme: ThemeVariables): string => {

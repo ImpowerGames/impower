@@ -85,7 +85,7 @@ describe("a theme variable name keeps the declared name (#2137)", () => {
       ["color", "background-color", "background-color"],
       ["ease", "animation-easing", "animation-timing-function"],
       ["font", "text-font", "font-family"],
-    ].flatMap(([type, property, css]) => [...DISTINCT, "1a", "-", "étoile", "a(b)"].map((name) => [type!, property!, name, css!])),
+    ].flatMap(([type, property, css]) => [...DISTINCT, "1a", "-", "étoile", "a(b)", "var(a)", "ease-20-80", "ease--80"].map((name) => [type!, property!, name, css!])),
   )("refers a %s's %s of %s to its variable from a script token and from a style", (type, property, name, css) => {
     const variable = getVarName(type, name);
     const theme = new Set([variable]);
