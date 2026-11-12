@@ -184,6 +184,17 @@ describe("Step Out leaves the frame whatever beats remain in it", () => {
     expect(h.game.paused).toBe(true);
   });
 
+  test("Step Out still stops at a breakpoint the frame reaches before it returns", () => {
+    const h = play("visits = visits + 1");
+    h.game.setBreakpoints([
+      { file: MAIN, line: lineOf("visits = visits + 1") },
+      { file: MAIN, line: lineOf("visits = visits * 2") },
+    ]);
+    h.game.step("out");
+    expect(h.stoppedAt()).toBe(lineOf("visits = visits * 2"));
+    expect(h.onScreen()).toBe("Still in the tunnel.");
+  });
+
   test("Step Out from a nested tunnel stops at its caller's next statement in the outer tunnel", () => {
     const h = play("visits = visits + 100");
     h.game.step("out");
