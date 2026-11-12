@@ -15,6 +15,7 @@ const search = vi.hoisted(() => ({
   step: vi.fn(),
   setTerm: vi.fn(),
   close: vi.fn(),
+  dismiss: vi.fn(),
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -294,7 +295,7 @@ describe("Escape in the script", () => {
   it("closes the search when the editor has nothing of its own to dismiss", async () => {
     await mount();
     await press({ key: "Escape", keyCode: 27 });
-    await vi.waitFor(() => expect(search.close).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(search.dismiss).toHaveBeenCalledTimes(1));
   });
 
   it("collapses extra carets first and leaves the search open", async () => {
@@ -307,6 +308,6 @@ describe("Escape in the script", () => {
     });
     await press({ key: "Escape", keyCode: 27 });
     expect(view.state.selection.ranges).toHaveLength(1);
-    expect(search.close).not.toHaveBeenCalled();
+    expect(search.dismiss).not.toHaveBeenCalled();
   });
 });
