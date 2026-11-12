@@ -88,13 +88,16 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
-  # lookaround: `AssetCommandFileName` reads a name with `-` inside it whole
-  # (`mia-morph`), but the keyword lists' `STORY_NAME_START` lets a `-` end
-  # the word before them, so `AssetCommandContent`'s lazy name text would
-  # stop there and start the clauses at `morph`. The name has no end the
-  # split could stop at instead, and the lists' boundary must keep treating
-  # `-` as a word end elsewhere, so the split refuses a clause word after `-`.
-  ASSET_CLAUSE_START: (?<![-])
+  # lookaround: a directive's names read whole (`mia-morph`,
+  # `bunny:mouth.morph`, `bunny~mouth.morph` in `AssetCommandFileName` and
+  # `AssetCommandFilter`), but the keyword lists' `STORY_NAME_START` lets
+  # `-`, `.`, `:` and `~` end the word before them, so
+  # `AssetCommandContent`'s lazy name text would stop inside a name and start
+  # the clauses at `morph`. A name has no end the split could stop at
+  # instead, and the lists' boundary must keep those characters as word ends
+  # elsewhere, so the split starts a clause word only after whitespace or the
+  # directive's opening bracket, as the interpreter splits words.
+  ASSET_CLAUSE_START: (?<={{WS}}|[\[(])
   NOT_TAG_HASH: (?:[#]+[^#\s])
   # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
   # as display text. The line rules that end here (ImplicitAction,

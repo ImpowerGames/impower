@@ -12,4 +12,6 @@ scene start
   [[mia-morph with fade]]
   [[mia # note morph none]]
   ((theme wait garbage))
+  [[mia:mouth.morph with fade]]
+  [[mia~mouth.morph]]
 end

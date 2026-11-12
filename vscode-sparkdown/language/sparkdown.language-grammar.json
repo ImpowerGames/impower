@@ -111,7 +111,7 @@
     "STORY_NAME_START": "(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])",
     "IDENTIFIER": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}{{IDENTIFIER_AT_PART}}*(?<![-]))",
     "TAG_START": "(?:[#]+(?=$|{{WS}}))",
-    "ASSET_CLAUSE_START": "(?<![-])",
+    "ASSET_CLAUSE_START": "(?<={{WS}}|[\\[(])",
     "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
@@ -5810,7 +5810,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "(.*?)($|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?<![-])(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r]))).*)",
+      "match": "(.*?)($|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?<=(?:[^\\S\\n\\r])|[\\[(])(?:(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|with|wait|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])|(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:over|after|to|loop|once|mute|unmute|now)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?=$|(?:[^\\S\\n\\r]))).*)",
       "captures": {
         "1": {
           "patterns": [

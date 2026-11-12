@@ -30,6 +30,9 @@ const DIRECTIVES: readonly (readonly [string, Kind, string])[] = [
   ["value that is not a name", "image", "mia morph = talk"],
   ["clause word inside a hyphenated name", "image", "mia-morph"],
   ["clause after a hyphenated name", "image", "mia-morph with fade"],
+  ["clause word as a qualified state", "image", "mia:mouth.morph"],
+  ["clause word as a filtered state", "image", "mia~mouth.morph"],
+  ["clause after a qualified state", "image", "mia:mouth.morph with fade"],
   ["target and composition", "image", "show portrait mia + bunny morph talk with fade"],
   ["audio with", "audio", "play music theme with echo"],
   ["audio to and over", "audio", "fade music theme to 0.5 over 2s"],
@@ -84,6 +87,6 @@ describe("the compiler's reading of a directive's clauses equals the interpreter
   test.each(DIRECTIVES.map(([label, kind, text], i) => [label, directive(kind, text), kind, i] as const))("%s: `%s`", (_label, _text, kind, i) => {
     const chunk = interpreter.createAssetChunk(inputs[i], kind, kind === "image" ? "show" : "play", undefined);
     const compiler = Object.assign({}, ...groups[i]!.map((group) => interpreter.parseAssetClauses(group)));
-    expect(compiler).toEqual(chunk.clauses);
+    expect(compiler).toStrictEqual(chunk.clauses);
   });
 });

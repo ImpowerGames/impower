@@ -1,4 +1,4 @@
-text.source.sparkdown [0..359]
+text.source.sparkdown [0..413]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -169,5 +169,27 @@ text.source.sparkdown [0..359]
  │   ├─ variable.other.constant.sd [345..352]: "garbage"
  │   └─ keyword.operator.expression.end.audio.sd [352..354]: "))"
  ├─ Newline [354..355]: "\n"
- ├─ keyword.control.end.luau [355..358]: "end"
- └─ Newline [358..359]: "\n"
+ ├─ punctuation.whitespace.optional.sd [355..357]: "  "
+ ├─ meta.image.sd [357..386]
+ │   ├─ keyword.operator.expression.begin.image.sd [357..359]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [359..374]
+ │   │   ├─ variable.other.constant.asset.file.sd [359..362]: "mia"
+ │   │   ├─ variable.other.property.filter.sd [362..363]: ":"
+ │   │   └─ variable.other.constant.asset.filter.sd [363..374]: "mouth.morph"
+ │   ├─ punctuation.whitespace.required.sd [374..375]: " "
+ │   ├─ keyword.asset.clause.keyword.sd [375..379]: "with"
+ │   ├─ punctuation.whitespace.required.sd [379..380]: " "
+ │   ├─ variable.other.constant.sd [380..384]: "fade"
+ │   └─ keyword.operator.expression.end.image.sd [384..386]: "]]"
+ ├─ Newline [386..387]: "\n"
+ ├─ punctuation.whitespace.optional.sd [387..389]: "  "
+ ├─ meta.image.sd [389..408]
+ │   ├─ keyword.operator.expression.begin.image.sd [389..391]: "[["
+ │   ├─ variable.other.constant.asset.file.sd [391..406]
+ │   │   ├─ variable.other.constant.asset.file.sd [391..394]: "mia"
+ │   │   ├─ variable.other.property.filter.sd [394..395]: "~"
+ │   │   └─ variable.other.constant.asset.filter.sd [395..406]: "mouth.morph"
+ │   └─ keyword.operator.expression.end.image.sd [406..408]: "]]"
+ ├─ Newline [408..409]: "\n"
+ ├─ keyword.control.end.luau [409..412]: "end"
+ └─ Newline [412..413]: "\n"

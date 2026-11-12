@@ -213,11 +213,17 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
-  test("a name with a clause word after a `-` is one name, and a tag before any clause is a tag", () => {
+  test("a name with a clause word after a `-`, `.`, `:` or `~` is one name, and a tag before any clause is a tag", () => {
     const text = story(TALK, "  [[mia-morph]]\n  [[mia-morph with fade]]\n  [[bunny # note]]\n  [[bunny # note morph none]]");
     const scene = text.split("\n").indexOf("scene start");
     const after = diagnosticsOf(text, { bunny: FACE, "mia-morph": FACE }).filter((d) => d.line > scene);
     expect(after).toEqual([]);
+    const qualified = story(TALK, "  [[bunny:mouth.morph]]\n  [[bunny~mouth.morph]]\n  [[bunny:mouth.morph with fade]]");
+    const lines = qualified.split("\n");
+    expect(
+      diagnosticsOf(qualified, { bunny: FACE.replace("</svg>", `<g data-name="lips:mouth.morph" id="m-morph"/>\n</svg>`) })
+        .filter((d) => d.line > lines.indexOf("scene start") && !/does not show/.test(d.message)),
+    ).toEqual([]);
   });
 
   test("a word no clause takes in an audio directive is an error on that word", () => {
