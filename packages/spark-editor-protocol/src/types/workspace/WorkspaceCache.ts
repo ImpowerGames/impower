@@ -134,6 +134,7 @@ export type ImportFailureReason =
   | "unreadable_zip"
   | "no_main_script"
   | "several_main_scripts"
+  | "no_room"
   | "storage"
   | "unknown";
 

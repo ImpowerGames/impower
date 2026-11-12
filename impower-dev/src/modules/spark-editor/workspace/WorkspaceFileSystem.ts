@@ -69,7 +69,7 @@ import {
   type RenameOutcome,
 } from "../utils/fileMoves";
 import { imageStacks } from "../utils/imageStacks";
-import SingletonPromise from "./SingletonPromise";
+import { storageLeft } from "../utils/storageLeft";import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -763,6 +763,14 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
+    const free = await storageLeft();
+    const needed = zipFilesToWrite.reduce(
+      (sum, { data }) => sum + data.byteLength,
+      0,
+    );
+    if (free !== null && needed > free) {
+      throw new ProjectImportError({ reason: "no_room" });
+    }
     try {
       if (zipFilesToDelete.length > 0) {
         await this.deleteFiles({ files: zipFilesToDelete });

@@ -73,6 +73,7 @@ export const REFUSED_BEFORE_CHANGE: ReadonlySet<ImportFailureReason> = new Set([
   "unreadable_zip",
   "no_main_script",
   "several_main_scripts",
+  "no_room",
 ]);
 
 export class ProjectImportError extends Error {
@@ -107,6 +108,8 @@ const FAILURE_SENTENCES: Record<
     `Nothing was changed because “${fileName}” has no ${MAIN_SCRIPT}, which every project backup needs.`,
   several_main_scripts: (fileName, folders) =>
     `Nothing was changed because “${fileName}” holds more than one project, in ${listed(quoted(folders))}, so zip one of them on its own.`,
+  no_room: (fileName) =>
+    `Nothing was changed because “${fileName}” needs more space than this device has left, so free some space and try again.`,
   storage: (fileName) =>
     `Could not save “${fileName}” on this device, so free some space and try again.`,
   unknown: (fileName) =>
