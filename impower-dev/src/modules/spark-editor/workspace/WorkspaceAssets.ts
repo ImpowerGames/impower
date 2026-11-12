@@ -39,7 +39,7 @@ import {
 import { moveToTrash } from "./moveToTrash";
 import type { SearchGroup } from "./searchState";
 import { groupLocations } from "./WorkspaceSearch";
-import { commonFolder, isInside, joinPath, nameOf, parentOf } from "./scriptsListing";
+import { commonFolder, isInside, joinPath, nameOf, parentOf, scriptsHome } from "./scriptsListing";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type WorkspaceWindow from "./WorkspaceWindow";
@@ -260,9 +260,15 @@ export default class WorkspaceAssets {
   async upload(files: readonly DroppedFile[], folder: string): Promise<string[]> {
     const listing = this.listing;
     const endings = assetEndings.peek();
+    const scripts = scriptsHome(listing);
     return this.importAt(files, (file) => {
-      const name = getValidFileName(file.name);
-      return joinPath(landingFolder(listing, assetTypeOf(name, endings), folder), name);
+      const folders = file.name
+        .split("/")
+        .filter((part) => part && part !== "." && part !== "..")
+        .map((part) => part.replaceAll("\\", "_"));
+      const name = getValidFileName(folders.pop() ?? "");
+      const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
+      return [home, ...folders, name].filter(Boolean).join("/");
     });
   }
 

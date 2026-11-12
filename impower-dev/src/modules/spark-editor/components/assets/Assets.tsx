@@ -428,8 +428,7 @@ function AssetsBrowser() {
     }
   }, [revealing, loaded]);
 
-  const add = (files: AddedFile[], folder: string, dropped: boolean) =>
-    void run(async () => show(await addAssetFiles(files, folder, { dropped })));
+  const add = (files: AddedFile[], folder: string) => void run(async () => show(await addAssetFiles(files, folder)));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -439,13 +438,12 @@ function AssetsBrowser() {
     add(
       chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
       level.folder,
-      false,
     );
   };
 
   const fileDrop = useFileDrop({
     current: () => level.folder,
-    onDrop: (files, folder) => add(files, folder, true),
+    onDrop: add,
   });
 
   const remove = (paths: readonly string[]) =>

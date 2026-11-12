@@ -2,7 +2,7 @@ import { DropZone } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 import { isAssetType } from "../../utils/assetTypes";
 import { showSnackbar } from "../../utils/snackbar";
-import { addAssetFiles, isProjectZipDrop, openDroppedZip, type AddedFile } from "../../workspace/addAssetFiles";
+import { addAssetFiles, type AddedFile } from "../../workspace/addAssetFiles";
 import { routeOfState } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
 import { carriesFiles, droppedFiles, FILE_DROP_HIDE_MS, FILE_DROP_TARGET } from "../../utils/fileDrops";
@@ -12,7 +12,7 @@ export type FileDropzoneProps = Partial<typeof propDefaults>;
 
 export const DROP_NOTES = {
   files: ["Drop to add to Assets", "Each file goes to the folder of its type."],
-  zip: ["Drop to replace this project", "A backup replaces every script and asset, after asking."],
+  zip: ["Drop to open this zip", "Backups ask before replacing. Other zips are unpacked."],
 } as const;
 
 const draggedZip = (event: DragEvent) => {
@@ -32,19 +32,15 @@ export const deliverDrop = async (files: AddedFile[]): Promise<void> => {
   }
   const onAssets = routeOfState(workspace.state.peek()) === "collection";
   const folder = onAssets ? viewedFolder() : "";
-  const zip = isProjectZipDrop(files);
   const { Workspace } = await import("../../workspace/Workspace");
   try {
-    if (zip) {
-      if ((await openDroppedZip(files[0]!)) === "refused" && !onAssets) {
-        Workspace.window.navigateTo("collection");
-      }
-      return;
-    }
-    if (!onAssets) {
-      Workspace.window.navigateTo("collection");
-    }
-    const landed = await addAssetFiles(files, folder, { dropped: true });
+    const landed = await addAssetFiles(files, folder, {
+      showUploads: () => {
+        if (!onAssets) {
+          Workspace.window.navigateTo("collection");
+        }
+      },
+    });
     if (landed.length) {
       workspace.assetsReveal.value = landed;
     }

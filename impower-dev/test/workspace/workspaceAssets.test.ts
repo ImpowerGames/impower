@@ -140,6 +140,34 @@ describe("the Assets page's file intents", () => {
     expect(mocks.importFiles.mock.calls[1]![1][0].rel).toBe("assets/Audio/wind.wav");
   });
 
+  it("places an unpacked zip's files in one batch, each keeping its zip folder under the folder its type lands in", async () => {
+    const { assets } = fakeWorkspace({ "Assets/Images/Portraits/imani.png": "png", "scripts/main.sd": "x" }, ["scripts"]);
+    await assets.load();
+    mocks.importFiles.mockClear();
+    await assets.upload(
+      [
+        dropped("Cast/Main Cast/hero.png"),
+        dropped("sfx/rain.wav"),
+        dropped("story/intro.sd"),
+        dropped("../escape/./bo.png"),
+        dropped("win\\style\\door knock.wav"),
+        dropped("Old\\Cast/ada.png"),
+        dropped("inner.zip"),
+      ],
+      "Assets/Images/Portraits",
+    );
+    expect(mocks.importFiles).toHaveBeenCalledTimes(1);
+    expect(mocks.importFiles.mock.calls[0]![1].map((item: { rel: string }) => item.rel)).toEqual([
+      "Assets/Images/Portraits/Cast/Main Cast/hero.png",
+      "Assets/Audio/sfx/rain.wav",
+      "scripts/story/intro.sd",
+      "Assets/Images/Portraits/escape/bo.png",
+      "Assets/Audio/win_style_door_knock.wav",
+      "Assets/Images/Portraits/Old_Cast/ada.png",
+      "Assets/Other/inner.zip",
+    ]);
+  });
+
   it("keeps the @ and ~ of an uploaded or dropped alternate or layer file, and cleans other characters", async () => {
     const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
     await assets.load();
