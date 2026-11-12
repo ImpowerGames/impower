@@ -169,6 +169,8 @@ describe("the Variables card", () => {
     ]);
     const alert = root.querySelector('[role="alert"]')!;
     expect(alert.className).toContain("text-warning");
+    expect(alert.parentElement!.className).toContain("whitespace-normal");
+    expect(alert.parentElement!.className).not.toContain("fade-edge");
   });
 
   it("offers Break when value changes in the row menu and marks a row that breaks with a dot", async () => {

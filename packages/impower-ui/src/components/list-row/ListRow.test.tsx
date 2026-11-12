@@ -211,6 +211,15 @@ describe("ListRow", () => {
     expect(label.className).not.toContain("fade-edge");
   });
 
+  it("wraps a label given overflow wrap instead of fading it", async () => {
+    const root = await mount(
+      <ListRow overflow="wrap" label={<span data-node>A long message</span>} />,
+    );
+    const label = root.querySelector("[data-node]")!.parentElement!;
+    expect(label.className).toContain("whitespace-normal");
+    expect(label.className).not.toContain("fade-edge");
+  });
+
   it("clamps a long label to two lines instead of fading it", async () => {
     const root = await mount(
       <ListRow overflow="clamp" label="A long prompt" onClick={() => {}} />,

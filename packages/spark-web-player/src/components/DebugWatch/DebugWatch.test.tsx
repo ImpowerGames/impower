@@ -119,4 +119,20 @@ describe("the Watch card", () => {
     await press(field, "Enter");
     expect(h.onChange).toHaveBeenCalledWith(gold, "gold * 2");
   });
+
+  it("leaves its fields and name-value rows to clip themselves, never under the row's fade", async () => {
+    const rowFaded = (el: Element) => {
+      let label: Element | null = el;
+      while (label && !label.parentElement?.classList.contains("gap-[3px]")) label = label.parentElement;
+      expect(label).not.toBeNull();
+      return label!.classList.contains("fade-edge");
+    };
+    const { root } = await mount({ status: "paused", open: true, entries: [gold], editing: null });
+    expect(rowFaded(root.querySelector('[aria-label="Add an expression to watch"]')!)).toBe(false);
+    const name = Array.from(root.querySelectorAll("span")).find((s) => s.textContent === "gold" && s.children.length === 0)!;
+    expect(rowFaded(name.parentElement!)).toBe(false);
+    await unmountRows();
+    const editing = await mount({ status: "paused", open: true, entries: [gold], editing: "0" });
+    expect(rowFaded(editing.root.querySelector('[aria-label="Change the expression gold"]')!)).toBe(false);
+  });
 });
