@@ -1,7 +1,8 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Game } from "../../game/core/classes/Game";
+import { compileUI, MAIN_URI } from "../ui/harness/uiTestHarness";
 
 const MAIN = "file:///local/main.sd";
 
@@ -210,6 +211,82 @@ describe("Step Out leaves the frame whatever beats remain in it", () => {
     h.game.step("in");
     expect(h.stoppedAt()).toBe(lineOf("Inside the tunnel."));
     expect(h.onScreen()).toBe("Inside the tunnel.");
+  });
+});
+
+describe("a step stops at a passed beat that cannot be drawn settled", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const CUTSCENE = [
+    "store visits = 0",
+    "scene start",
+    "  Before.",
+    "  -> visit ->",
+    "  visits = visits + 10",
+    "  After.",
+    "end",
+    "scene visit",
+    "  visits = visits + 1",
+    "  [[play intro]]",
+    "  Passed text.",
+    "  ->->",
+    "end",
+    "",
+  ].join("\n");
+
+  test("Step Out holds a cutscene inside the tunnel, and Resume plays it", () => {
+    const line = (text: string) => lineIn(CUTSCENE, text);
+    const { program } = compileUI(CUTSCENE, {
+      assets: [
+        {
+          uri: "inmemory:///intro.webm",
+          type: "video",
+          name: "intro",
+          ext: "webm",
+          src: "/intro.webm",
+        },
+      ],
+    });
+    const game = new Game({
+      program,
+      now: () => 0,
+      setTimeout: () => 0,
+      log: () => {},
+    } as never);
+    const stops: number[] = [];
+    game.connection.outgoing.addListener("*", (message) => {
+      const { method, params } = message as unknown as {
+        method: string;
+        params: any;
+      };
+      if (method === "game/stepped" || method === "game/hitBreakpoint") {
+        stops.push(params?.location?.range?.start?.line);
+      }
+    });
+    game.setBreakpoints([{ file: MAIN_URI, line: line("visits = visits + 1") }]);
+    game.start();
+    for (let i = 0; i < 8 && stops.length === 0; i += 1) {
+      game.continue();
+    }
+    expect(stops).toEqual([line("visits = visits + 1")]);
+    let ready = false;
+    vi.spyOn(game.module.assets, "prepareBeat").mockReturnValue(101 as never);
+    vi.spyOn(game.module.assets, "isReady").mockImplementation(() => ready);
+    const playing = vi
+      .spyOn(game.module.ui, "runCutscene")
+      .mockReturnValue(0 as never);
+    game.step("out");
+    expect(stops.at(-1)).toBe(line("[[play intro]]"));
+    expect((game as any)._shownBeatOnScreen?.cutscene).toBeTruthy();
+    expect(game.paused).toBe(true);
+    ready = true;
+    game.resume();
+    for (let i = 0; i < 5; i += 1) {
+      game.update({ deltaMS: 100, elapsedMS: i * 100 } as never);
+    }
+    expect(playing).toHaveBeenCalledOnce();
   });
 });
 

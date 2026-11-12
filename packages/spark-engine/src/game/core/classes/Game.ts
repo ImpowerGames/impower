@@ -3633,12 +3633,15 @@ export class Game<T extends M = {}> {
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         if (traversal !== "continue" && this.presentsAtStop()) {
+          const next = this.module.interpreter.nextBeat;
           if (
             this._story.canContinue &&
+            next &&
+            drawsSettled(next) &&
             this.insideSteppedFrame(traversal, initialCallstackDepth)
           ) {
-            const beat = this.module.interpreter.flush()!;
-            this.showBeat(beat, drawsSettled(beat), true);
+            this.module.interpreter.flush();
+            this.showBeat(next, true, true);
             this.pause();
             continue;
           }
