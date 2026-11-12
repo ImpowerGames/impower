@@ -30,6 +30,9 @@ import {
 import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
+const { LAUNCH_SECONDS, launchTab, pageVerdict, planReverse } = await import("./android.mjs");
+const { shotWaitsFor } = await import("./steps.mjs");
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
 const ANDROID = pathToFileURL(path.join(HERE, "android.mjs")).href;
@@ -64,12 +67,23 @@ await check("the missing-adb message carries the whole setup procedure and point
   const plain = adbMissingMessage({ env, platform: "win32", exists: () => false });
   assert.ok(plain.includes(ANDROID_SETUP));
   assert.match(plain, /none on PATH or under ANDROID_HOME or ANDROID_SDK_ROOT/);
-  assert.doesNotMatch(plain, /Android Studio's copy/);
+  assert.doesNotMatch(plain, /Android Studio's copy is at/);
+  assert.ok(plain.includes(`It looked for adb.exe in each PATH folder (C:\\Windows) and for Android Studio's default copy at ${sdkAdb}, which is not there.`), plain);
   const hinted = adbMissingMessage({ env, platform: "win32", exists: (file) => file === sdkAdb });
   assert.ok(hinted.includes(`Android Studio's copy is at ${sdkAdb}: put its folder on PATH.`), hinted);
-  for (const part of ["API 34", "Google APIs", "Pixel-class", "Chrome (87 or later)", "Enable command line on non-rooted devices", "adb devices"]) {
+  const named = adbMissingMessage({ env: { ...env, ANDROID_HOME: "D:\\sdk" }, platform: "win32", exists: () => false });
+  assert.ok(named.includes("under ANDROID_HOME (D:\\sdk\\platform-tools\\adb.exe)"), named);
+  for (const part of ["API 34", "Google APIs", "Pixel-class", "Chrome (87 or later)", "Enable command line on non-rooted devices", "adb devices", "settings get global debug_app"]) {
     assert.ok(ANDROID_SETUP.includes(part), `setup procedure lacks ${part}`);
   }
+  assert.doesNotMatch(ANDROID_SETUP, /AppData|LOCALAPPDATA/);
+});
+
+await check("the setup text says the Chrome flag is needed only when Chrome is not the debug app, and warns about tabs, the clipboard strip and Git Bash paths", () => {
+  assert.match(ANDROID_SETUP, /only when Chrome is not the device's debug app/);
+  assert.match(ANDROID_SETUP, /opens its own tab/);
+  assert.match(ANDROID_SETUP, /clipboard/);
+  assert.match(ANDROID_SETUP, /MSYS_NO_PATHCONV=1/);
 });
 
 await check("without adb on the path, the driver fails within ten seconds with the setup procedure, for screenshot, ui and verify", () => {
@@ -195,7 +209,7 @@ function stubPage() {
     screenshot: async ({ path: file }) => {
       page.shots.push(file);
     },
-    evaluate: async (fn, arg) => (typeof arg === "string" && arg.includes("aria-selected") ? "assets" : { width: 360, height: 780, devicePixelRatio: 3 }),
+    evaluate: async (fn, arg) => (typeof arg === "string" && arg.includes("aria-selected") ? "assets" : { width: 360, height: 780, devicePixelRatio: 3, visibility: "visible" }),
   };
   return page;
 }
@@ -292,7 +306,16 @@ await check("on a device, ui reports the device, sends gestures through it and t
   assert.equal(process.exitCode, 0);
 });
 
-function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "", serials = ["emulator-5554"] } = {}) {
+function fakeTab(log, name, url) {
+  return {
+    name,
+    url: () => url,
+    bringToFront: async () => log.push([`${name}.bringToFront`]),
+    close: async () => log.push([`${name}.close`]),
+  };
+}
+
+function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "", serials = ["emulator-5554"], tabs = [["launch", "about:blank"]] } = {}) {
   const log = [];
   const shell = async (command) => {
     log.push(["shell", command]);
@@ -303,7 +326,17 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
     if (command.startsWith("settings get system user_rotation")) return Buffer.from("null\n");
     return Buffer.from("");
   };
-  const ctx = { close: async () => log.push(["context.close"]) };
+  const listed = tabs.map(([name, url]) => fakeTab(log, name, url));
+  const ctx = {
+    close: async () => log.push(["context.close"]),
+    pages: () => [...listed],
+    newPage: async () => {
+      log.push(["newPage"]);
+      const tab = fakeTab(log, "new", "about:blank");
+      listed.push(tab);
+      return tab;
+    },
+  };
   const makeDevice = (serial, first) => ({
     serial: () => serial,
     model: () => "sdk_gphone64_x86_64",
@@ -347,7 +380,7 @@ const withAdb = (fn) => {
   });
 };
 
-await check("opening the device maps only the unmapped editor ports, sets the density for --viewport, never installs Playwright's driver app, and undoes everything in reverse", () =>
+await check("opening the device maps the unmapped editor ports, takes over the ones a dead run left, sets the density for --viewport, never installs Playwright's driver app, and undoes everything in reverse", () =>
   withAdb(async () => {
     const fake = fakeAndroid({ reverse: "emulator-5554 tcp:38001 tcp:38001\n" });
     const record = { url: "http://localhost:38000", ports: { editor: 38000, player: 38001, hmr: 38002 } };
@@ -365,15 +398,18 @@ await check("opening the device maps only the unmapped editor ports, sets the de
     await session.device.rotate("landscape");
     await session.device.screenshot("/tmp/screen.png");
     assert.deepEqual(session.device.report().reversedPorts, [38000, 38002]);
+    assert.deepEqual(session.device.report().leftoverPorts, [38001]);
     assert.equal(session.device.report().density, 480);
     const mark = fake.log.length;
     assert.deepEqual(await session.close(), []);
     assert.deepEqual(fake.log.slice(mark), [
       ["shell", "settings delete system user_rotation"],
       ["shell", "settings put system accelerometer_rotation 1"],
+      ["launch.close"],
       ["context.close"],
       ["shell", "wm density reset"],
       ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38002"],
+      ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38001"],
       ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"],
       ["device.close"],
       ["release"],
@@ -393,7 +429,7 @@ await check("with several devices enumerated, the connections to the ones not ch
     assert.ok(otherClosedAt > devicesAt, JSON.stringify(fake.log));
     assert.ok(otherClosedAt < fake.log.findIndex((entry) => entry[0] === "launchBrowser"));
     await session.close();
-    assert.deepEqual(fake.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "context.close", "device.close"]);
+    assert.deepEqual(fake.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "launch.close", "context.close", "device.close"]);
 
     const failing = fakeAndroid({ serials: ["emulator-5554", "emulator-5556"], chrome: "versionName=80.0.3987.99" });
     await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, ...failing, env, platform: "linux" }), /Chrome on emulator-5554 is 80/);
@@ -437,7 +473,7 @@ await check("a device whose Chrome is too old releases the queue and undoes its 
     assert.ok(!fake.log.some((entry) => entry[0] === "launchBrowser"));
   }));
 
-await check("a Chrome that never opens its debugging connection names the chrome://flags setting and undoes the session", () =>
+await check("a Chrome that never opens its debugging connection says how to check whether the command line is read, and undoes the session", () =>
   withAdb(async () => {
     const fake = fakeAndroid();
     fake.devices[0].launchBrowser = async () => {
@@ -445,10 +481,142 @@ await check("a Chrome that never opens its debugging connection names the chrome
     };
     await assert.rejects(
       openAndroidDevice({ record: { url: "http://localhost:38000" }, viewport: { name: "phone", width: 360, height: 780 }, ...fake, ...adbHere }),
-      (e) => /Chrome on emulator-5554 did not open its debugging connection \(Timeout 30000ms exceeded/.test(e.message) && e.message.includes("Enable command line on non-rooted devices"),
+      (e) =>
+        /Chrome on emulator-5554 did not open its debugging connection \(Timeout 30000ms exceeded/.test(e.message) &&
+        e.message.includes("only when Chrome is the device's debug app") &&
+        e.message.includes("adb -s emulator-5554 shell settings get global debug_app") &&
+        e.message.includes("Enable command line on non-rooted devices"),
     );
     assert.deepEqual(fake.log.slice(-4), [["shell", "wm density reset"], ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
   }));
+
+await check("a Chrome that dies or never offers its debugging socket fails the run within the launch limit instead of hanging, and the session is undone", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid();
+    fake.devices[0].launchBrowser = () => new Promise(() => {});
+    let timer;
+    const hung = new Promise((resolve) => {
+      timer = setTimeout(() => resolve("still waiting after 5 s"), 5_000);
+    });
+    const outcome = await Promise.race([openAndroidDevice({ record: { url: "http://localhost:38000" }, launchMs: 50, ...fake, ...adbHere }).then(() => "opened", (error) => error), hung]);
+    clearTimeout(timer);
+    assert.match(String(outcome?.message ?? outcome), /Chrome on emulator-5554 offered no debugging connection within 0\.05 s/);
+
+    const unhandled = [];
+    const onUnhandled = (reason) => unhandled.push(String(reason?.message ?? reason));
+    process.on("unhandledRejection", onUnhandled);
+    const lateFake = fakeAndroid();
+    lateFake.devices[0].launchBrowser = () => new Promise((_, reject) => setTimeout(() => reject(new Error("Device closed")), 100));
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, launchMs: 20, ...lateFake, ...adbHere }), /offered no debugging connection/);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    process.off("unhandledRejection", onUnhandled);
+    assert.deepEqual(unhandled, []);
+    assert.deepEqual(fake.log.slice(-3), [["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
+    assert.equal(LAUNCH_SECONDS, 60);
+  }));
+
+await check("the route drives the one tab Chrome's launch opened, fronts it and closes it when the run ends", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["launch", "about:blank"]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "launch");
+    assert.ok(fake.log.some((entry) => entry[0] === "launch.bringToFront"));
+    assert.ok(!fake.log.some((entry) => entry[0] === "newPage"));
+    assert.equal(session.device.report().tab, "the tab Chrome opened for this run");
+    await session.close();
+    assert.deepEqual(fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]), ["launch.close", "context.close", "device.close"]);
+  }));
+
+await check("with other tabs listed, the route opens a tab of its own, drives and closes only that one, and never touches the others", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ tabs: [["stray1", "about:blank"], ["stray2", "https://example.com/"], ["launch", "about:blank"]] });
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, ...adbHere });
+    assert.equal(session.page.name, "new");
+    assert.ok(fake.log.some((entry) => entry[0] === "new.bringToFront"));
+    assert.match(session.device.report().tab, /^a new tab: Chrome listed 3 tabs at launch/);
+    await session.close();
+    const closed = fake.log.filter((entry) => /\.close$/.test(entry[0])).map((entry) => entry[0]);
+    assert.deepEqual(closed, ["new.close", "context.close", "device.close"]);
+  }));
+
+await check("the tab choice takes Chrome's launch tab only when it is the one tab listed and still blank", () => {
+  const tab = (url) => ({ url: () => url });
+  const only = tab("about:blank");
+  assert.equal(launchTab([only]), only);
+  assert.equal(launchTab([]), null);
+  assert.equal(launchTab([tab("https://example.com/")]), null);
+  assert.equal(launchTab([tab("about:blank"), tab("about:blank")]), null);
+});
+
+await check("a page that measures 0x0 or is not the visible tab fails the run, naming the cause", () => {
+  assert.equal(pageVerdict({ width: 430, height: 807, visibility: "visible" }), null);
+  assert.match(pageVerdict({ width: 0, height: 0, visibility: "visible" }), /the page the run drove measures 0x0/);
+  assert.match(pageVerdict({ width: 430, height: 0, visibility: "visible" }), /measures 430x0/);
+  assert.match(pageVerdict({ width: 430, height: 807, visibility: "hidden" }), /is not the visible tab \(document\.visibilityState is hidden\)/);
+});
+
+await check("the mapping rule: unmapped ports are added, a same-port mapping is a dead run's and is taken over, and one sent elsewhere is refused", () => {
+  const mapped = new Map([[38001, 38001], [38000, 39999], [9000, 9001]]);
+  assert.deepEqual(planReverse([38000, 38001, 38002], mapped), { add: [38002], leftover: [38001], conflicts: [38000] });
+  assert.deepEqual(planReverse([38002], new Map()), { add: [38002], leftover: [], conflicts: [] });
+});
+
+await check("a device shot waits for the surface the step before it opened, and each named step says what that is", () => {
+  for (const [name, def] of Object.entries(NAMED_STEPS)) {
+    if (def.builtBy) continue;
+    assert.equal(typeof def.waitsFor?.what, "string", name);
+    assert.equal(typeof def.waitsFor?.selector, "string", name);
+  }
+  const steps = parseUiSteps(["--step", "add-menu", "--shot", "a.png", "--tap", "1,2", "--shot", "b.png", "--step", "app-menu", "--shot-of", "page", "c.png", "--shot", "d.png"], { device });
+  assert.deepEqual(shotWaitsFor(steps, 1), NAMED_STEPS["add-menu"].waitsFor);
+  assert.equal(shotWaitsFor(steps, 3), null);
+  assert.deepEqual(shotWaitsFor(steps, 7), NAMED_STEPS["app-menu"].waitsFor);
+  assert.equal(shotWaitsFor(parseUiSteps(["--shot", "a.png"], { device }), 0), null);
+});
+
+await check("on a device, --shot after a named step waits for that step's surface to paint before the capture, and fails when it never paints", async () => {
+  for (const painted of [true, false]) {
+    const page = stubPage();
+    const dev = stubDevice();
+    const { deps } = uiDeps(page, dev);
+    const order = [];
+    dev.screenshot = async (file) => order.push(["screenshot", file]);
+    const shot = path.join(scratch, `after-step-${painted}.png`);
+    const result = await ui(["--step", "add-menu", "--shot", shot], {
+      device,
+      ...deps,
+      surfacePainted: async (_page, waitsFor) => {
+        order.push(["waited", waitsFor.what]);
+        return painted;
+      },
+    });
+    assert.deepEqual(order, [["waited", NAMED_STEPS["add-menu"].waitsFor.what], ["screenshot", shot]]);
+    const shotStep = result.steps.at(-1);
+    assert.equal(shotStep.waitedFor, NAMED_STEPS["add-menu"].waitsFor.what);
+    if (painted) assert.equal(shotStep.reason, undefined);
+    else assert.match(shotStep.reason, /had not painted within/);
+    process.exitCode = 0;
+  }
+});
+
+await check("a device run whose page measures 0x0 stops at the start with a failure and exit code 1, in ui and in verify", async () => {
+  const blank = () => {
+    const page = stubPage();
+    page.evaluate = async () => ({ width: 0, height: 0, devicePixelRatio: 1, visibility: "hidden" });
+    return page;
+  };
+  const dev = stubDevice();
+  const uiRun = await ui(["--shot", path.join(scratch, "blank.png")], { device, ...uiDeps(blank(), dev).deps });
+  assert.match(uiRun.failed.join(" "), /measures 0x0/);
+  assert.deepEqual(dev.calls, []);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+  const verifyDeps = { ...uiDeps(blank(), dev).deps, ensureScriptEditor: async () => ({ present: true, settled: true }) };
+  const verifyRun = await verify([], verifyDeps);
+  assert.match(verifyRun.error, /measures 0x0/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = 0;
+});
 
 await check("verify on a device takes its --shot through the device and reports the device", async () => {
   const page = stubPage();

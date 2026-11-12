@@ -12,14 +12,23 @@ export const SWIPE_MS = 300;
 export const BIND_STALL_MS = 1_000;
 export const LOOKUP_MS = 3_000;
 export const ORIENTATIONS = { portrait: 0, landscape: 1 };
+export const LAUNCH_SECONDS = 60;
+export const BLANK_URL = "about:blank";
+
+export const COMMAND_LINE_CHECK = (serial = null) =>
+  `the driver starts Chrome with a command line, which Chrome reads only when Chrome is the device's debug app (\`adb${serial ? ` -s ${serial}` : ""} shell settings get global debug_app\` prints ${CHROME_PACKAGE}) or when chrome://flags has "Enable command line on non-rooted devices" turned on`;
 
 export const ANDROID_SETUP = [
   "One-time Android emulator setup (the driver installs nothing; do this once on the machine):",
   "  1. Install Android Studio with the SDK Platform-Tools and the Android Emulator; on Windows, turn on the Windows Hypervisor Platform.",
   "  2. In Android Studio's Device Manager, create a Pixel-class virtual device on API 34 with a Google APIs system image.",
-  "  3. Boot it, open Chrome (87 or later), finish its first-run screens, open chrome://flags, enable \"Enable command line on non-rooted devices\" and relaunch Chrome.",
-  "  4. Put the SDK's platform-tools folder on PATH, or set ANDROID_HOME to the SDK folder.",
+  `  3. Boot it, open Chrome (87 or later) and finish its first-run screens. The chrome://flags switch "Enable command line on non-rooted devices" is needed only when Chrome is not the device's debug app: \`adb shell settings get global debug_app\` printing ${CHROME_PACKAGE} means it is, and \`adb shell am set-debug-app --persistent ${CHROME_PACKAGE}\` makes it so; otherwise turn the switch on and relaunch Chrome.`,
+  "  4. Put the SDK's platform-tools folder on PATH, or set ANDROID_HOME to the SDK folder (wherever Android Studio's SDK Manager says it installed it).",
   "  5. With the emulator running, `adb devices` lists it as `device`; then rerun this command.",
+  "Each run opens its own tab, drives it and closes it; tabs it did not open are left as they are.",
+  "The emulator shares the host clipboard by default, and the keyboard's suggestion strip can then show host clipboard text in a device screenshot.",
+  "Turn that off under the emulator's Extended controls, Settings, General, \"Enable clipboard sharing\", before taking screenshots to share.",
+  "In Git Bash, an adb argument that starts with / is rewritten into a Windows path: prefix the command with MSYS_NO_PATHCONV=1 (for example `MSYS_NO_PATHCONV=1 adb shell ls /sdcard`).",
 ].join("\n");
 
 const adbName = (platform) => (platform === "win32" ? "adb.exe" : "adb");
@@ -48,9 +57,18 @@ export function findAdb({ env = process.env, platform = process.platform, exists
 }
 
 export function adbMissingMessage({ env = process.env, platform = process.platform, exists = fs.existsSync } = {}) {
+  const join = platform === "win32" ? path.win32.join : path.posix.join;
   const sdk = defaultSdkAdb({ env, platform });
-  const found = sdk && exists(sdk) ? ` Android Studio's copy is at ${sdk}: put its folder on PATH.` : "";
-  return `--device android needs adb, and there is none on PATH or under ANDROID_HOME or ANDROID_SDK_ROOT.${found}\n${ANDROID_SETUP}`;
+  const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "PATH";
+  const looked = [`in each PATH folder (${env[pathKey] || "PATH is empty"})`];
+  for (const name of ["ANDROID_HOME", "ANDROID_SDK_ROOT"]) {
+    if (env[name]) looked.push(`under ${name} (${join(env[name], "platform-tools", adbName(platform))})`);
+  }
+  const found = Boolean(sdk && exists(sdk));
+  if (sdk && !found) looked.push(`for Android Studio's default copy at ${sdk}, which is not there`);
+  const list = looked.length > 1 ? `${looked.slice(0, -1).join(", ")} and ${looked.at(-1)}` : looked[0];
+  const hint = found ? ` Android Studio's copy is at ${sdk}: put its folder on PATH.` : "";
+  return `--device android needs adb, and there is none on PATH or under ANDROID_HOME or ANDROID_SDK_ROOT. It looked for ${adbName(platform)} ${list}.${hint}\n${ANDROID_SETUP}`;
 }
 
 export function requireAdb(options = {}) {
@@ -322,6 +340,37 @@ export function editorPorts(record) {
   return [...new Set(ports.filter((port) => Number.isSafeInteger(port) && port > 0))];
 }
 
+export function planReverse(ports, mapped) {
+  const plan = { add: [], leftover: [], conflicts: [] };
+  for (const port of ports) {
+    if (!mapped.has(port)) plan.add.push(port);
+    else if (mapped.get(port) === port) plan.leftover.push(port);
+    else plan.conflicts.push(port);
+  }
+  return plan;
+}
+
+export function launchTab(pages) {
+  return pages.length === 1 && pages[0].url() === BLANK_URL ? pages[0] : null;
+}
+
+export function pageVerdict({ width, height, visibility }) {
+  const retry = "re-run, and if it repeats, check that Chrome is the app in front on the device";
+  if (!(width > 0 && height > 0)) return `the page the run drove measures ${width}x${height}, so Chrome did not lay it out on screen and no step's result is evidence; ${retry}`;
+  if (visibility !== "visible") return `the page the run drove is not the visible tab (document.visibilityState is ${visibility}), so the screen showed something else; ${retry}`;
+  return null;
+}
+
+function withinLimit(promise, ms) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ late: true }), ms);
+  });
+  const settled = promise.then((value) => ({ value }));
+  settled.catch(() => {});
+  return Promise.race([settled, late]).finally(() => clearTimeout(timer));
+}
+
 const shellText = async (device, command) => String(await device.shell(command)).trim();
 
 export function deviceInput(device) {
@@ -343,6 +392,7 @@ export async function openAndroidDevice({
   run = runAdb,
   acquire = acquireDevice,
   lockOptions = {},
+  launchMs = LAUNCH_SECONDS * 1000,
   log = () => {},
 }) {
   const adb = requireAdb({ env, platform });
@@ -377,15 +427,17 @@ export async function openAndroidDevice({
     const chrome = requireChrome(parseChromeVersion(await shellText(device, `dumpsys package ${CHROME_PACKAGE}`)), serial);
 
     const mapped = parseReverseList((await adbOn(["reverse", "--list"])).stdout);
-    const conflicts = editorPorts(record).filter((port) => mapped.has(port) && mapped.get(port) !== port);
+    const plan = planReverse(editorPorts(record), mapped);
+    const { conflicts } = plan;
     if (conflicts.length) {
       throw new Error(`${serial} already forwards ${conflicts.map((port) => `device port ${port} to host port ${mapped.get(port)}`).join(" and ")}, so the device's localhost:${conflicts[0]} would not reach this checkout's editor. Remove ${conflicts.length === 1 ? "that mapping" : "those mappings"} (\`adb -s ${serial} reverse --remove tcp:${conflicts[0]}\`) if nothing still needs ${conflicts.length === 1 ? "it" : "them"}, or run \`up\` again for other ports`);
     }
     const reversed = [];
     for (const port of editorPorts(record)) {
-      if (mapped.has(port)) continue;
-      await adbOn(["reverse", `tcp:${port}`, `tcp:${port}`]);
-      reversed.push(port);
+      if (plan.add.includes(port)) {
+        await adbOn(["reverse", `tcp:${port}`, `tcp:${port}`]);
+        reversed.push(port);
+      }
       undo.push({ what: `remove the adb reverse mapping for port ${port}`, run: () => adbOn(["reverse", "--remove", `tcp:${port}`]) });
     }
 
@@ -401,12 +453,25 @@ export async function openAndroidDevice({
 
     let ctx;
     try {
-      ctx = await device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) });
+      const launched = await withinLimit(device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) }), launchMs);
+      if (launched.late) {
+        throw new Error(`Chrome on ${serial} offered no debugging connection within ${launchMs / 1000} s: it died, or it did not read the command line that names the connection; ${COMMAND_LINE_CHECK(serial)}\n${ANDROID_SETUP}`);
+      }
+      ctx = launched.value;
     } catch (error) {
-      error.message = `Chrome on ${serial} did not open its debugging connection (${String(error.message || error).split("\n")[0]}). This is what a missing "Enable command line on non-rooted devices" flag in chrome://flags looks like; turn it on and relaunch Chrome.\n${ANDROID_SETUP}`;
+      if (!/offered no debugging connection/.test(error.message)) {
+        error.message = `Chrome on ${serial} did not open its debugging connection (${String(error.message || error).split("\n")[0]}); ${COMMAND_LINE_CHECK(serial)}.\n${ANDROID_SETUP}`;
+      }
       throw error;
     }
     undo.push({ what: "close Chrome's browser context", run: () => ctx.close() });
+
+    const listed = ctx.pages();
+    const opened = launchTab(listed);
+    const page = opened ?? (await ctx.newPage());
+    undo.push({ what: "close the tab this run drove", run: () => page.close() });
+    await page.bringToFront();
+    const tab = opened ? "the tab Chrome opened for this run" : `a new tab: Chrome listed ${listed.length} tab${listed.length === 1 ? "" : "s"} at launch, so the one its launch opened could not be told apart and stays open`;
 
     let rotation = null;
     const input = deviceInput(device);
@@ -441,10 +506,12 @@ export async function openAndroidDevice({
         screen: screen.override ?? screen.physical,
         density: appliedDensity,
         reversedPorts: reversed,
+        leftoverPorts: plan.leftover,
+        tab,
         waitedForDeviceMs: lock.waitedMs,
       }),
     };
-    return { ctx, device: handle, close: unwind };
+    return { ctx, page, device: handle, close: unwind };
   } catch (error) {
     const problems = await unwind();
     if (problems.length) error.message += `; cleanup also failed (${problems.join("; ")})`;
