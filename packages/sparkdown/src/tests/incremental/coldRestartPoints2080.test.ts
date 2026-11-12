@@ -1,3 +1,4 @@
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
@@ -82,6 +83,45 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
     expectCold(first.tree, first.next);
   });
 
+  test.each([1, 2, 3])("a random chain of edits through the clause's cues matches a cold parse at every step, seed %i (I-2093)", (seed) => {
+    let state = seed;
+    const rand = () => {
+      state = (Math.imul(state, 1103515245) + 12345) | 0;
+      return ((state >>> 0) % 1_000_000) / 1_000_000;
+    };
+    const inserts = ["x", " ", "\n", "(", ")", ":", "{", "}", "*", "_", CUE, ""];
+    let text = TEXT;
+    let tree = getParser().parse(text);
+    for (let step = 0; step < 12; step++) {
+      const at = CLAUSE_FROM + Math.floor(rand() * (CLAUSE_TO - CLAUSE_FROM));
+      const insert = inserts[Math.floor(rand() * inserts.length)]!;
+      const edit = { from: at, to: insert === "" ? at + 1 : at, insert };
+      ({ tree, next: text } = parseEdit(tree, text, edit));
+      expectCold(tree, text);
+    }
+  });
+
+  test("an edit above the clause hands the tree the clause as one reused buffer instead of every node in it (I-2093)", () => {
+    const lead = "A line above.\n\n";
+    const text = lead + TEXT;
+    const base = getParser().parse(text);
+    const clauseRun = chunksOf(base).find((chunk) => chunk.from >= lead.length && chunk.run)?.run;
+    expect(clauseRun?.members.length).toBeGreaterThan(CUES);
+    const built = clauseRun.reused;
+    const builtTree = built.tree;
+    const { tree, next } = parseEdit(base, text, { from: 0, to: 0, insert: "x" });
+    expectCold(tree, next);
+    const compiler = tree.prop(cachedCompilerProp) as any;
+    const clauseNodes = chunksOf(tree)
+      .filter((chunk) => chunk.from >= lead.length)
+      .reduce((sum, chunk) => sum + chunk.nodeCount, 0);
+    expect(clauseNodes).toBeGreaterThan(10000);
+    expect(compiler.nodeCount).toBeLessThan(100);
+    expect(compiler.reused.includes(built)).toBe(true);
+    expect(built.tree).toBeDefined();
+    expect(built.tree).toBe(builtTree);
+  });
+
   test("a cold parse records a restart point at every line start inside the clause", () => {
     const chunks = chunksOf(getParser().parse(TEXT));
     const lineStarts = new Set<number>();
@@ -104,5 +144,49 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
       expect(chunk.compiled.length).toBeLessThanOrEqual(Math.max(32, chunk.nodeCount * 8));
       expect(chunk.stack.entries.length).toBeLessThanOrEqual(48);
     }
+  });
+});
+
+const NESTED = {
+  name: "probe",
+  scopeName: "source.probe",
+  patterns: [{ include: "#Block" }],
+  repository: { Block: { name: "block.probe", begin: "<", end: ">", patterns: [{ include: "#Block" }] } },
+};
+
+describe("a block reused as one subtree is built as Lezer builds its records (I-2093)", () => {
+  test.each([
+    [100, { Block: 100, Block_content: 100, Block_begin: 100 }],
+    [1800, { Block: 1251, Block_content: 1252, Block_begin: 1800 }],
+    [4000, { Block: 1251, Block_content: 1252, Block_begin: 4000 }],
+  ])("nested %i deep over two lines", (depth, expected) => {
+    const text = `${"<".repeat(depth)}\n${">".repeat(depth)}`;
+    const tree = new TextmateGrammarParser(structuredClone(NESTED) as never).parse(text);
+    const counts = { Block: 0, Block_content: 0, Block_begin: 0 };
+    tree.iterate({
+      enter: (node) => {
+        if (node.name in counts) {
+          counts[node.name as keyof typeof counts]++;
+        }
+      },
+    });
+    expect(counts).toEqual(expected);
+  });
+
+  test.each([
+    [3000, { Block: 3000, Block_content: 2999, Block_begin: 3000 }],
+    [4000, { Block: 4000, Block_content: 3999, Block_begin: 4000 }],
+  ])("nested %i deep on one line", (depth, expected) => {
+    const text = `${"<".repeat(depth)}${">".repeat(depth)}`;
+    const tree = new TextmateGrammarParser(structuredClone(NESTED) as never).parse(text);
+    const counts = { Block: 0, Block_content: 0, Block_begin: 0 };
+    tree.iterate({
+      enter: (node) => {
+        if (node.name in counts) {
+          counts[node.name as keyof typeof counts]++;
+        }
+      },
+    });
+    expect(counts).toEqual(expected);
   });
 });
