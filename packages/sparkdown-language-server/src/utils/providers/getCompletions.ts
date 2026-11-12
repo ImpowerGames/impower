@@ -32,6 +32,8 @@ import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/res
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
+import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
+import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -109,7 +111,7 @@ const STYLING_DEFINE_TYPES: string[] = [];
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const IMAGE_COMMAND_NAME_TYPES = [...IMAGE_TYPES, "video"];
 const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
-const VALUE_CLAUSE_KEYWORDS = ["after", "over", "with", "to", "ease"];
+const VALUE_CLAUSE_KEYWORDS: readonly string[] = ASSET_VALUE_CLAUSE_WORDS;
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const VIDEO_TYPES = ["video"];
 const LOGIC_KEYWORDS = ["temp", "return"];
@@ -1411,11 +1413,7 @@ const completionsAt = (
     if (node?.name !== "NameValue") {
       return false;
     }
-    const before = node.prevSibling?.prevSibling;
-    return !(
-      before?.name === "AssetCommandClauseKeyword" &&
-      VALUE_CLAUSE_KEYWORDS.includes(getNodeText(before))
-    );
+    return !keywordOfValue(node);
   };
 
   const getCursorOffset = (node: SyntaxNode | undefined) =>
@@ -1841,7 +1839,7 @@ const completionsAt = (
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       (leftStack[0]?.name === "NameValue" &&
-        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "with")
+        getNodeText(keywordOfValue(leftStack[0].node)) === "with")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const controlNode = getDescendentInsideParent(
@@ -1865,7 +1863,7 @@ const completionsAt = (
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "ease") ||
       (leftStack[0]?.name === "NameValue" &&
-        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "ease")
+        getNodeText(keywordOfValue(leftStack[0].node)) === "ease")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["ease"]);
@@ -1877,7 +1875,7 @@ const completionsAt = (
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "morph") ||
       (leftStack[0]?.name === "NameValue" &&
-        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "morph")
+        getNodeText(keywordOfValue(leftStack[0].node)) === "morph")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const directive = leftStack.find((n) => n.type.name === "ImageCommand");
@@ -1901,11 +1899,7 @@ const completionsAt = (
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
-          (prevText === "after" ||
-            prevText === "over" ||
-            prevText === "with" ||
-            prevText === "morph" ||
-            prevText === "to");
+          VALUE_CLAUSE_KEYWORDS.includes(prevText);
         if (!prevClauseTakesArgument) {
           addImageClauseCompletions(imageControl());
         }
@@ -2032,10 +2026,7 @@ const completionsAt = (
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
-          (prevText === "after" ||
-            prevText === "over" ||
-            prevText === "with" ||
-            prevText === "to");
+          VALUE_CLAUSE_KEYWORDS.includes(prevText);
         if (!prevClauseTakesArgument) {
           addKeywordCompletions(
             completions,

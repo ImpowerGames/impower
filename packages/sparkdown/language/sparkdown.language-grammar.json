@@ -49,6 +49,14 @@
       "ease",
       "morph"
     ],
+    "ASSET_VALUE_CLAUSE_KEYWORDS": [
+      "after",
+      "over",
+      "to",
+      "with",
+      "ease",
+      "morph"
+    ],
     "AUDIO_CONTROL_KEYWORDS": [
       "play",
       "stop",
@@ -5822,6 +5830,9 @@
               "include": "#RequiredWhitespace"
             },
             {
+              "include": "#AssetCommandValueClause"
+            },
+            {
               "include": "#AssetCommandClauseKeyword"
             },
             {
@@ -5832,6 +5843,53 @@
             },
             {
               "include": "#NameValue"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandValueClause": {
+      "match": "((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:after|over|to|with|ease|morph)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))((?:[^\\S\\n\\r])+)((?:[#]*[^\\s#])\\S*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauseKeyword"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetCommandClauseValue"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandClauseValue": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TimeValue"
+            },
+            {
+              "include": "#NumberValue"
+            },
+            {
+              "include": "#NameValue"
+            },
+            {
+              "include": "#IllegalChar"
             }
           ]
         }

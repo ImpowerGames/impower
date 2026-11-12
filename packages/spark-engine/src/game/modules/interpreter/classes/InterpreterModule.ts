@@ -26,7 +26,7 @@ import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
-import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/src/compiler/utils/assetClauseWords";
+import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 
 export interface InterpreterConfig {}
 
@@ -849,11 +849,17 @@ export class InterpreterModule extends Module<
     return layoutChunk;
   }
 
-  protected createNavigateChunk(navigateTagContent: string): Chunk {
-    const tokens = navigateTagContent
+  protected assetWords(content: string): string[] {
+    const words = content
       .replaceAll("\t", " ")
       .split(" ")
-      .filter((t) => t !== "");
+      .filter((word) => word !== "");
+    const tagAt = words.findIndex((word) => /^#+$/.test(word));
+    return tagAt >= 0 ? words.slice(0, tagAt) : words;
+  }
+
+  protected createNavigateChunk(navigateTagContent: string): Chunk {
+    const tokens = this.assetWords(navigateTagContent);
     let screen = "";
     let destination = "";
     let i = 1;
@@ -863,7 +869,7 @@ export class InterpreterModule extends Module<
     }
     if (tokens[i] === "to") {
       i += 1;
-      if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
+      if (tokens[i]) {
         destination = tokens[i]!;
         i += 1;
       }
@@ -968,10 +974,7 @@ export class InterpreterModule extends Module<
     isControl: (word: string) => boolean = (word) =>
       this.ASSET_CONTROL_KEYWORDS.includes(word),
   ): Chunk {
-    let parts = assetTagContent
-      .replaceAll("\t", " ")
-      .split(" ")
-      .filter((part) => part !== "");
+    let parts = this.assetWords(assetTagContent);
     let control = defaultControl;
     let target = defaultTarget;
     const assets: string[] = [];

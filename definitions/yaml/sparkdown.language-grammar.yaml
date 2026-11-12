@@ -50,6 +50,7 @@ variables:
   DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease", "morph"]
+  ASSET_VALUE_CLAUSE_KEYWORDS: ["after", "over", "to", "with", "ease", "morph"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
@@ -3469,10 +3470,34 @@ repository:
         patterns:
           - { include: "#Annotation" }
           - { include: "#RequiredWhitespace" }
+          - { include: "#AssetCommandValueClause" }
           - { include: "#AssetCommandClauseKeyword" }
           - { include: "#TimeValue" }
           - { include: "#NumberValue" }
           - { include: "#NameValue" }
+
+  AssetCommandValueClause:
+    match: ({{ASSET_VALUE_CLAUSE_KEYWORDS}})({{WS}}+)((?:[#]*[^\s#])\S*)
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandClauseKeyword" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+      3:
+        patterns:
+          - { include: "#AssetCommandClauseValue" }
+
+  AssetCommandClauseValue:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#TimeValue" }
+          - { include: "#NumberValue" }
+          - { include: "#NameValue" }
+          - { include: "#IllegalChar" }
 
   AssetCommandInstruction:
     match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)

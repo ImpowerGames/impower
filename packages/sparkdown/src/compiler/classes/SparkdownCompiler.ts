@@ -12,7 +12,6 @@ import {
 import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import { readImageClauses, type MorphClause, type StrayClauseText } from "../morph/morphClause";
-import { ASSET_VALUE_CLAUSE_WORDS } from "../utils/assetClauseWords";
 import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
@@ -87,24 +86,26 @@ import type {
 
 function strayClauseIssue(
   text: StrayClauseText,
-  morph: MorphClause | undefined,
-): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string } {
-  const after = text.after?.text;
-  const takesValue = after !== undefined && (ASSET_VALUE_CLAUSE_WORDS as readonly string[]).includes(after);
+  control: string | undefined,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
+  const after = text.after;
+  if (control !== undefined && isMovieControl(control)) return undefined;
+  if (after && !after.takesValue && (text.node === "TimeValue" || text.node === "NumberValue")) return undefined;
   const message =
-    !text.word && text.text === "=" && after === "morph"
-      ? `Write the morph's name right after \`morph\`, with no \`=\`: \`morph ${morph?.value?.text ?? "talk"}\`.`
-      : !text.word
-        ? `\`${text.text}\` is not part of a clause.`
-        : after === "morph"
-          ? `\`${text.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
-          : takesValue
-            ? `\`${text.text}\` is not a clause: \`${after}\` takes one value.`
-            : after !== undefined
-              ? `\`${text.text}\` is not a clause, and \`${after}\` takes no value.`
-              : `\`${text.text}\` is not a clause.`;
+    text.node === undefined
+      ? `\`${text.text}\` is not part of a clause.`
+      : after?.text === "morph"
+        ? `\`${text.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
+        : after?.takesValue
+          ? `\`${text.text}\` is not a clause: \`${after.text}\` takes one value.`
+          : after !== undefined
+            ? `\`${text.text}\` is not a clause, and \`${after.text}\` takes no value.`
+            : `\`${text.text}\` is not a clause.`;
   return { at: text, severity: DiagnosticSeverity.Error, message };
 }
+
+const isMovieControl = (control: string): boolean =>
+  (GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS as readonly string[]).includes(control);
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4829,11 +4830,11 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
-      for (const { directive, morph, stray } of clauses) {
+      for (const { directive, control, morph, stray } of clauses) {
         const directiveImages = shownImages.filter((image) => directive.from <= image.from && image.to <= directive.to);
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
-          ...stray.map((text) => ({ ...strayClauseIssue(text, morph), keyword: text })),
+          ...stray.map((text) => ({ ...strayClauseIssue(text, control), keyword: text })),
         ];
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;
@@ -4911,6 +4912,13 @@ export class SparkdownCompiler {
     }
     const name = value.text;
     if (name === MORPH_PICK_NONE) return undefined;
+    if (name === "=") {
+      return {
+        at: value,
+        severity: DiagnosticSeverity.Error,
+        message: "Write the morph's name right after `morph`, with no `=`: `morph talk_gritted`.",
+      };
+    }
     const morph = name.startsWith("$") ? undefined : getContextEntry(program.context, "morph", name);
     if (!morph) {
       return {

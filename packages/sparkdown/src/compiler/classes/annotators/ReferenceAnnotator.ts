@@ -33,6 +33,7 @@ import { sortFilteredName } from "../../utils/sortFilteredName";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { isLuauName } from "../../utils/luauName";
+import { keywordOfValue } from "../../utils/assetClauseTree";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -1001,7 +1002,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "NameValue") {
       const context = getContextNames(nodeRef.node);
       if (context.includes("ImageCommand")) {
-        const clauseKeywordNode = nodeRef.node.prevSibling?.prevSibling;
+        const clauseKeywordNode = keywordOfValue(nodeRef.node);
         const clauseKeyword = clauseKeywordNode
           ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
           : undefined;

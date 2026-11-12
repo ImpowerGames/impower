@@ -204,12 +204,20 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
-  test("`morph = name` is an error on the `=` that shows the form, and only that", () => {
+  test("`morph = name` reads `=` as the morph, as the interpreter does: an error on `=` that shows the form, and the name after it is a stray word", () => {
     const text = story(`${TALK}\n${GRITTED}`, "  [[bunny morph = talk_gritted]]");
     const scene = text.split("\n").indexOf("scene start");
     expect(diagnosticsOf(text).filter((d) => d.line > scene)).toEqual([
       expect.objectContaining({ severity: 1, text: "=", message: expect.stringContaining("with no `=`: `morph talk_gritted`") }),
+      expect.objectContaining({ severity: 1, text: "talk_gritted", message: expect.stringContaining("`morph` takes one morph name") }),
     ]);
+  });
+
+  test("a transition or an ease named like a clause word is a value of `with` or `ease`, not a clause", () => {
+    const text = story(TALK, "  [[bunny with wait]]\n  [[bunny ease ease over 1s]]\n  [[bunny with over]]");
+    const scene = text.split("\n").indexOf("scene start");
+    const after = diagnosticsOf(text).filter((d) => d.line > scene);
+    expect(after.filter((d) => /should be followed by|is not a clause|is a flag/.test(d.message))).toEqual([]);
   });
 
   test("a clause naming a morph that is not a speech morph is an error on the clause", () => {

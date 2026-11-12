@@ -39,9 +39,15 @@ sparkdown [0..173]
  │   │       │               │                   ├─ AssetCommandFileName [16..19]: "mia"
  │   │       │               │                   └─ RequiredWhitespace [19..20]: " "
  │   │       │               └─ AssetCommandContent_c2 [20..38]
- │   │       │                   ├─ AssetCommandClauseKeyword [20..25]: "morph"
- │   │       │                   ├─ RequiredWhitespace [25..26]: " "
- │   │       │                   └─ NameValue [26..38]: "talk_gritted"
+ │   │       │                   └─ AssetCommandValueClause [20..38]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [20..25]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [20..25]: "morph"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [25..26]
+ │   │       │                       │   └─ RequiredWhitespace [25..26]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [26..38]
+ │   │       │                           └─ AssetCommandClauseValue [26..38]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [26..38]
+ │   │       │                                   └─ NameValue [26..38]: "talk_gritted"
  │   │       └─ ImageCommand_end [38..40]
  │   │           ├─ ImageCommand_end_c1 38
  │   │           ├─ ImageCommand_end_c2 [38..40]
@@ -76,9 +82,15 @@ sparkdown [0..173]
  │   │       │               │                   ├─ AssetCommandFileName [45..48]: "mia"
  │   │       │               │                   └─ RequiredWhitespace [48..49]: " "
  │   │       │               └─ AssetCommandContent_c2 [49..59]
- │   │       │                   ├─ AssetCommandClauseKeyword [49..54]: "morph"
- │   │       │                   ├─ RequiredWhitespace [54..55]: " "
- │   │       │                   └─ NameValue [55..59]: "none"
+ │   │       │                   └─ AssetCommandValueClause [49..59]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [49..54]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [49..54]: "morph"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [54..55]
+ │   │       │                       │   └─ RequiredWhitespace [54..55]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [55..59]
+ │   │       │                           └─ AssetCommandClauseValue [55..59]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [55..59]
+ │   │       │                                   └─ NameValue [55..59]: "none"
  │   │       └─ ImageCommand_end [59..61]
  │   │           ├─ ImageCommand_end_c1 59
  │   │           ├─ ImageCommand_end_c2 [59..61]
@@ -113,13 +125,25 @@ sparkdown [0..173]
  │   │       │               │                   ├─ AssetCommandFileName [66..69]: "mia"
  │   │       │               │                   └─ RequiredWhitespace [69..70]: " "
  │   │       │               └─ AssetCommandContent_c2 [70..98]
- │   │       │                   ├─ AssetCommandClauseKeyword [70..74]: "with"
- │   │       │                   ├─ RequiredWhitespace [74..75]: " "
- │   │       │                   ├─ NameValue [75..79]: "fade"
+ │   │       │                   ├─ AssetCommandValueClause [70..79]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [70..74]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [70..74]: "with"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [74..75]
+ │   │       │                   │   │   └─ RequiredWhitespace [74..75]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [75..79]
+ │   │       │                   │       └─ AssetCommandClauseValue [75..79]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [75..79]
+ │   │       │                   │               └─ NameValue [75..79]: "fade"
  │   │       │                   ├─ RequiredWhitespace [79..80]: " "
- │   │       │                   ├─ AssetCommandClauseKeyword [80..85]: "morph"
- │   │       │                   ├─ RequiredWhitespace [85..86]: " "
- │   │       │                   └─ NameValue [86..98]: "talk_gritted"
+ │   │       │                   └─ AssetCommandValueClause [80..98]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [80..85]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [80..85]: "morph"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [85..86]
+ │   │       │                       │   └─ RequiredWhitespace [85..86]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [86..98]
+ │   │       │                           └─ AssetCommandClauseValue [86..98]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [86..98]
+ │   │       │                                   └─ NameValue [86..98]: "talk_gritted"
  │   │       └─ ImageCommand_end [98..100]
  │   │           ├─ ImageCommand_end_c1 98
  │   │           ├─ ImageCommand_end_c2 [98..100]
@@ -166,13 +190,25 @@ sparkdown [0..173]
  │   │       │               │                   │               └─ AssetCommandFilterName [133..145]: "mouth.closed"
  │   │       │               │                   └─ RequiredWhitespace [145..146]: " "
  │   │       │               └─ AssetCommandContent_c2 [146..166]
- │   │       │                   ├─ AssetCommandClauseKeyword [146..151]: "morph"
- │   │       │                   ├─ RequiredWhitespace [151..152]: " "
- │   │       │                   ├─ NameValue [152..156]: "none"
+ │   │       │                   ├─ AssetCommandValueClause [146..156]
+ │   │       │                   │   ├─ AssetCommandValueClause_c1 [146..151]
+ │   │       │                   │   │   └─ AssetCommandClauseKeyword [146..151]: "morph"
+ │   │       │                   │   ├─ AssetCommandValueClause_c2 [151..152]
+ │   │       │                   │   │   └─ RequiredWhitespace [151..152]: " "
+ │   │       │                   │   └─ AssetCommandValueClause_c3 [152..156]
+ │   │       │                   │       └─ AssetCommandClauseValue [152..156]
+ │   │       │                   │           └─ AssetCommandClauseValue_c1 [152..156]
+ │   │       │                   │               └─ NameValue [152..156]: "none"
  │   │       │                   ├─ RequiredWhitespace [156..157]: " "
- │   │       │                   ├─ AssetCommandClauseKeyword [157..161]: "with"
- │   │       │                   ├─ RequiredWhitespace [161..162]: " "
- │   │       │                   └─ NameValue [162..166]: "fade"
+ │   │       │                   └─ AssetCommandValueClause [157..166]
+ │   │       │                       ├─ AssetCommandValueClause_c1 [157..161]
+ │   │       │                       │   └─ AssetCommandClauseKeyword [157..161]: "with"
+ │   │       │                       ├─ AssetCommandValueClause_c2 [161..162]
+ │   │       │                       │   └─ RequiredWhitespace [161..162]: " "
+ │   │       │                       └─ AssetCommandValueClause_c3 [162..166]
+ │   │       │                           └─ AssetCommandClauseValue [162..166]
+ │   │       │                               └─ AssetCommandClauseValue_c1 [162..166]
+ │   │       │                                   └─ NameValue [162..166]: "fade"
  │   │       └─ ImageCommand_end [166..168]
  │   │           ├─ ImageCommand_end_c1 166
  │   │           ├─ ImageCommand_end_c2 [166..168]
