@@ -1,3 +1,4 @@
+import type { WorkspaceEditAction } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import type { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import {
   Button,
@@ -41,6 +42,28 @@ function onePicture(batch: TrashBatch): string | null {
   }
   const stacks = imageStacks(batch.entries.map((e) => e.relPath));
   return stacks.length === 1 ? stacks[0]!.name : null;
+}
+
+const FAILED_ACTIONS: Record<WorkspaceEditAction["kind"], string> = {
+  rename: "renaming",
+  "put-back": "putting back",
+};
+
+function failedAction(action: WorkspaceEditAction | undefined): string {
+  const verb = action && FAILED_ACTIONS[action.kind];
+  const [first, ...rest] = action?.targets ?? [];
+  if (!verb || !first) {
+    return "an edit";
+  }
+  const name = first.split("/").pop() || first;
+  return `${verb} ${name}${rest.length ? ` and ${rest.length} more` : ""}`;
+}
+
+function keptReason(batch: TrashBatch): string | null {
+  if (batch.reason?.kind !== "failed-edit") {
+    return null;
+  }
+  return `${batch.entries.length === 1 ? "Copy" : "Copies"} kept when ${failedAction(batch.reason.action)} failed`;
 }
 
 function batchLabel(batch: TrashBatch): string {
@@ -227,13 +250,15 @@ export default function TrashPanel() {
         <div class="min-h-0 flex-1 overflow-y-auto pb-2">
           {batches!.map((batch) => {
             const loc = batchLocation(batch);
+            const reason = keptReason(batch);
             return (
               <ListRow
                 key={batch.batchId}
                 class="px-2"
                 icon={(batch.entries.length === 1 && !batch.folders?.length) || onePicture(batch) ? <FileIcon /> : <FolderIcon />}
                 label={batchLabel(batch)}
-                description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
+                description={[reason, loc, timeAgo(batch.deletedAt)].filter(Boolean).join(" · ")}
+                descriptionFit={reason ? "wrap" : "line"}
                 actions={
                   <>
                     <Button
