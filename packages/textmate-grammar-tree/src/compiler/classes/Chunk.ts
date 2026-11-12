@@ -28,7 +28,7 @@ export interface ChunkResume {
 export interface ChunkRun {
   members: Chunk[];
   stamps: Int32Array;
-  reused: ITreeBuffer | IReusedRecords;
+  reused: IReusedRecords;
 }
 
 export class Chunk {

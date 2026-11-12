@@ -7,11 +7,7 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import {
-  Compiler,
-  type CompilerJournal,
-  DEFAULT_MAX_TREE_BUFFER_LENGTH,
-} from "../../compiler/classes/Compiler";
+import { Compiler, type CompilerJournal } from "../../compiler/classes/Compiler";
 import { FlatBufferCursor } from "../../compiler/classes/FlatBufferCursor";
 import { type IReusedRecords } from "../../compiler/types/IReusedRecords";
 import { NodeID } from "../../core/enums/NodeID";
@@ -171,12 +167,12 @@ export class TextmateGrammarParse implements PartialParse {
 
     if (result) {
       const buffer = result.cursor;
+      const maxBufferLength = result.maxBufferLength;
       const reused = result.reused.map((b) =>
         "buffer" in b
           ? new TreeBuffer(b.buffer, b.length, nodeSet)
-          : this.reusedTree(b),
+          : this.reusedTree(b, maxBufferLength),
       ) as unknown as readonly Tree[];
-      const maxBufferLength = result.maxBufferLength;
       const tree = Tree.build({
         topID,
         buffer,
@@ -199,19 +195,19 @@ export class TextmateGrammarParse implements PartialParse {
     return new Tree(topNodeType, [], [], length);
   }
 
-  protected reusedTree(run: IReusedRecords): Tree {
-    if (!run.tree) {
-      const records = run.records!;
+  protected reusedTree(run: IReusedRecords, maxBufferLength: number): Tree {
+    if (!run.tree || run.maxBufferLength !== maxBufferLength) {
+      const records = run.records();
       const built = Tree.build({
         topID: NodeID.none,
         buffer: new FlatBufferCursor(records, records.length),
         nodeSet: this.nodeSet,
         start: 0,
         length: run.length,
-        maxBufferLength: DEFAULT_MAX_TREE_BUFFER_LENGTH,
+        maxBufferLength,
       });
       run.tree = new Tree(NodeType.none, built.children, built.positions, run.length);
-      run.records = undefined;
+      run.maxBufferLength = maxBufferLength;
     }
     return run.tree;
   }

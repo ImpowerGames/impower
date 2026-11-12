@@ -11,7 +11,7 @@ import type { IReusedRecords } from "../types/IReusedRecords";
 import type { ITreeBuffer } from "../types/ITreeBuffer";
 
 export type ReusedNode = ITreeBuffer | IReusedRecords;
-import { Chunk, TREE_BUFFER_LENGTH_LIMIT } from "./Chunk";
+import { Chunk } from "./Chunk";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
 import { Packet } from "./Packet";
@@ -86,43 +86,43 @@ function cachedRunEnd(chunks: Chunk[], start: number): number {
   return start + cached.members.length - 1;
 }
 
-function runReused(chunks: Chunk[], start: number, end: number): ReusedNode {
+function runRecords(members: readonly Chunk[]): Int32Array {
+  const first = members[0]!;
+  let length = 0;
+  for (const chunk of members) {
+    length += chunk.nodeCount * 4;
+  }
+  const records = new Int32Array(length);
+  let at = 0;
+  for (const chunk of members) {
+    const base = chunk.from - first.from;
+    const compiled = chunk.compiled;
+    for (let j = 0; j < chunk.nodeCount * 4; j += 4) {
+      records[at] = compiled[j]!;
+      records[at + 1] = compiled[j + 1]! + base;
+      records[at + 2] = compiled[j + 2]! + base;
+      records[at + 3] = compiled[j + 3]!;
+      at += 4;
+    }
+  }
+  return records;
+}
+
+function runReused(chunks: Chunk[], start: number, end: number): IReusedRecords {
   const first = chunks[start]!;
   if (cachedRunEnd(chunks, start) === end) {
     return first.run!.reused;
   }
-  let length = 0;
-  for (let i = start; i <= end; i++) {
-    length += chunks[i]!.nodeCount * 4;
+  const members = chunks.slice(start, end + 1);
+  const stamps = new Int32Array(members.length * 2);
+  for (let k = 0; k < members.length; k++) {
+    stamps[k * 2] = members[k]!.version;
+    stamps[k * 2 + 1] = members[k]!.from - first.from;
   }
-  const flat = new Int32Array(length);
-  const members: Chunk[] = [];
-  const stamps = new Int32Array((end - start + 1) * 2);
-  let at = 0;
-  for (let i = start; i <= end; i++) {
-    const chunk = chunks[i]!;
-    const base = chunk.from - first.from;
-    const compiled = chunk.compiled;
-    for (let j = 0; j < chunk.nodeCount * 4; j += 4) {
-      flat[at] = compiled[j]!;
-      flat[at + 1] = compiled[j + 1]! + base;
-      flat[at + 2] = compiled[j + 2]! + base;
-      flat[at + 3] = compiled[j + 3]!;
-      at += 4;
-    }
-    stamps[members.length * 2] = chunk.version;
-    stamps[members.length * 2 + 1] = base;
-    members.push(chunk);
-  }
-  const span = chunks[end]!.to - first.from;
-  let reused: ReusedNode;
-  if (length < TREE_BUFFER_LENGTH_LIMIT && span < TREE_BUFFER_LENGTH_LIMIT) {
-    const buffer = new Uint16Array(length);
-    first.copyToTreeBuffer(new FlatBufferCursor(flat, length), 0, buffer, length);
-    reused = { buffer, length: span };
-  } else {
-    reused = { records: flat, length: span };
-  }
+  const reused: IReusedRecords = {
+    records: () => runRecords(members),
+    length: chunks[end]!.to - first.from,
+  };
   first.run = { members, stamps, reused };
   return reused;
 }

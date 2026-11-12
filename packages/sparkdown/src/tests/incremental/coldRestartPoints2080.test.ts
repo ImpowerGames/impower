@@ -1,3 +1,4 @@
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
@@ -143,5 +144,32 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
       expect(chunk.compiled.length).toBeLessThanOrEqual(Math.max(32, chunk.nodeCount * 8));
       expect(chunk.stack.entries.length).toBeLessThanOrEqual(48);
     }
+  });
+});
+
+const NESTED = {
+  name: "probe",
+  scopeName: "source.probe",
+  patterns: [{ include: "#Block" }],
+  repository: { Block: { name: "block.probe", begin: "<", end: ">", patterns: [{ include: "#Block" }] } },
+};
+
+describe("a block reused as one subtree is built as Lezer builds its records (I-2093)", () => {
+  test.each([
+    [100, { Block: 100, Block_content: 100, Block_begin: 100 }],
+    [1800, { Block: 1251, Block_content: 1252, Block_begin: 1800 }],
+    [4000, { Block: 1251, Block_content: 1252, Block_begin: 4000 }],
+  ])("nested %i deep over two lines", (depth, expected) => {
+    const text = `${"<".repeat(depth)}\n${">".repeat(depth)}`;
+    const tree = new TextmateGrammarParser(structuredClone(NESTED) as never).parse(text);
+    const counts = { Block: 0, Block_content: 0, Block_begin: 0 };
+    tree.iterate({
+      enter: (node) => {
+        if (node.name in counts) {
+          counts[node.name as keyof typeof counts]++;
+        }
+      },
+    });
+    expect(counts).toEqual(expected);
   });
 });
