@@ -70,6 +70,7 @@ const createGame = (
         getTransientTargets: () => [],
         applyLayoutInstructions: () => {},
         refreshLayouts: () => {},
+        speak: () => {},
         beginCompose: () => false,
         composeWait: () => {},
         endCompose: async () => {},
