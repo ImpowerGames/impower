@@ -90,6 +90,12 @@ export const searchSources = (parts: {
         }),
       );
     },
+    focusScript: () => {
+      const filename = logicEditor()?.filename;
+      if (filename) {
+        window.executeEditorCommand(filename, "focus");
+      }
+    },
     revealRail: () => {
       const reveal = railReveal(
         workspace.state.peek().shell,

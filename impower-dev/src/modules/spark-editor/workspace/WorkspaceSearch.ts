@@ -57,6 +57,7 @@ export interface SearchSources {
   openAsset: (uri: string) => Promise<void>;
   setMatches: (uri: string, ranges: Range[]) => void;
   revealRail: () => void;
+  focusScript: () => void;
   autoRenameFiles: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
   onEditorLoaded: (listener: () => void) => () => void;
@@ -209,6 +210,8 @@ export const renameNote = (
 export default class WorkspaceSearch {
   protected readonly _sources: SearchSources;
 
+  protected _termEdits = 0;
+
   protected readonly _disposers: (() => void)[];
 
   protected _request = 0;
@@ -293,24 +296,40 @@ export default class WorkspaceSearch {
     this.update({ open: false, status: "" });
   }
 
+  dismiss() {
+    this.close();
+    this._sources.focusScript();
+  }
+
   async openFindFromSelection() {
     const uri = this._sources.openedUri();
     const selection = this._sources.selection();
-    if (
-      uri &&
-      selection &&
-      selection.start.line === selection.end.line &&
-      selection.start.character !== selection.end.character
-    ) {
-      const line = lineOf(await this._sources.fileText(uri), selection.start.line);
-      const from = Math.min(selection.start.character, selection.end.character);
-      const to = Math.max(selection.start.character, selection.end.character);
-      const term = line.slice(from, to);
-      if (term.trim()) {
-        this.update({ term });
-      }
-    }
     this.open("find");
+    if (
+      !uri ||
+      !selection ||
+      selection.start.line !== selection.end.line ||
+      selection.start.character === selection.end.character
+    ) {
+      return;
+    }
+    const request = this.snapshot.focusRequest;
+    const edits = this._termEdits;
+    const line = lineOf(await this._sources.fileText(uri), selection.start.line);
+    const from = Math.min(selection.start.character, selection.end.character);
+    const to = Math.max(selection.start.character, selection.end.character);
+    const term = line.slice(from, to);
+    const now = this.snapshot;
+    if (
+      term.trim() &&
+      now.open &&
+      now.view === "find" &&
+      this._termEdits === edits &&
+      now.focusRequest === request
+    ) {
+      this.update({ term, focusRequest: now.focusRequest + 1 });
+      await this.refresh();
+    }
   }
 
   stepOrOpen(backward: boolean) {
@@ -321,6 +340,7 @@ export default class WorkspaceSearch {
   }
 
   setTerm(term: string) {
+    this._termEdits += 1;
     this.update({ term, status: "" });
     return this.refresh();
   }

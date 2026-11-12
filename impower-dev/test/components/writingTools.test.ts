@@ -171,7 +171,7 @@ describe("Writing tools menu", () => {
     expect(row("Go to definition for IMANI")?.textContent).toContain("Show the character.");
     await act(async () => row("Find references to IMANI")!.click());
     await settle();
-    await until(() => calls.names.length);
+    await until(() => calls.names.length && !workspace.current.screen.writingTools);
     expect(calls.names).toEqual([["references", imani]]);
     expect(calls.commands).toEqual([]);
     expect(workspace.current.screen.writingTools).toBeUndefined();
@@ -183,7 +183,7 @@ describe("Writing tools menu", () => {
     await open();
     await until(() => row("Rename IMANI"));
     await act(async () => row("Rename IMANI")!.click());
-    await until(() => calls.names.length);
+    await until(() => calls.names.length && !workspace.current.screen.writingTools);
     expect(calls.names).toEqual([["rename", imani]]);
     expect(workspace.current.screen.writingTools).toBeUndefined();
   });
