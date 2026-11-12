@@ -285,6 +285,23 @@ describe("replacing a project from a backup zip", () => {
     );
     expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("NEW");
   });
+
+  it.each([
+    ["a folder and a file", { [`a${BS}b/`]: new Uint8Array(), a_b: new Uint8Array([1]) }],
+    ["two files", { [`a${BS}b.png`]: new Uint8Array([1]), "a_b.png": new Uint8Array([2]) }],
+    ["a file under a file", { "x.png": new Uint8Array([1]), "x.png/y.png": new Uint8Array([2]) }],
+  ])("refuses a backup whose cleaned names clash as %s, before deleting anything", async (_, entries) => {
+    const dst = project();
+    const err = await writeProjectZip(
+      dst,
+      backup({ "main.sd": enc.encode("NEW"), ...entries }),
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(ProjectImportError);
+    expect(err.reason).toBe("name_clash");
+    expect(REFUSED_BEFORE_CHANGE.has(err.reason)).toBe(true);
+    expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("OLD");
+    expect(dec.decode(dst.opfs.get(u("keep.sd"))!)).toBe("KEEP");
+  });
 });
 
 describe("asset bundle round-trip (readProjectAssetBundle <-> writeProjectAssetBundle)", () => {
