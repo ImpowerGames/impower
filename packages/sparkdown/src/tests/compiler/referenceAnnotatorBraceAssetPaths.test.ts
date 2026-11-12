@@ -84,6 +84,48 @@ describe("ReferenceAnnotator · asset paths in brace-form blocks", () => {
     );
   });
 
+  test.each([
+    ["inside the asset name", "ui_box", "ui_boxes"],
+    ["on the type word", "image.ui_box", "font.ui_box"],
+    ["adding a segment", "font.review_font", "font.review_font.bold"],
+    ["before the block", "scene start", "scene start\n  Hello there.\n  Another line."],
+  ])("an edit %s leaves the annotations equal to a fresh parse", (_, find, replace) => {
+    const uri = "file:///edited.sd";
+    const source = lines(
+      "scene start",
+      "  Hi.",
+      "end",
+      "screen hud {",
+      `  image = ${IMAGE}`,
+      "}",
+      "style dialogue_text {",
+      `  font_family = ${FONT}`,
+      "}",
+    );
+    const snapshot = (registry: SparkdownDocumentRegistry, text: string) => {
+      const out: unknown[] = [];
+      for (const c = registry.annotations(uri).references.iter(); c.value; c.next()) {
+        out.push([c.from, text.slice(c.from, c.to), c.value.type]);
+      }
+      return out;
+    };
+    const incremental = new SparkdownDocumentRegistry(["references"]);
+    incremental.set({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
+    const offset = source.indexOf(find);
+    const position = (to: number) => {
+      const before = source.slice(0, to).split(NEWLINE);
+      return { line: before.length - 1, character: before.at(-1)!.length };
+    };
+    incremental.update({
+      textDocument: { uri, version: 2 },
+      contentChanges: [{ range: { start: position(offset), end: position(offset + find.length) }, text: replace }],
+    });
+    const edited = source.slice(0, offset) + replace + source.slice(offset + find.length);
+    const fresh = new SparkdownDocumentRegistry(["references"]);
+    fresh.set({ textDocument: { uri, text: edited, version: 1, languageId: "sparkdown" } });
+    expect(snapshot(incremental, edited)).toEqual(snapshot(fresh, edited));
+  });
+
   test("a brace-body image that names no image warns as the define-with form does", () => {
     const uri = "file:///project/main.sd";
     const warnings = (text: string) => {
