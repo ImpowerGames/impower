@@ -151,6 +151,13 @@ function LinkAddress({
 const messageOf =(problem: NonNullable<InspectorFacts["problems"]>[number]) =>
   typeof problem.message === "string" ? problem.message : problem.message.value;
 
+const PICTURE_EDGE_STEP = 128;
+
+const pictureEdge = (frame: HTMLElement) =>
+  Math.ceil(
+    (Math.max(frame.offsetWidth, frame.offsetHeight) * (globalThis.devicePixelRatio || 1)) / PICTURE_EDGE_STEP,
+  ) * PICTURE_EDGE_STEP;
+
 const severityOf = (severity: number | undefined) =>
   severity === 1 ? "error" : severity === 2 ? "warning" : "info";
 
@@ -191,6 +198,7 @@ export default function AssetInspector({
   const [previewing, setPreviewing] = useState<VariantSelection | null>(null);
   const [chosenForm, setChosenForm] = useState<VariantForm | null>(null);
   const [picture, setPicture] = useState<string | null | undefined>(undefined);
+  const [frameEdge, setFrameEdge] = useState(0);
   const variant = stack ? variantOf(stack, previewing ?? selection) : null;
   const variantKey = variant ? JSON.stringify(variant) : "";
 
@@ -233,21 +241,36 @@ export default function AssetInspector({
   }, [asset.path]);
 
   useEffect(() => {
-    if (!variant) {
+    const frame = stack ? body.current?.querySelector<HTMLElement>("[data-zoom-frame]") : null;
+    if (!frame) {
+      return;
+    }
+    const measure = () => setFrameEdge(pictureEdge(frame));
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [asset.path, asset.src, stack !== null]);
+
+  useEffect(() => {
+    if (!variant || !frameEdge) {
       return;
     }
     let dispose: (() => void) | undefined;
     let alive = true;
     void intents().then((Workspace) => {
       if (alive) {
-        dispose = Workspace.assets.watchPicture(stack!.cover, variant, setPicture);
+        dispose = Workspace.assets.watchPicture(stack!.cover, variant, frameEdge, setPicture);
       }
     });
     return () => {
       alive = false;
       dispose?.();
     };
-  }, [variantKey, filesKey]);
+  }, [variantKey, filesKey, frameEdge]);
 
   useEffect(() => {
     if (asset.type === "image" && asset.src && pixels === undefined) {

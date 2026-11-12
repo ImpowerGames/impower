@@ -707,7 +707,12 @@ export default class WorkspaceAssets {
     };
   }
 
-  watchPicture(path: string, variant: ImageVariant, listener: (src: string | null) => void): () => void {
+  watchPicture(
+    path: string,
+    variant: ImageVariant,
+    size: number,
+    listener: (src: string | null) => void,
+  ): () => void {
     const projectId = this.projectId;
     let alive = true;
     let request = 0;
@@ -715,7 +720,7 @@ export default class WorkspaceAssets {
       const mine = ++request;
       const src = projectId
         ? await this._workspace.ls
-            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant)
+            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant, size)
             .catch(() => null)
         : null;
       if (alive && mine === request) {
