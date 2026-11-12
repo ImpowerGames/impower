@@ -75,7 +75,7 @@ describe("a theme variable name keeps the declared name (#2137)", () => {
       ["color", "background-color", "background-color"],
       ["ease", "animation-easing", "animation-timing-function"],
       ["font", "text-font", "font-family"],
-    ].flatMap(([type, property, css]) => [...DISTINCT, "1a", "-", "étoile"].map((name) => [type!, property!, name, css!])),
+    ].flatMap(([type, property, css]) => [...DISTINCT, "1a", "-", "étoile", "a(b)"].map((name) => [type!, property!, name, css!])),
   )("refers a %s's %s of %s to its variable from a script token and from a style", (type, property, name, css) => {
     const variable = getVarName(type, name);
     const theme = new Set([variable]);
@@ -114,6 +114,7 @@ const IMAGES = [
   image("a-b", "hyphen"),
   image("a~b", "tilde"),
   image("a.b", "dot"),
+  image("hero(night)", "hero-paren-night"),
 ];
 
 const SOURCE = `style hero_named {
@@ -132,6 +133,10 @@ style at_referenced {
   background_image = image.mia@night
 }
 
+style paren_named {
+  background-image = "hero(night)"
+}
+
 define red@dim as color with
   value = "rgb(4, 5, 6)"
 end
@@ -141,6 +146,7 @@ layout main {
   box.hero_referenced
   box.at_named
   box.at_referenced
+  box.paren_named
   box.inline_override #--theme-color-red@dim="rgb(1, 2, 3)" #color=red@dim
 }
 
@@ -191,6 +197,12 @@ describe("a style and a script reach the image variable the engine publishes (#2
     expect(declared.get(variable), `${variable} is not declared`).toBeTruthy();
     expect(varTarget(backgroundOf(named) ?? "")).toBe(variable);
     expect(varTarget(backgroundOf(referenced) ?? "")).toBe(variable);
+  });
+
+  it("refers a style naming an image whose name holds parentheses to its published variable", () => {
+    const variable = getVarName("image", "hero(night)");
+    expect(declared.get(variable)).toBe('url("/file:/hero-paren-night.svg")');
+    expect(varTarget(backgroundOf("paren_named") ?? "")).toBe(variable);
   });
 
   it("writes an element's own declaration of an @ color's variable under that variable", () => {

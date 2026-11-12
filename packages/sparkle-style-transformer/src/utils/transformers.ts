@@ -662,7 +662,7 @@ export const getCssEase = (
     return defaultValue;
   }
   if (value.includes("(")) {
-    return value;
+    return getThemeVar(theme, "ease", value) ?? value;
   }
   const [ease, outgoing, incoming] = value.split("-");
   const outgoingPercent = Number(outgoing);
@@ -739,10 +739,11 @@ export const getCssImage = (value: string, theme: ThemeVariables): string => {
   if (!value) {
     return "none";
   }
-  if (value.includes("(")) {
-    return transformColors(value, theme, false);
+  const variable = getThemeVar(theme, "image", value);
+  if (variable !== undefined) {
+    return variable;
   }
-  return getThemeVar(theme, "image", value) ?? value;
+  return value.includes("(") ? transformColors(value, theme, false) : value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
