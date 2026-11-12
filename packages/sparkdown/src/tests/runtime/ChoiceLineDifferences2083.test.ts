@@ -151,8 +151,18 @@ const markLine = (mark: string) => `+ Go ${mark}far {#{{{{1}}}}} away${mark} now
 const RAW_LINE = "+ Go `far {#{{{{1}}}}} away` now";
 const REGION_END_LINE = "+ Go *a [b] c";
 
+const COMMAND_LINES = [
+  ["an audio command", "+ Go ((a {#{{{{1}}}}} b)) now", "Go ((a {#{{{{1}}}}} b)) now", "meta.audio.sd"],
+  ["an image command", "+ Go [x] [[a {#{{{{1}}}}} b]] now", "Go x", "meta.image.sd"],
+  ["a text command", "+ Go <wait {#{{{{1}}}}}> now", "Go <wait {#{{{{1}}}}}> now", "meta.text.sd"],
+] as const;
+
+const COMMENTED_COMMAND_LINE = "+ Go ((a /* c */ b)) now";
+
 const HIGHLIGHTED_LINES = [
   ...BRACKET_LINES,
+  ...COMMAND_LINES.map(([, line]) => line),
+  COMMENTED_COMMAND_LINE,
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"].map(glueLine),
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT].flatMap(spanLines),
   ...SPAN_MARKS.map(([mark]) => markLine(mark)),
@@ -248,6 +258,26 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
     const bracket = tokens.findIndex((token) => token.text === "[");
     expect(tokens[bracket - 1]!.text).toBe(" ");
     expect(tokens[bracket - 1]!.scopes).not.toContain("markup.other.italic.sd");
+  });
+
+  test.each(COMMAND_LINES)(
+    "in %s a brace is the command's text, read and highlighted as on main",
+    async (_kind, line, label, scope) => {
+      expect(outcome(line).choices).toEqual([label]);
+      const tokens = await tokensOf(line);
+      const braces = tokens.filter((token) => token.text.includes("{"));
+      expect(braces.length).toBeGreaterThan(0);
+      for (const token of braces) {
+        expect(token.scopes).toContain(scope);
+        expect(token.scopes).not.toContain("meta.embedded.line.luau");
+      }
+    },
+  );
+
+  test("a comment inside a command in choice text is read as a comment, where main read it as the command's text", async () => {
+    expect(outcome(COMMENTED_COMMAND_LINE).choices).toEqual(["Go ((a b)) now"]);
+    expect(await scopesOf(COMMENTED_COMMAND_LINE, "/*")).toContain("comment.block.sd");
+    expect(await scopesOf(COMMENTED_COMMAND_LINE, "b))")).not.toContain("meta.audio.sd");
   });
 
   test("both highlighting engines give every line above the same scopes", async () => {

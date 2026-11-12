@@ -22889,6 +22889,3333 @@
    "rt": [],
    "diags": [],
    "scopes": "85706a62"
+  },
+  {
+   "id": "plain-command-0",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {#{{{{1}}}}} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {#{{{{1}}}}} b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {#{{{{1}}}}} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:26-4:27 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "1bde309a"
+  },
+  {
+   "id": "plain-command-1",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {#{{{{1}}}}} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {#{{{{1}}}}} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:30-4:31 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "91d8a900"
+  },
+  {
+   "id": "plain-command-2",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {#{{{{1}}}}} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {#{{{{1}}}}} b))"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "830369c7"
+  },
+  {
+   "id": "plain-command-3",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {#{{{{1}}}}} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {#{{{{1}}}}} b)) away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {#{{{{1}}}}} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:29-4:30 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:31-4:32 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "81345ba8"
+  },
+  {
+   "id": "plain-command-4",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {#{{{{1}}}}} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a 1 b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "757eccc9"
+  },
+  {
+   "id": "plain-command-5",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {#{{{{1}}}}} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {#{{{{1}}}}} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:30-4:31 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "45154929"
+  },
+  {
+   "id": "plain-command-6",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {#{{{{1}}}}} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {#{{{{1}}}}} b"
+   ],
+   "runs": [
+    {
+     "out": "Go ]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "63355343"
+  },
+  {
+   "id": "plain-command-7",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {#{{{{1}}}}} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far [a 1 b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "41888edd"
+  },
+  {
+   "id": "plain-command-8",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {#{{{{1}}}}}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {#{{{{1}}}}}> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {#{{{{1}}}}}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8ce3d38b"
+  },
+  {
+   "id": "plain-command-9",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {#{{{{1}}}}}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {#{{{{1}}}}}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d4e1280e"
+  },
+  {
+   "id": "plain-command-10",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {#{{{{1}}}}}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {#{{{{1}}}}}>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "45eb8317"
+  },
+  {
+   "id": "plain-command-11",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {#{{{{1}}}}}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far <wait {#{{{{1}}}}}> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait {#{{{{1}}}}}> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f1f173c6"
+  },
+  {
+   "id": "plain-command-12",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {#{{{{1}}}}} now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {#{{{{1}}}}} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "499ae4c9"
+  },
+  {
+   "id": "plain-command-13",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {#{{{{1}}}}} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "c397060b"
+  },
+  {
+   "id": "plain-command-14",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {#{{{{1}}}}}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {#{{{{1}}}}}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "0a7cea31"
+  },
+  {
+   "id": "plain-command-15",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {#{{{{1}}}}} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {#{{{{1}}}}} away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {#{{{{1}}}}} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:27-4:28 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:28-4:29 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:29-4:30 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:35-4:36 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:31-4:35 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "7f9d1cce"
+  },
+  {
+   "id": "plain-command-16",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait 1 now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait 1 now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8fbaba2c"
+  },
+  {
+   "id": "plain-command-17",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {#{{{{1}}}}} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait 1 now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "dca86eec"
+  },
+  {
+   "id": "plain-command-18",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {#{{{{1}}}}}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait 1"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b5704ba8"
+  },
+  {
+   "id": "plain-command-19",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {#{{{{1}}}}} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far <wait 1 away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait 1 away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3e00fc08"
+  },
+  {
+   "id": "plain-command-20",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[[a]]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {]} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "ac5c0b97"
+  },
+  {
+   "id": "plain-command-21",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {[[a]]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {[[a]]} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:25-4:26 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "8bf96751"
+  },
+  {
+   "id": "plain-command-22",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[[a]]} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]} b))] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "7333447d"
+  },
+  {
+   "id": "plain-command-23",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[[a]]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {]} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "723b336d"
+  },
+  {
+   "id": "plain-command-24",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {[[a]]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "66b3c980"
+  },
+  {
+   "id": "plain-command-25",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {[[a]]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {[[a]]} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "badefe7b"
+  },
+  {
+   "id": "plain-command-26",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {[[a]]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]} b]]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "206c560f"
+  },
+  {
+   "id": "plain-command-27",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {[[a]]} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "bef2a03c"
+  },
+  {
+   "id": "plain-command-28",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {[[a]]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d51e975f"
+  },
+  {
+   "id": "plain-command-29",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {[[a]]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {[[a]]}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e55b651a"
+  },
+  {
+   "id": "plain-command-30",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {[[a]]}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "49f6ed17"
+  },
+  {
+   "id": "plain-command-31",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {[[a]]}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait a> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait a> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "15b3b8fb"
+  },
+  {
+   "id": "plain-command-32",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "e3ea3070"
+  },
+  {
+   "id": "plain-command-33",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {[[a]]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "c8779bea"
+  },
+  {
+   "id": "plain-command-34",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[[a]]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ]}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "4799b212"
+  },
+  {
+   "id": "plain-command-35",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[[a]]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {]} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6f6d73ce"
+  },
+  {
+   "id": "plain-command-36",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7454851d"
+  },
+  {
+   "id": "plain-command-37",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {[[a]]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "df9a90aa"
+  },
+  {
+   "id": "plain-command-38",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {[[a]]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0ef7b40d"
+  },
+  {
+   "id": "plain-command-39",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {[[a]]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait a away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait a away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "33c5e1c2"
+  },
+  {
+   "id": "plain-command-40",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[=[a]=]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {=]} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d6047ed0"
+  },
+  {
+   "id": "plain-command-41",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {[=[a]=]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {[=[a]=]} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "58431d3d"
+  },
+  {
+   "id": "plain-command-42",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[=[a]=]} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]} b))] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "73290b0e"
+  },
+  {
+   "id": "plain-command-43",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[=[a]=]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {=]} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "50c53dae"
+  },
+  {
+   "id": "plain-command-44",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {[=[a]=]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "57d65584"
+  },
+  {
+   "id": "plain-command-45",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {[=[a]=]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {[=[a]=]} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "755c6c65"
+  },
+  {
+   "id": "plain-command-46",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {[=[a]=]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]} b]]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "87d5d533"
+  },
+  {
+   "id": "plain-command-47",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {[=[a]=]} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "96719988"
+  },
+  {
+   "id": "plain-command-48",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {[=[a]=]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c59f393f"
+  },
+  {
+   "id": "plain-command-49",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {[=[a]=]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {[=[a]=]}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "060c4dba"
+  },
+  {
+   "id": "plain-command-50",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {[=[a]=]}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4c4aa787"
+  },
+  {
+   "id": "plain-command-51",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {[=[a]=]}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait a> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait a> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f1bd7b47"
+  },
+  {
+   "id": "plain-command-52",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {=]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "a2a4ba65"
+  },
+  {
+   "id": "plain-command-53",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {[=[a]=]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6c7ddfee"
+  },
+  {
+   "id": "plain-command-54",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {[=[a]=]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {[=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go =]}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "fc72ccf3"
+  },
+  {
+   "id": "plain-command-55",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {[=[a]=]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {=[a"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {=]} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "fdbbe007"
+  },
+  {
+   "id": "plain-command-56",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e25408fd"
+  },
+  {
+   "id": "plain-command-57",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {[=[a]=]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c8ab3302"
+  },
+  {
+   "id": "plain-command-58",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {[=[a]=]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e7e7587d"
+  },
+  {
+   "id": "plain-command-59",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {[=[a]=]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait a away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait a away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7a57a44e"
+  },
+  {
+   "id": "plain-command-60",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {1 --[[c]] + 1} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {1 --] + 1} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "1d006968"
+  },
+  {
+   "id": "plain-command-61",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {1 --[[c]] + 1} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {1 --[[c]] + 1} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:33-4:34 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "0b8920bf"
+  },
+  {
+   "id": "plain-command-62",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {1 --[[c]] + 1} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1} b))] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "30aacb62"
+  },
+  {
+   "id": "plain-command-63",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {1 --[[c]] + 1} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {1 --] + 1} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "9c29cd32"
+  },
+  {
+   "id": "plain-command-64",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {1 --[[c]] + 1} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go [a 2 b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "893b5749"
+  },
+  {
+   "id": "plain-command-65",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {1 --[[c]] + 1} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {1 --[[c]] + 1} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "ffcf6dae"
+  },
+  {
+   "id": "plain-command-66",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {1 --[[c]] + 1} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1} b]]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "70e7817a"
+  },
+  {
+   "id": "plain-command-67",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {1 --[[c]] + 1} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go *far [a 2 b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "75b71d6d"
+  },
+  {
+   "id": "plain-command-68",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {1 --[[c]] + 1}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go <wait 2> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait 2> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e6025bd4"
+  },
+  {
+   "id": "plain-command-69",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {1 --[[c]] + 1}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {1 --[[c]] + 1}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b92dceb5"
+  },
+  {
+   "id": "plain-command-70",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {1 --[[c]] + 1}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go <wait 2>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b0adab58"
+  },
+  {
+   "id": "plain-command-71",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {1 --[[c]] + 1}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go *far <wait 2> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait 2> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "79d42e68"
+  },
+  {
+   "id": "plain-command-72",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {1 --] + 1} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "c606217d"
+  },
+  {
+   "id": "plain-command-73",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {1 --[[c]] + 1} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:30-4:31 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "a92263b0"
+  },
+  {
+   "id": "plain-command-74",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {1 --[[c]] + 1}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {1 --[[c"
+   ],
+   "runs": [
+    {
+     "out": "Go ] + 1}] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "b5bbecff"
+  },
+  {
+   "id": "plain-command-75",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {1 --[[c]] + 1} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {1 --[c"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {1 --] + 1} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "2b7664b3"
+  },
+  {
+   "id": "plain-command-76",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go <wait 2 now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait 2 now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "fac6acda"
+  },
+  {
+   "id": "plain-command-77",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {1 --[[c]] + 1} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait 2 now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7c6777f3"
+  },
+  {
+   "id": "plain-command-78",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {1 --[[c]] + 1}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go <wait 2"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "449c22c6"
+  },
+  {
+   "id": "plain-command-79",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {1 --[[c]] + 1} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go *far <wait 2 away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait 2 away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "77a95e27"
+  },
+  {
+   "id": "plain-command-80",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {\"->\"} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "16798e47"
+  },
+  {
+   "id": "plain-command-81",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {\"->\"} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d251524b"
+  },
+  {
+   "id": "plain-command-82",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {\"->\"} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "c3dde853"
+  },
+  {
+   "id": "plain-command-83",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {\"->\"} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "0ba4050a"
+  },
+  {
+   "id": "plain-command-84",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {\"->\"} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a -> b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9bed69ea"
+  },
+  {
+   "id": "plain-command-85",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {\"->\"} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "e891177f"
+  },
+  {
+   "id": "plain-command-86",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {\"->\"} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [[[a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [[[a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "5fd47f33"
+  },
+  {
+   "id": "plain-command-87",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {\"->\"} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far [a -> b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "81f9377a"
+  },
+  {
+   "id": "plain-command-88",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {\"->\"}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait ->> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait ->> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "29c59337"
+  },
+  {
+   "id": "plain-command-89",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {\"->\"}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait ->> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5c16179e"
+  },
+  {
+   "id": "plain-command-90",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {\"->\"}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait ->>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f798fc3b"
+  },
+  {
+   "id": "plain-command-91",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {\"->\"}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait ->> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait ->> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e26f30a4"
+  },
+  {
+   "id": "plain-command-92",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d7ff86ff"
+  },
+  {
+   "id": "plain-command-93",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "411da603"
+  },
+  {
+   "id": "plain-command-94",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {\"->\"}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go [((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6fc011cb"
+  },
+  {
+   "id": "plain-command-95",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {\"->\"} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {\""
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {\"\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed string; did you forget to finish it?\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "caddccb2"
+  },
+  {
+   "id": "plain-command-96",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait -> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait -> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "92ff9695"
+  },
+  {
+   "id": "plain-command-97",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {\"->\"} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait -> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d1758a1b"
+  },
+  {
+   "id": "plain-command-98",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {\"->\"}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait ->"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "121f8a61"
+  },
+  {
+   "id": "plain-command-99",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {\"->\"} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait -> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait -> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d9626323"
+  },
+  {
+   "id": "plain-command-100",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {t[1]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {t} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "fa1e3950"
+  },
+  {
+   "id": "plain-command-101",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {t[1]} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {t[1]} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "13646150"
+  },
+  {
+   "id": "plain-command-102",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {t[1]} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go } b))] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6e148f64"
+  },
+  {
+   "id": "plain-command-103",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {t[1]} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {t} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6ef558b9"
+  },
+  {
+   "id": "plain-command-104",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {t[1]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c8c1fbcf"
+  },
+  {
+   "id": "plain-command-105",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {t[1]} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {t[1]} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "479ac38a"
+  },
+  {
+   "id": "plain-command-106",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {t[1]} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go } b]]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "32429b70"
+  },
+  {
+   "id": "plain-command-107",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {t[1]} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far [a a b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "1f454df7"
+  },
+  {
+   "id": "plain-command-108",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {t[1]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait {t[1]}> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {t[1]}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "665bac53"
+  },
+  {
+   "id": "plain-command-109",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {t[1]}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {t[1]}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b489a02e"
+  },
+  {
+   "id": "plain-command-110",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {t[1]}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait {t[1]}>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "edd4f727"
+  },
+  {
+   "id": "plain-command-111",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {t[1]}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait {t[1]}> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait {t[1]}> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "0ecae19e"
+  },
+  {
+   "id": "plain-command-112",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {t} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "1da2c1e5"
+  },
+  {
+   "id": "plain-command-113",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {t[1]} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "0c90227b"
+  },
+  {
+   "id": "plain-command-114",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {t[1]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {t[1"
+   ],
+   "runs": [
+    {
+     "out": "Go }] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "f06b141d"
+  },
+  {
+   "id": "plain-command-115",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {t[1]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {t1"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {t} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `t`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "459bc142"
+  },
+  {
+   "id": "plain-command-116",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "87cfdfc8"
+  },
+  {
+   "id": "plain-command-117",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {t[1]} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait a now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "440a4436"
+  },
+  {
+   "id": "plain-command-118",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {t[1]}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go <wait a"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "ee4de360"
+  },
+  {
+   "id": "plain-command-119",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {t[1]} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "A",
+   "first": "",
+   "choices": [
+    "Go *far <wait a away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait a away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6534429c"
+  },
+  {
+   "id": "plain-command-120",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {x} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x} b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:17-4:18 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "a2fe8350"
+  },
+  {
+   "id": "plain-command-121",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {x} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:21-4:22 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "f1c1540f"
+  },
+  {
+   "id": "plain-command-122",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {x} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x} b))"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "497f0065"
+  },
+  {
+   "id": "plain-command-123",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {x} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {x} b)) away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {x} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "74c8e2b9"
+  },
+  {
+   "id": "plain-command-124",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {x} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a true b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6baf58a5"
+  },
+  {
+   "id": "plain-command-125",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {x} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {x} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@4:21-4:22 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "f0aee5a3"
+  },
+  {
+   "id": "plain-command-126",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {x} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {x} b"
+   ],
+   "runs": [
+    {
+     "out": "Go ]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "dc79f6e4"
+  },
+  {
+   "id": "plain-command-127",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {x} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far [a true b"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ] away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "67d3f8c1"
+  },
+  {
+   "id": "plain-command-128",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {x}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {x}> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {x}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e1d2f97a"
+  },
+  {
+   "id": "plain-command-129",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {x}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {x}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8bacb9da"
+  },
+  {
+   "id": "plain-command-130",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {x}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {x}>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6e7ceb8a"
+  },
+  {
+   "id": "plain-command-131",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {x}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far <wait {x}> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait {x}> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d7aa8cba"
+  },
+  {
+   "id": "plain-command-132",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x} now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "53ca380f"
+  },
+  {
+   "id": "plain-command-133",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "6439ea60"
+  },
+  {
+   "id": "plain-command-134",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {x}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "4bbd600b"
+  },
+  {
+   "id": "plain-command-135",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {x} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {x} away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {x} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:26-4:27 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:26 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "ca910e2b"
+  },
+  {
+   "id": "plain-command-136",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait true now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait true now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6e5a6dba"
+  },
+  {
+   "id": "plain-command-137",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {x} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait true now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a7ab8797"
+  },
+  {
+   "id": "plain-command-138",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {x}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait true"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "cff5980e"
+  },
+  {
+   "id": "plain-command-139",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {x} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far <wait true away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait true away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5ec54377"
+  },
+  {
+   "id": "plain-command-140",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {x -- c} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x -- c} b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x -- c} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "f094b656"
+  },
+  {
+   "id": "plain-command-141",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {x -- c} b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x -- c} b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:26-4:27 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "53d35426"
+  },
+  {
+   "id": "plain-command-142",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {x -- c} b))] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x -- c} b))"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:20-4:21 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "2fa1e093"
+  },
+  {
+   "id": "plain-command-143",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {x -- c} b)) away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {x -- c} b)) away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {x -- c} b)) away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:28 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "0d78f9b6"
+  },
+  {
+   "id": "plain-command-144",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a {x -- c} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go [[a true end"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:13-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "fd024dba"
+  },
+  {
+   "id": "plain-command-145",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] [[a {x -- c} b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a {x -- c} b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find image named `c`\",\"kind\":\"markdown\"}",
+    "2@4:26-4:27 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "640cca29"
+  },
+  {
+   "id": "plain-command-146",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[[a {x -- c} b]]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [[a {x -- c} b"
+   ],
+   "runs": [
+    {
+     "out": "Go ]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find image named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find image named `x`\",\"kind\":\"markdown\"}",
+    "2@4:20-4:21 {\"value\":\"Cannot find image named `c`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find image named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "76ac0495"
+  },
+  {
+   "id": "plain-command-147",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far [[a {x -- c} b]] away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go *far [[a true end"
+   ],
+   "runs": [
+    {
+     "out": "Go *far [[a true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:18-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "e33dbbba"
+  },
+  {
+   "id": "plain-command-148",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {x -- c}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {x -- c}> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {x -- c}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5544cd53"
+  },
+  {
+   "id": "plain-command-149",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {x -- c}> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait {x -- c}> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2cf326a6"
+  },
+  {
+   "id": "plain-command-150",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {x -- c}>] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait {x -- c}>"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2e6b25f7"
+  },
+  {
+   "id": "plain-command-151",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {x -- c}> away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far <wait {x -- c}> away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait {x -- c}> away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "11d968ea"
+  },
+  {
+   "id": "plain-command-152",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x -- c} now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x -- c} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:14-4:15 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "9c48bf3d"
+  },
+  {
+   "id": "plain-command-153",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] ((a {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a {x -- c} now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:24-4:25 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "86bd0c59"
+  },
+  {
+   "id": "plain-command-154",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [((a {x -- c}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a {x -- c}"
+   ],
+   "runs": [
+    {
+     "out": "Go now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:12-4:13 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:15-4:16 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:20-4:21 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "2e7ff73d"
+  },
+  {
+   "id": "plain-command-155",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far ((a {x -- c} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far ((a {x -- c} away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far ((a {x -- c} away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:25-4:26 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:31-4:32 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:16-4:17 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `x`\",\"kind\":\"markdown\"}",
+    "2@4:24-4:25 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:27-4:31 {\"value\":\"Cannot find audio named `away`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d51a99d0"
+  },
+  {
+   "id": "plain-command-156",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go <wait true end"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:15-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "0a44e05d"
+  },
+  {
+   "id": "plain-command-157",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [x] <wait {x -- c} now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go x"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:19-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "e8f28ac1"
+  },
+  {
+   "id": "plain-command-158",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [<wait {x -- c}] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go [<wait true end"
+   ],
+   "runs": [
+    {
+     "out": "Go [<wait true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:16-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "d1bf90b6"
+  },
+  {
+   "id": "plain-command-159",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far <wait {x -- c} away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go *far <wait true end"
+   ],
+   "runs": [
+    {
+     "out": "Go *far <wait true end\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@2:0-2:11 {\"kind\":\"markdown\",\"value\":\"Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.\"}",
+    "1@4:20-7:0 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@5:10-5:11 {\"kind\":\"markdown\",\"value\":\"Expected identifier after '.' on the same line\\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line\"}",
+    "1@5:6-5:10 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got 'Body'\"}"
+   ],
+   "scopes": "4c333374"
   }
  ]
 }

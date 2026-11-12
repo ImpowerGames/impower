@@ -254,16 +254,21 @@ variables:
   CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_FREE}})
   CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_TEXT_FREE}})
+  # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and the comments of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
+  # AudioCommand and ImageCommand read a brace inside them as their own text, so
+  # no interpolation there is a unit, as on main.
+  CHOICE_START_COMMAND_CHARACTER: (?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceStartTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_RUN}})*?(?<![-])[>])
+  CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_START_COMMAND_CHARACTER}}|{{CHOICE_START_COMMAND_CHARACTER}})*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_START_TEXT_RUN}})*)
+  CHOICE_START_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_START_COMMAND_CHARACTER}})*)
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_START_TEXT_RUN}})*)
+  CHOICE_START_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_START_COMMAND_CHARACTER}})*)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceStartTextContent takes the block whole.
@@ -297,16 +302,21 @@ variables:
   CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_FREE}})
   CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_TEXT_FREE}})
+  # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and the comments of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
+  # AudioCommand and ImageCommand read a brace inside them as their own text, so
+  # no interpolation there is a unit, as on main.
+  CHOICE_ONLY_COMMAND_CHARACTER: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceOnlyTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_RUN}})*?(?<![-])[>])
+  CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_ONLY_COMMAND_CHARACTER}}|{{CHOICE_ONLY_COMMAND_CHARACTER}})*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_TEXT_RUN}})*)
+  CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_COMMAND_CHARACTER}})*)
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_ONLY_TEXT_RUN}})*)
+  CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_ONLY_COMMAND_CHARACTER}})*)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceOnlyTextContent takes the block whole.
@@ -340,16 +350,21 @@ variables:
   CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_FREE}})
   CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_TEXT_FREE}})
+  # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and the comments of
+  # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). TextCommand,
+  # AudioCommand and ImageCommand read a brace inside them as their own text, so
+  # no interpolation there is a unit, as on main.
+  CHOICE_INNER_COMMAND_CHARACTER: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceInnerTextContent takes the command
   # whole, up to where the segment ends anyway.
-  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_RUN}})*?(?<![-])[>])
+  CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:[\\]{{CHOICE_INNER_COMMAND_CHARACTER}}|{{CHOICE_INNER_COMMAND_CHARACTER}})*?(?<![-])[>])
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_INNER_TEXT_RUN}})*)
+  CHOICE_INNER_AUDIO_COMMAND: (?:[(][(](?:(?!{{WS}}*[)][)]){{CHOICE_INNER_COMMAND_CHARACTER}})*)
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_INNER_TEXT_RUN}})*)
+  CHOICE_INNER_IMAGE_COMMAND: (?:\[\[(?:(?!{{WS}}*\]\]){{CHOICE_INNER_COMMAND_CHARACTER}})*)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
   # marks, so ChoiceInnerTextContent takes the block whole.
