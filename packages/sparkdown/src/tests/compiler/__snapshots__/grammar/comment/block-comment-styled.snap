@@ -1,4 +1,4 @@
-sparkdown [0..689]
+sparkdown [0..712]
  ├─ Scene [0..11]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
@@ -529,7 +529,7 @@ sparkdown [0..689]
  │   │       └─ ActionLineEnd_end 307
  │   └─ ImplicitAction_end 307
  ├─ Newline [307..308]: "\n"
- ├─ LuauSparkdownChooseBlock [308..684]
+ ├─ LuauSparkdownChooseBlock [308..707]
  │   ├─ LuauSparkdownChooseBlock_begin [308..316]
  │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [308..310]
  │   │   │   └─ OptionalWhitespace [308..310]: "  "
@@ -538,7 +538,7 @@ sparkdown [0..689]
  │   │   └─ LuauSparkdownChooseBlock_begin_c3 316
  │   │       └─ LuauSparkdownChooseBlock_begin_c3 316
  │   │           └─ OptionalWhitespace 316
- │   ├─ LuauSparkdownChooseBlock_content [316..679]
+ │   ├─ LuauSparkdownChooseBlock_content [316..702]
  │   │   ├─ Newline [316..317]: "\n"
  │   │   ├─ Choice [317..347]
  │   │   │   ├─ Choice_begin [317..323]
@@ -552,42 +552,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 323
  │   │   │   │   └─ Choice_begin_c7 323
  │   │   │   ├─ Choice_content [323..347]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [323..347]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [323..347]
- │   │   │   │       │   └─ ChoicePlainText [323..347]
- │   │   │   │       │       └─ ChoiceTextContent [323..347]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [323..347]
- │   │   │   │       │               ├─ Word [323..325]: "Go"
- │   │   │   │       │               ├─ Space [325..326]: " "
- │   │   │   │       │               ├─ Italic [326..342]
- │   │   │   │       │               │   ├─ Italic_begin [326..327]
- │   │   │   │       │               │   │   └─ Italic_begin_c1 [326..327]
- │   │   │   │       │               │   │       └─ StylingMark [326..327]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [326..327]: "*"
- │   │   │   │       │               │   ├─ Italic_content [327..341]
- │   │   │   │       │               │   │   ├─ Word [327..330]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [330..336]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [330..336]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [330..336]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [330..333]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [330..331]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [330..331]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [331..333]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [333..334]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [333..334]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [334..336]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [334..336]: "*/"
- │   │   │   │       │               │   │   ├─ Space [336..337]: " "
- │   │   │   │       │               │   │   └─ Word [337..341]: "away"
- │   │   │   │       │               │   └─ Italic_end [341..342]
- │   │   │   │       │               │       └─ Italic_end_c1 [341..342]
- │   │   │   │       │               │           └─ StylingMark [341..342]
- │   │   │   │       │               │               └─ StylingMark_c1 [341..342]: "*"
- │   │   │   │       │               ├─ Space [342..343]: " "
- │   │   │   │       │               └─ Word [343..347]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 347
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 347
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 347
+ │   │   │   │   └─ ChoiceStartText [323..347]
+ │   │   │   │       ├─ ChoiceStartText_begin 323
+ │   │   │   │       ├─ ChoiceStartText_content [323..347]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [323..330]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [323..330]
+ │   │   │   │       │   │       ├─ Word [323..325]: "Go"
+ │   │   │   │       │   │       ├─ Space [325..326]: " "
+ │   │   │   │       │   │       └─ Italic [326..330]
+ │   │   │   │       │   │           ├─ Italic_begin [326..327]
+ │   │   │   │       │   │           │   └─ Italic_begin_c1 [326..327]
+ │   │   │   │       │   │           │       └─ StylingMark [326..327]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [326..327]: "*"
+ │   │   │   │       │   │           ├─ Italic_content [327..330]
+ │   │   │   │       │   │           │   └─ Word [327..330]: "far"
+ │   │   │   │       │   │           └─ Italic_end 330
+ │   │   │   │       │   │               └─ Italic_end_c1 330
+ │   │   │   │       │   ├─ SparkdownBlockComment [330..336]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [330..333]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [330..331]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [330..331]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [331..333]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [333..334]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [333..334]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [334..336]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [334..336]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [336..347]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [336..347]
+ │   │   │   │       │           ├─ Space [336..337]: " "
+ │   │   │   │       │           ├─ Word [337..341]: "away"
+ │   │   │   │       │           └─ Italic [341..347]
+ │   │   │   │       │               ├─ Italic_begin [341..342]
+ │   │   │   │       │               │   └─ Italic_begin_c1 [341..342]
+ │   │   │   │       │               │       └─ StylingMark [341..342]
+ │   │   │   │       │               │           └─ StylingMark_c1 [341..342]: "*"
+ │   │   │   │       │               ├─ Italic_content [342..347]
+ │   │   │   │       │               │   ├─ Space [342..343]: " "
+ │   │   │   │       │               │   └─ Word [343..347]: "home"
+ │   │   │   │       │               └─ Italic_end 347
+ │   │   │   │       │                   └─ Italic_end_c1 347
+ │   │   │   │       └─ ChoiceStartText_end 347
  │   │   │   └─ Choice_end 347
  │   │   ├─ Newline [347..348]: "\n"
  │   │   ├─ DoneStatement [348..358]
@@ -610,42 +614,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 365
  │   │   │   │   └─ Choice_begin_c7 365
  │   │   │   ├─ Choice_content [365..391]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [365..391]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [365..391]
- │   │   │   │       │   └─ ChoicePlainText [365..391]
- │   │   │   │       │       └─ ChoiceTextContent [365..391]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [365..391]
- │   │   │   │       │               ├─ Word [365..367]: "Go"
- │   │   │   │       │               ├─ Space [367..368]: " "
- │   │   │   │       │               ├─ Bold [368..386]
- │   │   │   │       │               │   ├─ Bold_begin [368..370]
- │   │   │   │       │               │   │   └─ Bold_begin_c1 [368..370]
- │   │   │   │       │               │   │       └─ StylingMark [368..370]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [368..370]: "**"
- │   │   │   │       │               │   ├─ Bold_content [370..384]
- │   │   │   │       │               │   │   ├─ Word [370..373]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [373..379]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [373..379]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [373..379]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [373..376]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [373..374]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [373..374]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [374..376]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [376..377]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [376..377]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [377..379]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [377..379]: "*/"
- │   │   │   │       │               │   │   ├─ Space [379..380]: " "
- │   │   │   │       │               │   │   └─ Word [380..384]: "away"
- │   │   │   │       │               │   └─ Bold_end [384..386]
- │   │   │   │       │               │       └─ Bold_end_c1 [384..386]
- │   │   │   │       │               │           └─ StylingMark [384..386]
- │   │   │   │       │               │               └─ StylingMark_c1 [384..386]: "**"
- │   │   │   │       │               ├─ Space [386..387]: " "
- │   │   │   │       │               └─ Word [387..391]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 391
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 391
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 391
+ │   │   │   │   └─ ChoiceStartText [365..391]
+ │   │   │   │       ├─ ChoiceStartText_begin 365
+ │   │   │   │       ├─ ChoiceStartText_content [365..391]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [365..373]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [365..373]
+ │   │   │   │       │   │       ├─ Word [365..367]: "Go"
+ │   │   │   │       │   │       ├─ Space [367..368]: " "
+ │   │   │   │       │   │       └─ Bold [368..373]
+ │   │   │   │       │   │           ├─ Bold_begin [368..370]
+ │   │   │   │       │   │           │   └─ Bold_begin_c1 [368..370]
+ │   │   │   │       │   │           │       └─ StylingMark [368..370]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [368..370]: "**"
+ │   │   │   │       │   │           ├─ Bold_content [370..373]
+ │   │   │   │       │   │           │   └─ Word [370..373]: "far"
+ │   │   │   │       │   │           └─ Bold_end 373
+ │   │   │   │       │   │               └─ Bold_end_c1 373
+ │   │   │   │       │   ├─ SparkdownBlockComment [373..379]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [373..376]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [373..374]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [373..374]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [374..376]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [376..377]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [376..377]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [377..379]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [377..379]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [379..391]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [379..391]
+ │   │   │   │       │           ├─ Space [379..380]: " "
+ │   │   │   │       │           ├─ Word [380..384]: "away"
+ │   │   │   │       │           └─ Bold [384..391]
+ │   │   │   │       │               ├─ Bold_begin [384..386]
+ │   │   │   │       │               │   └─ Bold_begin_c1 [384..386]
+ │   │   │   │       │               │       └─ StylingMark [384..386]
+ │   │   │   │       │               │           └─ StylingMark_c1 [384..386]: "**"
+ │   │   │   │       │               ├─ Bold_content [386..391]
+ │   │   │   │       │               │   ├─ Space [386..387]: " "
+ │   │   │   │       │               │   └─ Word [387..391]: "home"
+ │   │   │   │       │               └─ Bold_end 391
+ │   │   │   │       │                   └─ Bold_end_c1 391
+ │   │   │   │       └─ ChoiceStartText_end 391
  │   │   │   └─ Choice_end 391
  │   │   ├─ Newline [391..392]: "\n"
  │   │   ├─ DoneStatement [392..402]
@@ -668,52 +676,62 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 409
  │   │   │   │   └─ Choice_begin_c7 409
  │   │   │   ├─ Choice_content [409..437]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [409..437]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [409..437]
- │   │   │   │       │   └─ ChoicePlainText [409..437]
- │   │   │   │       │       └─ ChoiceTextContent [409..437]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [409..437]
- │   │   │   │       │               ├─ Word [409..411]: "Go"
- │   │   │   │       │               ├─ Space [411..412]: " "
- │   │   │   │       │               ├─ BoldItalic [412..432]
- │   │   │   │       │               │   ├─ BoldItalic_begin [412..414]
- │   │   │   │       │               │   │   └─ BoldItalic_begin_c1 [412..414]
- │   │   │   │       │               │   │       └─ StylingMark [412..414]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [412..414]: "**"
- │   │   │   │       │               │   ├─ BoldItalic_content [414..430]
- │   │   │   │       │               │   │   └─ Italic [414..430]
- │   │   │   │       │               │   │       ├─ Italic_begin [414..415]
- │   │   │   │       │               │   │       │   └─ Italic_begin_c1 [414..415]
- │   │   │   │       │               │   │       │       └─ StylingMark [414..415]
- │   │   │   │       │               │   │       │           └─ StylingMark_c1 [414..415]: "*"
- │   │   │   │       │               │   │       ├─ Italic_content [415..429]
- │   │   │   │       │               │   │       │   ├─ Word [415..418]: "far"
- │   │   │   │       │               │   │       │   ├─ SparkdownBlockCommentOnLine [418..424]
- │   │   │   │       │               │   │       │   │   └─ SparkdownBlockCommentOnLine_c1 [418..424]
- │   │   │   │       │               │   │       │   │       └─ SparkdownBlockComment [418..424]
- │   │   │   │       │               │   │       │   │           ├─ SparkdownBlockComment_begin [418..421]
- │   │   │   │       │               │   │       │   │           │   ├─ SparkdownBlockComment_begin_c1 [418..419]
- │   │   │   │       │               │   │       │   │           │   │   └─ OptionalWhitespace [418..419]: " "
- │   │   │   │       │               │   │       │   │           │   └─ SparkdownBlockComment_begin_c2 [419..421]: "/*"
- │   │   │   │       │               │   │       │   │           ├─ SparkdownBlockComment_content [421..422]
- │   │   │   │       │               │   │       │   │           │   └─ SparkdownBlockCommentContent [421..422]: "n"
- │   │   │   │       │               │   │       │   │           └─ SparkdownBlockComment_end [422..424]
- │   │   │   │       │               │   │       │   │               └─ SparkdownBlockComment_end_c1 [422..424]: "*/"
- │   │   │   │       │               │   │       │   ├─ Space [424..425]: " "
- │   │   │   │       │               │   │       │   └─ Word [425..429]: "away"
- │   │   │   │       │               │   │       └─ Italic_end [429..430]
- │   │   │   │       │               │   │           └─ Italic_end_c1 [429..430]
- │   │   │   │       │               │   │               └─ StylingMark [429..430]
- │   │   │   │       │               │   │                   └─ StylingMark_c1 [429..430]: "*"
- │   │   │   │       │               │   └─ BoldItalic_end [430..432]
- │   │   │   │       │               │       └─ BoldItalic_end_c1 [430..432]
- │   │   │   │       │               │           └─ StylingMark [430..432]
- │   │   │   │       │               │               └─ StylingMark_c1 [430..432]: "**"
- │   │   │   │       │               ├─ Space [432..433]: " "
- │   │   │   │       │               └─ Word [433..437]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 437
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 437
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 437
+ │   │   │   │   └─ ChoiceStartText [409..437]
+ │   │   │   │       ├─ ChoiceStartText_begin 409
+ │   │   │   │       ├─ ChoiceStartText_content [409..437]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [409..418]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [409..418]
+ │   │   │   │       │   │       ├─ Word [409..411]: "Go"
+ │   │   │   │       │   │       ├─ Space [411..412]: " "
+ │   │   │   │       │   │       └─ BoldItalic [412..418]
+ │   │   │   │       │   │           ├─ BoldItalic_begin [412..414]
+ │   │   │   │       │   │           │   └─ BoldItalic_begin_c1 [412..414]
+ │   │   │   │       │   │           │       └─ StylingMark [412..414]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [412..414]: "**"
+ │   │   │   │       │   │           ├─ BoldItalic_content [414..418]
+ │   │   │   │       │   │           │   └─ Italic [414..418]
+ │   │   │   │       │   │           │       ├─ Italic_begin [414..415]
+ │   │   │   │       │   │           │       │   └─ Italic_begin_c1 [414..415]
+ │   │   │   │       │   │           │       │       └─ StylingMark [414..415]
+ │   │   │   │       │   │           │       │           └─ StylingMark_c1 [414..415]: "*"
+ │   │   │   │       │   │           │       ├─ Italic_content [415..418]
+ │   │   │   │       │   │           │       │   └─ Word [415..418]: "far"
+ │   │   │   │       │   │           │       └─ Italic_end 418
+ │   │   │   │       │   │           │           └─ Italic_end_c1 418
+ │   │   │   │       │   │           └─ BoldItalic_end 418
+ │   │   │   │       │   │               └─ BoldItalic_end_c1 418
+ │   │   │   │       │   ├─ SparkdownBlockComment [418..424]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [418..421]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [418..419]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [418..419]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [419..421]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [421..422]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [421..422]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [422..424]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [422..424]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [424..437]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [424..437]
+ │   │   │   │       │           ├─ Space [424..425]: " "
+ │   │   │   │       │           ├─ Word [425..429]: "away"
+ │   │   │   │       │           └─ BoldItalic [429..437]
+ │   │   │   │       │               ├─ BoldItalic_begin [429..431]
+ │   │   │   │       │               │   └─ BoldItalic_begin_c1 [429..431]
+ │   │   │   │       │               │       └─ StylingMark [429..431]
+ │   │   │   │       │               │           └─ StylingMark_c1 [429..431]: "**"
+ │   │   │   │       │               ├─ BoldItalic_content [431..437]
+ │   │   │   │       │               │   └─ Italic [431..437]
+ │   │   │   │       │               │       ├─ Italic_begin [431..432]
+ │   │   │   │       │               │       │   └─ Italic_begin_c1 [431..432]
+ │   │   │   │       │               │       │       └─ StylingMark [431..432]
+ │   │   │   │       │               │       │           └─ StylingMark_c1 [431..432]: "*"
+ │   │   │   │       │               │       ├─ Italic_content [432..437]
+ │   │   │   │       │               │       │   ├─ Space [432..433]: " "
+ │   │   │   │       │               │       │   └─ Word [433..437]: "home"
+ │   │   │   │       │               │       └─ Italic_end 437
+ │   │   │   │       │               │           └─ Italic_end_c1 437
+ │   │   │   │       │               └─ BoldItalic_end 437
+ │   │   │   │       │                   └─ BoldItalic_end_c1 437
+ │   │   │   │       └─ ChoiceStartText_end 437
  │   │   │   └─ Choice_end 437
  │   │   ├─ Newline [437..438]: "\n"
  │   │   ├─ DoneStatement [438..448]
@@ -736,42 +754,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 455
  │   │   │   │   └─ Choice_begin_c7 455
  │   │   │   ├─ Choice_content [455..479]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [455..479]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [455..479]
- │   │   │   │       │   └─ ChoicePlainText [455..479]
- │   │   │   │       │       └─ ChoiceTextContent [455..479]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [455..479]
- │   │   │   │       │               ├─ Word [455..457]: "Go"
- │   │   │   │       │               ├─ Space [457..458]: " "
- │   │   │   │       │               ├─ Underline [458..474]
- │   │   │   │       │               │   ├─ Underline_begin [458..459]
- │   │   │   │       │               │   │   └─ Underline_begin_c1 [458..459]
- │   │   │   │       │               │   │       └─ StylingMark [458..459]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [458..459]: "_"
- │   │   │   │       │               │   ├─ Underline_content [459..473]
- │   │   │   │       │               │   │   ├─ Word [459..462]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [462..468]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [462..468]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [462..468]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [462..465]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [462..463]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [462..463]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [463..465]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [465..466]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [465..466]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [466..468]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [466..468]: "*/"
- │   │   │   │       │               │   │   ├─ Space [468..469]: " "
- │   │   │   │       │               │   │   └─ Word [469..473]: "away"
- │   │   │   │       │               │   └─ Underline_end [473..474]
- │   │   │   │       │               │       └─ Underline_end_c1 [473..474]
- │   │   │   │       │               │           └─ StylingMark [473..474]
- │   │   │   │       │               │               └─ StylingMark_c1 [473..474]: "_"
- │   │   │   │       │               ├─ Space [474..475]: " "
- │   │   │   │       │               └─ Word [475..479]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 479
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 479
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 479
+ │   │   │   │   └─ ChoiceStartText [455..479]
+ │   │   │   │       ├─ ChoiceStartText_begin 455
+ │   │   │   │       ├─ ChoiceStartText_content [455..479]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [455..462]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [455..462]
+ │   │   │   │       │   │       ├─ Word [455..457]: "Go"
+ │   │   │   │       │   │       ├─ Space [457..458]: " "
+ │   │   │   │       │   │       └─ Underline [458..462]
+ │   │   │   │       │   │           ├─ Underline_begin [458..459]
+ │   │   │   │       │   │           │   └─ Underline_begin_c1 [458..459]
+ │   │   │   │       │   │           │       └─ StylingMark [458..459]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [458..459]: "_"
+ │   │   │   │       │   │           ├─ Underline_content [459..462]
+ │   │   │   │       │   │           │   └─ Word [459..462]: "far"
+ │   │   │   │       │   │           └─ Underline_end 462
+ │   │   │   │       │   │               └─ Underline_end_c1 462
+ │   │   │   │       │   ├─ SparkdownBlockComment [462..468]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [462..465]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [462..463]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [462..463]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [463..465]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [465..466]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [465..466]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [466..468]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [466..468]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [468..479]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [468..479]
+ │   │   │   │       │           ├─ Space [468..469]: " "
+ │   │   │   │       │           ├─ Word [469..473]: "away"
+ │   │   │   │       │           └─ Underline [473..479]
+ │   │   │   │       │               ├─ Underline_begin [473..474]
+ │   │   │   │       │               │   └─ Underline_begin_c1 [473..474]
+ │   │   │   │       │               │       └─ StylingMark [473..474]
+ │   │   │   │       │               │           └─ StylingMark_c1 [473..474]: "_"
+ │   │   │   │       │               ├─ Underline_content [474..479]
+ │   │   │   │       │               │   ├─ Space [474..475]: " "
+ │   │   │   │       │               │   └─ Word [475..479]: "home"
+ │   │   │   │       │               └─ Underline_end 479
+ │   │   │   │       │                   └─ Underline_end_c1 479
+ │   │   │   │       └─ ChoiceStartText_end 479
  │   │   │   └─ Choice_end 479
  │   │   ├─ Newline [479..480]: "\n"
  │   │   ├─ DoneStatement [480..490]
@@ -794,42 +816,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 497
  │   │   │   │   └─ Choice_begin_c7 497
  │   │   │   ├─ Choice_content [497..521]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [497..521]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [497..521]
- │   │   │   │       │   └─ ChoicePlainText [497..521]
- │   │   │   │       │       └─ ChoiceTextContent [497..521]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [497..521]
- │   │   │   │       │               ├─ Word [497..499]: "Go"
- │   │   │   │       │               ├─ Space [499..500]: " "
- │   │   │   │       │               ├─ Centered [500..516]
- │   │   │   │       │               │   ├─ Centered_begin [500..501]
- │   │   │   │       │               │   │   └─ Centered_begin_c1 [500..501]
- │   │   │   │       │               │   │       └─ StylingMark [500..501]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [500..501]: "^"
- │   │   │   │       │               │   ├─ Centered_content [501..515]
- │   │   │   │       │               │   │   ├─ Word [501..504]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [504..510]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [504..510]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [504..510]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [504..507]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [504..505]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [504..505]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [505..507]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [507..508]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [507..508]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [508..510]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [508..510]: "*/"
- │   │   │   │       │               │   │   ├─ Space [510..511]: " "
- │   │   │   │       │               │   │   └─ Word [511..515]: "away"
- │   │   │   │       │               │   └─ Centered_end [515..516]
- │   │   │   │       │               │       └─ Centered_end_c1 [515..516]
- │   │   │   │       │               │           └─ StylingMark [515..516]
- │   │   │   │       │               │               └─ StylingMark_c1 [515..516]: "^"
- │   │   │   │       │               ├─ Space [516..517]: " "
- │   │   │   │       │               └─ Word [517..521]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 521
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 521
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 521
+ │   │   │   │   └─ ChoiceStartText [497..521]
+ │   │   │   │       ├─ ChoiceStartText_begin 497
+ │   │   │   │       ├─ ChoiceStartText_content [497..521]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [497..504]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [497..504]
+ │   │   │   │       │   │       ├─ Word [497..499]: "Go"
+ │   │   │   │       │   │       ├─ Space [499..500]: " "
+ │   │   │   │       │   │       └─ Centered [500..504]
+ │   │   │   │       │   │           ├─ Centered_begin [500..501]
+ │   │   │   │       │   │           │   └─ Centered_begin_c1 [500..501]
+ │   │   │   │       │   │           │       └─ StylingMark [500..501]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [500..501]: "^"
+ │   │   │   │       │   │           ├─ Centered_content [501..504]
+ │   │   │   │       │   │           │   └─ Word [501..504]: "far"
+ │   │   │   │       │   │           └─ Centered_end 504
+ │   │   │   │       │   │               └─ Centered_end_c1 504
+ │   │   │   │       │   ├─ SparkdownBlockComment [504..510]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [504..507]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [504..505]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [504..505]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [505..507]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [507..508]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [507..508]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [508..510]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [508..510]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [510..521]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [510..521]
+ │   │   │   │       │           ├─ Space [510..511]: " "
+ │   │   │   │       │           ├─ Word [511..515]: "away"
+ │   │   │   │       │           └─ Centered [515..521]
+ │   │   │   │       │               ├─ Centered_begin [515..516]
+ │   │   │   │       │               │   └─ Centered_begin_c1 [515..516]
+ │   │   │   │       │               │       └─ StylingMark [515..516]
+ │   │   │   │       │               │           └─ StylingMark_c1 [515..516]: "^"
+ │   │   │   │       │               ├─ Centered_content [516..521]
+ │   │   │   │       │               │   ├─ Space [516..517]: " "
+ │   │   │   │       │               │   └─ Word [517..521]: "home"
+ │   │   │   │       │               └─ Centered_end 521
+ │   │   │   │       │                   └─ Centered_end_c1 521
+ │   │   │   │       └─ ChoiceStartText_end 521
  │   │   │   └─ Choice_end 521
  │   │   ├─ Newline [521..522]: "\n"
  │   │   ├─ DoneStatement [522..532]
@@ -852,42 +878,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 539
  │   │   │   │   └─ Choice_begin_c7 539
  │   │   │   ├─ Choice_content [539..565]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [539..565]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [539..565]
- │   │   │   │       │   └─ ChoicePlainText [539..565]
- │   │   │   │       │       └─ ChoiceTextContent [539..565]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [539..565]
- │   │   │   │       │               ├─ Word [539..541]: "Go"
- │   │   │   │       │               ├─ Space [541..542]: " "
- │   │   │   │       │               ├─ EmphasisTilde [542..560]
- │   │   │   │       │               │   ├─ EmphasisTilde_begin [542..544]
- │   │   │   │       │               │   │   └─ EmphasisTilde_begin_c1 [542..544]
- │   │   │   │       │               │   │       └─ StylingMark [542..544]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [542..544]: "~~"
- │   │   │   │       │               │   ├─ EmphasisTilde_content [544..558]
- │   │   │   │       │               │   │   ├─ Word [544..547]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [547..553]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [547..553]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [547..553]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [547..550]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [547..548]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [547..548]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [548..550]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [550..551]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [550..551]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [551..553]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [551..553]: "*/"
- │   │   │   │       │               │   │   ├─ Space [553..554]: " "
- │   │   │   │       │               │   │   └─ Word [554..558]: "away"
- │   │   │   │       │               │   └─ EmphasisTilde_end [558..560]
- │   │   │   │       │               │       └─ EmphasisTilde_end_c1 [558..560]
- │   │   │   │       │               │           └─ StylingMark [558..560]
- │   │   │   │       │               │               └─ StylingMark_c1 [558..560]: "~~"
- │   │   │   │       │               ├─ Space [560..561]: " "
- │   │   │   │       │               └─ Word [561..565]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 565
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 565
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 565
+ │   │   │   │   └─ ChoiceStartText [539..565]
+ │   │   │   │       ├─ ChoiceStartText_begin 539
+ │   │   │   │       ├─ ChoiceStartText_content [539..565]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [539..547]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [539..547]
+ │   │   │   │       │   │       ├─ Word [539..541]: "Go"
+ │   │   │   │       │   │       ├─ Space [541..542]: " "
+ │   │   │   │       │   │       └─ EmphasisTilde [542..547]
+ │   │   │   │       │   │           ├─ EmphasisTilde_begin [542..544]
+ │   │   │   │       │   │           │   └─ EmphasisTilde_begin_c1 [542..544]
+ │   │   │   │       │   │           │       └─ StylingMark [542..544]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [542..544]: "~~"
+ │   │   │   │       │   │           ├─ EmphasisTilde_content [544..547]
+ │   │   │   │       │   │           │   └─ Word [544..547]: "far"
+ │   │   │   │       │   │           └─ EmphasisTilde_end 547
+ │   │   │   │       │   │               └─ EmphasisTilde_end_c1 547
+ │   │   │   │       │   ├─ SparkdownBlockComment [547..553]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [547..550]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [547..548]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [547..548]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [548..550]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [550..551]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [550..551]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [551..553]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [551..553]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [553..565]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [553..565]
+ │   │   │   │       │           ├─ Space [553..554]: " "
+ │   │   │   │       │           ├─ Word [554..558]: "away"
+ │   │   │   │       │           └─ EmphasisTilde [558..565]
+ │   │   │   │       │               ├─ EmphasisTilde_begin [558..560]
+ │   │   │   │       │               │   └─ EmphasisTilde_begin_c1 [558..560]
+ │   │   │   │       │               │       └─ StylingMark [558..560]
+ │   │   │   │       │               │           └─ StylingMark_c1 [558..560]: "~~"
+ │   │   │   │       │               ├─ EmphasisTilde_content [560..565]
+ │   │   │   │       │               │   ├─ Space [560..561]: " "
+ │   │   │   │       │               │   └─ Word [561..565]: "home"
+ │   │   │   │       │               └─ EmphasisTilde_end 565
+ │   │   │   │       │                   └─ EmphasisTilde_end_c1 565
+ │   │   │   │       └─ ChoiceStartText_end 565
  │   │   │   └─ Choice_end 565
  │   │   ├─ Newline [565..566]: "\n"
  │   │   ├─ DoneStatement [566..576]
@@ -910,42 +940,46 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 583
  │   │   │   │   └─ Choice_begin_c7 583
  │   │   │   ├─ Choice_content [583..609]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [583..609]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [583..609]
- │   │   │   │       │   └─ ChoicePlainText [583..609]
- │   │   │   │       │       └─ ChoiceTextContent [583..609]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [583..609]
- │   │   │   │       │               ├─ Word [583..585]: "Go"
- │   │   │   │       │               ├─ Space [585..586]: " "
- │   │   │   │       │               ├─ EmphasisColon [586..604]
- │   │   │   │       │               │   ├─ EmphasisColon_begin [586..588]
- │   │   │   │       │               │   │   └─ EmphasisColon_begin_c1 [586..588]
- │   │   │   │       │               │   │       └─ StylingMark [586..588]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [586..588]: "::"
- │   │   │   │       │               │   ├─ EmphasisColon_content [588..602]
- │   │   │   │       │               │   │   ├─ Word [588..591]: "far"
- │   │   │   │       │               │   │   ├─ SparkdownBlockCommentOnLine [591..597]
- │   │   │   │       │               │   │   │   └─ SparkdownBlockCommentOnLine_c1 [591..597]
- │   │   │   │       │               │   │   │       └─ SparkdownBlockComment [591..597]
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_begin [591..594]
- │   │   │   │       │               │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [591..592]
- │   │   │   │       │               │   │   │           │   │   └─ OptionalWhitespace [591..592]: " "
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockComment_begin_c2 [592..594]: "/*"
- │   │   │   │       │               │   │   │           ├─ SparkdownBlockComment_content [594..595]
- │   │   │   │       │               │   │   │           │   └─ SparkdownBlockCommentContent [594..595]: "n"
- │   │   │   │       │               │   │   │           └─ SparkdownBlockComment_end [595..597]
- │   │   │   │       │               │   │   │               └─ SparkdownBlockComment_end_c1 [595..597]: "*/"
- │   │   │   │       │               │   │   ├─ Space [597..598]: " "
- │   │   │   │       │               │   │   └─ Word [598..602]: "away"
- │   │   │   │       │               │   └─ EmphasisColon_end [602..604]
- │   │   │   │       │               │       └─ EmphasisColon_end_c1 [602..604]
- │   │   │   │       │               │           └─ StylingMark [602..604]
- │   │   │   │       │               │               └─ StylingMark_c1 [602..604]: "::"
- │   │   │   │       │               ├─ Space [604..605]: " "
- │   │   │   │       │               └─ Word [605..609]: "home"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 609
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 609
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 609
+ │   │   │   │   └─ ChoiceStartText [583..609]
+ │   │   │   │       ├─ ChoiceStartText_begin 583
+ │   │   │   │       ├─ ChoiceStartText_content [583..609]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [583..591]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [583..591]
+ │   │   │   │       │   │       ├─ Word [583..585]: "Go"
+ │   │   │   │       │   │       ├─ Space [585..586]: " "
+ │   │   │   │       │   │       └─ EmphasisColon [586..591]
+ │   │   │   │       │   │           ├─ EmphasisColon_begin [586..588]
+ │   │   │   │       │   │           │   └─ EmphasisColon_begin_c1 [586..588]
+ │   │   │   │       │   │           │       └─ StylingMark [586..588]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [586..588]: "::"
+ │   │   │   │       │   │           ├─ EmphasisColon_content [588..591]
+ │   │   │   │       │   │           │   └─ Word [588..591]: "far"
+ │   │   │   │       │   │           └─ EmphasisColon_end 591
+ │   │   │   │       │   │               └─ EmphasisColon_end_c1 591
+ │   │   │   │       │   ├─ SparkdownBlockComment [591..597]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [591..594]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [591..592]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [591..592]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [592..594]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [594..595]
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [594..595]: "n"
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [595..597]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [595..597]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [597..609]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [597..609]
+ │   │   │   │       │           ├─ Space [597..598]: " "
+ │   │   │   │       │           ├─ Word [598..602]: "away"
+ │   │   │   │       │           └─ EmphasisColon [602..609]
+ │   │   │   │       │               ├─ EmphasisColon_begin [602..604]
+ │   │   │   │       │               │   └─ EmphasisColon_begin_c1 [602..604]
+ │   │   │   │       │               │       └─ StylingMark [602..604]
+ │   │   │   │       │               │           └─ StylingMark_c1 [602..604]: "::"
+ │   │   │   │       │               ├─ EmphasisColon_content [604..609]
+ │   │   │   │       │               │   ├─ Space [604..605]: " "
+ │   │   │   │       │               │   └─ Word [605..609]: "home"
+ │   │   │   │       │               └─ EmphasisColon_end 609
+ │   │   │   │       │                   └─ EmphasisColon_end_c1 609
+ │   │   │   │       └─ ChoiceStartText_end 609
  │   │   │   └─ Choice_end 609
  │   │   ├─ Newline [609..610]: "\n"
  │   │   ├─ DoneStatement [610..620]
@@ -968,30 +1002,28 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c6 627
  │   │   │   │   └─ Choice_begin_c7 627
  │   │   │   ├─ Choice_content [627..636]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [627..636]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [627..636]
- │   │   │   │       │   └─ ChoicePlainText [627..636]
- │   │   │   │       │       └─ ChoiceTextContent [627..636]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [627..636]
- │   │   │   │       │               ├─ Word [627..629]: "Go"
- │   │   │   │       │               ├─ Space [629..630]: " "
- │   │   │   │       │               ├─ Italic [630..633]
- │   │   │   │       │               │   ├─ Italic_begin [630..631]
- │   │   │   │       │               │   │   └─ Italic_begin_c1 [630..631]
- │   │   │   │       │               │   │       └─ StylingMark [630..631]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [630..631]: "*"
- │   │   │   │       │               │   ├─ Italic_content [631..632]
- │   │   │   │       │               │   │   └─ Word [631..632]: "a"
- │   │   │   │       │               │   └─ Italic_end [632..633]
- │   │   │   │       │               │       └─ Italic_end_c1 [632..633]
- │   │   │   │       │               │           └─ StylingMark [632..633]
- │   │   │   │       │               │               └─ StylingMark_c1 [632..633]: "*"
- │   │   │   │       │               ├─ Punctuation [633..634]: "/"
- │   │   │   │       │               ├─ Space [634..635]: " "
- │   │   │   │       │               └─ Word [635..636]: "b"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 636
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 636
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 636
+ │   │   │   │   └─ ChoiceStartText [627..636]
+ │   │   │   │       ├─ ChoiceStartText_begin 627
+ │   │   │   │       ├─ ChoiceStartText_content [627..636]
+ │   │   │   │       │   └─ ChoiceStartTextContent [627..636]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [627..636]
+ │   │   │   │       │           ├─ Word [627..629]: "Go"
+ │   │   │   │       │           ├─ Space [629..630]: " "
+ │   │   │   │       │           ├─ Italic [630..633]
+ │   │   │   │       │           │   ├─ Italic_begin [630..631]
+ │   │   │   │       │           │   │   └─ Italic_begin_c1 [630..631]
+ │   │   │   │       │           │   │       └─ StylingMark [630..631]
+ │   │   │   │       │           │   │           └─ StylingMark_c1 [630..631]: "*"
+ │   │   │   │       │           │   ├─ Italic_content [631..632]
+ │   │   │   │       │           │   │   └─ Word [631..632]: "a"
+ │   │   │   │       │           │   └─ Italic_end [632..633]
+ │   │   │   │       │           │       └─ Italic_end_c1 [632..633]
+ │   │   │   │       │           │           └─ StylingMark [632..633]
+ │   │   │   │       │           │               └─ StylingMark_c1 [632..633]: "*"
+ │   │   │   │       │           ├─ Punctuation [633..634]: "/"
+ │   │   │   │       │           ├─ Space [634..635]: " "
+ │   │   │   │       │           └─ Word [635..636]: "b"
+ │   │   │   │       └─ ChoiceStartText_end 636
  │   │   │   └─ Choice_end 636
  │   │   ├─ Newline [636..637]: "\n"
  │   │   ├─ DoneStatement [637..647]
@@ -1002,7 +1034,7 @@ sparkdown [0..689]
  │   │   │   └─ DoneStatement_c3 647
  │   │   │       └─ OptionalWhitespace 647
  │   │   ├─ Newline [647..648]: "\n"
- │   │   ├─ Choice [648..667]
+ │   │   ├─ Choice [648..690]
  │   │   │   ├─ Choice_begin [648..654]
  │   │   │   │   ├─ Choice_begin_c1 [648..652]
  │   │   │   │   │   └─ OptionalWhitespace [648..652]: "    "
@@ -1013,49 +1045,66 @@ sparkdown [0..689]
  │   │   │   │   ├─ Choice_begin_c5 654
  │   │   │   │   ├─ Choice_begin_c6 654
  │   │   │   │   └─ Choice_begin_c7 654
- │   │   │   ├─ Choice_content [654..667]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [654..667]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [654..667]
- │   │   │   │       │   └─ ChoicePlainText [654..667]
- │   │   │   │       │       └─ ChoiceTextContent [654..667]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [654..667]
- │   │   │   │       │               ├─ Word [654..656]: "Go"
- │   │   │   │       │               ├─ Space [656..657]: " "
- │   │   │   │       │               ├─ Italic [657..662]
- │   │   │   │       │               │   ├─ Italic_begin [657..658]
- │   │   │   │       │               │   │   └─ Italic_begin_c1 [657..658]
- │   │   │   │       │               │   │       └─ StylingMark [657..658]
- │   │   │   │       │               │   │           └─ StylingMark_c1 [657..658]: "*"
- │   │   │   │       │               │   ├─ Italic_content [658..661]
- │   │   │   │       │               │   │   ├─ Word [658..659]: "x"
- │   │   │   │       │               │   │   ├─ Space [659..660]: " "
- │   │   │   │       │               │   │   └─ Punctuation [660..661]: "/"
- │   │   │   │       │               │   └─ Italic_end [661..662]
- │   │   │   │       │               │       └─ Italic_end_c1 [661..662]
- │   │   │   │       │               │           └─ StylingMark [661..662]
- │   │   │   │       │               │               └─ StylingMark_c1 [661..662]: "*"
- │   │   │   │       │               ├─ Space [662..663]: " "
- │   │   │   │       │               └─ Word [663..667]: "open"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 667
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 667
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 667
- │   │   │   └─ Choice_end 667
- │   │   ├─ Newline [667..668]: "\n"
- │   │   ├─ DoneStatement [668..678]
- │   │   │   ├─ DoneStatement_c1 [668..674]
- │   │   │   │   └─ OptionalWhitespace [668..674]: "      "
- │   │   │   ├─ DoneStatement_c2 [674..678]
- │   │   │   │   └─ DoneKeyword [674..678]: "done"
- │   │   │   └─ DoneStatement_c3 678
- │   │   │       └─ OptionalWhitespace 678
- │   │   └─ Newline [678..679]: "\n"
- │   └─ LuauSparkdownChooseBlock_end [679..684]
- │       ├─ LuauSparkdownChooseBlock_end_c1 [679..681]
- │       │   └─ LuauSparkdownChooseBlock_end_c1 [679..681]
- │       │       └─ OptionalWhitespace [679..681]: "  "
- │       ├─ LuauSparkdownChooseBlock_end_c2 [681..684]
- │       │   └─ LuauEndKeyword [681..684]: "end"
- │       └─ LuauSparkdownChooseBlock_end_c3 684
- ├─ Newline [684..685]: "\n"
- ├─ LuauEndKeyword [685..688]: "end"
- └─ Newline [688..689]: "\n"
+ │   │   │   ├─ Choice_content [654..690]
+ │   │   │   │   └─ ChoiceStartText [654..690]
+ │   │   │   │       ├─ ChoiceStartText_begin 654
+ │   │   │   │       ├─ ChoiceStartText_content [654..690]
+ │   │   │   │       │   ├─ ChoiceStartTextContent [654..659]
+ │   │   │   │       │   │   └─ ChoiceStartTextContent_c1 [654..659]
+ │   │   │   │       │   │       ├─ Word [654..656]: "Go"
+ │   │   │   │       │   │       ├─ Space [656..657]: " "
+ │   │   │   │       │   │       └─ Italic [657..659]
+ │   │   │   │       │   │           ├─ Italic_begin [657..658]
+ │   │   │   │       │   │           │   └─ Italic_begin_c1 [657..658]
+ │   │   │   │       │   │           │       └─ StylingMark [657..658]
+ │   │   │   │       │   │           │           └─ StylingMark_c1 [657..658]: "*"
+ │   │   │   │       │   │           ├─ Italic_content [658..659]
+ │   │   │   │       │   │           │   └─ Word [658..659]: "x"
+ │   │   │   │       │   │           └─ Italic_end 659
+ │   │   │   │       │   │               └─ Italic_end_c1 659
+ │   │   │   │       │   ├─ SparkdownBlockComment [659..682]
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_begin [659..662]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [659..660]
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace [659..660]: " "
+ │   │   │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [660..662]: "/*"
+ │   │   │   │       │   │   ├─ SparkdownBlockComment_content [662..680]
+ │   │   │   │       │   │   │   ├─ SparkdownBlockCommentContent [662..667]: " open"
+ │   │   │   │       │   │   │   ├─ Newline [667..668]: "\n"
+ │   │   │   │       │   │   │   └─ SparkdownBlockCommentContent [668..680]: "      still "
+ │   │   │   │       │   │   └─ SparkdownBlockComment_end [680..682]
+ │   │   │   │       │   │       └─ SparkdownBlockComment_end_c1 [680..682]: "*/"
+ │   │   │   │       │   └─ ChoiceStartTextContent [682..690]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [682..690]
+ │   │   │   │       │           ├─ Space [682..683]: " "
+ │   │   │   │       │           ├─ Word [683..684]: "y"
+ │   │   │   │       │           └─ Italic [684..690]
+ │   │   │   │       │               ├─ Italic_begin [684..685]
+ │   │   │   │       │               │   └─ Italic_begin_c1 [684..685]
+ │   │   │   │       │               │       └─ StylingMark [684..685]
+ │   │   │   │       │               │           └─ StylingMark_c1 [684..685]: "*"
+ │   │   │   │       │               ├─ Italic_content [685..690]
+ │   │   │   │       │               │   ├─ Space [685..686]: " "
+ │   │   │   │       │               │   └─ Word [686..690]: "home"
+ │   │   │   │       │               └─ Italic_end 690
+ │   │   │   │       │                   └─ Italic_end_c1 690
+ │   │   │   │       └─ ChoiceStartText_end 690
+ │   │   │   └─ Choice_end 690
+ │   │   ├─ Newline [690..691]: "\n"
+ │   │   ├─ DoneStatement [691..701]
+ │   │   │   ├─ DoneStatement_c1 [691..697]
+ │   │   │   │   └─ OptionalWhitespace [691..697]: "      "
+ │   │   │   ├─ DoneStatement_c2 [697..701]
+ │   │   │   │   └─ DoneKeyword [697..701]: "done"
+ │   │   │   └─ DoneStatement_c3 701
+ │   │   │       └─ OptionalWhitespace 701
+ │   │   └─ Newline [701..702]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [702..707]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [702..704]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [702..704]
+ │       │       └─ OptionalWhitespace [702..704]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [704..707]
+ │       │   └─ LuauEndKeyword [704..707]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 707
+ ├─ Newline [707..708]: "\n"
+ ├─ LuauEndKeyword [708..711]: "end"
+ └─ Newline [711..712]: "\n"

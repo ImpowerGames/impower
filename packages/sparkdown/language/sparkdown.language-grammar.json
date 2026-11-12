@@ -23,6 +23,14 @@
   },
   "variables": {
     "DISPLAY_CHAIN_SEPARATOR": "(?:$|{{WS}}+)",
+    "STORY_TEXT_OUTSIDE_COMMENT": "(?:(?!{{STORY_COMMENT_START}})[^\\r\\n])",
+    "DISPLAY_CHAIN_TEXT": "(?:{{STORY_TEXT_OUTSIDE_COMMENT}}*?)",
+    "DISPLAY_CHAIN_COMMENT_AHEAD": "(?={{WS}}+(?:{{SPARKDOWN_BLOCK_COMMENT_START}}|{{LINE_COMMENT_MARK}}))",
+    "DISPLAY_CHAIN_MARK": "(?:{{CHAIN}}(?:{{DISPLAY_CHAIN_COMMENT_AHEAD}}|{{DISPLAY_CHAIN_SEPARATOR}}))",
+    "BLOCK_COMMENT_ON_LINE": "(?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/])",
+    "LINE_COMMENT_TO_END": "(?:{{WS}}*{{LINE_COMMENT_MARK}}[^\\r\\n]*)",
+    "DISPLAY_CHAIN_COMMENTS": "(?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)",
+    "DISPLAY_CHAIN_END": "(?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})",
     "IMAGE_CONTROL_KEYWORDS": [
       "show",
       "hide",
@@ -88,6 +96,7 @@
     "NOT_TAG_HASH_AFTER_TEXT": "(?<=[^\\s.]|[^\\s.][.]|[^\\s.][.][.])(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
     "SPARKDOWN_BLOCK_COMMENT_START": "(?:[/][*])",
+    "BLOCK_COMMENT_CHARACTER": "(?:[^*\\r\\n]|[*](?![/]))",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
     "CHAIN": "(?:[\\\\])",
@@ -131,6 +140,28 @@
     "CHOICE_CLOSURE_PARENS": "(?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])",
     "CHOICE_UNREADABLE_CONDITION_OPEN": "(?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))",
     "CHOICE_HEADER_LINE_BREAK_TAKEN": "(?:\\G(?![\\s\\S]))",
+    "CHOICE_SUPPRESSION_OPEN": "(?:\\[(?=[^\\r\\n]*(?:\\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))",
+    "LINE_COMMENT_MARK": "(?:[/]{2}(?=$|{{WS}}))",
+    "STORY_COMMENT_START": "(?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|{{WS}}*{{LINE_COMMENT_MARK}})",
+    "CHOICE_INTERPOLATION_UNIT": "(?:[{](?![}])(?=[^\\r\\n]*[}]))",
+    "CHOICE_TEXT_UNIT": "(?:{{STORY_COMMENT_START}}|{{CHOICE_INTERPOLATION_UNIT}})",
+    "CHOICE_PLAIN_STRING_CHARACTER": "(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))",
+    "CHOICE_PLAIN_DOUBLE_QUOTED": "(?:[\"](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|['])*[\"])",
+    "CHOICE_PLAIN_SINGLE_QUOTED": "(?:['](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|[\"])*['])",
+    "CHOICE_PLAIN_STRING": "(?:{{CHOICE_PLAIN_DOUBLE_QUOTED}}|{{CHOICE_PLAIN_SINGLE_QUOTED}})",
+    "CHOICE_PLAIN_INTERPOLATION_CHARACTER": "(?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|{{CHOICE_PLAIN_STRING}})",
+    "CHOICE_PLAIN_INNER_TABLE": "(?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])",
+    "CHOICE_PLAIN_INTERPOLATION": "(?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_INNER_TABLE}})+[}])",
+    "CHOICE_TEXT_ESCAPED_BRACE": "(?:[\\\\][{])",
+    "CHOICE_START_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_START_TEXT_TAG": "(?:{{TAG_START}}(?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\\r\\n])*)",
+    "CHOICE_ONLY_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_ONLY_TEXT_TAG": "(?:{{TAG_START}}(?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\\r\\n])*)",
+    "CHOICE_INNER_TEXT_CHARACTER": "(?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\\r\\n])",
+    "CHOICE_INNER_TEXT_TAG": "(?:{{TAG_START}}(?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\\r\\n])*)",
+    "CHOICE_START_TEXT_END": "(?:{{WS}}*$|{{WS}}*[-][>]|{{CHOICE_SUPPRESSION_OPEN}})",
+    "CHOICE_INNER_TEXT_END": "(?:{{WS}}*$|{{WS}}*[-][>])",
+    "CHOICE_ONLY_TEXT_END": "(?:\\]|$|{{WS}}*[-][>])",
     "STYLE_PROPERTY_NAME": "(?:[a-zA-Z_][a-zA-Z0-9_-]*)",
     "INTEGER": "[0-9]+",
     "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
@@ -1036,11 +1067,6 @@
         }
       }
     },
-    "SparkdownOpenCommentText": {
-      "tag": "special(string)",
-      "name": "string.display.text.chunk.sd",
-      "match": "((?:[^\\S\\n\\r])*(?:[/][*]))"
-    },
     "SparkleTrailingLineComment": {
       "tag": "lineComment",
       "name": "comment.line.double-slash.sd",
@@ -1547,10 +1573,19 @@
           "include": "#ChoiceConditional"
         },
         {
-          "include": "#ChoiceWithSuppressedText"
+          "include": "#ChoiceStartText"
         },
         {
-          "include": "#ChoiceWithNoSuppressedText"
+          "include": "#ChoiceSuppression"
+        },
+        {
+          "include": "#ChoiceDivertWhitespace"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ExtraWhitespace"
         }
       ],
       "end": "(?!(?:\\G(?![\\s\\S])))(?=$)"
@@ -1641,135 +1676,97 @@
       "name": "keyword.operator.expression.list.sd",
       "match": "(.+)"
     },
-    "ChoiceWithSuppressedText": {
-      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ChoiceStartText"
-            }
-          ]
+    "ChoiceStartText": {
+      "tag": "string",
+      "name": "string.choice.sd",
+      "begin": "(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*(?:\\]|(?:[/][*]))))))",
+      "patterns": [
+        {
+          "include": "#ChoiceStartTextContent"
         },
-        "2": {
+        {
+          "include": "#ChoiceTextUnit"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*(?:\\]|(?:[/][*]))))))"
+    },
+    "ChoiceSuppression": {
+      "begin": "((?:\\[(?=[^\\r\\n]*(?:\\]|(?:[/][*])))))",
+      "beginCaptures": {
+        "1": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ChoiceOnlyText"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#ChoiceInnerText"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Divert"
-            }
-          ]
         }
-      }
-    },
-    "ChoiceWithNoSuppressedText": {
-      "match": "(?!(?:\\G(?![\\s\\S])))(.*?)(?:((?:[^\\S\\n\\r])*)$|((?:[^\\S\\n\\r])*)([-][>].*$))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ChoicePlainText"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#RequiredWhitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Divert"
-            }
-          ]
-        }
-      }
-    },
-    "ChoiceStartText": {
-      "emit": true,
+      },
       "patterns": [
         {
-          "include": "#ChoiceTextContent"
+          "include": "#ChoiceOnlyText"
+        },
+        {
+          "include": "#ChoiceInnerText"
+        },
+        {
+          "include": "#ChoiceDivertWhitespace"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ExtraWhitespace"
         }
-      ]
+      ],
+      "end": "(?=$)"
     },
     "ChoiceOnlyText": {
-      "emit": true,
+      "tag": "string",
+      "name": "string.choice.sd",
+      "begin": "\\G(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))",
       "patterns": [
         {
-          "include": "#ChoiceTextContent"
+          "include": "#ChoiceOnlyTextContent"
+        },
+        {
+          "include": "#ChoiceTextUnit"
         }
-      ]
+      ],
+      "end": "(?=(?:\\]|$|(?:[^\\S\\n\\r])*[-][>]))"
     },
     "ChoiceInnerText": {
-      "emit": true,
+      "begin": "(\\])",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
+        }
+      },
       "patterns": [
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#ChoiceInnerTextContent"
+        },
+        {
+          "include": "#ChoiceTextUnit"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]))"
+    },
+    "ChoiceTextUnit": {
+      "patterns": [
+        {
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
         },
         {
-          "include": "#DisplayText"
-        }
-      ]
-    },
-    "ChoicePlainText": {
-      "emit": true,
-      "patterns": [
+          "include": "#LuauFunctionCallShorthand"
+        },
         {
-          "include": "#ChoiceTextContent"
+          "include": "#LuauInterpolatedStringExpression"
         }
       ]
     },
-    "ChoiceTextContent": {
-      "tag": "string",
-      "name": "string.choice.sd",
+    "ChoiceStartTextContent": {
+      "match": "((?:(?:[{](?:(?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))|(?:[{](?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*(?:\\]|(?:[/][*])))))|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*)|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>]|(?:\\[(?=[^\\r\\n]*(?:\\]|(?:[/][*])))))|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*[}]))))[^\\r\\n])+)",
       "captures": {
         "1": {
           "patterns": [
@@ -1777,24 +1774,50 @@
               "include": "#Annotation"
             },
             {
-              "include": "#LuauFunctionCallShorthand"
-            },
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceOnlyTextContent": {
+      "match": "((?:(?:[{](?:(?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))|(?:[{](?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*)|(?!(?:\\]|$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*[}]))))[^\\r\\n])+)",
+      "captures": {
+        "1": {
+          "patterns": [
             {
-              "include": "#LuauInterpolatedStringExpression"
-            },
-            {
-              "include": "#SparkdownBlockCommentOnLine"
-            },
-            {
-              "include": "#SparkdownInlineComment"
+              "include": "#Annotation"
             },
             {
               "include": "#DisplayText"
             }
           ]
         }
-      },
-      "match": "(.+)"
+      }
+    },
+    "ChoiceInnerTextContent": {
+      "match": "((?:(?:[{](?:(?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))|(?:[{](?:[^{}\"'`\\\\\\[\\]\\r\\n/-]|[/](?![*/])|[-](?![->])|(?:(?:[\"](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|['])*[\"])|(?:['](?:(?:[^\"'\\\\\\r\\n{}\\[\\]/-]|[/](?![*/])|[-](?![>]))|[\"])*['])))*[}]))+[}])|(?:[\\\\][{])|(?:(?:[#]+(?=$|(?:[^\\S\\n\\r])))(?:(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*)|(?!(?:(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[-][>])|(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r]))))|(?:[{](?![}])(?=[^\\r\\n]*[}]))))[^\\r\\n])+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ChoiceDivertWhitespace": {
+      "match": "((?:[^\\S\\n\\r])+)(?=[-][>])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#RequiredWhitespace"
+            }
+          ]
+        }
+      }
     },
     "LabelAnchor": {
       "match": "^((?:[^\\S\\n\\r])*)(label)\\b((?:[^\\S\\n\\r])*)((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))((?:[^\\S\\n\\r])*)",
@@ -2136,7 +2159,7 @@
           "include": "#DivertTarget"
         },
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
@@ -2148,10 +2171,15 @@
           "include": "#ExtraWhitespace"
         },
         {
-          "include": "#Unknown"
+          "include": "#DivertUnknown"
         }
       ],
       "end": "(?=$)"
+    },
+    "DivertUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "((?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])+)"
     },
     "DivertStrayTextSpace": {
       "match": "((?:[^\\S\\n\\r])+)(?=\\S)",
@@ -2229,7 +2257,7 @@
           "include": "#DivertTarget"
         },
         {
-          "include": "#SparkdownBlockCommentOnLine"
+          "include": "#SparkdownBlockComment"
         },
         {
           "include": "#SparkdownInlineComment"
@@ -2238,7 +2266,7 @@
           "include": "#ExtraWhitespace"
         },
         {
-          "include": "#Unknown"
+          "include": "#DivertUnknown"
         }
       ],
       "end": "(?=$)"
@@ -3913,7 +3941,7 @@
       }
     },
     "ActionLineChain": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*?))((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3928,7 +3956,7 @@
               "include": "#ActionLoadKeyword"
             },
             {
-              "include": "#ChainDisplayLine"
+              "include": "#DisplayLine"
             }
           ]
         },
@@ -3955,6 +3983,59 @@
         }
       }
     },
+    "ActionLineChainTail": {
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*?))((?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+))))((?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ActionLoadKeyword"
+            },
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Chain"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#SparkdownBlockComment"
+            },
+            {
+              "include": "#SparkdownInlineComment"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
     "ActionLineEnd": {
       "begin": "((?:[^\\S\\n\\r])*)(?!(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(?=\\S)",
       "beginCaptures": {
@@ -3967,6 +4048,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#ActionLineChainTail"
+        },
         {
           "include": "#ActionDisplayLine"
         }
@@ -4168,7 +4252,7 @@
       }
     },
     "LineChain": {
-      "match": "((?:[^\\S\\n\\r])*)(.*?)((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*?))((?:[\\\\])(?:$|(?:[^\\S\\n\\r])+))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -4180,7 +4264,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ChainDisplayLine"
+              "include": "#DisplayLine"
             }
           ]
         },
@@ -4207,6 +4291,56 @@
         }
       }
     },
+    "LineChainTail": {
+      "match": "((?:[^\\S\\n\\r])*)((?:(?:(?!(?:(?:[^\\S\\n\\r])*(?:[/][*])|(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))[^\\r\\n])*?))((?:(?:[\\\\])(?:(?=(?:[^\\S\\n\\r])+(?:(?:[/][*])|(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))))|(?:$|(?:[^\\S\\n\\r])+))))((?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?))((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(\\r\\n|\\r|\\n)?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Chain"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#SparkdownBlockComment"
+            },
+            {
+              "include": "#SparkdownInlineComment"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
     "LineEnd": {
       "begin": "((?:[^\\S\\n\\r])*)(?!(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))(?=\\S)",
       "beginCaptures": {
@@ -4220,6 +4354,9 @@
       },
       "patterns": [
         {
+          "include": "#LineChainTail"
+        },
+        {
           "include": "#DisplayLine"
         }
       ],
@@ -4232,22 +4369,6 @@
         },
         {
           "include": "#SparkdownBlockComment"
-        },
-        {
-          "include": "#DisplayLineText"
-        }
-      ]
-    },
-    "ChainDisplayLine": {
-      "patterns": [
-        {
-          "include": "#DisplayLineCode"
-        },
-        {
-          "include": "#SparkdownBlockCommentOnLine"
-        },
-        {
-          "include": "#SparkdownOpenCommentText"
         },
         {
           "include": "#DisplayLineText"
@@ -5077,7 +5198,7 @@
           "include": "#PlainText"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5106,7 +5227,7 @@
           "include": "#Italic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5138,7 +5259,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5170,7 +5291,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5202,7 +5323,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5234,7 +5355,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5276,7 +5397,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -5308,7 +5429,7 @@
           "include": "#InlineTextAndLogic"
         }
       ],
-      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))",
+      "end": "(\\1)|(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r])+)(?:(?:(?:[^\\S\\n\\r])*(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/])*(?:(?:[^\\S\\n\\r])*(?:[/]{2}(?=$|(?:[^\\S\\n\\r])))[^\\r\\n]*)?)(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)))",
       "endCaptures": {
         "1": {
           "patterns": [

@@ -148,7 +148,7 @@ end
     expect(story.ContinueMaximally()).toBe("Go left\nHi there.\n");
   });
 
-  describe("in choice text and on chain lines, a block comment must close on its line", () => {
+  describe("in choice text, a divert and on a chain line, a comment is read as one unit before the line is split", () => {
     const outcome = (script: string) => {
       const { result, errors } = compile(script);
       const story = testStory(result.program.chunks);
@@ -161,45 +161,51 @@ end
         chosen: story.ContinueMaximally(),
       };
     };
-    const asText = (script: string) =>
-      script.replaceAll("/*", "/+").replaceAll("*/", "+/");
-    const fromText = (value: string) =>
-      value.replaceAll("/+", "/*").replaceAll("+/", "*/");
-    const outcomeAsText = (script: string) => {
-      const plain = outcome(asText(script));
-      return {
-        errors: plain.errors,
-        choices: plain.choices.map(fromText),
-        chosen: fromText(plain.chosen),
-      };
-    };
     const choose = (...lines: string[]) =>
-      `scene start\n  choose\n${lines.map((l) => `    ${l}`).join("\n")}\n  end\nend\n`;
-    const unclosedErrors = (errors: string[]) =>
-      errors.filter((m) => m.includes("missing its closing `*/`"));
+      `scene start\n  choose\n${lines.map((l) => `    ${l}`).join("\n")}\n  end\nend\nscene next\n  Next.\n  done\nend\n`;
+    const unclosedErrors = (errors: { message: string; line: number; character: number }[]) =>
+      errors.filter((e) => JSON.stringify(e.message).includes("missing its closing `*/`"));
 
-    test("a `/*` in choice text with no `*/` on its line is text, and the next line is the choice's body", () => {
-      const script = choose("+ Go /* draft", "  hidden */ left", "  Gone.", "  done");
-      expect(outcome(script)).toEqual(outcomeAsText(script));
-      expect(outcome(script).errors).toEqual([]);
+    test("a comment in choice text that runs onto a later line is not shown (#2022 round 1)", () => {
+      expect(outcome(choose("+ Go /* draft", "  hidden */ left", "  Gone.", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go left"],
+        chosen: "Go left\nGone.\n",
+      });
     });
 
-    test("a suppression bracket around a comment that does not close on its line behaves as it does around text", () => {
-      const script = choose("+ [Wait /* draft", "  hidden */ here] now", "  done");
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a suppression bracket around a comment that runs onto a later line keeps its meaning (#2022 round 1)", () => {
+      expect(outcome(choose("+ [Wait /* draft", "  hidden */ here] now", "  done"))).toEqual({
+        errors: [],
+        choices: ["Wait here"],
+        chosen: "now",
+      });
     });
 
-    test("a suppression bracket after a comment that does not close on its line behaves as it does after text", () => {
-      const script = choose("+ Go /* draft", "  hidden */ [left] home", "  done");
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a suppression bracket after a comment that runs onto a later line keeps its meaning (#2022 round 2)", () => {
+      expect(outcome(choose("+ Go /* draft", "  hidden */ [left] home", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go left"],
+        chosen: "Go home",
+      });
     });
 
-    test("a `/*` in a string, a long string or a backtick string inside an interpolation opens no comment", () => {
+    test("a bracket or an arrow inside a comment that runs onto a later line is part of the comment", () => {
+      expect(outcome(choose("+ [Wait /* draft", "  hidden ] -> next */ here] now", "  done"))).toEqual({
+        errors: [],
+        choices: ["Wait here"],
+        chosen: "now",
+      });
+    });
+
+    test("a `/*` in a string, a long string or a backtick string inside an interpolation opens no comment (#2022 round 1)", () => {
       const result = outcome(
         choose(
           '+ Go {"/*"} home',
           "  done",
           '+ Go {if true then "/*" else tostring({})} home',
+          "  done",
+          "+ Go {[[/*]]} far",
           "  done",
           "+ Go {`/*{1}`} near",
           "  done",
@@ -208,39 +214,87 @@ end
         ),
       );
       expect(result.errors).toEqual([]);
-      expect(result.choices).toEqual([
-        "Go /* home",
-        "Go /* home",
-        "Go /*1 near",
-        "Go 1 count",
-      ]);
+      expect(result.choices).toEqual(["Go /* home", "Go /* home", "Go /* far", "Go /*1 near", "Go 1 count"]);
     });
 
-    test("a `/*` in a long string inside an interpolation behaves as the same text does", () => {
-      const script = choose("+ Go {[[/*]]} far", "  done");
-      expect(unclosedErrors(outcome(script).errors)).toEqual([]);
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a `/*` and a bracket in a string inside a deeply nested interpolation are the string's (#2022 round 2)", () => {
+      expect(outcome(choose('+ Go {#{{{{"} [foo] /*"}}}}} home', "  done"))).toEqual({
+        errors: [],
+        choices: ["Go 1 home"],
+        chosen: "Go 1 home",
+      });
     });
 
-    test("a `/*` in a string inside a deeply nested interpolation opens no comment", () => {
-      const script = choose('+ Go {#{{{{"} [foo] /*"}}}}} home', "  done");
-      expect(unclosedErrors(outcome(script).errors)).toEqual([]);
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a comment after a deeply nested interpolation runs onto a later line (#2022 round 2)", () => {
+      expect(outcome(choose("+ Go {#{{{{1}}}}} /* draft {1}", "  hidden */ after", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go 1 after"],
+        chosen: "Go 1 after",
+      });
     });
 
-    test("a real comment after a deeply nested interpolation that does not close on its line is text, with no error", () => {
-      const script = choose("+ Go {#{{{{1}}}}} /* draft {1}", "  hidden */ after", "  done");
-      expect(outcome(script).errors).toEqual([]);
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a comment after a deeply nested interpolation on an action or a dialogue chain line hides the line's `\\` (#2022 round 2)", () => {
+      const action = String.raw`scene start
+  Go {#{{{{1}}}}} /* draft {1} \
+  hidden */ after
+  done
+end
+`;
+      const dialogue = String.raw`scene start
+  BOB: Go {#{{{{1}}}}} /* draft {1} \
+  hidden */ after
+  done
+end
+`;
+      expect(run(action)).toBe("Go 1 after\n");
+      expect(run(dialogue)).toBe("Go 1 after\n");
     });
 
-    test("an unclosed `/*` in choice text reports no error and comments out nothing", () => {
-      const script = choose("+ Go /* never closed", "  Still here.", "  done");
-      expect(outcome(script).errors).toEqual([]);
-      expect(outcome(script)).toEqual(outcomeAsText(script));
+    test("a bracket inside a block comment in choice text creates no suppression (#2022 round 3)", () => {
+      expect(outcome(choose("+ Go /* [secret] */ home", "  Body.", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go home"],
+        chosen: "Go home\nBody.\n",
+      });
     });
 
-    test("an unclosed `/*` after a divert reports no unclosed-comment error", () => {
+    test("an arrow inside a block comment in choice text creates no divert (#2022 round 3)", () => {
+      expect(outcome(choose("+ Go /* -> next */ home", "  Body.", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go home"],
+        chosen: "Go home\nBody.\n",
+      });
+    });
+
+    test("a bracket or an arrow inside a line comment in choice text creates no suppression or divert", () => {
+      expect(outcome(choose("+ Go // [secret] home", "  Body.", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go"],
+        chosen: "Go\nBody.\n",
+      });
+      expect(outcome(choose("+ Go // -> next", "  Body.", "  done"))).toEqual({
+        errors: [],
+        choices: ["Go"],
+        chosen: "Go\nBody.\n",
+      });
+    });
+
+    test("a comment inside a string in an interpolation is the string's text (#2022 round 3)", () => {
+      expect(outcome(choose('+ Go {"[foo] /*note*/"} home', "  done")).choices).toEqual(["Go [foo] /*note*/ home"]);
+      expect(outcome(choose("+ Go {[[/*note*/]]} home", "  done")).choices).toEqual(["Go /*note*/ home"]);
+    });
+
+    test("a `[` that a comment's `]` follows never closes and stays text", () => {
+      expect(outcome(choose("+ Go [left /* ] */ way", "  done")).choices).toEqual(["Go [left way"]);
+      expect(outcome(choose("+ Go [left /* c */ way", "  done")).choices).toEqual(["Go [left way"]);
+    });
+
+    test("an unclosed `/*` in choice text comments out the rest of the script and reports an error at the opener", () => {
+      const { errors } = compile(choose("+ Go /* never closed", "  Still here.", "  done"));
+      expect(unclosedErrors(errors).map((e) => [e.line, e.character])).toEqual([[2, 9]]);
+    });
+
+    test("an unclosed `/*` after a divert comments out the rest of the script and reports an error at the opener", () => {
       const { errors } = compile(`scene start
   -> next /* why
   done
@@ -250,20 +304,59 @@ scene next
   done
 end
 `);
-      expect(
-        errors.filter((e) => JSON.stringify(e.message).includes("missing its closing `*/`")),
-      ).toEqual([]);
+      expect(unclosedErrors(errors).map((e) => [e.line, e.character])).toEqual([[1, 10]]);
     });
 
-    test("a `/*` on a chain line with no `*/` on its line is text, and the line still chains", () => {
+    test("a comment after a divert's target runs onto a later line", () => {
+      expect(
+        run(`scene start
+  -> next /* why
+  because */
+  done
+end
+scene next
+  Next.
+  done
+end
+`),
+      ).toBe("Next.\n");
+    });
+
+    test("a `\\` inside a comment that runs onto a later line does not chain the line", () => {
       const source = String.raw`scene start
   Before /* note \
   still */ after
+  Next line.
   done
 end
 `;
       expect(compile(source).errors).toEqual([]);
-      expect(run(source)).toBe(fromText(run(asText(source))));
+      expect(run(source)).toBe("Before after\nNext line.\n");
+    });
+
+    test("a `\\` inside a line comment does not chain the line", () => {
+      const story = (source: string) => {
+        const { result } = compile(source);
+        const s = testStory(result.program.chunks);
+        const beats: string[] = [];
+        while (s.canContinue) beats.push(s.Continue() ?? "");
+        return beats;
+      };
+      expect(story("scene start\n  One // note \\\n  two\n  done\nend\n")).toEqual(
+        story("scene start\n  One\n  two\n  done\nend\n"),
+      );
+    });
+
+    test("a chain mark followed by comments still chains the line", () => {
+      const chained = run("scene start\n  One \\\n  two\n  done\nend\n");
+      expect(run("scene start\n  One \\ // note\n  two\n  done\nend\n")).toBe(chained);
+      expect(run("scene start\n  One \\ /* note */\n  two\n  done\nend\n")).toBe(chained);
+    });
+
+    test("a chain mark after a comment that ran onto its line chains the line", () => {
+      expect(run("scene start\n  One /* a\n  b */ two \\\n  three\n  done\nend\n")).toBe(
+        run("scene start\n  One two \\\n  three\n  done\nend\n"),
+      );
     });
 
     test("a comment that closes on a chain line is left out, and the line still chains", () => {
@@ -284,7 +377,7 @@ end
       );
     });
 
-    test("adjacent comments that close on a choice line are all left out", () => {
+    test("adjacent comments that close on a choice line are all left out (#2022 round 3)", () => {
       const result = outcome(
         choose("+ Go /*one*//*two*/ home", "  done", "+ Go /*one*/ /*two*/ /*three*/ home", "  done"),
       );
@@ -292,7 +385,7 @@ end
       expect(result.choices).toEqual(["Go home", "Go home"]);
     });
 
-    test("adjacent comments that close on a chain line are all left out, and the line still chains", () => {
+    test("adjacent comments that close on a chain line are all left out, and the line still chains (#2022 round 3)", () => {
       expect(
         run(String.raw`scene start
   One /*one*//*two*/ two \
@@ -310,44 +403,7 @@ end
       );
     });
 
-    describe("a bracket or an arrow inside a comment in choice text is read by the choice rule, for `//` and `/* */` alike", () => {
-      const chooseThenNext = (line: string) =>
-        `scene start\n  choose\n    ${line}\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n`;
-
-      test("a bracket inside a line comment suppresses as it does on main", () => {
-        expect(outcome(chooseThenNext("+ Go // [secret] home"))).toEqual({
-          errors: [],
-          choices: ["Gosecret"],
-          chosen: "Go home\nBody.\n",
-        });
-      });
-
-      test("a bracket inside a same-line block comment suppresses as it does on main", () => {
-        expect(outcome(chooseThenNext("+ Go /* [secret] */ home"))).toEqual({
-          errors: [],
-          choices: ["Go /* secret"],
-          chosen: "Go /* */ home\nBody.\n",
-        });
-      });
-
-      test("an arrow inside a line comment diverts as it does on main", () => {
-        expect(outcome(chooseThenNext("+ Go // -> next"))).toEqual({
-          errors: [],
-          choices: ["Go"],
-          chosen: "Go Next.\n",
-        });
-      });
-
-      test("an arrow inside a same-line block comment diverts as it does on main", () => {
-        expect(outcome(chooseThenNext("+ Go /* -> next */ home"))).toEqual({
-          errors: [],
-          choices: ["Go /*"],
-          chosen: "Go /* Next.\n",
-        });
-      });
-    });
-
-    test("adjacent comments after a divert are left out", () => {
+    test("adjacent comments after a divert are left out (#2022 round 3)", () => {
       expect(
         run(`scene start
   -> next /*one*//*two*/
@@ -389,6 +445,16 @@ end
       expect(story.currentChoices.map((c: any) => c.text)).toEqual([
         `Go ${open}far away${close} home`,
       ]);
+    });
+
+    test("in choice text, a comment that opens inside a span may run onto a later line", () => {
+      const { result, errors } = compile(
+        "scene start\n  choose\n    + Go *far /* a\n      b */ away* home\n      done\n  end\nend\n",
+      );
+      expect(errors).toEqual([]);
+      const story = testStory(result.program.chunks);
+      story.Continue();
+      expect(story.currentChoices.map((c: any) => c.text)).toEqual(["Go *far away* home"]);
     });
 
     test("a lone `*/` before a comment stays text and the comment is not shown", () => {

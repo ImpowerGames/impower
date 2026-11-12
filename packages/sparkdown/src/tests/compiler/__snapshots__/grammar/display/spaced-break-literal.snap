@@ -26,41 +26,38 @@ sparkdown [0..186]
  │   │   ├─ Choice_begin_c6 16
  │   │   └─ Choice_begin_c7 16
  │   ├─ Choice_content [16..44]
- │   │   └─ ChoiceWithSuppressedText [16..44]
- │   │       ├─ ChoiceWithSuppressedText_c1 16
- │   │       ├─ ChoiceWithSuppressedText_c2 [16..17]: "["
- │   │       ├─ ChoiceWithSuppressedText_c3 [17..27]
- │   │       │   └─ ChoiceOnlyText [17..27]
- │   │       │       └─ ChoiceTextContent [17..27]
- │   │       │           └─ ChoiceTextContent_c1 [17..27]
- │   │       │               ├─ Word [17..19]: "Go"
- │   │       │               ├─ Space [19..20]: " "
- │   │       │               ├─ Punctuation [20..21]: ">"
- │   │       │               ├─ Space [21..22]: " "
- │   │       │               └─ Word [22..27]: "there"
- │   │       ├─ ChoiceWithSuppressedText_c4 [27..28]: "]"
- │   │       ├─ ChoiceWithSuppressedText_c5 [28..44]
- │   │       │   ├─ ChoiceInnerText [28..29]
- │   │       │   │   └─ Space [28..29]: " "
- │   │       │   ├─ ChoiceInnerText [29..32]
- │   │       │   │   └─ Word [29..32]: "You"
- │   │       │   ├─ ChoiceInnerText [32..33]
- │   │       │   │   └─ Space [32..33]: " "
- │   │       │   ├─ ChoiceInnerText [33..35]
- │   │       │   │   └─ Word [33..35]: "go"
- │   │       │   ├─ ChoiceInnerText [35..36]
- │   │       │   │   └─ Space [35..36]: " "
- │   │       │   ├─ ChoiceInnerText [36..37]
- │   │       │   │   └─ Punctuation [36..37]: ">"
- │   │       │   ├─ ChoiceInnerText [37..38]
- │   │       │   │   └─ Space [37..38]: " "
- │   │       │   ├─ ChoiceInnerText [38..43]
- │   │       │   │   └─ Word [38..43]: "there"
- │   │       │   └─ ChoiceInnerText [43..44]
- │   │       │       └─ Punctuation [43..44]: "."
- │   │       ├─ ChoiceWithSuppressedText_c6 44
- │   │       ├─ ChoiceWithSuppressedText_c7 44
- │   │       └─ ChoiceWithSuppressedText_c8 44
+ │   │   └─ ChoiceSuppression [16..44]
+ │   │       ├─ ChoiceSuppression_begin [16..17]
+ │   │       │   └─ ChoiceSuppression_begin_c1 [16..17]: "["
+ │   │       ├─ ChoiceSuppression_content [17..44]
+ │   │       │   ├─ ChoiceOnlyText [17..27]
+ │   │       │   │   ├─ ChoiceOnlyText_begin 17
+ │   │       │   │   ├─ ChoiceOnlyText_content [17..27]
+ │   │       │   │   │   └─ ChoiceOnlyTextContent [17..27]
+ │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [17..27]
+ │   │       │   │   │           ├─ Word [17..19]: "Go"
+ │   │       │   │   │           ├─ Space [19..20]: " "
+ │   │       │   │   │           ├─ Punctuation [20..21]: ">"
+ │   │       │   │   │           ├─ Space [21..22]: " "
+ │   │       │   │   │           └─ Word [22..27]: "there"
+ │   │       │   │   └─ ChoiceOnlyText_end 27
+ │   │       │   └─ ChoiceInnerText [27..44]
+ │   │       │       ├─ ChoiceInnerText_begin [27..28]
+ │   │       │       │   └─ ChoiceInnerText_begin_c1 [27..28]: "]"
+ │   │       │       ├─ ChoiceInnerText_content [28..44]
+ │   │       │       │   └─ ChoiceInnerTextContent [28..44]
+ │   │       │       │       └─ ChoiceInnerTextContent_c1 [28..44]
+ │   │       │       │           ├─ Space [28..29]: " "
+ │   │       │       │           ├─ Word [29..32]: "You"
+ │   │       │       │           ├─ Space [32..33]: " "
+ │   │       │       │           ├─ Word [33..35]: "go"
+ │   │       │       │           ├─ Space [35..36]: " "
+ │   │       │       │           ├─ Punctuation [36..37]: ">"
+ │   │       │       │           ├─ Space [37..38]: " "
+ │   │       │       │           ├─ Word [38..43]: "there"
+ │   │       │       │           └─ Punctuation [43..44]: "."
+ │   │       │       └─ ChoiceInnerText_end 44
+ │   │       └─ ChoiceSuppression_end 44
  │   └─ Choice_end 44
  ├─ Newline [44..45]: "\n"
  ├─ InlineDialogue [45..76]

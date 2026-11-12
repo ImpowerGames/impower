@@ -14,6 +14,24 @@ luauFile:
 
 variables:
   DISPLAY_CHAIN_SEPARATOR: (?:$|{{WS}}+)
+  # lookaround: SparkdownBlockComment and SparkdownInlineComment read a comment
+  # as one unit, so the text that ActionLineChain, LineChain and the chain ends
+  # of ActionLineEnd and LineEnd read before a chain mark stops at a comment
+  # opener, and a `\` inside a comment never chains. These rules decide the
+  # chain at the line's end, where a capture cannot let a comment claim its span
+  # first; DivertUnknown stops there for the same comments.
+  STORY_TEXT_OUTSIDE_COMMENT: (?:(?!{{STORY_COMMENT_START}})[^\r\n])
+  DISPLAY_CHAIN_TEXT: (?:{{STORY_TEXT_OUTSIDE_COMMENT}}*?)
+  # lookaround: SparkdownBlockComment and SparkdownInlineComment take the
+  # whitespace before them, as an inline comment drops it everywhere; `Chain`
+  # would take it as the chain mark's separator, which leaves a blank line in
+  # the chained text. Only the comment after the whitespace tells them apart.
+  DISPLAY_CHAIN_COMMENT_AHEAD: (?={{WS}}+(?:{{SPARKDOWN_BLOCK_COMMENT_START}}|{{LINE_COMMENT_MARK}}))
+  DISPLAY_CHAIN_MARK: (?:{{CHAIN}}(?:{{DISPLAY_CHAIN_COMMENT_AHEAD}}|{{DISPLAY_CHAIN_SEPARATOR}}))
+  BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/])
+  LINE_COMMENT_TO_END: (?:{{WS}}*{{LINE_COMMENT_MARK}}[^\r\n]*)
+  DISPLAY_CHAIN_COMMENTS: (?:{{BLOCK_COMMENT_ON_LINE}}*{{LINE_COMMENT_TO_END}}?)
+  DISPLAY_CHAIN_END: (?:{{WS}}*{{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
@@ -55,6 +73,8 @@ variables:
   NOT_TAG_HASH_AFTER_TEXT: (?<=[^\s.]|[^\s.][.]|[^\s.][.][.])(?={{NOT_TAG_HASH}})
   COMMENT_START: (?:[-][-])
   SPARKDOWN_BLOCK_COMMENT_START: (?:[/][*])
+  # lookaround: SparkdownBlockComment's end reads the `*/`. A content token that began before it would take its `*` first, and no ordering lets an end that starts later win.
+  BLOCK_COMMENT_CHARACTER: (?:[^*\r\n]|[*](?![/]))
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
@@ -128,7 +148,7 @@ variables:
   CHOICE_CLOSURE_PARENS_2: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_1}})*[)])
   CHOICE_CLOSURE_PARENS_3: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_2}})*[)])
   CHOICE_CLOSURE_PARENS: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])
-  # lookaround: `ChoiceWithNoSuppressedText` owns a choice line whose call
+  # lookaround: `ChoiceStartText` owns a choice line whose call
   # bracket closes, such as `* if friend(s), we go` or `* if you(don't mind),
   # jump`: the `Choice` begin declined it for the punctuation after the
   # bracket or an apostrophe inside it, and it is prose. Only whether the
@@ -139,18 +159,94 @@ variables:
   # string counts as a plain character, so a valid call the bounded reader
   # cannot read still counts as open while a contraction does not.
   CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))
-  # lookaround: `Choice` and `ChoiceWithNoSuppressedText` both refuse the spot
-  # where a header's begin took its line break and the line's input ends. The
-  # label on the next line owns the choice's remaining text, and both engines
-  # try the `end:` and the patterns once more at that spot, where `(?=$)` and
-  # the empty text match would close the choice before the label. Reordering cannot help,
-  # since the `end:` and the text rule are the only rules that match there.
-  # Splitting the text rule leaves the `end:`, the enclosing
+  # lookaround: `Choice` refuses the spot where a header's begin took its line
+  # break and the line's input ends. The label on the next line owns the
+  # choice's remaining text, `ChoiceStartText`, and both engines try the `end:`
+  # and the patterns once more at that spot, where `(?=$)` would close the
+  # choice before the label. Reordering cannot help, since the `end:` is the
+  # only rule that matches there (`ChoiceStartText` refuses a line's end).
+  # The enclosing
   # `LuauSparkdownChooseBlock` and `SparkdownStatement` have no terminator here
   # to carry, and a begin that left the line break would read the label line as
   # display text. No consumed character marks the spot, so only
   # the anchor with nothing after it does.
   CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
+  # lookaround: ChoiceSuppression opens at the first `[` that a `]` or a `/*`
+  # follows on its line. One it does not open is literal text and keeps the
+  # choice text's scope, as on main. A suppression that never meets its `]` is
+  # read as literal text too (`readChoiceText` in lowerChoice.ts), so this
+  # decides only how a `[` that cannot close is highlighted, never what the
+  # choice reads. The `]` may stand on a later line past a comment, which no
+  # rule sees from the `[`.
+  CHOICE_SUPPRESSION_OPEN: (?:\[(?=[^\r\n]*(?:\]|{{SPARKDOWN_BLOCK_COMMENT_START}})))
+  # lookaround: SparkdownInlineComment opens only at a `//` that whitespace or
+  # the line's end follows; a `//` glued to a word is the TextChunk's text.
+  LINE_COMMENT_MARK: (?:[/]{2}(?=$|{{WS}}))
+  STORY_COMMENT_START: (?:{{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}|{{WS}}*{{LINE_COMMENT_MARK}})
+  # lookaround: LuauInterpolatedStringExpression reads a `{` with a `}` later on
+  # its line as one unit before the choice line is split at a bracket or an
+  # arrow, and it never opens at `{}`. A `{` with no `}` after it stays in the
+  # text segment (ChoiceStartTextContent), whose capture keeps an unclosed
+  # interpolation on its line as main's choice capture did; opened as a unit it
+  # would read on into the lines after the choice.
+  CHOICE_INTERPOLATION_UNIT: (?:[{](?![}])(?=[^\r\n]*[}]))
+  CHOICE_TEXT_UNIT: (?:{{STORY_COMMENT_START}}|{{CHOICE_INTERPOLATION_UNIT}})
+  # lookaround: SparkdownBlockComment, SparkdownInlineComment and Divert, as
+  # for CHOICE_PLAIN_INTERPOLATION_CHARACTER: a string that holds `/*`, `//` or
+  # `->` is left to the interpolation read as a unit.
+  CHOICE_PLAIN_STRING_CHARACTER: (?:[^"'\\\r\n{}\[\]/-]|[/](?![*/])|[-](?![>]))
+  CHOICE_PLAIN_DOUBLE_QUOTED: (?:["](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|['])*["])
+  CHOICE_PLAIN_SINGLE_QUOTED: (?:['](?:{{CHOICE_PLAIN_STRING_CHARACTER}}|["])*['])
+  CHOICE_PLAIN_STRING: (?:{{CHOICE_PLAIN_DOUBLE_QUOTED}}|{{CHOICE_PLAIN_SINGLE_QUOTED}})
+  # lookaround: SparkdownInlineComment and SparkdownBlockComment own `//` and
+  # `/*`, and Divert an `->`. An interpolation that holds none of them, no
+  # bracket, brace, backtick or escape, and only strings without them, reads the
+  # same as text or as a unit, so the text segment (ChoiceStartTextContent) keeps
+  # it, as main's choice capture did, and a styled span, a tag or glue around it
+  # reads as on main.
+  CHOICE_PLAIN_INTERPOLATION_CHARACTER: (?:[^{}"'`\\\[\]\r\n/-]|[/](?![*/])|[-](?![->])|{{CHOICE_PLAIN_STRING}})
+  CHOICE_PLAIN_INNER_TABLE: (?:[{]{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}*[}])
+  CHOICE_PLAIN_INTERPOLATION: (?:[{](?:{{CHOICE_PLAIN_INTERPOLATION_CHARACTER}}|{{CHOICE_PLAIN_INNER_TABLE}})+[}])
+  CHOICE_TEXT_ESCAPED_BRACE: (?:[\\][{])
+  # lookaround: ChoiceStartText's end and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a segment is the run of text before the
+  # next of them. Its capture keeps styled spans and image commands inside the
+  # segment, as main's choice capture did, so a bracket or an arrow splits them
+  # as on main; read by scopes, a span would read past the bracket. The units are
+  # tried after the segment, which never begins at one (`CHOICE_START_TEXT_END`).
+  CHOICE_START_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_TAG}}|(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: Tag reads a tag to ChoiceStartText's end, as in main's choice
+  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
+  # the same end and comment openers (STORY_COMMENT_START) as the segment.
+  CHOICE_START_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  # lookaround: ChoiceOnlyText's end and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a segment is the run of text before the
+  # next of them. Its capture keeps styled spans and image commands inside the
+  # segment, as main's choice capture did, so a bracket or an arrow splits them
+  # as on main; read by scopes, a span would read past the bracket. The units are
+  # tried after the segment, which never begins at one (`CHOICE_ONLY_TEXT_END`).
+  CHOICE_ONLY_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_TAG}}|(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: Tag reads a tag to ChoiceOnlyText's end, as in main's choice
+  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
+  # the same end and comment openers (STORY_COMMENT_START) as the segment.
+  CHOICE_ONLY_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  # lookaround: ChoiceInnerText's end and ChoiceTextUnit's rules
+  # (SparkdownBlockComment, SparkdownInlineComment, LuauFunctionCallShorthand,
+  # LuauInterpolatedStringExpression); a segment is the run of text before the
+  # next of them. Its capture keeps styled spans and image commands inside the
+  # segment, as main's choice capture did, so a bracket or an arrow splits them
+  # as on main; read by scopes, a span would read past the bracket. The units are
+  # tried after the segment, which never begins at one (`CHOICE_INNER_TEXT_END`).
+  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
+  # lookaround: Tag reads a tag to ChoiceInnerText's end, as in main's choice
+  # capture, so an interpolation inside a tag stays the tag's; the tag stops at
+  # the same end and comment openers (STORY_COMMENT_START) as the segment.
+  CHOICE_INNER_TEXT_TAG: (?:{{TAG_START}}(?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])*)
+  CHOICE_START_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>]|{{CHOICE_SUPPRESSION_OPEN}})
+  CHOICE_INNER_TEXT_END: (?:{{WS}}*$|{{WS}}*[-][>])
+  CHOICE_ONLY_TEXT_END: (?:\]|$|{{WS}}*[-][>])
   STYLE_PROPERTY_NAME: (?:[a-zA-Z_][a-zA-Z0-9_-]*)
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
@@ -395,8 +491,7 @@ repository:
   SparkdownBlockCommentContent:
     tag: blockComment
     name: comment.block.content.sd
-    # lookaround: SparkdownBlockComment's end reads the `*/`. A content token that began before it would take its `*` first, and no ordering lets an end that starts later win.
-    match: ((?:[^*\r\n]|[*](?![/]))+)
+    match: ({{BLOCK_COMMENT_CHARACTER}}+)
 
   SparkdownBlockCommentOnLine:
     match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}}.*?[*][/])
@@ -404,11 +499,6 @@ repository:
       1:
         patterns:
           - { include: "#SparkdownBlockComment" }
-
-  SparkdownOpenCommentText:
-    tag: special(string)
-    name: string.display.text.chunk.sd
-    match: ({{WS}}*{{SPARKDOWN_BLOCK_COMMENT_START}})
 
   SparkleTrailingLineComment:
     tag: lineComment
@@ -706,14 +796,17 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#ChoiceConditional" }
-      - { include: "#ChoiceWithSuppressedText" }
-      - { include: "#ChoiceWithNoSuppressedText" }
-    # lookaround: `ChoiceWithNoSuppressedText` owns the label line after a
+      - { include: "#ChoiceStartText" }
+      - { include: "#ChoiceSuppression" }
+      - { include: "#ChoiceDivertWhitespace" }
+      - { include: "#Divert" }
+      - { include: "#ExtraWhitespace" }
+    # lookaround: `ChoiceStartText` owns the label line after a
     # header whose begin took its line break; `CHOICE_HEADER_LINE_BREAK_TAKEN`
     # says why only the anchor at the input's end shows that spot.
     end: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(?=$)
 
-  # lookaround: `ChoiceWithNoSuppressedText` owns the label line that follows
+  # lookaround: `ChoiceStartText` owns the label line that follows
   # a header whose begin read its condition and its newline; `\G` holds at the
   # start of that line as well as at the end of the header, and only the
   # character before tells them apart. Reordering cannot, since this rule must
@@ -774,89 +867,94 @@ repository:
     tag: keyword
     name: keyword.operator.expression.list.sd
 
-  ChoiceWithSuppressedText:
-    match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
-    captures:
-      1:
-        patterns:
-          - { include: "#ChoiceStartText" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.choice.suppression.sd
-      3:
-        patterns:
-          - { include: "#ChoiceOnlyText" }
-      4:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.choice.suppression.sd
-      5:
-        patterns:
-          - { include: "#ChoiceInnerText" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-      8:
-        patterns:
-          - { include: "#Divert" }
-
-  # lookaround: the `Choice` stays open for the label line after a header whose
-  # begin took its line break, and this rule's empty match there would close it
-  # in vscode-textmate; `CHOICE_HEADER_LINE_BREAK_TAKEN` says why only the
-  # anchor at the input's end shows that spot.
-  ChoiceWithNoSuppressedText:
-    match: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
-    captures:
-      1:
-        patterns:
-          - { include: "#ChoicePlainText" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-      4:
-        patterns:
-          - { include: "#Divert" }
-
+  # lookaround: ChoiceStartText's own end, CHOICE_START_TEXT_END. The begin reads nothing, so it
+  # refuses where the end would match at once: a scope that opens and closes at
+  # one position stays open in vscode-textmate (GRAMMAR.md §17.1) and would read
+  # the lines after the choice as its text. No consumed text marks the spot.
   ChoiceStartText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceOnlyText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceInnerText:
-    emit: true
-    patterns:
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#SparkdownInlineComment" }
-      - { include: "#DisplayText" }
-
-  ChoicePlainText:
-    emit: true
-    patterns:
-      - { include: "#ChoiceTextContent" }
-
-  ChoiceTextContent:
     tag: string
     name: string.choice.sd
+    begin: (?!{{CHOICE_START_TEXT_END}})
+    patterns:
+      - { include: "#ChoiceStartTextContent" }
+      - { include: "#ChoiceTextUnit" }
+    end: (?={{CHOICE_START_TEXT_END}})
 
+  ChoiceSuppression:
+    begin: ({{CHOICE_SUPPRESSION_OPEN}})
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.choice.suppression.sd
+    patterns:
+      - { include: "#ChoiceOnlyText" }
+      - { include: "#ChoiceInnerText" }
+      - { include: "#ChoiceDivertWhitespace" }
+      - { include: "#Divert" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
+
+  # lookaround: ChoiceOnlyText's own end, refused by its begin for the reason
+  # ChoiceStartText's is: `[]` and `[` before an arrow open no only-text.
+  ChoiceOnlyText:
+    tag: string
+    name: string.choice.sd
+    begin: \G(?!{{CHOICE_ONLY_TEXT_END}})
+    patterns:
+      - { include: "#ChoiceOnlyTextContent" }
+      - { include: "#ChoiceTextUnit" }
+    end: (?={{CHOICE_ONLY_TEXT_END}})
+
+  ChoiceInnerText:
+    begin: (\])
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.choice.suppression.sd
+    patterns:
+      - { include: "#ChoiceInnerTextContent" }
+      - { include: "#ChoiceTextUnit" }
+    end: (?={{CHOICE_INNER_TEXT_END}})
+
+  ChoiceTextUnit:
+    patterns:
+      - { include: "#SparkdownBlockComment" }
+      - { include: "#SparkdownInlineComment" }
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+
+  ChoiceStartTextContent:
+    match: ({{CHOICE_START_TEXT_CHARACTER}}+)
     captures:
       1:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#LuauFunctionCallShorthand" }
-          - { include: "#LuauInterpolatedStringExpression" }
-          - { include: "#SparkdownBlockCommentOnLine" }
-          - { include: "#SparkdownInlineComment" }
           - { include: "#DisplayText" }
+
+  ChoiceOnlyTextContent:
+    match: ({{CHOICE_ONLY_TEXT_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Annotation" }
+          - { include: "#DisplayText" }
+
+  ChoiceInnerTextContent:
+    match: ({{CHOICE_INNER_TEXT_CHARACTER}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  # lookaround: Divert's begin would take the whitespace before a choice's arrow
+  # as OptionalWhitespace; RequiredWhitespace keeps main's scope for it, and the
+  # arrow after it is the Divert's.
+  ChoiceDivertWhitespace:
+    match: ({{WS}}+)(?=[-][>])
+    captures:
+      1:
+        patterns:
+          - { include: "#RequiredWhitespace" }
 
   LabelAnchor:
     match: ^({{WS}}*)(label)\b({{WS}}*)({{IDENTIFIER}})({{WS}}*)
@@ -1044,12 +1142,17 @@ repository:
       - { include: "#DivertLoad" }
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
-      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#DivertStrayTextSpace" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#Unknown" }
+      - { include: "#DivertUnknown" }
     end: (?=$)
+
+  DivertUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ({{STORY_TEXT_OUTSIDE_COMMENT}}+)
 
   DivertStrayTextSpace:
     match: ({{WS}}+)(?=\S)
@@ -1090,10 +1193,10 @@ repository:
       - { include: "#Tunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
-      - { include: "#SparkdownBlockCommentOnLine" }
+      - { include: "#SparkdownBlockComment" }
       - { include: "#SparkdownInlineComment" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#Unknown" }
+      - { include: "#DivertUnknown" }
     end: (?=$)
 
   Thread:
@@ -2008,7 +2111,7 @@ repository:
           - { include: "#Whitespace" }
 
   ActionLineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -2016,7 +2119,7 @@ repository:
       2:
         patterns:
           - { include: "#ActionLoadKeyword" }
-          - { include: "#ChainDisplayLine" }
+          - { include: "#DisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
@@ -2024,6 +2127,30 @@ repository:
         patterns:
           - { include: "#EndOfLine" }
       5:
+        patterns:
+          - { include: "#Newline" }
+
+  ActionLineChainTail:
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ActionLoadKeyword" }
+          - { include: "#DisplayLine" }
+      3:
+        patterns:
+          - { include: "#Chain" }
+      4:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
+          - { include: "#SparkdownInlineComment" }
+      5:
+        patterns:
+          - { include: "#EndOfLine" }
+      6:
         patterns:
           - { include: "#Newline" }
 
@@ -2039,6 +2166,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#ActionLineChainTail" }
       - { include: "#ActionDisplayLine" }
     end: (?={{EOL}})
 
@@ -2139,14 +2267,14 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LineChain:
-    match: ({{WS}}*)(.*?)({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{CHAIN}}{{DISPLAY_CHAIN_SEPARATOR}})({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#ChainDisplayLine" }
+          - { include: "#DisplayLine" }
       3:
         patterns:
           - { include: "#Chain" }
@@ -2157,6 +2285,29 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  LineChainTail:
+    match: ({{WS}}*)({{DISPLAY_CHAIN_TEXT}})({{DISPLAY_CHAIN_MARK}})({{DISPLAY_CHAIN_COMMENTS}})({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#DisplayLine" }
+      3:
+        patterns:
+          - { include: "#Chain" }
+      4:
+        patterns:
+          - { include: "#SparkdownBlockComment" }
+          - { include: "#SparkdownInlineComment" }
+      5:
+        patterns:
+          - { include: "#EndOfLine" }
+      6:
+        patterns:
+          - { include: "#Newline" }
+
   LineEnd:
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
@@ -2164,6 +2315,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LineChainTail" }
       - { include: "#DisplayLine" }
     end: (?={{EOL}})
 
@@ -2171,13 +2323,6 @@ repository:
     patterns:
       - { include: "#DisplayLineCode" }
       - { include: "#SparkdownBlockComment" }
-      - { include: "#DisplayLineText" }
-
-  ChainDisplayLine:
-    patterns:
-      - { include: "#DisplayLineCode" }
-      - { include: "#SparkdownBlockCommentOnLine" }
-      - { include: "#SparkdownOpenCommentText" }
       - { include: "#DisplayLineText" }
 
   DisplayLineCode:
@@ -2627,7 +2772,7 @@ repository:
           - { include: "#StylingMark" }
     patterns:
       - { include: "#PlainText" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2643,7 +2788,7 @@ repository:
           - { include: "#StylingMark" }
     patterns:
       - { include: "#Italic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2660,7 +2805,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2677,7 +2822,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2694,7 +2839,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2711,7 +2856,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2733,7 +2878,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:
@@ -2750,7 +2895,7 @@ repository:
     patterns:
       - { include: "#SparkdownBlockCommentOnLine" }
       - { include: "#InlineTextAndLogic" }
-    end: (\1)|(?={{EOL}})
+    end: (\1)|(?={{EOL}}|{{DISPLAY_CHAIN_END}})
     endCaptures:
       1:
         patterns:

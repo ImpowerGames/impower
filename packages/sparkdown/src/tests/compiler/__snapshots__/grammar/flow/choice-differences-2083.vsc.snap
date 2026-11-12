@@ -1,0 +1,216 @@
+text.source.sparkdown [0..333]
+ ├─ storage.modifier.scope.luau [0..5]: "store"
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ meta.embedded.line.luau [6..20]
+ │   ├─ variable.other.readwrite.luau [6..7]: "t"
+ │   ├─ punctuation.whitespace.optional.sd [7..8]: " "
+ │   ├─ keyword.operator.assignment.luau [8..9]: "="
+ │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [10..11]: "{"
+ │   ├─ string.quoted.double.luau [11..14]
+ │   │   ├─ punctuation.definition.string.double.begin.sd [11..12]: "\""
+ │   │   ├─ markup.raw.text.sd [12..13]: "a"
+ │   │   └─ punctuation.definition.string.double.end.sd [13..14]: "\""
+ │   ├─ keyword.operator.comma.luau [14..15]: ","
+ │   ├─ punctuation.whitespace.optional.sd [15..16]: " "
+ │   ├─ string.quoted.double.luau [16..19]
+ │   │   ├─ punctuation.definition.string.double.begin.sd [16..17]: "\""
+ │   │   ├─ markup.raw.text.sd [17..18]: "b"
+ │   │   └─ punctuation.definition.string.double.end.sd [18..19]: "\""
+ │   └─ punctuation.definition.template-expression.end.sd [19..20]: "}"
+ ├─ Newline [20..21]: "\n"
+ ├─ storage.modifier.scope.luau [21..26]: "store"
+ ├─ punctuation.whitespace.optional.sd [26..27]: " "
+ ├─ meta.embedded.line.luau [27..35]
+ │   ├─ variable.other.readwrite.luau [27..28]: "x"
+ │   ├─ punctuation.whitespace.optional.sd [28..29]: " "
+ │   ├─ keyword.operator.assignment.luau [29..30]: "="
+ │   ├─ punctuation.whitespace.optional.sd [30..31]: " "
+ │   └─ constant.language.boolean.luau [31..35]: "true"
+ ├─ Newline [35..36]: "\n"
+ ├─ keyword.control.scene.sd [36..41]: "scene"
+ ├─ punctuation.whitespace.required.sd [41..42]: " "
+ ├─ keyword.control.section.sd [42..47]: "start"
+ ├─ Newline [47..48]: "\n"
+ ├─ punctuation.whitespace.optional.sd [48..50]: "  "
+ ├─ keyword.control.choose.luau [50..56]: "choose"
+ ├─ Newline [56..57]: "\n"
+ ├─ entity.choice.sd [57..77]
+ │   ├─ punctuation.whitespace.optional.sd [57..61]: "    "
+ │   ├─ keyword.operator.expression.list.sd [61..63]: "+ "
+ │   └─ string.choice.sd [63..77]
+ │       ├─ markup.raw.text.sd [63..65]: "Go"
+ │       ├─ markup.raw.space.sd [65..66]: " "
+ │       ├─ meta.template.expression.luau [66..72]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [66..67]: "{"
+ │       │   ├─ meta.embedded.line.luau [67..71]
+ │       │   │   ├─ variable.other.readwrite.luau [67..68]: "t"
+ │       │   │   ├─ punctuation.definition.template-expression.begin.sd [68..69]: "["
+ │       │   │   ├─ constant.numeric.decimal.luau [69..70]: "1"
+ │       │   │   └─ punctuation.definition.template-expression.end.sd [70..71]: "]"
+ │       │   └─ punctuation.definition.template-expression.end.sd [71..72]: "}"
+ │       ├─ markup.raw.space.sd [72..73]: " "
+ │       └─ markup.raw.text.sd [73..77]: "home"
+ ├─ Newline [77..78]: "\n"
+ ├─ punctuation.whitespace.optional.sd [78..84]: "      "
+ ├─ keyword.control.divert.done.sd [84..88]: "done"
+ ├─ Newline [88..89]: "\n"
+ ├─ entity.choice.sd [89..110]
+ │   ├─ punctuation.whitespace.optional.sd [89..93]: "    "
+ │   ├─ keyword.operator.expression.list.sd [93..95]: "+ "
+ │   └─ string.choice.sd [95..110]
+ │       ├─ markup.raw.text.sd [95..97]: "Go"
+ │       ├─ markup.raw.space.sd [97..98]: " "
+ │       ├─ meta.template.expression.luau [98..105]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [98..99]: "{"
+ │       │   ├─ meta.embedded.line.luau [99..104]
+ │       │   │   └─ string.quoted.double.luau [99..104]
+ │       │   │       ├─ punctuation.definition.string.double.begin.sd [99..100]: "\""
+ │       │   │       ├─ markup.raw.punctuation.sd [100..101]: "["
+ │       │   │       ├─ markup.raw.text.sd [101..102]: "x"
+ │       │   │       ├─ markup.raw.punctuation.sd [102..103]: "]"
+ │       │   │       └─ punctuation.definition.string.double.end.sd [103..104]: "\""
+ │       │   └─ punctuation.definition.template-expression.end.sd [104..105]: "}"
+ │       ├─ markup.raw.space.sd [105..106]: " "
+ │       └─ markup.raw.text.sd [106..110]: "home"
+ ├─ Newline [110..111]: "\n"
+ ├─ punctuation.whitespace.optional.sd [111..117]: "      "
+ ├─ keyword.control.divert.done.sd [117..121]: "done"
+ ├─ Newline [121..122]: "\n"
+ ├─ entity.choice.sd [122..144]
+ │   ├─ punctuation.whitespace.optional.sd [122..126]: "    "
+ │   ├─ keyword.operator.expression.list.sd [126..128]: "+ "
+ │   ├─ string.choice.sd [128..130]
+ │   │   └─ markup.raw.text.sd [128..130]: "Go"
+ │   ├─ punctuation.whitespace.required.sd [130..131]: " "
+ │   ├─ keyword.control.divert.mark.sd [131..133]: "->"
+ │   ├─ keyword.control.divert.path.sd [133..138]
+ │   │   ├─ punctuation.whitespace.optional.sd [133..134]: " "
+ │   │   └─ keyword.control.divert.path.sd [134..138]
+ │   │       └─ keyword.control.divert.path.sd [134..138]: "next"
+ │   ├─ punctuation.whitespace.sd [138..139]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [139..144]: "[a] b"
+ ├─ Newline [144..145]: "\n"
+ ├─ entity.choice.sd [145..165]
+ │   ├─ punctuation.whitespace.optional.sd [145..149]: "    "
+ │   ├─ keyword.operator.expression.list.sd [149..151]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [151..152]: "["
+ │   ├─ string.choice.sd [152..154]
+ │   │   └─ markup.raw.text.sd [152..154]: "Go"
+ │   ├─ punctuation.whitespace.required.sd [154..155]: " "
+ │   ├─ keyword.control.divert.mark.sd [155..157]: "->"
+ │   ├─ keyword.control.divert.path.sd [157..162]
+ │   │   ├─ punctuation.whitespace.optional.sd [157..158]: " "
+ │   │   └─ keyword.control.divert.path.sd [158..162]
+ │   │       └─ keyword.control.divert.path.sd [158..162]: "next"
+ │   └─ invalid.illegal.unknown-statement.sd [162..165]: "] x"
+ ├─ Newline [165..166]: "\n"
+ ├─ entity.choice.sd [166..183]
+ │   ├─ punctuation.whitespace.optional.sd [166..170]: "    "
+ │   ├─ keyword.operator.expression.list.sd [170..172]: "+ "
+ │   └─ string.choice.sd [172..183]
+ │       ├─ markup.raw.text.sd [172..174]: "Go"
+ │       ├─ meta.glue.sd [174..177]
+ │       │   ├─ punctuation.whitespace.sd [174..175]: " "
+ │       │   └─ keyword.other.glue.sd [175..177]: ".."
+ │       ├─ markup.raw.space.sd [177..178]: " "
+ │       └─ meta.template.expression.luau [178..183]
+ │           ├─ punctuation.definition.template-expression.begin.sd [178..179]: "{"
+ │           ├─ meta.embedded.line.luau [179..182]
+ │           │   └─ string.interpolated.luau [179..182]
+ │           │       ├─ punctuation.definition.string.backtick.begin.sd [179..180]: "`"
+ │           │       ├─ markup.raw.text.sd [180..181]: "a"
+ │           │       └─ punctuation.definition.string.backtick.end.sd [181..182]: "`"
+ │           └─ punctuation.definition.template-expression.end.sd [182..183]: "}"
+ ├─ Newline [183..184]: "\n"
+ ├─ punctuation.whitespace.optional.sd [184..190]: "      "
+ ├─ keyword.control.divert.done.sd [190..194]: "done"
+ ├─ Newline [194..195]: "\n"
+ ├─ entity.choice.sd [195..219]
+ │   ├─ punctuation.whitespace.optional.sd [195..199]: "    "
+ │   ├─ keyword.operator.expression.list.sd [199..201]: "+ "
+ │   └─ string.choice.sd [201..219]
+ │       ├─ markup.raw.text.sd [201..203]: "Go"
+ │       ├─ markup.raw.space.sd [203..204]: " "
+ │       ├─ markup.other.italic.sd [204..208]
+ │       │   ├─ markup.raw.text.sd [204..205]: "*"
+ │       │   └─ markup.raw.text.sd [205..208]: "far"
+ │       ├─ markup.raw.space.sd [208..209]: " "
+ │       ├─ meta.template.expression.luau [209..214]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [209..210]: "{"
+ │       │   ├─ meta.embedded.line.luau [210..213]
+ │       │   │   └─ string.interpolated.luau [210..213]
+ │       │   │       ├─ punctuation.definition.string.backtick.begin.sd [210..211]: "`"
+ │       │   │       ├─ markup.raw.text.sd [211..212]: "a"
+ │       │   │       └─ punctuation.definition.string.backtick.end.sd [212..213]: "`"
+ │       │   └─ punctuation.definition.template-expression.end.sd [213..214]: "}"
+ │       ├─ markup.raw.space.sd [214..215]: " "
+ │       └─ markup.raw.text.sd [215..219]: "away"
+ ├─ Newline [219..220]: "\n"
+ ├─ punctuation.whitespace.optional.sd [220..226]: "      "
+ ├─ keyword.control.divert.done.sd [226..230]: "done"
+ ├─ Newline [230..231]: "\n"
+ ├─ entity.choice.sd [231..250]
+ │   ├─ punctuation.whitespace.optional.sd [231..235]: "    "
+ │   ├─ keyword.operator.expression.list.sd [235..237]: "+ "
+ │   └─ string.choice.sd [237..250]
+ │       └─ markup.other.italic.sd [237..250]
+ │           ├─ markup.raw.text.sd [237..238]: "*"
+ │           ├─ markup.raw.text.sd [238..241]: "Say"
+ │           ├─ markup.raw.space.sd [241..242]: " "
+ │           ├─ meta.template.expression.luau [242..245]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [242..243]: "{"
+ │           │   ├─ meta.embedded.line.luau [243..244]
+ │           │   │   └─ variable.other.readwrite.luau [243..244]: "x"
+ │           │   └─ punctuation.definition.template-expression.end.sd [244..245]: "}"
+ │           ├─ markup.raw.space.sd [245..246]: " "
+ │           ├─ markup.raw.text.sd [246..249]: "now"
+ │           └─ markup.raw.text.sd [249..250]: "*"
+ ├─ Newline [250..251]: "\n"
+ ├─ punctuation.whitespace.optional.sd [251..257]: "      "
+ ├─ keyword.control.divert.done.sd [257..261]: "done"
+ ├─ Newline [261..262]: "\n"
+ ├─ entity.choice.sd [262..289]
+ │   ├─ punctuation.whitespace.optional.sd [262..266]: "    "
+ │   ├─ keyword.operator.expression.list.sd [266..268]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [268..269]: "["
+ │   ├─ string.choice.sd [269..288]
+ │   │   ├─ markup.raw.text.sd [269..275]: "choice"
+ │   │   └─ comment.line.sd [275..288]
+ │   │       └─ entity.tag.sd [275..288]
+ │   │           ├─ punctuation.whitespace.required.sd [275..276]: " "
+ │   │           └─ comment.line.sd [276..288]
+ │   │               └─ entity.tag.sd [276..288]
+ │   │                   ├─ punctuation.definition.comment.sd [276..277]
+ │   │                   │   └─ comment.line.sd [276..277]
+ │   │                   │       └─ entity.tag.begin.sd [276..277]: "#"
+ │   │                   └─ punctuation.definition.comment.content.sd [277..288]
+ │   │                       ├─ punctuation.definition.comment.content.sd [277..282]: " tag "
+ │   │                       └─ meta.template.expression.luau [282..288]
+ │   │                           ├─ punctuation.definition.template-expression.begin.sd [282..283]: "{"
+ │   │                           ├─ meta.embedded.line.luau [283..284]
+ │   │                           │   └─ variable.other.readwrite.luau [283..284]: "x"
+ │   │                           ├─ punctuation.definition.template-expression.end.sd [284..285]: "}"
+ │   │                           ├─ punctuation.definition.template-expression.begin.sd [285..286]: "{"
+ │   │                           ├─ meta.embedded.line.luau [286..287]
+ │   │                           │   └─ variable.other.readwrite.luau [286..287]: "x"
+ │   │                           └─ punctuation.definition.template-expression.end.sd [287..288]: "}"
+ │   └─ punctuation.definition.template-expression.end.choice.suppression.sd [288..289]: "]"
+ ├─ Newline [289..290]: "\n"
+ ├─ punctuation.whitespace.optional.sd [290..296]: "      "
+ ├─ keyword.control.divert.done.sd [296..300]: "done"
+ ├─ Newline [300..301]: "\n"
+ ├─ punctuation.whitespace.optional.sd [301..303]: "  "
+ ├─ keyword.control.end.luau [303..306]: "end"
+ ├─ Newline [306..307]: "\n"
+ ├─ keyword.control.end.luau [307..310]: "end"
+ ├─ Newline [310..311]: "\n"
+ ├─ keyword.control.scene.sd [311..316]: "scene"
+ ├─ punctuation.whitespace.required.sd [316..317]: " "
+ ├─ keyword.control.section.sd [317..321]: "next"
+ ├─ Newline [321..322]: "\n"
+ ├─ punctuation.whitespace.optional.sd [322..324]: "  "
+ ├─ keyword.control.divert.done.sd [324..328]: "done"
+ ├─ Newline [328..329]: "\n"
+ ├─ keyword.control.end.luau [329..332]: "end"
+ └─ Newline [332..333]: "\n"

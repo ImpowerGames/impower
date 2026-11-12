@@ -1,0 +1,25 @@
+scene start
+  choose
+    + Go /* [secret] */ home
+      done
+    + Go /* -> next */ home
+      done
+    + Go // [secret] home
+      done
+    + Go // -> next
+      done
+    + [Wait /* draft
+      hidden ] -> next */ here] now
+      done
+    + Go [left /* ] */ way
+      done
+    + Go *far /* a
+      b */ away* home
+      done
+    + Go {"[foo] /*note*/"} home
+      done
+  end
+end
+scene next
+  done
+end

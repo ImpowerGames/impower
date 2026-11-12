@@ -29,6 +29,7 @@ scene start
     + Go *a*/ b
       done
     + Go *x /* open
+      still */ y* home
       done
   end
 end

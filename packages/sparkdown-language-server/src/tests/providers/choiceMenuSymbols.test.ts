@@ -249,8 +249,11 @@ end
       Gone.
     * Wait /* aside */ here // note
       Waiting.
-    * Stay /* not closed on its line
+    * Stay /* runs onto
+      the next line */ put
       Staying.
+    * Run /* [secret] -> away */ home
+      Running.
   end
 end
 `);
@@ -261,7 +264,8 @@ end
         [
           ["EnumMember", "Go left"],
           ["EnumMember", "Wait here"],
-          ["EnumMember", "Stay /* not closed on its line"],
+          ["EnumMember", "Stay put"],
+          ["EnumMember", "Run home"],
         ],
       ],
     ]);

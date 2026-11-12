@@ -46,16 +46,14 @@ sparkdown [0..674]
  │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 30
  │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [30..38]
  │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [30..38]: "allowed("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [38..44]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [38..44]
- │   │   │   │       │   └─ ChoicePlainText [38..44]
- │   │   │   │       │       └─ ChoiceTextContent [38..44]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [38..44]
- │   │   │   │       │               ├─ Space [38..39]: " "
- │   │   │   │       │               └─ Word [39..44]: "First"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 44
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 44
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 44
+ │   │   │   │   └─ ChoiceStartText [38..44]
+ │   │   │   │       ├─ ChoiceStartText_begin 38
+ │   │   │   │       ├─ ChoiceStartText_content [38..44]
+ │   │   │   │       │   └─ ChoiceStartTextContent [38..44]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [38..44]
+ │   │   │   │       │           ├─ Space [38..39]: " "
+ │   │   │   │       │           └─ Word [39..44]: "First"
+ │   │   │   │       └─ ChoiceStartText_end 44
  │   │   │   └─ Choice_end 44
  │   │   ├─ Newline [44..45]: "\n"
  │   │   ├─ Choice [45..70]
@@ -79,18 +77,16 @@ sparkdown [0..674]
  │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 54
  │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [54..62]
  │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [54..62]: "allowed["
- │   │   │   │   └─ ChoiceWithNoSuppressedText [62..70]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [62..70]
- │   │   │   │       │   └─ ChoicePlainText [62..70]
- │   │   │   │       │       └─ ChoiceTextContent [62..70]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [62..70]
- │   │   │   │       │               ├─ Punctuation [62..63]: "]"
- │   │   │   │       │               ├─ Punctuation [63..64]: ","
- │   │   │   │       │               ├─ Space [64..65]: " "
- │   │   │   │       │               └─ Word [65..70]: "First"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 70
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 70
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 70
+ │   │   │   │   └─ ChoiceStartText [62..70]
+ │   │   │   │       ├─ ChoiceStartText_begin 62
+ │   │   │   │       ├─ ChoiceStartText_content [62..70]
+ │   │   │   │       │   └─ ChoiceStartTextContent [62..70]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [62..70]
+ │   │   │   │       │           ├─ Punctuation [62..63]: "]"
+ │   │   │   │       │           ├─ Punctuation [63..64]: ","
+ │   │   │   │       │           ├─ Space [64..65]: " "
+ │   │   │   │       │           └─ Word [65..70]: "First"
+ │   │   │   │       └─ ChoiceStartText_end 70
  │   │   │   └─ Choice_end 70
  │   │   ├─ Newline [70..71]: "\n"
  │   │   ├─ Choice [71..97]
@@ -116,16 +112,14 @@ sparkdown [0..674]
  │   │   │   │   │   │   └─ OptionalWhitespace [83..84]: " "
  │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [84..91]
  │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [84..91]: "t:open("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [91..97]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [91..97]
- │   │   │   │       │   └─ ChoicePlainText [91..97]
- │   │   │   │       │       └─ ChoiceTextContent [91..97]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [91..97]
- │   │   │   │       │               ├─ Space [91..92]: " "
- │   │   │   │       │               └─ Word [92..97]: "Third"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 97
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 97
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 97
+ │   │   │   │   └─ ChoiceStartText [91..97]
+ │   │   │   │       ├─ ChoiceStartText_begin 91
+ │   │   │   │       ├─ ChoiceStartText_content [91..97]
+ │   │   │   │       │   └─ ChoiceStartTextContent [91..97]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [91..97]
+ │   │   │   │       │           ├─ Space [91..92]: " "
+ │   │   │   │       │           └─ Word [92..97]: "Third"
+ │   │   │   │       └─ ChoiceStartText_end 97
  │   │   │   └─ Choice_end 97
  │   │   ├─ Newline [97..98]: "\n"
  │   │   ├─ Choice [98..137]
@@ -161,38 +155,38 @@ sparkdown [0..674]
  │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 113
  │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [113..121]
  │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [113..121]: "t.check("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [121..137]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [121..128]
- │   │   │   │       │   └─ ChoicePlainText [121..128]
- │   │   │   │       │       └─ ChoiceTextContent [121..128]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [121..128]
- │   │   │   │       │               ├─ Space [121..122]: " "
- │   │   │   │       │               └─ Word [122..128]: "Fourth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 128
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 [128..129]
- │   │   │   │       │   └─ RequiredWhitespace [128..129]: " "
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 [129..137]
- │   │   │   │           └─ Divert [129..137]
- │   │   │   │               ├─ Divert_begin [129..131]
- │   │   │   │               │   ├─ Divert_begin_c1 129
- │   │   │   │               │   │   └─ OptionalWhitespace 129
- │   │   │   │               │   └─ Divert_begin_c2 [129..131]
- │   │   │   │               │       └─ DivertMark [129..131]: "->"
- │   │   │   │               ├─ Divert_content [131..137]
- │   │   │   │               │   └─ DivertTarget [131..137]
- │   │   │   │               │       ├─ DivertTarget_begin [131..132]
- │   │   │   │               │       │   └─ DivertTarget_begin_c1 [131..132]
- │   │   │   │               │       │       └─ DivertTarget_begin_c1 [131..132]
- │   │   │   │               │       │           └─ OptionalWhitespace [131..132]: " "
- │   │   │   │               │       ├─ DivertTarget_content [132..137]
- │   │   │   │               │       │   └─ DivertPath [132..137]
- │   │   │   │               │       │       ├─ DivertPath_begin 132
- │   │   │   │               │       │       ├─ DivertPath_content [132..137]
- │   │   │   │               │       │       │   └─ DivertPart [132..137]
- │   │   │   │               │       │       │       └─ DivertPartName [132..137]: "start"
- │   │   │   │               │       │       └─ DivertPath_end 137
- │   │   │   │               │       └─ DivertTarget_end 137
- │   │   │   │               └─ Divert_end 137
+ │   │   │   │   ├─ ChoiceStartText [121..128]
+ │   │   │   │   │   ├─ ChoiceStartText_begin 121
+ │   │   │   │   │   ├─ ChoiceStartText_content [121..128]
+ │   │   │   │   │   │   └─ ChoiceStartTextContent [121..128]
+ │   │   │   │   │   │       └─ ChoiceStartTextContent_c1 [121..128]
+ │   │   │   │   │   │           ├─ Space [121..122]: " "
+ │   │   │   │   │   │           └─ Word [122..128]: "Fourth"
+ │   │   │   │   │   └─ ChoiceStartText_end 128
+ │   │   │   │   ├─ ChoiceDivertWhitespace [128..129]
+ │   │   │   │   │   └─ ChoiceDivertWhitespace_c1 [128..129]
+ │   │   │   │   │       └─ RequiredWhitespace [128..129]: " "
+ │   │   │   │   └─ Divert [129..137]
+ │   │   │   │       ├─ Divert_begin [129..131]
+ │   │   │   │       │   ├─ Divert_begin_c1 129
+ │   │   │   │       │   │   └─ OptionalWhitespace 129
+ │   │   │   │       │   └─ Divert_begin_c2 [129..131]
+ │   │   │   │       │       └─ DivertMark [129..131]: "->"
+ │   │   │   │       ├─ Divert_content [131..137]
+ │   │   │   │       │   └─ DivertTarget [131..137]
+ │   │   │   │       │       ├─ DivertTarget_begin [131..132]
+ │   │   │   │       │       │   └─ DivertTarget_begin_c1 [131..132]
+ │   │   │   │       │       │       └─ DivertTarget_begin_c1 [131..132]
+ │   │   │   │       │       │           └─ OptionalWhitespace [131..132]: " "
+ │   │   │   │       │       ├─ DivertTarget_content [132..137]
+ │   │   │   │       │       │   └─ DivertPath [132..137]
+ │   │   │   │       │       │       ├─ DivertPath_begin 132
+ │   │   │   │       │       │       ├─ DivertPath_content [132..137]
+ │   │   │   │       │       │       │   └─ DivertPart [132..137]
+ │   │   │   │       │       │       │       └─ DivertPartName [132..137]: "start"
+ │   │   │   │       │       │       └─ DivertPath_end 137
+ │   │   │   │       │       └─ DivertTarget_end 137
+ │   │   │   │       └─ Divert_end 137
  │   │   │   └─ Choice_end 137
  │   │   ├─ Newline [137..138]: "\n"
  │   │   ├─ Choice [138..158]
@@ -207,21 +201,19 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 144
  │   │   │   │   └─ Choice_begin_c7 144
  │   │   │   ├─ Choice_content [144..158]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [144..158]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [144..158]
- │   │   │   │       │   └─ ChoicePlainText [144..158]
- │   │   │   │       │       └─ ChoiceTextContent [144..158]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [144..158]
- │   │   │   │       │               ├─ Word [144..146]: "if"
- │   │   │   │       │               ├─ Space [146..147]: " "
- │   │   │   │       │               ├─ Word [147..150]: "you"
- │   │   │   │       │               ├─ Punctuation [150..151]: "'"
- │   │   │   │       │               ├─ Word [151..153]: "re"
- │   │   │   │       │               ├─ Space [153..154]: " "
- │   │   │   │       │               └─ Word [154..158]: "sure"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 158
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 158
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 158
+ │   │   │   │   └─ ChoiceStartText [144..158]
+ │   │   │   │       ├─ ChoiceStartText_begin 144
+ │   │   │   │       ├─ ChoiceStartText_content [144..158]
+ │   │   │   │       │   └─ ChoiceStartTextContent [144..158]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [144..158]
+ │   │   │   │       │           ├─ Word [144..146]: "if"
+ │   │   │   │       │           ├─ Space [146..147]: " "
+ │   │   │   │       │           ├─ Word [147..150]: "you"
+ │   │   │   │       │           ├─ Punctuation [150..151]: "'"
+ │   │   │   │       │           ├─ Word [151..153]: "re"
+ │   │   │   │       │           ├─ Space [153..154]: " "
+ │   │   │   │       │           └─ Word [154..158]: "sure"
+ │   │   │   │       └─ ChoiceStartText_end 158
  │   │   │   └─ Choice_end 158
  │   │   ├─ Newline [158..159]: "\n"
  │   │   ├─ Choice [159..191]
@@ -252,22 +244,20 @@ sparkdown [0..674]
  │   │   │   │   │       └─ ChoiceCondition_end 175
  │   │   │   │   └─ Choice_begin_c7 175
  │   │   │   ├─ Choice_content [175..191]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [175..191]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [175..191]
- │   │   │   │       │   └─ ChoicePlainText [175..191]
- │   │   │   │       │       └─ ChoiceTextContent [175..191]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [175..191]
- │   │   │   │       │               ├─ Space [175..176]: " "
- │   │   │   │       │               ├─ Punctuation [176..177]: "("
- │   │   │   │       │               ├─ Word [177..182]: "aside"
- │   │   │   │       │               ├─ Punctuation [182..183]: ")"
- │   │   │   │       │               ├─ Space [183..184]: " "
- │   │   │   │       │               ├─ Word [184..188]: "Take"
- │   │   │   │       │               ├─ Space [188..189]: " "
- │   │   │   │       │               └─ Word [189..191]: "it"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 191
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 191
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 191
+ │   │   │   │   └─ ChoiceStartText [175..191]
+ │   │   │   │       ├─ ChoiceStartText_begin 175
+ │   │   │   │       ├─ ChoiceStartText_content [175..191]
+ │   │   │   │       │   └─ ChoiceStartTextContent [175..191]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [175..191]
+ │   │   │   │       │           ├─ Space [175..176]: " "
+ │   │   │   │       │           ├─ Punctuation [176..177]: "("
+ │   │   │   │       │           ├─ Word [177..182]: "aside"
+ │   │   │   │       │           ├─ Punctuation [182..183]: ")"
+ │   │   │   │       │           ├─ Space [183..184]: " "
+ │   │   │   │       │           ├─ Word [184..188]: "Take"
+ │   │   │   │       │           ├─ Space [188..189]: " "
+ │   │   │   │       │           └─ Word [189..191]: "it"
+ │   │   │   │       └─ ChoiceStartText_end 191
  │   │   │   └─ Choice_end 191
  │   │   ├─ Newline [191..192]: "\n"
  │   │   ├─ Choice [192..212]
@@ -298,20 +288,18 @@ sparkdown [0..674]
  │   │   │   │   │       └─ ChoiceCondition_end 202
  │   │   │   │   └─ Choice_begin_c7 202
  │   │   │   ├─ Choice_content [202..212]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [202..212]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [202..212]
- │   │   │   │       │   └─ ChoicePlainText [202..212]
- │   │   │   │       │       └─ ChoiceTextContent [202..212]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [202..212]
- │   │   │   │       │               ├─ Space [202..203]: " "
- │   │   │   │       │               ├─ Word [203..205]: "or"
- │   │   │   │       │               ├─ Space [205..206]: " "
- │   │   │   │       │               ├─ Word [206..207]: "b"
- │   │   │   │       │               ├─ Space [207..208]: " "
- │   │   │   │       │               └─ Word [208..212]: "Then"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 212
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 212
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 212
+ │   │   │   │   └─ ChoiceStartText [202..212]
+ │   │   │   │       ├─ ChoiceStartText_begin 202
+ │   │   │   │       ├─ ChoiceStartText_content [202..212]
+ │   │   │   │       │   └─ ChoiceStartTextContent [202..212]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [202..212]
+ │   │   │   │       │           ├─ Space [202..203]: " "
+ │   │   │   │       │           ├─ Word [203..205]: "or"
+ │   │   │   │       │           ├─ Space [205..206]: " "
+ │   │   │   │       │           ├─ Word [206..207]: "b"
+ │   │   │   │       │           ├─ Space [207..208]: " "
+ │   │   │   │       │           └─ Word [208..212]: "Then"
+ │   │   │   │       └─ ChoiceStartText_end 212
  │   │   │   └─ Choice_end 212
  │   │   ├─ Newline [212..213]: "\n"
  │   │   ├─ Choice [213..236]
@@ -342,19 +330,17 @@ sparkdown [0..674]
  │   │   │   │   │       └─ ChoiceCondition_end 225
  │   │   │   │   └─ Choice_begin_c7 225
  │   │   │   ├─ Choice_content [225..236]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [225..236]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [225..236]
- │   │   │   │       │   └─ ChoicePlainText [225..236]
- │   │   │   │       │       └─ ChoiceTextContent [225..236]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [225..236]
- │   │   │   │       │               ├─ Space [225..226]: " "
- │   │   │   │       │               ├─ Word [226..230]: "dare"
- │   │   │   │       │               ├─ Punctuation [230..231]: ","
- │   │   │   │       │               ├─ Space [231..232]: " "
- │   │   │   │       │               └─ Word [232..236]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 236
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 236
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 236
+ │   │   │   │   └─ ChoiceStartText [225..236]
+ │   │   │   │       ├─ ChoiceStartText_begin 225
+ │   │   │   │       ├─ ChoiceStartText_content [225..236]
+ │   │   │   │       │   └─ ChoiceStartTextContent [225..236]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [225..236]
+ │   │   │   │       │           ├─ Space [225..226]: " "
+ │   │   │   │       │           ├─ Word [226..230]: "dare"
+ │   │   │   │       │           ├─ Punctuation [230..231]: ","
+ │   │   │   │       │           ├─ Space [231..232]: " "
+ │   │   │   │       │           └─ Word [232..236]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 236
  │   │   │   └─ Choice_end 236
  │   │   ├─ Newline [236..237]: "\n"
  │   │   ├─ Choice [237..262]
@@ -385,19 +371,17 @@ sparkdown [0..674]
  │   │   │   │   │       └─ ChoiceCondition_end 253
  │   │   │   │   └─ Choice_begin_c7 253
  │   │   │   ├─ Choice_content [253..262]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [253..262]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [253..262]
- │   │   │   │       │   └─ ChoicePlainText [253..262]
- │   │   │   │       │       └─ ChoiceTextContent [253..262]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [253..262]
- │   │   │   │       │               ├─ Space [253..254]: " "
- │   │   │   │       │               ├─ Punctuation [254..255]: "("
- │   │   │   │       │               ├─ Punctuation [255..256]: ")"
- │   │   │   │       │               ├─ Space [256..257]: " "
- │   │   │   │       │               └─ Word [257..262]: "First"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 262
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 262
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 262
+ │   │   │   │   └─ ChoiceStartText [253..262]
+ │   │   │   │       ├─ ChoiceStartText_begin 253
+ │   │   │   │       ├─ ChoiceStartText_content [253..262]
+ │   │   │   │       │   └─ ChoiceStartTextContent [253..262]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [253..262]
+ │   │   │   │       │           ├─ Space [253..254]: " "
+ │   │   │   │       │           ├─ Punctuation [254..255]: "("
+ │   │   │   │       │           ├─ Punctuation [255..256]: ")"
+ │   │   │   │       │           ├─ Space [256..257]: " "
+ │   │   │   │       │           └─ Word [257..262]: "First"
+ │   │   │   │       └─ ChoiceStartText_end 262
  │   │   │   └─ Choice_end 262
  │   │   ├─ Newline [262..263]: "\n"
  │   │   ├─ Choice [263..297]
@@ -433,18 +417,16 @@ sparkdown [0..674]
  │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 277
  │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [277..285]
  │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [277..285]: "allowed("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [285..297]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [285..297]
- │   │   │   │       │   └─ ChoicePlainText [285..297]
- │   │   │   │       │       └─ ChoiceTextContent [285..297]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [285..297]
- │   │   │   │       │               ├─ Space [285..286]: " "
- │   │   │   │       │               ├─ Word [286..291]: "Glued"
- │   │   │   │       │               ├─ Space [291..292]: " "
- │   │   │   │       │               └─ Word [292..297]: "label"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 297
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 297
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 297
+ │   │   │   │   └─ ChoiceStartText [285..297]
+ │   │   │   │       ├─ ChoiceStartText_begin 285
+ │   │   │   │       ├─ ChoiceStartText_content [285..297]
+ │   │   │   │       │   └─ ChoiceStartTextContent [285..297]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [285..297]
+ │   │   │   │       │           ├─ Space [285..286]: " "
+ │   │   │   │       │           ├─ Word [286..291]: "Glued"
+ │   │   │   │       │           ├─ Space [291..292]: " "
+ │   │   │   │       │           └─ Word [292..297]: "label"
+ │   │   │   │       └─ ChoiceStartText_end 297
  │   │   │   └─ Choice_end 297
  │   │   ├─ Newline [297..298]: "\n"
  │   │   ├─ Choice [298..315]
@@ -482,21 +464,19 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 322
  │   │   │   │   └─ Choice_begin_c7 322
  │   │   │   ├─ Choice_content [322..340]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [322..340]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [322..340]
- │   │   │   │       │   └─ ChoicePlainText [322..340]
- │   │   │   │       │       └─ ChoiceTextContent [322..340]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [322..340]
- │   │   │   │       │               ├─ Word [322..324]: "if"
- │   │   │   │       │               ├─ Space [324..325]: " "
- │   │   │   │       │               ├─ Punctuation [325..326]: "("
- │   │   │   │       │               ├─ Word [326..333]: "allowed"
- │   │   │   │       │               ├─ Punctuation [333..334]: "("
- │   │   │   │       │               ├─ Space [334..335]: " "
- │   │   │   │       │               └─ Word [335..340]: "Group"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 340
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 340
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 340
+ │   │   │   │   └─ ChoiceStartText [322..340]
+ │   │   │   │       ├─ ChoiceStartText_begin 322
+ │   │   │   │       ├─ ChoiceStartText_content [322..340]
+ │   │   │   │       │   └─ ChoiceStartTextContent [322..340]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [322..340]
+ │   │   │   │       │           ├─ Word [322..324]: "if"
+ │   │   │   │       │           ├─ Space [324..325]: " "
+ │   │   │   │       │           ├─ Punctuation [325..326]: "("
+ │   │   │   │       │           ├─ Word [326..333]: "allowed"
+ │   │   │   │       │           ├─ Punctuation [333..334]: "("
+ │   │   │   │       │           ├─ Space [334..335]: " "
+ │   │   │   │       │           └─ Word [335..340]: "Group"
+ │   │   │   │       └─ ChoiceStartText_end 340
  │   │   │   └─ Choice_end 340
  │   │   ├─ Newline [340..341]: "\n"
  │   │   ├─ Choice [341..370]
@@ -511,24 +491,22 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 347
  │   │   │   │   └─ Choice_begin_c7 347
  │   │   │   ├─ Choice_content [347..370]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [347..370]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [347..370]
- │   │   │   │       │   └─ ChoicePlainText [347..370]
- │   │   │   │       │       └─ ChoiceTextContent [347..370]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [347..370]
- │   │   │   │       │               ├─ Word [347..349]: "if"
- │   │   │   │       │               ├─ Space [349..350]: " "
- │   │   │   │       │               ├─ Word [350..353]: "not"
- │   │   │   │       │               ├─ Space [353..354]: " "
- │   │   │   │       │               ├─ Punctuation [354..355]: "("
- │   │   │   │       │               ├─ Word [355..362]: "allowed"
- │   │   │   │       │               ├─ Punctuation [362..363]: "("
- │   │   │   │       │               ├─ Punctuation [363..364]: ")"
- │   │   │   │       │               ├─ Space [364..365]: " "
- │   │   │   │       │               └─ Word [365..370]: "Group"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 370
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 370
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 370
+ │   │   │   │   └─ ChoiceStartText [347..370]
+ │   │   │   │       ├─ ChoiceStartText_begin 347
+ │   │   │   │       ├─ ChoiceStartText_content [347..370]
+ │   │   │   │       │   └─ ChoiceStartTextContent [347..370]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [347..370]
+ │   │   │   │       │           ├─ Word [347..349]: "if"
+ │   │   │   │       │           ├─ Space [349..350]: " "
+ │   │   │   │       │           ├─ Word [350..353]: "not"
+ │   │   │   │       │           ├─ Space [353..354]: " "
+ │   │   │   │       │           ├─ Punctuation [354..355]: "("
+ │   │   │   │       │           ├─ Word [355..362]: "allowed"
+ │   │   │   │       │           ├─ Punctuation [362..363]: "("
+ │   │   │   │       │           ├─ Punctuation [363..364]: ")"
+ │   │   │   │       │           ├─ Space [364..365]: " "
+ │   │   │   │       │           └─ Word [365..370]: "Group"
+ │   │   │   │       └─ ChoiceStartText_end 370
  │   │   │   └─ Choice_end 370
  │   │   ├─ Newline [370..371]: "\n"
  │   │   ├─ Choice [371..404]
@@ -579,18 +557,16 @@ sparkdown [0..674]
  │   │   │   │   │       └─ ChoiceCondition_end 391
  │   │   │   │   └─ Choice_begin_c7 391
  │   │   │   ├─ Choice_content [391..404]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [391..404]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [391..404]
- │   │   │   │       │   └─ ChoicePlainText [391..404]
- │   │   │   │       │       └─ ChoiceTextContent [391..404]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [391..404]
- │   │   │   │       │               ├─ Space [391..392]: " "
- │   │   │   │       │               ├─ Word [392..398]: "Closed"
- │   │   │   │       │               ├─ Space [398..399]: " "
- │   │   │   │       │               └─ Word [399..404]: "group"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 404
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 404
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 404
+ │   │   │   │   └─ ChoiceStartText [391..404]
+ │   │   │   │       ├─ ChoiceStartText_begin 391
+ │   │   │   │       ├─ ChoiceStartText_content [391..404]
+ │   │   │   │       │   └─ ChoiceStartTextContent [391..404]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [391..404]
+ │   │   │   │       │           ├─ Space [391..392]: " "
+ │   │   │   │       │           ├─ Word [392..398]: "Closed"
+ │   │   │   │       │           ├─ Space [398..399]: " "
+ │   │   │   │       │           └─ Word [399..404]: "group"
+ │   │   │   │       └─ ChoiceStartText_end 404
  │   │   │   └─ Choice_end 404
  │   │   ├─ Newline [404..405]: "\n"
  │   │   ├─ Choice [405..429]
@@ -605,30 +581,37 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 411
  │   │   │   │   └─ Choice_begin_c7 411
  │   │   │   ├─ Choice_content [411..429]
- │   │   │   │   └─ ChoiceWithSuppressedText [411..429]
- │   │   │   │       ├─ ChoiceWithSuppressedText_c1 [411..414]
- │   │   │   │       │   └─ ChoiceStartText [411..414]
- │   │   │   │       │       └─ ChoiceTextContent [411..414]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [411..414]
- │   │   │   │       │               ├─ Word [411..413]: "if"
- │   │   │   │       │               └─ Space [413..414]: " "
- │   │   │   │       ├─ ChoiceWithSuppressedText_c2 [414..415]: "["
- │   │   │   │       ├─ ChoiceWithSuppressedText_c3 [415..423]
- │   │   │   │       │   └─ ChoiceOnlyText [415..423]
- │   │   │   │       │       └─ ChoiceTextContent [415..423]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [415..423]
- │   │   │   │       │               ├─ Word [415..418]: "you"
- │   │   │   │       │               ├─ Space [418..419]: " "
- │   │   │   │       │               └─ Word [419..423]: "dare"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c4 [423..424]: "]"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c5 [424..429]
- │   │   │   │       │   ├─ ChoiceInnerText [424..425]
- │   │   │   │       │   │   └─ Space [424..425]: " "
- │   │   │   │       │   └─ ChoiceInnerText [425..429]
- │   │   │   │       │       └─ Word [425..429]: "jump"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c6 429
- │   │   │   │       ├─ ChoiceWithSuppressedText_c7 429
- │   │   │   │       └─ ChoiceWithSuppressedText_c8 429
+ │   │   │   │   ├─ ChoiceStartText [411..414]
+ │   │   │   │   │   ├─ ChoiceStartText_begin 411
+ │   │   │   │   │   ├─ ChoiceStartText_content [411..414]
+ │   │   │   │   │   │   └─ ChoiceStartTextContent [411..414]
+ │   │   │   │   │   │       └─ ChoiceStartTextContent_c1 [411..414]
+ │   │   │   │   │   │           ├─ Word [411..413]: "if"
+ │   │   │   │   │   │           └─ Space [413..414]: " "
+ │   │   │   │   │   └─ ChoiceStartText_end 414
+ │   │   │   │   └─ ChoiceSuppression [414..429]
+ │   │   │   │       ├─ ChoiceSuppression_begin [414..415]
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c1 [414..415]: "["
+ │   │   │   │       ├─ ChoiceSuppression_content [415..429]
+ │   │   │   │       │   ├─ ChoiceOnlyText [415..423]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 415
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [415..423]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [415..423]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [415..423]
+ │   │   │   │       │   │   │           ├─ Word [415..418]: "you"
+ │   │   │   │       │   │   │           ├─ Space [418..419]: " "
+ │   │   │   │       │   │   │           └─ Word [419..423]: "dare"
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 423
+ │   │   │   │       │   └─ ChoiceInnerText [423..429]
+ │   │   │   │       │       ├─ ChoiceInnerText_begin [423..424]
+ │   │   │   │       │       │   └─ ChoiceInnerText_begin_c1 [423..424]: "]"
+ │   │   │   │       │       ├─ ChoiceInnerText_content [424..429]
+ │   │   │   │       │       │   └─ ChoiceInnerTextContent [424..429]
+ │   │   │   │       │       │       └─ ChoiceInnerTextContent_c1 [424..429]
+ │   │   │   │       │       │           ├─ Space [424..425]: " "
+ │   │   │   │       │       │           └─ Word [425..429]: "jump"
+ │   │   │   │       │       └─ ChoiceInnerText_end 429
+ │   │   │   │       └─ ChoiceSuppression_end 429
  │   │   │   └─ Choice_end 429
  │   │   ├─ Newline [429..430]: "\n"
  │   │   ├─ Choice [430..457]
@@ -643,25 +626,23 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 436
  │   │   │   │   └─ Choice_begin_c7 436
  │   │   │   ├─ Choice_content [436..457]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [436..457]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [436..457]
- │   │   │   │       │   └─ ChoicePlainText [436..457]
- │   │   │   │       │       └─ ChoiceTextContent [436..457]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [436..457]
- │   │   │   │       │               ├─ Word [436..438]: "if"
- │   │   │   │       │               ├─ Space [438..439]: " "
- │   │   │   │       │               ├─ Punctuation [439..440]: "("
- │   │   │   │       │               ├─ Word [440..443]: "you"
- │   │   │   │       │               ├─ Punctuation [443..444]: "'"
- │   │   │   │       │               ├─ Word [444..446]: "re"
- │   │   │   │       │               ├─ Space [446..447]: " "
- │   │   │   │       │               ├─ Word [447..451]: "sure"
- │   │   │   │       │               ├─ Punctuation [451..452]: ")"
- │   │   │   │       │               ├─ Space [452..453]: " "
- │   │   │   │       │               └─ Word [453..457]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 457
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 457
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 457
+ │   │   │   │   └─ ChoiceStartText [436..457]
+ │   │   │   │       ├─ ChoiceStartText_begin 436
+ │   │   │   │       ├─ ChoiceStartText_content [436..457]
+ │   │   │   │       │   └─ ChoiceStartTextContent [436..457]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [436..457]
+ │   │   │   │       │           ├─ Word [436..438]: "if"
+ │   │   │   │       │           ├─ Space [438..439]: " "
+ │   │   │   │       │           ├─ Punctuation [439..440]: "("
+ │   │   │   │       │           ├─ Word [440..443]: "you"
+ │   │   │   │       │           ├─ Punctuation [443..444]: "'"
+ │   │   │   │       │           ├─ Word [444..446]: "re"
+ │   │   │   │       │           ├─ Space [446..447]: " "
+ │   │   │   │       │           ├─ Word [447..451]: "sure"
+ │   │   │   │       │           ├─ Punctuation [451..452]: ")"
+ │   │   │   │       │           ├─ Space [452..453]: " "
+ │   │   │   │       │           └─ Word [453..457]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 457
  │   │   │   └─ Choice_end 457
  │   │   ├─ Newline [457..458]: "\n"
  │   │   ├─ Choice [458..483]
@@ -676,24 +657,22 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 464
  │   │   │   │   └─ Choice_begin_c7 464
  │   │   │   ├─ Choice_content [464..483]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [464..483]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [464..483]
- │   │   │   │       │   └─ ChoicePlainText [464..483]
- │   │   │   │       │       └─ ChoiceTextContent [464..483]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [464..483]
- │   │   │   │       │               ├─ Word [464..466]: "if"
- │   │   │   │       │               ├─ Space [466..467]: " "
- │   │   │   │       │               ├─ Punctuation [467..468]: "("
- │   │   │   │       │               ├─ Word [468..471]: "you"
- │   │   │   │       │               ├─ Space [471..472]: " "
- │   │   │   │       │               ├─ Word [472..476]: "dare"
- │   │   │   │       │               ├─ Punctuation [476..477]: ")"
- │   │   │   │       │               ├─ Punctuation [477..478]: ","
- │   │   │   │       │               ├─ Space [478..479]: " "
- │   │   │   │       │               └─ Word [479..483]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 483
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 483
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 483
+ │   │   │   │   └─ ChoiceStartText [464..483]
+ │   │   │   │       ├─ ChoiceStartText_begin 464
+ │   │   │   │       ├─ ChoiceStartText_content [464..483]
+ │   │   │   │       │   └─ ChoiceStartTextContent [464..483]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [464..483]
+ │   │   │   │       │           ├─ Word [464..466]: "if"
+ │   │   │   │       │           ├─ Space [466..467]: " "
+ │   │   │   │       │           ├─ Punctuation [467..468]: "("
+ │   │   │   │       │           ├─ Word [468..471]: "you"
+ │   │   │   │       │           ├─ Space [471..472]: " "
+ │   │   │   │       │           ├─ Word [472..476]: "dare"
+ │   │   │   │       │           ├─ Punctuation [476..477]: ")"
+ │   │   │   │       │           ├─ Punctuation [477..478]: ","
+ │   │   │   │       │           ├─ Space [478..479]: " "
+ │   │   │   │       │           └─ Word [479..483]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 483
  │   │   │   └─ Choice_end 483
  │   │   ├─ Newline [483..484]: "\n"
  │   │   ├─ Choice [484..520]
@@ -708,25 +687,23 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 490
  │   │   │   │   └─ Choice_begin_c7 490
  │   │   │   ├─ Choice_content [490..520]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [490..520]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [490..520]
- │   │   │   │       │   └─ ChoicePlainText [490..520]
- │   │   │   │       │       └─ ChoiceTextContent [490..520]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [490..520]
- │   │   │   │       │               ├─ Word [490..492]: "if"
- │   │   │   │       │               ├─ Space [492..493]: " "
- │   │   │   │       │               ├─ Punctuation [493..494]: "("
- │   │   │   │       │               ├─ Word [494..497]: "not"
- │   │   │   │       │               ├─ Space [497..498]: " "
- │   │   │   │       │               ├─ Word [498..505]: "allowed"
- │   │   │   │       │               ├─ Punctuation [505..506]: "("
- │   │   │   │       │               ├─ Space [506..507]: " "
- │   │   │   │       │               ├─ Word [507..514]: "Negated"
- │   │   │   │       │               ├─ Space [514..515]: " "
- │   │   │   │       │               └─ Word [515..520]: "group"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 520
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 520
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 520
+ │   │   │   │   └─ ChoiceStartText [490..520]
+ │   │   │   │       ├─ ChoiceStartText_begin 490
+ │   │   │   │       ├─ ChoiceStartText_content [490..520]
+ │   │   │   │       │   └─ ChoiceStartTextContent [490..520]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [490..520]
+ │   │   │   │       │           ├─ Word [490..492]: "if"
+ │   │   │   │       │           ├─ Space [492..493]: " "
+ │   │   │   │       │           ├─ Punctuation [493..494]: "("
+ │   │   │   │       │           ├─ Word [494..497]: "not"
+ │   │   │   │       │           ├─ Space [497..498]: " "
+ │   │   │   │       │           ├─ Word [498..505]: "allowed"
+ │   │   │   │       │           ├─ Punctuation [505..506]: "("
+ │   │   │   │       │           ├─ Space [506..507]: " "
+ │   │   │   │       │           ├─ Word [507..514]: "Negated"
+ │   │   │   │       │           ├─ Space [514..515]: " "
+ │   │   │   │       │           └─ Word [515..520]: "group"
+ │   │   │   │       └─ ChoiceStartText_end 520
  │   │   │   └─ Choice_end 520
  │   │   ├─ Newline [520..521]: "\n"
  │   │   ├─ Choice [521..553]
@@ -741,27 +718,25 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 527
  │   │   │   │   └─ Choice_begin_c7 527
  │   │   │   ├─ Choice_content [527..553]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [527..553]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [527..553]
- │   │   │   │       │   └─ ChoicePlainText [527..553]
- │   │   │   │       │       └─ ChoiceTextContent [527..553]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [527..553]
- │   │   │   │       │               ├─ Word [527..529]: "if"
- │   │   │   │       │               ├─ Space [529..530]: " "
- │   │   │   │       │               ├─ Punctuation [530..531]: "("
- │   │   │   │       │               ├─ Word [531..537]: "friend"
- │   │   │   │       │               ├─ Punctuation [537..538]: "("
- │   │   │   │       │               ├─ Word [538..539]: "s"
- │   │   │   │       │               ├─ Punctuation [539..540]: ")"
- │   │   │   │       │               ├─ Space [540..541]: " "
- │   │   │   │       │               ├─ Word [541..546]: "agree"
- │   │   │   │       │               ├─ Punctuation [546..547]: ")"
- │   │   │   │       │               ├─ Punctuation [547..548]: ","
- │   │   │   │       │               ├─ Space [548..549]: " "
- │   │   │   │       │               └─ Word [549..553]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 553
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 553
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 553
+ │   │   │   │   └─ ChoiceStartText [527..553]
+ │   │   │   │       ├─ ChoiceStartText_begin 527
+ │   │   │   │       ├─ ChoiceStartText_content [527..553]
+ │   │   │   │       │   └─ ChoiceStartTextContent [527..553]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [527..553]
+ │   │   │   │       │           ├─ Word [527..529]: "if"
+ │   │   │   │       │           ├─ Space [529..530]: " "
+ │   │   │   │       │           ├─ Punctuation [530..531]: "("
+ │   │   │   │       │           ├─ Word [531..537]: "friend"
+ │   │   │   │       │           ├─ Punctuation [537..538]: "("
+ │   │   │   │       │           ├─ Word [538..539]: "s"
+ │   │   │   │       │           ├─ Punctuation [539..540]: ")"
+ │   │   │   │       │           ├─ Space [540..541]: " "
+ │   │   │   │       │           ├─ Word [541..546]: "agree"
+ │   │   │   │       │           ├─ Punctuation [546..547]: ")"
+ │   │   │   │       │           ├─ Punctuation [547..548]: ","
+ │   │   │   │       │           ├─ Space [548..549]: " "
+ │   │   │   │       │           └─ Word [549..553]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 553
  │   │   │   └─ Choice_end 553
  │   │   ├─ Newline [553..554]: "\n"
  │   │   ├─ Choice [554..591]
@@ -776,30 +751,28 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 560
  │   │   │   │   └─ Choice_begin_c7 560
  │   │   │   ├─ Choice_content [560..591]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [560..591]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [560..591]
- │   │   │   │       │   └─ ChoicePlainText [560..591]
- │   │   │   │       │       └─ ChoiceTextContent [560..591]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [560..591]
- │   │   │   │       │               ├─ Word [560..562]: "if"
- │   │   │   │       │               ├─ Space [562..563]: " "
- │   │   │   │       │               ├─ Punctuation [563..564]: "("
- │   │   │   │       │               ├─ Word [564..570]: "friend"
- │   │   │   │       │               ├─ Punctuation [570..571]: "("
- │   │   │   │       │               ├─ Word [571..572]: "s"
- │   │   │   │       │               ├─ Punctuation [572..573]: ")"
- │   │   │   │       │               ├─ Space [573..574]: " "
- │   │   │   │       │               ├─ Word [574..577]: "don"
- │   │   │   │       │               ├─ Punctuation [577..578]: "'"
- │   │   │   │       │               ├─ Word [578..579]: "t"
- │   │   │   │       │               ├─ Space [579..580]: " "
- │   │   │   │       │               ├─ Word [580..585]: "agree"
- │   │   │   │       │               ├─ Punctuation [585..586]: ")"
- │   │   │   │       │               ├─ Space [586..587]: " "
- │   │   │   │       │               └─ Word [587..591]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 591
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 591
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 591
+ │   │   │   │   └─ ChoiceStartText [560..591]
+ │   │   │   │       ├─ ChoiceStartText_begin 560
+ │   │   │   │       ├─ ChoiceStartText_content [560..591]
+ │   │   │   │       │   └─ ChoiceStartTextContent [560..591]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [560..591]
+ │   │   │   │       │           ├─ Word [560..562]: "if"
+ │   │   │   │       │           ├─ Space [562..563]: " "
+ │   │   │   │       │           ├─ Punctuation [563..564]: "("
+ │   │   │   │       │           ├─ Word [564..570]: "friend"
+ │   │   │   │       │           ├─ Punctuation [570..571]: "("
+ │   │   │   │       │           ├─ Word [571..572]: "s"
+ │   │   │   │       │           ├─ Punctuation [572..573]: ")"
+ │   │   │   │       │           ├─ Space [573..574]: " "
+ │   │   │   │       │           ├─ Word [574..577]: "don"
+ │   │   │   │       │           ├─ Punctuation [577..578]: "'"
+ │   │   │   │       │           ├─ Word [578..579]: "t"
+ │   │   │   │       │           ├─ Space [579..580]: " "
+ │   │   │   │       │           ├─ Word [580..585]: "agree"
+ │   │   │   │       │           ├─ Punctuation [585..586]: ")"
+ │   │   │   │       │           ├─ Space [586..587]: " "
+ │   │   │   │       │           └─ Word [587..591]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 591
  │   │   │   └─ Choice_end 591
  │   │   ├─ Newline [591..592]: "\n"
  │   │   ├─ Choice [592..617]
@@ -814,25 +787,23 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 598
  │   │   │   │   └─ Choice_begin_c7 598
  │   │   │   ├─ Choice_content [598..617]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [598..617]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [598..617]
- │   │   │   │       │   └─ ChoicePlainText [598..617]
- │   │   │   │       │       └─ ChoiceTextContent [598..617]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [598..617]
- │   │   │   │       │               ├─ Word [598..600]: "if"
- │   │   │   │       │               ├─ Space [600..601]: " "
- │   │   │   │       │               ├─ Word [601..607]: "friend"
- │   │   │   │       │               ├─ Punctuation [607..608]: "("
- │   │   │   │       │               ├─ Word [608..609]: "s"
- │   │   │   │       │               ├─ Punctuation [609..610]: ")"
- │   │   │   │       │               ├─ Punctuation [610..611]: ","
- │   │   │   │       │               ├─ Space [611..612]: " "
- │   │   │   │       │               ├─ Word [612..614]: "we"
- │   │   │   │       │               ├─ Space [614..615]: " "
- │   │   │   │       │               └─ Word [615..617]: "go"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 617
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 617
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 617
+ │   │   │   │   └─ ChoiceStartText [598..617]
+ │   │   │   │       ├─ ChoiceStartText_begin 598
+ │   │   │   │       ├─ ChoiceStartText_content [598..617]
+ │   │   │   │       │   └─ ChoiceStartTextContent [598..617]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [598..617]
+ │   │   │   │       │           ├─ Word [598..600]: "if"
+ │   │   │   │       │           ├─ Space [600..601]: " "
+ │   │   │   │       │           ├─ Word [601..607]: "friend"
+ │   │   │   │       │           ├─ Punctuation [607..608]: "("
+ │   │   │   │       │           ├─ Word [608..609]: "s"
+ │   │   │   │       │           ├─ Punctuation [609..610]: ")"
+ │   │   │   │       │           ├─ Punctuation [610..611]: ","
+ │   │   │   │       │           ├─ Space [611..612]: " "
+ │   │   │   │       │           ├─ Word [612..614]: "we"
+ │   │   │   │       │           ├─ Space [614..615]: " "
+ │   │   │   │       │           └─ Word [615..617]: "go"
+ │   │   │   │       └─ ChoiceStartText_end 617
  │   │   │   └─ Choice_end 617
  │   │   ├─ Newline [617..618]: "\n"
  │   │   ├─ Choice [618..648]
@@ -847,27 +818,25 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 624
  │   │   │   │   └─ Choice_begin_c7 624
  │   │   │   ├─ Choice_content [624..648]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [624..648]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [624..648]
- │   │   │   │       │   └─ ChoicePlainText [624..648]
- │   │   │   │       │       └─ ChoiceTextContent [624..648]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [624..648]
- │   │   │   │       │               ├─ Word [624..626]: "if"
- │   │   │   │       │               ├─ Space [626..627]: " "
- │   │   │   │       │               ├─ Word [627..630]: "you"
- │   │   │   │       │               ├─ Punctuation [630..631]: "("
- │   │   │   │       │               ├─ Word [631..634]: "don"
- │   │   │   │       │               ├─ Punctuation [634..635]: "'"
- │   │   │   │       │               ├─ Word [635..636]: "t"
- │   │   │   │       │               ├─ Space [636..637]: " "
- │   │   │   │       │               ├─ Word [637..641]: "mind"
- │   │   │   │       │               ├─ Punctuation [641..642]: ")"
- │   │   │   │       │               ├─ Punctuation [642..643]: ","
- │   │   │   │       │               ├─ Space [643..644]: " "
- │   │   │   │       │               └─ Word [644..648]: "jump"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 648
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 648
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 648
+ │   │   │   │   └─ ChoiceStartText [624..648]
+ │   │   │   │       ├─ ChoiceStartText_begin 624
+ │   │   │   │       ├─ ChoiceStartText_content [624..648]
+ │   │   │   │       │   └─ ChoiceStartTextContent [624..648]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [624..648]
+ │   │   │   │       │           ├─ Word [624..626]: "if"
+ │   │   │   │       │           ├─ Space [626..627]: " "
+ │   │   │   │       │           ├─ Word [627..630]: "you"
+ │   │   │   │       │           ├─ Punctuation [630..631]: "("
+ │   │   │   │       │           ├─ Word [631..634]: "don"
+ │   │   │   │       │           ├─ Punctuation [634..635]: "'"
+ │   │   │   │       │           ├─ Word [635..636]: "t"
+ │   │   │   │       │           ├─ Space [636..637]: " "
+ │   │   │   │       │           ├─ Word [637..641]: "mind"
+ │   │   │   │       │           ├─ Punctuation [641..642]: ")"
+ │   │   │   │       │           ├─ Punctuation [642..643]: ","
+ │   │   │   │       │           ├─ Space [643..644]: " "
+ │   │   │   │       │           └─ Word [644..648]: "jump"
+ │   │   │   │       └─ ChoiceStartText_end 648
  │   │   │   └─ Choice_end 648
  │   │   ├─ Newline [648..649]: "\n"
  │   │   ├─ Choice [649..663]
@@ -882,15 +851,13 @@ sparkdown [0..674]
  │   │   │   │   ├─ Choice_begin_c6 655
  │   │   │   │   └─ Choice_begin_c7 655
  │   │   │   ├─ Choice_content [655..663]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [655..663]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [655..663]
- │   │   │   │       │   └─ ChoicePlainText [655..663]
- │   │   │   │       │       └─ ChoiceTextContent [655..663]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [655..663]
- │   │   │   │       │               └─ Word [655..663]: "Fallback"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 663
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 663
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 663
+ │   │   │   │   └─ ChoiceStartText [655..663]
+ │   │   │   │       ├─ ChoiceStartText_begin 655
+ │   │   │   │       ├─ ChoiceStartText_content [655..663]
+ │   │   │   │       │   └─ ChoiceStartTextContent [655..663]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [655..663]
+ │   │   │   │       │           └─ Word [655..663]: "Fallback"
+ │   │   │   │       └─ ChoiceStartText_end 663
  │   │   │   └─ Choice_end 663
  │   │   └─ Newline [663..664]: "\n"
  │   └─ LuauSparkdownChooseBlock_end [664..669]
