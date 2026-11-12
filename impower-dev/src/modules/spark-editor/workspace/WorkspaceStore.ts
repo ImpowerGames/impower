@@ -208,6 +208,8 @@ class WorkspaceStore {
 
   readonly uploadBatches = signal(0);
 
+  readonly uploadsFound = signal<number | null>(null);
+
   readonly replacing = signal(false);
 
   readonly trashOpen = signal<boolean>(false);

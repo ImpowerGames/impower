@@ -2,10 +2,10 @@ import { DropZone } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 import { isAssetType } from "../../utils/assetTypes";
 import { showSnackbar } from "../../utils/snackbar";
-import { addAssetFiles, type AddedFile } from "../../workspace/addAssetFiles";
+import { addAssetFiles } from "../../workspace/addAssetFiles";
 import { routeOfState } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
-import { carriesFiles, droppedFiles, FILE_DROP_HIDE_MS, FILE_DROP_TARGET } from "../../utils/fileDrops";
+import { carriesFiles, droppedItems, FILE_DROP_HIDE_MS, FILE_DROP_TARGET, type DropItem } from "../../utils/fileDrops";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
@@ -26,15 +26,15 @@ const viewedFolder = (): string => {
   return state.lists?.assetsFolders?.[type] ?? "";
 };
 
-export const deliverDrop = async (files: AddedFile[]): Promise<void> => {
-  if (!files.length || !workspace.signals.projectId.peek()) {
+export const deliverDrop = async (items: DropItem[]): Promise<void> => {
+  if (!items.length || !workspace.signals.projectId.peek()) {
     return;
   }
   const onAssets = routeOfState(workspace.state.peek()) === "collection";
   const folder = onAssets ? viewedFolder() : "";
   const { Workspace } = await import("../../workspace/Workspace");
   try {
-    const landed = await addAssetFiles(files, folder, {
+    const landed = await addAssetFiles(items, folder, {
       showUploads: () => {
         if (!onAssets) {
           Workspace.window.navigateTo("collection");
@@ -86,7 +86,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       event.preventDefault();
       hide();
       if (!onPage(event)) {
-        void deliverDrop(droppedFiles(event));
+        void deliverDrop(droppedItems(event));
       }
     };
 

@@ -50,6 +50,7 @@ import {
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import { neighborsOf, type InspectedAsset } from "../../utils/assetDetails";
 import { plural, rowLine } from "../../utils/fileListModel";
+import type { DropItem } from "../../utils/fileDrops";
 import type { FileMove } from "../../utils/fileMoves";
 import { majorityShape } from "../../utils/imageSize";
 import { showSnackbar } from "../../utils/snackbar";
@@ -95,7 +96,7 @@ import {
   useTabQuery,
   type SelectionAction,
 } from "../library-page";
-import { addAssetFiles, landedView, type AddedFile } from "../../workspace/addAssetFiles";
+import { addAssetFiles, landedView } from "../../workspace/addAssetFiles";
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
@@ -451,7 +452,7 @@ function AssetsBrowser() {
     }
   }, [revealing, loaded]);
 
-  const add = (files: AddedFile[], folder: string) => void run(async () => show(await addAssetFiles(files, folder)));
+  const add = (items: DropItem[], folder: string) => void run(async () => show(await addAssetFiles(items, folder)));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
