@@ -363,6 +363,17 @@ end
       expect(beats(`scene start\n${lines}  done\nend\n`)).toEqual(["One\ntwo\n", ""]);
     });
 
+    test("a line of many tags and no chain mark is read at once, as one beat", () => {
+      const started = performance.now();
+      const { result } = compile(`scene start\n  One${" # tag".repeat(40)} ordinary text\n  done\nend\n`);
+      const elapsed = performance.now() - started;
+      const s = testStory(result.program.chunks);
+      const out: string[] = [];
+      while (s.canContinue) out.push(s.Continue() ?? "");
+      expect(out).toEqual(["One\n", ""]);
+      expect(elapsed).toBeLessThan(3000);
+    });
+
     test("a chain mark followed by comments still chains the line", () => {
       const chained = run("scene start\n  One \\\n  two\n  done\nend\n");
       expect(run("scene start\n  One \\ // note\n  two\n  done\nend\n")).toBe(chained);

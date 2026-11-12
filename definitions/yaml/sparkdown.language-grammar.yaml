@@ -22,8 +22,14 @@ variables:
   # first; DivertUnknown stops there for the same comments.
   STORY_TEXT_OUTSIDE_COMMENT: (?:(?!{{STORY_COMMENT_START}})[^\r\n])
   STORY_TEXT_UNIT: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{STORY_TEXT_OUTSIDE_COMMENT}})
+  # lookaround: Annotation's Tag reads a tag from its first marker to the line's
+  # end, comment openers included, so the chain text before a tag stops at the
+  # first tag marker and DISPLAY_CHAIN_TAG takes the rest once. Letting the text
+  # run past a marker would let each tag start at many places, and a line of
+  # tags with no chain mark would take exponential time to refuse.
+  DISPLAY_CHAIN_TEXT_BEFORE_TAG: (?:{{CHOICE_PLAIN_INTERPOLATION}}|(?!{{STORY_COMMENT_START}}|{{TAG_START}})[^\r\n])
   DISPLAY_CHAIN_TAG: (?:{{TAG_START}}[^\r\n]*?)
-  DISPLAY_CHAIN_TEXT: (?:(?:{{DISPLAY_CHAIN_TAG}}|{{STORY_TEXT_UNIT}})*?)
+  DISPLAY_CHAIN_TEXT: (?:{{DISPLAY_CHAIN_TEXT_BEFORE_TAG}}*?{{DISPLAY_CHAIN_TAG}}?)
   # lookaround: Annotation's Tag reads a tag to the line's end, comment openers
   # and a chain mark included, so ActionLineEnd and LineEnd end before it
   # (EOL); a tag that ends in a chain mark is the chain's text, which
