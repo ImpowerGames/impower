@@ -358,7 +358,7 @@ describe("stacked pictures on the Assets page", () => {
     expect(level.rows.map((row) => [row.kind, row.name, row.path, row.variantCount])).toEqual([
       ["folder", "Extras", "Assets/Images/Portraits/Extras", undefined],
       ["file", "bunny", "Assets/Images/Portraits/bunny.png", undefined],
-      ["file", "imani", "Assets/Images/Portraits/imani.png", 2],
+      ["file", "imani", "Assets/Images/Portraits/imani.png", 4],
     ]);
     const imani = level.rows[2]!;
     expect(imani.size).toBe(330);
@@ -385,7 +385,7 @@ describe("stacked pictures on the Assets page", () => {
 
   it("rolls search results up the same way", () => {
     const [images] = assetSearch({ listing: stacked, query: "imani", sort: "name-asc", endings: ENDINGS });
-    expect(images!.rows.map((row) => [row.name, row.variantCount, row.location])).toEqual([["imani", 2, "Portraits"]]);
+    expect(images!.rows.map((row) => [row.name, row.variantCount, row.location])).toEqual([["imani", 4, "Portraits"]]);
   });
 });
 
@@ -404,7 +404,7 @@ describe("a stack of one file", () => {
     });
     expect(level.rows.map((row) => [row.name, row.path, row.paths, row.variantCount])).toEqual([
       ["imani", "Assets/Images/Cast/imani@night.png", ["Assets/Images/Cast/imani@night.png"], undefined],
-      ["kai", "Assets/Images/Cast/kai~mouth.open.closed.png", ["Assets/Images/Cast/kai~mouth.open.closed.png"], 2],
+      ["kai", "Assets/Images/Cast/kai~mouth.open.closed.png", ["Assets/Images/Cast/kai~mouth.open.closed.png"], 3],
       ["zed", "Assets/Images/Cast/zed.png", undefined, undefined],
     ]);
   });
@@ -425,7 +425,7 @@ describe("searching stacked pictures", () => {
       endings: ENDINGS,
     });
     expect(images!.rows.map((row) => [row.name, row.path, row.paths?.length, row.variantCount])).toEqual([
-      ["imani", "Assets/Images/Portraits/imani.png", 4, 2],
+      ["imani", "Assets/Images/Portraits/imani.png", 4, 4],
     ]);
   });
 });

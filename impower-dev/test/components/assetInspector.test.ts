@@ -949,7 +949,7 @@ describe("the Variants tester and the Files section", () => {
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {
     await mount();
     await open("imani");
-    expect(subtitle()).toBe("Image · PNG · 5 variants");
+    expect(subtitle()).toBe("Image · PNG · 8 variants");
     expect(sectionTitles()).toEqual(["Variants", "Details", "Files", "Not used yet"]);
     expect([group("@"), group("face"), group("mouth")].map((button) => button.getAttribute("aria-label"))).toEqual([
       "Alternate: As is",

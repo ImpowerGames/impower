@@ -415,15 +415,15 @@ describe("image folders as tiles", () => {
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
-    expect(rowLabels()).toEqual(["Open image imani, 2 variants, modified 2d · 330 b"]);
+    expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
     const badge = tiles()[0]!.querySelector('[data-variants-badge]')!;
-    expect(badge.getAttribute("aria-label")).toBe("2 variants");
+    expect(badge.getAttribute("aria-label")).toBe("4 variants");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("src")).toBe("/p/100");
     expect(tiles()[0]!.querySelector("img")!.getAttribute("loading")).toBe("lazy");
     await click(all<HTMLElement>('button[aria-label^="Open image imani"]')[0]);
     const inspector = document.querySelector('section[aria-label="Asset details"]')!;
     expect(inspector.querySelector("header h2")!.textContent).toBe("imani");
-    expect(inspector.querySelector("header small")!.textContent).toBe("Image · PNG · 2 variants");
+    expect(inspector.querySelector("header small")!.textContent).toBe("Image · PNG · 4 variants");
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/100");
     expect(assets.watchFacts.mock.calls.at(-1)![0]).toEqual([
       "Assets/Images/Portraits/imani.png",
@@ -449,7 +449,7 @@ describe("image folders as tiles", () => {
     await click(layoutButton()!);
     expect(window.setListState).toHaveBeenCalledWith({ assetsLayouts: { "Assets/Images/Portraits": "rows" } });
     expect(tiles()).toEqual([]);
-    expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("2 variants");
+    expect(host!.querySelector("[data-variants-chip]")!.textContent).toBe("4 variants");
     expect(layoutButton()!.getAttribute("aria-label")).toBe("Show this folder as tiles");
     await click(all<HTMLElement>("nav[aria-label=\"Folder path\"] button").find((b) => b.getAttribute("aria-label") === "Images"));
     expect(tiles().length).toBe(2);
@@ -460,7 +460,7 @@ describe("image folders as tiles", () => {
     await search("imani");
     expect(tiles()).toEqual([]);
     expect(rowLabels()).toEqual([
-      "Open image imani, 2 variants, portraits · modified 2d · 330 b",
+      "Open image imani, 4 variants, portraits · modified 2d · 330 b",
       "Open audio imani, audio · modified 2d · 5 b",
     ]);
     await search("");

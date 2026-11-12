@@ -799,7 +799,7 @@ export default class WorkspaceSearch {
       return false;
     }
     await this._sources.onRenamed?.();
-    this.close();
+    this.dismiss();
     return true;
   }
 

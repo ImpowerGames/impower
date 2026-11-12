@@ -1,12 +1,16 @@
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { unzipSync, zipSync } from "fflate";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildZippable,
   parseUnzipEntries,
 } from "../../../packages/opfs-workspace/src/utils/assetArchive";
 
 import { LAYOUT_MARKER } from "../../src/modules/spark-editor/utils/fileTree";
+import {
+  ProjectImportError,
+  REFUSED_BEFORE_CHANGE,
+} from "../../src/modules/spark-editor/workspace/projectImport";
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "proj1";
@@ -221,6 +225,82 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
       expect(dst.opfs.has(u("images/logo.png"))).toBe(true);
       expect(dst.opfs.has(u("icons/logo.png"))).toBe(true);
     });
+  });
+});
+
+describe("replacing a project from a backup zip", () => {
+  const BS = String.fromCharCode(92);
+  const project = () =>
+    makeHarness({
+      [u("main.sd")]: enc.encode("OLD"),
+      [u("keep.sd")]: enc.encode("KEEP"),
+    });
+  const backup = (entries: Record<string, Uint8Array>) =>
+    zipSync(entries, { level: 0 }).buffer as ArrayBuffer;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a backup that needs more room than storage has left, before deleting anything", async () => {
+    vi.stubGlobal("navigator", {
+      storage: { estimate: async () => ({ quota: 100, usage: 90 }) },
+    });
+    const dst = project();
+    const err = await writeProjectZip(
+      dst,
+      backup({
+        "main.sd": enc.encode("NEW"),
+        "big.png": new Uint8Array(64),
+      }),
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(ProjectImportError);
+    expect(err.reason).toBe("no_room");
+    expect(REFUSED_BEFORE_CHANGE.has(err.reason)).toBe(true);
+    expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("OLD");
+    expect(dec.decode(dst.opfs.get(u("keep.sd"))!)).toBe("KEEP");
+  });
+
+  it("stores entries whose folder or file names hold a backslash under the shared storage name", async () => {
+    const dst = project();
+    const refusing = dst.fs.createFiles.bind(dst.fs);
+    (dst.fs as any).createFiles = async (args: {
+      files: { uri: string; data: ArrayBuffer }[];
+    }) => {
+      if (args.files.some(({ uri }) => uri.includes(BS))) {
+        throw new TypeError("Name is not allowed.");
+      }
+      return refusing(args);
+    };
+    await writeProjectZip(
+      dst,
+      backup({
+        "My Story/main.sd": enc.encode("NEW"),
+        [`My Story/Assets${BS}Images/a.png`]: new Uint8Array([1]),
+        [`My Story/b${BS}c.png`]: new Uint8Array([2]),
+      }),
+    );
+    expect([...dst.opfs.keys()].sort()).toEqual(
+      [u("Assets_Images/a.png"), u("b_c.png"), u("main.sd")].sort(),
+    );
+    expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("NEW");
+  });
+
+  it.each([
+    ["a folder and a file", { [`a${BS}b/`]: new Uint8Array(), a_b: new Uint8Array([1]) }],
+    ["two files", { [`a${BS}b.png`]: new Uint8Array([1]), "a_b.png": new Uint8Array([2]) }],
+    ["a file under a file", { "x.png": new Uint8Array([1]), "x.png/y.png": new Uint8Array([2]) }],
+  ])("refuses a backup whose cleaned names clash as %s, before deleting anything", async (_, entries) => {
+    const dst = project();
+    const err = await writeProjectZip(
+      dst,
+      backup({ "main.sd": enc.encode("NEW"), ...entries }),
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(ProjectImportError);
+    expect(err.reason).toBe("name_clash");
+    expect(REFUSED_BEFORE_CHANGE.has(err.reason)).toBe(true);
+    expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("OLD");
+    expect(dec.decode(dst.opfs.get(u("keep.sd"))!)).toBe("KEEP");
   });
 });
 

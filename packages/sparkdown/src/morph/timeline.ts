@@ -47,7 +47,7 @@ export class MorphTimeline {
     if (typeof min === "number" && typeof max === "number" && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max >= min) {
       this.gap = { min, max };
     }
-    if (this.duration > 0 && this.plays > 0) this.starts.push(this.delay);
+    if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.starts.push(this.delay);
   }
 
   get start(): number {
