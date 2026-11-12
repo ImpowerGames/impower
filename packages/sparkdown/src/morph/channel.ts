@@ -177,7 +177,7 @@ export function channelRefs(channel: MorphProgramChannel | undefined): { variant
   };
   for (const [variant, list] of Object.entries(channel?.variants ?? {})) add(variant, list);
   for (const [variant, picks] of Object.entries(channel?.picks ?? {})) {
-    for (const list of Object.values(picks)) add(variant, list);
+    for (const [pick, list] of Object.entries(picks)) if (pick !== MORPH_PICK_NONE) add(variant, list);
   }
   return refs;
 }

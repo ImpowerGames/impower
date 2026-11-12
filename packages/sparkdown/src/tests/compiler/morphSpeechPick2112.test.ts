@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { channelRefs } from "../../morph/channel";
 
 const URI = "file:///main.sd";
 
@@ -130,6 +131,7 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     expect(picks["talk_gritted"]!.flatMap((ref) => ref.morphs)).toEqual(["blink", "talk_gritted"]);
     expect(picks["none"]!.flatMap((ref) => ref.morphs)).toEqual(["blink"]);
     expect(new Set(Object.values(picks).flatMap((refs) => refs.map((ref) => ref.key))).size).toBe(3);
+    expect(channelRefs(channel).map(({ ref }) => ref.morphs.join("+")).sort()).toEqual(["blink+talk", "blink+talk_gritted"]);
   });
 
   test("`default` is not inherited through `as`: the child is unmarked in the program and the morph context", () => {
