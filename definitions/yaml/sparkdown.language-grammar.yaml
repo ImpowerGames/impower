@@ -220,10 +220,15 @@ variables:
   # runs to ChoiceOnlyText's end and a character never starts a tag, so the scan
   # splits a line in one way. It stops at an unclosed brace too, which
   # CHOICE_SUPPRESSION_PAST_BRACE reads once.
-  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}})[^\r\n])
+  CHOICE_SUPPRESSION_SCAN: (?:{{CHOICE_SUPPRESSION_TAG}}|{{CHOICE_PLAIN_INTERPOLATION}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?![{]|\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\])[^\r\n])
+  # lookaround: ChoiceOnlyText's end, which a backslash does not escape. The
+  # suppression's text reads a backslash with the character after it
+  # (CHOICE_ONLY_TEXT_ESCAPE), so an escaped comment opener, brace or tag
+  # marker is text there and the scan reads it the same way.
+  CHOICE_SUPPRESSION_ESCAPE: (?:[\\](?:{{CHOICE_ONLY_REGION_CHARACTER}}|(?={{CHOICE_ONLY_TEXT_END}})))
   # lookaround: the same ends as CHOICE_SUPPRESSION_SCAN, past an unclosed brace
   # (CHOICE_OPEN_BRACE), where no brace is a unit and none needs asking about.
-  CHOICE_SUPPRESSION_SCAN_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}})[^\r\n])
+  CHOICE_SUPPRESSION_SCAN_PAST_BRACE: (?:{{CHOICE_SUPPRESSION_TAG}}|{{BLOCK_COMMENT_ON_LINE}}|{{CHOICE_SUPPRESSION_ESCAPE}}|(?!\]|{{WS}}*[-][>]|{{STORY_COMMENT_START}}|{{TAG_START}}|[\\])[^\r\n])
   CHOICE_SUPPRESSION_PAST_BRACE: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_SUPPRESSION_SCAN_PAST_BRACE}}*)
   # lookaround: SparkdownBlockComment reads a comment opener with no `*/` after
   # it on its line to a later line, and one with a `*/` as BLOCK_COMMENT_ON_LINE.
@@ -309,7 +314,7 @@ variables:
   # segment's character can refuse the next unit or end.
   CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_FREE}})
-  CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_TEXT_FREE}})
+  CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
   # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
   # text, as on main and on a display line, so neither an interpolation nor a
@@ -333,27 +338,44 @@ variables:
   # closing the command. TextCommand reads a backslash with the character after
   # it first, so an escaped `>` closes nothing while a later `>` does.
   CHOICE_START_TEXT_COMMAND_WALK: (?:{{CHOICE_START_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_START_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_START_TEXT_END}})|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
-  CHOICE_START_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_START_COMMAND_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  CHOICE_START_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_START_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_REGION_CHARACTER}}*)?(?<=[\\])[>])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceStartTextContent takes the command
   # whole, up to where the segment ends anyway.
   CHOICE_START_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_START_TEXT_COMMAND_WALK}}|{{CHOICE_START_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceStartText's end, CHOICE_START_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_START_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_START_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)]){{CHOICE_START_COMMAND_CHARACTER}})
+  CHOICE_START_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_START_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_START_AUDIO_REST: (?:(?!{{WS}}*[)][)]){{CHOICE_START_REGION_CHARACTER}})
+  CHOICE_START_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_START_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
   CHOICE_START_AUDIO_COMMAND: (?:[(][(]{{CHOICE_START_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceStartText's end, CHOICE_START_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_START_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_START_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_START_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceStartTextContent takes the command whole.
-  CHOICE_START_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\]){{CHOICE_START_COMMAND_CHARACTER}})
+  CHOICE_START_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_START_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_START_IMAGE_REST: (?:(?!{{WS}}*\]\]){{CHOICE_START_REGION_CHARACTER}})
+  CHOICE_START_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_START_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_START_REGION_CHARACTER}}))
   CHOICE_START_IMAGE_COMMAND: (?:\[\[{{CHOICE_START_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_START_IMAGE_REST}}*)?)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
@@ -401,7 +423,7 @@ variables:
   # segment's character can refuse the next unit or end.
   CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_FREE}})
-  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_TEXT_FREE}})
+  CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
   # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
   # text, as on main and on a display line, so neither an interpolation nor a
@@ -425,27 +447,44 @@ variables:
   # closing the command. TextCommand reads a backslash with the character after
   # it first, so an escaped `>` closes nothing while a later `>` does.
   CHOICE_ONLY_TEXT_COMMAND_WALK: (?:{{CHOICE_ONLY_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_ONLY_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_ONLY_TEXT_END}})|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
-  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_ONLY_COMMAND_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_REGION_CHARACTER}}*)?(?<=[\\])[>])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceOnlyTextContent takes the command
   # whole, up to where the segment ends anyway.
   CHOICE_ONLY_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_ONLY_TEXT_COMMAND_WALK}}|{{CHOICE_ONLY_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_ONLY_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_ONLY_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  CHOICE_ONLY_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_ONLY_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_ONLY_AUDIO_REST: (?:(?!{{WS}}*[)][)]){{CHOICE_ONLY_REGION_CHARACTER}})
+  CHOICE_ONLY_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_ONLY_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
   CHOICE_ONLY_AUDIO_COMMAND: (?:[(][(]{{CHOICE_ONLY_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_ONLY_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_ONLY_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceOnlyTextContent takes the command whole.
-  CHOICE_ONLY_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\]){{CHOICE_ONLY_COMMAND_CHARACTER}})
+  CHOICE_ONLY_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_ONLY_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_ONLY_IMAGE_REST: (?:(?!{{WS}}*\]\]){{CHOICE_ONLY_REGION_CHARACTER}})
+  CHOICE_ONLY_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_ONLY_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_ONLY_REGION_CHARACTER}}))
   CHOICE_ONLY_IMAGE_COMMAND: (?:\[\[{{CHOICE_ONLY_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_ONLY_IMAGE_REST}}*)?)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span
@@ -493,7 +532,7 @@ variables:
   # segment's character can refuse the next unit or end.
   CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
   CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_FREE}})
-  CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_TEXT_FREE}})
+  CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
   # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
   # text, as on main and on a display line, so neither an interpolation nor a
@@ -517,27 +556,44 @@ variables:
   # closing the command. TextCommand reads a backslash with the character after
   # it first, so an escaped `>` closes nothing while a later `>` does.
   CHOICE_INNER_TEXT_COMMAND_WALK: (?:{{CHOICE_INNER_TEXT_COMMAND_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_TEXT_COMMAND_REST}}*)?(?<![-])[>])
+  # lookaround: TextCommand's end when only escaped `>`s follow, a `>` that a
+  # backslash leaves unpaired so it can end the command; elsewhere a backslash
+  # takes the character after it, as in CHOICE_INNER_TEXT_COMMAND_UNIT, and the
+  # region's end stops it.
+  CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT: (?:[\\](?![>]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[>]|{{CHOICE_INNER_TEXT_END}})|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}})
   # lookaround: TextCommand's end when only escaped `>`s follow: TextCommand then
   # gives the last of them back as its end. The backslash before that `>` is
   # the only sign of it.
-  CHOICE_INNER_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_INNER_COMMAND_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_REGION_CHARACTER}}*)?(?<=[\\])[>])
+  CHOICE_INNER_TEXT_COMMAND_ESCAPED_END: (?:{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_UNIT}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_REGION_CHARACTER}}*)?(?<=[\\])[>])
   # lookaround: TextCommand's own begin and end; DisplayText reads a span mark
   # inside a text command as its text, so ChoiceInnerTextContent takes the command
   # whole, up to where the segment ends anyway.
   CHOICE_INNER_TEXT_COMMAND: (?:[<](?!{{WS}})(?:{{CHOICE_INNER_TEXT_COMMAND_WALK}}|{{CHOICE_INNER_TEXT_COMMAND_ESCAPED_END}}))
+  # lookaround: AudioCommand's end and ChoiceInnerText's end, CHOICE_INNER_TEXT_END. AudioCommand
+  # reads a backslash with the character after it (AUDIO_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_INNER_AUDIO_ESCAPE: (?:[\\](?![)][)]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=[)][)]|{{CHOICE_INNER_TEXT_END}}))
   # lookaround: AudioCommand's end; DisplayText reads a span mark inside an
   # audio command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  CHOICE_INNER_AUDIO_CHARACTER: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
   # lookaround: AudioCommand's end, as for CHOICE_INNER_AUDIO_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_INNER_AUDIO_REST: (?:(?!{{WS}}*[)][)]){{CHOICE_INNER_REGION_CHARACTER}})
+  CHOICE_INNER_AUDIO_REST: (?:(?!{{WS}}*[)][)])(?:{{CHOICE_INNER_AUDIO_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
   CHOICE_INNER_AUDIO_COMMAND: (?:[(][(]{{CHOICE_INNER_AUDIO_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_AUDIO_REST}}*)?)
+  # lookaround: ImageCommand's end and ChoiceInnerText's end, CHOICE_INNER_TEXT_END. ImageCommand
+  # reads a backslash with the character after it (IMAGE_COMMAND_CHAR) but still
+  # ends at its closer, so a backslash takes the next character unless the
+  # closer or the region's end starts there, and an escaped comment opener is
+  # text.
+  CHOICE_INNER_IMAGE_ESCAPE: (?:[\\](?!\]\]){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?=\]\]|{{CHOICE_INNER_TEXT_END}}))
   # lookaround: ImageCommand's end; DisplayText reads a span mark inside an
   # image command as its text, so ChoiceInnerTextContent takes the command whole.
-  CHOICE_INNER_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\]){{CHOICE_INNER_COMMAND_CHARACTER}})
+  CHOICE_INNER_IMAGE_CHARACTER: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_COMMAND_CHARACTER}}))
   # lookaround: ImageCommand's end, as for CHOICE_INNER_IMAGE_CHARACTER, past a
   # comment opener that no `*/` closes on the line.
-  CHOICE_INNER_IMAGE_REST: (?:(?!{{WS}}*\]\]){{CHOICE_INNER_REGION_CHARACTER}})
+  CHOICE_INNER_IMAGE_REST: (?:(?!{{WS}}*\]\])(?:{{CHOICE_INNER_IMAGE_ESCAPE}}|(?![\\]){{CHOICE_INNER_REGION_CHARACTER}}))
   CHOICE_INNER_IMAGE_COMMAND: (?:\[\[{{CHOICE_INNER_IMAGE_CHARACTER}}*(?:{{BLOCK_COMMENT_RUNS_ON}}{{CHOICE_INNER_IMAGE_REST}}*)?)
   # lookaround: the end of LuauSparkdownInlineGluedSequentialAlternatorBlock and
   # LuauSparkdownInlineGluedConditionalAlternatorBlock; their arms read span

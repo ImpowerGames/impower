@@ -171,6 +171,18 @@ const ESCAPED_COMMAND_LINES = [
   ["choice start text, closed by a later `>`", "+ Go <b: \\> *x*> now", "Go <b: > *x*> now", "<b: \\> *x*>"],
 ] as const;
 
+const ESCAPED_OPENER_LINES = [
+  ["choice start text", "+ Go \\/* c */ b", "Go /* c */ b"],
+  ["choice start text, before an arrow it does not hide", "+ Go \\/* -> next */ b", "Go /*"],
+  ["a suppression", "+ Go [a \\/* c */ b] c", "Go a /* c */ b"],
+  ["a suppression, before a bracket it does not hide", "+ Go [a \\/* ] */ b] c", "Go a /*"],
+  ["inner text", "+ Go [a] b \\/* c */ d", "Go a"],
+  ["a text command, before an arrow it does not hide", "+ Go <wait \\/* -> next */ b> now", "Go <wait /*"],
+  ["an audio command, before an arrow it does not hide", "+ Go ((a \\/* -> next */ b)) now", "Go ((a /*"],
+  ["a styled span", "+ Go *far \\/* c */ away* now", "Go *far /* c */ away* now"],
+  ["a line comment opener", "+ Go \\// c -> next", "Go // c"],
+] as const;
+
 const RAW_LINES = [
   ["an interpolation read as a unit elsewhere", "+ Go `far {#{{{{1}}}}} away` now", "Go `far {#{{{{1}}}}} away` now"],
   ["a plain interpolation", "+ Go `far {x} away` now", "Go `far {x} away` now"],
@@ -188,6 +200,7 @@ const HIGHLIGHTED_LINES = [
   ...COMMAND_LINES.map(([, line]) => line),
   ...COMMENTED_COMMAND_LINES.map(([, line]) => line),
   ...ESCAPED_COMMAND_LINES.map(([, line]) => line),
+  ...ESCAPED_OPENER_LINES.map(([, line]) => line),
   ...RAW_LINES.map(([, line]) => line),
   ...BOLD_ITALIC_LINES.map(([, line]) => line),
   ...[...READ_AS_UNIT, ...KEPT_IN_TEXT, "*far*"].map(glueLine),
@@ -328,6 +341,20 @@ describe("choice text is highlighted as the choice reads it (#2083)", () => {
       for (const token of covered) {
         expect(token.scopes).toContain("meta.text.sd");
         expect(token.scopes).not.toContain("markup.other.italic.sd");
+      }
+    },
+  );
+
+  test.each(ESCAPED_OPENER_LINES)(
+    "a backslash before a comment opener in %s escapes it, so no comment starts, as on a display line and on main",
+    async (_where, line, label) => {
+      expect(outcome(line).choices).toEqual([label]);
+      const tokens = await tokensOf(line);
+      const opener = tokens.filter((token) => token.text.includes("/"));
+      expect(opener.length).toBeGreaterThan(0);
+      for (const token of tokens) {
+        expect(token.scopes).not.toContain("comment.block.sd");
+        expect(token.scopes).not.toContain("comment.line.double-slash.sd");
       }
     },
   );

@@ -27851,6 +27851,1621 @@
    "rt": [],
    "diags": [],
    "scopes": "2dbab203"
+  },
+  {
+   "id": "plain-escape-0",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* c */ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c8159564"
+  },
+  {
+   "id": "plain-escape-1",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* c */ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3e81f143"
+  },
+  {
+   "id": "plain-escape-2",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "52861dd6"
+  },
+  {
+   "id": "plain-escape-3",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* c */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "bf28f6af"
+  },
+  {
+   "id": "plain-escape-4",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* c */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* c */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "425aa000"
+  },
+  {
+   "id": "plain-escape-5",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* c */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* c */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:17-4:18 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "3ac99b28"
+  },
+  {
+   "id": "plain-escape-6",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "cfda8ef3"
+  },
+  {
+   "id": "plain-escape-7",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /* c */ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* c */ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "acc404b2"
+  },
+  {
+   "id": "plain-escape-8",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "80b751af"
+  },
+  {
+   "id": "plain-escape-9",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* -> next */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*"
+   ],
+   "runs": [
+    {
+     "out": "Go /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b1542ea4"
+  },
+  {
+   "id": "plain-escape-10",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* -> next */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*"
+   ],
+   "runs": [
+    {
+     "out": "Go /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2fe5cdb4"
+  },
+  {
+   "id": "plain-escape-11",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* -> next */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "Go [a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go [a /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2bd0c2ab"
+  },
+  {
+   "id": "plain-escape-12",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* -> next */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "91cdad7c"
+  },
+  {
+   "id": "plain-escape-13",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* -> next */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /*"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "babbf088"
+  },
+  {
+   "id": "plain-escape-14",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* -> next */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "9677fce5"
+  },
+  {
+   "id": "plain-escape-15",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* -> next */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "Go [[a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go [[a /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "55783bc3"
+  },
+  {
+   "id": "plain-escape-16",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* -> next */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /*"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f15f8daf"
+  },
+  {
+   "id": "plain-escape-17",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* -> next */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "D",
+   "first": "",
+   "choices": [
+    "[Go /*"
+   ],
+   "runs": [
+    {
+     "out": "[Go /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f3604188"
+  },
+  {
+   "id": "plain-escape-18",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* ] */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* ] */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* ] */ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e1833c2f"
+  },
+  {
+   "id": "plain-escape-19",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* ] */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* ] */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* ] */ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7b6b85da"
+  },
+  {
+   "id": "plain-escape-20",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* ] */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go */ b] c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b95d2490"
+  },
+  {
+   "id": "plain-escape-21",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* ] */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* ] */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5a4d1056"
+  },
+  {
+   "id": "plain-escape-22",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* ] */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* ] */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* ] */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "425aa000"
+  },
+  {
+   "id": "plain-escape-23",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* ] */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* ] */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* ] */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "5e06cb4a"
+  },
+  {
+   "id": "plain-escape-24",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* ] */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go */ b]] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b70fbc42"
+  },
+  {
+   "id": "plain-escape-25",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* ] */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /* ] */ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* ] */ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "27917079"
+  },
+  {
+   "id": "plain-escape-26",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* ] */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*"
+   ],
+   "runs": [
+    {
+     "out": "*/ b] Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6900a57b"
+  },
+  {
+   "id": "plain-escape-27",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* c b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* c b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "63f83fef"
+  },
+  {
+   "id": "plain-escape-28",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* c b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* c b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7827881a"
+  },
+  {
+   "id": "plain-escape-29",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* c b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /* c b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "81f17ea5"
+  },
+  {
+   "id": "plain-escape-30",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* c c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* c c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "f77b947b"
+  },
+  {
+   "id": "plain-escape-31",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* c b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* c b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* c b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4072c3a4"
+  },
+  {
+   "id": "plain-escape-32",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* c b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* c b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* c b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:17-4:18 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d6104f50"
+  },
+  {
+   "id": "plain-escape-33",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* c b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /* c b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "54f5bf0e"
+  },
+  {
+   "id": "plain-escape-34",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* c away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /* c away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* c away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a1d0fddc"
+  },
+  {
+   "id": "plain-escape-35",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* c b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* c b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "2a7a2556"
+  },
+  {
+   "id": "plain-escape-36",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\// c b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go // c b"
+   ],
+   "runs": [
+    {
+     "out": "Go // c b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "52976a3f"
+  },
+  {
+   "id": "plain-escape-37",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\// c b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go // c b"
+   ],
+   "runs": [
+    {
+     "out": "Go // c b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6db2a02a"
+  },
+  {
+   "id": "plain-escape-38",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\// c b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a // c b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c5c4345d"
+  },
+  {
+   "id": "plain-escape-39",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\// c c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b // c c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "908d00d7"
+  },
+  {
+   "id": "plain-escape-40",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\// c b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait // c b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait // c b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4072c3a4"
+  },
+  {
+   "id": "plain-escape-41",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\// c b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a // c b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a // c b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:17-4:18 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:19-4:20 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "d6104f50"
+  },
+  {
+   "id": "plain-escape-42",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\// c b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a // c b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e2b16d7a"
+  },
+  {
+   "id": "plain-escape-43",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\// c away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far // c away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far // c away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "832f7fe0"
+  },
+  {
+   "id": "plain-escape-44",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\// c b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go // c b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6463c672"
+  },
+  {
+   "id": "plain-escape-45",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\\\/* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go \\ b"
+   ],
+   "runs": [
+    {
+     "out": "Go \\ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "858183bc"
+  },
+  {
+   "id": "plain-escape-46",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\\\/* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go \\ b"
+   ],
+   "runs": [
+    {
+     "out": "Go \\ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b0c2e47b"
+  },
+  {
+   "id": "plain-escape-47",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\\\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a \\ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "381c0b8a"
+  },
+  {
+   "id": "plain-escape-48",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\\\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b \\ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a35708e0"
+  },
+  {
+   "id": "plain-escape-49",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\\\/* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait \\/* c */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait \\/* c */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d5837f9b"
+  },
+  {
+   "id": "plain-escape-50",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\\\/* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a \\/* c */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a \\/* c */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "5f9803a8"
+  },
+  {
+   "id": "plain-escape-51",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\\\/* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a \\ b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "05c5942b"
+  },
+  {
+   "id": "plain-escape-52",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\\\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far \\ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far \\ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "77b4c2b5"
+  },
+  {
+   "id": "plain-escape-53",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\\\/* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go \\ b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3e76d963"
+  },
+  {
+   "id": "plain-escape-54",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\ /* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go b"
+   ],
+   "runs": [
+    {
+     "out": "Go b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "858183bc"
+  },
+  {
+   "id": "plain-escape-55",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\ /* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go b"
+   ],
+   "runs": [
+    {
+     "out": "Go b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b0c2e47b"
+  },
+  {
+   "id": "plain-escape-56",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\ /* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "381c0b8a"
+  },
+  {
+   "id": "plain-escape-57",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\ /* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a35708e0"
+  },
+  {
+   "id": "plain-escape-58",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\ /* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* c */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* c */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e41d9b5a"
+  },
+  {
+   "id": "plain-escape-59",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\ /* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* c */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* c */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:18-4:19 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "05244594"
+  },
+  {
+   "id": "plain-escape-60",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\ /* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "05c5942b"
+  },
+  {
+   "id": "plain-escape-61",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\ /* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "77b4c2b5"
+  },
+  {
+   "id": "plain-escape-62",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\ /* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "3e76d963"
+  },
+  {
+   "id": "plain-escape-63",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/*\\/* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*/* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /*/* c */ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "09b5cd25"
+  },
+  {
+   "id": "plain-escape-64",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/*\\/* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*/* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /*/* c */ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b7538000"
+  },
+  {
+   "id": "plain-escape-65",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/*\\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /*/* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "1db35681"
+  },
+  {
+   "id": "plain-escape-66",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/*\\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /*/* c */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "639c70cd"
+  },
+  {
+   "id": "plain-escape-67",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/*\\/* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /*/* c */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /*/* c */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "44f42943"
+  },
+  {
+   "id": "plain-escape-68",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/*\\/* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /*/* c */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /*/* c */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:23-4:24 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:20-4:21 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
+    "2@4:25-4:26 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "11ab68a8"
+  },
+  {
+   "id": "plain-escape-69",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/*\\/* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /*/* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4143650e"
+  },
+  {
+   "id": "plain-escape-70",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/*\\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /*/* c */ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /*/* c */ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d5a6d814"
+  },
+  {
+   "id": "plain-escape-71",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/*\\/* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /*/* c */ b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d823f0b4"
+  },
+  {
+   "id": "plain-escape-72",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* > */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* > */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* > */ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e1833c2f"
+  },
+  {
+   "id": "plain-escape-73",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* > */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* > */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* > */ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "7b6b85da"
+  },
+  {
+   "id": "plain-escape-74",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* > */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /* > */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "728ae051"
+  },
+  {
+   "id": "plain-escape-75",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* > */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* > */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "5a4d1056"
+  },
+  {
+   "id": "plain-escape-76",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* > */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* > */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* > */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "88edbb9d"
+  },
+  {
+   "id": "plain-escape-77",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* > */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* > */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* > */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:19-4:20 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
+    "2@4:22-4:23 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "5e06cb4a"
+  },
+  {
+   "id": "plain-escape-78",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* > */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /* > */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d1c1e7ae"
+  },
+  {
+   "id": "plain-escape-79",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* > */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /* > */ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* > */ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "27917079"
+  },
+  {
+   "id": "plain-escape-80",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* > */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* > */ b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c90f704a"
+  },
+  {
+   "id": "plain-escape-81",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* )) */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* )) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* )) */ b\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "e6506da0"
+  },
+  {
+   "id": "plain-escape-82",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* )) */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* )) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go /* )) */ b Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8b854097"
+  },
+  {
+   "id": "plain-escape-83",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* )) */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a /* )) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "dc2bced6"
+  },
+  {
+   "id": "plain-escape-84",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* )) */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b /* )) */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "8557f754"
+  },
+  {
+   "id": "plain-escape-85",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* )) */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go <wait /* )) */ b> now"
+   ],
+   "runs": [
+    {
+     "out": "Go <wait /* )) */ b> now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "61a5e9ed"
+  },
+  {
+   "id": "plain-escape-86",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* )) */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go ((a /* )) */ b)) now"
+   ],
+   "runs": [
+    {
+     "out": "Go ((a /* )) */ b)) now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
+    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}"
+   ],
+   "scopes": "abcbcdb5"
+  },
+  {
+   "id": "plain-escape-87",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* )) */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go [a /* )) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go ] now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "88f165a3"
+  },
+  {
+   "id": "plain-escape-88",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* )) */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far /* )) */ away* now"
+   ],
+   "runs": [
+    {
+     "out": "Go *far /* )) */ away* now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "dd00364f"
+  },
+  {
+   "id": "plain-escape-89",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* )) */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go /* )) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "645e48cb"
   }
  ]
 }
