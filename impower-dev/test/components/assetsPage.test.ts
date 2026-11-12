@@ -361,7 +361,8 @@ describe("the Assets page", () => {
     await chooseFiles("bunny2.png");
     expect(selectedTab()).toBe("image");
     expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: "Assets/Images" });
-    expect(rowLabels().some((label) => label?.startsWith("Open folder Portraits"))).toBe(true);
+    expect(host!.querySelector('[data-asset-path="Assets/Images/Portraits"]')).not.toBeNull();
+    expect(host!.querySelector('[data-asset-path="Assets/Images/Portraits/bunny2.png"]')).toBeNull();
   });
 
   it("follows a link to the tab of the type its address names", async () => {

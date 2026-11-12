@@ -13,6 +13,7 @@ export type UploadReason =
   | { kind: "unreadable" }
   | { kind: "unreadable_folder" }
   | { kind: "empty_folder" }
+  | { kind: "project_changed" }
   | { kind: "failed"; message: string }
   | { kind: "replace_failed"; cause: "storage" | "failed"; message?: string }
   | { kind: "replacing" }
@@ -36,8 +37,13 @@ const appendRows = (rows: UploadRow[]) => {
   workspace.uploads.value = [...(grouped ? kept : kept.filter(unfinished)), ...rows];
 };
 
-export const withUploadGroup = async <T>(run: () => Promise<T>): Promise<T> => {
-  workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
+export const withUploadGroup = async <T>(
+  run: () => Promise<T>,
+  { keepFinished = false }: { keepFinished?: boolean } = {},
+): Promise<T> => {
+  if (!keepFinished) {
+    workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
+  }
   grouped++;
   try {
     return await run();
@@ -94,15 +100,27 @@ export const closeUploads = (): void => {
   workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
 };
 
+const walks = new Map<number, number>();
+
+let nextWalk = 0;
+
+const showFound = () => {
+  workspace.uploadsFound.value = walks.size ? [...walks.values()].reduce((sum, count) => sum + count, 0) : null;
+};
+
 export const findingUploads = async <T>(run: (found: (count: number) => void) => Promise<T>): Promise<T> => {
+  const walk = ++nextWalk;
   workspace.uploads.value = workspace.uploads.peek().filter(unfinished);
-  workspace.uploadsFound.value = 0;
+  walks.set(walk, 0);
+  showFound();
   try {
     return await run((count) => {
-      workspace.uploadsFound.value = count;
+      walks.set(walk, count);
+      showFound();
     });
   } finally {
-    workspace.uploadsFound.value = null;
+    walks.delete(walk);
+    showFound();
   }
 };
 
@@ -132,6 +150,7 @@ const REASON_SENTENCES: {
   unreadable: () => "Not added: the file could not be read, so choose it again.",
   unreadable_folder: () => "Not added: this folder could not be read, so drop it again.",
   empty_folder: () => "Not added: this folder holds no files.",
+  project_changed: () => "Not added: another project was opened before it could be added, so open this one and add it again.",
   failed: ({ message }) => `Not added: it could not be saved (${message}).`,
   replace_failed: ({ cause, message }) =>
     `Not added: ${cause === "storage" ? "this browser ran out of room for it" : `it could not be saved (${message})`}. ${REPLACED_NOTE}`,
