@@ -11,7 +11,8 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
 import { MORPH_PICK_NONE } from "../../morph/types";
-import { findMorphClauses, morphClauseAt, type MorphClause } from "../morph/morphClause";
+import { readImageClauses, type MorphClause, type StrayClauseText } from "../morph/morphClause";
+import { ASSET_VALUE_CLAUSE_WORDS } from "../utils/assetClauseWords";
 import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
@@ -84,10 +85,26 @@ import type {
   ScriptStructure,
 } from "../utils/routeDecisions";
 
-const CLAUSE_WORDS: ReadonlySet<string> = new Set([
-  ...GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS,
-  ...GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS,
-]);
+function strayClauseIssue(
+  text: StrayClauseText,
+  morph: MorphClause | undefined,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string } {
+  const after = text.after?.text;
+  const takesValue = after !== undefined && (ASSET_VALUE_CLAUSE_WORDS as readonly string[]).includes(after);
+  const message =
+    !text.word && text.text === "=" && after === "morph"
+      ? `Write the morph's name right after \`morph\`, with no \`=\`: \`morph ${morph?.value?.text ?? "talk"}\`.`
+      : !text.word
+        ? `\`${text.text}\` is not part of a clause.`
+        : after === "morph"
+          ? `\`${text.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`
+          : takesValue
+            ? `\`${text.text}\` is not a clause: \`${after}\` takes one value.`
+            : after !== undefined
+              ? `\`${text.text}\` is not a clause, and \`${after}\` takes no value.`
+              : `\`${text.text}\` is not a clause.`;
+  return { at: text, severity: DiagnosticSeverity.Error, message };
+}
 
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
@@ -4738,7 +4755,7 @@ export class SparkdownCompiler {
       const annotations = this.documents.annotations(uri);
       const emitted = new Set<string>();
       const scriptTree = this.documents.tree(uri);
-      const clauses = scriptTree ? findMorphClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
+      const clauses = scriptTree ? readImageClauses(scriptTree, (from, to) => doc.read(from, to)) : [];
       const emit = (struct: any, from: number, to: number, written: readonly string[], pick?: string) => {
         const look = shownLook(program.context, program.morphs, struct, undefined, pick);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
@@ -4807,24 +4824,20 @@ export class SparkdownCompiler {
             image.from,
             image.to,
             doc.read(image.from, image.to).split(/[:~]/).slice(1).map((part) => part.trim()).filter(Boolean),
-            morphClauseAt(clauses, image.from)?.value?.text,
+            clauses.find(({ directive }) => directive.from <= image.from && image.from < directive.to)?.morph?.value?.text,
           );
           coveredTo = image.to;
         }
       }
-      for (const clause of clauses) {
-        const directiveImages = shownImages.filter((image) => clause.directive.from <= image.from && image.to <= clause.directive.to);
-        const issues = [this.morphClauseIssue(program, clause, directiveImages.map((image) => image.struct))];
-        if (clause.value && clause.next && clause.value.text !== "=" && !CLAUSE_WORDS.has(clause.value.text) && !CLAUSE_WORDS.has(clause.next.text)) {
-          issues.push({
-            at: clause.next,
-            severity: DiagnosticSeverity.Error,
-            message: `\`${clause.next.text}\` is not a clause: \`morph\` takes one morph name, such as \`morph talk_gritted\`.`,
-          });
-        }
+      for (const { directive, morph, stray } of clauses) {
+        const directiveImages = shownImages.filter((image) => directive.from <= image.from && image.to <= directive.to);
+        const issues = [
+          morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
+          ...stray.map((text) => ({ ...strayClauseIssue(text, morph), keyword: text })),
+        ];
         for (const issue of issues) {
-          if (!issue) continue;
-          const at = issue.at ?? clause.keyword;
+          if (!issue?.message || issue.severity === undefined) continue;
+          const at = issue.at ?? issue.keyword;
           ((program.diagnostics ??= {})[uri] ??= []).push({
             range: doc.range(at.from, at.to),
             severity: issue.severity,
@@ -4889,7 +4902,7 @@ export class SparkdownCompiler {
     clause: MorphClause,
     images: readonly any[],
   ): { at?: { from: number; to: number }; severity: DiagnosticSeverity; message: string } | undefined {
-    const value = clause.value && !CLAUSE_WORDS.has(clause.value.text) ? clause.value : undefined;
+    const value = clause.value;
     if (!value) {
       return {
         severity: DiagnosticSeverity.Error,
@@ -4898,13 +4911,6 @@ export class SparkdownCompiler {
     }
     const name = value.text;
     if (name === MORPH_PICK_NONE) return undefined;
-    if (name === "=") {
-      return {
-        at: value,
-        severity: DiagnosticSeverity.Error,
-        message: `Write the morph's name right after \`morph\`, with no \`=\`: \`morph ${clause.next?.text ?? "talk"}\`.`,
-      };
-    }
     const morph = name.startsWith("$") ? undefined : getContextEntry(program.context, "morph", name);
     if (!morph) {
       return {

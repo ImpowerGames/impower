@@ -94,6 +94,20 @@ describe("picking a speech morph per directive (I-2112)", () => {
     expect(drawn(content.background)).not.toContain("data-name='mouth.closed'");
   });
 
+  test("`morph none` on a look with only speech morphs writes no morph and prepares no artifact", async () => {
+    const source = scene(`${TALK}\n${GRITTED}`, "mia morph none");
+    const harness = createHarness(source, 0, { assets: [ART] });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((text) => text.includes("Line 1.")));
+    const all = () => harness.messages.flatMap((message) => (message?.method === "ui/batch" ? message.params.messages : [message]));
+    const content = all()
+      .filter((message) => message?.method === "ui/write-image" && message.params.target === "portrait" && message.params.instructions.length)
+      .at(-1)?.params.instructions[0].content;
+    expect(content.morph).toBeUndefined();
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    expect(all().filter((message) => message?.method === "morph/artifact")).toEqual([]);
+  });
+
   test("a lone speech morph plays without a mark", async () => {
     const content = await written(scene(speech("talk_gritted", "teeth"), "mia"));
     expect(played(content)).toEqual(["talk_gritted"]);

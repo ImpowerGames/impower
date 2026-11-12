@@ -1,46 +1,93 @@
 import type { Tree } from "@lezer/common";
+import { ASSET_VALUE_CLAUSE_WORDS } from "../utils/assetClauseWords";
+
+export interface ClauseSpan {
+  from: number;
+  to: number;
+  text: string;
+}
 
 export interface MorphClause {
   directive: { from: number; to: number };
   keyword: { from: number; to: number };
-  value?: { from: number; to: number; text: string };
-  next?: { from: number; to: number; text: string };
+  value?: ClauseSpan;
 }
 
-const CLAUSE_VALUE = /^[^\S\r\n]+([^\s\]]+)/;
+export interface StrayClauseText extends ClauseSpan {
+  after?: ClauseSpan;
+  word: boolean;
+}
 
-const wordAfter = (read: (from: number, to: number) => string, at: number, end: number) => {
-  const match = CLAUSE_VALUE.exec(read(at, end));
-  if (!match) return undefined;
-  const from = at + match[0].length - match[1]!.length;
-  return { from, to: from + match[1]!.length, text: match[1]! };
-};
+export interface ImageClauses {
+  directive: { from: number; to: number };
+  morph?: MorphClause;
+  stray: StrayClauseText[];
+}
 
-export function findMorphClauses(tree: Tree, read: (from: number, to: number) => string): MorphClause[] {
-  const clauses: MorphClause[] = [];
-  let directive: { from: number; to: number } | undefined;
+const VALUE_NODES = new Set(["NameValue", "TimeValue", "NumberValue"]);
+
+const TAKES_VALUE: ReadonlySet<string> = new Set(ASSET_VALUE_CLAUSE_WORDS);
+
+export function readImageClauses(tree: Tree, read: (from: number, to: number) => string): ImageClauses[] {
+  const directives: { directive: { from: number; to: number }; end: number; tokens: (ClauseSpan & { keyword: boolean })[]; skipped: { from: number; to: number }[] }[] = [];
+  let current: (typeof directives)[number] | undefined;
   tree.iterate({
     enter: (ref) => {
       if (ref.name === "ImageCommand") {
-        directive = { from: ref.from, to: ref.to };
+        current = { directive: { from: ref.from, to: ref.to }, end: ref.to, tokens: [], skipped: [] };
+        directives.push(current);
         return undefined;
       }
-      if (!directive || ref.from >= directive.to || ref.name !== "AssetCommandClauseKeyword") return undefined;
-      if (read(ref.from, ref.to) !== "morph") return false;
-      const clause: MorphClause = { directive, keyword: { from: ref.from, to: ref.to } };
-      const value = wordAfter(read, ref.to, directive.to);
-      if (value) {
-        clause.value = value;
-        const next = wordAfter(read, value.to, directive.to);
-        if (next) clause.next = next;
+      if (!current || ref.from >= current.directive.to) return undefined;
+      if (ref.name === "ImageEndMark") {
+        current.end = ref.from;
+        return false;
       }
-      clauses.push(clause);
-      return false;
+      if (ref.name === "Tags") {
+        current.skipped.push({ from: ref.from, to: ref.to });
+        return false;
+      }
+      if (ref.name === "AssetCommandClauseKeyword" || VALUE_NODES.has(ref.name)) {
+        current.tokens.push({ from: ref.from, to: ref.to, text: read(ref.from, ref.to), keyword: ref.name === "AssetCommandClauseKeyword" });
+        return false;
+      }
+      return undefined;
     },
   });
-  return clauses;
-}
-
-export function morphClauseAt(clauses: readonly MorphClause[], offset: number): MorphClause | undefined {
-  return clauses.find((clause) => clause.directive.from <= offset && offset < clause.directive.to);
+  return directives.map(({ directive, end, tokens, skipped }) => {
+    const clauses: ImageClauses = { directive, stray: [] };
+    const first = tokens.find((token) => token.keyword);
+    if (!first) return clauses;
+    const covered = [...tokens.filter((token) => token.from >= first.from), ...skipped].sort((a, b) => a.from - b.from);
+    let open: ClauseSpan | undefined;
+    let last: ClauseSpan | undefined;
+    let at = first.from;
+    const gap = (to: number) => {
+      const text = read(at, to);
+      const start = text.search(/\S/);
+      if (start >= 0) {
+        const trimmed = text.trim();
+        const from = at + start;
+        clauses.stray.push({ from, to: from + trimmed.length, text: trimmed, word: false, ...(last ? { after: last } : {}) });
+      }
+    };
+    for (const span of covered) {
+      if (span.from > at) gap(span.from);
+      at = Math.max(at, span.to);
+      if (!("keyword" in span)) continue;
+      const token = span as ClauseSpan & { keyword: boolean };
+      if (token.keyword) {
+        if (token.text === "morph") clauses.morph = { directive, keyword: { from: token.from, to: token.to } };
+        open = TAKES_VALUE.has(token.text) ? token : undefined;
+        last = token;
+      } else if (open) {
+        if (open.text === "morph" && clauses.morph) clauses.morph.value = token;
+        open = undefined;
+      } else {
+        clauses.stray.push({ ...token, word: true, ...(last ? { after: last } : {}) });
+      }
+    }
+    if (end > at) gap(end);
+    return clauses;
+  });
 }

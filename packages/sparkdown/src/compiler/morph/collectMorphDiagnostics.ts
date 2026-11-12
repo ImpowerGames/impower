@@ -252,29 +252,29 @@ function ambiguityIssues(
   context: Context,
   channel: MorphProgramChannel | undefined,
 ): { uri: string; issue: LocatedMorphIssue }[] {
-  const clusters = new Map<string, { morphs: string[]; images: string[] }>();
+  const byMorph = new Map<string, { image: string; cluster: string[]; images: Set<string> }>();
   for (const variant of Object.keys(channel?.picks ?? {})) {
     for (const cluster of ambiguousSpeechMorphs(context, channel, { $name: variant })) {
-      const key = cluster.join("\n");
-      const entry = clusters.get(key) ?? { morphs: cluster, images: [] };
-      entry.images.push(variant);
-      clusters.set(key, entry);
+      for (const name of cluster) {
+        const entry = byMorph.get(name) ?? { image: variant, cluster, images: new Set<string>() };
+        entry.images.add(variant);
+        byMorph.set(name, entry);
+      }
     }
   }
   const quote = (names: readonly string[]) =>
     names.length > 1 ? `${names.slice(0, -1).map((n) => `\`${n}\``).join(", ")} and \`${names.at(-1)}\`` : `\`${names[0]}\``;
   const found: { uri: string; issue: LocatedMorphIssue }[] = [];
-  for (const { morphs: names, images } of clusters.values()) {
-    const marked = names.filter((name) => channel?.speech?.[name]?.default);
+  for (const morph of morphs) {
+    const entry = morph.name ? byMorph.get(morph.name) : undefined;
+    if (!entry) continue;
+    const { image, cluster, images } = entry;
+    const marked = cluster.filter((name) => channel?.speech?.[name]?.default);
     const why = marked.length === 0 ? "none is marked `default = true`" : `${quote(marked)} are all marked \`default = true\``;
-    const more = images.length > 1 ? ` (and ${images.length - 1} more)` : "";
-    const message = `${quote(names)} play on \`${images[0]}\`${more} and drive the same group, and ${why}: nothing plays there unless a directive picks one with a \`morph\` clause. Mark exactly one of them \`default = true\`.`;
-    for (const name of names) {
-      const morph = morphs.find((m) => m.name === name);
-      if (!morph) continue;
-      const at = morph.nameNode ?? { from: morph.node.from, to: morph.node.from + "morph".length };
-      found.push({ uri: morph.uri, issue: { from: at.from, to: at.to, severity: "warning", message } });
-    }
+    const more = images.size > 1 ? ` (and ${images.size - 1} more)` : "";
+    const message = `${quote(cluster)} play on \`${image}\`${more} and drive the same group, and ${why}: nothing plays there unless a directive picks one with a \`morph\` clause. Mark exactly one of them \`default = true\`.`;
+    const at = morph.nameNode ?? { from: morph.node.from, to: morph.node.from + "morph".length };
+    found.push({ uri: morph.uri, issue: { from: at.from, to: at.to, severity: "warning", message } });
   }
   return found;
 }

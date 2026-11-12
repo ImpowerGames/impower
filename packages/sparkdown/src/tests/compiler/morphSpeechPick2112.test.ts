@@ -182,6 +182,17 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
     ]);
   });
 
+  test("the whole clause tail is read from the directive's syntax: a tag is not a stray word, and a word after a flag is", () => {
+    const lines = ["  [[bunny morph talk # note]]", "  [[bunny morph talk wait garbage]]", "  [[bunny with fade extra]]"];
+    const text = story(`${TALK}\n${GRITTED}`, lines.join("\n"));
+    const all = text.split("\n");
+    const scene = all.indexOf("scene start");
+    expect(diagnosticsOf(text).filter((d) => d.line > scene)).toEqual([
+      expect.objectContaining({ severity: 1, line: all.indexOf(lines[1]!), text: "garbage", message: "`garbage` is not a clause, and `wait` takes no value." }),
+      expect.objectContaining({ severity: 1, line: all.indexOf(lines[2]!), text: "extra", message: "`extra` is not a clause: `with` takes one value." }),
+    ]);
+  });
+
   test("`morph = name` is an error on the `=` that shows the form, and only that", () => {
     const text = story(`${TALK}\n${GRITTED}`, "  [[bunny morph = talk_gritted]]");
     const scene = text.split("\n").indexOf("scene start");
@@ -220,6 +231,32 @@ describe("the `morph` clause and `default = true` (I-2112)", () => {
       expect(d.message).toContain("`talk` and `talk_gritted` play on `bunny` (and 1 more)");
       expect(d.message).toContain("none is marked `default = true`");
     }
+  });
+
+  test("the ambiguous case writes no reference: nothing is prepared for a look where nothing plays", () => {
+    const program = compile(story(`${speech("talk", "open")}\n${speech("talk_gritted", "teeth")}`, "  [[bunny]]"));
+    const channel = program.morphs!;
+    expect(channel.variants["bunny"]).toBeUndefined();
+    expect(channel.picks!["bunny"]!["none"]).toEqual([]);
+    expect(channelRefs(channel).map(({ ref }) => ref.morphs)).toEqual([["talk"], ["talk_gritted"]]);
+  });
+
+  test("a morph ambiguous in different sets on different looks is still reported once", () => {
+    const morphs = [
+      speech("talk", "open"),
+      speech("closed_talk", "open", "  unless = mouth.teeth\n"),
+      speech("teeth_talk", "open", "  when = mouth.teeth\n"),
+      `define bunny_teeth as filtered_image with\n  image = image.bunny\n  attributes = { "mouth.teeth" }\nend\n`,
+    ].join("\n");
+    const reported = about(story(morphs, "  [[bunny]]\n  [[bunny_teeth]]"), /nothing plays there/);
+    expect(reported.map((d) => d.text).sort()).toEqual(["closed_talk", "talk", "teeth_talk"]);
+    expect(reported.find((d) => d.text === "talk")!.message).toContain("(and 1 more)");
+  });
+
+  test("the same art in two images lists a reference for each, so each artwork gets its bake diagnostics", () => {
+    const program = compile(story(TALK, "  [[bunny]]\n  [[rabbit]]"), { bunny: FACE, rabbit: FACE });
+    const refs = channelRefs(program.morphs);
+    expect(refs.map(({ variant }) => variant).sort()).toEqual(["bunny", "rabbit"]);
   });
 
   test("two morphs marked `default = true` on one look are the ambiguous case too", () => {

@@ -114,6 +114,7 @@ function makeRefs(
   image: any,
   selection: Record<string, string>,
 ): MorphRef[] {
+  if (members.length === 0) return [];
   const sorted = [...members].sort((a, b) => (a.recipe.name < b.recipe.name ? -1 : a.recipe.name > b.recipe.name ? 1 : 0));
   const sets = morphOverlaps(sorted.map((member) => member.recipe)).length ? sorted.map((member) => [member]) : [sorted];
   return sets.flatMap((set) => makeRef(set, imageName, image, selection) ?? []);
@@ -170,8 +171,9 @@ export function channelRefs(channel: MorphProgramChannel | undefined): { variant
   const refs: { variant: string; ref: MorphRef }[] = [];
   const add = (variant: string, list: readonly MorphRef[]) => {
     for (const ref of list) {
-      if (seen.has(ref.key)) continue;
-      seen.add(ref.key);
+      const id = JSON.stringify([variant, ref.key]);
+      if (seen.has(id)) continue;
+      seen.add(id);
       refs.push({ variant, ref });
     }
   };

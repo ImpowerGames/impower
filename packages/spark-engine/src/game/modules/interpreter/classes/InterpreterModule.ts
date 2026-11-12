@@ -26,6 +26,7 @@ import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
 import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
+import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/src/compiler/utils/assetClauseWords";
 
 export interface InterpreterConfig {}
 
@@ -102,7 +103,7 @@ export class InterpreterModule extends Module<
 
   MOVIE_CONTROL_KEYWORDS = ["play"];
 
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease", "morph"];
+  ASSET_VALUE_ARG_KEYWORDS: string[] = [...ASSET_VALUE_CLAUSE_WORDS];
 
   ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
 
