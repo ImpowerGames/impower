@@ -44,6 +44,15 @@ function onePicture(batch: TrashBatch): string | null {
 }
 
 function batchLabel(batch: TrashBatch): string {
+  if (batch.reason?.kind === "failed-edit") {
+    const [only] = batch.entries;
+    const copies =
+      only && batch.entries.length === 1
+        ? `Copy of ${only.relPath.split("/").pop()}`
+        : `Copies of ${batch.entries.length} files`;
+    const action = batch.reason.action;
+    return `${copies} kept when ${action ? `“${action}”` : "an edit"} failed`;
+  }
   const picture = onePicture(batch);
   if (picture) {
     return picture;
@@ -233,6 +242,7 @@ export default function TrashPanel() {
                 class="px-2"
                 icon={(batch.entries.length === 1 && !batch.folders?.length) || onePicture(batch) ? <FileIcon /> : <FolderIcon />}
                 label={batchLabel(batch)}
+                overflow={batch.reason ? "clamp" : "fade"}
                 description={`${loc ? `${loc} · ` : ""}${timeAgo(batch.deletedAt)}`}
                 actions={
                   <>
