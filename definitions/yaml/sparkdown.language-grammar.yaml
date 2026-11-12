@@ -22,7 +22,14 @@ variables:
   # first; DivertUnknown stops there for the same comments.
   STORY_TEXT_OUTSIDE_COMMENT: (?:(?!{{STORY_COMMENT_START}})[^\r\n])
   STORY_TEXT_UNIT: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{STORY_TEXT_OUTSIDE_COMMENT}})
-  DISPLAY_CHAIN_TEXT: (?:{{STORY_TEXT_UNIT}}*?)
+  DISPLAY_CHAIN_TAG: (?:{{TAG_START}}[^\r\n]*?)
+  DISPLAY_CHAIN_TEXT: (?:(?:{{DISPLAY_CHAIN_TAG}}|{{STORY_TEXT_UNIT}})*?)
+  # lookaround: Annotation's Tag reads a tag to the line's end, comment openers
+  # and a chain mark included, so ActionLineEnd and LineEnd end before it
+  # (EOL); a tag that ends in a chain mark is the chain's text, which
+  # ActionLineChainTail and LineChainTail read. Only the rest of the line tells
+  # the two tags apart, and the end is tried before the tail at every position.
+  DISPLAY_CHAIN_TAG_TAIL: (?:{{WS}}*{{DISPLAY_CHAIN_TAG}}{{DISPLAY_CHAIN_MARK}}{{DISPLAY_CHAIN_COMMENTS}}{{EOL}})
   # lookaround: SparkdownBlockComment and SparkdownInlineComment take the
   # whitespace before them, as an inline comment drops it everywhere; `Chain`
   # would take it as the chain mark's separator, which leaves a blank line in
@@ -2883,6 +2890,8 @@ repository:
     # splitting a Switch has the same issue. The parent's end leaves whitespace
     # before tags to children. Tightening WS would lose indentation captures;
     # the first nonspace display token must remain unconsumed for the body.
+    # The end leaves a tag that ends in a chain mark to ActionLineChainTail
+    # (DISPLAY_CHAIN_TAG_TAIL).
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
       1:
@@ -2891,7 +2900,7 @@ repository:
     patterns:
       - { include: "#ActionLineChainTail" }
       - { include: "#ActionDisplayLine" }
-    end: (?={{EOL}})
+    end: (?!{{DISPLAY_CHAIN_TAG_TAIL}})(?={{EOL}})
 
   ActionDisplayLine:
     patterns:
@@ -3029,6 +3038,9 @@ repository:
           - { include: "#Newline" }
 
   LineEnd:
+    # lookaround: as ActionLineEnd's, whose comment names the rivals of the
+    # begin; the end leaves a tag that ends in a chain mark to LineChainTail
+    # (DISPLAY_CHAIN_TAG_TAIL).
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
       1:
@@ -3037,7 +3049,7 @@ repository:
     patterns:
       - { include: "#LineChainTail" }
       - { include: "#DisplayLine" }
-    end: (?={{EOL}})
+    end: (?!{{DISPLAY_CHAIN_TAG_TAIL}})(?={{EOL}})
 
   DisplayLine:
     patterns:

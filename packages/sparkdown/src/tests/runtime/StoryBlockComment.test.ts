@@ -347,6 +347,22 @@ end
       );
     });
 
+    test.each([
+      ["a block comment opener inside a tag", "  One # tag /* c */ \\\n  two\n"],
+      ["a line comment opener inside a tag", "  One # tag // c \\\n  two\n"],
+      ["a comment before a tag", "  One /* c */ # tag \\\n  two\n"],
+      ["a dialogue line's tag", "  BOB: One # tag /* c */ \\\n  two\n"],
+    ])("a chain mark after %s chains the line into one beat, as on main", (_where, lines) => {
+      const beats = (source: string) => {
+        const { result } = compile(source);
+        const s = testStory(result.program.chunks);
+        const out: string[] = [];
+        while (s.canContinue) out.push(s.Continue() ?? "");
+        return out;
+      };
+      expect(beats(`scene start\n${lines}  done\nend\n`)).toEqual(["One\ntwo\n", ""]);
+    });
+
     test("a chain mark followed by comments still chains the line", () => {
       const chained = run("scene start\n  One \\\n  two\n  done\nend\n");
       expect(run("scene start\n  One \\ // note\n  two\n  done\nend\n")).toBe(chained);
