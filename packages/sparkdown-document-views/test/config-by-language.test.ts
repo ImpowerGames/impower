@@ -114,7 +114,17 @@ describe("Enter in the web editor follows the language at the cursor", () => {
     expect(pressEnter(editor)).toBe(SCENE("What should I do\n  |"));
   });
 
-  it.each(["And then", "Or else", "She left the scene", "We reached a new branch"])(
+  it.each([
+    "And then",
+    "Or else",
+    "She left the scene",
+    "We reached a new branch",
+    "He asked what the function (the old one) did",
+    "The function (a, b) works fine",
+    "Every function f(x) did",
+    "Function (the new one) and function (the old one) work differently",
+    "He walked in and function (x) began",
+  ])(
     "keeps the indentation after the prose line `%s`",
     (line) => {
       const editor = parsedView(SCENE(`${line}|`), SD_URI);
