@@ -111,7 +111,8 @@ const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
 
 const QUOTED_REGEX = /(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/;
 
-const COLOR_SCHEME_SPACING_REGEX = /@theme[(][ \t]*(light|dark)[ \t]*[)]/g;
+const ARGUMENT_SPACING_REGEX =
+  /(@(?:theme|screen[-_]size|container[-_]size))[(][ \t]*([^()\s]+)[ \t]*[)]/g;
 
 const COLOR_SCHEME_VARIANT_REGEX = /@theme[(](light|dark)[)]/g;
 
@@ -189,7 +190,7 @@ export function getCSSSelector(
     }
 
     let rewritten = piece
-      .replace(COLOR_SCHEME_SPACING_REGEX, "@theme($1)")
+      .replace(ARGUMENT_SPACING_REGEX, "$1($2)")
       .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
       .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
       .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")

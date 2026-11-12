@@ -125,6 +125,17 @@ describe("@theme(...) becomes a condition on the game's root (#2062)", () => {
     expect(getCSSSelector("@theme(\tdark\t)", {})).toBe(DARK_RULE);
   });
 
+  test.each(["@screen-size", "@screen_size", "@container-size", "@container_size"])(
+    "%s takes inner spaces and tabs around its breakpoint, as @theme does",
+    (variant) => {
+      const breakpoints = { md: 768 };
+      const written = getCSSSelector(`${variant}(md)`, breakpoints);
+      expect(written).toContain("768px");
+      expect(getCSSSelector(`${variant}( md )`, breakpoints)).toBe(written);
+      expect(getCSSSelector(`${variant}(\tmd\t)`, breakpoints)).toBe(written);
+    },
+  );
+
   test("a descendant selector under the variant stays below the styled element", () => {
     expect(anchorSelfTargeted(getCSSSelector("@theme(dark) >> child", {}))).toBe(`${DARK_RULE} .child`);
   });
