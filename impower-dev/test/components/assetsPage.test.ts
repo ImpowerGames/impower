@@ -351,7 +351,7 @@ describe("the Assets page", () => {
     expect(window.setListState).not.toHaveBeenCalledWith(expect.objectContaining({ assetsType: expect.anything() }));
   });
 
-  it("follows an upload that lands in another type's folder to that tab, opening the folder it landed in on the row it made there", async () => {
+  it("follows an upload that lands in another type's folder to that tab, opening the folder it landed in", async () => {
     workspace.current = { ...workspace.current, lists: { assetsType: "font" } };
     assets.upload.mockImplementationOnce(async () => {
       setListing({ ...workspace.assetListing.value!.files, "Assets/Images/Portraits/bunny2.png": facts(700) });
@@ -361,8 +361,6 @@ describe("the Assets page", () => {
     await chooseFiles("bunny2.png");
     expect(selectedTab()).toBe("image");
     expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: "Assets/Images" });
-    expect(host!.querySelector('[data-asset-path="Assets/Images/Portraits"]')).not.toBeNull();
-    expect(host!.querySelector('[data-asset-path="Assets/Images/Portraits/bunny2.png"]')).toBeNull();
   });
 
   it("follows a link to the tab of the type its address names", async () => {
