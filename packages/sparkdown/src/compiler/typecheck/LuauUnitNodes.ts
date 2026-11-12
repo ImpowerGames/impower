@@ -225,7 +225,13 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
 }
 
 const STORY_BRACES = new Set(["LuauInterpolatedStringExpression", "LuauFunctionCallShorthand"].flatMap(explicitRuleNames));
-const STORY_TEXT = new Set(["TextChunk", "ChoiceTextContent"]);
+const STORY_TEXT = new Set([
+  "TextChunk",
+  "ChoiceStartText",
+  "ChoiceStartTextContent",
+  "ChoiceOnlyText",
+  "ChoiceOnlyTextContent",
+]);
 const ARM_STORY = new Set(["LuauSparkdownAlternatorArm", "LuauSparkdownInlineGluedAlternatorArm"]);
 const ALTERNATOR_HEADS = new Set(["LuauAlternatorHead", "LuauAlternatorLineStartHead"].flatMap(explicitRuleNames));
 const STORY_CONDITIONAL_ALTERNATORS = new Set(

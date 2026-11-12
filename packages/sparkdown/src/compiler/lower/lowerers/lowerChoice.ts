@@ -73,18 +73,18 @@ export function lowerChoice(
   const choiceOnlyContent = new ContentList();
   let innerContent = new ContentList();
 
-  const bracketed = getDescendent("ChoiceWithSuppressedText", nodeRef.node);
-  const unbracketed = getDescendent("ChoiceWithNoSuppressedText", nodeRef.node);
+  const text = readChoiceText(nodeRef.node);
+  const hasWeaveStyleInlineBrackets = text.inner !== null;
+  const appendStart = (list: ContentList): void => {
+    for (const part of text.start) {
+      appendNodeContent(part.node, ctx, list, true, part.node.from, part.to);
+    }
+  };
 
-  let hasWeaveStyleInlineBrackets = false;
-
-  if (bracketed) {
-    hasWeaveStyleInlineBrackets = true;
-    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent, true);
-    appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
-    appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
-  } else if (unbracketed) {
-    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent, true);
+  appendStart(startContent);
+  if (text.inner) {
+    if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent);
+    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1);
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -124,11 +124,7 @@ export function lowerChoice(
     chosenTail,
     () => {
       const fresh = new ContentList();
-      if (bracketed) {
-        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh, true);
-      } else if (unbracketed) {
-        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh, true);
-      }
+      appendStart(fresh);
       return fresh;
     },
     endsFlow,
@@ -287,33 +283,25 @@ function collectChoiceCondition(
 }
 
 
-function appendTextFromCapture(
-  parent: SyntaxNode,
-  captureName: string,
-  ctx: LowerContext,
-  list: ContentList,
-  trimStart = false,
-): boolean {
-  let appended = false;
-  const stack: SyntaxNode[] = [parent];
-  const matches: SyntaxNode[] = [];
-  while (stack.length > 0) {
-    const node = stack.pop()!;
-    let child = node.firstChild;
-    while (child) {
-      if (child.name === captureName) {
-        matches.push(child);
-      } else {
-        stack.push(child);
-      }
-      child = child.nextSibling;
-    }
+interface ChoiceText {
+  start: { node: SyntaxNode; to: number }[];
+  only: SyntaxNode | null;
+  inner: SyntaxNode | null;
+}
+
+function readChoiceText(choiceNode: SyntaxNode): ChoiceText {
+  const start: ChoiceText["start"] = [];
+  const startText = getDescendent("ChoiceStartText", choiceNode);
+  if (startText) start.push({ node: startText, to: startText.to });
+  const suppression = getDescendent("ChoiceSuppression", choiceNode);
+  if (!suppression) return { start, only: null, inner: null };
+  const only = getDescendent("ChoiceOnlyText", suppression) ?? null;
+  const inner = getDescendent("ChoiceInnerText", suppression) ?? null;
+  if (!inner) {
+    start.push({ node: suppression, to: only?.to ?? suppression.from + 1 });
+    return { start, only: null, inner: null };
   }
-  matches.sort((a, b) => a.from - b.from);
-  for (const node of matches) {
-    if (appendNodeContent(node, ctx, list, trimStart)) appended = true;
-  }
-  return appended;
+  return { start, only, inner };
 }
 
 function appendNodeContent(
@@ -321,6 +309,8 @@ function appendNodeContent(
   ctx: LowerContext,
   list: ContentList,
   trimStart = false,
+  from = captureNode.from,
+  to = captureNode.to,
 ): boolean {
   type Marker =
     | { kind: "tag"; node: SyntaxNode }
@@ -353,13 +343,14 @@ function appendNodeContent(
     }
   };
   walk(captureNode);
-  markers.sort((a, b) => a.node.from - b.node.from);
+  const inRange = markers.filter((m) => m.node.from < to);
+  inRange.sort((a, b) => a.node.from - b.node.from);
 
   let appended = false;
-  let cursor = captureNode.from;
-  const flushText = (to: number): void => {
-    if (to > cursor) {
-      const read = ctx.read(cursor, to);
+  let cursor = from;
+  const flushText = (until: number): void => {
+    if (until > cursor) {
+      const read = ctx.read(cursor, until);
       const leading = trimStart && list.content.length === 0;
       // value-level: trims the isolated choice-text value's leading inline whitespace.
       const text = leading ? read.replace(/^[ \t]+/, "") : read;
@@ -368,9 +359,9 @@ function appendNodeContent(
         appended = true;
       }
     }
-    cursor = to;
+    cursor = until;
   };
-  for (const m of markers) {
+  for (const m of inRange) {
     flushText(m.node.from);
     if (m.kind === "expr") {
       const expr = lowerExpressionFromContainer(m.node, ctx, "expression");
@@ -391,7 +382,7 @@ function appendNodeContent(
     }
     cursor = m.node.to;
   }
-  flushText(captureNode.to);
+  flushText(to);
   return appended;
 }
 

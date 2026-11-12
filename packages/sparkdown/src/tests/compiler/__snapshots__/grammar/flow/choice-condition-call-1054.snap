@@ -64,16 +64,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 39
  │   │   │   │   └─ Choice_begin_c7 39
  │   │   │   ├─ Choice_content [39..45]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [39..45]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [39..45]
- │   │   │   │       │   └─ ChoicePlainText [39..45]
- │   │   │   │       │       └─ ChoiceTextContent [39..45]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [39..45]
- │   │   │   │       │               ├─ Space [39..40]: " "
- │   │   │   │       │               └─ Word [40..45]: "First"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 45
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 45
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 45
+ │   │   │   │   └─ ChoiceStartText [39..45]
+ │   │   │   │       ├─ ChoiceStartText_begin 39
+ │   │   │   │       ├─ ChoiceStartText_content [39..45]
+ │   │   │   │       │   └─ ChoiceStartTextContent [39..45]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [39..45]
+ │   │   │   │       │           ├─ Space [39..40]: " "
+ │   │   │   │       │           └─ Word [40..45]: "First"
+ │   │   │   │       └─ ChoiceStartText_end 45
  │   │   │   └─ Choice_end 45
  │   │   ├─ Newline [45..46]: "\n"
  │   │   ├─ Choice [46..73]
@@ -124,16 +122,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 66
  │   │   │   │   └─ Choice_begin_c7 66
  │   │   │   ├─ Choice_content [66..73]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [66..73]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [66..73]
- │   │   │   │       │   └─ ChoicePlainText [66..73]
- │   │   │   │       │       └─ ChoiceTextContent [66..73]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [66..73]
- │   │   │   │       │               ├─ Space [66..67]: " "
- │   │   │   │       │               └─ Word [67..73]: "Second"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 73
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 73
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 73
+ │   │   │   │   └─ ChoiceStartText [66..73]
+ │   │   │   │       ├─ ChoiceStartText_begin 66
+ │   │   │   │       ├─ ChoiceStartText_content [66..73]
+ │   │   │   │       │   └─ ChoiceStartTextContent [66..73]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [66..73]
+ │   │   │   │       │           ├─ Space [66..67]: " "
+ │   │   │   │       │           └─ Word [67..73]: "Second"
+ │   │   │   │       └─ ChoiceStartText_end 73
  │   │   │   └─ Choice_end 73
  │   │   ├─ Newline [73..74]: "\n"
  │   │   ├─ Choice [74..108]
@@ -217,16 +213,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 102
  │   │   │   │   └─ Choice_begin_c7 102
  │   │   │   ├─ Choice_content [102..108]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [102..108]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [102..108]
- │   │   │   │       │   └─ ChoicePlainText [102..108]
- │   │   │   │       │       └─ ChoiceTextContent [102..108]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [102..108]
- │   │   │   │       │               ├─ Space [102..103]: " "
- │   │   │   │       │               └─ Word [103..108]: "Third"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 108
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 108
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 108
+ │   │   │   │   └─ ChoiceStartText [102..108]
+ │   │   │   │       ├─ ChoiceStartText_begin 102
+ │   │   │   │       ├─ ChoiceStartText_content [102..108]
+ │   │   │   │       │   └─ ChoiceStartTextContent [102..108]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [102..108]
+ │   │   │   │       │           ├─ Space [102..103]: " "
+ │   │   │   │       │           └─ Word [103..108]: "Third"
+ │   │   │   │       └─ ChoiceStartText_end 108
  │   │   │   └─ Choice_end 108
  │   │   ├─ Newline [108..109]: "\n"
  │   │   ├─ Choice [109..145]
@@ -278,45 +272,54 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 127
  │   │   │   │   └─ Choice_begin_c7 127
  │   │   │   ├─ Choice_content [127..145]
- │   │   │   │   └─ ChoiceWithSuppressedText [127..145]
- │   │   │   │       ├─ ChoiceWithSuppressedText_c1 [127..128]
- │   │   │   │       │   └─ ChoiceStartText [127..128]
- │   │   │   │       │       └─ ChoiceTextContent [127..128]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [127..128]
- │   │   │   │       │               └─ Space [127..128]: " "
- │   │   │   │       ├─ ChoiceWithSuppressedText_c2 [128..129]: "["
- │   │   │   │       ├─ ChoiceWithSuppressedText_c3 [129..135]
- │   │   │   │       │   └─ ChoiceOnlyText [129..135]
- │   │   │   │       │       └─ ChoiceTextContent [129..135]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [129..135]
- │   │   │   │       │               └─ Word [129..135]: "Fourth"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c4 [135..136]: "]"
- │   │   │   │       ├─ ChoiceWithSuppressedText_c5 136
- │   │   │   │       ├─ ChoiceWithSuppressedText_c6 136
- │   │   │   │       ├─ ChoiceWithSuppressedText_c7 [136..137]
- │   │   │   │       │   └─ RequiredWhitespace [136..137]: " "
- │   │   │   │       └─ ChoiceWithSuppressedText_c8 [137..145]
- │   │   │   │           └─ Divert [137..145]
- │   │   │   │               ├─ Divert_begin [137..139]
- │   │   │   │               │   ├─ Divert_begin_c1 137
- │   │   │   │               │   │   └─ OptionalWhitespace 137
- │   │   │   │               │   └─ Divert_begin_c2 [137..139]
- │   │   │   │               │       └─ DivertMark [137..139]: "->"
- │   │   │   │               ├─ Divert_content [139..145]
- │   │   │   │               │   └─ DivertTarget [139..145]
- │   │   │   │               │       ├─ DivertTarget_begin [139..140]
- │   │   │   │               │       │   └─ DivertTarget_begin_c1 [139..140]
- │   │   │   │               │       │       └─ DivertTarget_begin_c1 [139..140]
- │   │   │   │               │       │           └─ OptionalWhitespace [139..140]: " "
- │   │   │   │               │       ├─ DivertTarget_content [140..145]
- │   │   │   │               │       │   └─ DivertPath [140..145]
- │   │   │   │               │       │       ├─ DivertPath_begin 140
- │   │   │   │               │       │       ├─ DivertPath_content [140..145]
- │   │   │   │               │       │       │   └─ DivertPart [140..145]
- │   │   │   │               │       │       │       └─ DivertPartName [140..145]: "start"
- │   │   │   │               │       │       └─ DivertPath_end 145
- │   │   │   │               │       └─ DivertTarget_end 145
- │   │   │   │               └─ Divert_end 145
+ │   │   │   │   ├─ ChoiceStartText [127..128]
+ │   │   │   │   │   ├─ ChoiceStartText_begin 127
+ │   │   │   │   │   ├─ ChoiceStartText_content [127..128]
+ │   │   │   │   │   │   └─ ChoiceStartTextContent [127..128]
+ │   │   │   │   │   │       └─ ChoiceStartTextContent_c1 [127..128]
+ │   │   │   │   │   │           └─ Space [127..128]: " "
+ │   │   │   │   │   └─ ChoiceStartText_end 128
+ │   │   │   │   └─ ChoiceSuppression [128..145]
+ │   │   │   │       ├─ ChoiceSuppression_begin [128..129]
+ │   │   │   │       │   ├─ ChoiceSuppression_begin_c1 [128..129]: "["
+ │   │   │   │       │   └─ ChoiceSuppression_begin_c2 129
+ │   │   │   │       ├─ ChoiceSuppression_content [129..145]
+ │   │   │   │       │   ├─ ChoiceOnlyText [129..135]
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_begin 129
+ │   │   │   │       │   │   ├─ ChoiceOnlyText_content [129..135]
+ │   │   │   │       │   │   │   └─ ChoiceOnlyTextContent [129..135]
+ │   │   │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [129..135]
+ │   │   │   │       │   │   │           └─ Word [129..135]: "Fourth"
+ │   │   │   │       │   │   └─ ChoiceOnlyText_end 135
+ │   │   │   │       │   ├─ ChoiceInnerText [135..136]
+ │   │   │   │       │   │   ├─ ChoiceInnerText_begin [135..136]
+ │   │   │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [135..136]: "]"
+ │   │   │   │       │   │   └─ ChoiceInnerText_end 136
+ │   │   │   │       │   ├─ ChoiceDivertWhitespace [136..137]
+ │   │   │   │       │   │   └─ ChoiceDivertWhitespace_c1 [136..137]
+ │   │   │   │       │   │       └─ RequiredWhitespace [136..137]: " "
+ │   │   │   │       │   └─ Divert [137..145]
+ │   │   │   │       │       ├─ Divert_begin [137..139]
+ │   │   │   │       │       │   ├─ Divert_begin_c1 137
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 137
+ │   │   │   │       │       │   └─ Divert_begin_c2 [137..139]
+ │   │   │   │       │       │       └─ DivertMark [137..139]: "->"
+ │   │   │   │       │       ├─ Divert_content [139..145]
+ │   │   │   │       │       │   └─ DivertTarget [139..145]
+ │   │   │   │       │       │       ├─ DivertTarget_begin [139..140]
+ │   │   │   │       │       │       │   └─ DivertTarget_begin_c1 [139..140]
+ │   │   │   │       │       │       │       └─ DivertTarget_begin_c1 [139..140]
+ │   │   │   │       │       │       │           └─ OptionalWhitespace [139..140]: " "
+ │   │   │   │       │       │       ├─ DivertTarget_content [140..145]
+ │   │   │   │       │       │       │   └─ DivertPath [140..145]
+ │   │   │   │       │       │       │       ├─ DivertPath_begin 140
+ │   │   │   │       │       │       │       ├─ DivertPath_content [140..145]
+ │   │   │   │       │       │       │       │   └─ DivertPart [140..145]
+ │   │   │   │       │       │       │       │       └─ DivertPartName [140..145]: "start"
+ │   │   │   │       │       │       │       └─ DivertPath_end 145
+ │   │   │   │       │       │       └─ DivertTarget_end 145
+ │   │   │   │       │       └─ Divert_end 145
+ │   │   │   │       └─ ChoiceSuppression_end 145
  │   │   │   └─ Choice_end 145
  │   │   ├─ Newline [145..146]: "\n"
  │   │   ├─ Choice [146..174]
@@ -397,16 +400,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 168
  │   │   │   │   └─ Choice_begin_c7 168
  │   │   │   ├─ Choice_content [168..174]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [168..174]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [168..174]
- │   │   │   │       │   └─ ChoicePlainText [168..174]
- │   │   │   │       │       └─ ChoiceTextContent [168..174]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [168..174]
- │   │   │   │       │               ├─ Space [168..169]: " "
- │   │   │   │       │               └─ Word [169..174]: "Fifth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 174
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 174
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 174
+ │   │   │   │   └─ ChoiceStartText [168..174]
+ │   │   │   │       ├─ ChoiceStartText_begin 168
+ │   │   │   │       ├─ ChoiceStartText_content [168..174]
+ │   │   │   │       │   └─ ChoiceStartTextContent [168..174]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [168..174]
+ │   │   │   │       │           ├─ Space [168..169]: " "
+ │   │   │   │       │           └─ Word [169..174]: "Fifth"
+ │   │   │   │       └─ ChoiceStartText_end 174
  │   │   │   └─ Choice_end 174
  │   │   ├─ Newline [174..175]: "\n"
  │   │   ├─ Choice [175..206]
@@ -485,16 +486,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 200
  │   │   │   │   └─ Choice_begin_c7 200
  │   │   │   ├─ Choice_content [200..206]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [200..206]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [200..206]
- │   │   │   │       │   └─ ChoicePlainText [200..206]
- │   │   │   │       │       └─ ChoiceTextContent [200..206]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [200..206]
- │   │   │   │       │               ├─ Space [200..201]: " "
- │   │   │   │       │               └─ Word [201..206]: "Sixth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 206
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 206
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 206
+ │   │   │   │   └─ ChoiceStartText [200..206]
+ │   │   │   │       ├─ ChoiceStartText_begin 200
+ │   │   │   │       ├─ ChoiceStartText_content [200..206]
+ │   │   │   │       │   └─ ChoiceStartTextContent [200..206]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [200..206]
+ │   │   │   │       │           ├─ Space [200..201]: " "
+ │   │   │   │       │           └─ Word [201..206]: "Sixth"
+ │   │   │   │       └─ ChoiceStartText_end 206
  │   │   │   └─ Choice_end 206
  │   │   ├─ Newline [206..207]: "\n"
  │   │   ├─ Choice [207..243]
@@ -567,16 +566,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 235
  │   │   │   │   └─ Choice_begin_c7 235
  │   │   │   ├─ Choice_content [235..243]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [235..243]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [235..243]
- │   │   │   │       │   └─ ChoicePlainText [235..243]
- │   │   │   │       │       └─ ChoiceTextContent [235..243]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [235..243]
- │   │   │   │       │               ├─ Space [235..236]: " "
- │   │   │   │       │               └─ Word [236..243]: "Seventh"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 243
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 243
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 243
+ │   │   │   │   └─ ChoiceStartText [235..243]
+ │   │   │   │       ├─ ChoiceStartText_begin 235
+ │   │   │   │       ├─ ChoiceStartText_content [235..243]
+ │   │   │   │       │   └─ ChoiceStartTextContent [235..243]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [235..243]
+ │   │   │   │       │           ├─ Space [235..236]: " "
+ │   │   │   │       │           └─ Word [236..243]: "Seventh"
+ │   │   │   │       └─ ChoiceStartText_end 243
  │   │   │   └─ Choice_end 243
  │   │   ├─ Newline [243..244]: "\n"
  │   │   ├─ Choice [244..281]
@@ -657,21 +654,19 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 269
  │   │   │   │   └─ Choice_begin_c7 269
  │   │   │   ├─ Choice_content [269..281]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [269..281]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [269..281]
- │   │   │   │       │   └─ ChoicePlainText [269..281]
- │   │   │   │       │       └─ ChoiceTextContent [269..281]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [269..281]
- │   │   │   │       │               ├─ Space [269..270]: " "
- │   │   │   │       │               ├─ Punctuation [270..271]: "]"
- │   │   │   │       │               ├─ Punctuation [271..272]: "="
- │   │   │   │       │               ├─ Punctuation [272..273]: "]"
- │   │   │   │       │               ├─ Punctuation [273..274]: ")"
- │   │   │   │       │               ├─ Space [274..275]: " "
- │   │   │   │       │               └─ Word [275..281]: "Eighth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 281
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 281
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 281
+ │   │   │   │   └─ ChoiceStartText [269..281]
+ │   │   │   │       ├─ ChoiceStartText_begin 269
+ │   │   │   │       ├─ ChoiceStartText_content [269..281]
+ │   │   │   │       │   └─ ChoiceStartTextContent [269..281]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [269..281]
+ │   │   │   │       │           ├─ Space [269..270]: " "
+ │   │   │   │       │           ├─ Punctuation [270..271]: "]"
+ │   │   │   │       │           ├─ Punctuation [271..272]: "="
+ │   │   │   │       │           ├─ Punctuation [272..273]: "]"
+ │   │   │   │       │           ├─ Punctuation [273..274]: ")"
+ │   │   │   │       │           ├─ Space [274..275]: " "
+ │   │   │   │       │           └─ Word [275..281]: "Eighth"
+ │   │   │   │       └─ ChoiceStartText_end 281
  │   │   │   └─ Choice_end 281
  │   │   ├─ Newline [281..282]: "\n"
  │   │   ├─ Choice [282..315]
@@ -763,16 +758,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 309
  │   │   │   │   └─ Choice_begin_c7 309
  │   │   │   ├─ Choice_content [309..315]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [309..315]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [309..315]
- │   │   │   │       │   └─ ChoicePlainText [309..315]
- │   │   │   │       │       └─ ChoiceTextContent [309..315]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [309..315]
- │   │   │   │       │               ├─ Space [309..310]: " "
- │   │   │   │       │               └─ Word [310..315]: "Ninth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 315
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 315
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 315
+ │   │   │   │   └─ ChoiceStartText [309..315]
+ │   │   │   │       ├─ ChoiceStartText_begin 309
+ │   │   │   │       ├─ ChoiceStartText_content [309..315]
+ │   │   │   │       │   └─ ChoiceStartTextContent [309..315]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [309..315]
+ │   │   │   │       │           ├─ Space [309..310]: " "
+ │   │   │   │       │           └─ Word [310..315]: "Ninth"
+ │   │   │   │       └─ ChoiceStartText_end 315
  │   │   │   └─ Choice_end 315
  │   │   ├─ Newline [315..316]: "\n"
  │   │   ├─ Choice [316..357]
@@ -918,16 +911,14 @@ sparkdown [0..368]
  │   │   │   │   │       └─ ChoiceCondition_end 351
  │   │   │   │   └─ Choice_begin_c7 351
  │   │   │   ├─ Choice_content [351..357]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [351..357]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [351..357]
- │   │   │   │       │   └─ ChoicePlainText [351..357]
- │   │   │   │       │       └─ ChoiceTextContent [351..357]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [351..357]
- │   │   │   │       │               ├─ Space [351..352]: " "
- │   │   │   │       │               └─ Word [352..357]: "Tenth"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 357
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 357
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 357
+ │   │   │   │   └─ ChoiceStartText [351..357]
+ │   │   │   │       ├─ ChoiceStartText_begin 351
+ │   │   │   │       ├─ ChoiceStartText_content [351..357]
+ │   │   │   │       │   └─ ChoiceStartTextContent [351..357]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [351..357]
+ │   │   │   │       │           ├─ Space [351..352]: " "
+ │   │   │   │       │           └─ Word [352..357]: "Tenth"
+ │   │   │   │       └─ ChoiceStartText_end 357
  │   │   │   └─ Choice_end 357
  │   │   └─ Newline [357..358]: "\n"
  │   └─ LuauSparkdownChooseBlock_end [358..363]

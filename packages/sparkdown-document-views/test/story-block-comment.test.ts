@@ -20,7 +20,14 @@ const SCRIPT =
   `  choose\n` +
   `    + Go /* choice note */ left\n` +
   `      done\n` +
+  `    + Run /* [choice note] -> next */ home\n` +
+  `      done\n` +
+  `    + Stay /* choice note\n` +
+  `      choice note */ put\n` +
+  `      done\n` +
   `  end\n` +
+  `  Lead /* inline note \\\n` +
+  `  inline note */ on.\n` +
   `end\n`;
 
 const HIDDEN = ["hidden line", "inline note", "aside note", "choice note", "styled note", "/*", "*/"];
@@ -36,7 +43,19 @@ describe("a story block comment in the screenplay", () => {
     expect(pdf).toContain("Side by side.");
     expect(pdf).toContain("Good evening.");
     expect(pdf).toContain("Go left");
+    expect(pdf).toContain("Run home");
+    expect(pdf).toContain("Stay put");
+    expect(pdf).toContain("Lead on.");
     for (const text of HIDDEN) expect(pdf).not.toContain(text);
+    for (const text of ["-> next", "[", "]"]) expect(pdf).not.toContain(text);
+  });
+
+  it("leaves a line comment in choice text out of the PDF export, with the bracket and arrow inside it", () => {
+    const pdf = extractPdfText(
+      `scene start\n  choose\n    + Sit // [choice note] -> next\n      done\n  end\nend\n`,
+    );
+    expect(pdf).toContain("+ Sit");
+    for (const text of ["//", "choice note", "-> next", "["]) expect(pdf).not.toContain(text);
   });
 
   it("lays out a whole-line block comment as the same lines of // comments", () => {

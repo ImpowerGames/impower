@@ -1,4 +1,4 @@
-text.source.sparkdown [0..689]
+text.source.sparkdown [0..712]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -393,20 +393,31 @@ text.source.sparkdown [0..689]
  │   └─ string.choice.sd [654..667]
  │       ├─ markup.raw.text.sd [654..656]: "Go"
  │       ├─ markup.raw.space.sd [656..657]: " "
- │       ├─ markup.other.italic.sd [657..662]
- │       │   ├─ markup.raw.text.sd [657..658]: "*"
- │       │   ├─ markup.raw.text.sd [658..659]: "x"
- │       │   ├─ markup.raw.space.sd [659..660]: " "
- │       │   ├─ markup.raw.punctuation.sd [660..661]: "/"
- │       │   └─ markup.raw.text.sd [661..662]: "*"
- │       ├─ markup.raw.space.sd [662..663]: " "
- │       └─ markup.raw.text.sd [663..667]: "open"
+ │       └─ markup.other.italic.sd [657..667]
+ │           ├─ markup.raw.text.sd [657..658]: "*"
+ │           ├─ markup.raw.text.sd [658..659]: "x"
+ │           └─ comment.block.sd [659..667]
+ │               ├─ punctuation.whitespace.optional.sd [659..660]: " "
+ │               ├─ punctuation.definition.comment.begin.sd [660..662]: "/*"
+ │               └─ comment.block.content.sd [662..667]: " open"
  ├─ Newline [667..668]: "\n"
- ├─ punctuation.whitespace.optional.sd [668..674]: "      "
- ├─ keyword.control.divert.done.sd [674..678]: "done"
- ├─ Newline [678..679]: "\n"
- ├─ punctuation.whitespace.optional.sd [679..681]: "  "
- ├─ keyword.control.end.luau [681..684]: "end"
- ├─ Newline [684..685]: "\n"
- ├─ keyword.control.end.luau [685..688]: "end"
- └─ Newline [688..689]: "\n"
+ ├─ entity.choice.sd [668..690]
+ │   └─ string.choice.sd [668..690]
+ │       ├─ markup.other.italic.sd [668..685]
+ │       │   ├─ comment.block.sd [668..682]
+ │       │   │   ├─ comment.block.content.sd [668..680]: "      still "
+ │       │   │   └─ punctuation.definition.comment.end.sd [680..682]: "*/"
+ │       │   ├─ markup.raw.space.sd [682..683]: " "
+ │       │   ├─ markup.raw.text.sd [683..684]: "y"
+ │       │   └─ markup.raw.text.sd [684..685]: "*"
+ │       ├─ markup.raw.space.sd [685..686]: " "
+ │       └─ markup.raw.text.sd [686..690]: "home"
+ ├─ Newline [690..691]: "\n"
+ ├─ punctuation.whitespace.optional.sd [691..697]: "      "
+ ├─ keyword.control.divert.done.sd [697..701]: "done"
+ ├─ Newline [701..702]: "\n"
+ ├─ punctuation.whitespace.optional.sd [702..704]: "  "
+ ├─ keyword.control.end.luau [704..707]: "end"
+ ├─ Newline [707..708]: "\n"
+ ├─ keyword.control.end.luau [708..711]: "end"
+ └─ Newline [711..712]: "\n"

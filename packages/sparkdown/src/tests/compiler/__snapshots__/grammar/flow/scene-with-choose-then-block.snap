@@ -37,15 +37,13 @@ sparkdown [0..88]
  │   │   │   │   ├─ Choice_begin_c6 26
  │   │   │   │   └─ Choice_begin_c7 26
  │   │   │   ├─ Choice_content [26..28]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [26..28]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [26..28]
- │   │   │   │       │   └─ ChoicePlainText [26..28]
- │   │   │   │       │       └─ ChoiceTextContent [26..28]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [26..28]
- │   │   │   │       │               └─ Word [26..28]: "Hi"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 28
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 28
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 28
+ │   │   │   │   └─ ChoiceStartText [26..28]
+ │   │   │   │       ├─ ChoiceStartText_begin 26
+ │   │   │   │       ├─ ChoiceStartText_content [26..28]
+ │   │   │   │       │   └─ ChoiceStartTextContent [26..28]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [26..28]
+ │   │   │   │       │           └─ Word [26..28]: "Hi"
+ │   │   │   │       └─ ChoiceStartText_end 28
  │   │   │   └─ Choice_end 28
  │   │   ├─ Newline [28..29]: "\n"
  │   │   ├─ Choice [29..38]
@@ -60,15 +58,13 @@ sparkdown [0..88]
  │   │   │   │   ├─ Choice_begin_c6 35
  │   │   │   │   └─ Choice_begin_c7 35
  │   │   │   ├─ Choice_content [35..38]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [35..38]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [35..38]
- │   │   │   │       │   └─ ChoicePlainText [35..38]
- │   │   │   │       │       └─ ChoiceTextContent [35..38]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [35..38]
- │   │   │   │       │               └─ Word [35..38]: "Hey"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 38
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 38
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 38
+ │   │   │   │   └─ ChoiceStartText [35..38]
+ │   │   │   │       ├─ ChoiceStartText_begin 35
+ │   │   │   │       ├─ ChoiceStartText_content [35..38]
+ │   │   │   │       │   └─ ChoiceStartTextContent [35..38]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [35..38]
+ │   │   │   │       │           └─ Word [35..38]: "Hey"
+ │   │   │   │       └─ ChoiceStartText_end 38
  │   │   │   └─ Choice_end 38
  │   │   ├─ Newline [38..39]: "\n"
  │   │   └─ LuauSparkdownChooseThenClause [39..71]

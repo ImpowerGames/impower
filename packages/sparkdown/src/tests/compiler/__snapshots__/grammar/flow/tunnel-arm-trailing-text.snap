@@ -56,7 +56,7 @@ sparkdown [0..556]
  │   │       │   │   │       └─ DivertPath_end 23
  │   │       │   │   └─ DivertTarget_end 23
  │   │       │   ├─ ExtraWhitespace [23..24]: " "
- │   │       │   └─ Unknown [24..31]: "> After"
+ │   │       │   └─ DivertUnknown [24..31]: "> After"
  │   │       └─ Tunnel_end 31
  │   └─ Divert_end 31
  ├─ Newline [31..32]: "\n"
@@ -116,7 +116,7 @@ sparkdown [0..556]
  │   │       │       │       │       │   │   │       └─ DivertPath_end 45
  │   │       │       │       │       │   │   └─ DivertTarget_end 45
  │   │       │       │       │       │   ├─ ExtraWhitespace [45..46]: " "
- │   │       │       │       │       │   └─ Unknown [46..49]: "> c"
+ │   │       │       │       │       │   └─ DivertUnknown [46..49]: "> c"
  │   │       │       │       │       └─ Tunnel_end 49
  │   │       │       │       └─ Divert_end 49
  │   │       │       └─ TextChunk_end 49
@@ -152,7 +152,7 @@ sparkdown [0..556]
  │   │       │       └─ DivertMark [57..59]: "->"
  │   │       ├─ Tunnel_content [59..67]
  │   │       │   ├─ ExtraWhitespace [59..60]: " "
- │   │       │   └─ Unknown [60..67]: "> After"
+ │   │       │   └─ DivertUnknown [60..67]: "> After"
  │   │       └─ Tunnel_end 67
  │   └─ Divert_end 67
  ├─ Newline [67..68]: "\n"
@@ -268,7 +268,7 @@ sparkdown [0..556]
  │   │       │   │   │       └─ LuauFunctionCall_end 105
  │   │       │   │   └─ DivertTarget_end 105
  │   │       │   ├─ ExtraWhitespace [105..106]: " "
- │   │       │   └─ Unknown [106..113]: "> After"
+ │   │       │   └─ DivertUnknown [106..113]: "> After"
  │   │       └─ Tunnel_end 113
  │   └─ Divert_end 113
  ├─ Newline [113..114]: "\n"
@@ -1481,7 +1481,7 @@ sparkdown [0..556]
  │   │       │       │       │       │   │   │       └─ DivertPath_end 501
  │   │       │       │       │       │   │   └─ DivertTarget_end 501
  │   │       │       │       │       │   ├─ ExtraWhitespace [501..502]: " "
- │   │       │       │       │       │   └─ Unknown [502..509]: "> After"
+ │   │       │       │       │       │   └─ DivertUnknown [502..509]: "> After"
  │   │       │       │       │       └─ Tunnel_end 509
  │   │       │       │       └─ Divert_end 509
  │   │       │       └─ TextChunk_end 509
@@ -1554,7 +1554,7 @@ sparkdown [0..556]
  │   │   │   │       │   │   │       └─ DivertPath_end 533
  │   │   │   │       │   │   └─ DivertTarget_end 533
  │   │   │   │       │   ├─ ExtraWhitespace [533..534]: " "
- │   │   │   │       │   └─ Unknown [534..537]: "> y"
+ │   │   │   │       │   └─ DivertUnknown [534..537]: "> y"
  │   │   │   │       └─ Tunnel_end 537
  │   │   │   └─ Divert_end 537
  │   │   ├─ Newline [537..538]: "\n"

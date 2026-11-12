@@ -1,0 +1,18 @@
+scene start
+  One /* a \
+  b */ two
+  Three /* a
+  b */ four \
+  five
+  Six \ // note
+  seven
+  Eight \ /* note */
+  nine
+  BOB: Hi /* a \
+  b */ there
+  -> next /* why
+  because */
+end
+scene next
+  done
+end

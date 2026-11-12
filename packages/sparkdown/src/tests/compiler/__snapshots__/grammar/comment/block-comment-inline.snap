@@ -229,17 +229,15 @@ sparkdown [0..338]
  │   │   │   │       │       └─ DivertPartName [161..165]: "next"
  │   │   │   │       └─ DivertPath_end 165
  │   │   │   └─ DivertTarget_end 165
- │   │   └─ SparkdownBlockCommentOnLine [165..175]
- │   │       └─ SparkdownBlockCommentOnLine_c1 [165..175]
- │   │           └─ SparkdownBlockComment [165..175]
- │   │               ├─ SparkdownBlockComment_begin [165..168]
- │   │               │   ├─ SparkdownBlockComment_begin_c1 [165..166]
- │   │               │   │   └─ OptionalWhitespace [165..166]: " "
- │   │               │   └─ SparkdownBlockComment_begin_c2 [166..168]: "/*"
- │   │               ├─ SparkdownBlockComment_content [168..173]
- │   │               │   └─ SparkdownBlockCommentContent [168..173]: " why "
- │   │               └─ SparkdownBlockComment_end [173..175]
- │   │                   └─ SparkdownBlockComment_end_c1 [173..175]: "*/"
+ │   │   └─ SparkdownBlockComment [165..175]
+ │   │       ├─ SparkdownBlockComment_begin [165..168]
+ │   │       │   ├─ SparkdownBlockComment_begin_c1 [165..166]
+ │   │       │   │   └─ OptionalWhitespace [165..166]: " "
+ │   │       │   └─ SparkdownBlockComment_begin_c2 [166..168]: "/*"
+ │   │       ├─ SparkdownBlockComment_content [168..173]
+ │   │       │   └─ SparkdownBlockCommentContent [168..173]: " why "
+ │   │       └─ SparkdownBlockComment_end [173..175]
+ │   │           └─ SparkdownBlockComment_end_c1 [173..175]: "*/"
  │   └─ Divert_end 175
  ├─ Newline [175..176]: "\n"
  ├─ Choice [176..227]
@@ -254,76 +252,79 @@ sparkdown [0..338]
  │   │   ├─ Choice_begin_c6 180
  │   │   └─ Choice_begin_c7 180
  │   ├─ Choice_content [180..227]
- │   │   └─ ChoiceWithSuppressedText [180..227]
- │   │       ├─ ChoiceWithSuppressedText_c1 180
- │   │       ├─ ChoiceWithSuppressedText_c2 [180..181]: "["
- │   │       ├─ ChoiceWithSuppressedText_c3 [181..198]
- │   │       │   └─ ChoiceOnlyText [181..198]
- │   │       │       └─ ChoiceTextContent [181..198]
- │   │       │           └─ ChoiceTextContent_c1 [181..198]
- │   │       │               ├─ Word [181..183]: "Go"
- │   │       │               ├─ SparkdownBlockCommentOnLine [183..195]
- │   │       │               │   └─ SparkdownBlockCommentOnLine_c1 [183..195]
- │   │       │               │       └─ SparkdownBlockComment [183..195]
- │   │       │               │           ├─ SparkdownBlockComment_begin [183..186]
- │   │       │               │           │   ├─ SparkdownBlockComment_begin_c1 [183..184]
- │   │       │               │           │   │   └─ OptionalWhitespace [183..184]: " "
- │   │       │               │           │   └─ SparkdownBlockComment_begin_c2 [184..186]: "/*"
- │   │       │               │           ├─ SparkdownBlockComment_content [186..193]
- │   │       │               │           │   └─ SparkdownBlockCommentContent [186..193]: " inner "
- │   │       │               │           └─ SparkdownBlockComment_end [193..195]
- │   │       │               │               └─ SparkdownBlockComment_end_c1 [193..195]: "*/"
- │   │       │               ├─ Space [195..196]: " "
- │   │       │               └─ Word [196..198]: "on"
- │   │       ├─ ChoiceWithSuppressedText_c4 [198..199]: "]"
- │   │       ├─ ChoiceWithSuppressedText_c5 [199..219]
- │   │       │   ├─ ChoiceInnerText [199..200]
- │   │       │   │   └─ Space [199..200]: " "
- │   │       │   ├─ ChoiceInnerText [200..203]
- │   │       │   │   └─ Word [200..203]: "You"
- │   │       │   ├─ ChoiceInnerText [203..215]
- │   │       │   │   └─ SparkdownBlockCommentOnLine [203..215]
- │   │       │   │       └─ SparkdownBlockCommentOnLine_c1 [203..215]
- │   │       │   │           └─ SparkdownBlockComment [203..215]
- │   │       │   │               ├─ SparkdownBlockComment_begin [203..206]
- │   │       │   │               │   ├─ SparkdownBlockComment_begin_c1 [203..204]
- │   │       │   │               │   │   └─ OptionalWhitespace [203..204]: " "
- │   │       │   │               │   └─ SparkdownBlockComment_begin_c2 [204..206]: "/*"
- │   │       │   │               ├─ SparkdownBlockComment_content [206..213]
- │   │       │   │               │   └─ SparkdownBlockCommentContent [206..213]: " outer "
- │   │       │   │               └─ SparkdownBlockComment_end [213..215]
- │   │       │   │                   └─ SparkdownBlockComment_end_c1 [213..215]: "*/"
- │   │       │   ├─ ChoiceInnerText [215..216]
- │   │       │   │   └─ Space [215..216]: " "
- │   │       │   ├─ ChoiceInnerText [216..218]
- │   │       │   │   └─ Word [216..218]: "go"
- │   │       │   └─ ChoiceInnerText [218..219]
- │   │       │       └─ Punctuation [218..219]: "."
- │   │       ├─ ChoiceWithSuppressedText_c6 219
- │   │       ├─ ChoiceWithSuppressedText_c7 [219..220]
- │   │       │   └─ RequiredWhitespace [219..220]: " "
- │   │       └─ ChoiceWithSuppressedText_c8 [220..227]
- │   │           └─ Divert [220..227]
- │   │               ├─ Divert_begin [220..222]
- │   │               │   ├─ Divert_begin_c1 220
- │   │               │   │   └─ OptionalWhitespace 220
- │   │               │   └─ Divert_begin_c2 [220..222]
- │   │               │       └─ DivertMark [220..222]: "->"
- │   │               ├─ Divert_content [222..227]
- │   │               │   └─ DivertTarget [222..227]
- │   │               │       ├─ DivertTarget_begin [222..223]
- │   │               │       │   └─ DivertTarget_begin_c1 [222..223]
- │   │               │       │       └─ DivertTarget_begin_c1 [222..223]
- │   │               │       │           └─ OptionalWhitespace [222..223]: " "
- │   │               │       ├─ DivertTarget_content [223..227]
- │   │               │       │   └─ DivertPath [223..227]
- │   │               │       │       ├─ DivertPath_begin 223
- │   │               │       │       ├─ DivertPath_content [223..227]
- │   │               │       │       │   └─ DivertPart [223..227]
- │   │               │       │       │       └─ DivertPartName [223..227]: "next"
- │   │               │       │       └─ DivertPath_end 227
- │   │               │       └─ DivertTarget_end 227
- │   │               └─ Divert_end 227
+ │   │   └─ ChoiceSuppression [180..227]
+ │   │       ├─ ChoiceSuppression_begin [180..181]
+ │   │       │   ├─ ChoiceSuppression_begin_c1 [180..181]: "["
+ │   │       │   └─ ChoiceSuppression_begin_c2 181
+ │   │       ├─ ChoiceSuppression_content [181..227]
+ │   │       │   ├─ ChoiceOnlyText [181..198]
+ │   │       │   │   ├─ ChoiceOnlyText_begin 181
+ │   │       │   │   ├─ ChoiceOnlyText_content [181..198]
+ │   │       │   │   │   ├─ ChoiceOnlyTextContent [181..183]
+ │   │       │   │   │   │   └─ ChoiceOnlyTextContent_c1 [181..183]
+ │   │       │   │   │   │       └─ Word [181..183]: "Go"
+ │   │       │   │   │   ├─ SparkdownBlockComment [183..195]
+ │   │       │   │   │   │   ├─ SparkdownBlockComment_begin [183..186]
+ │   │       │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [183..184]
+ │   │       │   │   │   │   │   │   └─ OptionalWhitespace [183..184]: " "
+ │   │       │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [184..186]: "/*"
+ │   │       │   │   │   │   ├─ SparkdownBlockComment_content [186..193]
+ │   │       │   │   │   │   │   └─ SparkdownBlockCommentContent [186..193]: " inner "
+ │   │       │   │   │   │   └─ SparkdownBlockComment_end [193..195]
+ │   │       │   │   │   │       └─ SparkdownBlockComment_end_c1 [193..195]: "*/"
+ │   │       │   │   │   └─ ChoiceOnlyTextContent [195..198]
+ │   │       │   │   │       └─ ChoiceOnlyTextContent_c1 [195..198]
+ │   │       │   │   │           ├─ Space [195..196]: " "
+ │   │       │   │   │           └─ Word [196..198]: "on"
+ │   │       │   │   └─ ChoiceOnlyText_end 198
+ │   │       │   ├─ ChoiceInnerText [198..219]
+ │   │       │   │   ├─ ChoiceInnerText_begin [198..199]
+ │   │       │   │   │   └─ ChoiceInnerText_begin_c1 [198..199]: "]"
+ │   │       │   │   ├─ ChoiceInnerText_content [199..219]
+ │   │       │   │   │   ├─ ChoiceInnerTextContent [199..203]
+ │   │       │   │   │   │   └─ ChoiceInnerTextContent_c1 [199..203]
+ │   │       │   │   │   │       ├─ Space [199..200]: " "
+ │   │       │   │   │   │       └─ Word [200..203]: "You"
+ │   │       │   │   │   ├─ SparkdownBlockComment [203..215]
+ │   │       │   │   │   │   ├─ SparkdownBlockComment_begin [203..206]
+ │   │       │   │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [203..204]
+ │   │       │   │   │   │   │   │   └─ OptionalWhitespace [203..204]: " "
+ │   │       │   │   │   │   │   └─ SparkdownBlockComment_begin_c2 [204..206]: "/*"
+ │   │       │   │   │   │   ├─ SparkdownBlockComment_content [206..213]
+ │   │       │   │   │   │   │   └─ SparkdownBlockCommentContent [206..213]: " outer "
+ │   │       │   │   │   │   └─ SparkdownBlockComment_end [213..215]
+ │   │       │   │   │   │       └─ SparkdownBlockComment_end_c1 [213..215]: "*/"
+ │   │       │   │   │   └─ ChoiceInnerTextContent [215..219]
+ │   │       │   │   │       └─ ChoiceInnerTextContent_c1 [215..219]
+ │   │       │   │   │           ├─ Space [215..216]: " "
+ │   │       │   │   │           ├─ Word [216..218]: "go"
+ │   │       │   │   │           └─ Punctuation [218..219]: "."
+ │   │       │   │   └─ ChoiceInnerText_end 219
+ │   │       │   ├─ ChoiceDivertWhitespace [219..220]
+ │   │       │   │   └─ ChoiceDivertWhitespace_c1 [219..220]
+ │   │       │   │       └─ RequiredWhitespace [219..220]: " "
+ │   │       │   └─ Divert [220..227]
+ │   │       │       ├─ Divert_begin [220..222]
+ │   │       │       │   ├─ Divert_begin_c1 220
+ │   │       │       │   │   └─ OptionalWhitespace 220
+ │   │       │       │   └─ Divert_begin_c2 [220..222]
+ │   │       │       │       └─ DivertMark [220..222]: "->"
+ │   │       │       ├─ Divert_content [222..227]
+ │   │       │       │   └─ DivertTarget [222..227]
+ │   │       │       │       ├─ DivertTarget_begin [222..223]
+ │   │       │       │       │   └─ DivertTarget_begin_c1 [222..223]
+ │   │       │       │       │       └─ DivertTarget_begin_c1 [222..223]
+ │   │       │       │       │           └─ OptionalWhitespace [222..223]: " "
+ │   │       │       │       ├─ DivertTarget_content [223..227]
+ │   │       │       │       │   └─ DivertPath [223..227]
+ │   │       │       │       │       ├─ DivertPath_begin 223
+ │   │       │       │       │       ├─ DivertPath_content [223..227]
+ │   │       │       │       │       │   └─ DivertPart [223..227]
+ │   │       │       │       │       │       └─ DivertPartName [223..227]: "next"
+ │   │       │       │       │       └─ DivertPath_end 227
+ │   │       │       │       └─ DivertTarget_end 227
+ │   │       │       └─ Divert_end 227
+ │   │       └─ ChoiceSuppression_end 227
  │   └─ Choice_end 227
  ├─ Newline [227..228]: "\n"
  ├─ Choice [228..255]
@@ -338,28 +339,26 @@ sparkdown [0..338]
  │   │   ├─ Choice_begin_c6 232
  │   │   └─ Choice_begin_c7 232
  │   ├─ Choice_content [232..255]
- │   │   └─ ChoiceWithNoSuppressedText [232..255]
- │   │       ├─ ChoiceWithNoSuppressedText_c1 [232..255]
- │   │       │   └─ ChoicePlainText [232..255]
- │   │       │       └─ ChoiceTextContent [232..255]
- │   │       │           └─ ChoiceTextContent_c1 [232..255]
- │   │       │               ├─ Word [232..237]: "Plain"
- │   │       │               ├─ SparkdownBlockCommentOnLine [237..248]
- │   │       │               │   └─ SparkdownBlockCommentOnLine_c1 [237..248]
- │   │       │               │       └─ SparkdownBlockComment [237..248]
- │   │       │               │           ├─ SparkdownBlockComment_begin [237..240]
- │   │       │               │           │   ├─ SparkdownBlockComment_begin_c1 [237..238]
- │   │       │               │           │   │   └─ OptionalWhitespace [237..238]: " "
- │   │       │               │           │   └─ SparkdownBlockComment_begin_c2 [238..240]: "/*"
- │   │       │               │           ├─ SparkdownBlockComment_content [240..246]
- │   │       │               │           │   └─ SparkdownBlockCommentContent [240..246]: " note "
- │   │       │               │           └─ SparkdownBlockComment_end [246..248]
- │   │       │               │               └─ SparkdownBlockComment_end_c1 [246..248]: "*/"
- │   │       │               ├─ Space [248..249]: " "
- │   │       │               └─ Word [249..255]: "choice"
- │   │       ├─ ChoiceWithNoSuppressedText_c2 255
- │   │       ├─ ChoiceWithNoSuppressedText_c3 255
- │   │       └─ ChoiceWithNoSuppressedText_c4 255
+ │   │   └─ ChoiceStartText [232..255]
+ │   │       ├─ ChoiceStartText_begin 232
+ │   │       ├─ ChoiceStartText_content [232..255]
+ │   │       │   ├─ ChoiceStartTextContent [232..237]
+ │   │       │   │   └─ ChoiceStartTextContent_c1 [232..237]
+ │   │       │   │       └─ Word [232..237]: "Plain"
+ │   │       │   ├─ SparkdownBlockComment [237..248]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [237..240]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [237..238]
+ │   │       │   │   │   │   └─ OptionalWhitespace [237..238]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [238..240]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [240..246]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [240..246]: " note "
+ │   │       │   │   └─ SparkdownBlockComment_end [246..248]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [246..248]: "*/"
+ │   │       │   └─ ChoiceStartTextContent [248..255]
+ │   │       │       └─ ChoiceStartTextContent_c1 [248..255]
+ │   │       │           ├─ Space [248..249]: " "
+ │   │       │           └─ Word [249..255]: "choice"
+ │   │       └─ ChoiceStartText_end 255
  │   └─ Choice_end 255
  ├─ Newline [255..256]: "\n"
  ├─ Choice [256..287]
@@ -374,39 +373,35 @@ sparkdown [0..338]
  │   │   ├─ Choice_begin_c6 260
  │   │   └─ Choice_begin_c7 260
  │   ├─ Choice_content [260..287]
- │   │   └─ ChoiceWithNoSuppressedText [260..287]
- │   │       ├─ ChoiceWithNoSuppressedText_c1 [260..287]
- │   │       │   └─ ChoicePlainText [260..287]
- │   │       │       └─ ChoiceTextContent [260..287]
- │   │       │           └─ ChoiceTextContent_c1 [260..287]
- │   │       │               ├─ Word [260..265]: "Twice"
- │   │       │               ├─ SparkdownBlockCommentOnLine [265..273]
- │   │       │               │   └─ SparkdownBlockCommentOnLine_c1 [265..273]
- │   │       │               │       └─ SparkdownBlockComment [265..273]
- │   │       │               │           ├─ SparkdownBlockComment_begin [265..268]
- │   │       │               │           │   ├─ SparkdownBlockComment_begin_c1 [265..266]
- │   │       │               │           │   │   └─ OptionalWhitespace [265..266]: " "
- │   │       │               │           │   └─ SparkdownBlockComment_begin_c2 [266..268]: "/*"
- │   │       │               │           ├─ SparkdownBlockComment_content [268..271]
- │   │       │               │           │   └─ SparkdownBlockCommentContent [268..271]: "one"
- │   │       │               │           └─ SparkdownBlockComment_end [271..273]
- │   │       │               │               └─ SparkdownBlockComment_end_c1 [271..273]: "*/"
- │   │       │               ├─ SparkdownBlockCommentOnLine [273..280]
- │   │       │               │   └─ SparkdownBlockCommentOnLine_c1 [273..280]
- │   │       │               │       └─ SparkdownBlockComment [273..280]
- │   │       │               │           ├─ SparkdownBlockComment_begin [273..275]
- │   │       │               │           │   ├─ SparkdownBlockComment_begin_c1 273
- │   │       │               │           │   │   └─ OptionalWhitespace 273
- │   │       │               │           │   └─ SparkdownBlockComment_begin_c2 [273..275]: "/*"
- │   │       │               │           ├─ SparkdownBlockComment_content [275..278]
- │   │       │               │           │   └─ SparkdownBlockCommentContent [275..278]: "two"
- │   │       │               │           └─ SparkdownBlockComment_end [278..280]
- │   │       │               │               └─ SparkdownBlockComment_end_c1 [278..280]: "*/"
- │   │       │               ├─ Space [280..281]: " "
- │   │       │               └─ Word [281..287]: "choice"
- │   │       ├─ ChoiceWithNoSuppressedText_c2 287
- │   │       ├─ ChoiceWithNoSuppressedText_c3 287
- │   │       └─ ChoiceWithNoSuppressedText_c4 287
+ │   │   └─ ChoiceStartText [260..287]
+ │   │       ├─ ChoiceStartText_begin 260
+ │   │       ├─ ChoiceStartText_content [260..287]
+ │   │       │   ├─ ChoiceStartTextContent [260..265]
+ │   │       │   │   └─ ChoiceStartTextContent_c1 [260..265]
+ │   │       │   │       └─ Word [260..265]: "Twice"
+ │   │       │   ├─ SparkdownBlockComment [265..273]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [265..268]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 [265..266]
+ │   │       │   │   │   │   └─ OptionalWhitespace [265..266]: " "
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [266..268]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [268..271]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [268..271]: "one"
+ │   │       │   │   └─ SparkdownBlockComment_end [271..273]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [271..273]: "*/"
+ │   │       │   ├─ SparkdownBlockComment [273..280]
+ │   │       │   │   ├─ SparkdownBlockComment_begin [273..275]
+ │   │       │   │   │   ├─ SparkdownBlockComment_begin_c1 273
+ │   │       │   │   │   │   └─ OptionalWhitespace 273
+ │   │       │   │   │   └─ SparkdownBlockComment_begin_c2 [273..275]: "/*"
+ │   │       │   │   ├─ SparkdownBlockComment_content [275..278]
+ │   │       │   │   │   └─ SparkdownBlockCommentContent [275..278]: "two"
+ │   │       │   │   └─ SparkdownBlockComment_end [278..280]
+ │   │       │   │       └─ SparkdownBlockComment_end_c1 [278..280]: "*/"
+ │   │       │   └─ ChoiceStartTextContent [280..287]
+ │   │       │       └─ ChoiceStartTextContent_c1 [280..287]
+ │   │       │           ├─ Space [280..281]: " "
+ │   │       │           └─ Word [281..287]: "choice"
+ │   │       └─ ChoiceStartText_end 287
  │   └─ Choice_end 287
  ├─ Newline [287..288]: "\n"
  ├─ Divert [288..312]
@@ -429,28 +424,24 @@ sparkdown [0..338]
  │   │   │   │       │       └─ DivertPartName [293..297]: "next"
  │   │   │   │       └─ DivertPath_end 297
  │   │   │   └─ DivertTarget_end 297
- │   │   ├─ SparkdownBlockCommentOnLine [297..305]
- │   │   │   └─ SparkdownBlockCommentOnLine_c1 [297..305]
- │   │   │       └─ SparkdownBlockComment [297..305]
- │   │   │           ├─ SparkdownBlockComment_begin [297..300]
- │   │   │           │   ├─ SparkdownBlockComment_begin_c1 [297..298]
- │   │   │           │   │   └─ OptionalWhitespace [297..298]: " "
- │   │   │           │   └─ SparkdownBlockComment_begin_c2 [298..300]: "/*"
- │   │   │           ├─ SparkdownBlockComment_content [300..303]
- │   │   │           │   └─ SparkdownBlockCommentContent [300..303]: "one"
- │   │   │           └─ SparkdownBlockComment_end [303..305]
- │   │   │               └─ SparkdownBlockComment_end_c1 [303..305]: "*/"
- │   │   └─ SparkdownBlockCommentOnLine [305..312]
- │   │       └─ SparkdownBlockCommentOnLine_c1 [305..312]
- │   │           └─ SparkdownBlockComment [305..312]
- │   │               ├─ SparkdownBlockComment_begin [305..307]
- │   │               │   ├─ SparkdownBlockComment_begin_c1 305
- │   │               │   │   └─ OptionalWhitespace 305
- │   │               │   └─ SparkdownBlockComment_begin_c2 [305..307]: "/*"
- │   │               ├─ SparkdownBlockComment_content [307..310]
- │   │               │   └─ SparkdownBlockCommentContent [307..310]: "two"
- │   │               └─ SparkdownBlockComment_end [310..312]
- │   │                   └─ SparkdownBlockComment_end_c1 [310..312]: "*/"
+ │   │   ├─ SparkdownBlockComment [297..305]
+ │   │   │   ├─ SparkdownBlockComment_begin [297..300]
+ │   │   │   │   ├─ SparkdownBlockComment_begin_c1 [297..298]
+ │   │   │   │   │   └─ OptionalWhitespace [297..298]: " "
+ │   │   │   │   └─ SparkdownBlockComment_begin_c2 [298..300]: "/*"
+ │   │   │   ├─ SparkdownBlockComment_content [300..303]
+ │   │   │   │   └─ SparkdownBlockCommentContent [300..303]: "one"
+ │   │   │   └─ SparkdownBlockComment_end [303..305]
+ │   │   │       └─ SparkdownBlockComment_end_c1 [303..305]: "*/"
+ │   │   └─ SparkdownBlockComment [305..312]
+ │   │       ├─ SparkdownBlockComment_begin [305..307]
+ │   │       │   ├─ SparkdownBlockComment_begin_c1 305
+ │   │       │   │   └─ OptionalWhitespace 305
+ │   │       │   └─ SparkdownBlockComment_begin_c2 [305..307]: "/*"
+ │   │       ├─ SparkdownBlockComment_content [307..310]
+ │   │       │   └─ SparkdownBlockCommentContent [307..310]: "two"
+ │   │       └─ SparkdownBlockComment_end [310..312]
+ │   │           └─ SparkdownBlockComment_end_c1 [310..312]: "*/"
  │   └─ Divert_end 312
  ├─ Newline [312..313]: "\n"
  ├─ DoneStatement [313..319]

@@ -212,15 +212,13 @@ sparkdown [0..218]
  │   │   │   │   ├─ Choice_begin_c6 147
  │   │   │   │   └─ Choice_begin_c7 147
  │   │   │   ├─ Choice_content [147..151]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [147..151]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [147..151]
- │   │   │   │       │   └─ ChoicePlainText [147..151]
- │   │   │   │       │       └─ ChoiceTextContent [147..151]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [147..151]
- │   │   │   │       │               └─ Word [147..151]: "Pick"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 151
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 151
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 151
+ │   │   │   │   └─ ChoiceStartText [147..151]
+ │   │   │   │       ├─ ChoiceStartText_begin 147
+ │   │   │   │       ├─ ChoiceStartText_content [147..151]
+ │   │   │   │       │   └─ ChoiceStartTextContent [147..151]
+ │   │   │   │       │       └─ ChoiceStartTextContent_c1 [147..151]
+ │   │   │   │       │           └─ Word [147..151]: "Pick"
+ │   │   │   │       └─ ChoiceStartText_end 151
  │   │   │   └─ Choice_end 151
  │   │   ├─ Newline [151..152]: "\n"
  │   │   ├─ Run [152..168]
