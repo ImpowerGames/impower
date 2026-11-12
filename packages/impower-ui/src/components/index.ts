@@ -425,3 +425,25 @@ export {
   type CarouselProps,
   type CarouselSize,
 } from "./carousel/Carousel";
+export {
+  default as ProgressBar,
+  progressBarVariants,
+  progressBarFillVariants,
+  type ProgressBarProps,
+  type ProgressBarTone,
+} from "./progress-bar/ProgressBar";
+export {
+  default as UploadPanel,
+  uploadPanelVariants,
+  uploadRowVariants,
+  type UploadPanelProps,
+  type UploadPanelRow,
+  type UploadRowState,
+} from "./upload-panel/UploadPanel";
+export {
+  default as DropZone,
+  dropZoneVariants,
+  dropZoneNoteVariants,
+  type DropZoneProps,
+  type DropZoneScope,
+} from "./drop-zone/DropZone";

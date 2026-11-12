@@ -11,6 +11,7 @@ const actions = vi.hoisted(() => ({
   requestProjectReplace: vi.fn(),
   cancelProjectReplace: vi.fn(),
   confirmProjectReplace: vi.fn(),
+  refreshProjectReplace: vi.fn(),
   store: { project: { name: "Raffles" } },
 }));
 const downloads = vi.hoisted(() => vi.fn());
@@ -307,6 +308,70 @@ describe("the Replace dialog", () => {
     });
     await settle();
     expect(actions.cancelProjectReplace).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Replace project unavailable while files are still being added, and says so", async () => {
+    workspace.uploads.value = [
+      { id: 1, name: "a.wav", state: "added", path: "Assets/Audio/a.wav" },
+      { id: 2, name: "b.wav", state: "working" },
+      { id: 3, name: "c.wav", state: "waiting" },
+    ];
+    try {
+      await mountSection();
+      await act(async () => {
+        workspace.replaceProject.value = request;
+      });
+      await settle();
+      const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
+      expect(replace.disabled).toBe(true);
+      expect(dialog()!.textContent).toContain("Wait for the 2 files still being added, then replace the project.");
+      await act(async () => {
+        workspace.uploads.value = workspace.uploads.value.map((row) => ({ id: row.id, name: row.name, state: "added", path: `Assets/Audio/${row.name}` }));
+      });
+      await settle();
+      expect(replace.disabled).toBe(false);
+      expect(dialog()!.textContent).not.toContain("still being added");
+      expect(actions.refreshProjectReplace).toHaveBeenCalled();
+    } finally {
+      workspace.uploads.value = [];
+    }
+  });
+
+  it("keeps Replace project unavailable while a batch is still finishing after its rows read added", async () => {
+    workspace.uploadBatches.value = 1;
+    try {
+      await mountSection();
+      await act(async () => {
+        workspace.replaceProject.value = request;
+      });
+      await settle();
+      const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
+      expect(replace.disabled).toBe(true);
+      expect(dialog()!.textContent).toContain("Wait for the upload to finish, then replace the project.");
+      await act(async () => {
+        workspace.uploadBatches.value = 0;
+      });
+      await settle();
+      expect(replace.disabled).toBe(false);
+    } finally {
+      workspace.uploadBatches.value = 0;
+    }
+  });
+
+  it("keeps Replace project unavailable while another replace is importing, and says so", async () => {
+    workspace.replacing.value = true;
+    try {
+      await mountSection();
+      await act(async () => {
+        workspace.replaceProject.value = request;
+      });
+      await settle();
+      const replace = Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Replace project")!;
+      expect(replace.disabled).toBe(true);
+      expect(dialog()!.textContent).toContain("Wait for the project being replaced to finish, then replace it again.");
+    } finally {
+      workspace.replacing.value = false;
+    }
   });
 
   it("runs the import from Replace project", async () => {

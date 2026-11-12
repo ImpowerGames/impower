@@ -285,7 +285,7 @@ export async function recordResolvedUpload(
   showSnackbar({
     message:
       newUris.length > 0
-        ? `Imported ${label}`
+        ? `Added ${label}`
         : `Import failed — replaced files moved to recycle bin`,
     actionLabel: "Undo",
     onAction: () => void undo(),

@@ -1,110 +1,102 @@
-import {
-  DownloadIcon,
-} from "@impower/impower-ui/components";
-import { useEffect, useRef, useState } from "preact/hooks";
-import getValidFileName from "../../utils/getValidFileName";
-import { importDroppedFiles } from "../../utils/importDroppedFiles";
-import { isScriptPath } from "../../utils/scriptFiles";
+import { DropZone } from "@impower/impower-ui/components";
+import { useEffect, useState } from "preact/hooks";
+import { isAssetType } from "../../utils/assetTypes";
+import { showSnackbar } from "../../utils/snackbar";
+import { addAssetFiles, isProjectZipDrop, openDroppedZip, type AddedFile } from "../../workspace/addAssetFiles";
+import { routeOfState } from "../../workspace/routes";
+import workspace from "../../workspace/WorkspaceStore";
+import { carriesFiles, droppedFiles, FILE_DROP_HIDE_MS, FILE_DROP_TARGET } from "../../utils/fileDrops";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
 
+export const DROP_NOTES = {
+  files: ["Drop to add to Assets", "Each file goes to the folder of its type."],
+  zip: ["Drop to replace this project", "A backup replaces every script and asset, after asking."],
+} as const;
+
+const draggedZip = (event: DragEvent) => {
+  const items = Array.from(event.dataTransfer?.items ?? []);
+  return items.length === 1 && items[0]!.kind === "file" && /zip/i.test(items[0]!.type);
+};
+
+const viewedFolder = (): string => {
+  const state = workspace.state.peek();
+  const type = isAssetType(state.lists?.assetsType) ? state.lists.assetsType : "image";
+  return state.lists?.assetsFolders?.[type] ?? "";
+};
+
+export const deliverDrop = async (files: AddedFile[]): Promise<void> => {
+  if (!files.length || !workspace.signals.projectId.peek()) {
+    return;
+  }
+  const onAssets = routeOfState(workspace.state.peek()) === "collection";
+  const folder = onAssets ? viewedFolder() : "";
+  const zip = isProjectZipDrop(files);
+  const { Workspace } = await import("../../workspace/Workspace");
+  try {
+    if (zip) {
+      if ((await openDroppedZip(files[0]!)) === "refused" && !onAssets) {
+        Workspace.window.navigateTo("collection");
+      }
+      return;
+    }
+    if (!onAssets) {
+      Workspace.window.navigateTo("collection");
+    }
+    const landed = await addAssetFiles(files, folder, { dropped: true });
+    if (landed.length) {
+      workspace.assetsReveal.value = landed;
+    }
+  } catch (error) {
+    showSnackbar({ message: error instanceof Error ? error.message : String(error) });
+  }
+};
+
 export default function FileDropzone(_props: FileDropzoneProps) {
-  const [dragging, setDragging] = useState(false);
-  const draggingRef = useRef(dragging);
-  draggingRef.current = dragging;
+  const [note, setNote] = useState<keyof typeof DROP_NOTES | null>(null);
 
   useEffect(() => {
+    let timer = 0;
     let disposeProtocol: (() => void) | undefined;
-
-    const relayDragging = () => {
-      setDragging(true);
-      if (overlayTimer) clearTimeout(overlayTimer);
-      overlayTimer = window.setTimeout(() => setDragging(false), 150);
+    let disposed = false;
+    const hide = () => {
+      clearTimeout(timer);
+      timer = 0;
+      setNote(null);
     };
-    const dragEnter = () => relayDragging();
-    const dragLeave = () => {
-      if (overlayTimer) clearTimeout(overlayTimer);
-      overlayTimer = 0;
-      setDragging(false);
+    const show = (kind: keyof typeof DROP_NOTES) => {
+      setNote(kind);
+      clearTimeout(timer);
+      timer = window.setTimeout(hide, FILE_DROP_HIDE_MS);
     };
-    const dragOver = () => relayDragging();
+    const onPage = (event: DragEvent) =>
+      event.target instanceof Element && !!event.target.closest(`[${FILE_DROP_TARGET}]`);
 
-    const handleDrop = async (
-      items: { name: string; getBuffer: () => Promise<ArrayBuffer> }[],
-    ) => {
-      setDragging(false);
-      const { Workspace } = await import("../../workspace/Workspace");
-      const store = (await import("../../workspace/WorkspaceStore")).default
-        .state.value;
-      const projectId = store?.project?.id;
-      if (!projectId) return;
-      if (!items || items.length === 0) return;
-      if (items.length === 1 && /\.zip$/i.test(items[0]?.name ?? "")) {
-        const item = items[0]!;
-        await Workspace.window.importLocalProject(
-          item.name,
-          await item.getBuffer(),
-        );
+    const onDragOver = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      if (onPage(event)) {
+        hide();
         return;
       }
-      const targetRel = (name: string) => {
-        const valid = getValidFileName(name);
-        return isScriptPath(valid) ? `scripts/${valid}` : `assets/${valid}`;
-      };
-      await importDroppedFiles(
-        projectId,
-        items.map((it) => ({
-          rel: targetRel(it.name),
-          getBuffer: it.getBuffer,
-        })),
-      );
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      show(draggedZip(event) ? "zip" : "files");
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      hide();
+      if (!onPage(event)) {
+        void deliverDrop(droppedFiles(event));
+      }
     };
 
-    const carriesFiles = (e: DragEvent) =>
-      Array.from(e.dataTransfer?.types ?? []).includes("Files");
-
-    let overlayTimer = 0;
-    const overFileList = (e: DragEvent) =>
-      e.target instanceof Element &&
-      !!e.target.closest("[data-file-drop-target]");
-
-    const refreshOverlay = (e: DragEvent) => {
-      const show = !overFileList(e);
-      setDragging(show);
-      if (overlayTimer) clearTimeout(overlayTimer);
-      overlayTimer = show
-        ? window.setTimeout(() => setDragging(false), 150)
-        : 0;
-    };
-    const onDragEnter = (e: DragEvent) => {
-      if (!carriesFiles(e)) return;
-      e.preventDefault();
-      refreshOverlay(e);
-    };
-    const onDragOver = (e: DragEvent) => {
-      if (!carriesFiles(e)) return;
-      e.preventDefault();
-      refreshOverlay(e);
-    };
-    const onDrop = async (e: DragEvent) => {
-      if (!carriesFiles(e)) return;
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer?.files || []);
-      await handleDrop(
-        files.map((f) => ({ name: f.name, getBuffer: () => f.arrayBuffer() })),
-      );
-    };
-    const clearOverlay = () => {
-      if (overlayTimer) clearTimeout(overlayTimer);
-      overlayTimer = 0;
-      setDragging(false);
-    };
-
-    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragenter", onDragOver);
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
-    window.addEventListener("drop", clearOverlay, true);
 
     Promise.all([
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
@@ -120,41 +112,39 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         { DraggedFilesOverMessage },
         { DroppedFilesMessage },
       ]) => {
+        if (disposed) return;
         const disposers = [
-          onProtocolMessage(DraggedFilesInMessage.type, () => dragEnter()),
-          onProtocolMessage(DraggedFilesOutMessage.type, () => dragLeave()),
-          onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
-          onProtocolMessage(DroppedFilesMessage.type, (m) => {
-            void handleDrop(
-              m.params.files.map((f) => ({
-                name: f.name,
-                getBuffer: () => Promise.resolve(f.buffer),
+          onProtocolMessage(DraggedFilesInMessage.type, () => show("files")),
+          onProtocolMessage(DraggedFilesOutMessage.type, () => hide()),
+          onProtocolMessage(DraggedFilesOverMessage.type, () => show("files")),
+          onProtocolMessage(DroppedFilesMessage.type, (message) => {
+            hide();
+            void deliverDrop(
+              message.params.files.map((file) => ({
+                name: file.name,
+                size: file.buffer.byteLength,
+                getBuffer: () => Promise.resolve(file.buffer),
               })),
             );
           }),
         ];
-        disposeProtocol = () => disposers.forEach((d) => d());
+        disposeProtocol = () => disposers.forEach((dispose) => dispose());
       },
     );
 
     return () => {
-      if (overlayTimer) clearTimeout(overlayTimer);
-      window.removeEventListener("dragenter", onDragEnter);
+      disposed = true;
+      clearTimeout(timer);
+      window.removeEventListener("dragenter", onDragOver);
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("drop", onDrop);
-      window.removeEventListener("drop", clearOverlay, true);
       disposeProtocol?.();
     };
   }, []);
 
-  return (
-    <div class="pointer-events-none absolute inset-0 z-[400] flex flex-col">
-      {dragging && (
-        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-panel text-foreground text-xl font-semibold">
-          <DownloadIcon class="size-16" />
-          Import Project Files
-        </div>
-      )}
-    </div>
-  );
+  if (!note) {
+    return null;
+  }
+  const [title, detail] = DROP_NOTES[note];
+  return <DropZone scope="window" title={title} detail={detail} />;
 }

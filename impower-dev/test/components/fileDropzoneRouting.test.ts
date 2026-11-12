@@ -1,31 +1,97 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  importDroppedFiles: vi.fn(async () => undefined),
+  importFiles: vi.fn(async (_projectId: string, items: { rel: string }[]) => items.map((item) => item.rel)),
+  upload: vi.fn(async (files: readonly { name: string }[], _folder: string) => files.map((file) => `Assets/x/${file.name}`)),
+  load: vi.fn(async () => null),
+  navigateTo: vi.fn(),
+  requestProjectReplace: vi.fn(async (_file: File) => undefined),
+  unzipFiles: vi.fn(async (_params: { data: ArrayBuffer }): Promise<{ filename: string }[]> => []),
 }));
-
-vi.mock("@impower/impower-ui/components", () => ({ DownloadIcon: () => null }));
 
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({
-  importDroppedFiles: mocks.importDroppedFiles,
-}));
-
-vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({
-  default: { state: { value: { project: { id: "p" } } } },
+  importFiles: mocks.importFiles,
 }));
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { window: { importLocalProject: vi.fn() } },
+  Workspace: {
+    assets: { upload: mocks.upload, load: mocks.load },
+    window: { navigateTo: mocks.navigateTo, requestProjectReplace: mocks.requestProjectReplace },
+    fs: { unzipFiles: mocks.unzipFiles },
+  },
 }));
 
+const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { SCRIPT_FILES_GLOB, setScriptFiles } = await import("../../src/modules/spark-editor/utils/scriptFiles");
+const { uploadNote } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
+const { PROJECT_SETTINGS_SCHEMA } = await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 const { default: FileDropzone } = await import(
   "../../src/modules/spark-editor/components/file-dropzone/FileDropzone"
 );
 
 const host = document.createElement("div");
+
+const settle = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
+const desktopFile = (name: string) =>
+  Object.assign(new File(["xy"], name), { arrayBuffer: async () => new TextEncoder().encode("xy").buffer });
+
+const files = (names: string[], type = "") => ({
+  types: ["Files"],
+  files: names.map(desktopFile),
+  items: names.map(() => ({ kind: "file", type })),
+  dropEffect: "",
+});
+
+const fire = async (type: "dragover" | "drop", dataTransfer: ReturnType<typeof files>, target: EventTarget = document.body) => {
+  await act(async () => {
+    target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), { dataTransfer }));
+  });
+  await settle();
+};
+
+const dropThen = async (dataTransfer: ReturnType<typeof files>, then: () => void) => {
+  await act(async () => {
+    document.body.dispatchEvent(Object.assign(new Event("drop", { bubbles: true, cancelable: true }), { dataTransfer }));
+    then();
+  });
+  await settle();
+};
+
+const overlay = () => {
+  const zone = document.querySelector<HTMLElement>('[data-drop-zone="window"]');
+  return zone ? [zone.querySelector("strong")!.textContent, zone.querySelector("strong + span")!.textContent] : null;
+};
+
+beforeEach(async () => {
+  vi.clearAllMocks();
+  workspace.uploads.value = [];
+  workspace.assetsReveal.value = null;
+  setAssetFiles({
+    imageFiles: PROJECT_SETTINGS_SCHEMA.imageFiles.default,
+    audioFiles: PROJECT_SETTINGS_SCHEMA.audioFiles.default,
+    videoFiles: PROJECT_SETTINGS_SCHEMA.videoFiles.default,
+    fontFiles: PROJECT_SETTINGS_SCHEMA.fontFiles.default,
+  });
+  workspace.current = {
+    ...workspace.current,
+    project: { ...workspace.current.project, id: "p" },
+    pane: "logic",
+    screen: { ...workspace.current.screen, settingsOpen: false },
+    lists: {},
+  };
+  workspace.assetListing.value = { projectId: "p", files: {}, folders: ["Assets", "scripts"] };
+  document.body.append(host);
+  await act(async () => {
+    render(h(FileDropzone, {}), host);
+  });
+});
 
 afterEach(async () => {
   await act(async () => {
@@ -34,78 +100,165 @@ afterEach(async () => {
   host.remove();
 });
 
-const drop = (names: string[]) => {
-  const event = new Event("drop", { bubbles: true, cancelable: true });
-  Object.defineProperty(event, "dataTransfer", {
-    value: {
-      types: ["Files"],
-      files: names.map((name) => new File(["x"], name)),
-    },
+describe("files dropped anywhere in the app", () => {
+  it("shows the full-window note while files are over any route, and hides it on the drop", async () => {
+    await fire("dragover", files(["hero.png", "rain.wav"]));
+    expect(overlay()).toEqual(["Drop to add to Assets", "Each file goes to the folder of its type."]);
+    await fire("drop", files([]));
+    expect(overlay()).toBeNull();
   });
-  window.dispatchEvent(event);
-};
 
-describe("FileDropzone routing", () => {
-  it("files a dropped .luau and .sd under scripts/ and everything else under assets/", async () => {
-    document.body.append(host);
-    await act(async () => {
-      render(h(FileDropzone, {}), host);
+  it("names the replace for a single zip being dragged", async () => {
+    await fire("dragover", files(["backup.zip"], "application/x-zip-compressed"));
+    expect(overlay()).toEqual(["Drop to replace this project", "A backup replaces every script and asset, after asking."]);
+  });
+
+  it("opens Assets and adds a PNG and a WAV dropped on the Story route, each to its type's folder", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images/Portraits/Cast" } } };
+    mocks.navigateTo.mockImplementationOnce(() => {
+      workspace.current = { ...workspace.current, pane: "assets" };
     });
+    mocks.upload.mockImplementationOnce(async () => {
+      workspace.assetListing.value = {
+        projectId: "p",
+        files: { "Assets/Images/hero.png": { modified: 1, size: 2 }, "Assets/Audio/rain.wav": { modified: 1, size: 2 } },
+        folders: ["Assets"],
+      };
+      return ["Assets/Images/hero.png", "Assets/Audio/rain.wav"];
+    });
+    await fire("drop", files(["hero.png", "rain.wav"]));
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    const [dropped, folder] = mocks.upload.mock.calls[0]!;
+    expect(dropped.map((file) => file.name)).toEqual(["hero.png", "rain.wav"]);
+    expect(folder).toBe("");
+    await vi.waitFor(() => expect(workspace.assetsReveal.value).toEqual(["Assets/Images/hero.png", "Assets/Audio/rain.wav"]));
+  });
 
-    await act(async () => {
-      drop(["util.luau", "intro.sd", "hero.png", "notes.txt"]);
+  it("adds to the folder in view when the drop lands outside the page while Assets is open", async () => {
+    workspace.current = {
+      ...workspace.current,
+      pane: "assets",
+      lists: { assetsType: "audio", assetsFolders: { audio: "Assets/Audio/Music" } },
+    };
+    await fire("drop", files(["rain.wav"]));
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "rain.wav" })], "Assets/Audio/Music"));
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
+  });
+
+  it("keeps the drop's destination when the route changes while the drop is being delivered", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsType: "image", assetsFolders: { image: "Assets/Images/Cast" } } };
+    await dropThen(files(["hero.png"]), () => {
+      workspace.current = { ...workspace.current, pane: "assets" };
+    });
+    await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "hero.png" })], ""));
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    mocks.upload.mockClear();
+    mocks.navigateTo.mockClear();
+    await dropThen(files(["ada.png"]), () => {
+      workspace.current = { ...workspace.current, pane: "logic" };
     });
     await vi.waitFor(() =>
-      expect(mocks.importDroppedFiles).toHaveBeenCalledTimes(1),
+      expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "ada.png" })], "Assets/Images/Cast"),
     );
-
-    const [projectId, items] = mocks.importDroppedFiles.mock.calls[0] as unknown as [
-      string,
-      { rel: string }[],
-    ];
-    expect(projectId).toBe("p");
-    expect(items.map((it) => it.rel)).toEqual([
-      "scripts/util.luau",
-      "scripts/intro.sd",
-      "assets/hero.png",
-      "assets/notes.txt",
-    ]);
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
   });
 
-  it("keeps the @ and ~ of a dropped alternate or layer file", async () => {
-    mocks.importDroppedFiles.mockClear();
-    document.body.append(host);
-    await act(async () => {
-      render(h(FileDropzone, {}), host);
-    });
-    await act(async () => {
-      drop(["imani~face.happy.png", "imani@night.png", "door knock.wav"]);
-    });
-    await vi.waitFor(() => expect(mocks.importDroppedFiles).toHaveBeenCalledTimes(1));
-    const [, items] = mocks.importDroppedFiles.mock.calls[0] as unknown as [string, { rel: string }[]];
-    expect(items.map((it) => it.rel)).toEqual([
-      "assets/imani~face.happy.png",
-      "assets/imani@night.png",
-      "assets/door_knock.wav",
-    ]);
-  });
-
-  it("files a dropped script of an ending added under File types under scripts/", async () => {
+  it("files dropped scripts in the project's own Scripts folder and the rest through the Assets upload", async () => {
     setScriptFiles("*.{sd,luau,story}");
     try {
-      mocks.importDroppedFiles.mockClear();
-      document.body.append(host);
-      await act(async () => {
-        render(h(FileDropzone, {}), host);
-      });
-      await act(async () => {
-        drop(["chapter.story", "hero.png"]);
-      });
-      await vi.waitFor(() => expect(mocks.importDroppedFiles).toHaveBeenCalledTimes(1));
-      const [, items] = mocks.importDroppedFiles.mock.calls[0] as unknown as [string, { rel: string }[]];
-      expect(items.map((it) => it.rel)).toEqual(["scripts/chapter.story", "assets/hero.png"]);
+      await fire("drop", files(["util.luau", "intro.sd", "chapter.story", "hero.png"]));
+      await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
+      expect(mocks.importFiles.mock.calls[0]![1].map((item) => item.rel)).toEqual([
+        "scripts/util.luau",
+        "scripts/intro.sd",
+        "scripts/chapter.story",
+      ]);
+      expect(mocks.upload.mock.calls[0]![0].map((file) => file.name)).toEqual(["hero.png"]);
     } finally {
       setScriptFiles(SCRIPT_FILES_GLOB);
     }
+  });
+
+  it("leaves a drop on the Assets page to the page", async () => {
+    const page = document.body.appendChild(document.createElement("div"));
+    page.setAttribute("data-file-drop-target", "");
+    try {
+      await fire("dragover", files(["hero.png"]), page);
+      expect(overlay()).toBeNull();
+      await fire("drop", files(["hero.png"]), page);
+      expect(mocks.upload).not.toHaveBeenCalled();
+    } finally {
+      page.remove();
+    }
+  });
+});
+
+describe("a single zip dropped anywhere", () => {
+  it("asks to replace the project when the zip is a backup with a main script", async () => {
+    mocks.unzipFiles.mockResolvedValueOnce([{ filename: "My Story/main.sd" }, { filename: "My Story/Assets/a.png" }]);
+    await fire("drop", files(["backup.zip"]));
+    await vi.waitFor(() => expect(mocks.requestProjectReplace).toHaveBeenCalledTimes(1));
+    const file = mocks.requestProjectReplace.mock.calls[0]![0];
+    expect(file.name).toBe("backup.zip");
+    expect(file.size).toBe(2);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.importFiles).not.toHaveBeenCalled();
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
+    expect(workspace.uploads.value).toEqual([]);
+  });
+
+  it("stays on the route for a backup zip even when another upload's progress changes meanwhile", async () => {
+    mocks.unzipFiles.mockImplementationOnce(async () => {
+      workspace.uploads.value = [{ id: 999, name: "slow.wav", state: "working" }];
+      return [{ filename: "Story/main.sd" }];
+    });
+    await fire("drop", files(["backup.zip"]));
+    await vi.waitFor(() => expect(mocks.requestProjectReplace).toHaveBeenCalledTimes(1));
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
+  });
+
+  it("lists a dropped zip that cannot be read as not added, and opens Assets to say so", async () => {
+    const dataTransfer = files(["art.zip"]);
+    dataTransfer.files[0]!.arrayBuffer = async () => {
+      throw new DOMException("The file could not be read.", "NotReadableError");
+    };
+    await fire("drop", dataTransfer);
+    await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
+    expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe("Not added: the file could not be read, so choose it again.");
+    expect(mocks.unzipFiles).not.toHaveBeenCalled();
+    expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+  });
+
+  it.each([
+    [
+      "has no main script",
+      async () => [{ filename: "pictures/a.png" }],
+      "Nothing was changed because “art.zip” has no main.sd, which every project backup needs.",
+    ],
+    [
+      "holds two projects",
+      async () => [{ filename: "one/main.sd" }, { filename: "two/main.sd" }],
+      "Nothing was changed because “art.zip” holds more than one project, in “one” and “two”, so zip one of them on its own.",
+    ],
+    [
+      "cannot be opened",
+      async () => {
+        throw new Error("bad zip");
+      },
+      "Nothing was changed because “art.zip” is not a .zip the editor can open.",
+    ],
+  ])("changes nothing and lists the zip as not added when it %s", async (_case, unzip, sentence) => {
+    mocks.unzipFiles.mockImplementationOnce(unzip);
+    await fire("drop", files(["art.zip"]));
+    await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
+    const [row] = workspace.uploads.value;
+    expect(row!.state).toBe("failed");
+    expect(uploadNote(row!, () => "")).toBe(sentence);
+    expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.importFiles).not.toHaveBeenCalled();
+    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
   });
 });

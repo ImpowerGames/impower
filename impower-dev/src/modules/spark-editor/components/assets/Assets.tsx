@@ -3,6 +3,7 @@ import {
   Button,
   ChevronIcon,
   DropdownItem,
+  DropZone,
   FolderIcon,
   FolderPlusIcon,
   FolderCover,
@@ -94,9 +95,13 @@ import {
   useTabQuery,
   type SelectionAction,
 } from "../library-page";
+import { addAssetFiles, landedView, type AddedFile } from "../../workspace/addAssetFiles";
+import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
 import { SoundLine, SoundPlay } from "./SoundRow";
+import UploadsPanel from "./UploadsPanel";
+import { useFileDrop } from "./useFileDrop";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -425,32 +430,46 @@ function AssetsBrowser() {
   };
 
   const show = (landed: readonly string[]) => {
-    const last = landed[landed.length - 1];
-    if (!last || landed.some((path) => parentOf(path) === level.folder)) {
+    const view = landedView(landed, level.folder);
+    if (!view) {
       return;
     }
-    const facts = workspace.assetListing.peek()?.files[last];
-    const landedType = assetTypeOf(last, assetEndings.peek(), facts?.address);
-    setQuery("");
-    setLists({
-      assetsType: landedType,
-      assetsFolders: { ...folders, [landedType]: parentOf(last) },
-    });
+    if (view.lists || searching) {
+      setQuery("");
+    }
+    if (view.lists) {
+      setLists(view.lists);
+    }
+    revealRow(view.last);
   };
+
+  const revealing = workspace.assetsReveal.value;
+  useEffect(() => {
+    if (revealing && loaded) {
+      workspace.assetsReveal.value = null;
+      show(revealing);
+    }
+  }, [revealing, loaded]);
+
+  const add = (files: AddedFile[], folder: string, dropped: boolean) =>
+    void run(async () => show(await addAssetFiles(files, folder, { dropped })));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
     const chosen = Array.from(input.files ?? []);
     input.value = "";
     if (!chosen.length) return;
-    void run(async () => {
-      const landed = await (await intents()).assets.upload(
-        chosen.map((file) => ({ name: file.name, getBuffer: () => file.arrayBuffer() })),
-        level.folder,
-      );
-      show(landed);
-    });
+    add(
+      chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
+      level.folder,
+      false,
+    );
   };
+
+  const fileDrop = useFileDrop({
+    current: () => level.folder,
+    onDrop: (files, folder) => add(files, folder, true),
+  });
 
   const remove = (paths: readonly string[]) =>
     void run(async () => {
@@ -521,7 +540,7 @@ function AssetsBrowser() {
     selected: picked.includes(row.path),
     selectLabel: `Select ${row.name}`,
     onSelectedChange: () => (selecting ? selection.toggle(row.path) : selection.start(row.path)),
-    dropTarget: row.kind === "folder" && drag.target === row.path,
+    dropTarget: row.kind === "folder" && (drag.target === row.path || fileDrop.over?.target === row.path),
     ...drag.source(row.path),
     ...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {}),
   });
@@ -659,7 +678,21 @@ function AssetsBrowser() {
 
   return (
     <LibraryPage<Item>
-      area={{ ref: page, ...drag.area }}
+      area={{
+        ref: page,
+        ...fileDrop.area,
+        onDragOver: (event: DragEvent) => {
+          drag.area.onDragOver(event);
+          fileDrop.area.onDragOver(event);
+        },
+        onDragLeave: drag.area.onDragLeave,
+        onDrop: (event: DragEvent) => {
+          drag.area.onDrop(event);
+          fileDrop.area.onDrop(event);
+        },
+      }}
+      overlay={fileDrop.over && <DropZone title={`Drop to add to ${folderTitle(listing, fileDrop.over.folder)}`} />}
+      foot={<UploadsPanel listing={listing} />}
       searchLabel="Search assets"
       query={query}
       onQueryChange={setQuery}
@@ -721,7 +754,7 @@ function AssetsBrowser() {
               crumbs={trail.crumbs}
               root={level.root}
               parent={trail.parent}
-              dropTarget={drag.target}
+              dropTarget={drag.target ?? fileDrop.over?.target ?? null}
               dropAttribute={DROP_FOLDER}
               onOpen={openFolder}
             />

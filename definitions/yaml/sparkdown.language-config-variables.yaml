@@ -1,0 +1,6 @@
+LONG_BRACKET_STRING: '\[\[(?:[^\]]|\](?!\]))*\]\]|\[=\[(?:[^\]]|\](?!=\]))*\]=\]|\[==\[(?:[^\]]|\](?!==\]))*\]==\]'
+CODE_LITERAL: '"(?:[^"\\]|\\.)*"|''(?:[^''\\]|\\.)*''|`(?:[^`\\{]|\\.|\{(?:"(?:[^"\\]|\\.)*"|''(?:[^''\\]|\\.)*''|`(?:[^`\\]|\\.)*`|{{LONG_BRACKET_STRING}}|(?!{{LONG_BRACKET_STRING}})[^{}"''`])*\})*`|{{LONG_BRACKET_STRING}}|"(?!(?:[^"\\]|\\.)*")|''(?!(?:[^''\\]|\\.)*'')|`(?!(?:[^`\\{]|\\.|\{(?:"(?:[^"\\]|\\.)*"|''(?:[^''\\]|\\.)*''|`(?:[^`\\]|\\.)*`|{{LONG_BRACKET_STRING}}|(?!{{LONG_BRACKET_STRING}})[^{}"''`])*\})*`)'
+STORY_CODE_TOKEN: '(?:{{CODE_LITERAL}}|(?!--|//|{{LONG_BRACKET_STRING}})[^"''`])'
+LUAU_CODE_TOKEN: '(?:{{CODE_LITERAL}}|(?!--|{{LONG_BRACKET_STRING}})[^"''`])'
+NAMED_FUNCTION_HEADER: '(?<=^\s*)(?:local\s+)?function\s+[^\s(]+\s*\('
+ANONYMOUS_FUNCTION_HEADER: '(?<=(?:[=(,{[]|\b(?:return|and|or|not|then|else))\s*)function\s*\((?=\s*(?:(?:\.\.\.|[A-Za-z_]\w*)\s*,\s*)*(?:(?:\.\.\.|[A-Za-z_]\w*)\s*:.*|(?:(?:\.\.\.|[A-Za-z_]\w*)\s*)?(?:,|\)(?:\s*:.*)?)?\s*(?:(?:--|//).*)?)$)'
