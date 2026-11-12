@@ -2750,14 +2750,7 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
     wrap(MemoryDirectory.prototype, "getFileHandle");
     wrap(MemoryDirectory.prototype, "getDirectoryHandle");
     wrap(MemoryDirectory.prototype, "removeEntry");
-    const wrapLocks = () => {
-      const locks = (globalThis as any).navigator.locks;
-      const request = locks.request.bind(locks);
-      locks.request = async (...args: unknown[]) => {
-        await step();
-        return request(...args);
-      };
-    };
+    const wrapLocks = () => wrap((globalThis as any).navigator.locks, "request");
     const restore = () =>
       patched.forEach(([target, name, original]) => {
         target[name] = original;
@@ -2851,6 +2844,7 @@ describe("the schedule matrix of a refused edit and the author's typing (I-2100)
       return { root, h, from, fromChannel, confirmAt, total, response: h.response("edit") };
     } finally {
       steps.restore();
+      vi.restoreAllMocks();
     }
   };
 
