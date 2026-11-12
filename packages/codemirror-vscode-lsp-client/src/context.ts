@@ -6,7 +6,8 @@ import { jumpToDefinition } from "./definition";
 import { coarsePointer } from "./pointer";
 import { findReferences } from "./tools";
 import { renameSymbol } from "./rename";
-import type { EditorShortcutId } from "./shortcutTable";
+import { shortcutCommandFor } from "./shortcuts";
+import { EDITOR_SHORTCUT_ROWS, type EditorShortcutId } from "./shortcutTable";
 import { wordAt } from "../../codemirror-vscode-language/src/utils/wordAt";
 
 export type ContextMenuItem =
@@ -245,6 +246,17 @@ const onName = (state: EditorState, pos: number) => {
   return !HEX_COLOR.test(state.sliceDoc(hash, word.to));
 };
 
+const shortcutContextMenuItem = (
+  id: EditorShortcutId,
+  when: (state: EditorState, pos: number) => boolean,
+): ContextMenuItem => ({
+  label: EDITOR_SHORTCUT_ROWS.find((row) => row.id === id)?.name,
+  shortcut: id,
+  command: (view) => shortcutCommandFor(view.state, id)?.(view),
+  when,
+  keepsSelection: true,
+});
+
 export const lspContextMenuItems: ContextMenuItem[] = [
   {
     label: "Rename",
@@ -252,6 +264,8 @@ export const lspContextMenuItems: ContextMenuItem[] = [
     shortcut: "rename",
     when: onName,
   },
+  shortcutContextMenuItem("format", (state) => !state.readOnly),
+  { type: "separator" },
   {
     label: "Find references",
     command: findReferences,
