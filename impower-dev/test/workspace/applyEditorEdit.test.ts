@@ -248,6 +248,27 @@ describe("an edit across scripts goes through the editor that holds the open scr
     expect([first.applied, second.applied]).toEqual([[], []]);
   });
 
+  it("names the edit's kind and the files the worker changes for the trash", async () => {
+    const fs = worker();
+    editorHolding(MAIN);
+    await applyEditorEdit(
+      fs,
+      { documentChanges: [edit(MAIN), edit(CHAPTER), rename] },
+      "Rename",
+      "rename-symbol",
+    );
+    expect(fs.applyWorkspaceEdit).toHaveBeenCalledWith(
+      { documentChanges: [edit(CHAPTER), rename] },
+      "Rename",
+      {
+        isRefactoring: true,
+        action: { kind: "rename-symbol", targets: [CHAPTER, rename.oldUri] },
+      },
+      { [CHAPTER]: `text of ${CHAPTER}` },
+      expect.any(Function),
+    );
+  });
+
   it("writes every script through the worker when no editor is mounted", async () => {
     const fs = worker();
     expect(

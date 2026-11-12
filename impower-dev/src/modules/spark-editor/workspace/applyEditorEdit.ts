@@ -12,6 +12,7 @@ import {
 import type {
   ApplyWorkspaceEditResult,
   WorkspaceEdit,
+  WorkspaceEditMetadata,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 
 export interface EditorEditFiles {
@@ -19,7 +20,7 @@ export interface EditorEditFiles {
   applyWorkspaceEdit: (
     edit: WorkspaceEdit,
     label?: string,
-    metadata?: { isRefactoring?: boolean },
+    metadata?: WorkspaceEditMetadata,
     expectedTexts?: Record<string, string>,
     confirm?: () => Promise<string | undefined>,
   ) => Promise<ApplyWorkspaceEditResult>;
@@ -38,6 +39,15 @@ export const documentChangesOf = (edit: WorkspaceEdit): DocumentChange[] =>
     textDocument: { uri, version: null },
     edits,
   }));
+
+export type EditorEditKind = "replace" | "rename-symbol";
+
+const changedUris = (change: DocumentChange) =>
+  "textDocument" in change
+    ? [change.textDocument.uri]
+    : change.kind === "rename"
+      ? [change.oldUri]
+      : [change.uri];
 
 const isHeld = (held: Map<string, string>, change: DocumentChange) => {
   const uri = editedUri(change);
@@ -156,6 +166,7 @@ export const applyEditorEdit = async (
   files: EditorEditFiles,
   edit: WorkspaceEdit,
   label: string,
+  kind?: EditorEditKind,
 ): Promise<ApplyWorkspaceEditResult> => {
   const documentChanges = documentChangesOf(edit);
   const claims = claimTexts(label, documentChanges);
@@ -188,7 +199,10 @@ export const applyEditorEdit = async (
   return files.applyWorkspaceEdit(
     { documentChanges: rest },
     label,
-    { isRefactoring: true },
+    {
+      isRefactoring: true,
+      ...(kind ? { action: { kind, targets: rest.flatMap(changedUris) } } : {}),
+    },
     closedTexts,
     commit,
   );

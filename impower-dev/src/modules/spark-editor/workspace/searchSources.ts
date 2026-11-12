@@ -57,8 +57,8 @@ export const searchSources = (parts: {
       }));
     },
     fileText: (uri) => fs.getFileText(uri),
-    applyEdit: async (edit, label) => {
-      const outcome = await applyEditorEdit(fs, edit, label);
+    applyEdit: async (edit, label, kind) => {
+      const outcome = await applyEditorEdit(fs, edit, label, kind);
       const changes = documentChangesOf(edit);
       if (changes.some((c) => "textDocument" in c)) {
         await window.recordScriptChange();

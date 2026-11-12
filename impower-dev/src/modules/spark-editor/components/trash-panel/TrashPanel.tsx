@@ -47,6 +47,8 @@ function onePicture(batch: TrashBatch): string | null {
 const FAILED_ACTIONS: Record<WorkspaceEditAction["kind"], string> = {
   rename: "renaming",
   "put-back": "putting back",
+  replace: "replacing text in",
+  "rename-symbol": "renaming references in",
 };
 
 function failedAction(action: WorkspaceEditAction | undefined): string {

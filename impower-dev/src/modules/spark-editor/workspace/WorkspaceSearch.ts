@@ -14,6 +14,7 @@ import type {
   Position,
   Range,
 } from "vscode-languageserver-protocol";
+import type { EditorEditKind } from "./applyEditorEdit";
 import {
   type FindOption,
   type NameSubject,
@@ -49,6 +50,7 @@ export interface SearchSources {
   applyEdit: (
     edit: WorkspaceEdit,
     label: string,
+    kind: EditorEditKind,
   ) => Promise<ApplyWorkspaceEditResult>;
   showMatch: (uri: string, range: Range) => Promise<void>;
   openLocation: (uri: string, range: Range) => Promise<void>;
@@ -534,6 +536,7 @@ export default class WorkspaceSearch {
         ],
       },
       `Replace "${term}"`,
+      "replace",
     );
     await this.refresh();
     const lines = newText.split(/\r\n|\r|\n/);
@@ -585,6 +588,7 @@ export default class WorkspaceSearch {
         })),
       },
       `Replace all "${term}"`,
+      "replace",
     );
     if (!outcome.applied) {
       this.say(failureOf(outcome, "Nothing was replaced."), "error");
@@ -757,6 +761,7 @@ export default class WorkspaceSearch {
     const outcome = await this._sources.applyEdit(
       edit,
       `Rename ${subject.name} to ${newName}`,
+      "rename-symbol",
     );
     if (!outcome.applied) {
       this.say(failureOf(outcome, "Nothing was renamed."), "error");

@@ -281,9 +281,12 @@ describe("Replace", () => {
     search.setReplacement("tale");
     await search.replaceAll();
     expect(sources.applyEdit).toHaveBeenCalledTimes(1);
-    const [edit] = sources.applyEdit.mock.calls[0]! as unknown as [
+    const [edit, , kind] = sources.applyEdit.mock.calls[0]! as unknown as [
       { documentChanges: { textDocument: { uri: string }; edits: { newText: string }[] }[] },
+      string,
+      string,
     ];
+    expect(kind).toBe("replace");
     expect(
       edit.documentChanges.map((c) => [c.textDocument.uri, c.edits.map((e) => e.newText)]),
     ).toEqual([
@@ -476,6 +479,7 @@ describe("Rename", () => {
         ],
       },
       "Rename imani to amara",
+      "rename-symbol",
     );
     expect(sources.onRenamed).toHaveBeenCalled();
     expect(workspace.search.value.open).toBe(false);
