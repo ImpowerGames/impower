@@ -2075,6 +2075,18 @@ function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   return true;
 }
 
+function authoredDisplayTable<T>(payload: T): T | ObjectValue {
+  const text =
+    payload instanceof ObjectValue ? payload.value?.get("text") : undefined;
+  if (!(text instanceof StringValue) || !text.value) return payload;
+  return new ObjectValue(
+    new Map((payload as ObjectValue).value).set(
+      "text",
+      new StringValue(scanned(text.value)),
+    ),
+  );
+}
+
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
@@ -2513,20 +2525,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
   display: {
     arity: -1,
     fn: (story, args) => {
-      let payload = args[0];
+      const payload = args[0];
       if (payload instanceof ObjectValue && payload.value) {
         story.state.variablesState.PrepareTableWrite?.(payload);
         if (joinDisplayParts(payload.value)) {
           writtenIn(story)(payload);
-        }
-        const text = payload.value.get("text");
-        if (!story.stdCallStyled && text instanceof StringValue && text.value) {
-          payload = new ObjectValue(
-            new Map(payload.value).set(
-              "text",
-              new StringValue(scanned(text.value)),
-            ),
-          );
         }
       }
       const flag = (key: string) => {
@@ -2564,7 +2567,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       if (payload) {
-        story.state.PushToOutputStream(payload);
+        story.state.PushToOutputStream(
+          story.stdCallStyled ? payload : authoredDisplayTable(payload),
+        );
       }
       if (flag("open")) return;
       if (flag("glue")) {
