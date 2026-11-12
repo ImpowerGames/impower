@@ -549,6 +549,7 @@ morph talk_smile {
 This morph plays only on looks whose mouth shows its teeth, flaps between `closed` and `open`, and shows the teeth whenever it is not moving.
 
 - A rest state need not appear in the keyframes. Going from the rest into a first pose that differs, and from a last pose that differs back to the rest, is a cut, whatever the morph's `blend`.
+- Where a clip cuts the eyes with their lids, a rest state outside the keyframes is cut by the lids that state draws: two lids whose tips meet make the opening, and a single lash on its own closes the eye. If that state draws a clipped eye with no lids around it, or lids that cannot make an opening, the portrait shows that look as drawn, without the morph, and the error names the clip.
 - A group the keyframes leave unset at the start or end of a play, because its first pose sits after `0%` or its last before `100%`, holds its rest there.
 - `rest` holds group states only. A layer movement field in it, such as `translate`, is an error: a moved layer rests where it is drawn. A group the keyframes do not drive is an error too.
 

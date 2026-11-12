@@ -229,6 +229,23 @@ function loopArea(flat: number[]): number {
   return Math.abs(twice) / 2;
 }
 
+interface Box {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function hullBox(subpaths: readonly Subpath[]): Box | null {
+  const points = subpaths.flatMap((subpath) => subpath.segments.flatMap((cubic) => [cubic.p0, cubic.c1, cubic.c2, cubic.p1]));
+  if (!points.length) return null;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+const boxesMeet = (a: Box, b: Box) => a.minX <= b.maxX && b.minX <= a.maxX && a.minY <= b.maxY && b.minY <= a.maxY;
+
 function conditionOf(m: Affine): number {
   const [a, b, c, d] = m;
   const sum = a * a + b * b + c * c + d * d;
@@ -1610,6 +1627,16 @@ export function* bakeSteps(
     }
     if (edges.length === 0) {
       report("edge-missing", "error", `Clip ${clip.number}'s edges (${clip.between.map((l) => `"${l}"`).join(", ")}) are not drawn in the rest pose, so the rest has no opening to cut.`, { layer: clip.between[0], morphs: clip.morphs });
+      return disable();
+    }
+    const edgeBoxes = leaves
+      .filter((leaf) => clip.between.includes(leaf.label) && visibleAt(leaf.element, restVisible))
+      .map((leaf) => hullBox(rootGeometry(leaf) ?? []));
+    for (const leaf of leaves) {
+      if (!labelledAny(leaf.element, clip.targets) || !visibleAt(leaf.element, restVisible)) continue;
+      const box = hullBox(rootGeometry(leaf) ?? []);
+      if (!box || edgeBoxes.some((edge) => edge && boxesMeet(edge, box))) continue;
+      report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with none of the clip's edges around it, so the rest has no opening for it.`, { layer: leaf.label, morphs: clip.morphs });
       return disable();
     }
     const lone = new Set(
