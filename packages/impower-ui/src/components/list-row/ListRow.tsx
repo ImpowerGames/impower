@@ -163,6 +163,7 @@ export const listRowLabelVariants = cva("min-w-0", {
     overflow: {
       fade: "[--fade:24px] fade-edge",
       clamp: "line-clamp-2 whitespace-normal",
+      wrap: "whitespace-normal break-words",
       self: "",
     },
   },
