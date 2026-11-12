@@ -1,3 +1,7 @@
 @mia@end
 function g() end
 local after = 1
+
+@x@end -- comment
+function g() end
+

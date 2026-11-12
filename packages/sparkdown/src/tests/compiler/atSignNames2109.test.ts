@@ -94,6 +94,20 @@ end
     expect(program.context?.["style"]?.["card"]?.background_image).toEqual({ $type: "image", $name: "mia@night" });
   });
 
+  it("keeps a longer path or a quoted reference in a struct body a string", () => {
+    const program = compile(`style card {
+  background_image = image.mia@night.src
+  mask_image = "image.mia@night"
+}
+
+scene start
+end
+`);
+    const card = program.context?.["style"]?.["card"];
+    expect(typeof card?.background_image).toBe("string");
+    expect(typeof card?.mask_image).toBe("string");
+  });
+
   it("records each image's thing, the part of its name before the first @", () => {
     const program = compile(`${LOOK}
 define mia_plain as filtered_image with
@@ -229,6 +243,19 @@ end
     expect(Object.getOwnPropertyDescriptor(things, "__proto__")?.value).toBe("__proto__");
   });
 
+  it.each(["show@é", "hide@é", "show_é", "animate@ü"])("shows an image named %s, whose part before the @ is a story command", (name) => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri: MAIN, type: "script", name: "main", ext: "sd", text: `scene start\n  [[${name}]]\nend\n`, version: 1, languageId: "sparkdown" },
+        { uri: `file:///proj/images/${name}.svg`, type: "image", name, ext: "svg", data: SVG },
+      ],
+    });
+    const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    expect(messages(program)).toEqual([]);
+    expect(program.context?.["image"]?.[name]).toBeDefined();
+  });
+
   it("reads a class named with an @ whole, so the style of that name applies", () => {
     const program = compile(`style card@night {
   opacity = 0.5
@@ -276,6 +303,8 @@ end
     expect(words("mia@night")).toEqual(["mia@night"]);
     expect(words("mia@_night mia_@night")).toEqual(["mia@_night", "mia_@night"]);
     expect(words("mia@_@night mia@_")).toEqual(["mia@_@night", "mia@_"]);
+    expect(words("_@night _@_ _name@night")).toEqual(["_@night", "_@_", "_name@night"]);
+    expect(words("_name name_")).toEqual(["name", "name"]);
     expect(words("mia@ @night")).toEqual(["mia", "night"]);
     expect(words("don't")).toEqual(["don't"]);
   });

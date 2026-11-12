@@ -35,6 +35,17 @@ variables:
   IDENTIFIER_AT_PART_START: '[@][0-9_\p{L}]'
   IDENTIFIER_AT_PART: (?:{{IDENTIFIER_AT_PART_START}}{{IDENTIFIER_END}})
   IDENTIFIER_GOES_ON: (?:[{{IDENTIFIER_END_CHAR}}]|{{IDENTIFIER_AT_PART_START}})
+  # lookaround: a letter, digit or `_`, or an `@` before one, after a word
+  # of one of this file's keyword lists makes it part of a longer name
+  # (`show@é`, `play_x`), which `IDENTIFIER` reads whole. The generator
+  # ends every list in this file here, and a `-` still ends the word.
+  # referenced-from: definitions/src/language.ts
+  STORY_NAME_END: (?![0-9_\p{L}]|[@][0-9_\p{L}])
+  # lookaround: as for `STORY_NAME_END`, before the word (`x@show`), which
+  # `IDENTIFIER` reads whole. The generator starts every list in this file
+  # here.
+  # referenced-from: definitions/src/language.ts
+  STORY_NAME_START: (?<![0-9_\p{L}]|[0-9_\p{L}][@])
   # lookaround: a trailing `-` is left to what follows the name: the `--`
   # of a comment (`LuauComment`), or the `-` of an arrow
   # (`DivertMark`) or of an operation (`LuauArithmeticOperation`). The

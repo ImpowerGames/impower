@@ -31,7 +31,7 @@ const boundaries = (text: string, allowed: string): number => {
   return all - named;
 };
 
-const withUnderscores = (source: string) => source.replace(/([A-Za-z0-9_])@(?=[A-Za-z0-9_])/g, "$1_");
+const withUnderscores = (source: string) => source.replace(/([\p{L}\p{N}_])@(?=[\p{L}\p{N}_])/gu, "$1_");
 const shape = (dump: string) => dump.replace(/: ".*$/gm, "");
 
 describe("an @ joins a name in both grammar engines (#2109)", () => {
@@ -54,6 +54,15 @@ describe("an @ joins a name in both grammar engines (#2109)", () => {
     });
     expect(found).toEqual([0, 0, 0, 0]);
   });
+
+  it.each(["while c) x@end style card {}", "for i = 1) x@end style card {}", "for k in t) x@end style card {}"])(
+    "reads `%s` in a .luau file as it reads the same line with the @ an _",
+    async (line) => {
+      const source = `${line}\nlocal after = 1\n`;
+      const read = async (text: string) => shape(formatTokens(await tokenize(text, { luauFile: true })));
+      expect(await read(source)).toBe(await read(withUnderscores(source)));
+    },
+  );
 
   const fixtures = readdirSync(NAMES_DIR).filter((file) => file.endsWith(".sd"));
 
