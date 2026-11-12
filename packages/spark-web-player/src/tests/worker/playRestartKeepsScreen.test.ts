@@ -83,22 +83,8 @@ const watchFrames = (overlay: HTMLElement) => {
   };
 };
 
-const emptyRuns = (samples: Sample[]): number[] => {
-  const runs: number[] = [];
-  let run = 0;
-  for (const s of samples) {
-    if (s.letters === 0 && s.portraits === 0) {
-      run += 1;
-    } else if (run > 0) {
-      runs.push(run);
-      run = 0;
-    }
-  }
-  if (run > 0) {
-    runs.push(run);
-  }
-  return runs;
-};
+const gaps = (samples: Sample[]): Sample[] =>
+  samples.filter((s) => s.letters === 0 || s.portraits === 0);
 
 const restarted = async (h: { toEditor: any[] }, before: number) => {
   for (let i = 0; i < 200; i++) {
@@ -165,12 +151,12 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
     }
   }, 120_000);
 
-  it("never empties the screen when an edit below leaves the line unchanged", async () => {
+  it("keeps the line and its portrait on screen when an edit below leaves the line unchanged", async () => {
     const { h, editAndWatch } = await playing();
     try {
       const samples = await editAndWatch("The third line.", "third", "last");
       expect(samples.length).toBeGreaterThan(1);
-      expect(emptyRuns(samples)).toEqual([]);
+      expect(gaps(samples)).toEqual([]);
       expect(samples.at(-1)!.letters).toBeGreaterThan(0);
       expect(samples.at(-1)!.portraits).toBeGreaterThan(0);
     } finally {
@@ -178,11 +164,11 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
     }
   }, 120_000);
 
-  it("never empties the screen when an edit above leaves the line unchanged", async () => {
+  it("keeps the line and its portrait on screen when an edit above leaves the line unchanged", async () => {
     const { h, editAndWatch } = await playing();
     try {
       const samples = await editAndWatch("The first line.", "first", "opening");
-      expect(emptyRuns(samples)).toEqual([]);
+      expect(gaps(samples)).toEqual([]);
       expect(samples.at(-1)!.letters).toBeGreaterThan(0);
       expect(samples.at(-1)!.portraits).toBeGreaterThan(0);
     } finally {
@@ -195,10 +181,10 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
     try {
       expect(shownText(h.overlay)).toContain("You have 5 gold.");
       const unchanged = await editAndWatch("The third line.", "third", "last");
-      expect(emptyRuns(unchanged)).toEqual([]);
+      expect(gaps(unchanged)).toEqual([]);
       expect(shownText(h.overlay)).toContain("You have 5 gold.");
       const changed = await editAndWatch("& gold = gold + 5", "5", "7");
-      expect(emptyRuns(changed)).toEqual([]);
+      expect(gaps(changed)).toEqual([]);
       expect(shownText(h.overlay)).toContain("You have 7 gold.");
       expect(shownText(h.overlay)).not.toContain("5");
     } finally {
@@ -206,11 +192,11 @@ describe("an edit during PLAY keeps the line and its portrait on screen (#2117)"
     }
   }, 120_000);
 
-  it("never empties the screen when the edit changes the line", async () => {
+  it("keeps the line and its portrait on screen when the edit changes the line", async () => {
     const { h, editAndWatch } = await playing();
     try {
       const samples = await editAndWatch("The second line.", "second", "middle");
-      expect(emptyRuns(samples)).toEqual([]);
+      expect(gaps(samples)).toEqual([]);
       expect(samples.at(-1)!.letters).toBeGreaterThan(0);
       expect(samples.at(-1)!.portraits).toBeGreaterThan(0);
     } finally {
