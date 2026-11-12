@@ -59,6 +59,7 @@ export default function NameRow({
     <ListRow
       icon={icon}
       descriptionFit={wrapError ? "wrap" : undefined}
+      overflow="self"
       label={
         <span class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent">
           <TextField

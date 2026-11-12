@@ -163,6 +163,7 @@ export const listRowLabelVariants = cva("min-w-0", {
     overflow: {
       fade: "[--fade:24px] fade-edge",
       clamp: "line-clamp-2 whitespace-normal",
+      self: "",
     },
   },
   defaultVariants: { overflow: "fade" },
@@ -282,11 +283,7 @@ export default function ListRow({
       : "none";
   const copy = (
     <span class="flex min-w-0 flex-1 flex-col gap-[3px]">
-      <span
-        class={cn(
-          typeof label === "string" && listRowLabelVariants({ overflow }),
-        )}
-      >
+      <span class={listRowLabelVariants({ overflow })}>
         {label}
       </span>
       {description && (

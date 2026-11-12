@@ -618,6 +618,7 @@ function AssetsBrowser() {
       <ListRow
         icon={sound ? undefined : <RowGlyph row={row} listing={listing} />}
         control={sound ? <SoundPlay name={row.name} sound={sound} /> : undefined}
+        overflow={row.variantCount ? "self" : undefined}
         label={
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
