@@ -3511,12 +3511,7 @@ export class Game<T extends M = {}> {
     );
     const top = frames?.at(-1);
     const caller = frames?.at(-2);
-    return top &&
-      caller &&
-      sameLocation(
-        this.scriptLocationOf(top.address),
-        this.scriptLocationOf(caller.address),
-      )
+    return top && caller && top.address >= 0 && top.address === caller.address
       ? depth - 1
       : depth;
   }
@@ -3575,6 +3570,7 @@ export class Game<T extends M = {}> {
       origin?.depth ?? this._story.state.callstackDepth;
     const initialExecutedLocation =
       origin?.location ?? this._executingLocation;
+    let returnedAt: ProgramAddress | undefined;
 
     while (true) {
       if (this._executionStepsRemaining <= 0) {
@@ -3633,6 +3629,18 @@ export class Game<T extends M = {}> {
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         if (traversal !== "continue" && this.presentsAtStop()) {
+          const next = this.module.interpreter.nextBeat;
+          if (
+            this._story.canContinue &&
+            next &&
+            drawsSettled(next) &&
+            this.insideSteppedFrame(traversal, initialCallstackDepth)
+          ) {
+            this.module.interpreter.flush();
+            this.showBeat(next, true, true);
+            this.pause();
+            continue;
+          }
           this.notifyStepped();
           return true;
         }
@@ -3756,36 +3764,26 @@ export class Game<T extends M = {}> {
             }
           }
 
+          const address = this._positions.previous();
+          const returned =
+            traversal !== "in" &&
+            this.stoppedDepth() < initialCallstackDepth;
+          if (returned) {
+            returnedAt ??= address;
+          }
+          const ranInCaller = returned && address !== returnedAt;
           if (
-            sameLocation(prevExecutedLocation, this._executingLocation) ||
-            sameLocation(initialExecutedLocation, this._executingLocation)
+            !ranInCaller &&
+            (sameLocation(prevExecutedLocation, this._executingLocation) ||
+              sameLocation(initialExecutedLocation, this._executingLocation))
           ) {
             continue;
           }
 
-          const currentCallstackDepth = this._story.state.callstackDepth;
-
-          if (traversal === "in") {
+          if (!this.insideSteppedFrame(traversal, initialCallstackDepth)) {
             this.notifyStepped();
             return true;
           }
-
-          if (
-            traversal === "over" &&
-            currentCallstackDepth <= initialCallstackDepth
-          ) {
-            this.notifyStepped();
-            return true;
-          }
-
-          if (
-            traversal === "out" &&
-            currentCallstackDepth < initialCallstackDepth
-          ) {
-            this.notifyStepped();
-            return true;
-          }
-
         }
 
         return false;
@@ -3795,7 +3793,25 @@ export class Game<T extends M = {}> {
     }
   }
 
-  protected showBeat(instructions: Instructions | null, settled: boolean) {
+  protected insideSteppedFrame(
+    traversal: "in" | "out" | "over",
+    initialCallstackDepth: number,
+  ): boolean {
+    const depth = this.stoppedDepth();
+    if (traversal === "out") {
+      return depth >= initialCallstackDepth;
+    }
+    if (traversal === "over") {
+      return depth > initialCallstackDepth;
+    }
+    return false;
+  }
+
+  protected showBeat(
+    instructions: Instructions | null,
+    settled: boolean,
+    passing = false,
+  ) {
     const ending = this.storyEnding(instructions);
     if (instructions) {
       this._coordinator = new Coordinator(this, this.toDraw(instructions), {
@@ -3808,6 +3824,7 @@ export class Game<T extends M = {}> {
         this._shownBeat = instructions;
       }
       if (
+        !passing &&
         !ending &&
         !this._coordinator.shouldContinue() &&
         this._simulation !== "simulating" &&

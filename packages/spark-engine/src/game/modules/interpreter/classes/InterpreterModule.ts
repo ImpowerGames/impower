@@ -677,6 +677,10 @@ export class InterpreterModule extends Module<
     return (this._state.buffer?.length ?? 0) > 0;
   }
 
+  get nextBeat(): Instructions | undefined {
+    return this._state.buffer?.[0];
+  }
+
   requeue(instructions: Instructions): void {
     this._state.buffer ??= [];
     this._state.buffer.unshift(instructions);
