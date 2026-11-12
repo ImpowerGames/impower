@@ -316,11 +316,12 @@ describe("search", () => {
 });
 
 describe("the Assets sort", () => {
-  it("keeps Name, Modified and Size and turns any other sort into Name", () => {
+  it("keeps Name, Modified, Size, Uses and Story order and turns anything else into Name", () => {
     expect(assetSort("modified-desc")).toBe("modified-desc");
     expect(assetSort("size-asc")).toBe("size-asc");
-    expect(assetSort("uses-desc")).toBe("name-asc");
-    expect(assetSort("story")).toBe("name-asc");
+    expect(assetSort("uses-desc")).toBe("uses-desc");
+    expect(assetSort("story")).toBe("story-asc");
+    expect(assetSort("shuffle-asc")).toBe("name-asc");
     expect(assetSort(undefined)).toBe("name-asc");
   });
 });
