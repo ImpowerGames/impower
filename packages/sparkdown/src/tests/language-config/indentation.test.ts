@@ -372,6 +372,22 @@ describe("the stated reach of the indent patterns' comment scanner (GRAMMAR.md 8
   });
 });
 
+describe("the stated limits of the story function alternative (GRAMMAR.md 8.2)", () => {
+  const storyIncrease = new RegExp(STORY.indentationRules.increaseIndentPattern);
+
+  it("indents after prose that ends in a parameter list after an admitted word", () => {
+    for (const line of ["  He walked in and function (x)", "  She said = function (a, b)"]) {
+      expect(storyIncrease.test(line), line).toBe(true);
+    }
+  });
+
+  it("does not indent after an anonymous header followed by a statement on its line", () => {
+    for (const line of ["  call(function(x) print(x)", "  local f = function(x) x += 1"]) {
+      expect(storyIncrease.test(line), line).toBe(false);
+    }
+  });
+});
+
 describe("the story define onEnterRule", () => {
   const defineRule = STORY.onEnterRules.find(
     (r) => r.action.indent === "indentOutdent" && /define/.test(r.beforeText),

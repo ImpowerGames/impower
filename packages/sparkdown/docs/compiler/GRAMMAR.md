@@ -682,6 +682,13 @@ Beyond that reach, a comment marker inside a string reads as a comment, and the 
 - a long bracket of level 3 or more (`call([===[a--b]===], (`);
 - an interpolation that holds its own braces (`` `{ {1} }--` ``).
 
+The story `increaseIndentPattern`'s `function` alternative must tell a header from prose that contains the word `function`, using only the text of the line (I-2128). A named header (`function f(`, `local function f(`) counts only at the start of the line. An anonymous `function(` counts only in two cases. First, it must follow `=`, `(`, `,`, `{`, `[`, `return`, `and`, `or`, `not`, `then` or `else`. Second, its parameter list must reach the end of the line: identifiers or `...`, each with an optional type, then either nothing (the list goes on at the next line) or `)` with only a return type or a comment after it. A regex over the line cannot do better than that, so two limits remain. Both are pinned in `indentation.test.ts`:
+
+- prose that ends in a parameter list after one of those words indents (`He walked in and function (x)`);
+- an anonymous header followed by a statement on the same line does not indent (`call(function(x) print(x)`).
+
+Telling these apart needs the syntax tree: only a line the grammar reads as Luau holds a header.
+
 VS Code inherits indentation from the line above only when the line below the cursor starts in the same language as the cursor's line (`getPrecedingValidLine` in `autoIndent.ts`); otherwise the new line keeps the line's indentation, unless an Enter rule or an open bracket at the end of the line indents it. The web editor does the same. A `define` or function header stays story (§8.1), and the line below it is Luau: its body or its `end`. So the story config holds an Enter rule for each, which indents after a `define` header and after a function header whose parameter list closes, with no `end` after the cursor on the line (I-2090). Brace-body headers indent by their open bracket, and `scene`, `branch` and narrative `if`, `for` and `while` headers by the story indentation pattern, since the line below them is story.
 
 ## 9. Other rule properties
