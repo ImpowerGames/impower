@@ -1,4 +1,5 @@
-import { layoutSubtreeFor, routeIntoLayout } from "./fileTree";
+import { failUnfinished, startUploads, updateUpload, type UploadReason } from "../workspace/uploadSession";
+import { reasonOf } from "./fileMoves";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
 import { isScriptPath } from "./scriptFiles";
@@ -9,78 +10,112 @@ export interface DroppedItem {
   getBuffer: () => Promise<ArrayBuffer>;
 }
 
-export async function importFiles(
-  projectId: string,
-  items: DroppedItem[],
-): Promise<string[]> {
+export const WRITE_CHUNK_FILES = 8;
+
+const leafOf = (rel: string) => rel.slice(rel.lastIndexOf("/") + 1);
+
+const isStorageError = (error: unknown) =>
+  (error as { name?: unknown })?.name === "QuotaExceededError" ||
+  /quota|no space|not enough space|storage/i.test(reasonOf(error));
+
+type Pending = { index: number; uri: string; replacing: boolean; data: ArrayBuffer };
+
+export async function importFiles(projectId: string, items: DroppedItem[]): Promise<string[]> {
   const written: string[] = [];
   if (items.length === 0) {
     return written;
   }
+  const ids = startUploads(items.map((item) => leafOf(item.rel)));
   const { Workspace } = await import("../workspace/Workspace");
-  await resolveUploadConflicts(
-    projectId,
-    items.map((it) => ({ rel: it.rel, payload: it })),
-    async ({ survivors, trashedOldUris, since }) => {
-      const newUris = survivors.map((s) => s.uri);
-      let wrote = false;
-      try {
-        if (survivors.length > 0) {
-          await runImport(survivors.length, async (advance) => {
-            const files = await Promise.all(
-              survivors.map(async (s) => {
-                const data = await s.payload.getBuffer();
-                advance();
-                return { uri: s.uri, data };
-              }),
-            );
-            await Workspace.fs.createFiles({ files });
-            if (newUris.some(isScriptPath)) {
+  const fs = Workspace.fs;
+  const fail = (index: number, reason: UploadReason) => updateUpload(ids[index]!, { state: "failed", reason });
+  const failedWrite = (pending: Pending, error: unknown): UploadReason => {
+    const storage = isStorageError(error);
+    return pending.replacing
+      ? { kind: "replace_failed", cause: storage ? "storage" : "failed", message: storage ? undefined : reasonOf(error) }
+      : storage
+        ? { kind: "storage" }
+        : { kind: "failed", message: reasonOf(error) };
+  };
+  try {
+    await resolveUploadConflicts(
+      projectId,
+      items.map((item, index) => ({ rel: item.rel, payload: { item, index } })),
+      async ({ survivors, trashedOldUris, since }) => {
+        const surviving = new Set(survivors.map((s) => s.payload.index));
+        items.forEach((_, index) => {
+          if (!surviving.has(index)) {
+            fail(index, { kind: "skipped" });
+          }
+        });
+        const replaced = new Set(trashedOldUris);
+        const landed: string[] = [];
+        try {
+          if (survivors.length > 0) {
+            await runImport(survivors.length, async (advance) => {
+              for (let at = 0; at < survivors.length; at += WRITE_CHUNK_FILES) {
+                const chunk: Pending[] = [];
+                for (const survivor of survivors.slice(at, at + WRITE_CHUNK_FILES)) {
+                  const { index } = survivor.payload;
+                  updateUpload(ids[index]!, { state: "working" });
+                  try {
+                    chunk.push({
+                      index,
+                      uri: survivor.uri,
+                      replacing: replaced.has(survivor.uri),
+                      data: await survivor.payload.item.getBuffer(),
+                    });
+                  } catch {
+                    fail(index, { kind: "unreadable" });
+                    advance();
+                  }
+                }
+                const settle = (pending: Pending) => {
+                  landed.push(pending.uri);
+                  updateUpload(ids[pending.index]!, {
+                    state: "added",
+                    path: fs.getRelativePath(projectId, pending.uri),
+                  });
+                  advance();
+                };
+                try {
+                  if (chunk.length) {
+                    await fs.createFiles({
+                      files: chunk.map((pending) => ({ uri: pending.uri, data: pending.data.slice(0) })),
+                    });
+                  }
+                  chunk.forEach(settle);
+                } catch {
+                  for (const pending of chunk) {
+                    try {
+                      await fs.createFiles({ files: [{ uri: pending.uri, data: pending.data.slice(0) }] });
+                      settle(pending);
+                    } catch (error) {
+                      await fs.deleteFiles({ files: [{ uri: pending.uri }] }).catch(() => undefined);
+                      fail(pending.index, failedWrite(pending, error));
+                      advance();
+                    }
+                  }
+                }
+              }
+            });
+          }
+        } finally {
+          if (landed.length) {
+            if (landed.some(isScriptPath)) {
               await Workspace.window.recordScriptChange();
             }
             await Workspace.window.recordAssetChange();
-          });
-          wrote = true;
-          written.push(
-            ...newUris.map((uri) => Workspace.fs.getRelativePath(projectId, uri)),
-          );
+          }
+          written.push(...landed.map((uri) => fs.getRelativePath(projectId, uri)));
+          const label = landed.length === 1 ? (landed[0]!.split("/").pop() ?? "file") : `${landed.length} files`;
+          await recordResolvedUpload(projectId, landed, trashedOldUris, since, label);
         }
-      } finally {
-        const label =
-          newUris.length === 1
-            ? (newUris[0]!.split("/").pop() ?? "file")
-            : `${newUris.length} files`;
-        await recordResolvedUpload(
-          projectId,
-          wrote ? newUris : [],
-          trashedOldUris,
-          since,
-          label,
-        );
-      }
-    },
-  );
-  return written;
-}
-
-export async function importDroppedFiles(
-  projectId: string,
-  items: DroppedItem[],
-): Promise<void> {
-  if (items.length === 0) {
-    return;
+      },
+    );
+  } catch (error) {
+    failUnfinished(ids, { kind: "failed", message: reasonOf(error) });
+    throw error;
   }
-  const { Workspace } = await import("../workspace/Workspace");
-  const existingPaths = Object.keys(await Workspace.fs.getFiles(projectId)).map(
-    (uri) => Workspace.fs.getRelativePath(projectId, uri),
-  );
-  const routed = routeIntoLayout(
-    items.map((it) => it.rel),
-    existingPaths,
-    layoutSubtreeFor,
-  );
-  await importFiles(
-    projectId,
-    items.map((it, i) => ({ ...it, rel: routed[i]! })),
-  );
+  return written;
 }
