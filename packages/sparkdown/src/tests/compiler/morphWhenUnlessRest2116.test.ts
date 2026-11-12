@@ -105,6 +105,7 @@ function compile(
 }
 
 interface Found {
+  character: number;
   message: string;
   severity: number | undefined;
   code: string | number | undefined;
@@ -123,6 +124,7 @@ function diagnosticsOf(
   return (program.diagnostics?.[URI] ?? []).map((d) => {
     const { start, end } = d.range;
     return {
+      character: start.character,
       message: typeof d.message === "string" ? d.message : d.message.value,
       severity: d.severity,
       code: d.code,
@@ -507,6 +509,23 @@ morph child as base {
 });
 
 describe("the override warning", () => {
+  test("the warning underlines the written choice of the replaced group, not a matching part of another choice", () => {
+    const portrait = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids:eyes.open:default" id="open"/>
+<g data-name="lids:eyes.closed" id="closed"/>
+<g data-name="lips:mouth.open:default" id="m-open"/>
+<g data-name="lips:mouth.mostly-closed" id="m-mostly"/>
+</svg>`;
+    const text = `${blink()}
+scene start
+  [[bunny:closed:mouth.mostly-closed]]
+end
+`;
+    const found = diagnosticsOf(text, [{ name: "bunny", svg: portrait }]).filter((d) => d.message.includes("so `eyes.closed` does not show"));
+    const line = withStart(text).split("\n").findIndex((l) => l.includes("[[bunny:closed:mouth.mostly-closed]]"));
+    expect(found).toEqual([expect.objectContaining({ line, character: 10, text: "closed", severity: 2 })]);
+  });
+
   test("a directive's choice in a driven group warns on the choice, naming the morph, the group and the rest", () => {
     const text = `${blink()}
 scene start

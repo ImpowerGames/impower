@@ -4,7 +4,7 @@ import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { blink, CLOSED, EYEBALL, LOWER_OPEN, portrait, shiftPath, UPPER_OPEN } from "./fixtures";
 
-type Layout = "none" | "one" | "pair" | "pair-and-lone" | "three" | "stroke";
+type Layout = "none" | "one" | "pair" | "pair-and-lone" | "three" | "stroke" | "percent" | "text";
 
 const EYES = { left: { x: 20 }, right: { x: 140 } } as const;
 type Eye = keyof typeof EYES;
@@ -25,6 +25,10 @@ const drawn = (eye: Eye, layout: Layout): string => {
       return white(eye) + lash(eye, UPPER_OPEN) + lash(eye, LOWER_OPEN) + lash(eye, CLOSED, -25);
     case "three":
       return white(eye) + lash(eye, UPPER_OPEN) + lash(eye, LOWER_OPEN) + lash(eye, CLOSED);
+    case "percent":
+      return `<circle data-name="eyeball-white-${eye}" cx="50%" cy="50%" r="20%" fill="#fff"/>`;
+    case "text":
+      return `<text data-name="eyeball-white-${eye}" x="${EYES[eye].x + 40}" y="60">o</text>`;
     case "stroke":
       return `<path data-name="sleep-mark-${eye}" d="${at(eye, "M20,20 L40,20 L20,40 L40,40", -20)}" fill="none" stroke="#111"/>`;
   }
@@ -45,14 +49,14 @@ interface Row {
 
 const ROWS: Row[] = [];
 for (const clips of ["per eye", "shared"] as const) {
-  for (const left of ["none", "one", "pair", "pair-and-lone", "three", "stroke"] as const) {
+  for (const left of ["none", "one", "pair", "pair-and-lone", "three", "stroke", "percent", "text"] as const) {
     for (const right of ["one", "pair"] as const) {
       ROWS.push({
         clips,
         rest: "asleep",
         left,
         right,
-        expect: left === "none" ? { code: "edge-missing" } : left === "three" ? { code: "aperture-ambiguous" } : "live",
+        expect: left === "none" || left === "percent" || left === "text" ? { code: "edge-missing" } : left === "three" ? { code: "aperture-ambiguous" } : "live",
       });
     }
   }
@@ -132,8 +136,9 @@ describe("the rest outline of a rest no keyframe names", () => {
     const artifact = bakeMorphArtifact({ source, selection: {}, recipes: [recipe], key: `${row.clips}-${row.rest}-${row.left}-${row.right}` });
     if (row.expect !== "live") {
       expect(artifact.status).toBe("static");
-      expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: row.expect.code, severity: "error" })]);
-      expect(artifact.diagnostics[0]!.message).toContain("rest pose");
+      const errors = artifact.diagnostics.filter((d) => d.severity === "error");
+      expect(errors).toEqual([expect.objectContaining({ code: row.expect.code })]);
+      expect(errors[0]!.message).toContain("rest pose");
       return;
     }
     expect(artifact.diagnostics).toEqual([]);

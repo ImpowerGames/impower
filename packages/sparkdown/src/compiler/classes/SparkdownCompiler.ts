@@ -392,6 +392,18 @@ function indexOfWord(text: string, word: string): number {
   return -1;
 }
 
+function tokenOffset(text: string, token: string): number {
+  const isTokenChar = (c: string | undefined): boolean =>
+    c !== undefined && /[A-Za-z0-9_.-]/.test(c);
+  let found = -1;
+  for (let at = text.indexOf(token); at >= 0; at = text.indexOf(token, at + 1)) {
+    if (!isTokenChar(text[at - 1]) && !isTokenChar(text[at + token.length])) {
+      found = at;
+    }
+  }
+  return found;
+}
+
 function annotationAt(
   rest: string,
   lineAfter: (index: number) => string | undefined,
@@ -4654,9 +4666,10 @@ export class SparkdownCompiler {
             for (const [group, rest] of Object.entries(pose)) {
               const choice = Object.hasOwn(chosen, group) ? chosen[group]! : undefined;
               if (choice === undefined || look.shown[group] !== rest || choice === rest) continue;
-              const written = [`${group}.${choice}`, choice].map((needle) => ({ needle, at: text.lastIndexOf(needle) })).find(({ at }) => at >= 0);
-              const start = written ? from + written.at : from;
-              const end = written ? start + written.needle.length : to;
+              const token = written.find((attribute) => resolveAttributes(look.vocabulary, [attribute]).selection[group] === choice);
+              const at = token === undefined ? -1 : tokenOffset(text, token);
+              const start = at >= 0 ? from + at : from;
+              const end = at >= 0 ? start + token!.length : to;
               (program.diagnostics ??= {})[uri] ??= [];
               program.diagnostics[uri]!.push({
                 range: doc.range(start, end),

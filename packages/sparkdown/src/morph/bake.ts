@@ -1634,7 +1634,12 @@ export function* bakeSteps(
       .filter((leaf) => clip.between.includes(leaf.label) && visibleAt(leaf.element, restVisible))
       .map((leaf) => hullBox(rootGeometry(leaf) ?? []));
     for (const leaf of drawnTargets) {
-      const contours = (rootGeometry(leaf) ?? []).map((subpath) => hullBox([subpath]));
+      const geometry = rootGeometry(leaf);
+      if (!geometry) {
+        report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with geometry the bake cannot read, so whether the clip's edges surround it cannot be checked.`, { layer: leaf.label, morphs: clip.morphs });
+        return disable();
+      }
+      const contours = geometry.map((subpath) => hullBox([subpath]));
       if (contours.every((box) => !box || edgeBoxes.some((edge) => edge && boxesMeet(edge, box)))) continue;
       report("edge-missing", "error", `Clip ${clip.number}'s target "${leaf.label}" is drawn in the rest pose with a part none of the clip's edges surround, so the rest has no opening for it.`, { layer: leaf.label, morphs: clip.morphs });
       return disable();
