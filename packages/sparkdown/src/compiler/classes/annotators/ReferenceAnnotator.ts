@@ -32,6 +32,7 @@ import type { SparkSelector } from "../../types/SparkSelector";
 import { sortFilteredName } from "../../utils/sortFilteredName";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import { isLuauName } from "../../utils/luauName";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -115,7 +116,6 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const PROPERTY_NAME = nodeNameSet(["LuauPropertyName"]);
 const VARIABLE = nodeNameSet(["LuauVariable"]);
 const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
@@ -341,7 +341,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       }
       const string = index.length === 1 && STRING_INDEX.has(index[0]!.name) ? index[0]! : null;
       const name = string && findChildByName(string, `${string.name}_content`);
-      if (name && IDENTIFIER.test(this.read(name.from, name.to))) {
+      if (name && isLuauName(this.read(name.from, name.to))) {
         return name;
       }
     }
@@ -414,7 +414,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       if (content && !hasClosure) {
         const raw = this.read(content.from, content.to).trim();
         const callee = raw.replace(/\s*\([\s\S]*\)\s*$/, "");
-        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(callee)) {
+        if (isLuauName(callee)) {
           const nameNode = firstDescendant(content, EVENT_HANDLER_NAME) ?? content;
           annotations.push(
             SparkdownAnnotation.mark<Reference>({

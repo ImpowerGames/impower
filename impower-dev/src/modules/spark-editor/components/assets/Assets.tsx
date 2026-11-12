@@ -81,6 +81,7 @@ import {
   MoveDialog,
   NameRow,
   SelectionBar,
+  useRowFocusReturn,
   SortMenu,
   Trail,
   useFolderLayout,
@@ -225,6 +226,7 @@ function AssetsBrowser() {
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: readonly string[]; groups: SearchGroup[] | null } | null>(null);
   const upload = useRef<HTMLInputElement | null>(null);
+  const newButton = useRef<HTMLButtonElement>(null);
   const selecting = selection.active.value;
   const picked = selection.selected.value;
 
@@ -322,6 +324,7 @@ function AssetsBrowser() {
     [...(list.current?.querySelectorAll<HTMLElement>("[data-asset-path]") ?? [])].find(
       (element) => element.getAttribute("data-asset-path") === path,
     ) ?? null;
+  const focusRenamed = useRowFocusReturn(rowElement);
 
   const returnTarget = (path: string) =>
     rowElement(path) ?? page.current?.querySelector<HTMLElement>('input[type="search"]') ?? null;
@@ -549,11 +552,13 @@ function AssetsBrowser() {
         <NameRow
           icon={<RowGlyph row={row} listing={listing} />}
           label={`Rename ${row.name}`}
-          refocusOnce
           wrapError={tiles}
           initial={stem}
           suffix={extension}
-          onCancel={() => setRenaming(null)}
+          onCancel={() => {
+            setRenaming(null);
+            focusRenamed(row.path);
+          }}
           onCommit={async (name) => {
             await relocating(row.paths ?? [row.path], async () => [
               { from: row.path, to: await (await intents()).assets.rename(row.path, name) },
@@ -634,6 +639,7 @@ function AssetsBrowser() {
       query={query}
       onQueryChange={setQuery}
       newAttributes={{ "data-assets-action": "add" }}
+      newRef={newButton}
       newMenu={
         <>
           <DropdownItem disabled={busy} onSelect={() => upload.current?.click()}>
@@ -644,7 +650,7 @@ function AssetsBrowser() {
             <LinkIcon class="text-muted" />
             Link a file by address
           </DropdownItem>
-          <DropdownItem onSelect={() => { setQuery(""); setCreating(true); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating(true); }}>
             <FolderPlusIcon class="text-muted" />
             New folder
           </DropdownItem>
@@ -721,7 +727,7 @@ function AssetsBrowser() {
           <NameRow
             icon={<FolderIcon />}
             label="New folder name"
-            refocusOnce
+            returnFocus={() => newButton.current}
             onCancel={() => setCreating(false)}
             onCommit={async (name) => {
               const path = await (await intents()).assets.createFolder(level.folder, name);

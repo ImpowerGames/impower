@@ -5,13 +5,15 @@ import {
   DialogTitle,
   FixMenu,
   MessageEntry,
+  VirtualList,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
+import { useMemo, useRef } from "preact/hooks";
 import {
   fixChoiceOf,
   groupByScript,
   lineLink,
+  playedRows,
   problemSummary,
   SCRIPT_PREFIX,
   scopeContext,
@@ -20,15 +22,54 @@ import {
   type Problem,
 } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
-import { DebugCardsList } from "./debugCards";
+import { useDebugRows } from "./debugCards";
 import { isFixing, keepFocusAfterFix, problemSignature } from "./fixFocus";
+import {
+  PANEL_LABEL,
+  PanelItemView,
+  panelItemHeight,
+  panelItemKey,
+  type PanelItem,
+} from "./ProblemsPanel";
 
 export const BROWSE_SCRIPTS_SELECTOR = "[data-browse-scripts]";
 
 const CLOSE_DIALOG = '[aria-label="Close dialog"]';
 
+const PROBLEMS_TITLE = "Problems to fix";
+
+const STORY_CARDS_LABEL = "While playing, variables, watches and call stack";
+
 const LEAVE_FOCUS =
   typeof document === "undefined" ? null : document.createElement("span");
+
+function StoryCards() {
+  const all = useComputed(() => problems.problems.value).value;
+  const played = useComputed(() => problems.played.value).value;
+  const shown = useComputed(() => problems.shown.value).value;
+  const cards = useComputed(() => problems.cards.value).value;
+  const debugRows = useDebugRows(cards);
+  const rows = useMemo<PanelItem[]>(
+    () => [
+      ...playedRows({ played, shown, open: cards.played }),
+      ...debugRows.map((row) => ({ kind: "debug" as const, row })),
+    ],
+    [played, shown, cards.played, debugRows],
+  );
+  return (
+    <VirtualList
+      size="compact"
+      label={STORY_CARDS_LABEL}
+      class="h-[40vh] flex-none"
+      items={rows}
+      getKey={panelItemKey}
+      itemHeight={panelItemHeight}
+      renderItem={(row) => (
+        <PanelItemView row={row} all={all} played={played} />
+      )}
+    />
+  );
+}
 
 export default function ProblemsDialog() {
   const open = useComputed(() => !!problems.dialog.value).value;
@@ -83,7 +124,7 @@ export default function ProblemsDialog() {
     >
       <div class="mb-2 flex items-center gap-2">
         <DialogTitle class="flex-1 text-[22px]/[1.25] font-semibold tracking-[-0.02em]">
-          Problems to fix
+          {state?.scope.kind === "story" ? PANEL_LABEL : PROBLEMS_TITLE}
         </DialogTitle>
         <Button
           variant="quiet"
@@ -157,7 +198,7 @@ export default function ProblemsDialog() {
           </div>
         ))}
       </div>
-      {state?.scope.kind === "story" ? <DebugCardsList /> : null}
+      {state?.scope.kind === "story" ? <StoryCards /> : null}
     </Dialog>
   );
 }

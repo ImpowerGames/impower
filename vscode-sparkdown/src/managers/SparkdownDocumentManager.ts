@@ -1,4 +1,9 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { SPARKDOWN_EMBEDDED_LANGUAGES } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
+import {
+  createLanguageReader,
+  type LanguageReader,
+} from "../../../packages/textmate-grammar-tree/src/tree/utils/createLanguageReader";
 import * as vscode from "vscode";
 
 export class SparkdownDocumentManager {
@@ -11,6 +16,8 @@ export class SparkdownDocumentManager {
   }
 
   protected _documents: SparkdownDocumentRegistry;
+
+  protected _languageReaders = new WeakMap<object, LanguageReader>();
 
   constructor() {
     this._documents = new SparkdownDocumentRegistry([
@@ -64,5 +71,32 @@ export class SparkdownDocumentManager {
 
   tree(uri: vscode.Uri) {
     return this._documents.tree(uri.toString());
+  }
+
+  languageAt(document: vscode.TextDocument, position: vscode.Position): string {
+    const uri = document.uri.toString();
+    if (this._documents.get(uri)?.version !== document.version) {
+      this.add(document);
+    }
+    const synced = this._documents.get(uri);
+    const tree = this._documents.tree(uri);
+    if (!synced || !tree) {
+      return document.languageId;
+    }
+    const { grammar } = this._documents.parserFor(uri);
+    let reader = this._languageReaders.get(grammar);
+    if (!reader) {
+      reader = createLanguageReader(grammar, SPARKDOWN_EMBEDDED_LANGUAGES);
+      this._languageReaders.set(grammar, reader);
+    }
+    return reader.cursor(
+      tree,
+      {
+        length: synced.length,
+        sliceString: (from, to) => synced.read(from, to),
+      },
+      synced.offsetAt(position),
+      document.languageId,
+    );
   }
 }

@@ -641,6 +641,10 @@ export class Game<T extends M = {}> {
     return this._restarted;
   }
 
+  get redelivering() {
+    return this._redelivers !== undefined;
+  }
+
   protected _state: GameState = "initial";
   get state() {
     return this._state;
@@ -3856,6 +3860,7 @@ export class Game<T extends M = {}> {
     this._announcedStop = true;
     this.holdStop(reason);
     if (!this.presentsAtStop()) {
+      this.module.ui.releaseHeldConnect();
       return "none";
     }
     const beat = this.module.interpreter.flush()!;
@@ -4046,6 +4051,7 @@ export class Game<T extends M = {}> {
   }
 
   protected endStory(kind: StoryEnding) {
+    this.module.ui.releaseHeldConnect();
     const error = kind === "error" ? this._errorEnding : null;
     this._ending = {
       kind,

@@ -44,7 +44,12 @@ export default function AssetRowMenu({ name, kept, onAction }: AssetRowMenuProps
           <CheckIcon class="text-muted" />
           Select
         </DropdownItem>
-        <DropdownItem disabled={!!kept} class={kept ? "py-2" : undefined} onSelect={() => onAction("rename")}>
+        <DropdownItem
+          returnFocus={false}
+          disabled={!!kept}
+          class={kept ? "py-2" : undefined}
+          onSelect={() => onAction("rename")}
+        >
           <PencilIcon class="shrink-0 text-muted" />
           <Kept label="Rename" reason={kept} />
         </DropdownItem>

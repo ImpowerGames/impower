@@ -70,10 +70,13 @@ export const stillExpected = (
     return false;
   }
   if (kind === "name") {
-    return (
-      !NAME_CHARACTER.test(text.charAt(from - 1)) &&
-      !NAME_CHARACTER.test(text.charAt(to))
-    );
+    const continuesBefore =
+      NAME_CHARACTER.test(text.charAt(from - 1)) ||
+      (text.charAt(from - 1) === "@" && NAME_CHARACTER.test(text.charAt(from - 2)));
+    const continuesAfter =
+      NAME_CHARACTER.test(text.charAt(to)) ||
+      (text.charAt(to) === "@" && NAME_CHARACTER.test(text.charAt(to + 1)));
+    return !continuesBefore && !continuesAfter;
   }
   if (kind === "note") {
     return !restOfLine(text, to).trim();

@@ -243,16 +243,10 @@ describe("baking secondary states and layer motion", () => {
     expect(artifact.diagnostics.map((d) => d.code)).toEqual(["inactive-variant"]);
   });
 
-  test("a compatible specific rest choice survives: brows resting up-high return to up-high", () => {
+  test("a hyphenated rest is its own state: a variant resting with the brows up-high stays still", () => {
     const artifact = bake({}, { brows: "up-high" });
-    expect(artifact.status).toBe("live");
-    expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up-high", "down", "up-high"]);
-    const shown = new Set(artifact.visibility["brows"]!["up-high"]);
-    const part = artifact.parts[3]!.svg;
-    const high = withAttribute(part, "data-name", "brow-left:brows.up-high")[0]!.el.attributes["data-morph"]!;
-    const down = withAttribute(part, "data-name", "brow-left:brows.down")[0]!.el.attributes["data-morph"]!;
-    expect(shown.has(high)).toBe(true);
-    expect(shown.has(down)).toBe(false);
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics.map((d) => d.code)).toEqual(["inactive-variant"]);
   });
 
   test("a group the artwork cannot rest in makes the whole morph inapplicable, not half of the face", () => {

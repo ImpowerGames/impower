@@ -1,4 +1,5 @@
 import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import type { WorkspaceEditRollback } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
@@ -83,6 +84,11 @@ const extensionOf = (path: string) => {
   const name = nameOf(path);
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot) : "";
+};
+
+const renameFailure = (error: unknown) => {
+  const rollback = (error as { rollback?: WorkspaceEditRollback } | null)?.rollback;
+  return Object.assign(new NameError(reasonOf(error)), rollback && { rollback });
 };
 
 const MEASURE_BATCH = 8;
@@ -433,7 +439,7 @@ export default class WorkspaceAssets {
       outcome = await renameFiles(renamer, projectId, moves);
     } catch (error) {
       await this.load().catch(() => null);
-      throw new NameError(reasonOf(error));
+      throw renameFailure(error);
     }
     const { window } = this._workspace;
     if (outcome.referencesUpdated > 0) {
@@ -468,7 +474,7 @@ export default class WorkspaceAssets {
       await renameFiles(this._workspace, projectId, moves);
     } catch (error) {
       await this.load().catch(() => null);
-      throw new NameError(reasonOf(error));
+      throw renameFailure(error);
     }
     await this._workspace.window.recordAssetChange();
     recordMoves(projectId, moves, thingsLabel(listing, covered, assetEndings.peek()), "Move");
@@ -537,7 +543,7 @@ export default class WorkspaceAssets {
       await renameFiles(this._workspace, projectId, [{ from, to, isDir: true }]);
     } catch (error) {
       await this.load().catch(() => null);
-      throw new NameError(reasonOf(error));
+      throw renameFailure(error);
     }
     await this._workspace.window.recordAssetChange();
     recordMove(projectId, from, to, true);

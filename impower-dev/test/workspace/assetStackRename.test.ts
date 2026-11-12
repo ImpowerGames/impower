@@ -182,9 +182,10 @@ async function harness(stored: Record<string, string>) {
     };
     return created;
   };
-  const failWriting = (path: string) => {
+  const failWriting = (path: string, before: () => Promise<unknown> = async () => {}) => {
     const entry = folder(path);
     entry.createSyncAccessHandle = async () => {
+      await before();
       throw new DOMException("The script could not be written", "NoModificationAllowedError");
     };
   };
@@ -447,24 +448,19 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(await h.read("zz.sd")).toBe(other);
     expect(await inPortraits(h)).toEqual(ORIGINAL);
     expect(h.history.canUndo.value).toBe(false);
-    expect(apply.mock.calls.map(([, label]) => label).filter((label) => label?.startsWith("Put back"))).toEqual(["Put back main.sd"]);
+    expect(apply.mock.calls.map(([, label]) => label).filter((label) => label?.startsWith("Put back"))).toEqual([]);
   });
 
   it("leaves a script the author saved during recovery as the author saved it, and says so", async () => {
     const other = lines("scene other", "  [[show portrait imani]]", "end");
     const h = await harness(project({ "zz.sd": other, "main.sd": SCRIPT.replace("scene start", "scene start" + NL + "  -> other") }));
-    h.failWriting("zz.sd");
-    const apply = h.fs.applyWorkspaceEdit.bind(h.fs);
     const saved = (await h.read("main.sd")).replace("[[show portrait imani]]", "[[show portrait zadie]]") + "The author's saved line." + NL;
-    vi.spyOn(h.fs, "applyWorkspaceEdit").mockImplementation(async (...args: Parameters<typeof apply>) => {
-      if (args[1]?.startsWith("Put back")) {
-        await h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL);
-      }
-      return apply(...args);
-    });
-    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
-      "main.sd changed before its lines could be put back, so it was left as it is (main.sd changed before the edit could be applied); check it.",
+    h.failWriting("zz.sd", async () =>
+      h.write("main.sd", (await h.read("main.sd")) + "The author's saved line." + NL),
     );
+    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toMatchObject({
+      rollback: { complete: false, kept: ["main.sd"] },
+    });
     expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|~face)/g, "zadie$1"));
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
@@ -699,8 +695,10 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     let failed = false;
     h.failCreating(RENAMED[3]!, () => (failed = true));
     h.failCreating(STACK[1]!, () => failed);
-    await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toThrow(
-      `Couldn't rename imani: The storage is full. Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
+    const failure = h.assets.rename(STACK[0]!, "zadie");
+    await expect(failure).rejects.toThrow(/^Couldn't rename imani: The storage is full; the edit was partly applied: /);
+    await expect(failure).rejects.toThrow(
+      `Not put back: ${RENAMED[1]} (was ${STACK[1]}; putting it back failed: The storage is full).`,
     );
     expect(await h.paths()).toContain(RENAMED[1]);
     expect(h.history.canUndo.value).toBe(false);

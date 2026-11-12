@@ -22,7 +22,6 @@ import {
   type DebugWatchHandlers,
   type DebugWatchRow,
 } from "@impower/spark-web-player/src/components/DebugWatch/DebugWatch";
-import { VirtualList } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 import type WorkspaceDebugInspection from "../../workspace/WorkspaceDebugInspection";
@@ -120,24 +119,6 @@ export const debugRowKey = (row: DebugRow) =>
     : row.card === "watch"
       ? debugWatchRowKey(row)
       : debugCallStackRowKey(row);
-
-export const DEBUG_CARDS_LABEL = "Variables, watches and call stack";
-
-export function DebugCardsList() {
-  const cards = useComputed(() => problems.cards.value).value;
-  const rows = useDebugRows(cards);
-  return (
-    <VirtualList
-      size="compact"
-      label={DEBUG_CARDS_LABEL}
-      class="h-[40vh] flex-none"
-      items={rows}
-      getKey={debugRowKey}
-      itemHeight={debugRowHeight}
-      renderItem={(row) => <DebugRowView row={row} />}
-    />
-  );
-}
 
 export function DebugRowView({ row }: { row: DebugRow }) {
   return row.card === "variables" ? (

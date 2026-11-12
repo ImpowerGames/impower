@@ -93,7 +93,7 @@ variables:                   # shared regex fragments and keyword lists (§7)
   WS: (?:[^\S\n\r])
   NL: (?:\r\n|\r|\n)
   IDENTIFIER: (?:[_\p{L}][0-9_\p{L}-]*(?<![-]))
-  FLOW_BEAT_KEYWORDS: ["scene", "branch"] # arrays auto-wrap to \b(?:scene|branch)\b
+  FLOW_BEAT_KEYWORDS: ["scene", "branch"] # arrays auto-wrap to {{STORY_NAME_START}}(?:scene|branch){{STORY_NAME_END}}
 
 patterns:                    # root dispatch — what a top-level line can start with
   - { include: "#Newline" }
@@ -105,7 +105,7 @@ repository:                  # every named rule lives here
   Scene:
     tag: meta
     name: meta.scene.sd
-    begin: ({{WS}}*)(scene)\b({{WS}}+)
+    begin: ({{WS}}*)(scene){{STORY_NAME_END}}({{WS}}+)
     beginCaptures: { ... }
     patterns: [ ... ]
     end: (?={{BEAT}})|$
@@ -182,7 +182,7 @@ LuauEndKeyword [13..16]: "end"
 LuauEndKeyword:
   tag: controlKeyword # → CodeMirror highlighting (§8)
   name: keyword.control.end.luau # → VS Code highlighting (§8)
-  match: (end)\b # \b so `endless` doesn't false-match
+  match: (end){{LUAU_NAME_END}} # so `endless`, `end_x` and `end@x` don't false-match
 ```
 
 Use `Match`s for atomic tokens — keywords, operators, literals, anything that's a single named blip in the source.
@@ -224,7 +224,7 @@ LuauSparkdownIfBlock [0..47]
 ```yaml
 LuauSparkdownIfBlock:
   # Opens at `if` with leading indent and trailing separator captured.
-  begin: ({{WS}}*)(if)\b({{WS}}*)
+  begin: ({{WS}}*)(if){{LUAU_NAME_END}}({{WS}}*)
   beginCaptures:
     1: { patterns: [{ include: "#OptionalWhitespace" }] }
     2: { patterns: [{ include: "#LuauIfKeyword" }] }
@@ -237,7 +237,7 @@ LuauSparkdownIfBlock:
     - { include: "#LuauSparkdownBlockBody" }
   # Closes at `end`, OR bails at the next BEAT (next scene/branch) so a
   # forgotten `end` doesn't eat the rest of the document.
-  end: (?={{BEAT}})|({{WS}}*)(end)\b
+  end: (?={{BEAT}})|({{WS}}*)(end){{LUAU_NAME_END}}
   endCaptures:
     1: { patterns: [{ include: "#OptionalWhitespace" }] }
     2: { patterns: [{ include: "#LuauEndKeyword" }] }
@@ -248,7 +248,7 @@ Walk-through:
 - **`begin:`** fires when the parser sees `if` at a valid position. Three capture groups: leading whitespace, the keyword itself, trailing whitespace.
 - **`beginCaptures:`** attaches sub-rules to each capture group by index. Capture 1 → `OptionalWhitespace` (leading WS; the formatter detects line-start position and treats it as indent), capture 2 → `LuauIfKeyword` node, capture 3 → `OptionalWhitespace` node (mid-line, normalized to one space). These named children are what the formatter, highlighter, and lowerer address.
 - **`patterns:`** is the set of rules the parser tries inside the body, in declaration order, until one matches.
-- **`end:`** has two alternatives: `(?={{BEAT}})` (zero-width lookahead — bail out if the next scene/branch is starting) and `({{WS}}*)(end)\b` (consume the actual `end` keyword). `BEAT` is a grammar variable meaning "start of the next scene or branch" — see the worked use in §11.
+- **`end:`** has two alternatives: `(?={{BEAT}})` (zero-width lookahead — bail out if the next scene/branch is starting) and `({{WS}}*)(end){{LUAU_NAME_END}}` (consume the actual `end` keyword). `BEAT` is a grammar variable meaning "start of the next scene or branch" — see the worked use in §11.
 - **`endCaptures:`** does for end captures what `beginCaptures` did for begin captures.
 
 > **About the auto-named `_begin_c2` / `_begin_c3` / `_content` wrappers in the tree.** These are auto-generated structural wrappers — `_begin_cN` for the Nth begin capture, `_end_cN` for end captures, `_content` for the inter-begin/end body. They are visible in `printTree` but **they are not a stable contract**. Don't reference them from the lowerer. The lowerer should reach for `LuauIfKeyword` or `OptionalWhitespace`, not `LuauSparkdownIfBlock_begin_c2`. See §6.4 for the rationale.
@@ -412,7 +412,7 @@ Now that the three rule shapes and the Golden Rule are in place, the rest of thi
 
 ## 6. Captures
 
-A **capture** is a parenthesized group in a regex — like the `(scene)` in `({{WS}}*)(scene)\b`. TextMate grammars extend regex captures with a powerful idea: you can attach a _sub-rule_ to a capture, so the captured text gets parsed by another rule and produces its own tree node.
+A **capture** is a parenthesized group in a regex — like the `(scene)` in `({{WS}}*)(scene){{STORY_NAME_END}}`. TextMate grammars extend regex captures with a powerful idea: you can attach a _sub-rule_ to a capture, so the captured text gets parsed by another rule and produces its own tree node.
 
 Captures are how you avoid the anti-pattern of "one big regex blob that the lowerer has to re-parse." If the grammar can name a piece of text, name it.
 
@@ -447,13 +447,13 @@ Common use: capturing the trailing whitespace after a keyword as an `OptionalWhi
 Bad:
 
 ```yaml
-begin: ({{WS}}*scene\b{{WS}}+) # one capture for indent + keyword + separator
+begin: ({{WS}}*scene{{STORY_NAME_END}}{{WS}}+) # one capture for indent + keyword + separator
 ```
 
 Good:
 
 ```yaml
-begin: ({{WS}}*)(scene)\b({{WS}}+) # three captures the formatter and highlighter can address
+begin: ({{WS}}*)(scene){{STORY_NAME_END}}({{WS}}+) # three captures the formatter and highlighter can address
 beginCaptures:
   1: { patterns: [{ include: "#OptionalWhitespace" }] }
   2: { patterns: [{ include: "#SceneKeyword" }] }
@@ -518,12 +518,12 @@ Reference with `{{NAME}}`:
 
 ```yaml
 Scene:
-  begin: ({{WS}}*)(scene)\b({{WS}}+)
+  begin: ({{WS}}*)(scene){{STORY_NAME_END}}({{WS}}+)
 ```
 
-After substitution, that becomes `((?:[^\S\n\r])*)(scene)\b((?:[^\S\n\r])+)`.
+After substitution, that becomes `((?:[^\S\n\r])*)(scene)(?![0-9_\p{L}]|[@][0-9_\p{L}])((?:[^\S\n\r])+)`.
 
-**B. Array values** auto-wrap to `\b(?:item1|item2|...)\b`:
+**B. Array values** auto-wrap to `{{LUAU_NAME_START}}(?:item1|item2|...){{LUAU_NAME_END}}` in `sparkdown-luau.language-grammar.yaml` and to `{{STORY_NAME_START}}(?:item1|item2|...){{STORY_NAME_END}}` in `sparkdown.language-grammar.yaml`:
 
 ```yaml
 variables:
@@ -531,7 +531,7 @@ variables:
   LUAU_FLOW_BLOCK_KEYWORDS: ["do", "if", "for", "while", "repeat"]
 ```
 
-`{{LUAU_FLOW_BLOCK_KEYWORDS}}` expands to `\b(?:do|if|for|while|repeat)\b`. Use this whenever you mean "any of these keywords" — never write the alternation by hand.
+`{{LUAU_FLOW_BLOCK_KEYWORDS}}` expands to `(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]@)(?:do|if|for|while|repeat)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))`, so a name character, or an `@` and one, on either side makes the word part of a longer name (`do_x`, `x@if`). Use an array whenever you mean "any of these keywords" outside a lookbehind. Inside a lookbehind, where VS Code's engine refuses a lookaround, write the list as a string variable (`LUAU_TERNARY_PRECEDING_KEYWORDS: "(?:return|and|...)"`) and start it with `{{LUAU_NAME_START_BEHIND}}`, which consumes the character before the word instead of looking at it. Every keyword boundary is one of these variables; never write `\b`.
 
 ### 7.2 Composing variables
 
@@ -548,7 +548,7 @@ Build small named pieces, then compose them. A long regex like `EOL: "(?:$|{{WS}
 
 ### 7.3 Always use non-capturing groups inside variables
 
-Variables expand inline, which means **any capture groups they contain become capture groups of the host rule**. If `WS` were defined as `([^\S\n\r])` (capturing), then `begin: ({{WS}}*)(scene)\b({{WS}}+)` would expand to a regex with _five_ capture groups instead of three — the `WS` variable would steal two index slots, throwing off the `beginCaptures` mapping and the lowerer's expectations.
+Variables expand inline, which means **any capture groups they contain become capture groups of the host rule**. If `WS` were defined as `([^\S\n\r])` (capturing), then `begin: ({{WS}}*)(scene){{STORY_NAME_END}}({{WS}}+)` would expand to a regex with _five_ capture groups instead of three — the `WS` variable would steal two index slots, throwing off the `beginCaptures` mapping and the lowerer's expectations.
 
 Always wrap variable contents in a non-capturing group `(?:...)`:
 
@@ -563,7 +563,7 @@ variables:
   WS: ([^\S\n\r])
 ```
 
-Array variables already follow this rule automatically (they expand to `\b(?:a|b|c)\b`, not `\b(a|b|c)\b`). String variables are author-written, so it's on you.
+Array variables already follow this rule automatically (they expand to `{{LUAU_NAME_START}}(?:a|b|c){{LUAU_NAME_END}}`, not `{{LUAU_NAME_START}}(a|b|c){{LUAU_NAME_END}}`). String variables are author-written, so it's on you.
 
 **The rule of thumb:** a variable is a transparent regex fragment; capturing is a decision the _host rule_ makes by wrapping the reference in its own `(...)`, not something the variable should impose.
 
@@ -651,18 +651,25 @@ Each language has its own config: `definitions/yaml/sparkdown.language-config.ya
 
 Both files hold the bracket, quote and backtick pairs and the brace, bracket and paren Enter rules.
 
-The web editor (`packages/codemirror-vscode-language`) takes every entry from the config of the language at the cursor (§8.1), and Enter and indentation rules see the cursor's run of one language on the line when that run neither starts the line nor shares the line's first language, as VS Code's `createScopedLineTokens` does. VS Code takes comments and Enter rules from the language at the cursor too, but reads auto-closing and surrounding pairs from the document's language (`CursorConfiguration` is built from `model.getLanguageId()`), and the indentation patterns it inherits from the line above from the document's language (`getInheritIndentForLine` in `autoIndent.ts`). So the story patterns also indent the Luau block headers a `.sd` document holds, and in a `.sd` document VS Code differs from the web editor in two places:
+The web editor (`packages/codemirror-vscode-language`) takes every entry from the config of the language at the cursor (§8.1), and Enter and indentation rules see the cursor's run of one language on the line when that run neither starts the line nor shares the line's first language, as VS Code's `createScopedLineTokens` does. VS Code takes comments and Enter rules from the language at the cursor too, but reads auto-closing and surrounding pairs from the document's language (`CursorConfiguration` is built from `model.getLanguageId()`), and the indentation patterns it inherits from the line above from the document's language (`getInheritIndentForLine` in `autoIndent.ts`). So the story patterns also indent the Luau block headers a `.sd` document holds.
 
-- Typing `::` in a Luau expression adds a closing `::`, as in story text: `local y = x :` becomes `local y = x ::::`.
-- Typing `[` after `--[` in a function body closes the bracket alone, not the comment's `]]`.
+No config can make VS Code choose pairs by the embedded language: a pair's `notIn` names token types (`string`, `comment`), which story text and a Luau expression share, and an opening sequence is matched literally. The extension therefore chooses them itself, in the `type` command it registers while `sparkdown.editor.autoCloseAngleBrackets` is on (`vscode-sparkdown/src/utils/activateAutoFormatting.ts`). The decision follows VS Code's own rule (`getAutoClosingPair` in `cursorTypeEditOperations.ts`, mirrored by `vscodeAutoClose` in `vscode-sparkdown/src/utils/closesByLanguage.ts`). For one config and a set of cursors, that rule makes four choices:
 
-A `.luau` document behaves the same in both editors: typing `::` there inserts `::` alone. Nothing a config can say changes VS Code's reading in a `.sd` document:
+- **Opener.** It takes the longest opener the typed character completes at every cursor.
+- **Setting.** It applies `editor.autoClosingQuotes` to a typed quote, `editor.autoClosingComments` to an opener holding the config's block-comment start, and `editor.autoClosingBrackets` otherwise.
+- **Next character.** It closes only where the next character passes that setting's test or begins a closer of the config. A single-character quote does not close after a word character unless quote closing is `always`.
+- **Contained pair.** It drops a contained pair's closer when that closer already follows every cursor.
 
-- A pair's `notIn` names token types (`string`, `comment`), and a Luau expression's tokens are of the same type as story text's.
-- An opening sequence is matched literally, so no narrower `::` pair tells the two languages apart.
-- Dropping `::` from the story config would lose the closing pair in story text too.
+For each keystroke in a `.sd` document with every selection empty, the extension first applies the rule to each cursor alone under each language's config. When no cursor's result depends on the config, the language cannot matter, and VS Code types the key itself under its own rule; that covers quotes and the brackets both configs share. Otherwise the extension groups the cursors by the language at each one, reading that language from the document manager's tree, which is reparsed for the current document version. It applies the rule to each group with that language's config. Where every cursor's result equals VS Code's own result for all cursors under the story config, VS Code types the key itself; otherwise the extension inserts the key and each group's closer. On those keystrokes, VS Code's bracket-balance and token checks are not repeated for the extension's cursors. As VS Code does, it makes a multi-character opener's closer its own undo step, so the first undo removes the closer.
 
-Only an extension that takes over VS Code's `type` command, as editor emulators do, could choose by the embedded language.
+Typing `::` then closes in story text and not in a Luau expression, and `--[=[` closes with `]=]` in a function body and as brackets in story text, in both editors. A `.luau` document takes its pairs from the Luau config in both editors.
+
+Four limits remain in VS Code:
+
+- With `sparkdown.editor.autoCloseAngleBrackets` off, the extension does not own `type`. An editor emulator that owns `type` needs that, since only one extension can own it. VS Code then chooses every pair in a `.sd` document from the story config: `::` gets a closing `::` in a Luau expression, and `--[=[` in a function body closes as brackets.
+- VS Code types over only the closers it inserted itself. Typing a closer's character in front of a closer the extension inserted, such as the `]` of `]=]`, adds the character instead of stepping over it. The web editor's handler behaves the same way.
+- A keystroke whose closer is the same in both languages is left to VS Code, which then groups its undo by the story pair. Typing `--[[` in a function body gives `--[[]]`. One undo then gives `--[]`, removing the typed `[` with its `]`. A `.luau` document gives `--[[]`, removing only the `]`.
+- A keystroke whose closer the extension suppresses is its own undo step. Typing `::` after `local x = y ` in a function body gives `local x = y ::`. One undo then gives `local x = y :`. A `.luau` document gives `local x = y `, since VS Code groups the two colons as typing.
 
 The indentation patterns skip comments with a scanner that steps over strings, so a `--` or `//` inside a string does not hide a `then`, a `do` or an open bracket. It runs in the Luau `increaseIndentPattern`, in both files' `indentNextLinePattern`, and in the story `increaseIndentPattern`'s `function` and open-bracket alternatives. The story `if`, `elseif`, `for` and `while` alternatives are anchored at the line start, so a commented-out header cannot match them; they do not scan for comments. A `then` or `do` written inside a trailing comment (`if x -- then`) therefore indents there. The scanner reads:
 
@@ -904,7 +911,7 @@ When you need cross-line reconciliation, the grammar can't fully express it. Pic
 
 ### 11.5 Spanning newlines inside a scope
 
-VS Code's TextMate engine tokenizes one line at a time. The trailing `\n` _is_ part of the line input — `Newline` and friends match it explicitly — but **no single `begin:`, `end:`, or `match:` pattern can extend past that `\n` into the next line's content.** Lookbehinds and lookaheads in those patterns are equally line-bound: a lookbehind to `if\b` on a previous line will not succeed on a continuation line.
+VS Code's TextMate engine tokenizes one line at a time. The trailing `\n` _is_ part of the line input — `Newline` and friends match it explicitly — but **no single `begin:`, `end:`, or `match:` pattern can extend past that `\n` into the next line's content.** Lookbehinds and lookaheads in those patterns are equally line-bound: a lookbehind to `if` on a previous line will not succeed on a continuation line.
 
 The compiler's parser is handed far more than one line, but textmate-grammar-tree matches each regex against the current line and its line break only, as vscode-textmate does (I-1283), so in both engines a consuming part or a lookaround cannot read past the current line's break. Before I-1283 the tree matched against its whole input window, and the grammar had to keep each pattern on its line itself; the lint rules below still hold a pattern to its line, so it says what both engines read. `_LUAU_TRIVIA_AHEAD_` skips only the whitespace and comments on its own line to the next token. A binary operator that ends its line takes the break, and its operand begins on the next line; where that line begins with a statement keyword, the type checker reports the missing operand for the Luau it reads, and `ValidationAnnotator` for a `store` declaration in a function, which the checker does not read. A negated class such as `[^()]` or `[^"]` matches a line break, so write it `[^()\r\n]` wherever the pattern repeats it or reads on after it. Such a class stops at the line's end in both engines, so a pattern written to read further only fails to match what its author meant. The `no-line-crossing-class` lint rule refuses such a class, and `no-newline-in-lookaround` refuses a lookaround that holds a line break (`\n`, `\r`, `{{NL}}`) with more of the lookaround after it, both with the rule's variables expanded.
 
@@ -957,7 +964,7 @@ LuauIfBlockCondition:
     - { include: "#LuauCommaSeparator" }
     - { include: "#ExtraWhitespace" }
     - { include: "#Newline" } # ← spans lines once the scope is open
-  end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
+  end: ({{WS}}*)((?:then){{LUAU_NAME_END}})|(?={{BEAT}}|{{END}})
 ```
 
 For `if\n  a == 1 and\n  b == 2\n  then …`, the begin fires right after `if`, the body iterates `Newline` → `ExtraWhitespace` → `LuauExpression` → `Newline` → `ExtraWhitespace` → ... until `then` matches the end. No single regex ever crossed a newline.

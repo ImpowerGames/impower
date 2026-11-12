@@ -1,0 +1,44 @@
+store end@x = 1
+store local@x = true@x
+store queue@x = match@y
+
+function function@x(for@k, in@v)
+  return end@x
+end
+
+function sites(t, n, ok)
+  for for@k, in@v in pairs(t) do
+    print(for@k, in@v)
+  end
+  for x@in, end@y in pairs(t) do
+    print(x@in, end@y)
+  end
+  local mia@elseif = 1
+  local v = if ok then mia@elseif else n
+  local local@a: number = 1
+  local x@local: number = 2
+  if mia@then then return end
+  while ok and mia@for do
+    ok = false
+  end
+  local pick = match n | one = mia@end | other = 2 end
+  for i = 1, 2 do mia@end = i end
+  repeat
+    n = n + 1
+  until mia@until
+  local q = x@local :: number
+  local r = mia@function(1)
+  local s = mia@return if ok then 1 else 2
+  local c = mia@match (n)
+  local u = mia@and (n)
+  local w = mia@end (n)
+  return mia@end
+end
+
+@native function native@end()
+  return mia@end
+end
+
+define end@thing with
+  value = 1
+end

@@ -1,0 +1,51 @@
+text.source.sparkdown [0..83]
+ ├─ meta.function.luau [0..12]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.function.luau [13..38]
+ │   ├─ meta.function.body.luau [13..34]
+ │   │   └─ meta.embedded.block.luau [13..34]
+ │   │       ├─ punctuation.whitespace.extra.sd [13..15]: "  "
+ │   │       ├─ variable.other.readwrite.luau [15..27]: "mia@function"
+ │   │       ├─ punctuation.whitespace.extra.sd [27..28]: " "
+ │   │       ├─ entity.name.function.luau [28..31]: "foo"
+ │   │       └─ meta.parameter.luau [31..34]
+ │   │           ├─ punctuation.definition.template-expression.begin.sd [31..32]: "("
+ │   │           ├─ variable.other.readwrite.luau [32..33]: "a"
+ │   │           └─ punctuation.definition.template-expression.end.sd [33..34]: ")"
+ │   └─ meta.embedded.block.luau [34..38]
+ │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │       └─ keyword.control.end.luau [35..38]: "end"
+ ├─ Newline [38..39]: "\n"
+ ├─ keyword.control.end.luau [39..42]: "end"
+ ├─ Newline [42..43]: "\n"
+ ├─ Newline [43..44]: "\n"
+ ├─ meta.function.luau [44..56]
+ │   ├─ keyword.control.luau [44..52]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │   ├─ entity.name.function.luau [53..54]: "f"
+ │   └─ meta.parameter.luau [54..56]
+ │       ├─ punctuation.definition.template-expression.begin.sd [54..55]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [55..56]: ")"
+ ├─ Newline [56..57]: "\n"
+ ├─ meta.function.luau [57..78]
+ │   └─ meta.function.body.luau [57..78]
+ │       └─ meta.embedded.block.luau [57..78]
+ │           ├─ punctuation.whitespace.extra.sd [57..59]: "  "
+ │           ├─ variable.other.readwrite.luau [59..71]: "mia@function"
+ │           ├─ punctuation.whitespace.extra.sd [71..72]: " "
+ │           ├─ entity.name.function.luau [72..75]: "foo"
+ │           └─ meta.parameter.luau [75..78]
+ │               ├─ punctuation.definition.template-expression.begin.sd [75..76]: "("
+ │               ├─ variable.other.readwrite.luau [76..77]: "a"
+ │               └─ punctuation.definition.template-expression.end.sd [77..78]: ")"
+ ├─ Newline [78..79]: "\n"
+ ├─ meta.function.luau [79..82]
+ │   └─ meta.embedded.block.luau [79..82]
+ │       └─ keyword.control.end.luau [79..82]: "end"
+ └─ Newline [82..83]: "\n"

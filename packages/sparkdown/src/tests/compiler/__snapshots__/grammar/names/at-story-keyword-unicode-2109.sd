@@ -1,0 +1,9 @@
+scene start
+  [[show@é]]
+  [[hide@ü]]
+  [[animate@é over 1]]
+  ((play@é))
+  ((stop@ñ))
+  [[show mia@é]]
+  ((play music@é loop))
+end

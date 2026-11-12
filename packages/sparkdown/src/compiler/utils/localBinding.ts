@@ -7,10 +7,10 @@ import { getLocalScope, LOCAL_SCOPE_NODES } from "./localScopes";
 import { nodeNameSet } from "./nodeNameSet";
 import { CHOOSE_BLOCKS, RootLocals, THEN_CLAUSES } from "./rootLocals";
 import { VARIABLE_DEFINITION_NAMES, isBareDeclarationTarget, valueListAssignmentName } from "./variableDefinitionNames";
+import { luauNameAtStart } from "./luauName";
 
 type Read = (from: number, to: number) => string;
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
 const {
   functionLike,
   parameterOwners,
@@ -154,7 +154,7 @@ export class LocalBindings {
         ? findChildByName(content, "LuauComponentNameAndInheritance")
         : owner;
     for (const parameter of allNamed(header, "LuauFunctionParameter")) {
-      if (IDENTIFIER.exec(this.text(parameter).trim())?.[0] === name) return parameter;
+      if (luauNameAtStart(this.text(parameter).trim()) === name) return parameter;
     }
     return null;
   }
