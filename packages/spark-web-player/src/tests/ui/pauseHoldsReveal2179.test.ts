@@ -522,4 +522,16 @@ describe("pausing PLAY holds the typewriter (#2179)", () => {
     page.frame(20);
     expect(page.revealed()).toBe(1);
   });
+
+  test("a line written whole while paused goes up and answers without waiting for resume", async () => {
+    const page = makePage();
+    page.pause();
+    let answered = false;
+    void page.ui.onReceiveRequest(line(true)).then(() => {
+      answered = true;
+    });
+    await flushMicrotasks(20);
+    expect(page.revealed()).toBe(TEXT.length);
+    expect(answered).toBe(true);
+  });
 });

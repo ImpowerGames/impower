@@ -12,7 +12,7 @@ export default class AnimationHold {
 
   add(animation: Animation): Promise<unknown> {
     let reached!: () => void;
-    const steppedPast = new Promise<void>((resolve) => {
+    const reachedEnd = new Promise<void>((resolve) => {
       reached = resolve;
     });
     this._animations.set(animation, reached);
@@ -21,9 +21,9 @@ export default class AnimationHold {
       this._pruneAt = Math.max(PRUNE_FLOOR, this._animations.size * 2);
     }
     if (this._held) {
-      this.freeze(animation, this.position(animation));
+      this.hold(animation, reached, this.position(animation));
     }
-    return Promise.race([animation.finished, steppedPast]);
+    return Promise.race([animation.finished, reachedEnd]);
   }
 
   pause(): void {
@@ -32,8 +32,8 @@ export default class AnimationHold {
     }
     this._held = true;
     this.prune();
-    for (const animation of this._animations.keys()) {
-      this.freeze(animation, this.position(animation));
+    for (const [animation, reached] of this._animations) {
+      this.hold(animation, reached, this.position(animation));
     }
   }
 
@@ -70,10 +70,7 @@ export default class AnimationHold {
       }
       const next = time + ms * rate;
       if (this._held) {
-        this.freeze(animation, next);
-        if (this.endsBy(animation, next)) {
-          reached();
-        }
+        this.hold(animation, reached, next);
       } else {
         animation.startTime = Number(now) - next / rate;
       }
@@ -100,12 +97,19 @@ export default class AnimationHold {
     return animation.playbackRate > 0 ? time >= end : time <= 0;
   }
 
-  protected freeze(animation: Animation, time: number | null): void {
+  protected hold(
+    animation: Animation,
+    reached: () => void,
+    time: number | null,
+  ): void {
     if (time == null) {
       return;
     }
     animation.pause();
     animation.currentTime = time;
+    if (this.endsBy(animation, time)) {
+      reached();
+    }
   }
 
   protected prune(): void {
