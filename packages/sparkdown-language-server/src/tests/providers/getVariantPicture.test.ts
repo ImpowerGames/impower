@@ -103,6 +103,35 @@ describe("the tester's picture", () => {
     expect(drawn).toEqual([]);
   });
 
+  it("draws at the size the tester asks for, up to the art's own size, while the hover keeps 360", async () => {
+    const canvases: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => ({ ok: true, blob: async () => new Blob([url]), headers: { get: () => null } }));
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts?: ImageBitmapOptions) => {
+      const width = opts?.resizeWidth ?? 300;
+      return { width, height: opts?.resizeHeight ?? Math.round((width * 4) / 3), close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(width: number, height: number) {
+          canvases.push(`${width}x${height}`);
+        }
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+    const context = compile(MIA);
+    const variant = { image: "mia", attributes: ["hat"] };
+    await getVariantPicture(context, variant, { size: 1280 });
+    await getVariantPicture(context, variant, { size: 240 });
+    await getVariantPicture(context, variant);
+    expect(canvases).toEqual(["300x400", "180x240", "270x360"]);
+  });
+
   it("draws nothing without a program", async () => {
     expect(await getVariantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
   });

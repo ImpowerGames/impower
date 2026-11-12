@@ -2,9 +2,11 @@ export const THUMB_VERSION = 2;
 
 export const THUMB_MIN_WIDTH = 16;
 export const THUMB_MAX_WIDTH = 512;
+export const COMPOSITE_MAX_EDGE = 2048;
 
 const MIME = "image/webp";
 const QUALITY = 0.75;
+const COMPOSITE_QUALITY = 1;
 
 export interface ThumbnailSource {
   path: string;
@@ -16,6 +18,11 @@ export interface ThumbnailSource {
 export const clampThumbnailWidth = (requested: unknown) => {
   const n = Math.floor(Number(requested)) || 0;
   return Math.max(THUMB_MIN_WIDTH, Math.min(THUMB_MAX_WIDTH, n));
+};
+
+export const clampCompositeEdge = (requested: unknown) => {
+  const n = Math.floor(Number(requested)) || 0;
+  return Math.max(THUMB_MIN_WIDTH, Math.min(COMPOSITE_MAX_EDGE, n));
 };
 
 export const thumbnailCacheKey = (
@@ -65,25 +72,66 @@ export const composeThumbnailBlob = async (
         ),
       );
     }
-    const w = Math.max(...bitmaps.map((b) => b.width));
-    const h = Math.max(...bitmaps.map((b) => b.height));
-    if (!w || !h) {
-      return undefined;
-    }
-    const canvas = new OffscreenCanvas(w, h);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return undefined;
-    }
-    for (const bitmap of bitmaps) {
-      ctx.drawImage(bitmap, 0, 0);
-    }
-    return await canvas.convertToBlob({ type: MIME, quality: QUALITY });
+    return await drawLayers(bitmaps, QUALITY);
   } catch {
     return undefined;
   } finally {
     bitmaps.forEach((b) => b?.close());
   }
+};
+
+export const composeCompositeBlob = async (
+  sources: readonly ThumbnailSource[],
+  maxEdge: number,
+): Promise<{ blob: Blob; edge: number } | undefined> => {
+  if (!sources.length || !canRasterize()) {
+    return undefined;
+  }
+  const limit = clampCompositeEdge(maxEdge);
+  let bitmaps: ImageBitmap[] = [];
+  try {
+    bitmaps = await Promise.all(sources.map((s) => createImageBitmap(s.blob)));
+    const longest = Math.max(...bitmaps.flatMap((b) => [b.width, b.height]));
+    if (longest > limit) {
+      const scale = limit / longest;
+      const natural = bitmaps.map((b) => [b.width, b.height] as const);
+      const previous = bitmaps;
+      bitmaps = [];
+      previous.forEach((b) => b?.close());
+      bitmaps = await Promise.all(
+        sources.map((s, i) =>
+          createImageBitmap(s.blob, {
+            resizeWidth: Math.max(1, Math.round(natural[i]![0] * scale)),
+            resizeHeight: Math.max(1, Math.round(natural[i]![1] * scale)),
+            resizeQuality: "high",
+          }),
+        ),
+      );
+    }
+    const blob = await drawLayers(bitmaps, COMPOSITE_QUALITY);
+    return blob && { blob, edge: Math.min(longest, limit) };
+  } catch {
+    return undefined;
+  } finally {
+    bitmaps.forEach((b) => b?.close());
+  }
+};
+
+const drawLayers = async (bitmaps: readonly ImageBitmap[], quality: number) => {
+  const w = Math.max(...bitmaps.map((b) => b.width));
+  const h = Math.max(...bitmaps.map((b) => b.height));
+  if (!w || !h) {
+    return undefined;
+  }
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return undefined;
+  }
+  for (const bitmap of bitmaps) {
+    ctx.drawImage(bitmap, 0, 0);
+  }
+  return await canvas.convertToBlob({ type: MIME, quality });
 };
 
 const canRasterize = () =>

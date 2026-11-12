@@ -35,7 +35,7 @@ const assets = vi.hoisted(() => ({
   replace: vi.fn(async (path: string) => path),
   download: vi.fn(async (_path: string) => undefined),
   downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
-  watchPicture: vi.fn((_path: string, _variant: { image: string; attributes: string[] }, listener: (src: string | null) => void) => {
+  watchPicture: vi.fn((_path: string, _variant: { image: string; attributes: string[] }, _size: number, listener: (src: string | null) => void) => {
     listener(`/picture/${[_variant.image, ..._variant.attributes].join("~")}`);
     return () => {};
   }),
@@ -911,6 +911,10 @@ describe("the Variants tester and the Files section", () => {
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes(item)));
   };
 
+  const frameSize = { width: 300, height: 400 };
+  const frameObservers: { callback: () => void; target?: Element }[] = [];
+  const restoreFrame: (() => void)[] = [];
+
   beforeEach(() => {
     lists({ assetsType: "image", assetsFolders: { image: P } });
     workspace.assetListing.value = {
@@ -918,6 +922,69 @@ describe("the Variants tester and the Files section", () => {
       folders: [`${P}/mia`],
       files: Object.fromEntries([...IMANI, ...MIA].map((path, i) => [path, fact(1024 * (i + 1))])),
     };
+    Object.assign(frameSize, { width: 300, height: 400 });
+    frameObservers.length = 0;
+    for (const [property, side] of [
+      ["offsetWidth", "width"],
+      ["offsetHeight", "height"],
+    ] as const) {
+      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, property)!;
+      Object.defineProperty(HTMLElement.prototype, property, {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.matches("[data-zoom-frame]") ? frameSize[side] : 0;
+        },
+      });
+      restoreFrame.push(() => Object.defineProperty(HTMLElement.prototype, property, original));
+    }
+    const ratio = Object.getOwnPropertyDescriptor(globalThis, "devicePixelRatio");
+    Object.defineProperty(globalThis, "devicePixelRatio", { configurable: true, value: 3 });
+    restoreFrame.push(() =>
+      ratio ? Object.defineProperty(globalThis, "devicePixelRatio", ratio) : delete (globalThis as { devicePixelRatio?: number }).devicePixelRatio,
+    );
+    const observer = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      entry: { callback: () => void; target?: Element };
+      constructor(callback: () => void) {
+        this.entry = { callback };
+        frameObservers.push(this.entry);
+      }
+      observe(target: Element) {
+        this.entry.target = target;
+      }
+      unobserve() {}
+      disconnect() {
+        frameObservers.splice(frameObservers.indexOf(this.entry), 1);
+      }
+    } as unknown as typeof ResizeObserver;
+    restoreFrame.push(() => {
+      globalThis.ResizeObserver = observer;
+    });
+  });
+
+  afterEach(() => {
+    restoreFrame.splice(0).reverse().forEach((restore) => restore());
+  });
+
+  it("asks for the picture at the frame's size in device pixels, and again when the frame grows", async () => {
+    await mount();
+    await open("imani");
+    await pick(group("face"), "Happy");
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, 1280, expect.any(Function));
+    const calls = assets.watchPicture.mock.calls.length;
+    Object.assign(frameSize, { width: 450, height: 600 });
+    await act(async () => {
+      frameObservers.filter((entry) => entry.target?.matches("[data-zoom-frame]")).forEach((entry) => entry.callback());
+    });
+    await settle();
+    expect(assets.watchPicture).toHaveBeenCalledTimes(calls + 1);
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, 1920, expect.any(Function));
+    Object.assign(frameSize, { width: 460, height: 610 });
+    await act(async () => {
+      frameObservers.filter((entry) => entry.target?.matches("[data-zoom-frame]")).forEach((entry) => entry.callback());
+    });
+    await settle();
+    expect(assets.watchPicture).toHaveBeenCalledTimes(calls + 1);
   });
 
   it("counts a stack's uses and roles from the shared usage map, as a portrait in two scripts", async () => {
@@ -960,7 +1027,7 @@ describe("the Variants tester and the Files section", () => {
     expect(region()!.querySelector("[data-variant-reset]")).toBeNull();
     await pick(group("face"), "Happy");
     expect(reference()).toBe("[[imani:happy]]");
-    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function));
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, 1280, expect.any(Function));
     expect(region()!.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/picture/imani~happy");
     await pick(group("@"), "Night");
     expect(reference()).toBe("[[imani@night:happy]]");
@@ -1015,7 +1082,7 @@ describe("the Variants tester and the Files section", () => {
 
   it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
     for (const answer of ["", null]) {
-      assets.watchPicture.mockImplementationOnce((_path: string, _variant: unknown, listener: (src: string | null) => void) => {
+      assets.watchPicture.mockImplementationOnce((_path: string, _variant: unknown, _size: number, listener: (src: string | null) => void) => {
         listener(answer);
         return () => {};
       });
@@ -1151,7 +1218,7 @@ describe("the Variants tester and the Files section", () => {
       expect(wheel.getAttribute("aria-label")).toBe("Face");
       await key(wheel, "ArrowDown");
       await vi.waitFor(() =>
-        expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function)),
+        expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, 1280, expect.any(Function)),
       );
       expect(reference()).toBe("[[imani]]");
       await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Done"));

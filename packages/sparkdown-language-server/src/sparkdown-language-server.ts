@@ -412,13 +412,13 @@ try {
   );
   connection.onRequest(
     "sparkdown/variantPicture",
-    async (params: { uri: string; variant: ImageVariant }) => {
+    async (params: { uri: string; variant: ImageVariant; size?: number }) => {
       const mainUri = workspace.getMainScriptUri(params.uri);
       if (!mainUri) {
         return null;
       }
       const program = workspace.program(mainUri) || (await workspace.compile(mainUri, false));
-      return getVariantPicture(program?.context, params.variant, imageCompositeOptions);
+      return getVariantPicture(program?.context, params.variant, { ...imageCompositeOptions, size: params.size });
     },
   );
   connection.onRequest(FindTextMessage.method, (params: FindTextParams) =>

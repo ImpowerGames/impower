@@ -6,6 +6,7 @@ import {
 import { IMAGE_PREVIEW_HEIGHT } from "../../compiler/utils/getImagePreviewSrc";
 import {
   clampThumbnailWidth,
+  COMPOSITE_MAX_EDGE,
   composeThumbnailBlob,
   thumbnailCacheKey,
   THUMB_MAX_WIDTH,
@@ -428,5 +429,128 @@ describe("getImagePreviewMarkupComposited", () => {
     const ctx = makeContext("markupfallback", ["only"]);
     const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["only"]);
     expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
+  });
+});
+
+describe("the composite's size", () => {
+  const stubArt = (art: Record<string, { w: number; h: number }>, bytesPerPixel = 0) => {
+    const decodes: string[] = [];
+    const canvases: string[] = [];
+    vi.stubGlobal("createImageBitmap", async (blob: Blob, opts?: ImageBitmapOptions) => {
+      const name = await blob.text();
+      const { w, h } = art[name]!;
+      const width = opts?.resizeWidth ?? (opts?.resizeHeight ? Math.round((w * opts.resizeHeight) / h) : w);
+      const height = opts?.resizeHeight ?? (opts?.resizeWidth ? Math.round((h * opts.resizeWidth) / w) : h);
+      decodes.push(`${name} ${width}x${height}`);
+      return { width, height, close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(
+          public width: number,
+          public height: number,
+        ) {
+          canvases.push(`${width}x${height}`);
+        }
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(Math.max(16, Math.round(this.width * this.height * bytesPerPixel)))], {
+            type: "image/webp",
+          });
+        }
+      },
+    );
+    return { decodes, canvases };
+  };
+
+  const portrait = { base: { w: 300, h: 400 }, prop: { w: 300, h: 400 } };
+
+  it("keeps the hover's 360 px picture when the caller names no size", async () => {
+    const { canvases } = stubArt(portrait);
+    stubFetch();
+    const ctx = makeContext("hoversize", ["base", "prop"]);
+    expect(await getImageCompositeSrc(ctx, ctx.layered_image.bg)).toMatch(/^data:image\/webp;base64,/);
+    expect(canvases).toEqual(["270x360"]);
+  });
+
+  it("draws the stack at the source art's own size when the caller asks for more", async () => {
+    const { canvases, decodes } = stubArt(portrait);
+    stubFetch();
+    const ctx = makeContext("artsize", ["base", "prop"]);
+    expect(await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 1280 })).toMatch(/^data:image\/webp;base64,/);
+    expect(canvases).toEqual(["300x400"]);
+    expect(decodes).toEqual(["base 300x400", "prop 300x400"]);
+  });
+
+  it("scales every layer by one factor down to the size asked for", async () => {
+    const { canvases, decodes } = stubArt({ base: { w: 1500, h: 2000 }, prop: { w: 600, h: 300 } });
+    stubFetch();
+    const ctx = makeContext("asksize", ["base", "prop"]);
+    await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 1000 });
+    expect(canvases).toEqual(["750x1000"]);
+    expect(decodes.slice(2)).toEqual(["base 750x1000", "prop 300x150"]);
+  });
+
+  it("never draws past the composite ceiling, which is not the thumbnails' limit", async () => {
+    const { canvases } = stubArt({ base: { w: 8000, h: 8000 }, prop: { w: 8000, h: 8000 } });
+    stubFetch();
+    const ctx = makeContext("ceiling", ["base", "prop"]);
+    await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 99999 });
+    expect(COMPOSITE_MAX_EDGE).toBeGreaterThan(THUMB_MAX_WIDTH);
+    expect(canvases).toEqual([`${COMPOSITE_MAX_EDGE}x${COMPOSITE_MAX_EDGE}`]);
+    expect(clampThumbnailWidth(99999)).toBe(THUMB_MAX_WIDTH);
+  });
+
+  it("serves each caller its own size from the cache without evicting the other", async () => {
+    const { canvases } = stubArt({ base: { w: 1500, h: 2000 }, prop: { w: 1500, h: 2000 } });
+    const calls = stubFetch();
+    const ctx = makeContext("twosizes", ["base", "prop"]);
+    const hover = await getImageCompositeSrc(ctx, ctx.layered_image.bg);
+    const inspector = await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 1280 });
+    expect(canvases).toEqual(["270x360", "960x1280"]);
+    const fetched = calls.length;
+    expect(await getImageCompositeSrc(ctx, ctx.layered_image.bg)).toBe(hover);
+    expect(await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 1280 })).toBe(inspector);
+    expect(calls.length).toBe(fetched);
+    expect(canvases).toHaveLength(2);
+  });
+
+  it("encodes the composite without loss, as a plain file is shown, while thumbnails stay lossy", async () => {
+    const asked: unknown[] = [];
+    vi.stubGlobal("createImageBitmap", async () => ({ width: 300, height: 400, close() {} }));
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob(options: unknown) {
+          asked.push(options);
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+    stubFetch();
+    const ctx = makeContext("lossless", ["base", "prop"]);
+    await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 1280 });
+    await composeThumbnailBlob([{ path: "/a.png", blob: new Blob(["a"]), lastModified: 0, size: 1 }], 144);
+    expect(asked).toEqual([
+      { type: "image/webp", quality: 1 },
+      { type: "image/webp", quality: 0.75 },
+    ]);
+  });
+
+  it("steps down in size rather than dropping a composite over the data uri limit", async () => {
+    const { canvases } = stubArt({ base: { w: 1500, h: 2000 }, prop: { w: 1500, h: 2000 } }, 1);
+    stubFetch();
+    const ctx = makeContext("stepdown", ["base", "prop"]);
+    const src = await getImageCompositeSrc(ctx, ctx.layered_image.bg, { size: 2000 });
+    expect(src).toMatch(/^data:image\/webp;base64,/);
+    expect(src!.length).toBeLessThanOrEqual(512 * 1024);
+    expect(canvases[0]).toBe("1500x2000");
+    expect(canvases.length).toBeGreaterThan(1);
   });
 });
