@@ -1080,7 +1080,14 @@ describe("playing sounds from their rows", () => {
 });
 
 describe("the rows and the inspector show one session's state", () => {
-  type Expect = { sounding: string | null; held: string | null; at?: string; failed?: string; cued?: boolean };
+  type Expect = {
+    sounding: string | null;
+    held: string | null;
+    at?: string;
+    failed?: string;
+    cued?: boolean;
+    inspector?: false;
+  };
   type Step = [action: string, expect: Expect];
 
   const SOUNDS = ["door_chime", "footsteps"];
@@ -1126,6 +1133,7 @@ describe("the rows and the inspector show one session's state", () => {
         slider.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
       });
       await settle();
+      await tell("loadedmetadata", () => (speaker.audio.duration = 5));
     },
     next: async () => click(inspector()!.querySelector<HTMLElement>('[data-inspector-step="next"]')!),
     close: closeInspector,
@@ -1202,12 +1210,26 @@ describe("the rows and the inspector show one session's state", () => {
         }
       }
     }
+    if (want.inspector === false) {
+      expect(inspector(), where("the inspector")).toBeNull();
+    }
     const loaded = speaker.audio.src;
     if (want.failed) {
       return;
     }
     expect(loaded, where("the element's source")).toBe(want.held ? SRC[want.held] : "");
     expect(speaker.audio.paused, where("the element paused")).toBe(want.sounding === null);
+    if (!want.held) {
+      return;
+    }
+    const whole = Math.floor(speaker.audio.currentTime);
+    const playhead = `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+    const shownTime = rowTime(want.held)?.split(" / ")[0] ?? shown?.querySelector("[data-audio-elapsed]")?.textContent;
+    expect(shownTime, where("the element's time against the time shown")).toBe(playhead);
+    const loop = shown?.querySelector("[data-audio-loop]");
+    if (loop && shown!.closest("[data-sound-frame]")!.getAttribute("aria-label") === `${want.held} player`) {
+      expect(loop.getAttribute("aria-pressed"), where("Loop against the element's loop")).toBe(String(speaker.audio.loop));
+    }
   };
 
   const none: Expect = { sounding: null, held: null };
@@ -1346,11 +1368,25 @@ describe("the rows and the inspector show one session's state", () => {
       ],
     },
     {
-      title: "deleting the file playing or paused stops it",
+      title: "deleting the file playing or paused stops it, and closes an inspector open on it",
       folder: "Sounds",
       steps: [
-        ["play door_chime", playing("door_chime")],
-        ["delete door_chime", none],
+        ["open door_chime", none],
+        ["toggle", playing("door_chime")],
+        ["time 2.6", playing("door_chime", "0:02")],
+        ["delete door_chime", { ...none, inspector: false }],
+        ["open footsteps", none],
+        ["toggle", playing("footsteps")],
+        ["time 1.3", playing("footsteps", "0:01")],
+        ["toggle", paused("footsteps", "0:01")],
+        ["delete footsteps", { ...none, inspector: false }],
+      ],
+    },
+    {
+      title: "deleting a row's file stops it while the inspector shows another",
+      folder: "Sounds",
+      steps: [
+        ["open door_chime", none],
         ["play footsteps", playing("footsteps")],
         ["play footsteps", paused("footsteps")],
         ["delete footsteps", none],
