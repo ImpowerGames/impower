@@ -148,6 +148,8 @@ style note {
 }
 ```
 
+`@theme` takes `(light)` or `(dark)`. Anything else, such as `@theme(darkness)` or `@theme[dark]`, gets a warning, because the block would never apply.
+
 A colour you set on one of the four styles replaces its dark value too, so the page keeps your colour in both schemes: the example above shows the same dark page whatever the reader's setting. A style you leave alone still follows the scheme, so restyle all four together, or none, to keep the page readable. To give your own colour a dark value, add an `@theme(dark)` block to your style.
 
 The scheme is not part of a save or a checkpoint. Loading a save shows the same page in the scheme the reader has now. An exported game uses `ui.color_scheme` and the reader's device the same way.

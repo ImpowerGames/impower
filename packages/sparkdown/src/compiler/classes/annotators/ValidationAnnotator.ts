@@ -1636,6 +1636,27 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (
+      nodeRef.name === "SelectorStateName" &&
+      this.read(nodeRef.from, nodeRef.to) === "theme"
+    ) {
+      const parameters = /^\(([^()\r\n]*)\)?/.exec(
+        this.read(nodeRef.to, nodeRef.to + 64),
+      );
+      const scheme = parameters?.[1]?.trim();
+      const unclosed = parameters != null && !parameters[0].endsWith(")");
+      if (!unclosed && scheme !== "light" && scheme !== "dark") {
+        const to = nodeRef.to + (parameters?.[0].length ?? 0);
+        const given = parameters ? `, not \`${parameters[0]}\`` : " right after it";
+        const message = `\`@theme\` takes \`(light)\` or \`(dark)\`${given}, so this block never applies\n> e.g. \`@theme(dark) { text-color = slate_90 }\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from - 1, to),
+        );
+      }
+    }
     if (PAREN_CLOSED_LISTS.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, PAREN_CLOSE)) {
