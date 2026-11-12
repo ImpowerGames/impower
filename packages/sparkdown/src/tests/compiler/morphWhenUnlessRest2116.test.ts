@@ -376,7 +376,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       { offset: 1, mouth: { state: "open" } },
     ];
     expect(errorsOnAs("morph talk as base {\n  blend = cut\n}\n", { keyframes })).toContain(
-      `\`keyframes\`, inherited from \`base\`: keyframe 1: \`mouth\`: ${empty}`,
+      `\`keyframes\` (keyframe 1), inherited from \`base\`: ${empty}`,
     );
     const written = diagnosticsOf(talkSmile('  rest {\n    mouth {\n      state = "mouth."\n    }\n  }\n')).filter((d) => d.severity === 1);
     expect(written.map((d) => d.message)).toContain(empty);
@@ -389,7 +389,7 @@ ${talkSmile("").replace("morph talk_smile {", "morph talk_smile as base {")}`;
       { offset: 2, mouth: { state: "open" } },
     ];
     expect(diagnosticsOf(text, undefined, { keyframes }).filter((d) => d.severity === 1 && d.text === "base").map((d) => d.message)).toEqual([
-      "`keyframes`, inherited from `base`: keyframe 2: Keyframe offset 2 must be between 0 and 1.",
+      "`keyframes` (keyframe 2), inherited from `base`: Keyframe position `200%` must be between 0% and 100%.",
     ]);
   });
 

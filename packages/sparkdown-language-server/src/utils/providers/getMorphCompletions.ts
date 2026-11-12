@@ -97,7 +97,7 @@ export function getMorphCompletions(
   const container = inKeyframe || inRest ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
-  let keyframeStruct: Record<string, unknown> | undefined = braces?.keyframes ? morphs[block.name] : undefined;
+  let keyframeStruct: Record<string, unknown> | undefined = braces?.keyframes ? compiledAncestor(context, block.name)?.struct : undefined;
   const seen = new Set<string>();
   let ancestor: string | undefined = morphs[block.name]?.$extends;
   while (typeof ancestor === "string" && !seen.has(ancestor)) {

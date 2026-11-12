@@ -29,7 +29,7 @@ import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
 import { morphMotionProblem } from "../../morph/motion";
 import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
-import { plainPoseStates, poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
+import { poseStateProblems, type MorphBody, type MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
 type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
@@ -179,6 +179,16 @@ function paintStateProblem(value: unknown, driven: Map<string, string[]>, start:
   }
   return null;
 }
+
+const KEYFRAME_OFFSET_FORM = "A keyframe `offset` is a number from 0 to 1.";
+
+const keyframeRangeProblem = (offset: number) =>
+  `Keyframe position \`${Number((offset * 100).toFixed(4))}%\` must be between 0% and 100%.`;
+
+const restUndrivenProblem = (group: string, driven: Map<string, string[]>) => {
+  const drives = [...driven.keys()];
+  return `\`rest\` gives \`${group}\` a state, but no keyframe sets \`${group}\`'s \`state\`, so this morph does not drive it.${drives.length ? ` It drives ${quoteList(drives)}.` : ""}`;
+};
 
 const REST_FORM = "`rest` holds group containers with a `state` each, written like a keyframe's: `rest { mouth { state = teeth } }`.";
 
@@ -438,9 +448,9 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
           const offset = keyframe["offset"];
           const span = valueSpan(keyframe, "offset");
           if (typeof offset !== "number" || !Number.isFinite(offset)) {
-            push(span, "A keyframe `offset` is a number from 0 to 1.");
+            push(span, KEYFRAME_OFFSET_FORM);
           } else if (offset < 0 || offset > 1) {
-            push(span, `Keyframe offset ${offset} must be between 0 and 1.`);
+            if (src(keyframe)?.values.get("offset")) push(span, keyframeRangeProblem(offset));
           } else {
             if (previous && offset < previous.offset) {
               push(
@@ -634,11 +644,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         const state = isRecord(container) && !("$type" in container) && !("$name" in container) ? container["state"] : undefined;
         if (typeof state !== "string" || state.trim() === "") continue;
         if (!driven.has(group)) {
-          const drives = [...driven.keys()];
-          push(
-            keySpan(rest, group),
-            `\`rest\` gives \`${group}\` a state, but no keyframe sets \`${group}\`'s \`state\`, so this morph does not drive it.${drives.length ? ` It drives ${quoteList(drives)}.` : ""}`,
-          );
+          push(keySpan(rest, group), restUndrivenProblem(group, driven));
         }
       }
     }
@@ -651,10 +657,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     for (const group of Object.keys(effectiveRest)) {
       if (group.startsWith("$") || ownGroups.includes(group) || driven.has(group)) continue;
       if (parentDrives && !parentDrives.has(group)) continue;
-      push(
-        decl.parent,
-        `\`rest.${group}\`, inherited: \`rest\` gives \`${group}\` a state, but no keyframe of this morph sets \`${group}\`'s \`state\`, so it does not drive it.`,
-      );
+      push(decl.parent, `\`rest.${group}\`, inherited: ${restUndrivenProblem(group, driven)}`);
     }
   }
 
@@ -664,10 +667,9 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     ? effectiveKeyframes.length
     : 0;
   if (poseCount < 2) {
-    push(
-      keySpan(own, "keyframes") ?? decl.name,
-      "A morph needs at least two keyframes to move between.",
-    );
+    const tooFew = "A morph needs at least two keyframes to move between.";
+    const fromParent = decl.parent && !("keyframes" in own) && poseCount > 0;
+    push(keySpan(own, "keyframes") ?? (fromParent ? decl.parent : decl.name), fromParent ? `\`keyframes\`, inherited: ${tooFew}` : tooFew);
   }
   if (Array.isArray(effectiveKeyframes) && effectiveKeyframes.length > 0) {
     const ordered = normalizeMorphKeyframes(effectiveKeyframes)
@@ -759,7 +761,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       problems(driven, start).forEach((problem, i) => {
         if (!problem) return;
         if (fromParent && parentDriven && parentStart && problems(parentDriven, parentStart)[i]) return;
-        push(decl.parent, `\`paints\` entry ${index + 1}, inherited: ${problem}`);
+        push(decl.parent, `\`paints\` (entry ${index + 1}), inherited: ${problem}`);
       });
     });
   }
@@ -793,10 +795,18 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   return issues;
 }
 
+export interface MorphValueProblem {
+  field: string;
+  where?: string;
+  message: string;
+}
+
 export function morphValueProblems(
   struct: Record<string, unknown>,
-): { field: string; message: string }[] {
-  const problems: { field: string; message: string }[] = [];
+  effective: Record<string, unknown> = struct,
+): MorphValueProblem[] {
+  const problems: MorphValueProblem[] = [];
+  const driven = keyframeStates(effective["keyframes"]);
   const policy = (obj: Record<string, unknown>, prefix: string) => {
     for (const field of MORPH_POLICY_FIELDS) {
       if (!(field in obj)) continue;
@@ -815,10 +825,11 @@ export function morphValueProblems(
   policy(struct, "");
   for (const field of MORPH_CONDITION_FIELDS) {
     if (!(field in struct)) continue;
-    for (const { message } of conditionProblems(field, struct[field], new Map())) problems.push({ field, message });
+    for (const { item, message } of conditionProblems(field, struct[field], driven)) {
+      problems.push({ field, ...(item === undefined ? {} : { where: `entry ${item + 1}` }), message });
+    }
   }
-  const plain = plainPoseStates(struct);
-  const rest = plain["rest"];
+  const rest = struct["rest"];
   if (rest !== undefined) {
     for (const problem of restValueProblems(rest)) {
       const field = ["rest", ...(problem.group === undefined ? [] : [problem.group]), ...(problem.key === undefined ? [] : [problem.key])].join(".");
@@ -829,24 +840,24 @@ export function morphValueProblems(
     problems.push(
       keyframe === undefined
         ? { field: `rest.${group}.state`, message }
-        : { field: "keyframes", message: `keyframe ${keyframe + 1}: ${message}` },
+        : { field: "keyframes", where: `keyframe ${keyframe + 1}`, message },
     );
   }
-  const keyframes = plain["keyframes"];
+  const keyframes = struct["keyframes"];
   if (Array.isArray(keyframes)) {
     let previous: number | undefined;
     keyframes.forEach((keyframe, index) => {
       if (!isRecord(keyframe)) return;
-      const at = (message: string) => problems.push({ field: "keyframes", message: `keyframe ${index + 1}: ${message}` });
+      const at = (message: string) => problems.push({ field: "keyframes", where: `keyframe ${index + 1}`, message });
       for (const [group, container] of Object.entries(keyframe)) {
         if (group === "offset" || group.startsWith("$") || !isRecord(container) || !("state" in container)) continue;
         const state = container["state"];
-        if (typeof state !== "string" || state.trim() === "") at(`\`${group}\`: \`state\` names an attribute state, such as \`closed\` or \`eyes.closed\`.`);
+        if (typeof state !== "string" || state.trim() === "") at("`state` names an attribute state, such as `closed` or `eyes.closed`.");
       }
       if (!("offset" in keyframe)) return;
       const offset = keyframe["offset"];
-      if (typeof offset !== "number" || !Number.isFinite(offset)) at("A keyframe `offset` is a number from 0 to 1.");
-      else if (offset < 0 || offset > 1) at(`Keyframe offset ${offset} must be between 0 and 1.`);
+      if (typeof offset !== "number" || !Number.isFinite(offset)) at(KEYFRAME_OFFSET_FORM);
+      else if (offset < 0 || offset > 1) at(keyframeRangeProblem(offset));
       else {
         if (previous !== undefined && offset < previous) at(`Keyframe offsets must not decrease: ${offset} comes after ${previous}.`);
         previous = offset;
@@ -874,7 +885,7 @@ export function morphValueProblems(
   }
   if (Array.isArray(paints)) {
     paints.forEach((entry, index) => {
-      const add = (message: string) => problems.push({ field: "paints", message: `entry ${index + 1}: ${message}` });
+      const add = (message: string) => problems.push({ field: "paints", where: `entry ${index + 1}`, message });
       if (!isRecord(entry)) {
         add(PAINT_ENTRY);
         return;

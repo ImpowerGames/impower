@@ -831,7 +831,7 @@ describe("morph blocks written with braces", () => {
     [
       "an offset above 1",
       "    { offset = 1.5; eyes { state = open } }\n    { eyes { state = closed } }\n",
-      "Keyframe offset 1.5 must be between 0 and 1",
+      "Keyframe position `150%` must be between 0% and 100%",
       "1.5",
     ],
     [
@@ -1401,7 +1401,7 @@ morph child as m {
     const found = paintErrors(text).filter((d) => d.line > 10);
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ text: "m" });
-    expect(found[0]!.message).toContain("`paints` entry 1, inherited");
+    expect(found[0]!.message).toContain("`paints` (entry 1), inherited");
     expect(found[0]!.message).toContain("never shows `eyes.closed`");
   });
 

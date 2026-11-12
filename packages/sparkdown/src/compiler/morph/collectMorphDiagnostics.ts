@@ -65,12 +65,12 @@ export function compiledAncestor(
 ): { struct: Record<string, unknown>; parent?: string } | undefined {
   if (name.startsWith("$")) return undefined;
   const direct = context["morph"]?.[name];
-  if (isRecord(direct)) return { struct: direct };
+  if (isRecord(direct)) return { struct: plainPoseStates(direct) };
   for (const [type, table] of Object.entries(context)) {
     if (type === "morph" || !isRecord(table)) continue;
     const struct = table[name];
     if (isRecord(struct) && struct["$type"] === type) {
-      return { struct, parent: type };
+      return { struct: plainPoseStates(struct), parent: type };
     }
   }
   return undefined;
@@ -116,8 +116,7 @@ export function effectiveMorph(
 ): Record<string, unknown> {
   let result: Record<string, unknown> = isRecord(base) ? base : {};
   for (let i = ancestors.length - 1; i >= 0; i -= 1) {
-    const layer = ancestors[i]!;
-    result = inherit(result, layer.written ? layer.struct : plainPoseStates(layer.struct));
+    result = inherit(result, ancestors[i]!.struct);
   }
   return inherit(result, own);
 }
@@ -218,7 +217,7 @@ export function collectMorphIssues(
         ancestors,
         parentEffective,
       }),
-      ...inheritedValueIssues(morph.own.struct, ancestors, parentSpan ?? nameSpan),
+      ...inheritedValueIssues(morph.own.struct, ancestors, effective, parentSpan ?? nameSpan),
     ];
     const parentName = morph.name ? parents.get(morph.name) : undefined;
     if (parentSpan && parentName && ancestors[0]?.name !== parentName) {
@@ -248,6 +247,7 @@ function sets(obj: unknown, path: string): boolean {
 function inheritedValueIssues(
   own: Record<string, unknown>,
   ancestors: readonly MorphLayer[],
+  effective: Record<string, unknown>,
   span: SourceSpan,
 ): LocatedMorphIssue[] {
   const firstWritten = ancestors.findIndex((layer) => layer.written);
@@ -259,14 +259,14 @@ function inheritedValueIssues(
     merged = mergeRecords(merged, struct);
   }
   const issues: LocatedMorphIssue[] = [];
-  for (const { field, message } of morphValueProblems(merged)) {
+  for (const { field, where, message } of morphValueProblems(merged, effective)) {
     if (sets(own, field)) continue;
     const supplier = defines.find((layer) => sets(layer.struct, field))?.name;
     issues.push({
       from: span.from,
       to: span.to,
       severity: "error",
-      message: `\`${field}\`, inherited from \`${supplier ?? defines[0]!.name}\`: ${message}`,
+      message: `\`${field}\`${where ? ` (${where})` : ""}, inherited from \`${supplier ?? defines[0]!.name}\`: ${message}`,
     });
   }
   return issues;
