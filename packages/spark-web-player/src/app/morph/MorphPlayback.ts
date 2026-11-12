@@ -26,6 +26,7 @@ export type { MorphImageContent, MorphLayerPlay };
 export interface Occurrence {
   key: string;
   timing: MorphTiming;
+  owner?: string;
   timeline: MorphTimeline;
   start: number;
   cycles: number;
@@ -144,6 +145,7 @@ export class MorphPlayback {
 
   protected layers = new Set<MorphLayer>();
   protected occurrences = new Map<string, Occurrence>();
+  protected speech?: { character?: string; spans: [number, number][] };
   protected resizeObserver?: ResizeObserver;
 
   constructor(
@@ -216,7 +218,27 @@ export class MorphPlayback {
   detachClock(owner: object) {
     if (this.clockOwner !== owner) return;
     this.clockOwner = undefined;
+    this.speak(undefined, []);
     this.schedule();
+  }
+
+  speak(character: string | undefined, spans: readonly (readonly [number, number])[]) {
+    this.speech = {
+      ...(character ? { character } : {}),
+      spans: spans.map(([start, end]): [number, number] => [this.time + start, this.time + end]),
+    };
+    for (const occurrence of this.occurrences.values()) this.hear(occurrence);
+    this.render();
+  }
+
+  protected hear(occurrence: Occurrence) {
+    if (occurrence.timing.trigger !== "speech") return;
+    const speech = this.speech;
+    const spans =
+      speech && occurrence.owner && occurrence.owner === speech.character
+        ? speech.spans.map(([start, end]): [number, number] => [start - occurrence.start, end - occurrence.start])
+        : [];
+    occurrence.timeline.speak(spans, this.time - occurrence.start);
   }
 
   advance(seconds: number) {
@@ -261,6 +283,7 @@ export class MorphPlayback {
   setSession(session: string) {
     if (this.session === session) return;
     this.session = session;
+    this.speech = undefined;
     this.restartAll();
     this.render();
   }
@@ -274,6 +297,7 @@ export class MorphPlayback {
     occurrence.start = this.time;
     occurrence.timeline = new MorphTimeline(occurrence.timing, morphRandom(`${this.seed}|${occurrence.key}|${occurrence.cycles}`));
     if (occurrence.preempted) occurrence.preemptedAt = this.time;
+    this.hear(occurrence);
   }
 
   protected schedule() {
@@ -298,12 +322,13 @@ export class MorphPlayback {
     this.frameTime = undefined;
   }
 
-  protected acquire(key: string, timing: MorphTiming): Occurrence {
+  protected acquire(key: string, timing: MorphTiming, owner?: string): Occurrence {
     let occurrence = this.occurrences.get(key);
     if (!occurrence) {
       occurrence = {
         key,
         timing,
+        ...(owner ? { owner } : {}),
         timeline: new MorphTimeline(timing, morphRandom(`${this.seed}|${key}|0`)),
         start: this.time,
         cycles: 0,
@@ -312,6 +337,7 @@ export class MorphPlayback {
         preemptedAt: 0,
       };
       this.occurrences.set(key, occurrence);
+      this.hear(occurrence);
     }
     occurrence.users += 1;
     return occurrence;
@@ -346,7 +372,10 @@ export class MorphPlayback {
     return () => {
       if (ended) return;
       ended = true;
-      if (--occurrence.preempted === 0) occurrence.start += this.time - occurrence.preemptedAt;
+      if (--occurrence.preempted === 0) {
+        occurrence.start += this.time - occurrence.preemptedAt;
+        this.hear(occurrence);
+      }
       this.render();
     };
   }
@@ -397,8 +426,8 @@ export class MorphPlayback {
     this.resizeObserver?.unobserve(layer.span);
   }
 
-  occurrenceFor(key: string, timing: MorphTiming) {
-    return this.acquire(key, timing);
+  occurrenceFor(key: string, timing: MorphTiming, owner?: string) {
+    return this.acquire(key, timing, owner);
   }
 
   letGo(occurrence: Occurrence) {
@@ -592,7 +621,7 @@ export class MorphLayer {
       const key = [this.base, play.layer, play.ref.image, play.morph, play.definition, this.content.epoch].join("|");
       image.plays.push({
         play,
-        ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(key, play.timing) } : {}),
+        ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(key, play.timing, play.owner) } : {}),
       });
     }
     this.playback.track(this);

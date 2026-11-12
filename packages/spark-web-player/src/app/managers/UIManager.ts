@@ -38,6 +38,10 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
+import {
+  SpeechMessage,
+  type SpeechParams,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
@@ -1306,6 +1310,10 @@ export default class UIManager extends Manager {
       this.morphs?.deliver(msg.params);
       return;
     }
+    if (SpeechMessage.type.isNotification(msg)) {
+      this.speak(msg.params);
+      return;
+    }
     if (BeatMessage.type.isNotification(msg)) {
       this.receiveBeat(msg.params);
       this.morphs?.requestRelayout();
@@ -1537,6 +1545,24 @@ export default class UIManager extends Manager {
         ),
       });
     }
+  }
+
+  protected speak({ character, spans, time }: SpeechParams) {
+    const morphs = this.morphs;
+    if (!morphs) {
+      return;
+    }
+    const shown = this.getDisplayTime(time);
+    const doc = this.app.overlay?.ownerDocument;
+    const now = Number(
+      doc?.timeline?.currentTime ?? doc?.defaultView?.performance.now(),
+    );
+    const lead =
+      shown != null && Number.isFinite(now) ? (shown - now) / 1000 : 0;
+    morphs.speak(
+      character,
+      spans.map(([start, end]): [number, number] => [start + lead, end + lead]),
+    );
   }
 
   protected getDisplayTime(time: number | undefined): number | undefined {

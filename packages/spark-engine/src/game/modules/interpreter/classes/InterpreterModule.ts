@@ -245,6 +245,9 @@ export class InterpreterModule extends Module<
         a.cutscene.push(...b.cutscene);
       }
     }
+    if (b.speech) {
+      a.speech = b.speech;
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -399,6 +402,7 @@ export class InterpreterModule extends Module<
         ? this.parse(boxContent, boxTarget, {
             character: typedBy?.character,
             position: typedBy?.position,
+            spoken: true,
           })
         : undefined;
     const carries = Boolean(
@@ -434,7 +438,8 @@ export class InterpreterModule extends Module<
     }
     if (content || pause) {
       const contentInstructions =
-        boxInstructions ?? this.parse(content, textTarget, options);
+        boxInstructions ??
+        this.parse(content, textTarget, { ...options, spoken: true });
       if (pause && !contentInstructions.text) {
         contentInstructions.text = { [textTarget]: [] };
       }
@@ -1633,6 +1638,8 @@ export class InterpreterModule extends Module<
       string,
       { time?: number; speed?: number; bend?: number }[]
     > = {};
+    const spans: [number, number][] = [];
+    const speaker = options?.spoken ? character : undefined;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
@@ -1713,6 +1720,15 @@ export class InterpreterModule extends Module<
             result.text ??= {};
             result.text[target] ??= [];
             result.text[target]!.push(event);
+            const spoken = c.voiced && c.speed > 0 ? letterPause / c.speed : 0;
+            if (speaker && spoken > 0) {
+              const last = spans.at(-1);
+              if (last && Math.abs(last[1] - time) < 1e-9) {
+                last[1] = time + spoken;
+              } else {
+                spans.push([time, time + spoken]);
+              }
+            }
           }
           if (c.tag === "image") {
             const event: ImageInstruction = {
@@ -1923,6 +1939,10 @@ export class InterpreterModule extends Module<
               .join("~"),
         ],
       });
+    }
+
+    if (speaker && spans.length > 0) {
+      result.speech = { character: speaker, spans };
     }
 
     result.end = time;

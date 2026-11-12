@@ -1227,6 +1227,148 @@ end
   });
 });
 
+describe("a speech morph while its character speaks (#2111)", () => {
+  const SPEECH_TIMING = `  timing {
+    trigger = speech
+    duration = 0.1
+    easing = linear
+  }
+`;
+  const CHARACTERS = `define mia as character with
+  name = "MIA"
+end
+
+define bunny as character with
+  name = "BUNNY"
+end
+`;
+  const scene = (backdrop: string) => `
+
+scene start
+  MIA:
+    [[show portrait mia]]
+    [[show backdrop ${backdrop}]]
+    First line.
+end
+`;
+  const art = (name: string) => ({ uri: `inmemory:///${name}.svg`, type: "image", name, ext: "svg", data: talkingPortrait({ dx: 0, dy: 0 }) });
+  const files = [art("mia"), art("mia@night"), art("bunny")];
+  const speechMorphs: [string, string][] = [
+    ["a speech morph", talkScript(SPEECH_TIMING)],
+    ["a child of a speech morph", `${talkScript(`  when = eyes.closed\n${SPEECH_TIMING}`, "speaking")}\nmorph talk as speaking {\n  when = eyes.open\n}\n`],
+  ];
+
+  async function speaking(backdrop = "bunny", morphs = speechMorphs[0]![1]) {
+    const source = `${CHARACTERS}\n${morphs}${scene(backdrop)}`;
+    const h = createDOMHarness(source, 0, { files });
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+    await h.ready;
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 2, "both portraits' artifacts");
+    const heads = () =>
+      new Map(
+        [...(playback as any).occurrences.values()].map((occurrence: any) => {
+          const [, , image, morph] = occurrence.key.split("|");
+          return [`${image}:${morph}`, playback.playhead(occurrence)];
+        }),
+      );
+    const head = (image: string) => heads().get(`${image}:talk`);
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = [...(playback as any).layers]
+      .flatMap((layer: any) => layer.images)
+      .find((image: any) => image.plays[0].play.ref.image === "mia").slot.artifact as MorphArtifact;
+    return { h, playback, head, shadow, artifact, rest: leafStates(shadow) };
+  }
+
+  const playing = (offset: number) => ({ phase: "playing", play: expect.any(Number), offset: expect.closeTo(offset, 9) });
+
+  test.each(speechMorphs)("%s plays only inside a span, finishes the play in progress and starts none after it", async (_label, morphs) => {
+    const { playback, head, shadow, artifact, rest } = await speaking("bunny", morphs);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.speak("mia", [[0.2, 0.45]]);
+    for (const [step, expected] of [
+      [0.1, { phase: "off" }],
+      [0.15, playing(0.5)],
+      [0.1, playing(0.5)],
+      [0.07, playing(0.2)],
+      [0.05, playing(0.7)],
+      [0.08, { phase: "off" }],
+      [1, { phase: "off" }],
+    ] as const) {
+      playback.advance(step);
+      expect(head("mia")).toEqual(expected);
+      const at = head("mia") as { offset?: number };
+      expect(leafStates(shadow)).toEqual(at.offset === undefined ? rest : referenceStates(artifact, { talk: at.offset }));
+    }
+  });
+
+  test("a skip ends the speech: the play in progress finishes and no other starts", async () => {
+    const { playback, head } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.05);
+    expect(head("mia")).toEqual(playing(0.5));
+    playback.speak("mia", []);
+    playback.advance(0.03);
+    expect(head("mia")).toEqual(playing(0.8));
+    playback.advance(0.05);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(1);
+    expect(head("mia")).toEqual({ phase: "off" });
+  });
+
+  test("pausing freezes the flap on its frame", async () => {
+    const { playback, head, shadow, artifact } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.advance(0.04);
+    const frozen = leafStates(shadow);
+    expect(frozen).toEqual(referenceStates(artifact, { talk: 0.4 }));
+    playback.setPaused(true);
+    playback.advance(0.5);
+    expect(head("mia")).toEqual(playing(0.4));
+    expect(leafStates(shadow)).toEqual(frozen);
+    playback.setPaused(false);
+    playback.advance(0.03);
+    expect(head("mia")).toEqual(playing(0.7));
+  });
+
+  test("`Animate portraits` off holds a speaking portrait at rest", async () => {
+    const { playback, head, shadow, rest } = await speaking();
+    playback.speak("mia", [[0, 2]]);
+    playback.setEnabled(false);
+    for (const step of [0.03, 0.05, 0.2]) {
+      playback.advance(step);
+      expect(head("mia")).toEqual({ phase: "off" });
+      expect(leafStates(shadow)).toEqual(rest);
+    }
+  });
+
+  test("every portrait of the speaker flaps, and another character's portrait stays at rest", async () => {
+    const two = await speaking("mia@night");
+    two.playback.speak("mia", [[0, 2]]);
+    two.playback.advance(0.05);
+    expect(two.head("mia")).toEqual(playing(0.5));
+    expect(two.head("mia@night")).toEqual(playing(0.5));
+    const other = await speaking("bunny");
+    other.playback.speak("mia", [[0, 2]]);
+    other.playback.advance(0.05);
+    expect(other.head("mia")).toEqual(playing(0.5));
+    expect(other.head("bunny")).toEqual({ phase: "off" });
+  });
+
+  test("the page times the speech from the beat's start, as the text reveal is", async () => {
+    const { h, playback, head } = await speaking();
+    const timeline = h.overlay.ownerDocument.timeline as unknown as { currentTime: number };
+    timeline.currentTime = 1_000;
+    h.ui.onReceiveNotification({ jsonrpc: "2.0", method: "morph/speech", params: { character: "mia", spans: [[0, 0.3]], time: 1_200 } } as any);
+    playback.advance(0.15);
+    expect(head("mia")).toEqual({ phase: "off" });
+    playback.advance(0.1);
+    expect(head("mia")).toEqual(playing(0.5));
+  });
+});
+
 describe("morph claims", () => {
   test("two morphs claiming one image's group are reported, and the image stays still", async () => {
     const second = blinkScript(TIMING).replace("morph blink", "morph wink");
