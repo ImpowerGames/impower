@@ -198,10 +198,6 @@ export const renameSymbol: Command = (view) => {
 
   const pos = view.state.selection.main.head;
   const defaultWordSelectionRange = wordAt(view.state, pos);
-  const word = view.state.sliceDoc(
-    defaultWordSelectionRange!.from,
-    defaultWordSelectionRange!.to,
-  );
 
   const serverRenameCapabilities =
     plugin.client.serverCapabilities?.renameProvider;
@@ -209,6 +205,13 @@ export const renameSymbol: Command = (view) => {
     typeof serverRenameCapabilities === "object" &&
     serverRenameCapabilities &&
     serverRenameCapabilities.prepareProvider;
+
+  if (!defaultWordSelectionRange && !shouldPrepareRename) {
+    return false;
+  }
+  const word = defaultWordSelectionRange
+    ? view.state.sliceDoc(defaultWordSelectionRange.from, defaultWordSelectionRange.to)
+    : "";
 
   plugin.client.sync();
 

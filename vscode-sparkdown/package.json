@@ -86,11 +86,7 @@
         "editor.formatOnPaste": true,
         "editor.selectionHighlight": false,
         "editor.occurrencesHighlight": "off",
-        "editor.wordSeparators": "`~!#$%^&*()-=+[{]}\\|;:'\",.<>/?",
         "files.trimTrailingWhitespace": false
-      },
-      "[sparkdown-luau]": {
-        "editor.wordSeparators": "`~!#$%^&*()-=+[{]}\\|;:'\",.<>/?"
       },
       "editor.semanticHighlighting.enabled": true,
       "editor.semanticTokenColorCustomizations": {

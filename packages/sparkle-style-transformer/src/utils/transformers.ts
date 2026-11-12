@@ -116,6 +116,21 @@ const atNamePart = (
   return undefined;
 };
 
+const atNameLength = (nodes: ComponentValue[], at: number): number => {
+  let length = 1;
+  let end = (nodes[at] as TokenNode | undefined)?.value[3];
+  while (end !== undefined) {
+    const parts = atNamePart(nodes, at + length, end);
+    if (!parts) break;
+    length += parts.length;
+    end = parts[parts.length - 1]!.value[3];
+  }
+  return length;
+};
+
+const escapeNameAts = (value: string): string =>
+  value.replace(/(?<=[\p{L}\p{N}_-])@(?=[\p{L}\p{N}_])/gu, "\\@");
+
 const resolveColorWords = (
   css: string,
   nodes: ComponentValue[],
@@ -133,8 +148,7 @@ const resolveColorWords = (
     if (
       word === undefined ||
       (node as TokenNode).value[1] !== word ||
-      word.startsWith("--") ||
-      keywords.has(word.toLowerCase())
+      word.startsWith("--")
     ) {
       continue;
     }
@@ -147,6 +161,9 @@ const resolveColorWords = (
         end = part.value[3];
         i += 1;
       }
+    }
+    if (name === word && keywords.has(word.toLowerCase())) {
+      continue;
     }
     const slash = nodes[i + 1];
     const alpha = nodes[i + 2];
@@ -202,7 +219,7 @@ const resolveFunction = (
   if (COLOR_FUNCTION.test(name)) {
     const args = significant(fn.value);
     if (identName(args[0])?.toLowerCase() === "from" && args[1]) {
-      resolveColorWords(css, [args[1]], theme, edits);
+      resolveColorWords(css, args.slice(1, 1 + atNameLength(args, 1)), theme, edits);
     }
     return;
   }
@@ -285,7 +302,7 @@ export const getCssAnimation = (
     return "none";
   }
   if (value.startsWith("var(")) {
-    return value;
+    return escapeNameAts(value);
   }
   const names = value.split(" ");
   const variables = names.map((v) =>
@@ -555,9 +572,9 @@ export const getCssTextFont = (
   theme: ThemeVariables,
 ): string => {
   if (value.startsWith("var(")) {
-    return value;
+    return escapeNameAts(value);
   }
-  return getThemeVar(theme, "font", value) ?? value;
+  return getThemeVar(theme, "font", value) ?? cssIdent(value);
 };
 
 export const getCssTextAlign = (value: string): string => {

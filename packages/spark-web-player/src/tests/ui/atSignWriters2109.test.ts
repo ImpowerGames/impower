@@ -215,6 +215,38 @@ describe("an @ name reaches every stylesheet writer whole (#2109)", () => {
   });
 });
 
+describe("an @ name inside a CSS function value is read whole (#2109)", () => {
+  const theme = new Set([getVarName("color", "top@dim"), getVarName("color", "red@dim"), getVarName("color", "red")]);
+  const valueOf = (property: string, value: string) => (getCssEquivalent(property, value, theme) as [[string, string]])[0][1];
+
+  it.each([
+    ["a gradient whose @ color starts with a direction keyword", "background-image", "linear-gradient(top@dim, white)", "top@dim"],
+    ["a relative color's @ origin", "background-color", "rgb(from red@dim r g b / 0.5)", "red@dim"],
+  ])("resolves %s to that color's variable", (_, property, value, name) => {
+    expect(varTarget(valueOf(property, value))).toBe(getVarName("color", name));
+  });
+
+  it.each([
+    ["animation", "var(--anim, fade@night)", "fade@night"],
+    ["text-font", "var(--font, serif@bold)", "serif@bold"],
+    ["text-font", "serif@bold", "serif@bold"],
+  ])("writes the @ name in %s %s as one identifier", (property, value, name) => {
+    const css = valueOf(property, value);
+    expect(atKeywordValues(css)).toEqual([]);
+    expect(identValues(css)).toContain(name);
+  });
+
+  it.each([
+    ["background-image", "linear-gradient(top, white)", "linear-gradient(top, white)"],
+    ["background-color", "rgb(from red r g b / 0.5)", "rgb(from var(--theme-color-red) r g b / 0.5)"],
+    ["animation", "var(--anim, fade)", "var(--anim, fade)"],
+    ["text-font", "var(--font, serif)", "var(--font, serif)"],
+    ["text-font", "serif", "serif"],
+  ])("writes %s %s without an @ as before", (property, value, expected) => {
+    expect(valueOf(property, value)).toBe(expected);
+  });
+});
+
 describe("an @ name gets output distinct from the same name with _ or - (#2109)", () => {
   const theme = new Set<string>();
   const writers: [string, (name: string) => string][] = [

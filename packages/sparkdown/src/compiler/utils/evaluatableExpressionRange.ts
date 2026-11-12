@@ -1,4 +1,4 @@
-import { LUAU_NAME_SOURCE } from "@impower/sparkdown/src/compiler/utils/luauName";
+import { LUAU_NAME_SOURCE } from "./luauName";
 
 const EXPRESSION = new RegExp(`(?<![A-Za-z0-9_@])(?:${LUAU_NAME_SOURCE})(?:\\.(?:${LUAU_NAME_SOURCE}))*`, "g");
 

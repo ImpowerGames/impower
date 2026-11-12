@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluatableExpressionRange } from "../src/debugger/evaluatableExpressionRange";
+import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
 
 const LINE = "  & local look = image.mia@night.src";
 const at = (text: string, offset = 0) => LINE.indexOf(text) + offset;
