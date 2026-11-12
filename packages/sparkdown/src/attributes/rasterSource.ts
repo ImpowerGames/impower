@@ -3,6 +3,31 @@ import { buildAttributeVocabulary } from "./index";
 
 const RASTER_EXTENSION = /^(?:png|webp|jpe?g|gif|avif|bmp)$/i;
 
+export interface RasterLayerPath {
+  folder: string;
+  directory: string;
+  order: number;
+  name: string;
+}
+
+export const rasterLayerOfPath = (path: string): RasterLayerPath | undefined => {
+  const parts = path.split("/");
+  const filename = parts.pop() ?? "";
+  const folder = parts.at(-1);
+  const isAssets = (part: string) => part.toLowerCase() === "assets";
+  if (!folder || isAssets(folder) || !parts.some(isAssets)) return undefined;
+  const match = /^(\d+)_(.+)\.([^.]+)$/.exec(filename);
+  if (!match || !RASTER_EXTENSION.test(match[3]!)) return undefined;
+  const order = Number(match[1]);
+  if (!Number.isSafeInteger(order)) return undefined;
+  return { folder, directory: parts.join("/"), order, name: match[2]! };
+};
+
+export const byRasterOrder = (
+  a: { order: number; path: string },
+  b: { order: number; path: string },
+): number => b.order - a.order || a.path.localeCompare(b.path);
+
 const rasterLayer = (file: File) => {
   if (file.type !== "image" || !RASTER_EXTENSION.test(file.ext)) return undefined;
   let path: string;
@@ -11,16 +36,7 @@ const rasterLayer = (file: File) => {
   } catch {
     return undefined;
   }
-  const parts = path.split("/");
-  const filename = parts.pop() ?? "";
-  const folder = parts.at(-1);
-  const isAssets = (part: string) => part.toLowerCase() === "assets";
-  if (!folder || isAssets(folder) || !parts.some(isAssets)) return undefined;
-  const match = /^(\d+)_(.+)\.[^.]+$/.exec(filename);
-  if (!match) return undefined;
-  const order = Number(match[1]);
-  if (!Number.isSafeInteger(order)) return undefined;
-  return { folder, directory: parts.join("/"), order, name: match[2]! };
+  return rasterLayerOfPath(path);
 };
 
 export const isRasterLayerFile = (file: File): boolean => Boolean(rasterLayer(file));
@@ -39,7 +55,9 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
   const origins: Record<string, string> = Object.create(null);
   const collisions: { name: string; firstUri: string; otherUri: string }[] = [];
   for (const [directory, files] of [...folders].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
-    files.sort((a, b) => b.layer.order - a.layer.order || a.file.uri.localeCompare(b.file.uri));
+    files.sort((a, b) =>
+      byRasterOrder({ order: a.layer.order, path: a.file.uri }, { order: b.layer.order, path: b.file.uri }),
+    );
     const folder = files[0]!.layer.folder;
     if (Object.hasOwn(origins, folder)) {
       collisions.push({ name: folder, firstUri: origins[folder]!, otherUri: files[0]!.file.uri });

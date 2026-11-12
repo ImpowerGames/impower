@@ -11,11 +11,13 @@ import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordCreate, recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
-import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
+import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import { imageStacks, isStacked, stackBaseOf, type ImageStack } from "../utils/imageStacks";
+import type { ImageVariant } from "../utils/imageVariants";
 import getUniqueFileName from "../utils/getUniqueFileName";
 import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
-import { renameOrReport } from "../utils/renameOrReport";
+import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
 import { showSnackbar } from "../utils/snackbar";
 import { undo } from "../utils/undoManager";
 import { replacementOf } from "../utils/replaceRule";
@@ -26,6 +28,7 @@ import {
   assetName,
   coveredFiles,
   coveredPaths,
+  folderStackReason,
   landingFolder,
   sameNamedPictures,
   thingNames,
@@ -64,7 +67,10 @@ type Deps = {
     | "getFileText"
     | "writeTextDocument"
   >;
-  ls: Pick<WorkspaceLanguageServer, "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics">;
+  ls: Pick<
+    WorkspaceLanguageServer,
+    "getFileReferences" | "getFileDiagnostics" | "onPublishedDiagnostics" | "getVariantPicture"
+  >;
   window: Pick<WorkspaceWindow, "recordScriptChange" | "recordAssetChange">;
   autoRenameFiles: () => boolean;
 };
@@ -86,6 +92,17 @@ const renameFailure = (error: unknown) => {
 };
 
 const MEASURE_BATCH = 8;
+
+const TAGGED_NAME = "Use a name without @ or ~. They mark a picture's alternates and layers.";
+
+const DOTTED_NAME =
+  "Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.";
+
+const keepBase = (base: string) =>
+  `Keep ${base} before the @ or ~. That part names the picture the file belongs to; rename the picture to change it.`;
+
+const keepOrder = (name: string) =>
+  `Keep the number and underscore at the start, as in 10_face.happy. They place the file among ${name}'s layers.`;
 
 const showRenamed = (name: string, lines: number, also: readonly FileMove[]) =>
   showSnackbar({
@@ -249,18 +266,26 @@ export default class WorkspaceAssets {
   }
 
   async upload(files: readonly DroppedFile[], folder: string): Promise<string[]> {
-    const projectId = this.requireProject();
     const listing = this.listing;
     const endings = assetEndings.peek();
+    return this.importAt(files, (file) => {
+      const name = getValidFileName(file.name);
+      return joinPath(landingFolder(listing, assetTypeOf(name, endings), folder), name);
+    });
+  }
+
+  async addBeside(files: readonly DroppedFile[], path: string): Promise<string[]> {
+    return this.importAt(files, (file) => joinPath(parentOf(path), validName(file.name)));
+  }
+
+  protected async importAt(
+    files: readonly DroppedFile[],
+    place: (file: DroppedFile) => string,
+  ): Promise<string[]> {
+    const projectId = this.requireProject();
     const written = await importFiles(
       projectId,
-      files.map((file) => {
-        const name = getValidFileName(file.name);
-        return {
-          rel: joinPath(landingFolder(listing, assetTypeOf(name, endings), folder), name),
-          getBuffer: file.getBuffer,
-        };
-      }),
+      files.map((file) => ({ rel: place(file), getBuffer: file.getBuffer })),
     );
     await this.load();
     return written;
@@ -291,6 +316,9 @@ export default class WorkspaceAssets {
     const projectId = this.requireProject();
     const kind = this.kindOf(path);
     const [stack] = kind === "file" && this.typeOf(path) === "image" ? imageStacks(this.covered([path])) : [];
+    if (stack?.kind === "folder") {
+      throw new NameError(folderStackReason(stack.name));
+    }
     if (stack) {
       const members = sameNamedPictures(this.listing, stack.name, assetEndings.peek());
       if (isStacked(stack) || members.length > 1) {
@@ -351,10 +379,10 @@ export default class WorkspaceAssets {
       : undefined;
     const typed = own ? own.split(".")[0]! : validName(name, extension).slice(0, -extension.length || undefined);
     if (/[@~]/.test(own ?? typed)) {
-      throw new NameError("Use a name without @ or ~. They mark a picture's alternates and layers.");
+      throw new NameError(TAGGED_NAME);
     }
     if (!plain && typed.includes(".")) {
-      throw new NameError("Use a name without a dot for a picture with alternates or layers. Scripts name a picture by the part before its first dot.");
+      throw new NameError(DOTTED_NAME);
     }
     const moves: FileMove[] = members
       .map((from) => ({
@@ -368,9 +396,52 @@ export default class WorkspaceAssets {
     if (!moves.length) {
       return path;
     }
+    await this.applyRenames(projectId, moves, typed, stack.name, stack);
+    return moves.find((move) => move.from === path)?.to ?? path;
+  }
+
+  async renameMember(path: string, name: string): Promise<string> {
+    const projectId = this.requireProject();
+    const stack = imageStacks(this.covered([path])).find((candidate) => candidate.paths.includes(path));
+    if (!stack || !isStacked(stack)) {
+      return this.rename(path, name);
+    }
+    const folder = parentOf(path);
+    const leaf = availableName(name, this.siblings(folder), extensionOf(path), nameOf(path));
+    const to = joinPath(folder, leaf);
+    if (stack.kind === "folder" && !rasterLayerOfPath(to)) {
+      throw new NameError(keepOrder(stack.name));
+    }
+    if (stack.kind === "files" && stackBaseOf(to) !== stack.base) {
+      throw new NameError(stackBaseOf(to).includes(".") ? DOTTED_NAME : keepBase(stack.base));
+    }
+    if (to === path) {
+      return path;
+    }
+    const member = stack.members.find((candidate) => candidate.path === path);
+    try {
+      await this.applyRenames(projectId, [{ from: path, to }], nameOf(path), nameOf(path), stack, member?.layer === undefined);
+    } catch (error) {
+      const rollback = (error as { rollback?: WorkspaceEditRollback }).rollback;
+      throw rollback ? Object.assign(new NameError(renameFailureMessage(path, to, error)), { rollback }) : error;
+    }
+    return to;
+  }
+
+  protected async applyRenames(
+    projectId: string,
+    moves: readonly FileMove[],
+    label: string,
+    title: string,
+    stack: ImageStack,
+    references = true,
+  ): Promise<void> {
+    const renamer = references
+      ? this._workspace
+      : { fs: this._workspace.fs, autoRenameFiles: () => false };
     let outcome;
     try {
-      outcome = await renameFiles(this._workspace, projectId, moves);
+      outcome = await renameFiles(renamer, projectId, moves);
     } catch (error) {
       await this.load().catch(() => null);
       throw renameFailure(error);
@@ -380,20 +451,19 @@ export default class WorkspaceAssets {
       await window.recordScriptChange();
     }
     await window.recordAssetChange();
-    recordMoves(projectId, [...moves, ...outcome.also], typed);
+    recordMoves(projectId, [...moves, ...outcome.also], label, "Rename", references);
     await this.load();
-    showRenamed(stack.name, outcome.referencesUpdated, [
+    showRenamed(title, outcome.referencesUpdated, [
       ...moves.filter((move) => !stack.paths.includes(move.from)),
       ...outcome.also,
     ]);
-    return moves.find((move) => move.from === path)?.to ?? path;
   }
 
   async move(paths: readonly string[], folder: string): Promise<FileMove[]> {
     const projectId = this.requireProject();
     const listing = this.listing;
     const covered = this.covered(paths);
-    const check = assetMoveCheck(listing, covered, folder);
+    const check = assetMoveCheck(listing, covered, folder, assetEndings.peek());
     if ("refused" in check) {
       throw new NameError(check.refused);
     }
@@ -487,13 +557,23 @@ export default class WorkspaceAssets {
   }
 
   async remove(paths: readonly string[]): Promise<void> {
-    const projectId = this.requireProject();
     const items = this.covered(paths);
+    await this.trash(items, thingsLabel(this.listing, items, assetEndings.peek()));
+  }
+
+  async removeMember(path: string): Promise<void> {
+    await this.trash([path], nameOf(path));
+  }
+
+  protected async trash(items: readonly string[], label: string): Promise<void> {
+    const projectId = this.requireProject();
     const trashed = items.map((path) => ({ path, folder: this.kindOf(path) === "folder" }));
-    const label = thingsLabel(this.listing, items, assetEndings.peek());
-    await moveToTrash(this._workspace.fs, projectId, trashed, label);
-    await this._workspace.window.recordAssetChange();
-    await this.load();
+    try {
+      await moveToTrash(this._workspace.fs, projectId, trashed, label);
+    } finally {
+      await this._workspace.window.recordAssetChange();
+      await this.load();
+    }
   }
 
   async usedBy(paths: readonly string[]): Promise<SearchGroup[] | null> {
@@ -583,6 +663,29 @@ export default class WorkspaceAssets {
       alive = false;
       detachCompiled();
       detachPublished();
+    };
+  }
+
+  watchPicture(path: string, variant: ImageVariant, listener: (src: string | null) => void): () => void {
+    const projectId = this.projectId;
+    let alive = true;
+    let request = 0;
+    const draw = async () => {
+      const mine = ++request;
+      const src = projectId
+        ? await this._workspace.ls
+            .getVariantPicture(this._workspace.fs.getFileUri(projectId, path), variant)
+            .catch(() => null)
+        : null;
+      if (alive && mine === request) {
+        listener(src);
+      }
+    };
+    const detach = onProtocolMessage(CompiledProgramMessage.type, () => void draw());
+    void draw();
+    return () => {
+      alive = false;
+      detach();
     };
   }
 

@@ -72,6 +72,24 @@ describe("FileDropzone routing", () => {
     ]);
   });
 
+  it("keeps the @ and ~ of a dropped alternate or layer file", async () => {
+    mocks.importDroppedFiles.mockClear();
+    document.body.append(host);
+    await act(async () => {
+      render(h(FileDropzone, {}), host);
+    });
+    await act(async () => {
+      drop(["imani~face.happy.png", "imani@night.png", "door knock.wav"]);
+    });
+    await vi.waitFor(() => expect(mocks.importDroppedFiles).toHaveBeenCalledTimes(1));
+    const [, items] = mocks.importDroppedFiles.mock.calls[0] as unknown as [string, { rel: string }[]];
+    expect(items.map((it) => it.rel)).toEqual([
+      "assets/imani~face.happy.png",
+      "assets/imani@night.png",
+      "assets/door_knock.wav",
+    ]);
+  });
+
   it("files a dropped script of an ending added under File types under scripts/", async () => {
     setScriptFiles("*.{sd,luau,story}");
     try {
