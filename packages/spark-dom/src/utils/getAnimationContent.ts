@@ -2,6 +2,7 @@ import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/
 import { cssIdent } from "../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
+import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
 const readOffset = (keyframe: unknown): number | null => {
@@ -67,7 +68,7 @@ export const getAnimationContent = (
           }
         }
         const properties = Object.entries(domKeyframe)
-          .map(([k, v]) => `${k}: ${v};`)
+          .map(([k, v]) => `${escapeCssIdentifier(k)}: ${v};`)
           .join(" ");
         animationContent += `${offset} { ${properties} }`;
         animationContent += "\n  ";

@@ -39,6 +39,7 @@ import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/c
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
+import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -1121,7 +1122,7 @@ export default class UIManager extends Manager {
                   this._theme,
                 );
                 for (const [k, v] of cssEntries) {
-                  arr.push(`${k}:${v}`);
+                  arr.push(`${escapeCssIdentifier(k)}:${v}`);
                 }
               }
               return arr;

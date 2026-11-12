@@ -15,6 +15,10 @@ import {
   type SourceEdit,
   type TokenNode,
 } from "./cssSyntax.js";
+import {
+  escapeCssIdentifier,
+  getThemeVariableName,
+} from "./themeVariableName.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
@@ -24,9 +28,9 @@ export const getThemeVar = (
   category: string,
   name: string,
 ): string | undefined => {
-  const variable = `--theme-${category}-${name.replaceAll("@", "--")}`;
+  const variable = getThemeVariableName(category, name);
   return !name.includes("\\") && theme.has(variable)
-    ? `var(${variable})`
+    ? `var(${escapeCssIdentifier(variable)})`
     : undefined;
 };
 
@@ -349,7 +353,9 @@ export const getCssBorderStyle = (value: string): string => {
 };
 
 export const getCssColor = (value: string, theme: ThemeVariables): string =>
-  value ? transformColors(value, theme, true) : value;
+  value
+    ? (getThemeVar(theme, "color", value) ?? transformColors(value, theme, true))
+    : value;
 
 export const getCssChildColumns = (columns: string): string => {
   if (isValidNumber(columns)) {
@@ -571,10 +577,11 @@ export const getCssTextFont = (
   value: string,
   theme: ThemeVariables,
 ): string => {
-  if (value.startsWith("var(")) {
-    return escapeNameAts(value);
+  const variable = getThemeVar(theme, "font", value);
+  if (variable !== undefined) {
+    return variable;
   }
-  return getThemeVar(theme, "font", value) ?? cssIdent(value);
+  return value.startsWith("var(") ? escapeNameAts(value) : cssIdent(value);
 };
 
 export const getCssTextAlign = (value: string): string => {
@@ -655,6 +662,10 @@ export const getCssEase = (
   if (!value) {
     return defaultValue;
   }
+  const variable = getThemeVar(theme, "ease", value);
+  if (variable !== undefined) {
+    return variable;
+  }
   if (value.includes("(")) {
     return value;
   }
@@ -670,7 +681,7 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return getThemeVar(theme, "ease", value) ?? value;
+  return value;
 };
 
 export const getCssFilter = (value: string, theme: ThemeVariables): string => {
@@ -733,10 +744,11 @@ export const getCssImage = (value: string, theme: ThemeVariables): string => {
   if (!value) {
     return "none";
   }
-  if (value.includes("(")) {
-    return transformColors(value, theme, false);
+  const variable = getThemeVar(theme, "image", value);
+  if (variable !== undefined) {
+    return variable;
   }
-  return getThemeVar(theme, "image", value) ?? value;
+  return value.includes("(") ? transformColors(value, theme, false) : value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
