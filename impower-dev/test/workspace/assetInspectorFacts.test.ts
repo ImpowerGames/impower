@@ -35,11 +35,6 @@ const uri = (path: string) => `file:///${PROJECT}/${path}`;
 const bytes = (text: string) => new TextEncoder().encode(text).buffer as ArrayBuffer;
 const text = (data: ArrayBuffer) => new TextDecoder().decode(data);
 const warning = { severity: 2, message: "Malformed condition face..bad" };
-const range = (line: number, start: number, end: number) => ({
-  start: { line, character: start },
-  end: { line, character: end },
-});
-
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function fakeWorkspace(stored: Record<string, string>) {
@@ -66,7 +61,6 @@ function fakeWorkspace(stored: Record<string, string>) {
     }),
   };
   const ls = {
-    getFileReferences: vi.fn(async (): Promise<{ uri: string; range: ReturnType<typeof range> }[]> => []),
     getFileDiagnostics: vi.fn(async (): Promise<unknown[]> => []),
     getVariantPicture: vi.fn(async (_uri: string, _variant: unknown): Promise<string | null> => null),
     onPublishedDiagnostics: (listener: (params: { uri: string }) => void) => {
@@ -104,44 +98,13 @@ beforeEach(() => {
 });
 
 describe("the inspector's uses and problems", () => {
-  it("asks for each file's references, groups them by script with each line's text, and drops repeats", async () => {
-    const { assets, ls } = fakeWorkspace({
-      "main.sd": "scene start\n  [[show backdrop harbor]]\nend\n",
-      "scripts/market.sd": "  [[show backdrop harbor]]\n",
-    });
-    ls.getFileReferences.mockImplementation(async () => [
-      { uri: uri("scripts/market.sd"), range: range(0, 19, 25) },
-      { uri: uri("main.sd"), range: range(1, 19, 25) },
-    ]);
-    const groups = await assets.uses(["Assets/Images/harbor.png", "Assets/Images/harbor@night.png"]);
-    expect(ls.getFileReferences.mock.calls).toEqual([
-      [uri("Assets/Images/harbor.png")],
-      [uri("Assets/Images/harbor@night.png")],
-    ]);
-    expect(groups.map((group) => [group.uri, group.uses.map((use) => use.lineText)])).toEqual([
-      [uri("main.sd"), ["  [[show backdrop harbor]]"]],
-      [uri("scripts/market.sd"), ["  [[show backdrop harbor]]"]],
-    ]);
-  });
-
-  it("reports a uses lookup that failed as unknown, not as unused, and still reports problems", async () => {
-    const { assets, ls } = fakeWorkspace({});
-    ls.getFileReferences.mockRejectedValue(new Error("The language server is not running"));
-    ls.getFileDiagnostics.mockResolvedValue([warning]);
-    const seen: { uses: unknown; problems: unknown }[] = [];
-    assets.watchFacts(["Assets/Images/harbor.png"], (facts) => seen.push(facts));
-    await settle();
-    expect(seen.at(-1)).toEqual({ uses: null, problems: [warning] });
-    await expect(assets.uses(["Assets/Images/harbor.png"])).rejects.toThrow("The language server is not running");
-  });
-
   it("reports a problems lookup that failed as unknown, not as no problems", async () => {
     const { assets, ls } = fakeWorkspace({});
     ls.getFileDiagnostics.mockRejectedValue(new Error("The language server is not running"));
-    const seen: { uses: unknown; problems: unknown }[] = [];
+    const seen: { problems: unknown }[] = [];
     assets.watchFacts(["Assets/Images/harbor.png"], (facts) => seen.push(facts));
     await settle();
-    expect(seen.at(-1)).toEqual({ uses: [], problems: null });
+    expect(seen.at(-1)).toEqual({ problems: null });
   });
 
   it("asks the language server for just the selected file's diagnostics after it starts", async () => {

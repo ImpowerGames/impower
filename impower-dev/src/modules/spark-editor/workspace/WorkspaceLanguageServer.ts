@@ -50,6 +50,7 @@ import {
 } from "vscode-jsonrpc/browser";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
+import type { AssetUseRole } from "./assetUsage";
 import problems from "./problems/ProblemsStore";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import type WorkspaceWindow from "./WorkspaceWindow";
@@ -155,6 +156,12 @@ export interface FileReferenceLocation {
     start: { line: number; character: number };
     end: { line: number; character: number };
   };
+}
+
+export interface AssetUsageAnswer {
+  version: number | undefined;
+  uses: Record<string, (FileReferenceLocation & { role: AssetUseRole; text: string })[]>;
+  scripts: { from: string; to: string; divert: boolean }[];
 }
 
 export default class WorkspaceLanguageServer {
@@ -404,6 +411,16 @@ export default class WorkspaceLanguageServer {
         "sparkdown/fileReferences",
         { uri },
       )) ?? []
+    );
+  }
+
+  async getAssetUsage(uri: string): Promise<AssetUsageAnswer | null> {
+    await this.initialization();
+    return (
+      (await this._connection.sendRequest<AssetUsageAnswer | null>(
+        "sparkdown/fileReferencesAll",
+        { uri },
+      )) ?? null
     );
   }
 

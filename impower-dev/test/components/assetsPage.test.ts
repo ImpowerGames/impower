@@ -314,10 +314,20 @@ describe("the Assets page", () => {
     expect(assets.remove).toHaveBeenCalledWith(["Assets/Images/bunny.png"]);
   });
 
-  it("offers Name, Modified and Size, and keeps the choice per project", async () => {
+  it("offers Name, Modified, Size, Uses and Story order, and keeps the choice per project", async () => {
     await mount();
     await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
-    await vi.waitFor(() => expect(menuItems()).toEqual(["Name", "Modified", "Size", "A to Z", "Z to A"]));
+    await vi.waitFor(() =>
+      expect(menuItems()).toEqual([
+        "Name",
+        "Modified",
+        "Size",
+        "UsesLines in the scripts that show or play it.",
+        "Story order",
+        "A to Z",
+        "Z to A",
+      ]),
+    );
     await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.includes("Size")));
     expect(window.setListState).toHaveBeenCalledWith({ assetsSort: "size-desc" });
   });
@@ -1038,5 +1048,115 @@ describe("adding files dragged in from the desktop", () => {
     ]);
     await click(panel.querySelector<HTMLElement>('button[aria-label="Close uploads"]')!);
     expect(host!.querySelector('section[aria-label="Uploads"]')).toBeNull();
+  });
+});
+
+describe("sorting by Uses and Story order", () => {
+  const P = "Assets/Images";
+  const shown = (path: string, line: number) => ({
+    uri: `file:///p/${path}`,
+    path,
+    range: { start: { line, character: 2 }, end: { line, character: 8 } },
+    role: "backdrop" as const,
+    text: "  [[show backdrop x]]",
+  });
+  const counted = () => {
+    workspace.assetUsage.value = {
+      projectId: PROJECT,
+      version: 1,
+      uses: {
+        [`${P}/harbor.png`]: [shown("main.sd", 1), shown("Scripts/market.sd", 4)],
+        [`${P}/harbor@night.png`]: [shown("Scripts/market.sd", 9)],
+        [`${P}/market.png`]: [shown("Scripts/market.sd", 2)],
+      },
+      order: ["main.sd", "Scripts/market.sd"],
+    };
+  };
+  const sortMenuNote = () => document.querySelector("[data-sort-note]")?.textContent ?? null;
+
+  beforeEach(() => {
+    workspace.current = { ...workspace.current, lists: { assetsSort: "uses-asc" } };
+    setListing({
+      [`${P}/harbor.png`]: facts(1024),
+      [`${P}/harbor@night.png`]: facts(1024),
+      [`${P}/market.png`]: facts(2048),
+      [`${P}/unused.png`]: facts(512),
+    });
+  });
+
+  afterEach(() => {
+    workspace.assetUsage.value = null;
+  });
+
+  it("sorts as Name with the modified line and a note in the menu until uses are counted", async () => {
+    workspace.assetUsage.value = null;
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    expect(rowLabels()).toEqual([
+      "Open image harbor, 2 variants, modified 2d · 2 kb",
+      "Open image market, modified 2d · 2 kb",
+      "Open image unused, modified 2d · 512 b",
+    ]);
+    await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
+    await vi.waitFor(() => expect(sortMenuNote()).toBe("Counting uses…"));
+  });
+
+  it("says the uses could not be counted, and sorts by name with the modified line, when the count failed", async () => {
+    workspace.assetUsage.value = null;
+    workspace.assetUsageFailed.value = PROJECT;
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    expect(rowLabels()[0]).toBe("Open image harbor, 2 variants, modified 2d · 2 kb");
+    await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
+    await vi.waitFor(() => expect(sortMenuNote()).toBe("Uses could not be counted. Edit a script to try again."));
+    workspace.assetUsageFailed.value = null;
+  });
+
+  it("lists every unused thing first under Uses ascending, and moves one out without a reload", async () => {
+    counted();
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    expect(rowLabels()).toEqual([
+      "Open image unused, unused",
+      "Open image market, 1 use",
+      "Open image harbor, 2 variants, 3 uses",
+    ]);
+    await act(async () => {
+      workspace.assetUsage.value = {
+        ...workspace.assetUsage.value!,
+        version: 2,
+        uses: { ...workspace.assetUsage.value!.uses, [`${P}/unused.png`]: [shown("main.sd", 5), shown("main.sd", 6)] },
+      };
+    });
+    await settle();
+    expect(rowLabels()).toEqual([
+      "Open image market, 1 use",
+      "Open image unused, 2 uses",
+      "Open image harbor, 2 variants, 3 uses",
+    ]);
+    await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
+    await vi.waitFor(() => expect(menuItems()).toContain("Least used first"));
+    expect(sortMenuNote()).toBeNull();
+  });
+
+  it("orders by the first line that reaches each thing in Story order, unreached last", async () => {
+    workspace.current = { ...workspace.current, lists: { assetsSort: "story-asc" } };
+    counted();
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    expect(rowLabels().map((label) => label!.split(",")[0])).toEqual([
+      "Open image harbor",
+      "Open image market",
+      "Open image unused",
+    ]);
+  });
+
+  it("asks the delete check with the row's paths, so it agrees with the row", async () => {
+    counted();
+    await mount();
+    await click(host!.querySelector<HTMLElement>('[data-assets-action="layout"]')!);
+    await openMenu(all<HTMLElement>('button[aria-label="Options for harbor"]')[0]);
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
+    expect(assets.usedBy).toHaveBeenCalledWith([`${P}/harbor.png`]);
   });
 });

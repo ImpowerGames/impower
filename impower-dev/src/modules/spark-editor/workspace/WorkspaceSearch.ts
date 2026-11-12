@@ -23,6 +23,7 @@ import {
   type SearchView,
 } from "./searchState";
 import workspace from "./WorkspaceStore";
+import type { AssetUse } from "./assetUsage";
 import type { NameAtCaret } from "./nameAtCaret";
 
 export interface SearchFile {
@@ -190,6 +191,23 @@ export const groupLocations = async (
     }),
   );
   return groups.sort((a, b) => compareScripts(a.uri, b.uri));
+};
+
+export const usageGroups = (uses: readonly AssetUse[]): SearchGroup[] => {
+  const byUri = new Map<string, AssetUse[]>();
+  for (const use of uses) {
+    const list = byUri.get(use.uri);
+    if (list) list.push(use);
+    else byUri.set(use.uri, [use]);
+  }
+  return [...byUri.entries()]
+    .map(([uri, list]) => ({
+      uri,
+      uses: list
+        .sort((a, b) => a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character)
+        .map((use) => ({ uri, range: use.range, lineText: use.text, declaration: false })),
+    }))
+    .sort((a, b) => compareScripts(a.uri, b.uri));
 };
 
 const assetFilesNamed = (files: readonly SearchFile[], name: string) =>

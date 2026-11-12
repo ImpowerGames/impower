@@ -38,10 +38,12 @@ const ALL_FIELDS = SORT_FIELDS.map((spec) => spec.field);
 export type SortMenuProps = {
   value: string | undefined;
   fields?: readonly SortField[];
+  usesHint?: string;
+  note?: string;
   onChange: (key: string) => void;
 };
 
-export default function SortMenu({ value, fields = ALL_FIELDS, onChange }: SortMenuProps) {
+export default function SortMenu({ value, fields = ALL_FIELDS, usesHint = USES_HINT, note, onChange }: SortMenuProps) {
   const label = sortLabel(value);
   const menu = sortMenu(value);
   const fieldKey = menu.fields.find((f) => f.checked)!.key;
@@ -72,7 +74,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, onChange }: SortM
                   <span class="flex min-w-0 flex-col gap-0.5 py-1.5">
                     <span>{field.label}</span>
                     <small class="max-w-[200px] text-[11px]/[1.4] font-normal whitespace-normal text-muted">
-                      {USES_HINT}
+                      {usesHint}
                     </small>
                   </span>
                 ) : (
@@ -82,6 +84,11 @@ export default function SortMenu({ value, fields = ALL_FIELDS, onChange }: SortM
             );
           })}
         </DropdownRadioGroup>
+        {note && (
+          <p role="status" class="m-0 px-3 pb-1.5 text-[11px]/[1.4] text-muted" data-sort-note>
+            {note}
+          </p>
+        )}
         <DropdownSeparator />
         <DropdownLabel variant="heading">Order</DropdownLabel>
         <DropdownRadioGroup label="Order" value={directionKey} onValueChange={onChange}>
