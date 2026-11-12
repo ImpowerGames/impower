@@ -1,12 +1,19 @@
 import {
   type Input,
   NodeSet,
+  NodeType,
   type PartialParse,
   Tree,
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import { Compiler, type CompilerJournal } from "../../compiler/classes/Compiler";
+import {
+  Compiler,
+  type CompilerJournal,
+  DEFAULT_MAX_TREE_BUFFER_LENGTH,
+} from "../../compiler/classes/Compiler";
+import { FlatBufferCursor } from "../../compiler/classes/FlatBufferCursor";
+import { type IReusedRecords } from "../../compiler/types/IReusedRecords";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
 import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
@@ -164,8 +171,10 @@ export class TextmateGrammarParse implements PartialParse {
 
     if (result) {
       const buffer = result.cursor;
-      const reused = result.reused.map(
-        (b) => new TreeBuffer(b.buffer, b.length, nodeSet),
+      const reused = result.reused.map((b) =>
+        "buffer" in b
+          ? new TreeBuffer(b.buffer, b.length, nodeSet)
+          : this.reusedTree(b),
       ) as unknown as readonly Tree[];
       const maxBufferLength = result.maxBufferLength;
       const tree = Tree.build({
@@ -188,6 +197,23 @@ export class TextmateGrammarParse implements PartialParse {
     const topNode = this.compiler.grammar.nodes[topID];
     const topNodeType = topNode?.props["nodeType"];
     return new Tree(topNodeType, [], [], length);
+  }
+
+  protected reusedTree(run: IReusedRecords): Tree {
+    if (!run.tree) {
+      const records = run.records!;
+      const built = Tree.build({
+        topID: NodeID.none,
+        buffer: new FlatBufferCursor(records, records.length),
+        nodeSet: this.nodeSet,
+        start: 0,
+        length: run.length,
+        maxBufferLength: DEFAULT_MAX_TREE_BUFFER_LENGTH,
+      });
+      run.tree = new Tree(NodeType.none, built.children, built.positions, run.length);
+      run.records = undefined;
+    }
+    return run.tree;
   }
 
   protected findLineStart(pos: number): number {

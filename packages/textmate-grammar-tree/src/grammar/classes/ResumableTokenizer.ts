@@ -791,7 +791,7 @@ export class ResumableTokenizer {
     return token;
   }
 
-  matchesResume(resume: TokenizerResume): boolean {
+  matchesResume(resume: Pick<TokenizerResume, "frames" | "stack">): boolean {
     return this.matchesFrames(resume.frames) && this.matchesStack(resume.stack);
   }
 

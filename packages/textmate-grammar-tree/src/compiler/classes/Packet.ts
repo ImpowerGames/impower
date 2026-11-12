@@ -87,7 +87,7 @@ export class Packet {
       if (current && !current.endsPure && current.from < at && current.to <= at) {
         current = new Chunk(at, true);
         current.inheritFrom(this.chunks[this.chunks.length - 1]!);
-        current.resume = resume;
+        current.attachResume(resume);
         current.spliceSafe = spliceStateAccountsForSeeds(resume, current);
         this.chunks.push(current);
         newChunk = true;

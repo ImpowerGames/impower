@@ -100,6 +100,21 @@ describe("restart points inside a block recorded by a cold parse (I-2080)", () =
     }
   });
 
+  test("an edit above the clause hands the tree the clause as one reused buffer instead of every node in it (I-2093)", () => {
+    const lead = "A line above.\n\n";
+    const text = lead + TEXT;
+    const base = getParser().parse(text);
+    const { tree, next } = parseEdit(base, text, { from: 0, to: 0, insert: "x" });
+    expectCold(tree, next);
+    const compiler = tree.prop(cachedCompilerProp) as any;
+    const clauseNodes = chunksOf(tree)
+      .filter((chunk) => chunk.from >= lead.length)
+      .reduce((sum, chunk) => sum + chunk.nodeCount, 0);
+    expect(clauseNodes).toBeGreaterThan(10000);
+    expect(compiler.nodeCount).toBeLessThan(100);
+    expect(compiler.reused.length).toBeGreaterThan(0);
+  });
+
   test("a cold parse records a restart point at every line start inside the clause", () => {
     const chunks = chunksOf(getParser().parse(TEXT));
     const lineStarts = new Set<number>();
