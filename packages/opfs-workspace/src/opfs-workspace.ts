@@ -359,9 +359,25 @@ class CommitLog {
 
 const channel = new BroadcastChannel("opfs-workspace");
 let remoteMessages = Promise.resolve();
+const remoteRestoredTexts = new Map<string, string>();
+const rememberRemoteRestores = (message: unknown) => {
+  if (!DidWriteFilesMessage.type.isNotification(message)) {
+    return;
+  }
+  const restored = restoredTextsOf(message.params.files, message.params.restored);
+  for (const file of message.params.files) {
+    const text = restored.get(file.uri);
+    if (text === undefined) {
+      remoteRestoredTexts.delete(file.uri);
+    } else {
+      remoteRestoredTexts.set(file.uri, text);
+    }
+  }
+};
 channel.onmessage = (event) => {
   remoteMessages = remoteMessages
     .then(async () => {
+      rememberRemoteRestores(event.data);
       const { forward, unordered } = await reconcileRemoteMessage(event.data);
       if (forward) {
         postMessage(forward);
@@ -369,9 +385,7 @@ channel.onmessage = (event) => {
       if (unordered.length > 0) {
         announceSettled(await settlePaths(unordered), {
           local: false,
-          restoredTexts: DidWriteFilesMessage.type.isNotification(event.data)
-            ? restoredTextsOf(event.data.params.files, event.data.params.restored)
-            : new Map(),
+          restoredTexts: new Map(remoteRestoredTexts),
         });
       }
     })
