@@ -3,7 +3,8 @@ import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { LoadSave, SAVES_STYLESHEET_ID } from "../saves/SavesViews";
-import { ROUTE_LIST_STYLESHEET_ID, RouteList, type RouteListProps } from "./RouteViews";
+import { RouteList, type RouteListProps } from "./RouteViews";
+import { ROUTE_LIST_STYLESHEET_ID } from "./routeListStylesheet";
 import type { RouteViewState } from "./routeView";
 import type { StartingValuesEvents } from "./StartingValuesViews";
 

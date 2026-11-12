@@ -29,8 +29,9 @@ const MODULE_VARIANTS = [
 ];
 
 const DRAWN_FOR_THE_EDITOR = [
-  "breakpoint", "detour", "fast-forward", "filter", "folder-plus", "follow-off",
-  "options", "rewind", "scissors", "sign-out", "step-over", "stop-sign",
+  "bookmark", "breakpoint", "detour", "fast-forward", "filter", "folder-plus",
+  "follow-off", "options", "rewind", "scissors", "sign-out", "step-over",
+  "stop-sign",
 ];
 
 const componentFor = (name: string) =>

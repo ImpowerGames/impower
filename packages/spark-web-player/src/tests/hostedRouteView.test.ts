@@ -48,7 +48,7 @@ function hostedPlayer() {
   const controller = new GamePlayerController(
     host,
     { viewport, routeButton, routeList } as any,
-    { hostsRoute: true },
+    { hosted: true },
   );
   (controller as any)._workerGame = {};
   (controller as any)._options = { workspace: "file://proj" };

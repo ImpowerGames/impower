@@ -1,5 +1,7 @@
 :is(spark-web-player, swp-route-view) {
   --swp-saves-menu-width: 300px;
+  --swp-saves-control-size: 22px;
+  --swp-saves-menu-max-height: calc(100cqh - 12px);
   --swp-saves-menu-background-color: var(--swp-route-popup-background-color);
   --swp-saves-menu-border-color: var(--swp-route-popup-border-color);
   --swp-saves-accent-color: var(--swp-route-accent-color);
@@ -55,7 +57,7 @@
   box-sizing: border-box;
   width: var(--swp-saves-menu-width);
   max-width: calc(100cqw - 12px);
-  max-height: calc(100cqh - 12px);
+  max-height: var(--swp-saves-menu-max-height);
   overflow: auto;
   padding: 4px 0;
   border: 1px solid var(--swp-saves-menu-border-color);
@@ -113,7 +115,7 @@
 :is(spark-web-player, swp-route-view) .saves-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 22px;
+  grid-template-columns: minmax(0, 1fr) auto var(--swp-saves-control-size);
   align-items: center;
   gap: 6px;
   padding: 3px 4px 3px 8px;
@@ -272,6 +274,11 @@
   z-index: 3;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+:is(spark-web-player, swp-route-view) #save-note[data-hosted] {
+  top: auto;
+  bottom: 8px;
 }
 
 :is(spark-web-player, swp-route-view) .save-note {

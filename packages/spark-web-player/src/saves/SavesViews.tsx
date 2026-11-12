@@ -3,6 +3,7 @@ import { checkStartingValue } from "@impower/sparkdown/src/program/startingValue
 import { useStylesheet } from "../utils/useStylesheet";
 import savesCss from "./saves.css?inline";
 import { RouteIconSvg } from "../route/RouteIcons";
+import { useRouteListStylesheet } from "../route/routeListStylesheet";
 import {
   SAVE_TEXT,
   saveDetail,
@@ -38,7 +39,10 @@ const keepKeys = (e: KeyboardEvent) => e.stopPropagation();
 
 export const SAVES_STYLESHEET_ID = "swp-saves-css";
 
-const useSavesStylesheet = () => useStylesheet(SAVES_STYLESHEET_ID, savesCss);
+const useSavesStylesheet = () => {
+  useRouteListStylesheet();
+  useStylesheet(SAVES_STYLESHEET_ID, savesCss);
+};
 
 export function SaveIcon({ icon }: { icon: "saves" | "back" | "more" }) {
   return (

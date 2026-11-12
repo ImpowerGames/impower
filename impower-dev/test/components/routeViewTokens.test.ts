@@ -77,4 +77,57 @@ describe("the hosted route list's tokens", () => {
       }
     }
   });
+
+  it("give a value row and the trailing controls of value and save rows the 44px touch size under a coarse pointer, where every field and button is 44px", () => {
+    const coarse = ':root[data-pointer="coarse"] swp-route-view';
+    for (const [token, css] of [
+      ["--swp-route-row-height", ROUTE_LIST],
+      ["--swp-route-control-size", ROUTE_LIST],
+      ["--swp-saves-control-size", SAVES],
+    ] as const) {
+      const hostRules = [...HOST_TOKENS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(
+        ([, , body]) => body!.includes(`${token}:`),
+      );
+      expect(hostRules.map(([, selector]) => selector!.trim()), token).toEqual([coarse]);
+      expect(hostRules[0]![2], token).toMatch(new RegExp(`${token}:\\s*44px;`));
+      const defaults = rootRules(css, token);
+      expect(defaults.length, token).toBeGreaterThan(0);
+      for (const selector of defaults) {
+        expect(compare(specificityOf(coarse), specificityOf(selector)), token).toBeGreaterThan(0);
+      }
+    }
+    expect(ROUTE_LIST).toMatch(/\.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
+    expect(ROUTE_LIST).toMatch(
+      /\.sv-row \{[^}]*grid-template-columns: [^;]* var\(--swp-route-control-size\);/,
+    );
+    expect(SAVES).toMatch(
+      /\.saves-row \{[^}]*grid-template-columns: [^;]* var\(--swp-saves-control-size\);/,
+    );
+  });
+
+  it("cap the top bar's Saves menu at the popup's available height, outranking the player's own default", () => {
+    const token = "--swp-saves-menu-max-height";
+    const [host] = rootRules(HOST_TOKENS, token);
+    expect(host).toBe(":root swp-route-view");
+    const body = HOST_TOKENS.match(new RegExp(`${token}:([^;]*);`))?.[1] ?? "";
+    expect(body).toMatch(/^\s*var\(\s*--radix-popover-content-available-height,/);
+    const defaults = rootRules(SAVES, token);
+    expect(defaults.length).toBeGreaterThan(0);
+    for (const selector of defaults) {
+      expect(compare(specificityOf(host!), specificityOf(selector))).toBeGreaterThan(0);
+    }
+    expect(SAVES).toMatch(/\.saves-menu \{[^}]*max-height: var\(--swp-saves-menu-max-height\);/);
+  });
+
+  it("keep the pinned tab head above the positioned rows that scroll under it, and the field popups above the head", () => {
+    const rule = (selector: string) =>
+      ROUTE_LIST.match(new RegExp(`\\) ${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
+    const head = rule(".route-list-head");
+    expect(head).toMatch(/position: sticky;/);
+    const zOf = (body: string) => Number(body.match(/z-index: (\d+);/)?.[1] ?? 0);
+    expect(zOf(head)).toBeGreaterThan(0);
+    expect(rule(".sv-row")).toMatch(/position: relative;/);
+    expect(zOf(rule(".sv-row"))).toBe(0);
+    expect(zOf(rule(".sv-popup"))).toBeGreaterThan(zOf(head));
+  });
 });
