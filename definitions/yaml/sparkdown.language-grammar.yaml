@@ -313,7 +313,15 @@ variables:
   # inside it, and splitting the region's Switch leaves the same run; only the
   # segment's character can refuse the next unit or end.
   CHOICE_START_TEXT_FREE: (?:(?!{{CHOICE_START_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
-  CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_START_TEXT_FREE}})
+  # lookaround: ChoiceStartText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_START_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_START_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_START_TEXT_END}}))
+  # lookaround: CHOICE_START_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_START_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_START_RUN_ESCAPE}}|(?![\\]){{CHOICE_START_TEXT_FREE}})
   CHOICE_START_TEXT_ESCAPE: (?:[\\]{{CHOICE_START_REGION_CHARACTER}})
   # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
@@ -384,8 +392,10 @@ variables:
   # lookaround: ChoiceStartText's end, CHOICE_START_TEXT_END, and the comment rules of
   # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
   # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
-  # stop the run, and a run started earlier cannot be interrupted by order.
-  CHOICE_START_PAST_OPEN_BRACE: (?:(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_START_PAST_OPEN_BRACE: (?:{{CHOICE_START_TEXT_ESCAPE}}|[\\](?={{CHOICE_START_TEXT_END}})|(?!{{CHOICE_START_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
   CHOICE_START_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_START_PAST_OPEN_BRACE}}*)
   CHOICE_START_TEXT_PIECE: (?:{{CHOICE_START_TEXT_ESCAPE}}|{{CHOICE_START_TEXT_COMMAND}}|{{CHOICE_START_AUDIO_COMMAND}}|{{CHOICE_START_IMAGE_COMMAND}}|{{CHOICE_START_GLUED_ALTERNATOR}}|{{CHOICE_START_OPEN_INTERPOLATION}}|{{CHOICE_START_TEXT_FREE}})
   # lookaround: ChoiceStartSpans and ChoiceTextDots begin where the segment stops:
@@ -422,7 +432,15 @@ variables:
   # inside it, and splitting the region's Switch leaves the same run; only the
   # segment's character can refuse the next unit or end.
   CHOICE_ONLY_TEXT_FREE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
-  CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_ONLY_TEXT_FREE}})
+  # lookaround: ChoiceOnlyText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_ONLY_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_ONLY_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_ONLY_TEXT_END}}))
+  # lookaround: CHOICE_ONLY_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_ONLY_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_ONLY_RUN_ESCAPE}}|(?![\\]){{CHOICE_ONLY_TEXT_FREE}})
   CHOICE_ONLY_TEXT_ESCAPE: (?:[\\]{{CHOICE_ONLY_REGION_CHARACTER}})
   # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
@@ -493,8 +511,10 @@ variables:
   # lookaround: ChoiceOnlyText's end, CHOICE_ONLY_TEXT_END, and the comment rules of
   # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
   # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
-  # stop the run, and a run started earlier cannot be interrupted by order.
-  CHOICE_ONLY_PAST_OPEN_BRACE: (?:(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_ONLY_PAST_OPEN_BRACE: (?:{{CHOICE_ONLY_TEXT_ESCAPE}}|[\\](?={{CHOICE_ONLY_TEXT_END}})|(?!{{CHOICE_ONLY_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
   CHOICE_ONLY_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_ONLY_PAST_OPEN_BRACE}}*)
   CHOICE_ONLY_TEXT_PIECE: (?:{{CHOICE_ONLY_TEXT_ESCAPE}}|{{CHOICE_ONLY_TEXT_COMMAND}}|{{CHOICE_ONLY_AUDIO_COMMAND}}|{{CHOICE_ONLY_IMAGE_COMMAND}}|{{CHOICE_ONLY_GLUED_ALTERNATOR}}|{{CHOICE_ONLY_OPEN_INTERPOLATION}}|{{CHOICE_ONLY_TEXT_FREE}})
   # lookaround: ChoiceOnlySpans and ChoiceTextDots begin where the segment stops:
@@ -531,7 +551,15 @@ variables:
   # inside it, and splitting the region's Switch leaves the same run; only the
   # segment's character can refuse the next unit or end.
   CHOICE_INNER_TEXT_FREE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{CHOICE_TEXT_UNIT}})[^\r\n])
-  CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_FREE}})
+  # lookaround: ChoiceInnerText's end and the glue that ends a glued alternator
+  # (the end of LuauSparkdownInlineGluedSequentialAlternatorBlock), which starts at
+  # whitespace. Escape reads a backslash with the character after it, a comment
+  # opener's first character included, so a backslash takes any character but
+  # whitespace or the region's end, and stands alone before them.
+  CHOICE_INNER_RUN_ESCAPE: (?:[\\](?!{{WS}}){{CHOICE_INNER_REGION_CHARACTER}}|[\\](?={{WS}}|{{CHOICE_INNER_TEXT_END}}))
+  # lookaround: CHOICE_INNER_RUN_ESCAPE reads every backslash, so the run's own
+  # character never starts at one and the run splits in one way.
+  CHOICE_INNER_TEXT_RUN: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_INNER_RUN_ESCAPE}}|(?![\\]){{CHOICE_INNER_TEXT_FREE}})
   CHOICE_INNER_TEXT_ESCAPE: (?:[\\]{{CHOICE_INNER_REGION_CHARACTER}})
   # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END. TextCommand, AudioCommand
   # and ImageCommand read a brace and a comment opener inside them as their own
@@ -602,8 +630,10 @@ variables:
   # lookaround: ChoiceInnerText's end, CHOICE_INNER_TEXT_END, and the comment rules of
   # ChoiceTextUnit (SparkdownBlockComment, SparkdownInlineComment). Past an
   # unclosed brace no interpolation is a unit (CHOICE_OPEN_BRACE), so only they
-  # stop the run, and a run started earlier cannot be interrupted by order.
-  CHOICE_INNER_PAST_OPEN_BRACE: (?:(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}})[^\r\n])
+  # stop the run, and a run started earlier cannot be interrupted by order. A
+  # backslash takes the character after it, as Escape reads it, so an escaped
+  # comment opener stops nothing.
+  CHOICE_INNER_PAST_OPEN_BRACE: (?:{{CHOICE_INNER_TEXT_ESCAPE}}|[\\](?={{CHOICE_INNER_TEXT_END}})|(?!{{CHOICE_INNER_TEXT_END}}|{{STORY_COMMENT_START}}|[\\])[^\r\n])
   CHOICE_INNER_OPEN_INTERPOLATION: (?:{{CHOICE_OPEN_BRACE}}{{CHOICE_INNER_PAST_OPEN_BRACE}}*)
   CHOICE_INNER_TEXT_PIECE: (?:{{CHOICE_INNER_TEXT_ESCAPE}}|{{CHOICE_INNER_TEXT_COMMAND}}|{{CHOICE_INNER_AUDIO_COMMAND}}|{{CHOICE_INNER_IMAGE_COMMAND}}|{{CHOICE_INNER_GLUED_ALTERNATOR}}|{{CHOICE_INNER_OPEN_INTERPOLATION}}|{{CHOICE_INNER_TEXT_FREE}})
   # lookaround: ChoiceInnerSpans and ChoiceTextDots begin where the segment stops:

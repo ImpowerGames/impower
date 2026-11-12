@@ -28659,331 +28659,6 @@
   },
   {
    "id": "plain-escape-45",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\\\/* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go \\ b"
-   ],
-   "runs": [
-    {
-     "out": "Go \\ b\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "858183bc"
-  },
-  {
-   "id": "plain-escape-46",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\\\/* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go \\ b"
-   ],
-   "runs": [
-    {
-     "out": "Go \\ b Next.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "b0c2e47b"
-  },
-  {
-   "id": "plain-escape-47",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\\\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go a \\ b"
-   ],
-   "runs": [
-    {
-     "out": "Go c\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "381c0b8a"
-  },
-  {
-   "id": "plain-escape-48",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\\\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go a"
-   ],
-   "runs": [
-    {
-     "out": "Go b \\ c\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "a35708e0"
-  },
-  {
-   "id": "plain-escape-49",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\\\/* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go <wait \\/* c */ b> now"
-   ],
-   "runs": [
-    {
-     "out": "Go <wait \\/* c */ b> now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "d5837f9b"
-  },
-  {
-   "id": "plain-escape-50",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\\\/* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go ((a \\/* c */ b)) now"
-   ],
-   "runs": [
-    {
-     "out": "Go ((a \\/* c */ b)) now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:14-4:15 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
-   ],
-   "scopes": "5f9803a8"
-  },
-  {
-   "id": "plain-escape-51",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\\\/* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go [a \\ b"
-   ],
-   "runs": [
-    {
-     "out": "Go ] now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "05c5942b"
-  },
-  {
-   "id": "plain-escape-52",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\\\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go *far \\ away* now"
-   ],
-   "runs": [
-    {
-     "out": "Go *far \\ away* now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "77b4c2b5"
-  },
-  {
-   "id": "plain-escape-53",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\\\/* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go \\ b"
-   ],
-   "runs": [
-    {
-     "out": "Next.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "3e76d963"
-  },
-  {
-   "id": "plain-escape-54",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\ /* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go b"
-   ],
-   "runs": [
-    {
-     "out": "Go b\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "858183bc"
-  },
-  {
-   "id": "plain-escape-55",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\ /* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go b"
-   ],
-   "runs": [
-    {
-     "out": "Go b Next.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "b0c2e47b"
-  },
-  {
-   "id": "plain-escape-56",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\ /* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go a b"
-   ],
-   "runs": [
-    {
-     "out": "Go c\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "381c0b8a"
-  },
-  {
-   "id": "plain-escape-57",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\ /* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go a"
-   ],
-   "runs": [
-    {
-     "out": "Go b c\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "a35708e0"
-  },
-  {
-   "id": "plain-escape-58",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\ /* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go <wait /* c */ b> now"
-   ],
-   "runs": [
-    {
-     "out": "Go <wait /* c */ b> now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "e41d9b5a"
-  },
-  {
-   "id": "plain-escape-59",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\ /* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go ((a /* c */ b)) now"
-   ],
-   "runs": [
-    {
-     "out": "Go ((a /* c */ b)) now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [
-    "1@4:13-4:14 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:16-4:17 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:20-4:21 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "1@4:21-4:22 {\"kind\":\"markdown\",\"value\":\"Invalid syntax\"}",
-    "2@4:11-4:12 {\"value\":\"Cannot find audio named `a`\",\"kind\":\"markdown\"}",
-    "2@4:18-4:19 {\"value\":\"Cannot find audio named `c`\",\"kind\":\"markdown\"}",
-    "2@4:23-4:24 {\"value\":\"Cannot find audio named `b`\",\"kind\":\"markdown\"}"
-   ],
-   "scopes": "05244594"
-  },
-  {
-   "id": "plain-escape-60",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\ /* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go [a b"
-   ],
-   "runs": [
-    {
-     "out": "Go ] now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "05c5942b"
-  },
-  {
-   "id": "plain-escape-61",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\ /* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go *far away* now"
-   ],
-   "runs": [
-    {
-     "out": "Go *far away* now\nBody.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "77b4c2b5"
-  },
-  {
-   "id": "plain-escape-62",
-   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\ /* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
-   "first": "",
-   "choices": [
-    "Go b"
-   ],
-   "runs": [
-    {
-     "out": "Next.\n",
-     "errs": []
-    }
-   ],
-   "rt": [],
-   "diags": [],
-   "scopes": "3e76d963"
-  },
-  {
-   "id": "plain-escape-63",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/*\\/* c */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29000,7 +28675,7 @@
    "scopes": "09b5cd25"
   },
   {
-   "id": "plain-escape-64",
+   "id": "plain-escape-46",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/*\\/* c */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29017,7 +28692,7 @@
    "scopes": "b7538000"
   },
   {
-   "id": "plain-escape-65",
+   "id": "plain-escape-47",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/*\\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29034,7 +28709,7 @@
    "scopes": "1db35681"
   },
   {
-   "id": "plain-escape-66",
+   "id": "plain-escape-48",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/*\\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29051,7 +28726,7 @@
    "scopes": "639c70cd"
   },
   {
-   "id": "plain-escape-67",
+   "id": "plain-escape-49",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/*\\/* c */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29068,7 +28743,7 @@
    "scopes": "44f42943"
   },
   {
-   "id": "plain-escape-68",
+   "id": "plain-escape-50",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/*\\/* c */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29097,7 +28772,7 @@
    "scopes": "11ab68a8"
   },
   {
-   "id": "plain-escape-69",
+   "id": "plain-escape-51",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/*\\/* c */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29114,7 +28789,7 @@
    "scopes": "4143650e"
   },
   {
-   "id": "plain-escape-70",
+   "id": "plain-escape-52",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/*\\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29131,7 +28806,7 @@
    "scopes": "d5a6d814"
   },
   {
-   "id": "plain-escape-71",
+   "id": "plain-escape-53",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/*\\/* c */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29148,7 +28823,7 @@
    "scopes": "d823f0b4"
   },
   {
-   "id": "plain-escape-72",
+   "id": "plain-escape-54",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* > */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29165,7 +28840,7 @@
    "scopes": "e1833c2f"
   },
   {
-   "id": "plain-escape-73",
+   "id": "plain-escape-55",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* > */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29182,7 +28857,7 @@
    "scopes": "7b6b85da"
   },
   {
-   "id": "plain-escape-74",
+   "id": "plain-escape-56",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* > */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29199,7 +28874,7 @@
    "scopes": "728ae051"
   },
   {
-   "id": "plain-escape-75",
+   "id": "plain-escape-57",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* > */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29216,7 +28891,7 @@
    "scopes": "5a4d1056"
   },
   {
-   "id": "plain-escape-76",
+   "id": "plain-escape-58",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* > */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29233,7 +28908,7 @@
    "scopes": "88edbb9d"
   },
   {
-   "id": "plain-escape-77",
+   "id": "plain-escape-59",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* > */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29259,7 +28934,7 @@
    "scopes": "5e06cb4a"
   },
   {
-   "id": "plain-escape-78",
+   "id": "plain-escape-60",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* > */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29276,7 +28951,7 @@
    "scopes": "d1c1e7ae"
   },
   {
-   "id": "plain-escape-79",
+   "id": "plain-escape-61",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* > */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29293,7 +28968,7 @@
    "scopes": "27917079"
   },
   {
-   "id": "plain-escape-80",
+   "id": "plain-escape-62",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* > */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29310,7 +28985,7 @@
    "scopes": "c90f704a"
   },
   {
-   "id": "plain-escape-81",
+   "id": "plain-escape-63",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* )) */ b\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29327,7 +29002,7 @@
    "scopes": "e6506da0"
   },
   {
-   "id": "plain-escape-82",
+   "id": "plain-escape-64",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go \\/* )) */ b -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29344,7 +29019,7 @@
    "scopes": "8b854097"
   },
   {
-   "id": "plain-escape-83",
+   "id": "plain-escape-65",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a \\/* )) */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29361,7 +29036,7 @@
    "scopes": "dc2bced6"
   },
   {
-   "id": "plain-escape-84",
+   "id": "plain-escape-66",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b \\/* )) */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29378,7 +29053,7 @@
    "scopes": "8557f754"
   },
   {
-   "id": "plain-escape-85",
+   "id": "plain-escape-67",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go <wait \\/* )) */ b> now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29395,7 +29070,7 @@
    "scopes": "61a5e9ed"
   },
   {
-   "id": "plain-escape-86",
+   "id": "plain-escape-68",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go ((a \\/* )) */ b)) now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29417,7 +29092,7 @@
    "scopes": "abcbcdb5"
   },
   {
-   "id": "plain-escape-87",
+   "id": "plain-escape-69",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [[a \\/* )) */ b]] now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29434,7 +29109,7 @@
    "scopes": "88f165a3"
   },
   {
-   "id": "plain-escape-88",
+   "id": "plain-escape-70",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far \\/* )) */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29451,7 +29126,7 @@
    "scopes": "dd00364f"
   },
   {
-   "id": "plain-escape-89",
+   "id": "plain-escape-71",
    "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + [Go \\/* )) */ b] -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
    "first": "",
    "choices": [
@@ -29466,6 +29141,1041 @@
    "rt": [],
    "diags": [],
    "scopes": "645e48cb"
+  },
+  {
+   "id": "plain-escape-run-0",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* c */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "dfe3052b"
+  },
+  {
+   "id": "plain-escape-run-1",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* c */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "b300cc10"
+  },
+  {
+   "id": "plain-escape-run-2",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "0624e1a3"
+  },
+  {
+   "id": "plain-escape-run-3",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:28 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "7d8aa38f"
+  },
+  {
+   "id": "plain-escape-run-4",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:35 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "5ca24919"
+  },
+  {
+   "id": "plain-escape-run-5",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* c */ b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* c */ b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "75bb1c00"
+  },
+  {
+   "id": "plain-escape-run-6",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* c */ b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* c */ b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "ba4dbc87"
+  },
+  {
+   "id": "plain-escape-run-7",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* -> next */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "8c60cc37"
+  },
+  {
+   "id": "plain-escape-run-8",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* -> next */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:15 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "8618753f"
+  },
+  {
+   "id": "plain-escape-run-9",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* -> next */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "class": "B",
+   "first": "",
+   "choices": [
+    "Go [a true"
+   ],
+   "runs": [
+    {
+     "out": "Go [a true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:18 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "c509202c"
+  },
+  {
+   "id": "plain-escape-run-10",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* -> next */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "cc567c8c"
+  },
+  {
+   "id": "plain-escape-run-11",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\/* -> next */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "ac57b78a"
+  },
+  {
+   "id": "plain-escape-run-12",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "979ffde5"
+  },
+  {
+   "id": "plain-escape-run-13",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* -> next */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /*"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "979ffde5"
+  },
+  {
+   "id": "plain-escape-run-14",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* ] */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true] */ now"
+   ],
+   "runs": [
+    {
+     "out": "Go true] */ now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "ee0fe6db"
+  },
+  {
+   "id": "plain-escape-run-15",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* ] */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true] */"
+   ],
+   "runs": [
+    {
+     "out": "Go true] */ Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "949eb68d"
+  },
+  {
+   "id": "plain-escape-run-16",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* ] */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go */ b] c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "0f5879f4"
+  },
+  {
+   "id": "plain-escape-run-17",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* ] */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true] */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Expected identifier when parsing expression, got ']'\"}"
+   ],
+   "scopes": "e5de4179"
+  },
+  {
+   "id": "plain-escape-run-19",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* ] */ b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* ] */ b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c2406b57"
+  },
+  {
+   "id": "plain-escape-run-20",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* ] */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* ] */ b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* ] */ b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9814c65c"
+  },
+  {
+   "id": "plain-escape-run-21",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* c now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "5c20cec2"
+  },
+  {
+   "id": "plain-escape-run-22",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* c -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:17 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "f5faf2a5"
+  },
+  {
+   "id": "plain-escape-run-23",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* c b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "c29a7770"
+  },
+  {
+   "id": "plain-escape-run-24",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* c c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "ac4eb671"
+  },
+  {
+   "id": "plain-escape-run-25",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\/* c away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:32 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "a77a1fbd"
+  },
+  {
+   "id": "plain-escape-run-26",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* c b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* c b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "fabe138a"
+  },
+  {
+   "id": "plain-escape-run-27",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* c b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* c b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4a748802"
+  },
+  {
+   "id": "plain-escape-run-28",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\// c now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:21 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "5c20cec2"
+  },
+  {
+   "id": "plain-escape-run-29",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\// c -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:17 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "f5faf2a5"
+  },
+  {
+   "id": "plain-escape-run-30",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\// c b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "c29a7770"
+  },
+  {
+   "id": "plain-escape-run-31",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\// c c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "ac4eb671"
+  },
+  {
+   "id": "plain-escape-run-32",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\// c away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:32 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "a77a1fbd"
+  },
+  {
+   "id": "plain-escape-run-33",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a // c b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a // c b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "a37a944b"
+  },
+  {
+   "id": "plain-escape-run-34",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\// c b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a // c b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a // c b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "67bab978"
+  },
+  {
+   "id": "plain-escape-run-35",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/*\\/* c */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:27 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "6cf339f6"
+  },
+  {
+   "id": "plain-escape-run-36",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/*\\/* c */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:23 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "29784bf1"
+  },
+  {
+   "id": "plain-escape-run-37",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/*\\/* c */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:28 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "d2c22360"
+  },
+  {
+   "id": "plain-escape-run-38",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/*\\/* c */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:31 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "62a24edd"
+  },
+  {
+   "id": "plain-escape-run-39",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\/*\\/* c */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:38 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "ceffa075"
+  },
+  {
+   "id": "plain-escape-run-40",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /*/* c */ b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /*/* c */ b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "b3abb372"
+  },
+  {
+   "id": "plain-escape-run-41",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/*\\/* c */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /*/* c */ b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /*/* c */ b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "4dcb6f2a"
+  },
+  {
+   "id": "plain-escape-run-42",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* > */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:24 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "3b745964"
+  },
+  {
+   "id": "plain-escape-run-43",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* > */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true"
+   ],
+   "runs": [
+    {
+     "out": "Go true Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:20 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "09edcf3f"
+  },
+  {
+   "id": "plain-escape-run-44",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* > */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:25 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "6c83a824"
+  },
+  {
+   "id": "plain-escape-run-45",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* > */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:28 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "afee0e20"
+  },
+  {
+   "id": "plain-escape-run-46",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go *far {x \\/* > */ away* now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go *far true"
+   ],
+   "runs": [
+    {
+     "out": "Go *far true\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:14-4:35 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:17-4:18 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "a572217a"
+  },
+  {
+   "id": "plain-escape-run-47",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* > */ b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* > */ b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "c2406b57"
+  },
+  {
+   "id": "plain-escape-run-48",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* > */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* > */ b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* > */ b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "9814c65c"
+  },
+  {
+   "id": "plain-escape-run-49",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* )) */ now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true)) */ now"
+   ],
+   "runs": [
+    {
+     "out": "Go true)) */ now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "55423719"
+  },
+  {
+   "id": "plain-escape-run-50",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go {x \\/* )) */ -> next\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go true)) */"
+   ],
+   "runs": [
+    {
+     "out": "Go true)) */ Next.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:13 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:9-4:16 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}"
+   ],
+   "scopes": "0b750e27"
+  },
+  {
+   "id": "plain-escape-run-51",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a {x \\/* )) */ b] c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a true)) */ b"
+   ],
+   "runs": [
+    {
+     "out": "Go c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:12-4:19 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:15-4:16 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}"
+   ],
+   "scopes": "37bd6499"
+  },
+  {
+   "id": "plain-escape-run-52",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go [a] b {x \\/* )) */ c\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go a"
+   ],
+   "runs": [
+    {
+     "out": "Go b true)) */ c\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [
+    "1@4:15-4:22 {\"kind\":\"markdown\",\"value\":\"Malformed interpolated string; did you forget to add a `}`?\"}",
+    "1@4:18-4:19 {\"kind\":\"markdown\",\"value\":\"Expected the end of the expression, got '\\\\'\"}",
+    "1@4:22-4:23 {\"kind\":\"markdown\",\"value\":\"Expected identifier when parsing expression, got ')'\"}"
+   ],
+   "scopes": "6a3a1fe8"
+  },
+  {
+   "id": "plain-escape-run-54",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b| now\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* )) */ b| now"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* )) */ b| now\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "d4ba6fe8"
+  },
+  {
+   "id": "plain-escape-run-55",
+   "source": "store t = {\"a\", \"b\"}\nstore x = true\nscene start\n  choose\n    + Go .. cycle |a \\/* )) */ b .. x\n      Body.\n      done\n  end\nend\nscene next\n  Next.\n  done\nend\n",
+   "first": "",
+   "choices": [
+    "Go .. cycle |a /* )) */ b .. x"
+   ],
+   "runs": [
+    {
+     "out": "Go .. cycle |a /* )) */ b .. x\nBody.\n",
+     "errs": []
+    }
+   ],
+   "rt": [],
+   "diags": [],
+   "scopes": "6345a0ff"
   }
  ]
 }

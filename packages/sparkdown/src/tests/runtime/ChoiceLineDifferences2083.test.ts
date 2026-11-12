@@ -181,6 +181,9 @@ const ESCAPED_OPENER_LINES = [
   ["an audio command, before an arrow it does not hide", "+ Go ((a \\/* -> next */ b)) now", "Go ((a /*"],
   ["a styled span", "+ Go *far \\/* c */ away* now", "Go *far /* c */ away* now"],
   ["a line comment opener", "+ Go \\// c -> next", "Go // c"],
+  ["an interpolation left unclosed", "+ Go {x \\/* c */ now", "Go true"],
+  ["an interpolation left unclosed, before a comment it would run on", "+ Go {x \\/* c now", "Go true"],
+  ["a glued alternator", "+ Go .. cycle |a \\/* c */ b| now", "Go .. cycle |a /* c */ b| now"],
 ] as const;
 
 const RAW_LINES = [
