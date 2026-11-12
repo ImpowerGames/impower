@@ -607,6 +607,66 @@ ${TIMING}  clips {
     await flushMicrotasks(10);
     expect(playback.stats).toEqual({ layers: 0, live: 0, occurrences: 0 });
   });
+
+  test("a portrait's drawing and its outline masks appear together, once every mask's image has decoded", async () => {
+    const source = `${SOURCE}
+layout main {
+  stage {
+    portrait {
+      mask.outline
+      mask.rim
+      image
+    }
+  }
+}
+`;
+    const h = createDOMHarness(source, 0, { files: FILES });
+    const view = h.overlay.ownerDocument.defaultView as any;
+    const decodes: { crossOrigin: string | null; src: string; done: () => void }[] = [];
+    const Image = view.Image;
+    view.Image = class {
+      crossOrigin: string | null = null;
+      src = "";
+      decode() {
+        return new Promise<void>((resolve) => decodes.push({ crossOrigin: this.crossOrigin, src: this.src, done: resolve }));
+      }
+    };
+    try {
+      const program = () => h.game.program;
+      const playback = MorphPlayback.for(h.overlay);
+      playback.configure({
+        host: createMorphHost({
+          service: new MorphBakeService({ createObjectURL: () => "blob:rest", revokeObjectURL: () => {} }),
+          channel: () => program().morphs,
+          readSource: inlineMorphSource(() => program().context),
+        }),
+        seed: "test",
+        ...manualFrames(),
+      });
+      await h.ready;
+      await h.preview(lineOf(source, "First line."));
+      const drawing = () => h.overlay.querySelector(".portrait > .image > .instance") as HTMLElement | null;
+      const outlines = () => ["outline", "rim"].map((name) => h.overlay.querySelector(`.portrait > .mask.${name} > .instance`) as HTMLElement);
+      const masked = () => outlines().map((el) => el.style.getPropertyValue("mask-image").includes("blob:rest"));
+      await until(() => decodes.length > 0 || !!drawing()?.querySelector("span.morph"), "the artifact");
+      await flushMicrotasks(10);
+      expect(drawing()!.querySelector("span.morph")).toBeNull();
+      expect(masked()).toEqual([false, false]);
+      expect(decodes.map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([
+        { crossOrigin: "anonymous", src: "blob:rest" },
+        { crossOrigin: "anonymous", src: "blob:rest" },
+      ]);
+      decodes[0]!.done();
+      await flushMicrotasks(10);
+      expect(drawing()!.querySelector("span.morph")).toBeNull();
+      expect(masked()).toEqual([false, false]);
+      decodes[1]!.done();
+      await until(() => !!drawing()?.querySelector("span.morph"), "the drawing");
+      expect(masked()).toEqual([true, true]);
+    } finally {
+      view.Image = Image;
+    }
+  });
 });
 
 describe("morph layers", () => {

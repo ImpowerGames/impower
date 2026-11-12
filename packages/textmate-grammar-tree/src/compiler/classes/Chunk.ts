@@ -12,7 +12,9 @@ import { type ITreeBuffer } from "../types/ITreeBuffer";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
 
-export const CHUNK_ARRAY_INTERVAL = 1024;
+export const CHUNK_ARRAY_INITIAL_LENGTH = 32;
+
+const EMPTY_COMPILED = new Int32Array(0);
 
 export const TREE_BUFFER_LENGTH_LIMIT = 2 ** 16;
 
@@ -23,7 +25,7 @@ export class Chunk {
 
   length = 0;
 
-  compiled = new Int32Array(CHUNK_ARRAY_INTERVAL);
+  compiled = EMPTY_COMPILED;
 
   stack: CompileStack = new CompileStack();
 
@@ -45,7 +47,7 @@ export class Chunk {
 
   resume?: TokenizerResume;
 
-  entrySeeds?: { ids: number[]; children: number[]; absPositions: number[] };
+  entrySeeds?: { ids: readonly number[]; children: number[] };
 
   inheritedCloseRecords?: { seedIndex: number; offset: number }[];
 
@@ -69,31 +71,24 @@ export class Chunk {
     this.from += offset;
     this.to = this.from + this.length;
     if (this.resume) {
-      for (const f of this.resume.frames) {
-        f.openedAtAbs += offset;
-      }
-    }
-    if (this.entrySeeds) {
-      for (let i = 0; i < this.entrySeeds.absPositions.length; i++) {
-        this.entrySeeds.absPositions[i]! += offset;
+      const openedAtAbs = this.resume.openedAtAbs;
+      for (let i = 0; i < openedAtAbs.length; i++) {
+        openedAtAbs[i]! += offset;
       }
     }
   }
 
   inheritFrom(prev: Chunk) {
     this.startsPure = false;
-    const ids: number[] = [];
-    const children: number[] = [];
-    const absPositions: number[] = [];
-    for (let i = 0; i < prev.stack.length; i++) {
-      const prevRelative = prev.stack.positions[i]! | 0;
-      const abs = prev.from + prevRelative;
-      this.stack.push(prev.stack.ids[i]!, abs - this.from, prev.stack.children[i]!);
-      ids.push(prev.stack.ids[i]!);
-      children.push(prev.stack.children[i]!);
-      absPositions.push(abs);
+    const stack = prev.stack;
+    const length = stack.length;
+    const children = new Array<number>(length);
+    for (let i = 0; i < length; i++) {
+      const abs = prev.from + stack.position(i);
+      this.stack.push(stack.id(i), abs - this.from, stack.childCount(i));
+      children[i] = stack.childCount(i);
     }
-    this.entrySeeds = { ids, children, absPositions };
+    this.entrySeeds = { ids: seedIds(stack, prev.entrySeeds?.ids), children };
     if (prev.scopes && prev.scopes.length > 0) {
       this.scopes = prev.scopes.slice();
     }
@@ -188,7 +183,9 @@ export class Chunk {
 
     if (idx + 4 > this.compiled.length) {
       const old = this.compiled;
-      this.compiled = new Int32Array(old.length + CHUNK_ARRAY_INTERVAL);
+      this.compiled = new Int32Array(
+        Math.max(CHUNK_ARRAY_INITIAL_LENGTH, old.length * 2),
+      );
       this.compiled.set(old);
     }
 
@@ -223,4 +220,25 @@ export class Chunk {
     }
     return index;
   }
+}
+
+function seedIds(stack: CompileStack, previous?: readonly number[]): readonly number[] {
+  const length = stack.length;
+  if (previous && previous.length === length) {
+    let same = true;
+    for (let i = 0; i < length; i++) {
+      if (previous[i] !== stack.id(i)) {
+        same = false;
+        break;
+      }
+    }
+    if (same) {
+      return previous;
+    }
+  }
+  const ids = new Array<number>(length);
+  for (let i = 0; i < length; i++) {
+    ids[i] = stack.id(i);
+  }
+  return ids;
 }

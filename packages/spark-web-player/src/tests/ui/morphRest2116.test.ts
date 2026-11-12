@@ -124,7 +124,7 @@ describe("a morph's still, first frame and rest in the page", () => {
     expect(showsState(span, baked.artifact!, "closed")).toBe(false);
   });
 
-  test("a layer still pending keeps its still while another layer of the stack draws live", async () => {
+  test("a stack keeps every image's still until all of its artifacts are ready, and the rest while playback is off", async () => {
     const env = installJSDOM();
     restore = env.restore;
     const inner = createMorphHost({
@@ -152,11 +152,16 @@ describe("a morph's still, first frame and rest in the page", () => {
     await flushMicrotasks(10);
     expect(span.style.backgroundImage).toBe(stack.still);
     releases.get("a")!();
-    await until(() => playback.stats.live === 1, "the first artifact");
-    const statics = () => Array.from(span.querySelector(":scope > span.morph")!.shadowRoot!.querySelectorAll("div")).map((div) => div.style.backgroundImage).filter(Boolean);
-    expect(statics()).toEqual(['url("first-b.svg")']);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(span.querySelector(":scope > span.morph")).toBeNull();
+    expect(span.style.backgroundImage).toBe(stack.still);
     playback.setEnabled(false);
-    expect(statics()).toEqual(['url("rest-b.svg")']);
+    expect(span.style.backgroundImage).toBe('url("rest-b.svg"), url("rest-a.svg")');
+    playback.setEnabled(true);
+    expect(span.style.backgroundImage).toBe(stack.still);
+    releases.get("b")!();
+    await until(() => playback.stats.live === 1, "both artifacts");
+    expect(span.style.backgroundImage).toBe("none");
   });
 
   test("a mask shows the rest, never the still", async () => {

@@ -278,8 +278,9 @@ export class Compiler {
     const scopes = chunk.scopes;
     const scopesCopy = scopes?.slice();
     const stack = chunk.stack;
-    const { ids, positions, children } = stack;
-    const stackCopy = new CompileStack(stack);
+    const entries = stack.entries;
+    const stackLength = stack.length;
+    const entriesCopy = entries.slice(0, stackLength * 3);
     journal.undo.push(() => {
       chunk.to = to;
       chunk.length = length;
@@ -295,13 +296,9 @@ export class Compiler {
         scopes.push(...scopesCopy!);
       }
       chunk.scopes = scopes;
-      ids.set(stackCopy.ids);
-      positions.set(stackCopy.positions);
-      children.set(stackCopy.children);
-      stack.ids = ids;
-      stack.positions = positions;
-      stack.children = children;
-      stack.length = stackCopy.length;
+      entries.set(entriesCopy);
+      stack.entries = entries;
+      stack.length = stackLength;
       chunk.stack = stack;
     });
   }
@@ -309,9 +306,8 @@ export class Compiler {
   protected journalFixup(chunk: Chunk) {
     const seeds = chunk.entrySeeds;
     const seedChildren = seeds?.children.slice();
-    const seedPositions = seeds?.absPositions.slice();
-    const frames = chunk.resume?.frames;
-    const frameOpenings = frames?.map((f) => f.openedAtAbs);
+    const openedAtAbs = chunk.resume?.openedAtAbs;
+    const frameOpenings = openedAtAbs?.slice();
     const compiled = chunk.compiled;
     const closes = chunk.inheritedCloseRecords?.map((rec) => [
       rec.offset,
@@ -319,22 +315,17 @@ export class Compiler {
       compiled[rec.offset + 3]!,
     ]);
     const stack = chunk.stack;
-    const stackChildren = stack.children.slice();
-    const stackPositions = stack.positions.slice();
+    const entriesCopy = stack.entries.slice(0, stack.length * 3);
     this._journal!.undo.push(() => {
       if (seeds) {
         seedChildren!.forEach((n, i) => (seeds.children[i] = n));
-        seedPositions!.forEach((n, i) => (seeds.absPositions[i] = n));
       }
-      frames?.forEach((f, i) => {
-        f.openedAtAbs = frameOpenings![i]!;
-      });
+      frameOpenings?.forEach((n, i) => (openedAtAbs![i] = n));
       for (const [offset, position, size] of closes ?? []) {
         compiled[offset! + 1] = position!;
         compiled[offset! + 3] = size!;
       }
-      stack.children.set(stackChildren);
-      stack.positions.set(stackPositions);
+      stack.entries.set(entriesCopy);
     });
   }
 
@@ -496,7 +487,6 @@ export class Compiler {
       const prefix = Math.min(m, seeds.ids.length);
       for (let i = 0; i < prefix; i++) {
         seeds.children[i]! += deltas[i]!;
-        seeds.absPositions[i] = trueAbs[i]!;
       }
       if (chunk.resume) {
         let consumed = 0;
@@ -509,8 +499,9 @@ export class Compiler {
             break;
           }
         }
-        for (let i = 0; i < groups && i < chunk.resume.frames.length; i++) {
-          chunk.resume.frames[i]!.openedAtAbs = frameOpenPositions[i]!;
+        const openedAtAbs = chunk.resume.openedAtAbs;
+        for (let i = 0; i < groups && i < openedAtAbs.length; i++) {
+          openedAtAbs[i] = frameOpenPositions[i]!;
         }
       }
       let mNext = m;
@@ -526,8 +517,8 @@ export class Compiler {
       }
       const stackPrefix = Math.min(mNext, chunk.stack.length);
       for (let i = 0; i < stackPrefix; i++) {
-        chunk.stack.children[i]! += deltas[i]!;
-        chunk.stack.positions[i] = trueAbs[i]! - chunk.from;
+        chunk.stack.addChildren(i, deltas[i]!);
+        chunk.stack.setPosition(i, trueAbs[i]! - chunk.from);
       }
       m = mNext;
     }

@@ -314,7 +314,7 @@ export function ToolPanel({
       <div
         class={cn(
           "min-h-0 flex-1",
-          scroll ? "overflow-y-auto" : "flex flex-col",
+          scroll ? "overflow-y-auto overscroll-contain" : "flex flex-col",
         )}
       >
         {children}
