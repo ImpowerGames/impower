@@ -53,6 +53,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { startingDisplayModeRequest } from "../utils/previewStartingMode";
+import { simulatedColorSchemeRequest } from "../utils/previewColorScheme";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -209,6 +210,10 @@ export class SparkdownPreviewGamePanelManager {
     this._panel?.webview.postMessage(startingDisplayModeRequest());
   }
 
+  notifyChangedColorTheme() {
+    this._panel?.webview.postMessage(simulatedColorSchemeRequest());
+  }
+
   protected sendControls() {
     this._panel?.webview.postMessage(
       SetPreviewControlsMessage.type.notification({
@@ -336,6 +341,7 @@ export class SparkdownPreviewGamePanelManager {
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
         this.sendControls();
         this.sendStartingDisplayMode();
+        this.notifyChangedColorTheme();
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -513,6 +519,7 @@ export class SparkdownPreviewGamePanelManager {
       if (GameStartedMessage.type.isNotification(message)) {
         this._gameRunning = true;
         this.sendStartingDisplayMode();
+        this.notifyChangedColorTheme();
         if (!vscode.debug.activeDebugSession) {
           vscode.commands.executeCommand("sparkdown.debugGame");
         }

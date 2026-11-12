@@ -17,7 +17,8 @@ const CONFIG_NAMES = [
   "sparkdown.language-config",
   "sparkdown-luau.language-config",
 ];
-const CONFIG_BUILDS = CONFIG_NAMES.flatMap((name) =>
+const IN_CONFIG_VARIABLES_PATH = "./yaml/sparkdown.language-config-variables.yaml";
+const CONFIG_BUILDS =CONFIG_NAMES.flatMap((name) =>
   outPaths.map((outPath) => ({
     inPath: `./yaml/${name}.yaml`,
     outPath: `${outPath}/${name}.json`,
@@ -114,9 +115,34 @@ export const updateGrammarVariables = (
   grammar: TmGrammar,
   scopeReplacementRules?: VariableReplacer[],
 ) => {
-  const variables = grammar.variables;
-  const luauLists = LUAU_LISTS.get(grammar);
+  const rawPatterns = resolveVariables(
+    grammar.variables,
+    LUAU_LISTS.get(grammar),
+  );
 
+  const variableReplacers: VariableReplacer[] = Object.entries(rawPatterns).map(
+    ([name, value]) => [new RegExp(`{{${name}}}`, "gim"), value],
+  );
+
+  transformGrammarRepository(grammar, ["begin", "end", "match"], (pattern) =>
+    replacePatternVariables(pattern, variableReplacers),
+  );
+
+  if (scopeReplacementRules) {
+    transformGrammarRepository(grammar, ["name"], (pattern) =>
+      replaceScopes(pattern, scopeReplacementRules),
+    );
+  }
+
+  checkNoZeroWidthInPatterns(grammar);
+
+  return grammar;
+};
+
+const resolveVariables = (
+  variables: MapLike<string | string[]> | undefined,
+  luauLists: Set<string> | undefined,
+): Record<string, string> => {
   const rawPatterns: Record<string, string> = {};
   for (const variableName in variables) {
     const variable = variables[variableName];
@@ -185,23 +211,39 @@ export const updateGrammarVariables = (
     }
   }
 
-  const variableReplacers: VariableReplacer[] = Object.entries(rawPatterns).map(
-    ([name, value]) => [new RegExp(`{{${name}}}`, "gim"), value],
-  );
+  return rawPatterns;
+};
 
-  transformGrammarRepository(grammar, ["begin", "end", "match"], (pattern) =>
-    replacePatternVariables(pattern, variableReplacers),
-  );
+const CONFIG_TOKEN_REGEX = /{{([A-Za-z_][A-Za-z0-9_]*)}}/g;
 
-  if (scopeReplacementRules) {
-    transformGrammarRepository(grammar, ["name"], (pattern) =>
-      replaceScopes(pattern, scopeReplacementRules),
+const replaceConfigVariables = (
+  value: unknown,
+  resolved: Record<string, string>,
+  configPath: string,
+): unknown => {
+  if (typeof value === "string") {
+    return value.replace(CONFIG_TOKEN_REGEX, (_whole, name: string) => {
+      const pattern = resolved[name];
+      if (pattern === undefined) {
+        throw new Error(
+          `Config build: ${configPath} references undefined variable {{${name}}}`,
+        );
+      }
+      return pattern;
+    });
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => replaceConfigVariables(item, resolved, configPath));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        replaceConfigVariables(item, resolved, configPath),
+      ]),
     );
   }
-
-  checkNoZeroWidthInPatterns(grammar);
-
-  return grammar;
+  return value;
 };
 
 function checkNoZeroWidthInPatterns(grammar: TmGrammar): void {
@@ -479,6 +521,19 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   await writeJson(YAML.parse(text), inYamlPath, outJsonPath);
 };
 
+const buildConfigJson = async (inYamlPath: string, outJsonPath: string) => {
+  const config = YAML.parse(await fs.promises.readFile(inYamlPath, "utf8"));
+  const variables = YAML.parse(
+    await fs.promises.readFile(IN_CONFIG_VARIABLES_PATH, "utf8"),
+  );
+  const resolved = resolveVariables(variables, undefined);
+  await writeJson(
+    replaceConfigVariables(config, resolved, inYamlPath) as TmGrammar,
+    [inYamlPath, IN_CONFIG_VARIABLES_PATH],
+    outJsonPath,
+  );
+};
+
 const readGrammarSource = async () => {
   const story = YAML.parse(await fs.promises.readFile(IN_GRAMMAR_PATH, "utf8"));
   const luau = YAML.parse(
@@ -580,7 +635,7 @@ const buildLayoutVerbsModule = async (outGrammarPath: string) => {
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
-    CONFIG_BUILDS.map(({ inPath, outPath }) => buildJson(inPath, outPath)),
+    CONFIG_BUILDS.map(({ inPath, outPath }) => buildConfigJson(inPath, outPath)),
   );
   await Promise.all(
     OUT_GRAMMAR_PATHS.map((outPath) => buildGrammarJson(outPath)),

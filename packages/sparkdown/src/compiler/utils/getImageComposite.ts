@@ -6,7 +6,6 @@ import {
 } from "../../thumbnails/composeThumbnail";
 import {
   buildImagePreviewMarkup,
-  getImagePreviewMarkup,
   getImagePreviewSrc,
 } from "./getImagePreviewSrc";
 import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
@@ -186,22 +185,23 @@ export const getImageCompositeSrc = async (
   return value || undefined;
 };
 
+export const getImagePreviewSrcComposited = async (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  struct: any,
+  options?: ImageCompositeOptions,
+): Promise<string | undefined> => {
+  const rest = await options?.morphRest?.(context, struct);
+  if (rest) {
+    return `data:image/svg+xml,${encodeURIComponent(rest)}`;
+  }
+  return (await getImageCompositeSrc(context, struct, options)) ?? getImagePreviewSrc(context, struct);
+};
+
 export const getImagePreviewMarkupComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const name = struct?.["$name"] ?? "";
-  const rest = await options?.morphRest?.(context, struct);
-  if (rest) {
-    return buildImagePreviewMarkup(`data:image/svg+xml,${encodeURIComponent(rest)}`, name);
-  }
-  const composite = await getImageCompositeSrc(context, struct, options);
-  if (composite) {
-    return buildImagePreviewMarkup(composite, name);
-  }
-  if (getImagePreviewSrc(context, struct)) {
-    return getImagePreviewMarkup(context, struct);
-  }
-  return undefined;
+  const src = await getImagePreviewSrcComposited(context, struct, options);
+  return src ? buildImagePreviewMarkup(src, struct?.["$name"] ?? "") : undefined;
 };

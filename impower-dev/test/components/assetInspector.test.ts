@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
+  coarse: false,
 }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
+  useCoarsePointer: () => layout.coarse,
 }));
 
 type Listener = (facts: { uses: unknown[] | null; problems: unknown[] | null }) => void;
@@ -31,7 +33,15 @@ const assets = vi.hoisted(() => ({
     };
   }),
   replace: vi.fn(async (path: string) => path),
-  download: vi.fn(async () => undefined),
+  download: vi.fn(async (_path: string) => undefined),
+  downloadAll: vi.fn(async (_paths: readonly string[]) => undefined),
+  watchPicture: vi.fn((_path: string, _variant: { image: string; attributes: string[] }, listener: (src: string | null) => void) => {
+    listener(`/picture/${[_variant.image, ..._variant.attributes].join("~")}`);
+    return () => {};
+  }),
+  renameMember: vi.fn(async (path: string, _name: string) => path),
+  removeMember: vi.fn(async (_path: string) => undefined),
+  addBeside: vi.fn(async (_files: unknown[], _path: string): Promise<string[]> => []),
   readText: vi.fn(async () => "The lamps come on one by one."),
   setAddress: vi.fn(async () => undefined),
 }));
@@ -139,6 +149,7 @@ const lists = (next: Record<string, unknown>) => {
 
 beforeEach(() => {
   layout.value = "desktop";
+  layout.coarse = false;
   facts.uses = [];
   facts.problems = [];
   facts.listeners = [];
@@ -435,7 +446,7 @@ describe("the asset inspector", () => {
     expect(assets.setAddress).toHaveBeenCalledWith("Assets/Images/Backdrops/sky.url", "https://example.com/sky2.png");
     expect(snackbar.value?.message).toBe("Address saved.");
     await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
-    expect(assets.download).toHaveBeenCalledWith("Assets/Images/Backdrops/sky.url");
+    expect(assets.downloadAll).toHaveBeenCalledWith(["Assets/Images/Backdrops/sky.url"]);
   });
 
   it("is a full-screen sheet with Back in the compact layout, and Back returns focus to the tile that opened it", async () => {
@@ -778,7 +789,7 @@ describe("the asset inspector", () => {
       "harbor.png is an image, and door_chime.wav is a sound. Choose a sound to replace it.",
     );
     await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
-    expect(assets.download).toHaveBeenCalledWith("Assets/Audio/Sounds/door_chime.wav");
+    expect(assets.downloadAll).toHaveBeenCalledWith(["Assets/Audio/Sounds/door_chime.wav"]);
   });
 });
 
@@ -849,5 +860,285 @@ describe("the inspector when its item is renamed, moved or deleted from the page
     expect(assets.remove).toHaveBeenCalledWith([`${P}/imani.png`]);
     await vi.waitFor(() => expect(region()).toBeNull());
     await vi.waitFor(() => expect(host!.contains(document.activeElement)).toBe(true));
+  });
+});
+
+describe("the Variants tester and the Files section", () => {
+  const P = "Assets/Images/Portraits";
+  const IMANI = [
+    `${P}/imani.png`,
+    `${P}/imani~face.happy.png`,
+    `${P}/imani~face.sad.png`,
+    `${P}/imani~mouth.closed~default.png`,
+    `${P}/imani~mouth.open.png`,
+    `${P}/imani@night.png`,
+    `${P}/imani@night~face.happy.png`,
+  ];
+  const MIA = [`${P}/mia/90_body.png`, `${P}/mia/30_face.neutral~default.png`, `${P}/mia/30_face.happy.png`];
+  const reference = () => region()!.querySelector("[data-variant-reference]")!.textContent;
+  const group = (key: string) => region()!.querySelector<HTMLButtonElement>(`[data-variant-group="${key}"]`)!;
+  const pick = async (trigger: HTMLElement, label: string) => {
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitemradio"]').length).toBeGreaterThan(0));
+    await click(all<HTMLElement>('[role="menuitemradio"]').find((el) => el.textContent?.startsWith(label)));
+  };
+  const fileMenu = async (name: string, item: string) => {
+    const trigger = region()!.querySelector<HTMLElement>(`button[aria-label="Options for ${name}"]`)!;
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
+    await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes(item)));
+  };
+
+  beforeEach(() => {
+    lists({ assetsType: "image", assetsFolders: { image: P } });
+    workspace.assetListing.value = {
+      projectId: PROJECT,
+      folders: [`${P}/mia`],
+      files: Object.fromEntries([...IMANI, ...MIA].map((path, i) => [path, fact(1024 * (i + 1))])),
+    };
+  });
+
+  it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {
+    await mount();
+    await open("imani");
+    expect(subtitle()).toBe("Image · PNG · 5 variants");
+    expect(sectionTitles()).toEqual(["Variants", "Details", "Files", "Not used yet"]);
+    expect([group("@"), group("face"), group("mouth")].map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Alternate: As is",
+      "Face: As is",
+      "Mouth: Closed",
+    ]);
+    expect(reference()).toBe("[[imani]]");
+    expect(region()!.querySelector("[data-variant-reset]")).toBeNull();
+    await pick(group("face"), "Happy");
+    expect(reference()).toBe("[[imani:happy]]");
+    expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function));
+    expect(region()!.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/picture/imani~happy");
+    await pick(group("@"), "Night");
+    expect(reference()).toBe("[[imani@night:happy]]");
+    await click(region()!.querySelector<HTMLElement>("[data-variant-reset]"));
+    expect(reference()).toBe("[[imani]]");
+  });
+
+  it("shows the reference as a portrait from its folder, as a backdrop when chosen, and copies it", async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await mount();
+    await open("imani");
+    const backdrop = region()!.querySelector<HTMLInputElement>('input[type="radio"][value="backdrop"]')!;
+    expect(region()!.querySelector<HTMLInputElement>('input[type="radio"][value="portrait"]')!.checked).toBe(true);
+    await act(async () => {
+      backdrop.checked = true;
+      backdrop.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(reference()).toBe("[[show backdrop imani]]");
+    await click(region()!.querySelector<HTMLElement>("[data-variant-copy]"));
+    expect(writeText).toHaveBeenCalledWith("[[show backdrop imani]]");
+    expect(snackbar.value?.message).toBe("Copied.");
+  });
+
+  it("lists every file with its role, and renames, downloads and deletes one file", async () => {
+    await mount();
+    await open("imani");
+    const files = region()!.querySelector<HTMLElement>('section[aria-label="Files"]')!;
+    expect(files.querySelector("h3")!.nextElementSibling!.textContent).toBe("7 files · 28 kB");
+    const rows = [...files.querySelectorAll<HTMLElement>("[data-file-path]")].map((row) => row.textContent);
+    expect(rows).toContain("imani~mouth.closed~default.pngLayer · mouth.closed · default · 4 kB");
+    expect(rows).toContain("imani@night.pngAlternate · night · 6 kB");
+    await fileMenu("imani~face.sad.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani~face.sad.png"]')!;
+    expect(input.value).toBe("imani~face.sad");
+    await act(async () => {
+      input.value = "imani~face.glum";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(assets.renameMember).toHaveBeenCalledWith(`${P}/imani~face.sad.png`, "imani~face.glum");
+    await fileMenu("imani@night.png", "Download");
+    expect(assets.download).toHaveBeenCalledWith(`${P}/imani@night.png`);
+    await fileMenu("imani~mouth.open.png", "Delete");
+    await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
+    expect(assets.removeMember).toHaveBeenCalledWith(`${P}/imani~mouth.open.png`);
+    await click(region()!.querySelector<HTMLElement>("[data-inspector-download]"));
+    expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/imani.png`]);
+  });
+
+  it("draws nothing for a combination that shows no layer, and says when the picture could not be drawn", async () => {
+    for (const answer of ["", null]) {
+      assets.watchPicture.mockImplementationOnce((_path: string, _variant: unknown, listener: (src: string | null) => void) => {
+        listener(answer);
+        return () => {};
+      });
+    }
+    await mount();
+    await open("imani");
+    const frame = () => region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
+    expect(frame().querySelector("img")).toBeNull();
+    expect(frame().querySelector("[data-frame-failed]")).toBeNull();
+    await pick(group("face"), "Happy");
+    expect(frame().querySelector("img")).toBeNull();
+    expect(frame().querySelector("[data-frame-failed]")?.textContent).toBe("This picture could not be shown.");
+  });
+
+  it("shows a combination again after another one's picture failed to load", async () => {
+    await mount();
+    await open("imani");
+    const frame = () => region()!.querySelector<HTMLElement>("[data-zoom-frame]")!;
+    await pick(group("face"), "Happy");
+    await act(async () => {
+      frame().querySelector("img")!.dispatchEvent(new Event("error"));
+    });
+    await settle();
+    expect(frame().querySelector("[data-frame-failed]")).not.toBeNull();
+    await pick(group("face"), "Sad");
+    expect(frame().querySelector("img")!.getAttribute("src")).toBe("/picture/imani~sad");
+    expect(frame().querySelector("[data-frame-failed]")).toBeNull();
+  });
+
+  it("stays open on the picture when a Files action renames, adds or deletes the file that covers it", async () => {
+    const M = `${P}/mia`;
+    const setFiles = (paths: string[]) => {
+      workspace.assetListing.value = {
+        projectId: PROJECT,
+        folders: [M],
+        files: Object.fromEntries(paths.map((path, i) => [path, fact(1024 * (i + 1))])),
+      };
+    };
+    lists({ assetsType: "image", assetsFolders: { image: M } });
+    setFiles([`${M}/90_body.png`, `${M}/30_face.happy.png`]);
+    assets.renameMember.mockImplementationOnce(async () => {
+      setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]);
+      return `${M}/95_body.png`;
+    });
+    await mount();
+    await open("mia");
+    await fileMenu("90_body.png", "Rename");
+    const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename 90_body.png"]')!;
+    await act(async () => {
+      input.value = "95_body";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await settle();
+    expect(title()).toBe("mia");
+    await act(async () => setFiles([`${M}/99_paper.png`, `${M}/95_body.png`, `${M}/30_face.happy.png`]));
+    await settle();
+    expect(title()).toBe("mia");
+    assets.removeMember.mockImplementationOnce(async () => setFiles([`${M}/95_body.png`, `${M}/30_face.happy.png`]));
+    await fileMenu("99_paper.png", "Delete");
+    await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Delete"));
+    expect(title()).toBe("mia");
+    expect(region()!.querySelector('[data-file-path$="99_paper.png"]')).toBeNull();
+  });
+
+  it("says why storage refused to add or download a file", async () => {
+    await mount();
+    await open("imani");
+    assets.addBeside.mockRejectedValueOnce({ code: -32000, message: "The storage is full" });
+    const picker = region()!.querySelector<HTMLInputElement>("[data-file-picker]")!;
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani~hat.on.png")], configurable: true });
+    await act(async () => {
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(snackbar.value?.message).toBe("The storage is full");
+    assets.download.mockRejectedValueOnce({ code: -32000, message: "The file could not be read" });
+    await fileMenu("imani@night.png", "Download");
+    expect(snackbar.value?.message).toBe("The file could not be read");
+  });
+
+  it("adds a picked file beside the base", async () => {
+    await mount();
+    await open("imani");
+    const picker = region()!.querySelector<HTMLInputElement>("[data-file-picker]")!;
+    Object.defineProperty(picker, "files", { value: [new File(["png"], "imani~hat.on.png")], configurable: true });
+    await act(async () => {
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(assets.addBeside).toHaveBeenCalledWith([expect.objectContaining({ name: "imani~hat.on.png" })], `${P}/imani.png`);
+    expect(region()!.querySelector("[data-file-note]")!.textContent).toBe(
+      "A file named imani~group.option.png adds a layer and imani@name.png another alternate.",
+    );
+  });
+
+  it.each(["phone", "desktop"] as const)(
+    "cancels the wheel with Escape and keeps the %s inspector open, with focus back on the group",
+    async (host) => {
+      layout.value = host;
+      layout.coarse = true;
+      await mount();
+      await open("imani");
+      await click(group("face"));
+      const wheel = document.querySelector<HTMLElement>("[data-wheel-sheet] [role=listbox]")!;
+      expect(document.activeElement).toBe(wheel);
+      await key(wheel, "Escape");
+      expect(document.querySelector("[data-wheel-sheet]")).toBeNull();
+      expect(region()).not.toBeNull();
+      expect(document.activeElement).toBe(group("face"));
+    },
+  );
+
+  it("turns a wheel in a sheet on a coarse pointer, previewing as it turns and choosing with Done", async () => {
+    layout.coarse = true;
+    const tops = new WeakMap<Element, number>();
+    const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+    Object.defineProperty(Element.prototype, "scrollTop", {
+      configurable: true,
+      get(this: Element) {
+        return tops.get(this) ?? 0;
+      },
+      set(this: Element, top: number) {
+        tops.set(this, top);
+        this.dispatchEvent(new Event("scroll"));
+      },
+    });
+    try {
+      await mount();
+      await open("imani");
+      await click(group("face"));
+      const wheel = document.querySelector<HTMLElement>('[role="dialog"] [role="listbox"]')!;
+      expect(wheel.getAttribute("aria-label")).toBe("Face");
+      await key(wheel, "ArrowDown");
+      await vi.waitFor(() =>
+        expect(assets.watchPicture).toHaveBeenLastCalledWith(`${P}/imani.png`, { image: "imani", attributes: ["happy"] }, expect.any(Function)),
+      );
+      expect(reference()).toBe("[[imani]]");
+      await click(all<HTMLElement>('[role="dialog"] button').find((button) => button.textContent === "Done"));
+      expect(reference()).toBe("[[imani:happy]]");
+    } finally {
+      Object.defineProperty(Element.prototype, "scrollTop", scrollTop);
+    }
+  });
+
+  it("shows a folder stack as one picture with the same tester, and keeps its Rename and Move to the folder", async () => {
+    lists({ assetsType: "image", assetsFolders: { image: `${P}/mia` } });
+    await mount();
+    await open("mia");
+    expect(group("face").getAttribute("aria-label")).toBe("Face: Neutral");
+    await pick(group("face"), "Happy");
+    expect(reference()).toBe("[[mia:happy]]");
+    expect(region()!.querySelector("[data-file-note]")!.textContent).toContain("NN_group.option.png");
+    const trigger = all<HTMLElement>('button[aria-label="Options for mia"]')[0]!;
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
+    const items = all<HTMLElement>('[role="menuitem"]');
+    const reason = "mia is made of the numbered files in its folder. Rename or move the folder mia instead.";
+    for (const label of ["Rename", "Move…"]) {
+      const item = items.find((el) => el.textContent?.startsWith(label))!;
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+      expect(item.textContent).toBe(label + reason);
+    }
   });
 });

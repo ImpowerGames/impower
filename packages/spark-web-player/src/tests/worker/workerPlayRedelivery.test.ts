@@ -280,3 +280,116 @@ describe("a redelivered line behaves as a line already read (#2031)", () => {
     }
   }, 120_000);
 });
+
+const SPOKEN = `define bell as audio with
+  src = "https://example.com/bell.wav"
+end
+
+define door as audio with
+  src = "https://example.com/door.wav"
+end
+
+define rain as audio with
+  src = "https://example.com/rain.wav"
+  loop = true
+end
+
+-> start
+
+scene start
+  HERO:
+    The first line.
+
+  HERO:
+    ((play voice bell))
+    ((play sound door))
+    ((play sound rain))
+    The second line.
+
+  HERO:
+    ((play voice bell))
+    ((play sound door))
+    The third line.
+end
+`;
+
+const startsOf = (messages: any[]): string[] => {
+  const starts: string[] = [];
+  const visit = (message: any) => {
+    if (message?.method === "ui/beat") {
+      for (const op of message.params?.messages ?? []) visit(op);
+      return;
+    }
+    if (message?.method !== "audio/update") return;
+    const { channel, updates } = message.params;
+    if (channel !== "voice" && channel !== "sound") return;
+    for (const update of updates ?? []) {
+      if (update.control === "start") starts.push(`${channel} ${update.key}`);
+    }
+  };
+  for (const message of messages) visit(message);
+  return starts.sort();
+};
+
+const SPOKEN_STARTS = ["sound audio.door", "sound audio.rain", "voice audio.bell"];
+
+describe("the voice line and sounds of a line PLAY redelivers after an edit (#2118)", () => {
+  it("plays them when PLAY lands on the line", async () => {
+    const { h } = await playing(SPOKEN);
+    try {
+      expect(startsOf(h.toRouter)).toEqual(SPOKEN_STARTS);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("starts no voice line or one-shot sound again when an edit elsewhere leaves the line unchanged, and keeps its loop", async () => {
+    const { h, editWords } = await playing(SPOKEN);
+    try {
+      const after = await editWords("The third line.", "The third line, edited.");
+      expect(writesOf(after, "The second line.")).toEqual([true]);
+      expect(startsOf(after)).toEqual(["sound audio.rain"]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("plays them again when the edit changed the line's text", async () => {
+    const { h, editWords } = await playing(SPOKEN);
+    try {
+      const after = await editWords("The second line.", "The second line, edited.");
+      expect(writesOf(after, "The second line, edited.")).toEqual([false]);
+      expect(startsOf(after)).toEqual(SPOKEN_STARTS);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("plays them again when the author restarts the run", async () => {
+    const { h } = await playing(SPOKEN);
+    try {
+      const at = h.toRouter.length;
+      await h.controller.handleRestartGame({ id: 1 });
+      await settle(40);
+      await h.tick(1000 / 60, 120);
+      expect(startsOf(h.toRouter.slice(at))).toEqual(SPOKEN_STARTS);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("plays the next line's voice line and sound when the reader advances past the redelivered line", async () => {
+    const { h, editWords } = await playing(SPOKEN);
+    try {
+      await editWords("The first line.", "The first line, edited.");
+      const at = h.toRouter.length;
+      h.controller._app.emit(EventMessage.type.notification({ type: "pointerdown", button: 0 } as never));
+      await settle(20);
+      await h.tick(1000 / 60, 120);
+      expect(writesOf(h.toRouter.slice(at), "The third line.")).toHaveLength(1);
+      expect(startsOf(h.toRouter.slice(at))).toEqual(["sound audio.door", "voice audio.bell"]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});

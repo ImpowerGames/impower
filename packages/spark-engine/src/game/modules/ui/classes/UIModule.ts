@@ -134,6 +134,10 @@ import {
   type SetThemeMessageMap,
 } from "./messages/SetThemeMessage";
 import {
+  COLOR_SCHEME_SETTINGS,
+  type ColorSchemeSetting,
+} from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
+import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -406,6 +410,9 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 
 const CUTSCENE_MUSIC_FADE = 0.5;
+
+export const UNKNOWN_COLOR_SCHEME_MESSAGE =
+  "ui.color_scheme must be system, light or dark. Using system.";
 
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
@@ -1690,6 +1697,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected _morphEpoch = 0;
+
+  protected _colorSchemeReported = false;
 
   protected _morphConflicts = new Set<string>();
 
@@ -3583,15 +3592,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   loadTheme(variables: Record<string, string>): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
     const root_text_size = this.context?.config?.ui?.root_text_size;
+    const color_scheme = this.colorSchemeSetting();
     if (breakpoints) {
       this.enqueueUI(
         SetThemeMessage.type.request({
           breakpoints,
           root_text_size,
+          color_scheme,
           variables: Object.keys(variables),
         }),
       );
     }
+  }
+
+  protected colorSchemeSetting(): ColorSchemeSetting {
+    const setting = this.context?.config?.ui?.color_scheme;
+    const known = COLOR_SCHEME_SETTINGS.find((s) => s === setting);
+    if (known) {
+      return known;
+    }
+    if (setting != null && !this._colorSchemeReported) {
+      this._colorSchemeReported = true;
+      this._game.log(UNKNOWN_COLOR_SCHEME_MESSAGE, "warning");
+    }
+    return "system";
   }
 
   hideLayout(...structNames: string[]): void {

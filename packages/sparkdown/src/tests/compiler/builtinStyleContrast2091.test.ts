@@ -41,7 +41,26 @@ const compileBuiltins = (prefix = "") => {
   return { styles: program.styles ?? {}, palette: program.context?.color ?? {} };
 };
 
-const { styles, palette } = compileBuiltins();
+const { styles: authored, palette } = compileBuiltins();
+
+type Scheme = "light" | "dark";
+
+const SCHEMES: Scheme[] = ["light", "dark"];
+
+const VARIANT = /^@theme\((light|dark)\)$/;
+
+const resolveScheme = (block: any, scheme: Scheme): any => {
+  if (!block || typeof block !== "object" || Array.isArray(block)) return block;
+  const resolved: Record<string, any> = {};
+  for (const [key, value] of Object.entries(block)) {
+    if (!VARIANT.test(key)) resolved[key] = resolveScheme(value, scheme);
+  }
+  Object.assign(resolved, resolveScheme(block[`@theme(${scheme})`], scheme) ?? {});
+  return resolved;
+};
+
+const stylesIn = (scheme: Scheme): any =>
+  Object.fromEntries(Object.entries(authored).map(([name, style]) => [name, resolveScheme(style, scheme)]));
 
 const parseColor = (value: unknown, ink?: unknown, depth = 0): Rgba | undefined => {
   if (typeof value !== "string" || depth > 4) return undefined;
@@ -112,7 +131,8 @@ const backgroundPairs = (styles: Record<string, any>): Pair[] => {
   return pairs;
 };
 
-describe("builtin styles that set a background", () => {
+describe.each(SCHEMES)("builtin styles that set a background, in the %s scheme", (scheme) => {
+  const styles = stylesIn(scheme);
   const all = backgroundPairs(styles);
   const pairs = all.filter((p) => {
     const background = parseColor(p.background, p.ink);
@@ -163,4 +183,24 @@ describe("builtin styles that set a background", () => {
     const backdrop = parseColor(prop(styles.loading_backdrop ?? {}, "background_color"));
     expect(ink && backdrop ? worstContrast(ink, backdrop) : 0).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+const ROLE_BARS = { ink: 7, accent: 7, muted: 4.5 } as const;
+
+describe.each(SCHEMES)("the page's colour roles on its ground, in the %s scheme (#2062)", (scheme) => {
+  const styles = stylesIn(scheme);
+  const ground = parseColor(prop(styles.paper, "background_color"));
+
+  test("the ground is a colour the test can measure, and each scheme has its own", () => {
+    const other = stylesIn(scheme === "light" ? "dark" : "light");
+    expect(ground).toBeDefined();
+    expect(ground).not.toEqual(parseColor(prop(other.paper, "background_color")));
+  });
+
+  for (const [role, bar] of Object.entries(ROLE_BARS)) {
+    test(`${role} reads at ${bar}:1 or better`, () => {
+      const ink = parseColor(inkOf(styles[role]));
+      expect(ink && ground ? contrast(ink, ground) : 0).toBeGreaterThanOrEqual(bar);
+    });
+  }
 });

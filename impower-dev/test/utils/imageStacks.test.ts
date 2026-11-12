@@ -98,3 +98,71 @@ describe("the image stack rule", () => {
     expect(imani!.variantCount).toBe(2);
   });
 });
+
+describe("a folder stack", () => {
+  const MIA = [
+    "Assets/Images/Portraits/mia/90_body.png",
+    "Assets/Images/Portraits/mia/30_face.neutral~default.png",
+    "Assets/Images/Portraits/mia/30_face.happy.png",
+    "Assets/Images/Portraits/mia/10_hat.on.png",
+  ];
+
+  it("rolls a folder's numbered files into one thing named after the folder, as the compiler's layered_image", () => {
+    const stacks = imageStacks([...MIA, "Assets/Images/Portraits/mia/notes.png"]);
+    expect(stacks.map((stack) => [stack.kind, stack.name, stack.folder, stack.paths.length])).toEqual([
+      ["folder", "mia", "Assets/Images/Portraits/mia", 4],
+      ["files", "notes", "Assets/Images/Portraits/mia", 1],
+    ]);
+  });
+
+  it("orders its layers bottom first as the engine stacks them and covers it with the bottom layer", () => {
+    const [mia] = imageStacks(MIA);
+    expect(mia!.pictures).toHaveLength(1);
+    expect(mia!.pictures[0]!.alternate).toBeNull();
+    expect(mia!.pictures[0]!.layers).toEqual([
+      "Assets/Images/Portraits/mia/90_body.png",
+      "Assets/Images/Portraits/mia/30_face.happy.png",
+      "Assets/Images/Portraits/mia/30_face.neutral~default.png",
+      "Assets/Images/Portraits/mia/10_hat.on.png",
+    ]);
+    expect(mia!.cover).toBe("Assets/Images/Portraits/mia/90_body.png");
+  });
+
+  it("reads its groups and defaults from the layer names after the order prefix", () => {
+    const [mia] = imageStacks(MIA);
+    expect(mia!.pictures[0]!.groups).toEqual([
+      { name: "face", options: ["happy", "neutral"], switch: false, default: "neutral" },
+      { name: "hat", options: ["on", "off"], switch: true },
+    ]);
+    expect(mia!.variantCount).toBe(4);
+  });
+
+  it("gives the same tester as the file-named form of the same picture", () => {
+    const [folder] = imageStacks(["Assets/Images/imani/01_base.png", "Assets/Images/imani/02_face.happy~default.png"]);
+    const [named] = imageStacks(["Assets/Images/imani.png", "Assets/Images/imani~face.happy~default.png"]);
+    expect(folder!.name).toBe(named!.name);
+    expect(folder!.pictures[0]!.groups).toEqual(named!.pictures[0]!.groups);
+    expect(folder!.variantCount).toBe(named!.variantCount);
+  });
+
+  it("records each member's alternate, layer name and order", () => {
+    const [mia] = imageStacks(MIA);
+    expect(mia!.members).toContainEqual({
+      path: "Assets/Images/Portraits/mia/30_face.neutral~default.png",
+      alternate: null,
+      layer: "face.neutral~default",
+      order: 30,
+    });
+    const [imani] = imageStacks(["A/imani.png", "A/imani@night.png", "A/imani@night~face.sad~default.png"]);
+    expect(imani!.members).toEqual([
+      { path: "A/imani.png", alternate: null },
+      { path: "A/imani@night.png", alternate: "night" },
+      { path: "A/imani@night~face.sad~default.png", alternate: "night", layer: "face.sad~default" },
+    ]);
+  });
+
+  it("leaves numbered files outside an assets folder, or directly in it, as they are", () => {
+    expect(imageStacks(["Images/mia/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
+    expect(imageStacks(["Assets/10_hat.on.png"]).map((stack) => stack.kind)).toEqual(["files"]);
+  });
+});

@@ -1,10 +1,12 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import type { ColorSchemeSetting } from "../../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 
 export type SetThemeMethod = typeof SetThemeMessage.method;
 
 export interface SetThemeParams {
   breakpoints: Record<string, number>;
   root_text_size?: string;
+  color_scheme?: ColorSchemeSetting;
   variables: string[];
 }
 

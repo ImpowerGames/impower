@@ -1,3 +1,4 @@
+import type { ColorScheme } from "@impower/spark-engine/src/game/core/classes/messages/SetSimulatedColorSchemeMessage";
 import { effect, type ReadonlySignal } from "@preact/signals";
 
 export const THEMES = [
@@ -16,6 +17,11 @@ export type Theme = (typeof THEMES)[number];
 export const THEME_PREFERENCES = ["automatic", ...THEMES] as const;
 
 export const ADJUSTABLE_THEMES: readonly Theme[] = ["graphite", "warm"];
+
+export const LIGHT_THEMES: readonly Theme[] = ["chalk", "paper"];
+
+export const colorSchemeOfTheme = (theme: string): ColorScheme =>
+  LIGHT_THEMES.some((light) => light === theme) ? "light" : "dark";
 
 export const SURFACES = ["unified", "layered"] as const;
 

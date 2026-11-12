@@ -145,9 +145,11 @@ export function recordMoves(
   moves: readonly FileMove[],
   label: string,
   verb: "Rename" | "Move" = "Rename",
+  references = true,
 ) {
   const run = async (set: readonly FileMove[]) => {
-    const { Workspace } = await import("../workspace/Workspace");
+    const { Workspace: workspace } = await import("../workspace/Workspace");
+    const Workspace = references ? workspace : { fs: workspace.fs, autoRenameFiles: () => false };
     const [only] = set;
     if (set.length === 1 && only) {
       const move = await renameOrReport<unknown>(only.from, only.to, () =>
@@ -283,7 +285,7 @@ export async function recordResolvedUpload(
   showSnackbar({
     message:
       newUris.length > 0
-        ? `Imported ${label}`
+        ? `Added ${label}`
         : `Import failed — replaced files moved to recycle bin`,
     actionLabel: "Undo",
     onAction: () => void undo(),

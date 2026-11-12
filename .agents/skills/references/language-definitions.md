@@ -9,14 +9,14 @@ vanishes:
 | ------------------------------------------------------------------- | -------------------------------------------------------- |
 | `packages/sparkdown/language/sparkdown.language-grammar.json`       | `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` |
 | `packages/sparkdown/language/sparkdown-luau.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml`       |
-| `packages/sparkdown/language/sparkdown.language-config.json`        | `definitions/yaml/sparkdown.language-config.yaml`        |
-| `packages/sparkdown/language/sparkdown-luau.language-config.json`   | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
+| `packages/sparkdown/language/sparkdown.language-config.json`        | `definitions/yaml/sparkdown.language-config.yaml` and `definitions/yaml/sparkdown.language-config-variables.yaml` |
+| `packages/sparkdown/language/sparkdown-luau.language-config.json`   | `definitions/yaml/sparkdown-luau.language-config.yaml` and `definitions/yaml/sparkdown.language-config-variables.yaml` |
 | `packages/sparkdown/language/sparkdown.language-snippets.json`      | `definitions/yaml/sparkdown.language-snippets.yaml`      |
 | `packages/sparkdown/language/sparkdown-luau.language-snippets.json` | `definitions/yaml/sparkdown-luau.language-snippets.yaml` |
 | `vscode-sparkdown/language/sparkdown.language-grammar.json`         | `definitions/yaml/sparkdown.language-grammar.yaml` and `definitions/yaml/sparkdown-luau.language-grammar.yaml` |
 | `vscode-sparkdown/language/sparkdown-luau.language-grammar.json`    | `definitions/yaml/sparkdown.language-grammar.yaml`       |
-| `vscode-sparkdown/language/sparkdown.language-config.json`          | `definitions/yaml/sparkdown.language-config.yaml`        |
-| `vscode-sparkdown/language/sparkdown-luau.language-config.json`     | `definitions/yaml/sparkdown-luau.language-config.yaml`   |
+| `vscode-sparkdown/language/sparkdown.language-config.json`          | `definitions/yaml/sparkdown.language-config.yaml` and `definitions/yaml/sparkdown.language-config-variables.yaml` |
+| `vscode-sparkdown/language/sparkdown-luau.language-config.json`     | `definitions/yaml/sparkdown-luau.language-config.yaml` and `definitions/yaml/sparkdown.language-config-variables.yaml` |
 | `vscode-sparkdown/language/sparkdown.language-snippets.json`        | `definitions/yaml/sparkdown.language-snippets.yaml`      |
 | `vscode-sparkdown/language/sparkdown-luau.language-snippets.json`   | `definitions/yaml/sparkdown-luau.language-snippets.yaml` |
 

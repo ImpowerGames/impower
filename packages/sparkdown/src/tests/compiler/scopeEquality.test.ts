@@ -8,7 +8,57 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const CORPUS_DIR = join(__dirname, "__snapshots__/grammar");
 const TESTS_DIR = join(__dirname, "..");
 
+const STRUCTURAL_WORDS = ["end", "then", "do", "until", "else", "elseif"];
+const HEADER_WORDS = ["until", "else", "elseif"];
+
+const TICKET_INPUTS: Record<string, string[]> = {
+  "keyword-glued-non-ascii-2037": [
+    "function名 text\nHello\n",
+    "local名 x = 1\n",
+    "function\u{897} text\nHello\n",
+    "function\u{1e4d0} text\nHello\n",
+    "function f()\n  return 1\nend\n",
+    "if x == 1 then名\n",
+    "while x < 3 do名\n",
+  ],
+  "structural-word-unread-2048": [
+    ...STRUCTURAL_WORDS.map((word) => `Hello {x ${word}}\nAfter\n`),
+    ...STRUCTURAL_WORDS.map((word) => `Hello {{x ${word}}}\nAfter\n`),
+    ...["do", ...HEADER_WORDS].map((word) => `if x ${word} then\n  Hi.\nend\n`),
+    ...["then", ...HEADER_WORDS].map((word) => `while x ${word} do\n  Hi.\nend\n`),
+    ...["then", ...HEADER_WORDS].map((word) => `for i = 1, x ${word} do\n  Hi.\nend\n`),
+  ],
+  "comment-colon-dialogue-2068": [
+    "Hello. // TODO: tidy this line",
+    "Hello.// TODO: tidy",
+    "Hello. // a: b: c",
+    "Hello. // TODO:",
+    "Hello. \\\\// TODO: tidy",
+    "// TODO: tidy",
+    "Hello.\t// TODO: tidy",
+    "HERO: Hi. // note: later",
+    "A/B: Hi.",
+    "A//B: Hi.",
+    "HERO //x: Hi.",
+    "Hello. //TODO: tidy",
+    "Hello. \\// TODO: tidy",
+    "A\\\\B: Hi.",
+    "HERO: Hi.",
+  ].map((line) => `scene start\n  ${line}\nend\n`),
+  "line-chain-space-2072": [
+    "scene start\n  Hello. \\\nend\n",
+    "scene start\n  Hello. \\\n  Next line.\nend\n",
+    "scene start\n  Hello. \\",
+    "scene start\n  HERO: Hi. \\\nend\n",
+  ],
+};
+
 const TARGETED: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(TICKET_INPUTS).flatMap(([prefix, sources]) =>
+      sources.map((source, index) => [`${prefix}-${index + 1}`, source]),
+    ),
+  ),
   "assign-trailing-space-in-function":
     "function greet()\n    x = \n    local z = 1\nend\n",
   "assign-no-trailing-space-in-function":
@@ -188,6 +238,15 @@ async function assertEqual(source: string, options: EngineOptions = {}) {
 
 describe("engine scope-stack equality", () => {
   describe("targeted fixtures", () => {
+    test("include every engine-disagreement reproduction by ticket", () => {
+      const counts: Record<string, number> = {};
+      for (const name of Object.keys(TARGETED)) {
+        const ticket = /-(2037|2048|2068|2072)-\d+$/.exec(name)?.[1];
+        if (ticket) counts[ticket] = (counts[ticket] ?? 0) + 1;
+      }
+      expect(counts).toEqual({ "2037": 7, "2048": 24, "2068": 15, "2072": 4 });
+    });
+
     for (const [name, source] of Object.entries(TARGETED)) {
       test(name, async () => {
         await assertEqual(source);

@@ -38,6 +38,11 @@ export const activatePreviewGamePanel = async (
     }),
   );
   context.subscriptions.push(
+    vscode.window.onDidChangeActiveColorTheme(() => {
+      SparkdownPreviewGamePanelManager.instance.notifyChangedColorTheme();
+    }),
+  );
+  context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.languageId === "sparkdown") {
         setTimeout(() => {

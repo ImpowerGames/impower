@@ -78,6 +78,11 @@ export const NOT_COMPONENTS: readonly string[] = [
   "variantsChipVariants",
   "variantsLabel",
   "variantsBadgeVariants",
+  "wheelPickerVariants",
+  "wheelSheetVariants",
+  "wheelIndexAt",
+  "WHEEL_ROW",
+  "WHEEL_SHOWN",
   "tileVariants",
   "tileOpenVariants",
   "tileMarkVariants",
@@ -94,6 +99,12 @@ export const NOT_COMPONENTS: readonly string[] = [
   "carouselVariants",
   "carouselTrackVariants",
   "carouselItemVariants",
+  "progressBarVariants",
+  "progressBarFillVariants",
+  "uploadPanelVariants",
+  "uploadRowVariants",
+  "dropZoneVariants",
+  "dropZoneNoteVariants",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];

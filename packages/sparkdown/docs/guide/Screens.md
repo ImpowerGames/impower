@@ -93,22 +93,66 @@ With both `textbox` and `textstream` open, each beat shows in both, and a choice
 
 The page draws every colour from four styles, so a game re-themes the whole page by redefining them:
 
-| Style | What it colours | Built-in value |
-| --- | --- | --- |
-| `paper` | The page's ground | `neutral_99` |
-| `ink` | The text | `slate_20` |
-| `accent` | Speaker names and option buttons | `orange_30` |
-| `muted` | Headings, captions and the picked option | `slate_60` |
+| Style | What it colours | Built-in value | Dark value |
+| --- | --- | --- | --- |
+| `paper` | The page's ground | `neutral_99` | `neutral_10` |
+| `ink` | The text | `slate_20` | `slate_90` |
+| `accent` | Speaker names and option buttons | `orange_30` | `orange_80` |
+| `muted` | Headings, captions and the picked option | `slate_60` | `slate_70` |
 
 ```sparkdown
 style paper {
   background-color = slate_10
+  color-scheme = dark
 }
 
 style ink {
   text-color = slate_95
 }
+
+style accent {
+  text-color = orange_80
+}
+
+style muted {
+  text-color = slate_70
+}
 ```
+
+#### Light and dark
+
+The page follows the reader's light or dark preference. The dark value in the table above applies when the reader's device is set to dark. `ui.color_scheme` decides which scheme a game uses:
+
+| Value | The game uses |
+| --- | --- |
+| `"system"` (the default) | The reader's device setting. In the editor's preview, the scheme the preview simulates: the gear's **Device color scheme** matches the editor's theme unless you pick Light or Dark, and VS Code's Game Preview follows VS Code's theme. |
+| `"light"` | The light values everywhere, whatever the device says. |
+| `"dark"` | The dark values everywhere, whatever the device says. |
+
+```sparkdown
+define ui as config with
+  color_scheme = "light"
+end
+```
+
+`light` or `dark` pins the whole game. Any other value acts as `system`, and the play log says once per run: "ui.color_scheme must be system, light or dark. Using system."
+
+Only styles with a dark variant change. Of the built-in styles, only these four have one, so the dialogue box and the other built-in elements look the same in both schemes. Give a style of your own a dark variant with `@theme(dark)`:
+
+```sparkdown
+style note {
+  text-color = slate_30
+  @theme(dark) {
+    text-color = slate_80
+  }
+}
+```
+
+`@theme` takes `(light)` or `(dark)`. Anything else, such as `@theme(darkness)` or `@theme[dark]`, gets a warning, because the block would never apply.
+
+A colour you set on one of the four styles replaces its dark value too, so the page keeps your colour in both schemes: the example above shows the same dark page whatever the reader's setting. A style you leave alone still follows the scheme, so restyle all four together, or none, to keep the page readable. To give your own colour a dark value, add an `@theme(dark)` block to your style.
+
+The scheme is not part of a save or a checkpoint. Loading a save shows the same page in the scheme the reader has now. An exported game uses `ui.color_scheme` and the reader's device the same way.
 
 The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen` and `textstream_caption`, can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
 

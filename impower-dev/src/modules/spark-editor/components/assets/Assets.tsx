@@ -3,6 +3,7 @@ import {
   Button,
   ChevronIcon,
   DropdownItem,
+  DropZone,
   FolderIcon,
   FolderPlusIcon,
   FolderCover,
@@ -60,6 +61,7 @@ import {
   assetMoveCheck,
   assetTrail,
   coveredPaths,
+  folderStackReason,
   foldersUnder,
   thingsLabel,
   type AssetListing,
@@ -90,8 +92,12 @@ import {
   useTabQuery,
   type SelectionAction,
 } from "../library-page";
+import { addAssetFiles, landedView, type AddedFile } from "../../workspace/addAssetFiles";
+import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { type AssetRowAction } from "./AssetRowMenu";
+import UploadsPanel from "./UploadsPanel";
+import { useFileDrop } from "./useFileDrop";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -267,8 +273,9 @@ function AssetsBrowser() {
   const layoutName = useLayout();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
+  const holds = (row: AssetRow, path: string) => row.path === path || !!row.paths?.includes(path);
   const rowOf = (path: string): AssetRow | null =>
-    files.find((row) => row.path === path) ??
+    files.find((row) => holds(row, path)) ??
     (Object.hasOwn(listing.files, path)
       ? (assetLevel({
           listing,
@@ -276,7 +283,7 @@ function AssetsBrowser() {
           folder: parentOf(path),
           sort,
           endings,
-        }).rows.find((row) => row.kind === "file" && row.path === path) ?? null)
+        }).rows.find((row) => row.kind === "file" && holds(row, path)) ?? null)
       : null);
   const openRowOf = openPath && openedIn === host ? rowOf(openPath) : null;
   if (openPath) {
@@ -337,6 +344,10 @@ function AssetsBrowser() {
   const [settled, setSettled] = useState(0);
 
   useEffect(() => {
+    if (openPath && openRowOf && openRowOf.path !== openPath) {
+      setOpenPath(openRowOf.path);
+      return;
+    }
     if (openPath && !openRowOf) {
       if (settling.current.some((path) => openPath === path || isInside(openPath, path))) {
         return;
@@ -396,32 +407,46 @@ function AssetsBrowser() {
   };
 
   const show = (landed: readonly string[]) => {
-    const last = landed[landed.length - 1];
-    if (!last || landed.some((path) => parentOf(path) === level.folder)) {
+    const view = landedView(landed, level.folder);
+    if (!view) {
       return;
     }
-    const facts = workspace.assetListing.peek()?.files[last];
-    const landedType = assetTypeOf(last, assetEndings.peek(), facts?.address);
-    setQuery("");
-    setLists({
-      assetsType: landedType,
-      assetsFolders: { ...folders, [landedType]: parentOf(last) },
-    });
+    if (view.lists || searching) {
+      setQuery("");
+    }
+    if (view.lists) {
+      setLists(view.lists);
+    }
+    revealRow(view.last);
   };
+
+  const revealing = workspace.assetsReveal.value;
+  useEffect(() => {
+    if (revealing && loaded) {
+      workspace.assetsReveal.value = null;
+      show(revealing);
+    }
+  }, [revealing, loaded]);
+
+  const add = (files: AddedFile[], folder: string, dropped: boolean) =>
+    void run(async () => show(await addAssetFiles(files, folder, { dropped })));
 
   const onUpload = (event: Event) => {
     const input = event.currentTarget as HTMLInputElement;
     const chosen = Array.from(input.files ?? []);
     input.value = "";
     if (!chosen.length) return;
-    void run(async () => {
-      const landed = await (await intents()).assets.upload(
-        chosen.map((file) => ({ name: file.name, getBuffer: () => file.arrayBuffer() })),
-        level.folder,
-      );
-      show(landed);
-    });
+    add(
+      chosen.map((file) => ({ name: file.name, size: file.size, getBuffer: () => file.arrayBuffer() })),
+      level.folder,
+      false,
+    );
   };
+
+  const fileDrop = useFileDrop({
+    current: () => level.folder,
+    onDrop: (files, folder) => add(files, folder, true),
+  });
 
   const remove = (paths: readonly string[]) =>
     void run(async () => {
@@ -442,7 +467,7 @@ function AssetsBrowser() {
   };
 
   const drag = useLibraryDrag({
-    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder),
+    check: (paths, folder) => assetMoveCheck(listing, coveredPaths(listing, paths, endings), folder, endings),
     carried: (path) => {
       const chosen = selection.selected.peek();
       return chosen.includes(path) ? [...chosen] : [path];
@@ -492,7 +517,7 @@ function AssetsBrowser() {
     selected: picked.includes(row.path),
     selectLabel: `Select ${row.name}`,
     onSelectedChange: () => (selecting ? selection.toggle(row.path) : selection.start(row.path)),
-    dropTarget: row.kind === "folder" && drag.target === row.path,
+    dropTarget: row.kind === "folder" && (drag.target === row.path || fileDrop.over?.target === row.path),
     ...drag.source(row.path),
     ...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {}),
   });
@@ -518,7 +543,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );
@@ -580,7 +611,13 @@ function AssetsBrowser() {
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
-        actions={<AssetRowMenu name={row.name} onAction={(action) => onAction(row, action)} />}
+        actions={
+          <AssetRowMenu
+            name={row.name}
+            kept={row.folderStack ? folderStackReason(row.name) : undefined}
+            onAction={(action) => onAction(row, action)}
+          />
+        }
         onClick={() => openRow(row)}
       />
     );
@@ -593,6 +630,7 @@ function AssetsBrowser() {
       next={near?.next ? { path: near.next.path, name: near.next.name } : null}
       host={host}
       intents={intents}
+      relocate={relocating}
       onStep={stepTo}
       onClose={closeInspector}
       closeRef={closeButton}
@@ -615,7 +653,21 @@ function AssetsBrowser() {
 
   return (
     <LibraryPage<Item>
-      area={{ ref: page, ...drag.area }}
+      area={{
+        ref: page,
+        ...fileDrop.area,
+        onDragOver: (event: DragEvent) => {
+          drag.area.onDragOver(event);
+          fileDrop.area.onDragOver(event);
+        },
+        onDragLeave: drag.area.onDragLeave,
+        onDrop: (event: DragEvent) => {
+          drag.area.onDrop(event);
+          fileDrop.area.onDrop(event);
+        },
+      }}
+      overlay={fileDrop.over && <DropZone title={`Drop to add to ${folderTitle(listing, fileDrop.over.folder)}`} />}
+      foot={<UploadsPanel listing={listing} />}
       searchLabel="Search assets"
       query={query}
       onQueryChange={setQuery}
@@ -677,7 +729,7 @@ function AssetsBrowser() {
               crumbs={trail.crumbs}
               root={level.root}
               parent={trail.parent}
-              dropTarget={drag.target}
+              dropTarget={drag.target ?? fileDrop.over?.target ?? null}
               dropAttribute={DROP_FOLDER}
               onOpen={openFolder}
             />

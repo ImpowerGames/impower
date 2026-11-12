@@ -36,6 +36,8 @@ export type LibraryPageProps<T> = {
   list: LibraryList<T> | null;
   empty?: ComponentChildren;
   area?: JSX.HTMLAttributes<HTMLDivElement>;
+  overlay?: ComponentChildren;
+  foot?: ComponentChildren;
   children?: ComponentChildren;
 };
 
@@ -52,6 +54,8 @@ export default function LibraryPage<T>({
   list,
   empty,
   area,
+  overlay,
+  foot,
   children,
 }: LibraryPageProps<T>) {
   return (
@@ -72,27 +76,31 @@ export default function LibraryPage<T>({
               </DropdownContent>
             </DropdownRoot>
           </LibraryToolbar>
-          {tabs}
-          <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
-            {bar}
+          <div class="relative flex min-h-0 flex-1 flex-col">
+            {tabs}
+            <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
+              {bar}
+            </div>
+            {creating && <div class="flex-none pt-2">{creating}</div>}
+            {list && list.items.length ? (
+              <VirtualList
+                listRef={list.listRef}
+                label={list.label}
+                class="-mr-4 flex-1 pt-2 pr-4 pb-5"
+                items={list.items}
+                getKey={list.getKey}
+                renderItem={list.renderItem}
+                itemHeight={list.itemHeight}
+                grid={list.grid}
+                revealIndex={list.revealIndex}
+                revealRequest={list.revealRequest}
+              />
+            ) : (
+              empty
+            )}
+            {overlay}
           </div>
-          {creating && <div class="flex-none pt-2">{creating}</div>}
-          {list && list.items.length ? (
-            <VirtualList
-              listRef={list.listRef}
-              label={list.label}
-              class="-mr-4 flex-1 pt-2 pr-4 pb-5"
-              items={list.items}
-              getKey={list.getKey}
-              renderItem={list.renderItem}
-              itemHeight={list.itemHeight}
-              grid={list.grid}
-              revealIndex={list.revealIndex}
-              revealRequest={list.revealRequest}
-            />
-          ) : (
-            empty
-          )}
+          {foot}
         </div>
       </div>
       {children}

@@ -132,8 +132,12 @@ vi.mock("@impower/impower-ui/components", async () => {
         },
         children,
       ),
-    DropdownRadioGroup: ({ value, onValueChange, children }: any) =>
-      h(Radio.Provider, { value: { value, onValueChange } }, h("div", { role: "group" }, children)),
+    DropdownRadioGroup: ({ value, onValueChange, label, children }: any) =>
+      h(
+        Radio.Provider,
+        { value: { value, onValueChange } },
+        h("div", { role: "group", "aria-label": label }, children),
+      ),
     DropdownRadioItem: function RadioItem({ value, children, ...props }: any) {
       const group = useContext(Radio);
       return h(
@@ -885,18 +889,145 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.replaceProject.value).toBeNull();
       expect(importing).toHaveBeenCalledTimes(1);
       expect(importing.mock.calls[0]![0]).toBe("backup.zip");
-      expect(new TextDecoder().decode(importing.mock.calls[0]![1])).toBe("zip");
+      expect(new TextDecoder().decode(await importing.mock.calls[0]![1])).toBe("zip");
     });
 
-    it("drops the chosen backup on cancel, so a later confirm imports nothing", async () => {
-      const importing = vi
-        .spyOn(win, "importLocalProject")
-        .mockResolvedValue(undefined);
-      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
-      win.cancelProjectReplace();
-      expect(workspace.replaceProject.value).toBeNull();
+    it("does not replace the project while an upload batch is still writing, and does once it has finished", async () => {
+      const importing = vi.spyOn(win, "importLocalProject").mockResolvedValue(undefined);
+      const { startUploads, updateUpload } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      const ids = startUploads(["a.wav", "b.wav"]);
+      updateUpload(ids[0]!, { state: "working" });
+      try {
+        await win.requestProjectReplace(
+          Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }),
+        );
+        await win.confirmProjectReplace();
+        expect(importing).not.toHaveBeenCalled();
+        expect(workspace.replaceProject.value).not.toBeNull();
+        for (const id of ids) updateUpload(id, { state: "added", path: "Assets/Audio/x.wav" });
+        await win.confirmProjectReplace();
+        expect(importing).toHaveBeenCalledTimes(1);
+        expect(workspace.replaceProject.value).toBeNull();
+      } finally {
+        workspace.uploads.value = [];
+      }
+    });
+
+    it("does not replace while a batch is still finishing after its rows read added", async () => {
+      const importing = vi.spyOn(win, "importLocalProject").mockResolvedValue(undefined);
+      workspace.uploadBatches.value = 1;
+      try {
+        await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }));
+        await win.confirmProjectReplace();
+        expect(importing).not.toHaveBeenCalled();
+        workspace.uploadBatches.value = 0;
+        await win.confirmProjectReplace();
+        expect(importing).toHaveBeenCalledTimes(1);
+      } finally {
+        workspace.uploadBatches.value = 0;
+      }
+    });
+
+    it("keeps the project marked as being replaced for the whole import, whatever the sync status reads", async () => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const importing = vi.spyOn(win, "importLocalProject").mockImplementation(async () => {
+        await held;
+      });
+      await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: async () => new ArrayBuffer(3) }));
+      const confirming = win.confirmProjectReplace();
+      await vi.waitFor(() => expect(importing).toHaveBeenCalledTimes(1));
+      workspace.current = { ...workspace.current, sync: { ...workspace.current.sync, status: "unsynced" } };
+      expect(projectReplacing()).toBe(true);
+      release();
+      await confirming;
+      expect(projectReplacing()).toBe(false);
+    });
+
+    it.each([
+      ["the import refuses the backup", async () => {
+        throw new ProjectImportError({ reason: "no_main_script" });
+      }, async () => new ArrayBuffer(3)],
+      ["the import fails to save", async () => {
+        throw new ProjectImportError({ reason: "storage" });
+      }, async () => new ArrayBuffer(3)],
+      ["the backup's bytes cannot be read", async () => ({ leftOut: { count: 0, folders: [] } }), async () => {
+        throw new Error("NotReadableError");
+      }],
+    ] as const)("clears the replace mark when %s", async (_case, writeProjectZip, arrayBuffer) => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      workspace.current = { ...workspace.current, sync: { status: "cached" } };
+      fs.writeProjectZip = vi.fn(writeProjectZip);
+      try {
+        await win.requestProjectReplace(Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer }));
+        await win.confirmProjectReplace();
+        expect(projectReplacing()).toBe(false);
+      } finally {
+        delete fs.writeProjectZip;
+      }
+    });
+
+    it("refuses a second replace while one is importing, and keeps the mark until the first one finishes", async () => {
+      const { projectReplacing } = await import("../../src/modules/spark-editor/workspace/uploadSession");
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const importing = vi.spyOn(win, "importLocalProject").mockImplementation(async () => {
+        await held;
+      });
+      const backup = (name: string) => Object.assign(new File(["zip"], name), { arrayBuffer: async () => new ArrayBuffer(3) });
+      await win.requestProjectReplace(backup("a.zip"));
+      const first = win.confirmProjectReplace();
+      await vi.waitFor(() => expect(importing).toHaveBeenCalledTimes(1));
+      await win.requestProjectReplace(backup("b.zip"));
       await win.confirmProjectReplace();
-      expect(importing).not.toHaveBeenCalled();
+      expect(importing).toHaveBeenCalledTimes(1);
+      expect(projectReplacing()).toBe(true);
+      expect(workspace.replaceProject.value).toMatchObject({ fileName: "b.zip" });
+      release();
+      await first;
+      expect(projectReplacing()).toBe(false);
+      win.cancelProjectReplace();
+    });
+
+    it("counts again what the replace removes once a batch that was still writing has finished", async () => {
+      await win.requestProjectReplace(new File(["zip"], "backup.zip"));
+      expect(workspace.replaceProject.value).toMatchObject({ scripts: 4, assets: 3 });
+      const id = workspace.current.project.id || "local";
+      const listed = await (fs.getFiles as () => Promise<Record<string, unknown>>)();
+      fs.getFiles = vi.fn(async () => ({ ...listed, [`file://${id}/Assets/Audio/new.wav`]: {} }));
+      await win.refreshProjectReplace();
+      expect(workspace.replaceProject.value).toMatchObject({ fileName: "backup.zip", scripts: 4, assets: 4 });
+      win.cancelProjectReplace();
+      await win.refreshProjectReplace();
+      expect(workspace.replaceProject.value).toBeNull();
+    });
+
+    it("marks the project as being replaced from the moment the writer confirms, before the backup's bytes are read", async () => {
+      workspace.current = { ...workspace.current, sync: { status: "cached" } };
+      let release: (data: ArrayBuffer) => void = () => {};
+      const bytes = new Promise<ArrayBuffer>((resolve) => {
+        release = resolve;
+      });
+      const file = Object.assign(new File(["zip"], "backup.zip"), { arrayBuffer: () => bytes });
+      fs.writeProjectZip = vi.fn(async () => {
+        throw new ProjectImportError({ reason: "no_main_script" });
+      });
+      try {
+        await win.requestProjectReplace(file);
+        const confirming = win.confirmProjectReplace();
+        await Promise.resolve();
+        expect(workspace.current.sync.status).toBe("importing");
+        release(new ArrayBuffer(0));
+        await confirming;
+        expect(workspace.current.sync.status).toBe("cached");
+      } finally {
+        delete fs.writeProjectZip;
+      }
     });
 
     it.each([
@@ -1274,7 +1405,7 @@ describe("Preview preferences", () => {
       const posted: unknown[] = [];
       const sync = createPlayerPreferenceSync((m) => posted.push(m));
       sync.received(connected("screenplay"));
-      sync.received({ jsonrpc: "2.0", method: "game/started", params: {} });
+      sync.received({ jsonrpc: "2.0", method: "game/exited", params: {} });
       expect(posted).toEqual([]);
     });
   });
@@ -2121,6 +2252,13 @@ describe("The preview's top bar", () => {
   const rows = (role: string) =>
     Array.from(container.querySelectorAll<HTMLElement>(`[role="${role}"]`));
 
+  const modeRows = () =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>(
+        '[role="group"][aria-label="Viewing mode"] [role="menuitemradio"]',
+      ),
+    );
+
   beforeEach(() => {
     resetPreviewPreferences();
     requests = [];
@@ -2471,7 +2609,7 @@ describe("The preview's top bar", () => {
   it("lists the viewing modes with the current one checked, and choosing one writes the preference", async () => {
     show();
     expect(
-      rows("menuitemradio").map((row) => [
+      modeRows().map((row) => [
         row.querySelector("strong")?.textContent,
         row.getAttribute("aria-checked"),
       ]),
@@ -2480,11 +2618,11 @@ describe("The preview's top bar", () => {
       ["Interactive Fiction", "false"],
       ["Screenplay", "false"],
     ]);
-    expect(rows("menuitemradio")[1]!.querySelector("small")?.textContent).toBe(
+    expect(modeRows()[1]!.querySelector("small")?.textContent).toBe(
       "Play your game as a stream of text and choices",
     );
-    expect(rows("menuitemradio")[1]!.querySelector("svg")).not.toBeNull();
-    rows("menuitemradio")[1]!.click();
+    expect(modeRows()[1]!.querySelector("svg")).not.toBeNull();
+    modeRows()[1]!.click();
     await vi.waitFor(() =>
       expect(workspaceSettings.preferences.value.previewMode).toBe(
         "textstream",
@@ -2493,9 +2631,9 @@ describe("The preview's top bar", () => {
     render(h(PreviewTopBar, {}), container);
     expect(control("Viewing mode")?.textContent).toBe("Interactive Fiction");
     expect(
-      rows("menuitemradio").map((row) => row.getAttribute("aria-checked")),
+      modeRows().map((row) => row.getAttribute("aria-checked")),
     ).toEqual(["false", "true", "false"]);
-    rows("menuitemradio")[2]!.click();
+    modeRows()[2]!.click();
     await vi.waitFor(() =>
       expect(workspaceSettings.preferences.value.previewMode).toBe(
         "screenplay",
