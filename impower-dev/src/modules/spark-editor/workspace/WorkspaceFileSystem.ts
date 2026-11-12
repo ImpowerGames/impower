@@ -1185,9 +1185,34 @@ export default class WorkspaceFileSystem {
     );
     if (!result.applied) {
       const reason = result.failureReason ?? "the change was not saved";
-      const scripts = await this.putBackScripts(collected);
-      const files = await settleFailedMoves(this, projectId, renames, before, `Couldn't rename ${name}: ${reason}.`);
-      throw new Error([files.message, ...scripts].join(" "));
+      const kept = new Set(result.rollback?.kept ?? []);
+      const scripts = await this.putBackScripts({
+        ...collected,
+        texts: collected.texts.filter((change) => !kept.has(change.textDocument.uri)),
+      });
+      const keptPaths = [...kept].map((uri) => this.getRelativePath(projectId, uri));
+      const touchesKept = (path: string) =>
+        keptPaths.some((keptPath) => keptPath === path || keptPath.startsWith(`${path}/`));
+      const files = await settleFailedMoves(
+        this,
+        projectId,
+        renames.filter((move) => !touchesKept(move.from) && !touchesKept(move.to)),
+        before,
+        `Couldn't rename ${name}: ${reason}.`,
+      );
+      const relative = (uris: string[]) =>
+        uris.map((uri) => this.getRelativePath(projectId, uri));
+      throw Object.assign(
+        new Error([files.message, ...scripts].join(" ")),
+        result.rollback && {
+          rollback: {
+            complete: result.rollback.complete,
+            failed: relative(result.rollback.failed),
+            kept: relative(result.rollback.kept),
+            trashed: relative(result.rollback.trashed ?? []),
+          },
+        },
+      );
     }
     const lines = new Set(
       collected.texts.flatMap((change) =>

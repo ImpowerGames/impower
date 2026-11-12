@@ -32,7 +32,7 @@ export default function AssetRowMenu({ name, onAction }: AssetRowMenuProps) {
           <CheckIcon class="text-muted" />
           Select
         </DropdownItem>
-        <DropdownItem onSelect={() => onAction("rename")}>
+        <DropdownItem returnFocus={false} onSelect={() => onAction("rename")}>
           <PencilIcon class="text-muted" />
           Rename
         </DropdownItem>

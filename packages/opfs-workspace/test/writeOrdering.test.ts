@@ -1221,6 +1221,9 @@ describe("reads that overlap a settle (I-1893)", () => {
       release = resolve;
     });
     b.getFile = async () => {
+      if (b.history.length === 0) {
+        return getFile();
+      }
       reached = true;
       await held;
       return getFile();
@@ -1595,5 +1598,841 @@ describe("renaming files (I-1910)", () => {
     ).toMatchObject({ result: [{ uri: uriOf("a.sd"), text: "A" }] });
     expect(textAt(root, "a.sd")).toBe("A");
     expect(h.notifications("workspace/didRenameFiles")).toEqual([]);
+  });
+});
+
+describe("applying a workspace edit whole or not at all (I-2070)", () => {
+  const projectDirectory = (root: MemoryDirectory) =>
+    root.entries.get("local") as MemoryDirectory;
+
+  const failRemoving = (directory: MemoryDirectory, name: string) => {
+    const remove = directory.removeEntry.bind(directory);
+    directory.removeEntry = async (entry, options) => {
+      if (entry === name) {
+        throw new DOMException(`${name} is locked`, "NoModificationAllowedError");
+      }
+      return remove(entry, options);
+    };
+  };
+
+  const failCreating = (directory: MemoryDirectory, name: string) => {
+    const get = directory.getFileHandle.bind(directory);
+    directory.getFileHandle = async (entry, options = {}) => {
+      if (entry === name && options.create && !directory.entries.has(entry)) {
+        throw new DOMException(`${name} cannot be created`, "QuotaExceededError");
+      }
+      return get(entry, options);
+    };
+  };
+
+  const failWrite = (file: MemoryFile, ...nth: number[]) => {
+    const access = file.createSyncAccessHandle.bind(file);
+    let writes = 0;
+    file.createSyncAccessHandle = async () => {
+      const handle = await access();
+      return {
+        ...handle,
+        write: (data: DataView | Uint8Array) => {
+          writes += 1;
+          if (nth.includes(writes)) {
+            throw new DOMException("disk full", "QuotaExceededError");
+          }
+          return handle.write(data);
+        },
+      };
+    };
+  };
+
+  const referenceRename = (from: string, to: string) => ({
+    documentChanges: [
+      {
+        textDocument: { uri: uriOf("main.sd"), version: null },
+        edits: [
+          {
+            range: { start: { line: 0, character: 4 }, end: { line: 0, character: 5 } },
+            newText: "b",
+          },
+        ],
+      },
+      { kind: "rename", oldUri: uriOf(from), newUri: uriOf(to) },
+    ],
+  });
+
+  it("applies a reference edit and the rename it belongs to", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", { edit: referenceRename("a.sd", "b.sd") }),
+    ).toMatchObject({ result: { applied: true } });
+    expect(listMemory(root, "local")).toEqual(["b.sd", "main.sd"]);
+    expect(textAt(root, "main.sd")).toBe("see b");
+    expect(textAt(root, "b.sd")).toBe("A");
+  });
+
+  it("restores the reference edit when the rename after it fails, and reports which change failed", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    failRemoving(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: referenceRename("a.sd", "b.sd"),
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 1,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(response.result.failureReason).toContain("a.sd is locked");
+    expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
+    expect(textAt(root, "main.sd")).toBe("see a");
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(h.writtenTexts("main.sd", from)).toEqual(["see a"]);
+    expect(h.notifications("workspace/didRenameFiles", from)).toEqual([]);
+    expect(h.notifications("workspace/didCreateFiles", from)).toEqual([]);
+    expect((await h.cached("main.sd")).text).toBe("see a");
+    expect(await h.cached("b.sd")).toBeUndefined();
+  });
+
+  it("names the files left changed when restoring an earlier change fails", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    failRemoving(projectDirectory(root), "a.sd");
+    failWrite(fileAt(root, "main.sd")!, 2);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: referenceRename("a.sd", "b.sd"),
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(response.result.failureReason).toContain("a.sd is locked");
+    expect(response.result.failureReason).toContain("partly applied");
+    expect(response.result.failureReason).toContain(uriOf("main.sd"));
+    expect(response.result.failureReason).toContain(uriOf("b.sd"));
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("main.sd"), uriOf("b.sd")],
+      kept: [],
+      trashed: [uriOf("main.sd")],
+    });
+    expect(inTrash(root)).toEqual({ "main.sd": "see b" });
+    expect(textAt(root, "main.sd")).toBe("see b");
+    expect(listMemory(root, "local").filter((path) => !path.startsWith(".trash/"))).toEqual([
+      "a.sd",
+      "b.sd",
+      "main.sd",
+    ]);
+  });
+
+  it("announces what storage holds, not the edit's text, for a file whose restore failed", async () => {
+    const root = seed({ "main.sd": "see a", "a.sd": "A" });
+    failRemoving(projectDirectory(root), "a.sd");
+    failWrite(fileAt(root, "main.sd")!, 2, 3);
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: referenceRename("a.sd", "b.sd"),
+    });
+    expect(response.result.failureReason).toContain(uriOf("main.sd"));
+    expect(textAt(root, "main.sd")).toBe("");
+    expect(h.writtenTexts("main.sd", from)).not.toContain("see b");
+    expect((await h.cached("main.sd")).text).toBe("");
+  });
+
+  it("keeps a renamed file's only copy when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(response.result.failureReason).toContain("partly applied");
+    expect(response.result.failureReason).toContain(uriOf("a.sd"));
+    expect(response.result.failureReason).toContain(uriOf("b.sd"));
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY");
+  });
+
+  it("keeps the only copy of a file renamed twice when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("c.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 2 });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("c.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "c.sd")).toBe("ONLY COPY");
+  });
+
+  it("does not restore an overwritten rename target over the only copy of the renamed file", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY", "b.sd": "OLD TARGET" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY");
+  });
+
+  it("keeps an edited copy of a renamed file when its original cannot be recreated", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ONLY COPY" });
+    failCreating(projectDirectory(root), "a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") },
+          insert("b.sd", 9, "!"),
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("a.sd"), uriOf("b.sd")],
+      kept: [],
+    });
+    expect(textAt(root, "b.sd")).toBe("ONLY COPY!");
+  });
+
+  it("undoes a swap made of three renames", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("tmp.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("a.sd") },
+          { kind: "rename", oldUri: uriOf("tmp.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 3,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(listMemory(root, "local")).toEqual(["a.sd", "b.sd", "main.sd"]);
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  it("puts back an overwritten rename target once the renamed file is restored", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "MOVED", "b.sd": "OLD TARGET" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({ complete: true, failed: [], kept: [] });
+    expect(textAt(root, "a.sd")).toBe("MOVED");
+    expect(textAt(root, "b.sd")).toBe("OLD TARGET");
+  });
+
+  const holdRead = (file: MemoryFile, when: () => boolean) => {
+    const getFile = file.getFile.bind(file);
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    file.getFile = async () => {
+      if (!reached && when()) {
+        reached = true;
+        await held;
+      }
+      return getFile();
+    };
+    return { reached: () => reached, release };
+  };
+
+  const editThenFail = {
+    edit: {
+      documentChanges: [
+        insert("a.sd", 1, "!"),
+        insert("b.sd", 1, "!"),
+        insert("missing.sd", 0, "x"),
+      ],
+    },
+  };
+
+  const keptA = {
+    complete: false,
+    failed: [],
+    kept: [uriOf("a.sd")],
+    trashed: [uriOf("b.sd")],
+  };
+
+  const inTrash = (root: MemoryDirectory) => {
+    const files = listMemory(root, "local/.trash").filter((path) => !path.endsWith("/"));
+    const batches = new Set(files.map((path) => path.split("/")[0]));
+    expect(batches.size).toBeLessThanOrEqual(1);
+    if (files.length > 0) {
+      expect(files.some((path) => path.endsWith("/__manifest.json"))).toBe(true);
+    }
+    return Object.fromEntries(
+      files
+        .filter((path) => !path.endsWith("/__manifest.json"))
+        .map((path) => [path.split("/").slice(1).join("/"), textAt(root, `.trash/${path}`)]),
+    );
+  };
+
+  it("keeps a save that lands on an edited file while the edit is still running", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(textAt(root, "a.sd")).toBe("A!");
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    fileAt(root, "b.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    const response = h.response("edit");
+    expect(response.result).toMatchObject({ applied: false, failedChange: 2, rollback: keptA });
+    expect(response.result.failureReason).toContain("partly applied");
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  it("keeps a save that lands between an edit's snapshot of a file and its write", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const a = fileAt(root, "a.sd")!;
+    const h = await worker(root);
+    await h.enumerate();
+    const hold = holdRead(a, () => a.history.length === 0);
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(hold.reached()).toBe(true);
+    h.start("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor"));
+    await vi.advanceTimersByTimeAsync(250);
+    hold.release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("save")).toMatchObject({ result: [{ text: "SAVED" }] });
+    expect(h.response("edit").result.rollback).toEqual(keptA);
+    expect(a.history.map((bytes) => dec.decode(bytes))).toEqual(["SAVED", "S!AVED"]);
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  it("keeps a save that lands while the rollback is restoring another file", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const b = fileAt(root, "b.sd")!;
+    const h = await worker(root);
+    await h.enumerate();
+    const hold = holdRead(b, () => b.history.length > 0);
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    hold.release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("edit").result.rollback).toEqual(keptA);
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("B");
+  });
+
+  for (const [title, saved] of [
+    ["keeps a save that lands between the rollback's look at a file and its restore", "SAVED"],
+    ["keeps a save of the edit's own text that lands between the rollback's look at a file and its restore", "A!"],
+  ] as const) {
+    it(title, async () => {
+      const root = seed({ "a.sd": "A", "b.sd": "B" });
+      const a = fileAt(root, "a.sd")!;
+      const h = await worker(root);
+      await h.enumerate();
+      const hold = holdRead(a, () => a.history.length > 0);
+      h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(hold.reached()).toBe(true);
+      h.start("save", "workspace/willWriteFiles", writeOf("a.sd", saved, "editor"));
+      await vi.advanceTimersByTimeAsync(250);
+      hold.release();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(h.response("save")).toMatchObject({ result: [{ text: saved }] });
+      expect(h.response("edit").result.rollback).toEqual(keptA);
+      expect(textAt(root, "a.sd")).toBe(saved);
+    });
+  }
+
+  it("keeps the other half of a swap when a save lands on one half during the rollback", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    const original = fileAt(root, "b.sd")!;
+    const project = projectDirectory(root);
+    const h = await worker(root);
+    await h.enumerate();
+    let hold = { reached: () => false, release: () => {} };
+    const get = project.getFileHandle.bind(project);
+    project.getFileHandle = async (name, options) => {
+      const handle = await get(name, options);
+      if (name === "b.sd" && handle !== original && !hold.reached() && handle.history.length > 0) {
+        hold = holdRead(handle, () => true);
+      }
+      return handle;
+    };
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("tmp.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("a.sd") },
+          { kind: "rename", oldUri: uriOf("tmp.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    h.start("save", "workspace/willWriteFiles", writeOf("b.sd", "ORIGINAL-A", "editor"));
+    await vi.advanceTimersByTimeAsync(250);
+    hold.release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("b.sd")],
+      trashed: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("ORIGINAL-A");
+    expect(textAt(root, "b.sd")).toBe("ORIGINAL-A");
+    expect(inTrash(root)).toEqual({ "a.sd": "ORIGINAL-B" });
+  });
+
+  const holdNthRead = (file: MemoryFile, nth: number) => {
+    let reads = 0;
+    return holdRead(file, () => file.history.length > 0 && ++reads === nth);
+  };
+
+  it("keeps a copy of an overwritten target when a save lands on the recreated source later in the rollback", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    const b = fileAt(root, "b.sd")!;
+    const h = await worker(root);
+    await h.enumerate();
+    const hold = holdNthRead(b, 2);
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold.reached()).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    hold.release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+      trashed: [uriOf("b.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("ORIGINAL-B");
+    expect(inTrash(root)).toEqual({ "b.sd": "ORIGINAL-A" });
+  });
+
+  it("keeps the rollback's copies when one of them is written while the rollback runs", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    const project = projectDirectory(root);
+    const h = await worker(root);
+    await h.enumerate();
+    let hold: { reached: () => boolean; release: () => void } | undefined;
+    const get = project.getFileHandle.bind(project);
+    project.getFileHandle = async (name, options) => {
+      const handle = await get(name, options);
+      if (name === "a.sd" && handle.history.length > 0 && !hold) {
+        hold = holdNthRead(handle, 2);
+      }
+      return handle;
+    };
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("tmp.sd") },
+          { kind: "rename", oldUri: uriOf("b.sd"), newUri: uriOf("a.sd") },
+          { kind: "rename", oldUri: uriOf("tmp.sd"), newUri: uriOf("b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(hold?.reached()).toBe(true);
+    const [copy] = listMemory(root, "local/.trash").filter((path) => path.endsWith("/b.sd"));
+    expect(copy).toBeDefined();
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf(`.trash/${copy}`, "SAVED-COPY", "editor")),
+    ).toHaveProperty("result");
+    hold!.release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [],
+      trashed: [uriOf("b.sd"), uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("A");
+    expect(textAt(root, "b.sd")).toBe("B");
+    expect(inTrash(root)).toEqual({ "b.sd": "SAVED-COPY", "a.sd": "B" });
+  });
+
+  it("keeps a copy of an edited rename target when a save lands on its source while the edit runs", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B", "c.sd": "C" });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "c.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+          insert("b.sd", 0, "!"),
+          insert("c.sd", 1, "!"),
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    fileAt(root, "c.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toEqual({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+      trashed: [uriOf("c.sd"), uriOf("b.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+    expect(textAt(root, "b.sd")).toBe("ORIGINAL-B");
+    expect(textAt(root, "c.sd")).toBe("C");
+    expect(inTrash(root)).toEqual({ "b.sd": "!ORIGINAL-A", "c.sd": "C!" });
+  });
+
+  const renameOver = {
+    edit: {
+      documentChanges: [
+        { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("b.sd"), options: { overwrite: true } },
+        insert("missing.sd", 0, "x"),
+      ],
+    },
+  };
+
+  it("keeps the copy of a file whose restore write failed after it started", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    failWrite(fileAt(root, "b.sd")!, 2, 3);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", renameOver);
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("b.sd")],
+      kept: [],
+      trashed: [uriOf("b.sd")],
+    });
+    expect(inTrash(root)).toEqual({ "b.sd": "ORIGINAL-A" });
+  });
+
+  it("reports a save that lands while the rollback cleans up its copies", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "ORIGINAL-A", "b.sd": "ORIGINAL-B" });
+    const original = fileAt(root, "b.sd")!;
+    const getFile = MemoryFile.prototype.getFile;
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(MemoryFile.prototype, "getFile").mockImplementation(async function (this: MemoryFile) {
+      if (!reached && this.name === "b.sd" && this !== original) {
+        reached = true;
+        await held;
+      }
+      return getFile.call(this);
+    });
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", renameOver);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(reached).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED-LATE", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED-LATE" }] });
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toMatchObject({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED-LATE");
+    expect(textAt(root, "b.sd")).toBe("ORIGINAL-B");
+  });
+
+  it("answers with the rollback's outcome when its Trash manifest cannot be written", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const get = MemoryDirectory.prototype.getFileHandle;
+    vi.spyOn(MemoryDirectory.prototype, "getFileHandle").mockImplementation(async function (
+      this: MemoryDirectory,
+      name: string,
+      options: { create?: boolean } = {},
+    ) {
+      if (name === "__manifest.json" && options.create) {
+        throw new DOMException("manifest quota", "QuotaExceededError");
+      }
+      return get.call(this, name, options);
+    });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("edit", "workspace/applyWorkspaceEdit", editThenFail);
+    await vi.advanceTimersByTimeAsync(250);
+    await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor"));
+    fileAt(root, "b.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    const result = h.response("edit").result;
+    expect(result).toMatchObject({ applied: false, failedChange: 2 });
+    expect(result.rollback).toEqual({
+      complete: false,
+      failed: [expect.stringMatching(/^file:\/\/local\/\.trash\/[^/]+\/b\.sd$/)],
+      kept: [uriOf("a.sd")],
+    });
+    expect(result.failureReason).toContain("could not be listed in the Trash");
+    expect(textAt(root, "b.sd")).toBe("B");
+    const listed = await h.request("list", "workspace/trashFiles", { projectId: "local", action: "list" });
+    expect(listed.result.batches).toEqual([]);
+    expect(textAt(root, result.rollback.failed[0].replace("file://local/", ""))).toBe("B!");
+  });
+
+  it("reports a save that lands while the rollback removes a folder the edit made", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A" });
+    const project = projectDirectory(root);
+    const remove = project.removeEntry.bind(project);
+    let release!: () => void;
+    let reached = false;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    project.removeEntry = async (entry, options) => {
+      if (entry === "new" && !reached) {
+        reached = true;
+        await held;
+      }
+      return remove(entry, options);
+    };
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("new/b.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(reached).toBe(true);
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    release();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(h.response("edit").result.rollback).toMatchObject({
+      complete: false,
+      failed: [],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("SAVED");
+  });
+
+  it("keeps a file another tab writes between the rollback's look at it and its restore, and removes nothing after", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    const a = fileAt(root, "a.sd")!;
+    const getFile = a.getFile.bind(a);
+    let reads = 0;
+    a.getFile = async () => {
+      if (a.history.length > 0 && ++reads === 2) {
+        a.bytes = enc.encode("OTHER TAB");
+      }
+      return getFile();
+    };
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          insert("a.sd", 1, "!"),
+          { kind: "create", uri: uriOf("new.sd"), data: enc.encode("NEW").buffer },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result.rollback).toEqual({
+      complete: false,
+      failed: [uriOf("new.sd")],
+      kept: [uriOf("a.sd")],
+    });
+    expect(textAt(root, "a.sd")).toBe("OTHER TAB");
+    expect(textAt(root, "new.sd")).toBe("NEW");
+  });
+
+  it("brings back an empty folder an earlier change deleted", async () => {
+    const root = seed({ "main.sd": "M" }, ["kept"]);
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "delete", uri: uriOf("kept") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 1,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(listMemory(root, "local")).toEqual(["kept/", "main.sd"]);
+  });
+
+  it("brings back a file an earlier change deleted", async () => {
+    const root = seed({ "main.sd": "M", "old.png": [1, 2, 3] });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "delete", uri: uriOf("old.png") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(listMemory(root, "local")).toEqual(["main.sd", "old.png"]);
+    expect([...fileAt(root, "old.png")!.bytes]).toEqual([1, 2, 3]);
+    expect(await h.cached("old.png")).toBeDefined();
+  });
+
+  it("removes a file an earlier change created and the folder made for it", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "create", uri: uriOf("new/made.sd"), data: enc.encode("NEW").buffer },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(listMemory(root, "local")).toEqual(["main.sd"]);
+    expect(await h.cached("new/made.sd")).toBeUndefined();
+  });
+
+  it("moves a renamed file back out of the folder made for it", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: {
+        documentChanges: [
+          { kind: "rename", oldUri: uriOf("a.sd"), newUri: uriOf("moved/a.sd") },
+          insert("missing.sd", 0, "x"),
+        ],
+      },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(listMemory(root, "local")).toEqual(["a.sd", "main.sd"]);
+    expect(textAt(root, "a.sd")).toBe("A");
+  });
+
+  it("reports a refused first change as nothing applied, with nothing to roll back", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const from = h.messages.length;
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("missing.sd", 0, "x"), insert("main.sd", 0, "x")] },
+    });
+    expect(response.result).toMatchObject({
+      applied: false,
+      failedChange: 0,
+      rollback: { complete: true, failed: [], kept: [] },
+    });
+    expect(textAt(root, "main.sd")).toBe("M");
+    expect(h.writtenTexts("main.sd", from)).toEqual([]);
+  });
+
+  it("restores the earlier files of an edit given as changes by file", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await worker(root);
+    await h.enumerate();
+    const edits = [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, newText: "x" }];
+    const response = await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { changes: { [uriOf("main.sd")]: edits, [uriOf("missing.sd")]: edits } },
+    });
+    expect(response.result).toMatchObject({ applied: false, failedChange: 1 });
+    expect(textAt(root, "main.sd")).toBe("M");
   });
 });

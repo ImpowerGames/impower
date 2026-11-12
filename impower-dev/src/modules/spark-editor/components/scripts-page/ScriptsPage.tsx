@@ -14,7 +14,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
 import {
@@ -45,6 +45,7 @@ import {
   SortMenu,
   Trail,
   useLibraryDrag,
+  useRowFocusReturn,
   useSelectionKeys,
   type SelectionAction,
 } from "../library-page";
@@ -95,9 +96,15 @@ function AllScripts() {
   }).value;
   const [query, setQuery] = useTabQuery(ALL_TAB);
   const scroller = useSavedScroll(ALL_TAB);
+  const newButton = useRef<HTMLButtonElement>(null);
   const [creating, setCreating] = useState<"script" | "folder" | null>(null);
-  const [fromMenu, setFromMenu] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const focusRenamed = useRowFocusReturn(
+    (path) =>
+      [...document.querySelectorAll<HTMLElement>("[data-script-path]")].find(
+        (element) => element.getAttribute("data-script-path") === path,
+      ) ?? null,
+  );
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const [deleting, setDeleting] = useState<{ paths: string[]; referencing: string[] | null } | null>(null);
   const selecting = selection.active.value;
@@ -202,10 +209,12 @@ function AllScripts() {
         <NameRow
           icon={<RowIcon row={row} />}
           label={`Rename ${row.name}`}
-          refocusOnce
           initial={stem}
           suffix={extension}
-          onCancel={() => setRenaming(null)}
+          onCancel={() => {
+            setRenaming(null);
+            focusRenamed(row.path);
+          }}
           onCommit={async (name) => {
             await (await intents()).scripts.rename(row.path, name);
             setRenaming(null);
@@ -225,6 +234,7 @@ function AllScripts() {
     return (
       <ListRow
         current={row.kind === "file" && row.path === openScript}
+        data-script-path={row.path}
         icon={<RowIcon row={row} />}
         label={row.name}
         description={line}
@@ -258,13 +268,14 @@ function AllScripts() {
       searchLabel="Search scripts"
       query={query}
       onQueryChange={setQuery}
+      newRef={newButton}
       newMenu={
         <>
-          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("script"); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("script"); }}>
             <FileIcon class="text-muted" />
             Script
           </DropdownItem>
-          <DropdownItem onSelect={() => { setQuery(""); setFromMenu(true); setCreating("folder"); }}>
+          <DropdownItem returnFocus={false} onSelect={() => { setQuery(""); setCreating("folder"); }}>
             <FolderIcon class="text-muted" />
             Folder
           </DropdownItem>
@@ -312,7 +323,7 @@ function AllScripts() {
           <NameRow
             icon={creating === "script" ? <FileIcon /> : <FolderIcon />}
             label={creating === "script" ? "New script name" : "New folder name"}
-            refocusOnce={fromMenu}
+            returnFocus={() => newButton.current}
             suffix={creating === "script" ? ".sd" : undefined}
             onCancel={() => setCreating(null)}
             onCommit={async (name) => {
@@ -344,7 +355,7 @@ function AllScripts() {
             icon={<FolderIcon />}
             title="This folder is empty"
             action={
-              <Button onClick={() => { setFromMenu(false); setCreating("script"); }}>
+              <Button onClick={() => setCreating("script")}>
                 <PlusIcon />
                 New script
               </Button>

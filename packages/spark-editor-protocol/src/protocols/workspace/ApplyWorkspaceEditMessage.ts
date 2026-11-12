@@ -20,7 +20,16 @@ export type ApplyWorkspaceEditParams = LSP.ApplyWorkspaceEditParams & {
   expectedTexts?: Record<string, string>;
 };
 
-export type ApplyWorkspaceEditResult = LSP.ApplyWorkspaceEditResult;
+export interface WorkspaceEditRollback {
+  complete: boolean;
+  failed: LSP.DocumentUri[];
+  kept: LSP.DocumentUri[];
+  trashed?: LSP.DocumentUri[];
+}
+
+export type ApplyWorkspaceEditResult = LSP.ApplyWorkspaceEditResult & {
+  rollback?: WorkspaceEditRollback;
+};
 
 export class ApplyWorkspaceEditMessage {
   static readonly method = "workspace/applyWorkspaceEdit";
