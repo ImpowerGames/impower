@@ -9,6 +9,10 @@ ScopedRuleDefinition,
 SwitchRuleDefinition,
 } from "../../types/GrammarDefinition";
 import type { Rule } from "../../types/Rule";
+import {
+  expandCaptureReferences,
+  hasCaptureReferences,
+} from "../../utils/captureReferences";
 import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
@@ -31,6 +35,10 @@ export class ScopedRule implements Rule {
   contentRule: SwitchRule;
 
   applyEndPatternLast: boolean;
+
+  nameTemplate: string | undefined;
+
+  contentNameTemplate: string | undefined;
 
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
@@ -77,6 +85,29 @@ export class ScopedRule implements Rule {
     this.contentRule = repo.add(contentRuleItem, contentId);
 
     this.applyEndPatternLast = def.applyEndPatternLast ?? false;
+
+    this.nameTemplate = hasCaptureReferences(def.name) ? def.name : undefined;
+    this.contentNameTemplate = hasCaptureReferences(def.contentName)
+      ? def.contentName
+      : undefined;
+  }
+
+  nodeFor(beginCaptures: readonly string[]): GrammarNode {
+    return this.nameTemplate === undefined
+      ? this.node
+      : this.repo.expand(
+          this.node,
+          expandCaptureReferences(this.nameTemplate, beginCaptures),
+        );
+  }
+
+  contentNodeFor(beginCaptures: readonly string[]): GrammarNode {
+    return this.contentNameTemplate === undefined
+      ? this.contentRule.node
+      : this.repo.expand(
+          this.contentRule.node,
+          expandCaptureReferences(this.contentNameTemplate, beginCaptures),
+        );
   }
 
   begin(state: GrammarState, from: number) {
@@ -85,7 +116,10 @@ export class ScopedRule implements Rule {
       return null;
     }
     const captures = begun.groups.map((group) => group ?? "");
-    const beginMatched = begun.matched.wrap(this.node, Wrapping.BEGIN);
+    const beginMatched = begun.matched.wrap(
+      this.nodeFor(captures),
+      Wrapping.BEGIN,
+    );
     this.contentRule.resolve();
     state.pushScope(this.node, captures, from, from + beginMatched.length);
     return beginMatched;
@@ -104,8 +138,11 @@ export class ScopedRule implements Rule {
   }
 
   close(state: GrammarState, from: number, endMatched: Matched) {
-    state.popScope(from);
-    return endMatched.wrap(this.node, Wrapping.END);
+    const popped = state.popScope(from);
+    return endMatched.wrap(
+      popped ? this.nodeFor(popped.beginCaptures) : this.node,
+      Wrapping.END,
+    );
   }
 
   get skipped() {

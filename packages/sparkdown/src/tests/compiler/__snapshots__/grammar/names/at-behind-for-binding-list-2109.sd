@@ -1,0 +1,7 @@
+function f(t)
+  for a, x@in, b: number in pairs(t) do end
+end
+
+function f(t)
+  for a, in@x, b: number in pairs(t) do end
+end

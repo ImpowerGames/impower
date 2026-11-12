@@ -229,4 +229,25 @@ describe("an incremental parse agrees with a cold parse across skipped gaps (I-2
     }
     expect(mismatches).toEqual([]);
   });
+
+  test.each([1, 2, 3, 4])("matches a cold parse at every step of a random chain of edits through the gapped lines, seed %i (I-2093)", (seed) => {
+    let state = seed;
+    const rand = () => {
+      state = (Math.imul(state, 1103515245) + 12345) | 0;
+      return ((state >>> 0) % 1_000_000) / 1_000_000;
+    };
+    const inserts = ["z", "?", "\n", "<", ">", "[", " ", ""];
+    let text = TEXT;
+    let tree = parser.parse(text);
+    const mismatches: number[] = [];
+    for (let step = 0; step < 30; step++) {
+      const at = PAD.length + Math.floor(rand() * BODY.length);
+      const insert = inserts[Math.floor(rand() * inserts.length)]!;
+      ({ next: text, tree } = edit(text, at, insert, insert === "" ? 1 : 0, tree));
+      if (printTree(tree, text) !== printTree(parser.parse(text), text)) {
+        mismatches.push(step);
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
 });

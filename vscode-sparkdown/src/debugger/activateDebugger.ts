@@ -21,7 +21,7 @@ import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
 import { debugPathToUri, debugUriToPath } from "./debugUriMapping";
-import { evaluatableExpressionRange } from "./evaluatableExpressionRange";
+import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,

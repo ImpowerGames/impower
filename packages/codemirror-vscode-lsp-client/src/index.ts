@@ -85,9 +85,11 @@ export { type LSPClientIcons } from "./icons";
 export {
   closeHoverCards,
   hoverExpressionAt,
+  hoverExpressions,
   hoverPreviews,
   hoverValues,
   serverHovers,
+  type HoverExpressionSource,
   type HoverValueSource,
 } from "./hover";
 export {

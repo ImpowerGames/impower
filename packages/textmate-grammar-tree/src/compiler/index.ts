@@ -4,4 +4,5 @@ export * from "./classes/CompileStack";
 export * from "./classes/Packet";
 export * from "./enums/SpecialRecord";
 export * from "./types/IBufferCursor";
+export * from "./types/IReusedRecords";
 export * from "./types/ITreeBuffer";

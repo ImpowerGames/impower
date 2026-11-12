@@ -1,0 +1,7 @@
+function f(ok)
+  local w = x@end --[[c]] (1)
+end
+
+function f(ok)
+  local w = x@true --[[c]] (1)
+end

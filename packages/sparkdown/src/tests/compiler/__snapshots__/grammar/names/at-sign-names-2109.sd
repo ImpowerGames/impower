@@ -1,0 +1,26 @@
+define mia@party as filtered_image with
+  image = image.mia@night
+  attributes = { "happy", "hat" }
+end
+
+style toggle {
+  @checked { background-color = black }
+  @hovered, @focused {
+    opacity = 0.5
+  }
+}
+
+@native
+function count@all(text)
+  local word@count = 0
+  local pattern = @/a+/
+  local flag@end = true@x
+  return word@count + #pattern
+end
+
+scene start
+  [[mia@night:happy]]
+  [[mia@night~hat]]
+  [[mia@party]]
+  [[mia@night + mia@party:hat]]
+end

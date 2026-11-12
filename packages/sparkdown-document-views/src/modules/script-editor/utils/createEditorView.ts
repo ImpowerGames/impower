@@ -27,6 +27,7 @@ import {
   type CompletionPreviewEvent,
   type ContextMenuPresenter,
   type HoverValueSource,
+  hoverExpressions,
   hoverValues,
   editorToolCommands,
   type EditorToolCommands,
@@ -108,6 +109,7 @@ import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { statusPanel } from "./extensions/statusPanel";
 import { touchAffordances } from "./extensions/touchAffordances";
+import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
@@ -375,7 +377,9 @@ const createEditorView = (
           serverWorkspace,
         }),
         onCompletionPreview ? completionPreview(onCompletionPreview) : [],
-        config.hoverValue ? hoverValues.of(config.hoverValue) : [],
+        config.hoverValue
+          ? [hoverValues.of(config.hoverValue), hoverExpressions.of(evaluatableExpressionRange)]
+          : [],
         EditorState.changeFilter.of(
           (tr: Transaction): boolean | readonly number[] => {
             if (changeFilter) {

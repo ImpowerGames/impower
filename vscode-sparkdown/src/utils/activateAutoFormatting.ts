@@ -6,6 +6,7 @@
  */
 
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { SPARKDOWN_LANGUAGE_CONFIGS } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
 import {
   commands,
   ExtensionContext,
@@ -13,6 +14,7 @@ import {
   Range,
   Selection,
   SnippetString,
+  TextDocument,
   TextEditor,
   window,
   workspace,
@@ -20,6 +22,7 @@ import {
 } from "vscode";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
+import { closesByLanguage, type ClosingSettings } from "./closesByLanguage";
 
 enum EmphasisType {
   ITALIC = "*",
@@ -158,15 +161,118 @@ const onType = async (
   e: { source: "keyboard"; text: string },
   ...args: any[]
 ) => {
-  const editor = window.activeTextEditor!;
+  const editor = window.activeTextEditor;
 
-  if (e.text === "<") {
-    if (await onOpenAngleBracket(editor)) {
+  if (editor) {
+    if (e.text === "<") {
+      if (await onOpenAngleBracket(editor)) {
+        return true;
+      }
+    }
+
+    if (await closeByLanguage(editor, e.text)) {
       return true;
     }
   }
 
   return commands.executeCommand("default:type", e, ...args);
+};
+
+const closingSettingsOf = (document: TextDocument): ClosingSettings => {
+  const editorConfig = workspace.getConfiguration("editor", document);
+  return {
+    autoClosingBrackets: editorConfig.get("autoClosingBrackets", "languageDefined"),
+    autoClosingQuotes: editorConfig.get("autoClosingQuotes", "languageDefined"),
+    autoClosingComments: editorConfig.get("autoClosingComments", "languageDefined"),
+    wordSeparators: editorConfig.get(
+      "wordSeparators",
+      "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?",
+    ),
+  };
+};
+
+const closeByLanguage = async (
+  editor: TextEditor,
+  insert: string,
+): Promise<boolean> => {
+  const { document, selections } = editor;
+  if (
+    document.languageId !== "sparkdown" ||
+    !selections.every((selection) => selection.isEmpty)
+  ) {
+    return false;
+  }
+  const closes = closesByLanguage(
+    SPARKDOWN_LANGUAGE_CONFIGS,
+    document.languageId,
+    closingSettingsOf(document),
+    selections.map(({ active }) => {
+      const line = document.lineAt(active.line).text;
+      return {
+        lineBefore: line.slice(0, active.character),
+        lineAfter: line.slice(active.character),
+      };
+    }),
+    insert,
+    (index) =>
+      SparkdownDocumentManager.instance.languageAt(
+        document,
+        selections[index]!.active,
+      ),
+  );
+  if (!closes) {
+    return false;
+  }
+  const offsets = selections.map(({ active }) => document.offsetAt(active));
+  const shiftBefore = (offset: number, lengths: number[]) =>
+    offsets.reduce(
+      (sum, other, index) => (other < offset ? sum + lengths[index]! : sum),
+      0,
+    );
+  const closers = closes.map((close) => close?.close ?? "");
+  const closerUndoStep = closes.some(
+    (close) => close !== null && close.open.length > insert.length,
+  );
+  const typed = await editor.edit(
+    (editBuilder) => {
+      selections.forEach(({ active }, index) => {
+        editBuilder.insert(
+          active,
+          closerUndoStep ? insert : insert + closers[index],
+        );
+      });
+    },
+    { undoStopBefore: true, undoStopAfter: closerUndoStep },
+  );
+  if (!typed) {
+    return false;
+  }
+  if (closerUndoStep) {
+    const typedLengths = offsets.map(() => insert.length);
+    await editor.edit(
+      (editBuilder) => {
+        offsets.forEach((offset, index) => {
+          if (closers[index]) {
+            editBuilder.insert(
+              editor.document.positionAt(
+                offset + shiftBefore(offset, typedLengths) + insert.length,
+              ),
+              closers[index]!,
+            );
+          }
+        });
+      },
+      { undoStopBefore: false, undoStopAfter: false },
+    );
+  }
+  const insertedLengths = closers.map((closer) => insert.length + closer.length);
+  editor.selections = offsets.map((offset) => {
+    const position = editor.document.positionAt(
+      offset + shiftBefore(offset, insertedLengths) + insert.length,
+    );
+    return new Selection(position, position);
+  });
+  return true;
 };
 
 const onOpenAngleBracket = async (editor: TextEditor) => {

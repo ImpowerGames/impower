@@ -133,6 +133,8 @@ import {
   type ReferenceOutcome,
 } from "../utils/ReferenceValidationCache";
 import type { Reference } from "./annotators/ReferenceAnnotator";
+import { getImageThing } from "../utils/getImageThing";
+import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { resolveSelector } from "../utils/resolveSelector";
@@ -379,13 +381,17 @@ export function declaredGlobalNames(root: ProgramRoot): Set<string> {
 function indexOfWord(text: string, word: string): number {
   const isWordChar = (c: string | undefined): boolean =>
     c !== undefined && /[A-Za-z0-9_]/.test(c);
+  const continuesBefore = (at: number): boolean =>
+    isWordChar(text[at - 1]) || (text[at - 1] === "@" && isWordChar(text[at - 2]));
+  const continuesAfter = (at: number): boolean =>
+    isWordChar(text[at]) || (text[at] === "@" && isWordChar(text[at + 1]));
   let from = 0;
   while (from <= text.length) {
     const at = text.indexOf(word, from);
     if (at < 0) {
       return -1;
     }
-    if (!isWordChar(text[at - 1]) && !isWordChar(text[at + word.length])) {
+    if (!continuesBefore(at) && !continuesAfter(at + word.length)) {
       return at;
     }
     from = at + 1;
@@ -1611,6 +1617,7 @@ export class SparkdownCompiler {
     }
     this.buildContext(state, program);
     this.populateEngineChannels(program);
+    this.populateImageThings(program);
     this.populateMorphChannel(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
@@ -3979,6 +3986,21 @@ export class SparkdownCompiler {
     return true;
   }
 
+  populateImageThings(program: SparkProgram) {
+    const things: { [name: string]: string } = {};
+    for (const type of ["image", "layered_image", "filtered_image"]) {
+      for (const name of Object.keys(program.context?.[type] ?? {})) {
+        Object.defineProperty(things, name, {
+          value: getImageThing(name),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+    program.imageThings = things;
+  }
+
   populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateEngineChannels", uri);
@@ -5116,7 +5138,7 @@ export class SparkdownCompiler {
       ...Object.keys(program.knotLocations ?? {}),
     );
     for (const key of Object.keys(STDLIB)) names.push(key.split(".")[0]!);
-    return names.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+    return names.filter(isLuauName);
   }
 
   get typecheckStats() {

@@ -72,7 +72,7 @@ const STRUCT_KEYWORD_TYPES: ReadonlySet<string> = new Set([
 
 const WITH_FORM = "`define hero as character with` … `end`";
 const NAME_RULE =
-  "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, and start with a letter or `_`.";
+  "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, start with a letter or `_`, and may hold an `@` between two of those characters (`mia@night`).";
 
 export function validateDefineStructure(
   node: SyntaxNode,
