@@ -109,7 +109,7 @@ describe("morph field hover", () => {
     const hover = await hoverAt(TALK, "trigger =");
     expect(hover).toEqual({ value: expect.stringContaining("What starts the morph"), marked: "trigger" });
     expect(hover!.value).toContain("`appear` (default) plays it on its own schedule from the moment its portrait appears");
-    expect(hover!.value).toContain("`speech` plays it only while its portrait's character is speaking");
+    expect(hover!.value).toContain("`speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest");
     expect((await hoverAt(TALK, "delay ="))?.value).toContain("Not allowed with `trigger = speech`");
   });
 

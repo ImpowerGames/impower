@@ -170,7 +170,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
   trigger:
-    "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` plays it only while its portrait's character is speaking, and shows its rest otherwise. A speech morph takes no `delay` or `iterations`: speech decides when its plays start and how many there are.",
+    "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest. A speech morph takes no `delay` or `iterations`.",
   duration: "Seconds one play lasts. Default 0.25.",
   delay: "Seconds before the first play. Default 0. Not allowed with `trigger = speech`.",
   easing:

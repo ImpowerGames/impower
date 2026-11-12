@@ -154,7 +154,7 @@ describe("morph completion in brace bodies", () => {
     for (const label of ["appear", "speech"]) {
       const doc = (itemAt(source, label).documentation as any)?.value as string;
       expect(doc).toContain("`appear` (default) plays it on its own schedule from the moment its portrait appears");
-      expect(doc).toContain("`speech` plays it only while its portrait's character is speaking");
+      expect(doc).toContain("`speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest");
     }
     const field = itemAt(`morph talk {
   timing {
