@@ -303,6 +303,28 @@ describe("the player renders marks paired by CommonMark's rules", () => {
   });
 });
 
+describe("choice text until #2144 stops the player scanning it for marks", () => {
+  const LINE = "Choice snake_case_name *open `raw {1+1}";
+  const readings = async () => {
+    const body = `${LINE}\n\n  choose\n    + ${LINE}\n      Done.\n  end`;
+    const [display, choice] = await renderedBeats(script(body), 2);
+    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
+    return { display: line(display!("action")), choice: line(choice!("choice 0")) };
+  };
+
+  test("the player's choice scanner still pairs marks by the old rules, which #2144 replaces", async () => {
+    expect(await readings()).toEqual({
+      display: "Choice snake_case_name *open `raw 2",
+      choice: "Choice snake[underline: case]name [italic: open ][italic raw: raw 2]",
+    });
+  });
+
+  test.fails("the player renders choice text as the grammar reads it, which #2144 makes pass", async () => {
+    const { display, choice } = await readings();
+    expect(choice).toBe(display);
+  });
+});
+
 describe("a mark inside an inserted value is styled within the value only", () => {
   test("a value's star does not close the script's italic span", async () => {
     const cellsOf = await renderedBeat(

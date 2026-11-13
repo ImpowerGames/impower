@@ -1144,6 +1144,12 @@ CommonMark's emphasis rules (spec 0.31.2, "Emphasis and strong emphasis") decide
 
 The last case is a difference between display and choice text as well: on a display line ``A `far {"->"} away` now`` is raw. An arrow ends a choice's text and a span never crosses its region's end, so the raw span cannot open there. #2144, which rebuilds choice lines, holds it open; `markPairing.test.ts` pins it by name.
 
+**Readers that pair marks by their own rules.** Three renderers do not take their spans from the grammar, so they do not follow these rules:
+
+- The player renders choice text with its own scanner (`InterpreterModule.parse` with `choice` set) until #2144 carries choice styling from the compiler. That scanner styles an unclosed mark to the end of the text, pairs `_` inside a word, and reads nested and long runs its own way. For ``+ Choice snake_case_name *open `raw {1+1}`` the editor colours the choice plain, and the same text on a display line renders plain, while the choice renders `snake`, an underlined `case`, `name`, then italic `open ` and italic raw `raw 2`. `displayStylingAgreement.test.ts` pins both readings by name, and marks as an expected failure the rule that the choice renders as the grammar reads it, which #2144 makes pass.
+- The player pairs the marks inside an inserted value with the same scanner, within the value only.
+- The screenplay export pairs marks with its own scanner (`sparkdown-screenplay/src/utils/styleText.ts`) until #2146.
+
 ## 12. Whitespace classes — picking the right one
 
 The auto-formatter (`FormattingAnnotator`) decides how to normalize whitespace by **position first, node name second**. Whitespace runs at the **start of a line** are treated as indent regardless of which capture they sit under; runs at the **end of a line** are treated as trailing whitespace the same way. Only mid-line runs need their node name to disambiguate.
