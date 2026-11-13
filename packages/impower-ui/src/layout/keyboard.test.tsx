@@ -10,6 +10,13 @@ let keyboardOpen = false;
 let offsetTop = 0;
 let scale = 1;
 let viewportListeners: Map<string, Set<() => void>>;
+let releases: (() => void)[] = [];
+
+const hold = (...args: Parameters<typeof fitToKeyboard>) => {
+  const release = fitToKeyboard(...args);
+  releases.push(release);
+  return release;
+};
 
 const visibleHeight = () =>
   window.innerHeight - (keyboardOpen ? KEYBOARD_HEIGHT : 0);
@@ -58,6 +65,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  releases.forEach((release) => release());
+  releases = [];
   document.documentElement.classList.remove("keyboard-open");
   document.body.innerHTML = "";
   document.body.removeAttribute("style");
@@ -67,7 +76,7 @@ afterEach(() => {
 
 describe("fitting the root to the on-screen keyboard", () => {
   it("sizes the root to the visible height whenever the keyboard is open, whatever has focus", () => {
-    const release = fitToKeyboard();
+    const release = hold();
     const field = document.body.appendChild(document.createElement("input"));
     field.focus();
 
@@ -86,7 +95,7 @@ describe("fitting the root to the on-screen keyboard", () => {
   });
 
   it("restores the root when the keyboard closes and keeps the last keyboard height", () => {
-    const release = fitToKeyboard();
+    const release = hold();
     setKeyboard(true);
 
     setKeyboard(false);
@@ -100,7 +109,7 @@ describe("fitting the root to the on-screen keyboard", () => {
   });
 
   it("pans the page back to the top when the browser scrolls it to reveal a field", () => {
-    const release = fitToKeyboard();
+    const release = hold();
     setKeyboard(true);
 
     offsetTop = 112;
@@ -114,7 +123,7 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("measures the keyboard when the browser shrinks the layout viewport with it", () => {
     const full = window.innerHeight;
-    const release = fitToKeyboard();
+    const release = hold();
     const host = document.body.appendChild(document.createElement("div"));
     const editable = host
       .attachShadow({ mode: "open" })
@@ -134,6 +143,9 @@ describe("fitting the root to the on-screen keyboard", () => {
     const button = document.body.appendChild(document.createElement("button"));
     button.focus();
     expect(keyboard().open).toBe(true);
+    vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT + 48);
+    emit("resize");
+    expect(keyboard()).toEqual({ open: true, height: KEYBOARD_HEIGHT - 48 });
 
     vi.stubGlobal("innerHeight", full);
     emit("resize");
@@ -143,7 +155,7 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("treats a shorter window at the same width as no keyboard while no field has focus", () => {
     const full = window.innerHeight;
-    const release = fitToKeyboard();
+    const release = hold();
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
     emit("resize");
 
@@ -155,7 +167,7 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("ignores a change in height smaller than a keyboard", () => {
     const full = window.innerHeight;
-    const release = fitToKeyboard();
+    const release = hold();
     vi.stubGlobal("innerHeight", full - KEYBOARD_MIN_HEIGHT);
     emit("resize");
 
@@ -166,7 +178,7 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("measures from the new full height after the width changes", () => {
     const width = window.innerWidth;
-    const release = fitToKeyboard();
+    const release = hold();
     vi.stubGlobal("innerWidth", window.innerHeight);
     vi.stubGlobal("innerHeight", width / 2);
     emit("resize");
@@ -177,7 +189,7 @@ describe("fitting the root to the on-screen keyboard", () => {
   });
 
   it("treats a pinch zoom as no keyboard", () => {
-    const release = fitToKeyboard();
+    const release = hold();
     scale = 2;
 
     setKeyboard(true);
@@ -189,7 +201,7 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("tells each holder when the keyboard opens, changes height or closes", () => {
     const seen: string[] = [];
-    const release = fitToKeyboard((next) =>
+    const release = hold((next) =>
       seen.push(`${next.open}:${next.height}`),
     );
 
@@ -202,8 +214,8 @@ describe("fitting the root to the on-screen keyboard", () => {
   });
 
   it("follows the keyboard while any holder remains and stops after the last one releases", () => {
-    const first = fitToKeyboard();
-    const second = fitToKeyboard();
+    const first = hold();
+    const second = hold();
     setKeyboard(true);
 
     first();

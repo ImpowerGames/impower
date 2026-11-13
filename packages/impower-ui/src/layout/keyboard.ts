@@ -11,6 +11,7 @@ let holders = 0;
 let last: Keyboard = CLOSED;
 let fullHeight = 0;
 let fullHeightWidth = -1;
+let lastInnerHeight = 0;
 
 const NON_TEXT_INPUTS = new Set([
   "button",
@@ -41,7 +42,12 @@ const focusedElement = (): Element | null => {
 };
 
 const measureFullHeight = () => {
-  if (window.innerWidth !== fullHeightWidth || !takesText(focusedElement())) {
+  const shorter = window.innerHeight < lastInnerHeight;
+  lastInnerHeight = window.innerHeight;
+  if (
+    window.innerWidth !== fullHeightWidth ||
+    (shorter && !takesText(focusedElement()))
+  ) {
     fullHeightWidth = window.innerWidth;
     fullHeight = window.innerHeight;
   } else {
