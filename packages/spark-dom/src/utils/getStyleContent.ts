@@ -166,6 +166,8 @@ const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
 const NAME_AT = "";
 
+const NAME_AT_ESCAPE = escapeCssIdentifier("@");
+
 const NAME_RUN_REGEX = /(^|[^@\p{L}\p{N}_-])([\p{L}\p{N}_-][@\p{L}\p{N}_-]*)/gu;
 
 const markNameAts = (piece: string) =>
@@ -205,7 +207,7 @@ export function getCSSSelector(
       .replace(PSEUDO_ALIAS_REGEX, (m) =>
         m in PSEUDO_ALIASES ? (PSEUDO_ALIASES as any)[m] : ":" + m.slice(1),
       )
-      .replaceAll(NAME_AT, "\\@");
+      .replaceAll(NAME_AT, NAME_AT_ESCAPE);
 
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);

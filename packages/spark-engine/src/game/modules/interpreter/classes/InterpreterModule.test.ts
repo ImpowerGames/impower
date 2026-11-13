@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { Game } from "../../../core/classes/Game";
 import { preludeContext } from "../../../../tests/harness/compilePrelude";
 import { InterpreterModule } from "./InterpreterModule";
+import {
+  SPAN_CLOSE,
+  SPAN_END,
+  scanned,
+  spanOpen,
+} from "@impower/sparkdown/src/runtime/displayStyle";
 
 const TARGET = "textbox";
 
@@ -94,70 +100,125 @@ describe("InterpreterModule text tags", () => {
     });
   });
 
-  describe("emphasis markers", () => {
-    const cases: [marker: string, source: string, emphasis: string[]][] = [
-      ["*", "A *word* here.", ["italic"]],
-      ["_", "A _word_ here.", ["underline"]],
-      ["^", "A ^word^ here.", ["centered"]],
-      ["**", "A **word** here.", ["bold"]],
-      ["***", "A ***word*** here.", ["bold", "italic"]],
+  describe("spans the compiler read from the grammar", () => {
+    const span = (mark: string, text: string, close = SPAN_CLOSE) =>
+      spanOpen(mark) + text + close;
+
+    const cases: [mark: string, emphasis: string[]][] = [
+      ["*", ["italic"]],
+      ["_", ["underline"]],
+      ["__", ["underline"]],
+      ["^", ["centered"]],
+      ["**", ["bold"]],
     ];
 
-    for (const [marker, source, emphasis] of cases) {
-      it(`\`${marker}\` marks text as ${emphasis.join(" + ")}`, () => {
-        const result = render(source);
+    for (const [mark, emphasis] of cases) {
+      it(`a \`${mark}\` span marks its text as ${emphasis.join(" + ")}`, () => {
+        const result = render(`A ${span(mark, "word")} here.`);
         expect(result.text).toBe("A word here.");
         expect(result.emphasized).toEqual([{ text: "word", emphasis }]);
       });
     }
 
-    it("carries emphasis across multiple words", () => {
-      const result = render("Multi *a b c* end.");
-      expect(result.text).toBe("Multi a b c end.");
+    it("combines nested spans", () => {
+      const result = render(`A ${span("**", span("*", "word"))} here.`);
+      expect(result.text).toBe("A word here.");
       expect(result.emphasized).toEqual([
-        { text: "a b c", emphasis: ["italic"] },
+        { text: "word", emphasis: ["bold", "italic"] },
       ]);
     });
 
-    it("combines nested markers", () => {
-      const result = render("Nested *_both_* end.");
-      expect(result.text).toBe("Nested both end.");
+    it("leaves text intact for animated spans", () => {
+      expect(render(`A ${span("~~", "wavy")} word.`).text).toBe("A wavy word.");
+      expect(render(`A ${span("::", "shaky")} word.`).text).toBe(
+        "A shaky word.",
+      );
+    });
+
+    it("styles a span that runs to the end of its line", () => {
+      const result = render(`A ${span("*", "rest of line", SPAN_END)}`);
+      expect(result.text).toBe("A rest of line");
       expect(result.emphasized).toEqual([
-        { text: "both", emphasis: ["italic", "underline"] },
+        { text: "rest of line", emphasis: ["italic"] },
       ]);
     });
 
-    it("treats an escaped marker as literal text", () => {
+    it("keeps a span open across a line break inside it", () => {
+      const result = render(`${span("*", "one\ntwo")} three`);
+      expect(result.text).toBe("one\ntwo three");
+      expect(result.emphasized.map((s) => s.text.trim())).toEqual([
+        "one",
+        "two",
+      ]);
+    });
+  });
+
+  describe("script text is not scanned for marks", () => {
+    it("shows a mark character written in script text as itself", () => {
+      const result = render("A *word* _here_ ^and^ **there** ~~now~~ ::too::.");
+      expect(result.text).toBe(
+        "A *word* _here_ ^and^ **there** ~~now~~ ::too::.",
+      );
+      expect(result.emphasized).toEqual([]);
+    });
+
+    it("keeps the style of a span over a mark character inside it", () => {
+      const result = render(`A ${spanOpen("*")}a *b* c${SPAN_CLOSE} d`);
+      expect(result.text).toBe("A a *b* c d");
+      expect(result.emphasized).toEqual([
+        { text: "a *b* c", emphasis: ["italic"] },
+      ]);
+    });
+
+    it("shows backticks in script text as themselves", () => {
+      const result = render("A `b` c");
+      expect(result.text).toBe("A `b` c");
+    });
+
+    it("still reads an escape in script text", () => {
       const result = render("Esc \\*literal\\* end.");
       expect(result.text).toBe("Esc *literal* end.");
       expect(result.emphasized).toEqual([]);
     });
+  });
 
-    it("leaves text intact for animated markers", () => {
-      expect(render("A ~~wavy~~ word.").text).toBe("A wavy word.");
-      expect(render("A ::shaky:: word.").text).toBe("A shaky word.");
+  describe("marks inside an inserted value", () => {
+    it("styles a marked value within the value", () => {
+      const result = render(`Value ${scanned("*b*")} here`);
+      expect(result.text).toBe("Value b here");
+      expect(result.emphasized).toEqual([{ text: "b", emphasis: ["italic"] }]);
     });
 
-    const unclosed: [marker: string, source: string, emphasis: string[]][] = [
-      ["*", "A *rest of line", ["italic"]],
-      ["_", "A _rest of line", ["underline"]],
-      ["**", "A **rest of line", ["bold"]],
-    ];
+    it("ends a value's unclosed mark with the value", () => {
+      const result = render(`${scanned("*a")} b`);
+      expect(result.text).toBe("a b");
+      expect(result.emphasized).toEqual([{ text: "a", emphasis: ["italic"] }]);
+    });
 
-    for (const [marker, source, emphasis] of unclosed) {
-      it(`applies an unclosed \`${marker}\` to the rest of the line`, () => {
-        const result = render(source);
-        expect(result.text).toBe("A rest of line");
-        expect(result.emphasized).toEqual([{ text: "rest of line", emphasis }]);
-      });
-    }
-
-    it("stops an unclosed marker at the end of the line", () => {
-      const result = render("Start *emphasis\nSecond line");
-      expect(result.text).toBe("Start emphasis\nSecond line");
+    it("cannot close a span written in the script", () => {
+      const result = render(
+        `${spanOpen("*")}far ${scanned("a* b")} away${SPAN_END}`,
+      );
+      expect(result.text).toBe("far a b away");
       expect(result.emphasized).toEqual([
-        { text: "emphasis", emphasis: ["italic"] },
+        { text: "far a b away", emphasis: ["italic"] },
       ]);
+    });
+  });
+
+  describe("choice text", () => {
+    it("is still scanned for marks", () => {
+      const instructions =
+        createModule().parse("A *word* here.", TARGET, { choice: true }).text?.[
+          TARGET
+        ] ?? [];
+      expect(instructions.map((i) => i.text).join("")).toBe("A word here.");
+      expect(
+        instructions
+          .filter((i) => emphasisOf(i.style as Record<string, unknown>).length)
+          .map((i) => i.text)
+          .join(""),
+      ).toBe("word");
     });
   });
 

@@ -12,6 +12,7 @@ import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import {
   CALL_DISCARD,
   CALL_OPEN,
+  CALL_STYLED,
   COUNT_TURNS,
   ConstValue,
   NATIVE_CALL_ARGS,
@@ -109,6 +110,7 @@ export class FunctionCall extends Expression {
   }
 
   public shouldPopReturnedValue: boolean = false;
+  public carriesStyleCodes: boolean = false;
 
   constructor(functionName: Identifier, args: Expression[]) {
     super();
@@ -320,6 +322,9 @@ export class FunctionCall extends Expression {
       let flags = this.shouldPopReturnedValue ? CALL_DISCARD : 0;
       if (this.name === "display" && displayLeavesLineOpen(this.args)) {
         flags |= CALL_OPEN;
+      }
+      if (this.name === "display" && this.carriesStyleCodes) {
+        flags |= CALL_STYLED;
       }
       emitter.emit(
         Op.CallStd,

@@ -243,26 +243,9 @@ export class MorphPlayback {
   }
 
   advance(seconds: number) {
-    if (!Number.isFinite(seconds) || seconds === 0) return;
-    if (seconds < 0) {
-      this.speech = undefined;
-      this.restartAll();
-      this.render();
-      return;
-    }
-    if (this.paused) return;
+    if (!Number.isFinite(seconds) || seconds <= 0 || this.paused) return;
     this.time += seconds;
     this.render();
-  }
-
-  step(seconds: number) {
-    const paused = this.paused;
-    this.paused = false;
-    try {
-      this.advance(seconds);
-    } finally {
-      this.paused = paused;
-    }
   }
 
   setPaused(paused: boolean) {

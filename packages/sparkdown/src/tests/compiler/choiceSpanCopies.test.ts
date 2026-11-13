@@ -5,8 +5,8 @@ const SOURCE = readGrammarSource();
 const repository = SOURCE.repository as Record<string, any>;
 const variables = SOURCE.variables as Record<string, string>;
 
-const SPANS = ["Raw", "BoldItalic", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"];
-const SPAN_CONTENTS = ["SpanContent", "RawContent", "BoldItalicContent"];
+const SPANS = ["Raw", "Bold", "Italic", "Underline", "Centered", "EmphasisTilde", "EmphasisColon"];
+const SPAN_CONTENTS = ["SpanContent", "RawContent"];
 
 interface Region {
   rule: string;
@@ -25,7 +25,7 @@ const asDisplay = (value: unknown, region: Region): unknown => {
     if (value.startsWith(prefix) && [...SPAN_CONTENTS, ...SPANS].includes(value.slice(prefix.length))) {
       return `#${value.slice(prefix.length)}`;
     }
-    return value.split(`{{${region.variable}SPAN_END}}`).join("{{SPAN_END}}");
+    return value.split(`{{${region.variable}`).join("{{");
   }
   if (Array.isArray(value)) return value.map((item) => asDisplay(item, region));
   if (value && typeof value === "object") {
@@ -56,6 +56,31 @@ describe("each choice region's span rules are the display span rules with the re
     (_name, region) => {
       expect([...displaySpanOrder()].sort()).toEqual([...SPANS].sort());
       expect(includes(`${region.rule}Spans`)).toEqual(displaySpanOrder().map((span) => `#${region.rule}${span}`));
+    },
+  );
+
+  test.each(REGIONS.map((region) => [region.rule, region] as const))(
+    "%s's span variables are the display span variables with the region's names",
+    (_name, region) => {
+      const used = new Set<string>();
+      const visit = (value: unknown) => {
+        for (const [, name] of JSON.stringify(value).matchAll(/\{\{([A-Z_0-9]+)\}\}/g)) {
+          if (used.has(name!)) continue;
+          used.add(name!);
+          visit(variables[name!]);
+        }
+      };
+      SPANS.forEach((span) => visit(repository[`${region.rule}${span}`]));
+      const copies = [...used].filter(
+        (name) =>
+          name.startsWith(region.variable) &&
+          name !== `${region.variable}SPAN_END` &&
+          variables[name.slice(region.variable.length)] !== undefined,
+      );
+      expect(copies.length).toBeGreaterThan(0);
+      for (const copy of copies) {
+        expect(asDisplay(variables[copy], region), copy).toBe(variables[copy.slice(region.variable.length)]);
+      }
     },
   );
 

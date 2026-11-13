@@ -16,6 +16,11 @@ import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/mo
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
 
+export interface LiveClip {
+  startedAt: number;
+  ended: Promise<unknown>;
+}
+
 export default class AudioManager extends Manager {
   protected _unsafeAudioContext?: AudioContext;
   protected get unsafeAudioContext() {
@@ -69,6 +74,7 @@ export default class AudioManager extends Manager {
     this._audioMixers.clear();
     this._mixerGains.clear();
     this._waitingMovies.clear();
+    this._pendingPlayers.clear();
     this._synthKeys.clear();
     for (const c of this._audioChannels.values()) {
       for (const p of c.values()) {
@@ -122,6 +128,49 @@ export default class AudioManager extends Manager {
       }
     }
     return keys;
+  }
+
+  liveClips(channel: string): LiveClip[] {
+    const context = this.app.audioContext;
+    const players = this._audioChannels.get(channel);
+    if (!context || context.state !== "running" || !players) {
+      return [];
+    }
+    const now = context.currentTime;
+    return [...players.values()].flatMap((player) =>
+      player.instances
+        .filter((instance) => instance.stoppedAt == null || instance.stoppedAt > now)
+        .map(({ startedAt, ended }) => ({ startedAt, ended })),
+    );
+  }
+
+  protected _clipStartListeners = new Map<string, Set<(clip: LiveClip) => void>>();
+
+  onClipStart(channel: string, listener: (clip: LiveClip) => void): () => void {
+    let listeners = this._clipStartListeners.get(channel);
+    if (!listeners) {
+      listeners = new Set();
+      this._clipStartListeners.set(channel, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  protected clipStarted(
+    channel: string | undefined,
+    instance: AudioPlayer["instances"][number],
+  ) {
+    const context = this.app.audioContext;
+    const listeners = channel ? this._clipStartListeners.get(channel) : undefined;
+    if (!context || context.state !== "running" || !listeners?.size) {
+      return;
+    }
+    const clip = { startedAt: instance.startedAt, ended: instance.ended };
+    for (const listener of [...listeners]) {
+      listener(clip);
+    }
   }
 
   protected async getAudioBuffer(
@@ -213,24 +262,49 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
+    if (!audioBuffer) {
+      return undefined;
+    }
+    if (!this.app.audioContext) {
+      this._pendingPlayers.set(`${params.channel}/${params.key}`, {
+        params,
+        audioBuffer,
+      });
+      return undefined;
+    }
+    return this.createAudioPlayer(params, audioBuffer, this.app.audioContext);
+  }
+
+  protected _pendingPlayers = new Map<
+    string,
+    { params: LoadAudioPlayerParams; audioBuffer: AudioBuffer }
+  >();
+
+  protected createAudioPlayer(
+    params: LoadAudioPlayerParams,
+    audioBuffer: AudioBuffer,
+    audioContext: AudioContext,
+  ): AudioPlayer {
+    const audioChannel = this.getAudioChannel(params.channel);
+    const existing = audioChannel.get(params.key);
+    if (existing) {
+      return existing;
+    }
     const mixerName = params.mixer || params.channel;
     const audioMixer = this.getAudioMixer(mixerName, params.mixerGain ?? 1);
-    if (audioBuffer && this.app.audioContext) {
-      const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {
-        volume: params.volume,
-        cues: params.cues,
-        loop: params.loop,
-        loopStart: params.loopStart,
-        loopEnd: params.loopEnd,
-        destination: audioMixer?.volumeNode,
-      });
-      audioChannel.set(params.key, audioPlayer);
-      if (params.synth && params.tones) {
-        this._synthKeys.add(params.key);
-      }
-      return audioPlayer;
+    const audioPlayer = new AudioPlayer(audioBuffer, audioContext, {
+      volume: params.volume,
+      cues: params.cues,
+      loop: params.loop,
+      loopStart: params.loopStart,
+      loopEnd: params.loopEnd,
+      destination: audioMixer?.volumeNode,
+    });
+    audioChannel.set(params.key, audioPlayer);
+    if (params.synth && params.tones) {
+      this._synthKeys.add(params.key);
     }
-    return undefined;
+    return audioPlayer;
   }
 
   protected async updateAudioPlayer(
@@ -254,7 +328,8 @@ export default class AudioManager extends Manager {
       audioPlayer.loop = update.loop;
     }
     if (update.control === "start") {
-      audioPlayer.start(when, over, gain, at);
+      const instance = audioPlayer.start(when, over, gain, at);
+      this.clipStarted(channel, instance);
       if (channel && key) {
         this.pruneWhenDone(channel, key, audioPlayer);
       }
@@ -308,6 +383,17 @@ export default class AudioManager extends Manager {
   }
 
   onAudioContextRunning() {
+    const audioContext = this.app.audioContext;
+    if (audioContext) {
+      const pending = [...this._pendingPlayers.values()];
+      this._pendingPlayers.clear();
+      for (const { params, audioBuffer } of pending) {
+        this.createAudioPlayer(params, audioBuffer, audioContext);
+      }
+      for (const [mixer, gain] of this._mixerGains) {
+        this.getAudioMixer(mixer, gain);
+      }
+    }
     for (const [video, { mixer, mixerGain }] of this._waitingMovies) {
       if (video.isConnected) {
         this.connectMovie(video, mixer, mixerGain);
@@ -387,17 +473,6 @@ export default class AudioManager extends Manager {
               startTime = currentTime;
             }
           }
-        }
-      }
-    }
-  }
-
-  override onSkip(seconds: number): void {
-    if (this.app.audioContext) {
-      const scheduledTime = this.app.audioContext.currentTime;
-      for (const c of this._audioChannels.values()) {
-        for (const p of c.values()) {
-          p.step(scheduledTime, seconds);
         }
       }
     }

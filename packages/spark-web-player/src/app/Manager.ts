@@ -20,8 +20,6 @@ export class Manager {
 
   onUpdate(_time: Clock): void {}
 
-  onSkip(_seconds: number): void {}
-
   onPause(): void {}
 
   onUnpause(): void {}

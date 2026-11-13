@@ -6,6 +6,7 @@ import {
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { programListing, stringCount } from "../programListing";
+import { writtenText } from "../../runtime/displayStyle";
 type RuntimeStory = TestStory;
 
 type Routing = { target?: string; character?: string };
@@ -19,10 +20,13 @@ function stepsWith<T>(
     story.Continue();
     if (!continueShowedSomething(story)) continue;
     const text = story.currentDisplayInstructions
-      .map(
-        (table) =>
-          (table.value?.get("text") as { value?: unknown } | undefined)
-            ?.value ?? "",
+      .map((table) =>
+        writtenText(
+          String(
+            (table.value?.get("text") as { value?: unknown } | undefined)
+              ?.value ?? "",
+          ),
+        ),
       )
       .join("");
     out.push([`${text}\n`, read(story)]);

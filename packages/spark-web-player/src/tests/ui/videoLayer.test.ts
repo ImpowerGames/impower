@@ -129,7 +129,7 @@ describe("a movie on a layer, in play", () => {
     expect(video!.paused).toBe(true);
   });
 
-  test("pauses with the game, resumes with it, and skips with its clock", async () => {
+  test("pauses with the game and resumes with it", async () => {
     const { h, media } = await playing();
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
@@ -140,87 +140,6 @@ describe("a movie on a layer, in play", () => {
     expect(video.paused).toBe(true);
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(2);
-    h.ui.onSkip(0.5);
-    expect(video.currentTime).toBe(1.5);
-    h.ui.onSkip(2);
-    expect(video.currentTime).toBeCloseTo(0.5);
-    h.ui.onSkip(-1);
-    expect(video.currentTime).toBeCloseTo(2.5);
-  });
-
-  test("skips from where the game clock puts the movie, not from where a seek held it", async () => {
-    const { h } = await playing();
-    const clock = { elapsedTime: 10 };
-    appOf(h).clock = clock;
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    (video as any).__duration = 30;
-    clock.elapsedTime = 10.5;
-    video.currentTime = 0.2;
-    h.ui.onSkip(0.1);
-    expect(video.currentTime).toBeCloseTo(0.6);
-    clock.elapsedTime = 10.6;
-    video.currentTime = 0.45;
-    h.ui.onSkip(0.1);
-    expect(video.currentTime).toBeCloseTo(0.8);
-    h.ui.onSkip(-1);
-    expect(video.currentTime).toBeCloseTo(29.8);
-  });
-
-  test("a `once` movie skipped to its end while paused holds its last frame when the game resumes", async () => {
-    const { h, media } = await playing();
-    await playNext(h);
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    expect(video.loop).toBe(false);
-    (video as any).__duration = 3;
-    video.currentTime = 1;
-    h.ui.onPause();
-    h.ui.onSkip(5);
-    expect(video.currentTime).toBe(3);
-    const plays = media.of(video, "play");
-    h.ui.onUnpause();
-    expect(media.of(video, "play")).toBe(plays);
-    expect(video.paused).toBe(true);
-    h.ui.onPause();
-    h.ui.onSkip(-1.5);
-    expect(video.currentTime).toBe(1.5);
-    h.ui.onUnpause();
-    expect(media.of(video, "play")).toBe(plays + 1);
-  });
-
-  test("with the game clock, a `once` movie stays within its span: held at its end, and back inside it after a rewind", async () => {
-    const { h, media } = await playing();
-    const clock = { elapsedTime: 10 };
-    appOf(h).clock = clock;
-    await playNext(h);
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    expect(video.loop).toBe(false);
-    (video as any).__duration = 3;
-    clock.elapsedTime = 11;
-    video.currentTime = 1;
-    h.ui.onPause();
-    h.ui.onSkip(5);
-    expect(video.currentTime).toBe(3);
-    const plays = media.of(video, "play");
-    h.ui.onUnpause();
-    expect(media.of(video, "play")).toBe(plays);
-    h.ui.onPause();
-    h.ui.onSkip(-1.5);
-    expect(video.currentTime).toBe(1.5);
-    h.ui.onUnpause();
-    expect(media.of(video, "play")).toBe(plays + 1);
-    clock.elapsedTime = 40;
-    video.currentTime = 3;
-    (video as any).__ended = true;
-    (video as any).__paused = true;
-    h.ui.onPause();
-    h.ui.onSkip(-1);
-    expect(video.currentTime).toBe(2);
-    (video as any).__ended = false;
-    h.ui.onUnpause();
-    expect(media.of(video, "play")).toBe(plays + 2);
   });
 
   test("a `once` movie the game clock has run past while it stalled plays on when the game resumes", async () => {
@@ -238,136 +157,11 @@ describe("a movie on a layer, in play", () => {
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays + 1);
     expect(video.currentTime).toBe(2.2);
-    h.ui.onPause();
-    h.ui.onSkip(0.5);
-    expect(video.currentTime).toBeCloseTo(2.7);
-  });
-
-  test("with the game clock, a looping movie of unknown duration rewound past its start steps forward from its start", async () => {
-    const { h } = await playing();
-    const clock = { elapsedTime: 10 };
-    appOf(h).clock = clock;
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    expect(video.loop).toBe(true);
-    expect(Number.isFinite(video.duration)).toBe(false);
-    clock.elapsedTime = 11;
-    video.currentTime = 1;
-    h.ui.onPause();
-    h.ui.onSkip(-2);
-    expect(video.currentTime).toBe(0);
-    h.ui.onSkip(0.5);
-    expect(video.currentTime).toBe(0.5);
-  });
-
-  const place = (loop: boolean, duration: number, time: number) => {
-    const span = Number.isFinite(duration) && duration > 0 ? duration : undefined;
-    if (loop && span !== undefined) {
-      return { anchor: time, element: ((time % span) + span) % span };
-    }
-    const at = Math.min(Math.max(0, time), !loop && span !== undefined ? span : Infinity);
-    return { anchor: at, element: at };
-  };
-  const landings = [
-    { landing: "before its start", first: -2, then: 0.5 },
-    { landing: "inside it", first: 0.5, then: -0.3 },
-    { landing: "past its end", first: 5, then: -1.5 },
-  ];
-  test.each(
-    [true, false].flatMap((loop) =>
-      [3, NaN, Infinity].flatMap((duration) =>
-        landings.map((l) => ({ loop, duration, ...l })),
-      ),
-    ),
-  )(
-    "with the game clock, loop $loop, duration $duration, skipped $landing and back: the clock and the element agree",
-    async ({ loop, duration, first, then }) => {
-      const { h } = await playing();
-      const clock = { elapsedTime: 10 };
-      appOf(h).clock = clock;
-      await playNext(h);
-      const video = movieOn(h.overlay, "portrait")!;
-      video.loop = loop;
-      (video as any).__duration = duration;
-      clock.elapsedTime = 11;
-      video.currentTime = 1;
-      h.ui.onPause();
-      let time = 1;
-      for (const seconds of [first, then]) {
-        const expected = place(loop, duration, time + seconds);
-        h.ui.onSkip(seconds);
-        expect(video.currentTime).toBeCloseTo(expected.element);
-        h.ui.onSkip(0);
-        expect(video.currentTime).toBeCloseTo(expected.element);
-        time = expected.anchor;
-      }
-    },
-  );
-
-  test.each([
-    { loop: true, from: NaN, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
-    { loop: true, from: NaN, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
-    { loop: true, from: NaN, landing: "past its end", skips: [4.5, -1], expected: [2.5, 1.5] },
-    { loop: true, from: Infinity, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
-    { loop: true, from: Infinity, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
-    { loop: true, from: Infinity, landing: "past its end", skips: [4.5, -1], expected: [2.5, 1.5] },
-    { loop: false, from: NaN, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
-    { loop: false, from: NaN, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
-    { loop: false, from: NaN, landing: "past its end", skips: [4.5, -1], expected: [3, 2] },
-    { loop: false, from: Infinity, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
-    { loop: false, from: Infinity, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
-    { loop: false, from: Infinity, landing: "past its end", skips: [4.5, -1], expected: [3, 2] },
-  ])(
-    "with the game clock, loop $loop, duration $from then 3 s, skipped $landing: placed where the clock has it once the duration is known",
-    async ({ loop, from, skips, expected }) => {
-      const { h } = await playing();
-      const clock = { elapsedTime: 10 };
-      appOf(h).clock = clock;
-      await playNext(h);
-      const video = movieOn(h.overlay, "portrait")!;
-      video.loop = loop;
-      (video as any).__duration = from;
-      clock.elapsedTime = 11;
-      video.currentTime = 1;
-      appOf(h).paused = true;
-      h.ui.onPause();
-      h.ui.onSkip(skips[0]!);
-      (video as any).__duration = 3;
-      video.currentTime = Math.min(Math.max(0, video.currentTime), 3);
-      video.dispatchEvent(
-        new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
-      );
-      expect(video.currentTime).toBeCloseTo(expected[0]!);
-      h.ui.onSkip(0);
-      expect(video.currentTime).toBeCloseTo(expected[0]!);
-      h.ui.onSkip(skips[1]!);
-      expect(video.currentTime).toBeCloseTo(expected[1]!);
-    },
-  );
-
-  test("a once movie with no duration that reaches its end is placed no further than where it ended", async () => {
-    const { h } = await playing();
-    const clock = { elapsedTime: 10 };
-    appOf(h).clock = clock;
-    await playNext(h);
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    expect(video.loop).toBe(false);
-    expect(Number.isFinite(video.duration)).toBe(false);
-    clock.elapsedTime = 13;
-    video.currentTime = 2.9;
-    (video as any).__ended = true;
-    video.dispatchEvent(new (h.overlay.ownerDocument.defaultView as any).Event("ended"));
-    h.ui.onSkip(-1);
-    expect(video.currentTime).toBeCloseTo(1.9);
-    (video as any).__ended = false;
-    h.ui.onSkip(5);
-    expect(video.currentTime).toBeCloseTo(2.9);
   });
 
   test.each([
-    { loop: true, expected: [2.5, 1.5] },
-    { loop: false, expected: [3, 2] },
+    { loop: true, expected: 1.5 },
+    { loop: false, expected: 3 },
   ])(
     "with the game clock, loop $loop, a seek past its end that the browser stops there with no duration: it ends where it landed",
     async ({ loop, expected }) => {
@@ -378,24 +172,23 @@ describe("a movie on a layer, in play", () => {
       const video = movieOn(h.overlay, "portrait")!;
       video.loop = loop;
       (video as any).__duration = Infinity;
-      clock.elapsedTime = 11;
+      const event = (type: string) =>
+        video.dispatchEvent(
+          new (h.overlay.ownerDocument.defaultView as any).Event(type),
+        );
+      clock.elapsedTime = 14.5;
       video.currentTime = 1;
-      appOf(h).paused = true;
-      h.ui.onPause();
-      h.ui.onSkip(4.5);
+      event("durationchange");
+      h.ui.onUpdate(clock as any);
+      expect(video.currentTime).toBeCloseTo(4.5);
       (video as any).__time = 3;
-      video.dispatchEvent(
-        new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
-      );
-      expect(video.currentTime).toBeCloseTo(expected[0]!);
-      h.ui.onSkip(0);
-      expect(video.currentTime).toBeCloseTo(expected[0]!);
-      h.ui.onSkip(-1);
-      expect(video.currentTime).toBeCloseTo(expected[1]!);
+      event("seeked");
+      h.ui.onUpdate(clock as any);
+      expect(video.currentTime).toBeCloseTo(expected);
     },
   );
 
-  test("a playing loop runs on through the browser's own seek to its start, and the next skip places it where the clock has it", async () => {
+  test("a playing loop runs on through the browser's own seek to its start", async () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
@@ -418,8 +211,7 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBe(0.001);
     clock.elapsedTime = 13.6;
     frame();
-    h.ui.onSkip(0);
-    expect(video.currentTime).toBeCloseTo(0.6);
+    expect(video.currentTime).toBe(0.001);
   });
 
   test("a loop paused at the instant it reaches its end stands on its first frame", async () => {
@@ -433,8 +225,6 @@ describe("a movie on a layer, in play", () => {
     video.currentTime = 3;
     appOf(h).paused = true;
     h.ui.onPause();
-    expect(video.currentTime).toBe(0);
-    h.ui.onSkip(0);
     expect(video.currentTime).toBe(0);
   });
 
@@ -465,11 +255,10 @@ describe("a movie on a layer, in play", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.loop).toBe(true);
-    clock.elapsedTime = 11;
-    video.currentTime = 1;
+    clock.elapsedTime = 16;
+    video.currentTime = 6;
     appOf(h).paused = true;
     h.ui.onPause();
-    h.ui.onSkip(5);
     (video as any).__duration = 3;
     video.currentTime = 6;
     expect(video.currentTime).toBe(3);
@@ -477,27 +266,6 @@ describe("a movie on a layer, in play", () => {
       new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
     );
     expect(video.currentTime).toBe(0);
-    h.ui.onSkip(0);
-    expect(video.currentTime).toBe(0);
-  });
-
-  test("a skip's seek that landed where it was asked is not sought again while the clock runs on", async () => {
-    const { h } = await playing();
-    const clock = { elapsedTime: 10 };
-    appOf(h).clock = clock;
-    await playNext(h);
-    const video = movieOn(h.overlay, "portrait")!;
-    (video as any).__duration = 30;
-    clock.elapsedTime = 11;
-    h.ui.onSkip(2);
-    expect(video.currentTime).toBe(3);
-    clock.elapsedTime = 11.3;
-    video.dispatchEvent(
-      new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
-    );
-    expect(video.currentTime).toBe(3);
-    h.ui.onSkip(0);
-    expect(video.currentTime).toBeCloseTo(3.3);
   });
 
   test("a movie shown while the game is paused starts when it resumes", async () => {
@@ -931,7 +699,6 @@ describe("a movie on a layer, in preview", () => {
     expect(video!.getAttribute("src")).toBe(WAVE);
     expect(media.of(video, "play")).toBe(0);
     h.ui.onUnpause();
-    h.ui.onSkip(1);
     expect(media.of(video, "play")).toBe(0);
     expect(video!.currentTime).toBe(0);
   });

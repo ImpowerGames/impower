@@ -60,7 +60,8 @@ describe("layer files named name~group.option (#2186)", () => {
   it("raises no collision for the layers of one picture, its alternate or its base", () => {
     const program = compile([...STACK, `${P}/bo.png`]);
     expect(collisions(program)).toEqual([]);
-    expect(program.context?.["image"]?.["ava"]?.src).toBe(`${P}/ava.png`);
+    expect(program.context?.["image"]?.["ava"]).toBeUndefined();
+    expect(program.context?.["layered_image"]?.["ava"]?.uri).toBe(`${P}/ava.png`);
     expect(program.context?.["image"]?.["ava@night"]?.src).toBe(`${P}/ava@night.png`);
   });
 

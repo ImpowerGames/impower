@@ -337,10 +337,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         for (const m of managers) m.onUnpause();
         app.clock.speed = 1;
       },
-      skip(seconds: number) {
-        app.clock.adjustTime(seconds);
-        for (const m of managers) m.onSkip(seconds);
-      },
       setAudioContext() {},
       started: false,
       start() {

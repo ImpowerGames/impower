@@ -11,12 +11,13 @@ import { buildFilteredSrc } from "../../filters/filteredSvg";
 import { filterSVG } from "./filterSVG";
 import { buildSVGSource } from "./buildSVGSource";
 import { getContextEntry } from "./getContextEntry";
+import { getTypedImageEntry, resolveImageReference, UNTYPED_IMAGE_TYPES } from "./resolveImageReference";
 
 type ImageContext = { [type: string]: { [name: string]: any } };
 
 const lookup = (context: ImageContext, ref: any): any => {
   if (!ref?.$name) return undefined;
-  if (ref.$type) return getContextEntry(context, ref.$type, ref.$name);
+  if (ref.$type) return getTypedImageEntry(context, ref.$type, ref.$name);
   return getContextEntry(context, "filtered_image", ref.$name) ??
     getContextEntry(context, "layered_image", ref.$name) ??
     getContextEntry(context, "image", ref.$name);
@@ -128,6 +129,26 @@ const resolveChain = (context: ImageContext, struct: any): {
   const image = visit(struct);
   if (cycle) return { attributes, cycle };
   return { image, attributes };
+};
+
+export const resolveImageRoot = (context: ImageContext | undefined, struct: any): any =>
+  context ? resolveChain(context, struct).image : undefined;
+
+export const resolveImageMember = (
+  context: ImageContext | undefined,
+  ref: any,
+  containing: ReadonlySet<any>,
+): any => {
+  if (!ref || typeof ref !== "object" || !ref.$name || ref.$type) {
+    return resolveImageReference(context, ref);
+  }
+  for (const type of UNTYPED_IMAGE_TYPES) {
+    const entry = getContextEntry(context, type, ref.$name);
+    if (entry === undefined || containing.has(entry)) continue;
+    if (type === "filtered_image" && containing.has(resolveImageRoot(context, entry))) continue;
+    return entry;
+  }
+  return undefined;
 };
 
 export const resolveImageAttributes = (context: ImageContext, struct: any, options?: {

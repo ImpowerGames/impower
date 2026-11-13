@@ -35,7 +35,18 @@ import {
   buildUnjoinedWarning,
   separateTags,
 } from "../utils/displayCall";
+import {
+  collectDisplaySpans,
+  readStyledSource,
+  trimEndBeforeSpanEnds,
+} from "../utils/displaySpans";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import {
+  SPAN_CLOSE,
+  SPAN_END,
+  readSpanOpen,
+  stripStyleCodes,
+} from "../../../runtime/displayStyle";
 import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
@@ -132,7 +143,10 @@ function buildDisplayCalls(
       (part) => !(part instanceof Text) || part.text.trim().length > 0,
     );
     const loadArgs = lineType === "action" && body[firstContent] instanceof LoadMark
-      ? body.slice(firstContent + 1) : null;
+      ? body
+          .slice(firstContent + 1)
+          .map((obj) => (obj instanceof Text ? new Text(stripStyleCodes(obj.text)) : obj))
+      : null;
     if (loadArgs) {
       if (trailingGlue) {
         reportLoadGlue(parent, range, ctx);
@@ -402,7 +416,7 @@ function processDisplayBody(
     }
     const last = segments[segments.length - 1];
     if (last && last.kind === "text") {
-      last.raw = last.raw.replace(/\s+$/, "");
+      last.raw = trimEndBeforeSpanEnds(last.raw);
     } else if (last?.kind === "load") {
       segments[segments.length - 1] = {
         kind: "text",
@@ -451,7 +465,7 @@ function processDisplayBody(
       } else {
         const inlineAlt = tryLowerInlineAlternator(seg.node, ctx);
         if (inlineAlt) {
-          for (const obj of inlineAlt) out.push(obj);
+          out.push(...inlineAlt);
         } else {
           const expr = lowerExpressionFromContainer(seg.node, ctx, "expression");
           if (expr) {
@@ -494,11 +508,33 @@ function collectBodySegments(
   ctx: LowerContext,
 ): BodySegment[] {
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
+  const spans = collectDisplaySpans(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    isBodyInjection,
+  );
+  const codes = spans.codes.map((code) => {
+    const chain = code.closes
+      ? injections.find(
+          (injection) =>
+            CHAIN_MARKS.has(injection.kind) &&
+            injection.from < code.at &&
+            code.at <= injection.to,
+        )
+      : undefined;
+    return chain
+      ? { at: chain.from, code: code.code, beforeSpace: true }
+      : { at: code.at, code: code.code, beforeSpace: false };
+  });
   const out: BodySegment[] = [];
   let textBuf = "";
   let textStart = bodyStart;
   let i = bodyStart;
   let idx = 0;
+  let codeIdx = 0;
+  let markIdx = 0;
 
   const flush = () => {
     if (textBuf.length > 0) {
@@ -507,7 +543,19 @@ function collectBodySegments(
     }
   };
 
+  const addCodes = (at: number) => {
+    while (codeIdx < codes.length && codes[codeIdx]!.at <= at) {
+      const { code, beforeSpace } = codes[codeIdx++]!;
+      if (textBuf.length === 0) textStart = at;
+      textBuf = beforeSpace
+        // value-level: the buffered text, whose trailing spaces precede the glue
+        ? textBuf.replace(/[ \t]*$/, (space) => code + space)
+        : textBuf + code;
+    }
+  };
+
   while (i < bodyEnd) {
+    addCodes(i);
     const next = injections[idx];
     if (next && next.from === i && next.kind === "break") {
       idx++;
@@ -560,12 +608,71 @@ function collectBodySegments(
       idx++;
       continue;
     }
+    while (markIdx < spans.marks.length && spans.marks[markIdx]!.to <= i) {
+      markIdx++;
+    }
+    const mark = spans.marks[markIdx];
+    if (mark && mark.from <= i) {
+      i = mark.to;
+      continue;
+    }
     if (textBuf.length === 0) textStart = i;
     textBuf += ctx.read(i, i + 1);
     i++;
   }
+  addCodes(bodyEnd);
   flush();
   return out;
+}
+
+const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
+  "glue",
+  "leadingGlue",
+  "break",
+  "tag",
+]);
+
+function injectionKind(
+  node: SyntaxNode,
+): BodyInjection["kind"] | "opaque" | null {
+  if (node.name === "DisplayLoadKeyword") return "load";
+  if (node.name === "LuauInterpolatedString") return "opaque";
+  if (
+    isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
+    isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
+  ) {
+    return "expr";
+  }
+  if (node.name === "Divert") return "divert";
+  if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) return "inlineGluedAlt";
+  if (isExplicitRuleName(node.name, "Tags")) return "tag";
+  if (
+    node.name === "SparkdownLineComment" ||
+    node.name === "SparkdownInlineComment" ||
+    node.name === "SparkdownBlockComment"
+  ) {
+    return "comment";
+  }
+  if (node.name === "Glue") return "glue";
+  if (node.name === "LeadingGlue") return "leadingGlue";
+  if (node.name === "Break") return "break";
+  return null;
+}
+
+function injectionFrom(node: SyntaxNode, kind: BodyInjection["kind"]): number {
+  if (kind === "divert") {
+    return getDescendent("DivertMark", node)?.from ?? node.from;
+  }
+  if (kind === "inlineGluedAlt") {
+    const begin = findChildByNameDirect(node, `${node.name}_begin`);
+    return (begin && getDescendent("AlternatorGlue", begin)?.from) ?? node.from;
+  }
+  if (kind === "glue") return node.to - 2;
+  return node.from;
+}
+
+function isBodyInjection(node: SyntaxNode): boolean {
+  return injectionKind(node) !== null;
 }
 
 interface BodyInjection {
@@ -592,76 +699,15 @@ function collectTopLevelInjections(
   const out: BodyInjection[] = [];
   const visit = (node: SyntaxNode): void => {
     if (node.to <= bodyStart || node.from >= bodyEnd) return;
-    if (node !== parent) {
-      if (node.name === "DisplayLoadKeyword") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "load", node, from: node.from, to: node.to });
-        }
-        return;
+    const kind = node === parent ? null : injectionKind(node);
+    if (kind === "opaque") return;
+    if (kind) {
+      const from = injectionFrom(node, kind);
+      const start = kind === "divert" ? from : node.from;
+      if (start >= bodyStart && node.to <= bodyEnd) {
+        out.push({ kind, node, from, to: node.to });
       }
-      if (node.name === "LuauInterpolatedString") return;
-      if (
-        isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
-        isExplicitRuleName(node.name, "LuauFunctionCallShorthand")
-      ) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "expr", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Divert") {
-        const mark = getDescendent("DivertMark", node);
-        const from = mark ? mark.from : node.from;
-        if (from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "divert", node, from, to: node.to });
-        }
-        return;
-      }
-      if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          const beginNode = findChildByNameDirect(node, `${node.name}_begin`);
-          const openingGlue = beginNode
-            ? getDescendent("AlternatorGlue", beginNode)
-            : null;
-          const from = openingGlue ? openingGlue.from : node.from;
-          out.push({ kind: "inlineGluedAlt", node, from, to: node.to });
-        }
-        return;
-      }
-      if (isExplicitRuleName(node.name, "Tags")) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "tag", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (
-        node.name === "SparkdownLineComment" ||
-        node.name === "SparkdownInlineComment" ||
-        node.name === "SparkdownBlockComment"
-      ) {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "comment", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Glue") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "glue", node, from: node.to - 2, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "LeadingGlue") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "leadingGlue", node, from: node.from, to: node.to });
-        }
-        return;
-      }
-      if (node.name === "Break") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          out.push({ kind: "break", node, from: node.from, to: node.to });
-        }
-        return;
-      }
+      return;
     }
     let child = node.firstChild;
     while (child) {
@@ -680,7 +726,19 @@ function applyDisplayEscapes(raw: string): string {
   let i = 0;
   while (i < input.length) {
     const c = input[i]!;
-    if (c === "\\") {
+    const opened = readSpanOpen(input, i);
+    if (opened?.mark[0] === "`") {
+      let close = opened.next;
+      while (
+        close < input.length &&
+        input[close] !== SPAN_CLOSE &&
+        input[close] !== SPAN_END
+      ) {
+        close++;
+      }
+      out += input.slice(i, close + 1);
+      i = close + 1;
+    } else if (c === "\\") {
       const next = input[i + 1];
       if (next === undefined) {
         out += "\\";
@@ -941,10 +999,10 @@ function readIdentifier(
 function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
   const name = getDescendent("DialogueCharacterName", node);
   if (!name) return null;
-  const cue = ctx.read(name.from, name.to).trim();
+  const cue = readStyledSource(name, name.from, name.to, ctx).trim();
   const parenthetical = getDescendent("DialogueCharacterParenthetical", node);
   return parenthetical
-    ? `${cue} ${ctx.read(parenthetical.from, parenthetical.to).trim()}`
+    ? `${cue} ${readStyledSource(parenthetical, parenthetical.from, parenthetical.to, ctx).trim()}`
     : cue;
 }
 

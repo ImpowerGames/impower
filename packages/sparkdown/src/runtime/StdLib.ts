@@ -5,6 +5,7 @@ import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
 import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
+import { scanned, scannedTable, stripStyleCodes } from "./displayStyle";
 import { isStdLibMarker, stdLibMarkerMapName } from "./StdLibMarker";
 import {
   ObjectValue,
@@ -2497,11 +2498,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
         .map((a) => luauAnyToDisplayString(story, a))
         .join(" ");
       if (story.state.inStringEvaluation) {
-        story.state.PushToOutputStream(new StringValue(text));
+        story.state.PushToOutputStream(new StringValue(stripStyleCodes(text)));
         return;
       }
       const table = new ObjectValue(
-        new Map<string, AbstractValue>([["text", new StringValue(text)]]),
+        new Map<string, AbstractValue>([
+          ["text", new StringValue(text ? scanned(text) : text)],
+        ]),
       );
       story.state.PushToOutputStream(table);
       story.state.PushToOutputStream(new StringValue("\n"));
@@ -2552,7 +2555,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       if (payload) {
-        story.state.PushToOutputStream(payload);
+        story.state.PushToOutputStream(
+          story.stdCallStyled ? payload : scannedTable(payload),
+        );
       }
       if (flag("open")) return;
       if (flag("glue")) {

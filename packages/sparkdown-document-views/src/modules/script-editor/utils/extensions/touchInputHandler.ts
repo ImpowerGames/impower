@@ -11,6 +11,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
+import { keyboard } from "@impower/impower-ui/layout";
 
 const touchInputTheme = EditorView.baseTheme({
   "& .cm-content .cm-line": {
@@ -53,16 +54,11 @@ const DOUBLE_TAP_SLOP = 24;
 let lastTap: { time: number; x: number; y: number; focused: boolean } | null =
   null;
 
-const isKeyboardOpen = () => {
-  const vv = window.visualViewport;
-  return vv != null && window.innerHeight - vv.height > 0;
-};
-
 // workaround(android): focusing an already-focused field does not reopen an on-screen keyboard dismissed with Back, so blur then refocus (https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps)
 const focusWithKeyboard = (view: EditorView) => {
   if (!view.hasFocus) {
     view.focus();
-  } else if (!isKeyboardOpen()) {
+  } else if (!keyboard().open) {
     view.contentDOM.blur();
     view.focus();
   }

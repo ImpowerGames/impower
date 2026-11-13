@@ -249,8 +249,8 @@ describe("one combo, one action", () => {
 
   it("names the fixed editor key that already owns a combo, Shift variants included", () => {
     expect(fixedHolder("Mod+C", "win")).toBe("copy");
-    expect(fixedHolder("Mod+Left", "win")).toBe("cursorGroupLeft");
-    expect(fixedHolder("Shift+Mod+Left", "win")).toBe("cursorGroupLeft");
+    expect(fixedHolder("Mod+Left", "win")).toBe("cursorWordLeft");
+    expect(fixedHolder("Shift+Mod+Left", "win")).toBe("cursorWordLeft");
     expect(fixedHolder("Ctrl+F", "mac")).toBe("macCharRight");
     expect(fixedHolder("Mod+F", "mac")).toBeUndefined();
     expect(fixedHolder("Mod+Shift+X", "win")).toBeUndefined();

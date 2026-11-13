@@ -117,12 +117,6 @@ export class Clock {
     this._running = false;
   }
 
-  adjustTime(seconds: number) {
-    this._timeOffset += seconds;
-    this._prevTime += seconds;
-    this._startTime += seconds;
-  }
-
   protected loop = () => {
     if (!this._running) {
       return;

@@ -6,7 +6,6 @@ export type StartPlayMethod = typeof StartPlayMessage.method;
 export interface StartPlayParams {
   run: number;
   paused?: boolean;
-  seconds?: number;
 }
 
 export class StartPlayMessage {

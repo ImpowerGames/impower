@@ -42,6 +42,14 @@ exports[`style > authored style block content payload 1`] = `
         "text_align": "center",
       },
     },
+    "alert": {
+      "$name": "alert",
+      "$type": "style",
+      "@theme(dark)": {
+        "text-color": "red_80",
+      },
+      "text-color": "red_40",
+    },
     "article": {
       "$name": "article",
       "$type": "style",
@@ -1969,6 +1977,15 @@ exports[`style > authored style block content payload 1`] = `
       "$type": "style",
       "margin": "0 4em",
     },
+    "textstream_end": {
+      "$name": "textstream_end",
+      "$type": "style",
+      "font_size": "0.8em",
+      "font_variant_caps": "all-small-caps",
+      "letter_spacing": "0.1em",
+      "margin": "1em 0",
+      "text_align": "center",
+    },
     "textstream_heading": {
       "$name": "textstream_heading",
       "$type": "style",
@@ -3352,6 +3369,14 @@ exports[`style > style + variables construction stream 1`] = `
               "position": "absolute",
               "text_align": "center",
             },
+          },
+          "alert": {
+            "$name": "alert",
+            "$type": "style",
+            "@theme(dark)": {
+              "text-color": "red_80",
+            },
+            "text-color": "red_40",
           },
           "article": {
             "$name": "article",
@@ -5279,6 +5304,15 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "textstream_dialogue",
             "$type": "style",
             "margin": "0 4em",
+          },
+          "textstream_end": {
+            "$name": "textstream_end",
+            "$type": "style",
+            "font_size": "0.8em",
+            "font_variant_caps": "all-small-caps",
+            "letter_spacing": "0.1em",
+            "margin": "1em 0",
+            "text_align": "center",
           },
           "textstream_heading": {
             "$name": "textstream_heading",

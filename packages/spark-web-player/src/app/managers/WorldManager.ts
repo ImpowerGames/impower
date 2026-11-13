@@ -63,12 +63,6 @@ export default class WorldManager extends Manager {
     }
   }
 
-  override onSkip(seconds: number): void {
-    for (const world of this._worlds.values()) {
-      world.onSkip(seconds);
-    }
-  }
-
   override onUpdate(time: Clock): void {
     for (const world of this._worlds.values()) {
       world.onUpdate(time);

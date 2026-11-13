@@ -303,32 +303,6 @@ describe("Clock", () => {
     });
   });
 
-  describe("adjustTime", () => {
-    it("does not inflate the next delta", () => {
-      const h = createHarness();
-      h.clock.start();
-      h.clock.adjustTime(100);
-      h.tick(OVER_BUDGET);
-      expectOneTick(h.ticks, OVER_BUDGET);
-    });
-
-    it("shifts the reported start time", () => {
-      const h = createHarness();
-      h.clock.start();
-      const before = h.clock.startTime;
-      h.clock.adjustTime(5);
-      expect(h.clock.startTime).toBe(before + 5);
-    });
-
-    it("accepts negative adjustments", () => {
-      const h = createHarness(100);
-      h.clock.start();
-      h.clock.adjustTime(-10);
-      h.tick(OVER_BUDGET);
-      expectOneTick(h.ticks, OVER_BUDGET);
-    });
-  });
-
   describe("syncToClock", () => {
     it("does not produce a jump when switching sources", () => {
       const h = createHarness(1000);

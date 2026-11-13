@@ -12,8 +12,6 @@ import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguag
 import { getFileSymbol } from "./getFileSymbol";
 import { collectReferencesForTarget } from "./getReferences";
 
-const FONT_SUFFIXES = ["", "__bolditalic", "__bold_italic", "__bold", "__italic"];
-
 export const getFileRenameEdits = (
   workspace: SparkdownLanguageServerWorkspace,
   program: SparkProgram | undefined,
@@ -49,10 +47,13 @@ export const getFileRenameEdits = (
       changes[reference.uri]!.push({ range: reference.range, newText: newName });
     }
 
-    const suffixes = seed.type === "font" ? FONT_SUFFIXES : [""];
-    for (const suffix of suffixes) {
-      for (const siblingUri of workspace.findFiles(seed.name + suffix, seed.type)) {
-        renameFile(siblingUri, workspace.getRenamedUri(siblingUri, newName + suffix));
+    if (seed.type === "font") {
+      for (const { uri, suffix } of workspace.findFontFamilyFiles(seed.name)) {
+        renameFile(uri, workspace.getRenamedUri(uri, newName + suffix));
+      }
+    } else {
+      for (const siblingUri of workspace.findFiles(seed.name, seed.type)) {
+        renameFile(siblingUri, workspace.getRenamedUri(siblingUri, newName));
       }
     }
   }

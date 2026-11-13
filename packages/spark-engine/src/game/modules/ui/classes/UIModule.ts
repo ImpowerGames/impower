@@ -73,6 +73,8 @@ ImageInstruction,
 LayoutInstruction,
 TextInstruction,
 } from "../../../core/types/Instruction";
+import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
+import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
@@ -85,7 +87,7 @@ import type { PageEntry, PageRecord, PageState } from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
-import { cssIdent } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
+import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "../utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
 import {
@@ -1707,6 +1709,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const value of propValues) {
       scan(value, 0);
     }
+    for (const fontName of [...referenced]) {
+      for (const sibling of byFamily.get(fonts[fontName]?.font_family ?? "") ?? []) {
+        referenced.add(sibling);
+      }
+    }
     return [...referenced];
   }
 
@@ -1819,19 +1826,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _speaking = false;
 
+  protected _voicedSpeech?: BeatSpeech;
+
   speak(speech: BeatSpeech | undefined, instant = false, time?: number) {
     if (this.context?.system?.simulating) {
       return;
     }
+    const voiced = Boolean(speech?.voiced) && (!instant || speech === this._voicedSpeech);
     const spans = instant ? [] : (speech?.spans ?? []);
-    if (spans.length === 0 && !this._speaking) {
+    const speaking = voiced || spans.length > 0;
+    this._voicedSpeech = voiced ? speech : undefined;
+    if (!speaking && !this._speaking) {
       return;
     }
-    this._speaking = spans.length > 0;
+    this._speaking = speaking;
     void this.emit(
       SpeechMessage.type.notification({
         ...(speech?.character ? { character: speech.character } : {}),
         spans,
+        ...(voiced ? { voiced: true as const } : {}),
+        ...(voiced && instant ? { revealed: true as const } : {}),
         ...(time != null ? { time } : {}),
       }),
     );
@@ -2016,6 +2030,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    for (const name of Object.keys(this.context?.layered_image ?? {})) {
+      const varName = getVarName("image", name);
+      if (name.startsWith("$") || Object.hasOwn(variablesStyle, varName)) {
+        continue;
+      }
+      const srcs = this.getImageAssets("image", name).map((asset) => asset.src);
+      if (srcs.length) {
+        variablesStyle[varName] = srcs.map((src) => this.getUrl(src)).reverse().join(", ");
+      }
+    }
     const colors = this.context?.color;
     if (colors) {
       for (const [name, color] of Object.entries(colors)) {
@@ -2042,10 +2066,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const fonts = this.context?.font;
     if (fonts) {
-      for (const [name] of Object.entries(fonts)) {
+      for (const [name, font] of Object.entries(fonts)) {
         if (!name.startsWith("$")) {
           const varName = getVarName("font", name);
-          const varValue = cssIdent(name);
+          const family = font?.font_family;
+          const varValue = escapeCssIdentifier(
+            typeof family === "string" && family ? family : name,
+          );
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
@@ -5261,7 +5288,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       get entries(): readonly PageEntry[] {
-        return $._state.page?.entries ?? [];
+        const page = $._state.page;
+        return this.withEnding(page?.entries ?? []);
+      }
+
+      protected withEnding(entries: readonly PageEntry[]): PageEntry[] {
+        const ending = $._state.page?.ending;
+        return ending ? [...entries, { kind: "ending", ending }] : [...entries];
       }
 
       loaded(): void {
@@ -5309,6 +5342,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         page.entries = [...before.slice(0, keep), ...entries];
         page.current = keep;
         page.key = key;
+        delete page.ending;
         if (absorbed.length > 0) {
           page.absorbed = absorbed;
         } else {
@@ -5335,6 +5369,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         };
         delete page.entries[at]!.options;
         this.show(true);
+      }
+
+      end(ending: StoryEnding | null): void {
+        if (ending) {
+          this.state.ending = ending;
+        } else if ($._state.page?.ending) {
+          delete $._state.page.ending;
+        } else {
+          return;
+        }
+        this.sync(this._presented);
       }
 
       onChoose(choose: (index: number) => void): void {
@@ -5408,9 +5453,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const page = $._state.page;
         const current = page?.current ?? 0;
-        const entries = (page?.entries ?? []).slice(
-          0,
-          presented ? undefined : current,
+        const entries = this.withEnding(
+          (page?.entries ?? []).slice(0, presented ? undefined : current),
         );
         const signatures = entries.map((entry) => JSON.stringify(entry));
         let kept = 0;
@@ -5448,6 +5492,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): Element {
         if (entry.kind === "rule") {
           return $.createElement(column, { type: "hr", name: "textstream_rule" });
+        }
+        if (entry.kind === "ending") {
+          const ending = entry.ending ?? "out";
+          return $.createElement(column, {
+            name:
+              ending === "error"
+                ? "textstream_end alert"
+                : "textstream_end muted",
+            attributes: { role: "status" },
+            content: { text: endingStatusText(ending) },
+          });
         }
         if (entry.kind === "caption") {
           return $.createElement(column, {

@@ -17,6 +17,7 @@ import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
 import type { GameHistory } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import { endingStatusText } from "@impower/spark-engine/src/game/core/utils/endingStatusText";
 import { describeSimulationFailure } from "../../utils/describeSimulationFailure";
 
 export interface PlayerBarState {
@@ -251,13 +252,6 @@ export const completionStatusText = (
   }
 };
 
-export const endingStatusText = (ending: GameStateEnding): string =>
-  ending.kind === "fin"
-    ? "End of story"
-    : ending.kind === "error"
-      ? "Stopped by an error"
-      : "Story ran out";
-
 export const endingStatusHover = (ending: GameStateEnding): string => {
   if (ending.kind === "error") {
     const location = ending.error?.location ?? ending.location;
@@ -285,7 +279,7 @@ export const playerStatuses = (
     : null,
   ending: ending
     ? {
-        text: endingStatusText(ending),
+        text: endingStatusText(ending.kind),
         hover: endingStatusHover(ending),
         kind: ending.kind,
       }

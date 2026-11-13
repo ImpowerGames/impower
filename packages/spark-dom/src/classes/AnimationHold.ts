@@ -59,24 +59,6 @@ export default class AnimationHold {
     }
   }
 
-  step(ms: number): void {
-    this.prune();
-    for (const [animation, reached] of this._animations) {
-      const time = this.position(animation);
-      const now = animation.timeline?.currentTime;
-      const rate = animation.playbackRate;
-      if (time == null || now == null || rate === 0) {
-        continue;
-      }
-      const next = time + ms * rate;
-      if (this._held) {
-        this.hold(animation, reached, next);
-      } else {
-        animation.startTime = Number(now) - next / rate;
-      }
-    }
-  }
-
   release(): void {
     this.resume();
     this._animations.clear();
@@ -117,6 +99,7 @@ export default class AnimationHold {
       const target = (animation.effect as KeyframeEffect | null)?.target;
       if (
         animation.playState === "idle" ||
+        animation.playState === "finished" ||
         animation.replaceState === "removed" ||
         !target?.isConnected
       ) {

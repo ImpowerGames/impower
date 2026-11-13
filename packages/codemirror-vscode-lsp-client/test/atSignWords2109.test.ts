@@ -1,5 +1,3 @@
-import { selectNextOccurrence } from "@codemirror/search";
-import { cursorGroupRight } from "@codemirror/commands";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { readFileSync } from "node:fs";
@@ -9,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertConfigToLanguageData } from "../../codemirror-vscode-language/src/utils/convertConfigToLanguageData";
 import { wordAt } from "../../codemirror-vscode-language/src/utils/wordAt";
 import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
-import { hoverExpressionAt, hoverExpressions, lspContextMenuItems, renameSymbol } from "../src";
+import { cursorWordRight, hoverExpressionAt, hoverExpressions, lspContextMenuItems, renameSymbol, selectNextOccurrence, wordForDoubleClick } from "../src";
 import { LSPClient } from "../src/client";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -108,7 +106,7 @@ describe.each(LANGUAGES)("both editors split words at the @ in %s (#2109, #2138)
 
   it.each(ROWS.map((row, index) => [row[0], row[2], index] as const))("double-click in %s selects %s", (_, word, row) => {
     const state = stateOf(language);
-    const range = state.wordAt(inside(row))!;
+    const range = wordForDoubleClick(state, inside(row));
     expect(state.sliceDoc(range.from, range.to)).toBe(word);
     expect(vscodeWordAt(DOC, inside(row))).toBe(word);
   });
@@ -123,7 +121,7 @@ describe.each(LANGUAGES)("both editors split words at the @ in %s (#2109, #2138)
   it("word movement from the start of mia@night stops at the @ in both editors", () => {
     const row = 0;
     const view = mount(stateOf(language, lineStart(row)));
-    cursorGroupRight(view);
+    cursorWordRight(view);
     expect(view.state.selection.main.head).toBe(lineStart(row) + "mia".length);
     expect(vscodeStopsAtTheAt(DOC, lineStart(row))).toBe(lineStart(row) + "mia".length);
   });
@@ -131,7 +129,7 @@ describe.each(LANGUAGES)("both editors split words at the @ in %s (#2109, #2138)
   it.each(rowsOf())("word movement from inside the word of %s stops at that word's end", (_, row) => {
     const start = inside(row) - 1;
     const view = mount(stateOf(language, start));
-    cursorGroupRight(view);
+    cursorWordRight(view);
     expect(view.state.selection.main.head).toBe(vscodeStopsAtTheAt(DOC, start));
   });
 });

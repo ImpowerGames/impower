@@ -6,6 +6,7 @@ import {
 } from "./runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { programContent, rootOf } from "../programListing";
+import { writtenText } from "../../runtime/displayStyle";
 
 const URI = "inmemory:///main.sd";
 
@@ -69,7 +70,8 @@ function run(
   return { steps, warnings };
 }
 
-const text = (step: Table[]) => step.map((table) => table.text ?? "").join("");
+const text = (step: Table[]) =>
+  step.map((table) => writtenText(table.text ?? "")).join("");
 
 describe("a `..` on each side of a break carries on in the box after the click", () => {
   test.each<[string, string, string, string, string?]>([

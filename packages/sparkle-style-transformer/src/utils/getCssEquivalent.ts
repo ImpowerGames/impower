@@ -9,7 +9,12 @@ import type {
   StyleTransformer,
   ThemeVariables,
 } from "../types/themeVariables.js";
-import { cssIdent } from "./cssSyntax.js";
+import {
+  escapeCssNames,
+  parseComponentValues,
+  splitAt,
+  TokenType,
+} from "./cssSyntax.js";
 import { getCssPropertyName } from "./getCssPropertyName.js";
 import { getCssWideKeyword } from "./getCssWideKeyword.js";
 
@@ -38,7 +43,12 @@ const getCssValueText = (value: unknown): string => {
 
 const getUnrecognizedCssValue = (name: string, value: unknown): string => {
   if (name === "animation-name") {
-    return getCssValueText(value).split(" ").map(cssIdent).join(" ");
+    return splitAt(parseComponentValues(getCssValueText(value)), TokenType.Comma)
+      .map((part) => part.map(String).join(""))
+      .map((names, _, list) =>
+        escapeCssNames(list.length > 1 ? names.trim() : names),
+      )
+      .join(", ");
   }
   if (LENGTH_PROPERTY_SUFFIX.test(name)) {
     if (Array.isArray(value)) {

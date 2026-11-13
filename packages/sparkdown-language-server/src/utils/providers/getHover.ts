@@ -1,4 +1,4 @@
-import { readSourceDirective } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { readSourceDirectiveTexts } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
@@ -162,9 +162,11 @@ const getMorphClauseHover = (
     if (node.name !== "AssetCommandClauseKeyword" || document.read(node.from, node.to) !== "morph") continue;
     let command = node.parent;
     while (command && command.name !== "ImageCommand") command = command.parent;
-    const directive = command ? readSourceDirective(command, (from, to) => document.read(from, to)) : undefined;
-    const read = directive?.kind === "image" && directive.clauses.some(
-      (clause) => clause.word.text === "morph" && clause.word.from === node.from && clause.word.to === node.to,
+    const directives = command ? readSourceDirectiveTexts(command, (from, to) => document.read(from, to)).directives : [];
+    const read = directives.some(
+      (directive) =>
+        directive.kind === "image" &&
+        directive.clauses.some((clause) => clause.word.text === "morph" && clause.word.from === node.from && clause.word.to === node.to),
     );
     if (!read) continue;
     return {

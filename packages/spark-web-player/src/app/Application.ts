@@ -403,14 +403,6 @@ export class Application implements IApplication {
     this._dolly.autoUpdate = false;
   }
 
-  skip(seconds: number): void {
-    this._clock.adjustTime(seconds);
-    for (const manager of this._managers) {
-      manager.onSkip(seconds);
-    }
-    this.update(this._clock);
-  }
-
   protected update(time: Clock): void {
     if (!this._destroyed) {
       if (

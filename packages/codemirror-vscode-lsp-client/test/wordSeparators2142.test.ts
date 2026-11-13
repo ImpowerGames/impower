@@ -1,5 +1,3 @@
-import { selectNextOccurrence } from "@codemirror/search";
-import { cursorGroupLeft, cursorGroupRight } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { readFileSync } from "node:fs";
@@ -9,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { convertConfigToLanguageData } from "../../codemirror-vscode-language/src/utils/convertConfigToLanguageData";
 import { wordAt } from "../../codemirror-vscode-language/src/utils/wordAt";
 import { evaluatableExpressionRange } from "@impower/sparkdown/src/compiler/utils/evaluatableExpressionRange";
-import { hoverExpressionAt, hoverExpressions } from "../src";
+import { cursorWordLeft, cursorWordRight, hoverExpressionAt, hoverExpressions, selectNextOccurrence, wordForDoubleClick } from "../src";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const LANGUAGES = ["sparkdown", "sparkdown-luau"] as const;
@@ -67,7 +65,7 @@ describe.each(LANGUAGES)("the web editor splits words at - and ' like VS Code in
 
   it.each(rows())("double-click inside %s selects the part VS Code selects", (_, [, , word], row) => {
     const state = stateOf(language);
-    const range = state.wordAt(inside(row))!;
+    const range = wordForDoubleClick(state, inside(row));
     expect(state.sliceDoc(range.from, range.to)).toBe(word);
     expect(vscodeWordAt(DOC, inside(row))).toBe(word);
   });
@@ -81,13 +79,13 @@ describe.each(LANGUAGES)("the web editor splits words at - and ' like VS Code in
 
   it.each(rows())("word movement right from the start of %s stops at the separator", (text, _, row) => {
     const view = mount(stateOf(language, lineStart(row)));
-    cursorGroupRight(view);
+    cursorWordRight(view);
     expect(view.state.selection.main.head).toBe(lineStart(row) + text.search(/[-']/));
   });
 
   it.each(rows())("word movement left from the end of %s stops after the separator", (text, _, row) => {
     const view = mount(stateOf(language, lineStart(row) + text.length));
-    cursorGroupLeft(view);
+    cursorWordLeft(view);
     expect(view.state.selection.main.head).toBe(lineStart(row) + text.search(/[-']/) + 1);
   });
 });

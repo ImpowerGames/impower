@@ -48,4 +48,5 @@ export interface AttributeVocabulary {
   folders: Record<string, AttributeFolder>;
   groups: Record<string, { options: string[]; switch: boolean }>;
   diagnostics: AttributeDiagnostic[];
+  defaultsOptional?: boolean;
 }

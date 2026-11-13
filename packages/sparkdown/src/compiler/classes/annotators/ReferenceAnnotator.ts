@@ -31,10 +31,11 @@ import { isLuauName } from "../../utils/luauName";
 import {
   DIRECTIVE_NODE_BRACKETS,
   directiveValueKind,
-  readSourceDirective,
+  readSourceDirectiveTexts,
   type DirectiveWord,
   type SourceDirective,
 } from "../../utils/readDirective";
+import { distinctRanges } from "../../utils/distinctRanges";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -878,8 +879,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (Object.hasOwn(DIRECTIVE_NODE_BRACKETS, nodeRef.name)) {
-      const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
-      if (directive) annotations.push(...this.directiveReferences(directive));
+      const { directives } = readSourceDirectiveTexts(nodeRef, (from, to) => this.read(from, to));
+      annotations.push(...distinctRanges(directives.flatMap((directive) => this.directiveReferences(directive))));
       return annotations;
     }
     if (nodeRef.name === "DialogueCharacterName") {

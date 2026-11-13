@@ -5,6 +5,8 @@ export type SpeechMethod = typeof SpeechMessage.method;
 export interface SpeechParams {
   character?: string;
   spans: [number, number][];
+  voiced?: true;
+  revealed?: true;
   time?: number;
 }
 

@@ -55,12 +55,14 @@
                   "value": {
                     "type": "StringExpression",
                     "content": [
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "x"
                         ]
-                      }
+                      },
+                      ""
                     ]
                   }
                 }

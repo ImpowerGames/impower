@@ -1,0 +1,399 @@
+import { describe, expect, test } from "vitest";
+import MARK_PAIRING from "@impower/sparkdown/src/tests/compiler/fixtures/mark-pairing-corpus.json";
+import { parseSource } from "@impower/sparkdown/src/tests/compiler/grammarSnapshot";
+import {
+  treeScopeStackAt,
+  vscodeScopeStacksPerChar,
+} from "@impower/sparkdown/src/tests/compiler/scopeEquality";
+import {
+  type Cell,
+  VALUES,
+  renderedBeat,
+  renderedBeats,
+  script,
+  show,
+} from "./harness/displayStyleHarness";
+
+interface Part {
+  target: string;
+  sources: string[];
+  aligned?: boolean;
+}
+
+interface Case {
+  label: string;
+  body: string;
+  parts?: Part[];
+}
+
+const action = (body: string): Case => ({
+  label: body,
+  body,
+  parts: [{ target: "action", sources: [body] }],
+});
+
+const MARKS: Record<string, string> = {
+  bold: "**",
+  italic: "*",
+  underline: "_",
+  centered: "^",
+  wavy: "~~",
+  shaky: "::",
+};
+
+const PAIRS: Case[] = Object.values(MARKS).flatMap((outer) => [
+  ...Object.values(MARKS)
+    .filter((inner) => inner !== outer)
+    .map((inner) => action(`A ${outer}a ${inner}b${inner} c${outer} D`)),
+  action(`A ${outer}a \`b\` c${outer} D`),
+]);
+
+const ANIMATIONS_INSIDE: Case[] = ["**", "*", "_", "^"].flatMap((outer) => [
+  action(`A ${outer}a ~~b ::c:: d~~ e${outer} F`),
+  action(`A ${outer}a ::b ~~c~~ d:: e${outer} F`),
+]);
+
+const CORPUS: Case[] = [
+  ...PAIRS,
+  ...ANIMATIONS_INSIDE,
+  action("The room is quiet."),
+  action("A *word* here."),
+  action("A **word** here."),
+  action("A ***word*** here."),
+  action("A _word_ here."),
+  action("A __word__ here."),
+  action("A ^word^ here."),
+  action("A ~~wavy~~ word."),
+  action("A ~~~slow~~~ word."),
+  action("A ::shaky:: word."),
+  action("Nested *_both_* end."),
+  action("A **a *b* c** d"),
+  action("A *a **b** c* d"),
+  action("A ~~a **b** c~~ d"),
+  action("A __a_ b__ c"),
+  action("A ^^a^ b^^ c"),
+  action("A ***a* b** c"),
+  action("A ***a** b* c"),
+  action("A **a*b** c"),
+  action("A x*y*z here"),
+  action("A 2^3^4 here"),
+  action("A *rest of line"),
+  action("A **rest of line"),
+  action("A _rest of line"),
+  action("A ~~rest of line"),
+  action("*far {x} away* now"),
+  action("A **{x}** b"),
+  action("A *a {x}"),
+  action("A ***bi {x} c*** d"),
+  action("A ***a* {x}** end"),
+  action("Esc \\*literal\\* end."),
+  action("A *b\\* c* d"),
+  action("A \\\\*b* c"),
+  action("A `raw *x*` b"),
+  action("A *`b`* c"),
+  action("A `b"),
+  action("A *b `c* d` e"),
+  action(`A ${"_".repeat(40)}long${"_".repeat(40)} B`),
+  action("**bold /* c */ more** end"),
+  action("*a /* c */ b* c"),
+  {
+    label: "a dialogue line with a span around an interpolation",
+    body: "NOVA: Hi *there {x}* now",
+    parts: [
+      { target: "character_name", sources: ["NOVA"] },
+      { target: "dialogue", sources: ["Hi *there {x}* now"] },
+    ],
+  },
+  {
+    label: "a styled character name",
+    body: "*NOVA*: Hey",
+    parts: [
+      { target: "character_name", sources: ["*NOVA*"] },
+      { target: "dialogue", sources: ["Hey"] },
+    ],
+  },
+  {
+    label: "a styled cue parenthetical",
+    body: "NOVA (*sad*): Hey",
+    parts: [
+      { target: "character_name", sources: ["NOVA"] },
+      { target: "character_parenthetical", sources: ["(*sad*)"], aligned: true },
+      { target: "dialogue", sources: ["Hey"] },
+    ],
+  },
+  {
+    label: "a block dialogue with a styled parenthetical and an unclosed span on each line",
+    body: "NOVA:\n    (*softly*)\n    Line *one\n    Line two* x",
+    parts: [
+      { target: "character_name", sources: ["NOVA"] },
+      {
+        target: "dialogue",
+        sources: ["(*softly*)", "Line *one", "Line two* x"],
+        aligned: true,
+      },
+    ],
+  },
+];
+
+const SCOPE_STYLES: [scope: string, style: string][] = [
+  ["markup.other.bold.sd", "bold"],
+  ["markup.other.italic.sd", "italic"],
+  ["markup.other.underline.sd", "underline"],
+  ["constant.character.escape.centered.sd", "centered"],
+  ["markup.emphasis.tilde.sd", "wavy"],
+  ["markup.emphasis.colon.sd", "shaky"],
+];
+
+const stylesOfScopes = (scopes: string[]): string => {
+  const styles = SCOPE_STYLES.filter(([scope]) => scopes.includes(scope)).map(
+    ([, style]) => style,
+  );
+  if (scopes.filter((scope) => scope.startsWith("markup.raw.")).length >= 2) {
+    styles.push("raw");
+  }
+  return styles.sort().join(" ");
+};
+
+async function grammarCells(source: string, from: number, to: number) {
+  return cellsBetween(await grammarReading(source), source, from, to);
+}
+
+async function grammarReading(source: string) {
+  const tree = parseSource(source);
+  const vscode = await vscodeScopeStacksPerChar(source);
+  const hidden = new Set<number>();
+  const values = new Map<number, number>();
+  const cursor = tree.cursor();
+  do {
+    const name = cursor.name;
+    if (
+      /^Span(Open|Close)Mark$/.test(name) ||
+      /^Escape_c[135]$/.test(name) ||
+      /^SparkdownBlockComment(OnLine)?$/.test(name)
+    ) {
+      for (let i = cursor.from; i < cursor.to; i++) hidden.add(i);
+    }
+    if (name === "LuauInterpolatedStringExpression") {
+      values.set(cursor.from, cursor.to);
+    }
+  } while (cursor.next());
+  return { tree, vscode, hidden, values };
+}
+
+function cellsBetween(
+  { tree, vscode, hidden, values }: Awaited<ReturnType<typeof grammarReading>>,
+  source: string,
+  from: number,
+  to: number,
+) {
+  const tree_: Cell[] = [];
+  const vsc: Cell[] = [];
+  for (let i = from; i < to; ) {
+    const valueEnd = values.get(i);
+    const treeStyle = stylesOfScopes(treeScopeStackAt(tree, i));
+    const vscStyle = stylesOfScopes(vscode[i] ?? []);
+    if (valueEnd != null) {
+      for (const char of "plain") {
+        tree_.push({ char, style: treeStyle });
+        vsc.push({ char, style: vscStyle });
+      }
+      i = valueEnd;
+      continue;
+    }
+    if (!hidden.has(i)) {
+      tree_.push({ char: source[i]!, style: treeStyle });
+      vsc.push({ char: source[i]!, style: vscStyle });
+    }
+    i++;
+  }
+  return { tree: tree_, vscode: vsc };
+}
+
+const withoutCentering = (cells: Cell[]): Cell[] =>
+  cells.map(({ char, style }) => ({
+    char,
+    style: style
+      .split(" ")
+      .filter((s) => s && s !== "centered")
+      .join(" "),
+  }));
+
+describe("the player renders display lines styled as the grammar reads them", () => {
+  test.each(CORPUS.map((c) => [c.label, c] as const))("%s", async (_label, c) => {
+    const source = script(c.body);
+    const cellsOf = await renderedBeat(source);
+    const bodyAt = source.indexOf(c.body);
+    for (const part of c.parts ?? []) {
+      const expectedTree: Cell[] = [];
+      const expectedVscode: Cell[] = [];
+      let searchFrom = bodyAt;
+      for (const text of part.sources) {
+        const from = source.indexOf(text, searchFrom);
+        expect(from).toBeGreaterThanOrEqual(0);
+        const { tree, vscode } = await grammarCells(source, from, from + text.length);
+        expectedTree.push(...tree);
+        expectedVscode.push(...vscode);
+        searchFrom = from + text.length;
+      }
+      expect(show(expectedVscode)).toBe(show(expectedTree));
+      let rendered = cellsOf(part.target).filter(({ char }) => char !== "\n");
+      let expected = expectedTree;
+      if (part.aligned) {
+        rendered = withoutCentering(rendered);
+        expected = withoutCentering(expected);
+      }
+      expect(show(rendered)).toBe(show(expected));
+    }
+  });
+});
+
+const PAIRING_LINES = (MARK_PAIRING as { lines: { line: string }[] }).lines
+  .map(({ line }) => line)
+  .filter((line) => !/[<>]|\[\[|\(\(/.test(line));
+const PAIRING_CHUNK = 40;
+const PAIRING_CHUNKS = Array.from({ length: Math.ceil(PAIRING_LINES.length / PAIRING_CHUNK) }, (_, i) =>
+  PAIRING_LINES.slice(i * PAIRING_CHUNK, (i + 1) * PAIRING_CHUNK),
+);
+
+describe("the player renders the mark pairing corpus as the grammar reads it", () => {
+  test.each(PAIRING_CHUNKS.map((chunk, i) => [`lines ${i * PAIRING_CHUNK + 1} to ${i * PAIRING_CHUNK + chunk.length}`, chunk] as const))(
+    "%s",
+    async (_name, chunk) => {
+      const source = script(chunk.join("\n\n  "));
+      const beats = await renderedBeats(source, chunk.length);
+      const reading = await grammarReading(source);
+      const mismatches: { line: string; tree: string; vscode: string; player: string }[] = [];
+      let searchFrom = source.indexOf("scene start");
+      for (let i = 0; i < chunk.length; i++) {
+        await new Promise((resolve) => setImmediate(resolve));
+        const line = chunk[i]!;
+        const from = source.indexOf(line, searchFrom);
+        searchFrom = from + line.length;
+        const { tree, vscode } = cellsBetween(reading, source, from, from + line.length);
+        const player = show(beats[i]!("action").filter(({ char }) => char !== "\n"));
+        if (show(tree) !== player || show(vscode) !== player) {
+          mismatches.push({ line, tree: show(tree), vscode: show(vscode), player });
+        }
+      }
+      expect(mismatches).toEqual([]);
+    },
+    120000,
+  );
+});
+
+describe("the player renders marks paired by CommonMark's rules", () => {
+  test("an unclosed mark renders as literal text", async () => {
+    const cellsOf = await renderedBeat(script("Go *far away"));
+    expect(show(cellsOf("action"))).toBe("Go *far away");
+  });
+
+  test("strong emphasis inside strong emphasis renders bold", async () => {
+    const cellsOf = await renderedBeat(script("A ****x**** y"));
+    expect(show(cellsOf("action"))).toBe("A [bold: x] y");
+  });
+
+  test("the first span to close wins and the marks it leaves render as text", async () => {
+    const cellsOf = await renderedBeat(script("A *a _b* c_ d"));
+    expect(show(cellsOf("action"))).toBe("A [italic: a _b] c_ d");
+  });
+
+  test("an underscore inside a word renders unstyled", async () => {
+    const cellsOf = await renderedBeat(script("snake_case_name"));
+    expect(show(cellsOf("action"))).toBe("snake_case_name");
+  });
+});
+
+describe("choice text until #2144 stops the player scanning it for marks", () => {
+  const LINE = "Choice snake_case_name *open `raw {1+1}";
+  const readings = async () => {
+    const body = `${LINE}\n\n  choose\n    + ${LINE}\n      Done.\n  end`;
+    const [display, choice] = await renderedBeats(script(body), 2);
+    const line = (cells: Cell[]) => show(cells.filter(({ char }) => char !== "\n"));
+    return { display: line(display!("action")), choice: line(choice!("choice 0")) };
+  };
+
+  test("the player's choice scanner still pairs marks by the old rules, which #2144 replaces", async () => {
+    expect(await readings()).toEqual({
+      display: "Choice snake_case_name *open `raw 2",
+      choice: "Choice snake[underline: case]name [italic: open ][italic raw: raw 2]",
+    });
+  });
+
+  test.fails("the player renders choice text as the grammar reads it, which #2144 makes pass", async () => {
+    const { display, choice } = await readings();
+    expect(choice).toBe(display);
+  });
+});
+
+describe("a mark inside an inserted value is styled within the value only", () => {
+  test("a value's star does not close the script's italic span", async () => {
+    const cellsOf = await renderedBeat(
+      script("*far {x} away* now", `store x = "a* b"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("[italic: far a b away] now");
+  });
+
+  test("a value's own marks style the value", async () => {
+    const cellsOf = await renderedBeat(
+      script("Value {y} here", `store y = "*b*"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("Value [italic: b] here");
+  });
+
+  test("a value holding a style code's character cannot close or open a span", async () => {
+    const closing = await renderedBeat(
+      script("C *span {pua} still* D", `store pua = "x\\u{E002}y"\n`),
+    );
+    expect(show(closing("action"))).toBe("C [italic: span xy still] D");
+    const opening = await renderedBeat(
+      script("E {opener} F", `store opener = "\\u{E010}\\u{E021}z"\n`),
+    );
+    expect(show(opening("action"))).toBe("E z F");
+  });
+
+  test("an alternator's chosen value inside braces is styled within the value", async () => {
+    const cellsOf = await renderedBeat(
+      script(`A {queue | "*one*" | "two" end} end`),
+    );
+    expect(show(cellsOf("action"))).toBe("A [italic: one] end");
+  });
+
+  test("an escape at the end of one value does not reach into the next", async () => {
+    const cellsOf = await renderedBeat(
+      script("A {x}{y} end", `store x = "back\\\\"\nstore y = "*b*"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("A back[italic: b] end");
+  });
+
+  test("a table a script builds and hands to display() is read as a value", async () => {
+    const cellsOf = await renderedBeat(
+      script(`& display({ target = "action", text = "*word* here" })`),
+    );
+    expect(show(cellsOf("action"))).toBe("[italic: word] here");
+  });
+
+  test("a cue whose marks spell a declared character's name finds that character", async () => {
+    const cellsOf = await renderedBeat(
+      script(
+        "*NOVA*: Hey",
+        `${VALUES}define nova as character with\n  name = "*NOVA*"\nend\n`,
+      ),
+    );
+    expect(cellsOf.beat.speaker?.character).toBe("nova");
+    expect(show(cellsOf("character_name"))).toBe("[italic: NOVA]");
+  });
+
+  test("a value's animation adds to the script's animation around it", async () => {
+    const cellsOf = await renderedBeat(
+      script("A ~~a {v} c~~ D", `store v = "::b::"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("A [wavy: a ][shaky wavy: b][wavy:  c] D");
+  });
+
+  test("a value's unclosed mark ends with the value", async () => {
+    const cellsOf = await renderedBeat(
+      script("Value {y} here", `store y = "*b"\n`),
+    );
+    expect(show(cellsOf("action"))).toBe("Value [italic: b] here");
+  });
+});

@@ -45,19 +45,23 @@
                     "type": "StringExpression",
                     "content": [
                       "Hello ",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "name"
                         ]
                       },
+                      "",
                       ".\nScore is ",
+                      "",
                       {
                         "type": "VariableReference",
                         "path": [
                           "score"
                         ]
                       },
+                      "",
                       "."
                     ]
                   }

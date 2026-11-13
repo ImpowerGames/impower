@@ -114,23 +114,21 @@ text.source.sparkdown [0..402]
  │   └─ string.choice.sd [280..292]
  │       ├─ markup.raw.text.sd [280..282]: "Go"
  │       ├─ markup.raw.space.sd [282..283]: " "
- │       └─ markup.other.italic.sd [283..292]
- │           ├─ markup.raw.text.sd [283..284]: "*"
- │           ├─ markup.raw.text.sd [284..287]: "far"
- │           └─ comment.block.sd [287..292]
- │               ├─ punctuation.whitespace.optional.sd [287..288]: " "
- │               ├─ punctuation.definition.comment.begin.sd [288..290]: "/*"
- │               └─ comment.block.content.sd [290..292]: " a"
+ │       ├─ markup.raw.punctuation.sd [283..284]: "*"
+ │       ├─ markup.raw.text.sd [284..287]: "far"
+ │       └─ comment.block.sd [287..292]
+ │           ├─ punctuation.whitespace.optional.sd [287..288]: " "
+ │           ├─ punctuation.definition.comment.begin.sd [288..290]: "/*"
+ │           └─ comment.block.content.sd [290..292]: " a"
  ├─ Newline [292..293]: "\n"
  ├─ entity.choice.sd [293..314]
  │   └─ string.choice.sd [293..314]
- │       ├─ markup.other.italic.sd [293..309]
- │       │   ├─ comment.block.sd [293..303]
- │       │   │   ├─ comment.block.content.sd [293..301]: "      b "
- │       │   │   └─ punctuation.definition.comment.end.sd [301..303]: "*/"
- │       │   ├─ markup.raw.space.sd [303..304]: " "
- │       │   ├─ markup.raw.text.sd [304..308]: "away"
- │       │   └─ markup.raw.text.sd [308..309]: "*"
+ │       ├─ comment.block.sd [293..303]
+ │       │   ├─ comment.block.content.sd [293..301]: "      b "
+ │       │   └─ punctuation.definition.comment.end.sd [301..303]: "*/"
+ │       ├─ markup.raw.space.sd [303..304]: " "
+ │       ├─ markup.raw.text.sd [304..308]: "away"
+ │       ├─ markup.raw.punctuation.sd [308..309]: "*"
  │       ├─ markup.raw.space.sd [309..310]: " "
  │       └─ markup.raw.text.sd [310..314]: "home"
  ├─ Newline [314..315]: "\n"

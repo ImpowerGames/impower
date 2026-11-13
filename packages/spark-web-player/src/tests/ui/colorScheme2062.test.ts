@@ -24,6 +24,7 @@ const ROLES = {
   ink: { property: "color", light: "slate_20", dark: "slate_90" },
   accent: { property: "color", light: "orange_30", dark: "orange_80" },
   muted: { property: "color", light: "slate_60", dark: "slate_70" },
+  alert: { property: "color", light: "red_40", dark: "red_80" },
 } as const;
 
 const DARK_RULE = ':where([data-color-scheme="dark"]) &';
@@ -146,7 +147,7 @@ describe("@theme(...) becomes a condition on the game's root (#2062)", () => {
   });
 });
 
-describe("the four page roles resolve from the setting and the scheme (#2062)", () => {
+describe("the five page roles resolve from the setting and the scheme (#2062)", () => {
   for (const setting of ["system", "light", "dark"]) {
     for (const scheme of ["light", "dark"] as Scheme[]) {
       const expected: Scheme = setting === "system" ? scheme : (setting as Scheme);

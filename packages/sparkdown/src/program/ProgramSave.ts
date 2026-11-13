@@ -58,8 +58,9 @@ import {
   offsetOfAddress,
   type ProgramChunk,
 } from "./ProgramChunk";
+import { codeOffset, writtenOffset } from "./writtenOffsets";
 
-export const SAVE_FORMAT = 2;
+export const SAVE_FORMAT = 3;
 
 export const PROGRAM_ENGINE_VERSION = "2";
 
@@ -113,6 +114,7 @@ const MIGRATIONS: Record<number, (save: Record<string, any>) => Record<string, a
       parts: [],
     };
   },
+  2: (save) => ({ ...save, format: 3 }),
 };
 
 const hex = (chunk: ProgramChunk, at: number): string =>
@@ -166,6 +168,7 @@ type SavedAnchor =
   | "end"
   | "done"
   | [number, string]
+  | [number, string, number]
   | { after: PartRef }
   | { brk: PartRef }
   | { ch: PartRef };
@@ -559,7 +562,8 @@ class FormWriter {
     if (choice >= 0) {
       return { ch: [this.partList(chunk, "choices"), "choices", choice] };
     }
-    return [offset, layoutOf(chunk)];
+    const { written, unwritten } = writtenOffset(chunk, this.root.table.strings, offset);
+    return unwritten > 0 ? [written, layoutOf(chunk), unwritten] : [written, layoutOf(chunk)];
   }
 
   positionForm(position: ProgramPosition): SavedPosition {
@@ -1133,8 +1137,9 @@ class FormPlacer {
     } else if (a === "done") {
       position = { sequence, entry, offset: codeWords(chunk) };
     } else if (Array.isArray(a)) {
-      const [offset, layout] = a;
-      if (layoutOf(chunk) === layout && offset <= codeWords(chunk)) {
+      const [written, layout, unwritten = 0] = a;
+      const offset = codeOffset(chunk, this.root.table.strings, { written, unwritten });
+      if (layoutOf(chunk) === layout && written <= codeWords(chunk)) {
         position = { sequence, entry, offset };
       } else {
         position = { sequence, entry: entry + 1, offset: 0 };
